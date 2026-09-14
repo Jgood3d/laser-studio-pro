@@ -199,11 +199,27 @@ class UiSetupMixin:
         dialog.exec()
 
     def show_buy_me_a_coffee_dialog(self):
-        QMessageBox.information(
-            self, "Buy me a coffee",
-            "Si ce logiciel t'est utile et que tu veux soutenir son développement,\n"
-            "un futur lien sera ajouté ici. Merci !"
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Buy me a coffee")
+        layout = QVBoxLayout(dialog)
+
+        lbl_text = QLabel(
+            "Si ce logiciel t'est utile et que tu veux soutenir son développement,<br>"
+            "tu peux m'offrir un café ici :<br><br>"
+            "<a href=\"https://ko-fi.com/jb3dlaser\">ko-fi.com/jb3dlaser</a><br><br>"
+            "Merci !"
         )
+        lbl_text.setTextFormat(Qt.TextFormat.RichText)
+        lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_text.setWordWrap(True)
+        lbl_text.setOpenExternalLinks(True)
+        lbl_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        layout.addWidget(lbl_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
 
     def init_ui(self):
         self._build_menu_bar()
