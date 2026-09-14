@@ -2,8 +2,6 @@ Laser Studio Pro est un logiciel de pilotage pour graveuse/découpeuse laser GRB
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
 # Laser Studio Pro — code découpé en modules
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
-
 Ce dossier remplace `app.py` (3424 lignes) par 14 fichiers organisés par thème.
 Fonctionnalité strictement identique — seul le découpage a changé (aucune
 logique modifiée, uniquement déplacée).
