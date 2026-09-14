@@ -1,0 +1,1046 @@
+"""Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox)
+from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent
+import pyqtgraph as pg
+from PIL import Image
+import os
+from vector_layers import (
+    LayerManagerWidget, VectorCanvasView
+)
+from graphics_view import ZoomableGraphicsView
+from app_utils import get_app_dir
+from app_utils import get_bundle_dir
+from app_utils import find_resource
+from app_utils import APP_VERSION
+
+
+class UiSetupMixin:
+    def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dropEvent(self, event: QDropEvent):
+        for url in event.mimeData().urls():
+            file_path = url.toLocalFile()
+            if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+                self.load_image_from_path(file_path)
+                break
+
+    def save_splitter_sizes(self, *_args):
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        settings.setValue("main_splitter_sizes", self.main_splitter.sizes())
+
+    def load_splitter_sizes(self):
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        sizes = settings.value("main_splitter_sizes", None)
+        if sizes:
+            try:
+                self.main_splitter.setSizes([int(s) for s in sizes])
+            except (TypeError, ValueError):
+                pass
+
+    def closeEvent(self, event):
+        self.save_machine_settings()
+        self.save_splitter_sizes()
+        reply = QMessageBox.question(
+            self, "Quitter",
+            "Voulez-vous sauvegarder le projet avant de fermer ?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.save_project()
+            event.accept()
+        elif reply == QMessageBox.StandardButton.No:
+            event.accept()
+        else:
+            event.ignore()
+
+    def create_slider_with_buttons(self, slider, step=5, value_formatter=None):
+        layout = QHBoxLayout()
+        btn_minus = QPushButton("-")
+        btn_minus.setFixedWidth(30)
+        btn_plus = QPushButton("+")
+        btn_plus.setFixedWidth(30)
+
+        btn_minus.clicked.connect(lambda: slider.setValue(slider.value() - step))
+        btn_plus.clicked.connect(lambda: slider.setValue(slider.value() + step))
+
+        # Étiquette affichant la valeur courante à côté du slider (ex: le
+        # Gamma affiche sa valeur réelle 0.10-3.00, pas la valeur brute du
+        # slider 10-300).
+        lbl_value = QLabel()
+        lbl_value.setFixedWidth(45)
+        lbl_value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        formatter = value_formatter or (lambda v: str(v))
+
+        def refresh_label(v, _lbl=lbl_value, _fmt=formatter):
+            _lbl.setText(_fmt(v))
+
+        slider.valueChanged.connect(refresh_label)
+        refresh_label(slider.value())
+
+        layout.addWidget(btn_minus)
+        layout.addWidget(slider)
+        layout.addWidget(btn_plus)
+        layout.addWidget(lbl_value)
+        return layout
+
+    def _lines_mm_row(self, spin_box):
+        """Ligne combinant un QDoubleSpinBox 'lignes/mm' et une étiquette
+        affichant l'équivalent en DPI (1 pouce = 25.4 mm), mise à jour en
+        direct quand la valeur change. La référence au layout et au label
+        DPI est gardée sur le spin_box lui-même, pour pouvoir les
+        afficher/masquer ensemble ailleurs (ex: on_mat_mode_changed)."""
+        row_layout = QHBoxLayout()
+        lbl_dpi = QLabel()
+        lbl_dpi.setStyleSheet("color: #888888;")
+
+        def refresh_dpi(value, _lbl=lbl_dpi):
+            _lbl.setText(f"≈ {value * 25.4:.0f} DPI")
+
+        spin_box.valueChanged.connect(refresh_dpi)
+        refresh_dpi(spin_box.value())
+
+        row_layout.addWidget(spin_box)
+        row_layout.addWidget(lbl_dpi)
+        spin_box.dpi_label = lbl_dpi
+        spin_box.dpi_row_layout = row_layout
+        return row_layout
+
+    def _build_menu_bar(self):
+        """Barre de menu façon LightBurn : Fichier (projet) et Aide."""
+        menu_bar = self.menuBar()
+
+        menu_fichier = menu_bar.addMenu("Fichier")
+        action_save = menu_fichier.addAction("Enregistrer Projet")
+        action_save.triggered.connect(self.save_project)
+        action_load = menu_fichier.addAction("Ouvrir Projet")
+        action_load.triggered.connect(self.load_project)
+        menu_fichier.addSeparator()
+        action_quit = menu_fichier.addAction("Quitter")
+        action_quit.triggered.connect(self.close)
+
+        menu_aide = menu_bar.addMenu("Aide")
+        action_version = menu_aide.addAction(f"Version {APP_VERSION}")
+        action_version.setEnabled(False)
+        menu_aide.addSeparator()
+        action_about = menu_aide.addAction("À propos")
+        action_about.triggered.connect(self.show_about_dialog)
+        action_support = menu_aide.addAction("Support")
+        action_support.triggered.connect(self.show_support_dialog)
+        action_coffee = menu_aide.addAction("Buy me a coffee")
+        action_coffee.triggered.connect(self.show_buy_me_a_coffee_dialog)
+
+    def show_about_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("À propos de Laser Studio Pro")
+        layout = QVBoxLayout(dialog)
+
+        banner_path = find_resource("laser_studio_pro_banner.png")
+        if banner_path:
+            pixmap = QPixmap(banner_path)
+            if not pixmap.isNull():
+                lbl_banner = QLabel()
+                lbl_banner.setPixmap(pixmap.scaledToWidth(420, Qt.TransformationMode.SmoothTransformation))
+                lbl_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                layout.addWidget(lbl_banner)
+            else:
+                lbl_banner_missing = QLabel(f"(Image trouvée mais illisible : {banner_path})")
+                lbl_banner_missing.setStyleSheet("color: #cc6666;")
+                lbl_banner_missing.setWordWrap(True)
+                layout.addWidget(lbl_banner_missing)
+        else:
+            searched = [
+                os.path.join(get_app_dir(), "laser_studio_pro_banner.png"),
+                os.path.join(get_bundle_dir(), "laser_studio_pro_banner.png"),
+            ]
+            searched_txt = "\n".join(sorted(set(searched)))
+            lbl_banner_missing = QLabel(f"(Bannière introuvable, cherchée ici :\n{searched_txt})")
+            lbl_banner_missing.setStyleSheet("color: #cc6666;")
+            lbl_banner_missing.setWordWrap(True)
+            layout.addWidget(lbl_banner_missing)
+
+        lbl_text = QLabel(
+            f"<b>Laser Studio Pro</b> — version {APP_VERSION}<br>"
+            "Logiciel de pilotage GRBL pour graveur/découpeuse laser<br>"
+            "Gravure image, découpe/gravure vectorielle, calques multi-usages."
+        )
+        lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_text.setWordWrap(True)
+        layout.addWidget(lbl_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def show_support_dialog(self):
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Support")
+        layout = QVBoxLayout(dialog)
+
+        lbl_text = QLabel(
+            "Suggestion, problème rencontré... Contacte-nous à l'adresse "
+            "suivante :<br><br>"
+            "<a href=\"mailto:laserstudiopro.support@gmail.com\">"
+            "laserstudiopro.support@gmail.com</a>"
+        )
+        lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl_text.setWordWrap(True)
+        lbl_text.setOpenExternalLinks(True)
+        lbl_text.setTextInteractionFlags(Qt.TextInteractionFlag.TextBrowserInteraction)
+        layout.addWidget(lbl_text)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dialog.accept)
+        layout.addWidget(buttons)
+        dialog.exec()
+
+    def show_buy_me_a_coffee_dialog(self):
+        QMessageBox.information(
+            self, "Buy me a coffee",
+            "Si ce logiciel t'est utile et que tu veux soutenir son développement,\n"
+            "un futur lien sera ajouté ici. Merci !"
+        )
+
+    def init_ui(self):
+        self._build_menu_bar()
+
+        main_widget = QWidget()
+        self.setCentralWidget(main_widget)
+        main_layout = QHBoxLayout(main_widget)
+
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        left_widget = QWidget()
+        left_panel = QVBoxLayout(left_widget)
+        left_panel.setContentsMargins(0, 0, 0, 0)
+
+        tabs = QTabWidget()
+        tabs.setMovable(True)
+        self.settings_tabs = tabs
+        self.tab_machine_params = tab_machine_params = QWidget()
+        layout_machine_params = QVBoxLayout(tab_machine_params)
+
+        machine_profiles_box = QGroupBox("Profils de Machine")
+        machine_profiles_layout = QVBoxLayout()
+        self.combo_machine_profile = QComboBox()
+        self.combo_machine_profile.currentIndexChanged.connect(self._on_machine_profile_selected)
+        machine_profiles_layout.addWidget(self.combo_machine_profile)
+        profile_btn_row = QHBoxLayout()
+        btn_new_machine = QPushButton("+ Nouvelle Machine")
+        btn_new_machine.clicked.connect(self._add_machine_profile)
+        btn_update_machine = QPushButton("Mettre à jour")
+        btn_update_machine.clicked.connect(self._update_machine_profile)
+        btn_del_machine = QPushButton("Supprimer")
+        btn_del_machine.clicked.connect(self._delete_machine_profile)
+        profile_btn_row.addWidget(btn_new_machine)
+        profile_btn_row.addWidget(btn_update_machine)
+        profile_btn_row.addWidget(btn_del_machine)
+        machine_profiles_layout.addLayout(profile_btn_row)
+        lbl_profile_info = QLabel(
+            "Choisis une machine dans la liste pour charger ses dimensions, ou\n"
+            "crée-en une nouvelle à partir des dimensions actuelles ci-dessous."
+        )
+        lbl_profile_info.setWordWrap(True)
+        machine_profiles_layout.addWidget(lbl_profile_info)
+        machine_profiles_box.setLayout(machine_profiles_layout)
+        layout_machine_params.addWidget(machine_profiles_box)
+
+        machine_bed_box = QGroupBox("Dimensions du Graveur (Zone de Travail Physique)")
+        machine_bed_layout = QFormLayout()
+        self.spin_machine_w = QDoubleSpinBox(); self.spin_machine_w.setRange(1.0, 5000.0); self.spin_machine_w.setValue(300.0)
+        self.spin_machine_w.setSuffix(" mm")
+        self.spin_machine_w.valueChanged.connect(self.update_vector_work_area)
+        self.spin_machine_h = QDoubleSpinBox(); self.spin_machine_h.setRange(1.0, 5000.0); self.spin_machine_h.setValue(200.0)
+        self.spin_machine_h.setSuffix(" mm")
+        self.spin_machine_h.valueChanged.connect(self.update_vector_work_area)
+        machine_bed_layout.addRow("Largeur du lit (X) :", self.spin_machine_w)
+        machine_bed_layout.addRow("Profondeur du lit (Y) :", self.spin_machine_h)
+        lbl_machine_info = QLabel(
+            "Ces dimensions décrivent la surface physique maximale de ta machine.\n"
+            "Elles définissent la zone visible dans l'Éditeur Vectoriel (quadrillage)\n"
+            "et servent de repère — elles sont indépendantes des dimensions du job\n"
+            "en cours (onglet 'Dimensions & Origine', qui peut être plus petit)."
+        )
+        lbl_machine_info.setWordWrap(True)
+        machine_bed_layout.addRow(lbl_machine_info)
+        machine_bed_box.setLayout(machine_bed_layout)
+        layout_machine_params.addWidget(machine_bed_box)
+
+        machine_laser_box = QGroupBox("Caractéristiques du Laser")
+        machine_laser_layout = QFormLayout()
+        self.spin_machine_focal = QDoubleSpinBox()
+        self.spin_machine_focal.setRange(0.01, 2.0)
+        self.spin_machine_focal.setSingleStep(0.01)
+        self.spin_machine_focal.setDecimals(3)
+        self.spin_machine_focal.setValue(0.10)
+        self.spin_machine_focal.setSuffix(" mm")
+        self.spin_machine_focal.valueChanged.connect(self._on_machine_focal_changed)
+        machine_laser_layout.addRow("Taille du spot (focale) :", self.spin_machine_focal)
+        lbl_focal_help = QLabel(
+            "Diamètre du point focal de ton laser (ex: 0.06 mm pour un module\n"
+            "type Phecda). Utilisé dans l'onglet 'Image & Filtres' pour proposer\n"
+            "un intervalle de lignes calé sur cette taille de spot."
+        )
+        lbl_focal_help.setWordWrap(True)
+        machine_laser_layout.addRow(lbl_focal_help)
+        machine_laser_box.setLayout(machine_laser_layout)
+        layout_machine_params.addWidget(machine_laser_box)
+
+        machine_limits_box = QGroupBox("Limites de la Machine (informatif)")
+        machine_limits_layout = QFormLayout()
+        self.spin_machine_max_speed = QDoubleSpinBox()
+        self.spin_machine_max_speed.setRange(1.0, 50000.0)
+        self.spin_machine_max_speed.setValue(6000.0)
+        self.spin_machine_max_speed.setSuffix(" mm/min")
+        self.spin_machine_accel = QDoubleSpinBox()
+        self.spin_machine_accel.setRange(1.0, 20000.0)
+        self.spin_machine_accel.setValue(500.0)
+        self.spin_machine_accel.setSuffix(" mm/s²")
+        machine_limits_layout.addRow("Vitesse Max :", self.spin_machine_max_speed)
+        machine_limits_layout.addRow("Accélération :", self.spin_machine_accel)
+        lbl_limits_info = QLabel(
+            "Ces valeurs servent à t'avertir si une vitesse configurée dépasse\n"
+            "les capacités de la machine active — elles ne modifient pas les\n"
+            "réglages GRBL eux-mêmes ($110/$120 etc.)."
+        )
+        lbl_limits_info.setWordWrap(True)
+        machine_limits_layout.addRow(lbl_limits_info)
+        machine_limits_box.setLayout(machine_limits_layout)
+        layout_machine_params.addWidget(machine_limits_box)
+        layout_machine_params.addStretch()
+        tabs.addTab(tab_machine_params, "Paramètres Machine")
+
+        tab_img = QWidget()
+        layout_img = QFormLayout(tab_img)
+
+        btn_img = QPushButton("Charger Image (ou glisser-déposer)")
+        btn_img.clicked.connect(self.load_image)
+        layout_img.addRow("", btn_img)
+
+        btn_clear_img = QPushButton("🗑 Supprimer l'image")
+        btn_clear_img.clicked.connect(self.clear_image)
+        layout_img.addRow("", btn_clear_img)
+
+        rot_layout = QHBoxLayout()
+        btn_rot_left = QPushButton("↶ Pivoter 90°")
+        btn_rot_left.clicked.connect(self.rotate_image_left)
+        btn_rot_right = QPushButton("Pivoter 90° ↷")
+        btn_rot_right.clicked.connect(self.rotate_image_right)
+        rot_layout.addWidget(btn_rot_left)
+        rot_layout.addWidget(btn_rot_right)
+        layout_img.addRow("Rotation:", rot_layout)
+
+        mirror_layout = QHBoxLayout()
+        self.chk_mirror_h = QCheckBox("Miroir Horizontal")
+        self.chk_mirror_h.stateChanged.connect(self.update_image_processing)
+        self.chk_mirror_v = QCheckBox("Miroir Vertical")
+        self.chk_mirror_v.stateChanged.connect(self.update_image_processing)
+        mirror_layout.addWidget(self.chk_mirror_h)
+        mirror_layout.addWidget(self.chk_mirror_v)
+        layout_img.addRow("Mode Miroir:", mirror_layout)
+
+        self.slider_bright = QSlider(Qt.Orientation.Horizontal); self.slider_bright.setRange(-100, 100); self.slider_bright.setValue(0)
+        self.slider_bright.valueChanged.connect(self.update_image_processing)
+        
+        self.slider_contrast = QSlider(Qt.Orientation.Horizontal); self.slider_contrast.setRange(-100, 100); self.slider_contrast.setValue(0)
+        self.slider_contrast.valueChanged.connect(self.update_image_processing)
+        
+        self.slider_gamma = QSlider(Qt.Orientation.Horizontal); self.slider_gamma.setRange(10, 300); self.slider_gamma.setValue(100)
+        self.slider_gamma.valueChanged.connect(self.update_image_processing)
+
+        self.chk_invert = QCheckBox("Inverser Couleurs (Négatif)")
+        self.chk_invert.stateChanged.connect(self.update_image_processing)
+
+        btn_reset_img = QPushButton("Réinitialiser Réglages Image")
+        btn_reset_img.clicked.connect(self.reset_image_settings)
+
+        self.combo_algo = QComboBox()
+        self.combo_algo.addItems([
+            "Floyd-Steinberg", "Jarvis, Judice & Ninke", "Stucki", "Atkinson",
+            "Sierra", "Sierra Lite (rapide)", "Burkes",
+            "Bayer 2x2 (ordonné)", "Bayer 4x4 (ordonné)", "Bayer 8x8 (ordonné)",
+            "Seuil Simple (Binaire)", "Niveaux de Gris"
+        ])
+        self.combo_algo.currentIndexChanged.connect(self.update_image_processing)
+
+        self.spin_lmm = QDoubleSpinBox(); self.spin_lmm.setRange(1.0, 50.0); self.spin_lmm.setValue(10.0)
+        self.spin_lmm.valueChanged.connect(self.update_image_processing)
+        # Garde le champ DPI et l'indicateur de qualité à jour dès que
+        # lignes/mm change, quelle qu'en soit la cause (saisie directe,
+        # ou calcul programmatique depuis DPI/focale).
+        self.spin_lmm.valueChanged.connect(self._sync_dpi_and_quality_from_lmm)
+
+        # Sélecteur de mode de saisie de la résolution : en lignes/mm
+        # directement, en DPI (comme les logiciels "habituels"), ou calée
+        # sur la focale (taille du spot) du laser configuré dans l'onglet
+        # Paramètres Machine.
+        self.combo_lmm_mode = QComboBox()
+        self.combo_lmm_mode.addItems(["Lignes / mm", "DPI", "Focale laser (spot)"])
+        self.combo_lmm_mode.currentIndexChanged.connect(self.on_lmm_mode_changed)
+
+        self.spin_dpi = QDoubleSpinBox()
+        self.spin_dpi.setRange(10.0, 2000.0)
+        self.spin_dpi.setDecimals(0)
+        self.spin_dpi.setValue(254.0)
+        self.spin_dpi.setSuffix(" DPI")
+        self.spin_dpi.valueChanged.connect(self.on_dpi_value_changed)
+
+        self.lbl_focal_info = QLabel()
+        self.lbl_focal_info.setStyleSheet("color: #888888;")
+        btn_configure_focal = QPushButton("Configurer la focale du laser >")
+        btn_configure_focal.clicked.connect(self.goto_laser_focal_settings)
+
+        self.stack_lmm_input = QStackedWidget()
+
+        btn_save_focal_lmm = QPushButton("→ Enregistrer comme focale machine")
+        btn_save_focal_lmm.clicked.connect(self.save_current_lmm_as_focal)
+        page_lmm = QWidget()
+        page_lmm_layout = QVBoxLayout(page_lmm)
+        page_lmm_layout.setContentsMargins(0, 0, 0, 0)
+        page_lmm_layout.addWidget(self.spin_lmm)
+        page_lmm_layout.addWidget(btn_save_focal_lmm)
+        self.stack_lmm_input.addWidget(page_lmm)
+
+        btn_save_focal_dpi = QPushButton("→ Enregistrer comme focale machine")
+        btn_save_focal_dpi.clicked.connect(self.save_current_lmm_as_focal)
+        page_dpi = QWidget()
+        page_dpi_layout = QVBoxLayout(page_dpi)
+        page_dpi_layout.setContentsMargins(0, 0, 0, 0)
+        page_dpi_layout.addWidget(self.spin_dpi)
+        page_dpi_layout.addWidget(btn_save_focal_dpi)
+        self.stack_lmm_input.addWidget(page_dpi)
+
+        page_focal = QWidget()
+        page_focal_layout = QVBoxLayout(page_focal)
+        page_focal_layout.setContentsMargins(0, 0, 0, 0)
+        page_focal_layout.addWidget(self.lbl_focal_info)
+        page_focal_layout.addWidget(btn_configure_focal)
+        self.stack_lmm_input.addWidget(page_focal)
+
+        # Indicateur de qualité (toujours visible, quel que soit le mode
+        # choisi), comparant l'écart de lignes réellement utilisé à la
+        # focale configurée dans les Paramètres Machine.
+        self.lbl_resolution_quality = QLabel()
+        self.lbl_resolution_quality.setWordWrap(True)
+
+        layout_img.addRow("Luminosité:", self.create_slider_with_buttons(self.slider_bright, step=5))
+        layout_img.addRow("Contraste:", self.create_slider_with_buttons(self.slider_contrast, step=5))
+        layout_img.addRow("Gamma:", self.create_slider_with_buttons(
+            self.slider_gamma, step=10, value_formatter=lambda v: f"{v / 100.0:.2f}"
+        ))
+        layout_img.addRow("", self.chk_invert)
+        layout_img.addRow("", btn_reset_img)
+        layout_img.addRow("Algorithme:", self.combo_algo)
+        layout_img.addRow("Résolution :", self.combo_lmm_mode)
+        layout_img.addRow("", self.stack_lmm_input)
+        layout_img.addRow("", self.lbl_resolution_quality)
+        # Mode par défaut : calé sur la focale machine, pour que la
+        # résolution soit correcte dès l'ouverture sans action de
+        # l'utilisateur (load_machine_settings pourra ensuite restaurer un
+        # mode différent si l'utilisateur en avait choisi un explicitement
+        # lors d'une session précédente).
+        self.combo_lmm_mode.setCurrentIndex(2)
+        self.on_lmm_mode_changed(2)
+
+        btn_compare_algos = QPushButton("Comparer les algorithmes de tramage (vignettes)")
+        btn_compare_algos.clicked.connect(self.compare_dither_algorithms)
+        layout_img.addRow("", btn_compare_algos)
+
+        tabs.addTab(tab_img, "Image & Filtres")
+
+        tab_dim = QWidget()
+        layout_dim = QVBoxLayout(tab_dim)
+
+        dim_box = QGroupBox("Dimensions & Origine Machine")
+        dim_layout = QFormLayout()
+        self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(0.1, 2000.0); self.spin_w.setValue(100.0)
+        self.spin_w.valueChanged.connect(lambda v: self.on_dimension_changed('w', v))
+        self.spin_h = QDoubleSpinBox(); self.spin_h.setRange(0.1, 2000.0); self.spin_h.setValue(100.0)
+        self.spin_h.valueChanged.connect(lambda v: self.on_dimension_changed('h', v))
+        self.chk_keep_ratio = QCheckBox("Conserver le ratio"); self.chk_keep_ratio.setChecked(True)
+
+        self.combo_origin = QComboBox()
+        self.combo_origin.addItems(["Bas-Gauche (0,0)", "Centre"])
+        self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
+        self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
+
+        dim_layout.addRow("Largeur (mm):", self.spin_w)
+        dim_layout.addRow("Hauteur (mm):", self.spin_h)
+        dim_layout.addRow("", self.chk_keep_ratio)
+        dim_layout.addRow("Ancrage Origine:", self.combo_origin)
+        dim_layout.addRow("Offset X (mm):", self.spin_off_x)
+        dim_layout.addRow("Offset Y (mm):", self.spin_off_y)
+        dim_box.setLayout(dim_layout)
+        layout_dim.addWidget(dim_box)
+        layout_dim.addStretch()
+        tabs.addTab(tab_dim, "Dimensions & Origine")
+
+        tab_mach = QWidget()
+        layout_mach = QVBoxLayout(tab_mach)
+
+        usb_box = QGroupBox("Connexion USB Laser")
+        usb_layout = QFormLayout()
+        self.combo_ports = QComboBox()
+        btn_refresh = QPushButton("Rafraîchir Ports")
+        btn_refresh.clicked.connect(self.refresh_com_ports)
+        self.btn_connect = QPushButton("Connecter GRBL")
+        self.btn_connect.clicked.connect(self.toggle_usb)
+        usb_layout.addRow("Port COM:", self.combo_ports)
+        usb_layout.addRow("", btn_refresh)
+        usb_layout.addRow("", self.btn_connect)
+        usb_box.setLayout(usb_layout)
+        layout_mach.addWidget(usb_box)
+
+        mat_box = QGroupBox("Profils Matériaux")
+        mat_layout = QFormLayout()
+        self.combo_mat = QComboBox()
+        self.combo_mat.addItems(list(self.materials_db.keys()))
+        self.combo_mat.currentIndexChanged.connect(self.apply_material_profile)
+
+        btn_save_mat = QPushButton("Sauvegarder Modifs Profil")
+        btn_save_mat.clicked.connect(self.save_material_profile)
+        btn_add_mat = QPushButton("Nouveau Profil...")
+        btn_add_mat.clicked.connect(self.add_material_profile)
+        btn_del_mat = QPushButton("Supprimer Profil")
+        btn_del_mat.clicked.connect(self.delete_material_profile)
+
+        mat_layout.addRow("Sélection Profil:", self.combo_mat)
+        mat_layout.addRow("", btn_save_mat)
+        mat_layout.addRow("", btn_add_mat)
+        mat_layout.addRow("", btn_del_mat)
+        mat_box.setLayout(mat_layout)
+        layout_mach.addWidget(mat_box)
+        layout_mach.addStretch()
+        tabs.addTab(tab_mach, "Machine & Profils")
+
+        tab_matrix = QWidget()
+        self.form_matrix = QFormLayout(tab_matrix)
+
+        self.combo_mat_mode = QComboBox()
+        self.combo_mat_mode.addItems(["Gravure", "Découpe"])
+        self.combo_mat_mode.currentIndexChanged.connect(self.on_mat_mode_changed)
+
+        self.spin_mat_off_x = QDoubleSpinBox(); self.spin_mat_off_x.setRange(-1000.0, 1000.0); self.spin_mat_off_x.setValue(0.0)
+        self.spin_mat_off_y = QDoubleSpinBox(); self.spin_mat_off_y.setRange(-1000.0, 1000.0); self.spin_mat_off_y.setValue(0.0)
+
+        self.lbl_mat_p1 = QLabel("Puissance Min (%):")
+        self.spin_mat_min_p = QSpinBox(); self.spin_mat_min_p.setRange(5, 100); self.spin_mat_min_p.setValue(10)
+        
+        self.spin_mat_max_p = QSpinBox(); self.spin_mat_max_p.setRange(5, 100); self.spin_mat_max_p.setValue(80)
+        self.spin_mat_steps_p = QSpinBox(); self.spin_mat_steps_p.setRange(2, 20); self.spin_mat_steps_p.setValue(5)
+
+        self.spin_mat_min_passes = QSpinBox(); self.spin_mat_min_passes.setRange(1, 20); self.spin_mat_min_passes.setValue(1)
+        self.spin_mat_max_passes = QSpinBox(); self.spin_mat_max_passes.setRange(1, 20); self.spin_mat_max_passes.setValue(5)
+        self.spin_mat_steps_passes = QSpinBox(); self.spin_mat_steps_passes.setRange(2, 20); self.spin_mat_steps_passes.setValue(5)
+
+        self.spin_mat_min_s = QSpinBox(); self.spin_mat_min_s.setRange(100, 20000); self.spin_mat_min_s.setValue(1000)
+        self.spin_mat_max_s = QSpinBox(); self.spin_mat_max_s.setRange(100, 20000); self.spin_mat_max_s.setValue(5000)
+        self.spin_mat_steps_s = QSpinBox(); self.spin_mat_steps_s.setRange(2, 20); self.spin_mat_steps_s.setValue(5)
+
+        self.spin_mat_size = QDoubleSpinBox(); self.spin_mat_size.setRange(2.0, 50.0); self.spin_mat_size.setValue(10.0)
+        self.spin_mat_gap = QDoubleSpinBox(); self.spin_mat_gap.setRange(0.5, 20.0); self.spin_mat_gap.setValue(3.0)
+        
+        self.spin_mat_lmm = QDoubleSpinBox(); self.spin_mat_lmm.setRange(1.0, 50.0); self.spin_mat_lmm.setValue(5.0)
+
+        self.combo_mat_laser_cmd = QComboBox()
+        self.combo_mat_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
+
+        self.chk_mat_homing = QCheckBox("Inclure $H (Auto Homing au départ)")
+        self.chk_mat_homing.setChecked(False)
+
+        btn_gen_matrix = QPushButton("GÉNÉRER MATRICE DE TEST")
+        btn_gen_matrix.setStyleSheet("background-color: #d35400; color: white; font-weight: bold; padding: 6px;")
+        btn_gen_matrix.clicked.connect(self.generate_test_matrix)
+
+        self.form_matrix.addRow("Mode de Test:", self.combo_mat_mode)
+        self.form_matrix.addRow("Matrice Offset X (mm):", self.spin_mat_off_x)
+        self.form_matrix.addRow("Matrice Offset Y (mm):", self.spin_mat_off_y)
+        self.form_matrix.addRow(self.lbl_mat_p1, self.spin_mat_min_p)
+        self.form_matrix.addRow("Puissance Max (%):", self.spin_mat_max_p)
+        self.form_matrix.addRow("Pas de Puissance:", self.spin_mat_steps_p)
+        self.form_matrix.addRow("Passes Min:", self.spin_mat_min_passes)
+        self.form_matrix.addRow("Passes Max:", self.spin_mat_max_passes)
+        self.form_matrix.addRow("Pas de Passes:", self.spin_mat_steps_passes)
+        self.form_matrix.addRow("Vitesse Min (mm/min):", self.spin_mat_min_s)
+        self.form_matrix.addRow("Vitesse Max (mm/min):", self.spin_mat_max_s)
+        self.form_matrix.addRow("Pas de Vitesse:", self.spin_mat_steps_s)
+        self.form_matrix.addRow("Taille Carré (mm):", self.spin_mat_size)
+        self.form_matrix.addRow("Espacement (mm):", self.spin_mat_gap)
+        self.form_matrix.addRow("Lignes / mm (Gravure):", self._lines_mm_row(self.spin_mat_lmm))
+        self.form_matrix.addRow("Commande Laser:", self.combo_mat_laser_cmd)
+        self.form_matrix.addRow("", self.chk_mat_homing)
+        self.form_matrix.addRow("", btn_gen_matrix)
+        tabs.addTab(tab_matrix, "Matrice de Test")
+
+        self.on_mat_mode_changed(0)
+
+        tab_gcode_cfg = QWidget()
+        layout_gcode_cfg = QFormLayout(tab_gcode_cfg)
+
+        self.combo_laser_cmd = QComboBox()
+        self.combo_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
+        self.spin_smax = QSpinBox(); self.spin_smax.setRange(1, 10000); self.spin_smax.setValue(1000)
+        self.chk_homing = QCheckBox("Inclure $H (Auto Homing au départ)"); self.chk_homing.setChecked(False)
+
+        self.chk_overscan = QCheckBox("Activer le Surbalayage (Overscan)"); self.chk_overscan.setChecked(True)
+        
+        self.combo_overscan_mode = QComboBox()
+        self.combo_overscan_mode.addItems(["Distance Fixe (mm)", "Pourcentage (%)"])
+        self.combo_overscan_mode.currentIndexChanged.connect(self.on_overscan_mode_changed)
+
+        self.spin_overscan_dist = QDoubleSpinBox()
+        self.spin_overscan_dist.setRange(0.0, 50.0)
+        self.spin_overscan_dist.setSingleStep(0.1)
+        self.spin_overscan_dist.setDecimals(1)
+        self.spin_overscan_dist.setValue(2.5)
+        self.spin_overscan_dist.setSuffix(" mm")
+
+        self.spin_overscan_pct = QDoubleSpinBox()
+        self.spin_overscan_pct.setRange(0.0, 50.0)
+        self.spin_overscan_pct.setSingleStep(0.1)
+        self.spin_overscan_pct.setDecimals(1)
+        self.spin_overscan_pct.setValue(5.0)
+        self.spin_overscan_pct.setSuffix(" %")
+
+        self.overscan_stacked = QStackedWidget()
+        self.overscan_stacked.addWidget(self.spin_overscan_dist)
+        self.overscan_stacked.addWidget(self.spin_overscan_pct)
+        self.overscan_stacked.setFixedHeight(28)
+
+        self.txt_start_gcode = QTextEdit()
+        self.txt_start_gcode.setMaximumHeight(45)
+        self.txt_start_gcode.setPlainText("G21 ; Unités mm\nG90 ; Absolu")
+
+        self.txt_end_gcode = QTextEdit()
+        self.txt_end_gcode.setMaximumHeight(45)
+        self.txt_end_gcode.setPlainText("M5 ; Extinction Laser\nG0 X0 Y0 ; Retour origine")
+
+        layout_gcode_cfg.addRow("Commande Laser:", self.combo_laser_cmd)
+        layout_gcode_cfg.addRow("S-Max Value ($30):", self.spin_smax)
+        layout_gcode_cfg.addRow("", self.chk_homing)
+        layout_gcode_cfg.addRow("", self.chk_overscan)
+        layout_gcode_cfg.addRow("Mode Surbalayage:", self.combo_overscan_mode)
+        layout_gcode_cfg.addRow("Valeur Surbalayage:", self.overscan_stacked)
+        layout_gcode_cfg.addRow("G-Code Début:", self.txt_start_gcode)
+        layout_gcode_cfg.addRow("G-Code Fin:", self.txt_end_gcode)
+        tabs.addTab(tab_gcode_cfg, "Configuration GRBL")
+
+        tab_layers = QWidget()
+        layout_layers = QVBoxLayout(tab_layers)
+        self.layer_widget = LayerManagerWidget(self.layer_manager)
+        self.layer_widget.layers_changed.connect(self.on_layers_changed)
+        layout_layers.addWidget(self.layer_widget)
+        tabs.addTab(tab_layers, "Calques (Layers)")
+
+        left_panel.addWidget(tabs)
+
+        laser_box = QGroupBox("Paramètres d'Exécution Laser — Gravure Image")
+        laser_layout = QFormLayout()
+        # Gardés en interne (alimentés automatiquement par le calque choisi
+        # ci-dessous) : plus de saisie manuelle séparée, tout se règle depuis
+        # les calques désormais. Le parent explicite (laser_box) les garde en
+        # vie même s'ils ne sont jamais ajoutés au layout visible.
+        self.spin_speed_engrave = QSpinBox(laser_box); self.spin_speed_engrave.setRange(10, 20000); self.spin_speed_engrave.setValue(2000)
+        self.spin_power_engrave = QSpinBox(laser_box); self.spin_power_engrave.setValue(30)
+
+        self.combo_engrave_layer = QComboBox()
+        self.combo_engrave_layer.currentIndexChanged.connect(self._on_engrave_layer_selected)
+        laser_layout.addRow("Calque pour la gravure image :", self.combo_engrave_layer)
+        laser_box.setLayout(laser_layout)
+        # Rattachée à l'onglet "Paramètres Machine" (regroupe tous les
+        # réglages liés à la machine au même endroit), insérée juste avant le
+        # stretch final de cet onglet pour ne pas laisser de trou.
+        layout_machine_params.insertWidget(layout_machine_params.count() - 1, laser_box)
+        # Masquée : la gravure image utilise désormais silencieusement le
+        # premier calque disponible (ou celui déjà sélectionné) en arrière-
+        # plan, sans qu'il soit nécessaire d'exposer un contrôle dédié — les
+        # calques (onglet 'Calques') suffisent à tout piloter. Le combo et
+        # les widgets internes restent vivants et fonctionnels (juste invisibles).
+        laser_box.setVisible(False)
+
+        legacy_svg_box = QGroupBox("[Ancien mode, déprécié] Découpe SVG globale (un seul réglage pour tout le fichier)")
+        legacy_svg_layout = QFormLayout()
+        lbl_legacy_info = QLabel(
+            "⚠ Ce mode charge un SVG entier avec UN SEUL réglage de puissance/vitesse,\n"
+            "sans aperçu ni possibilité de mélanger découpe et gravure sur un même fichier.\n"
+            "Préfère plutôt 'Importer SVG (multi-calques)' dans l'Éditeur Vectoriel, qui\n"
+            "décompose le SVG en objets indépendants assignables à des calques différents,\n"
+            "avec aperçu visuel. Conservé ici uniquement pour compatibilité."
+        )
+        lbl_legacy_info.setWordWrap(True)
+        legacy_svg_layout.addRow(lbl_legacy_info)
+
+        btn_svg = QPushButton("Charger SVG (ancien mode)")
+        btn_svg.clicked.connect(self.load_svg)
+
+        self.chk_enable_cut = QCheckBox("Activer Passe de Découpe")
+        self.chk_enable_cut.setChecked(False)
+
+        self.spin_speed_cut = QSpinBox(); self.spin_speed_cut.setRange(10, 5000); self.spin_speed_cut.setValue(300)
+        self.spin_power_cut = QSpinBox(); self.spin_power_cut.setValue(90)
+        self.spin_passes_cut = QSpinBox(); self.spin_passes_cut.setValue(2)
+
+        legacy_svg_layout.addRow("Fichier Vectoriel:", btn_svg)
+        legacy_svg_layout.addRow("", self.chk_enable_cut)
+        legacy_svg_layout.addRow("Vitesse Découpe (mm/min):", self.spin_speed_cut)
+        legacy_svg_layout.addRow("Puissance Découpe (%):", self.spin_power_cut)
+        legacy_svg_layout.addRow("Passes Découpe:", self.spin_passes_cut)
+        legacy_svg_box.setLayout(legacy_svg_layout)
+        # Ce mode est déprécié au profit de l'import SVG multi-calques de
+        # l'éditeur vectoriel : la boîte n'est plus affichée (elle compressait
+        # le haut du panneau), mais elle reste rattachée au panneau (juste
+        # invisible) pour que ses widgets restent vivants — un QGroupBox sans
+        # parent est détruit par le ramasse-miettes, ce qui aurait aussi
+        # détruit tous ses enfants (chk_enable_cut et les réglages associés),
+        # d'où l'erreur "wrapped C/C++ object ... has been deleted".
+        left_panel.addWidget(legacy_svg_box)
+        legacy_svg_box.setVisible(False)
+
+
+        btn_estimate = QPushButton("⏱ Estimer le temps de gravure (rapide, sans générer)")
+        btn_estimate.clicked.connect(self.estimate_job_time)
+        left_panel.addWidget(btn_estimate)
+
+        btn_generate = QPushButton("GÉNÉRER LE G-CODE")
+        btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 10px;")
+        btn_generate.clicked.connect(self.generate_job)
+        left_panel.addWidget(btn_generate)
+
+        gen_progress_row_main = QHBoxLayout()
+        self.lbl_gen_progress_main = QLabel("")
+        self.gen_progress_bar_main = QProgressBar()
+        self.gen_progress_bar_main.setRange(0, 100)
+        self.gen_progress_bar_main.setValue(0)
+        self.gen_progress_bar_main.setVisible(False)
+        self.gen_progress_bar_main.setMaximumHeight(16)
+        gen_progress_row_main.addWidget(self.lbl_gen_progress_main)
+        gen_progress_row_main.addWidget(self.gen_progress_bar_main)
+        left_panel.addLayout(gen_progress_row_main)
+
+        btn_import_gcode = QPushButton("Importer un G-Code existant (.gcode/.nc/.txt)")
+        btn_import_gcode.clicked.connect(self.import_gcode_file)
+        left_panel.addWidget(btn_import_gcode)
+
+        self.chk_flip_raster_preview = QCheckBox("Inverser aperçu image (si l'image gravée apparaît retournée)")
+        self.chk_flip_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
+        left_panel.addWidget(self.chk_flip_raster_preview)
+
+        self.chk_negative_raster_preview = QCheckBox("Aperçu en négatif (voir ce qui sera réellement gravé)")
+        self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
+        left_panel.addWidget(self.chk_negative_raster_preview)
+        self._last_gcode_text = None
+
+        center_widget = QWidget()
+        center_panel = QVBoxLayout(center_widget)
+        center_panel.setContentsMargins(0, 0, 0, 0)
+        self.main_tabs_view = QTabWidget()
+        self.main_tabs_view.setMovable(True)
+
+        tab_previews = QWidget()
+        layout_previews = QHBoxLayout(tab_previews)
+        
+        box_src = QGroupBox("Image Originale (Glissez pour déplacer, molette pour zoomer)")
+        layout_src = QVBoxLayout()
+        self.view_preview_src = ZoomableGraphicsView()
+        layout_src.addWidget(self.view_preview_src)
+        box_src.setLayout(layout_src)
+
+        box_dither = QGroupBox("Rendu Tramé Final (Glissez pour déplacer, molette pour zoomer)")
+        layout_dither = QVBoxLayout()
+        self.view_preview_dither = ZoomableGraphicsView()
+        layout_dither.addWidget(self.view_preview_dither)
+        box_dither.setLayout(layout_dither)
+
+        layout_previews.addWidget(box_src)
+        layout_previews.addWidget(box_dither)
+        self.main_tabs_view.addTab(tab_previews, "Images & Tramage")
+
+        tab_vector_editor = QWidget()
+        layout_vector_editor = QVBoxLayout(tab_vector_editor)
+
+        toolbar_vector = QHBoxLayout()
+        btn_add_text = QPushButton("+ Texte")
+        btn_add_text.clicked.connect(self.insert_text_object)
+        btn_add_shape = QPushButton("+ Forme")
+        btn_add_shape.clicked.connect(self.insert_shape_object)
+        btn_import_svg_vector = QPushButton("📥 Importer SVG (multi-calques)")
+        btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
+        btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
+        btn_edit_selected = QPushButton("Modifier Sélection")
+        btn_edit_selected.clicked.connect(self.edit_selected_vector_object)
+        btn_rotate_selected = QPushButton("↻ Pivoter 90°")
+        btn_rotate_selected.clicked.connect(self.rotate_selected_vector_object)
+        btn_dup_selected = QPushButton("Dupliquer")
+        btn_dup_selected.clicked.connect(self.duplicate_selected_vector_object)
+        btn_del_selected = QPushButton("Supprimer")
+        btn_del_selected.clicked.connect(self.delete_selected_vector_object)
+        btn_undo_vector = QPushButton("↶ Annuler (Ctrl+Z)")
+        btn_undo_vector.clicked.connect(lambda: self.vector_canvas.undo())
+        btn_fullscreen_vector = QPushButton("⛶ Plein Écran")
+        btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
+        toolbar_vector.addWidget(btn_add_text)
+        toolbar_vector.addWidget(btn_add_shape)
+        toolbar_vector.addWidget(btn_import_svg_vector)
+        toolbar_vector.addWidget(btn_edit_selected)
+        toolbar_vector.addWidget(btn_rotate_selected)
+        toolbar_vector.addWidget(btn_dup_selected)
+        toolbar_vector.addWidget(btn_del_selected)
+        toolbar_vector.addWidget(btn_undo_vector)
+        toolbar_vector.addWidget(btn_fullscreen_vector)
+        toolbar_vector.addStretch()
+        layout_vector_editor.addLayout(toolbar_vector)
+
+        gen_progress_row_vector = QHBoxLayout()
+        self.lbl_gen_progress_vector = QLabel("")
+        self.gen_progress_bar_vector = QProgressBar()
+        self.gen_progress_bar_vector.setRange(0, 100)
+        self.gen_progress_bar_vector.setValue(0)
+        self.gen_progress_bar_vector.setVisible(False)
+        self.gen_progress_bar_vector.setMaximumHeight(16)
+        gen_progress_row_vector.addWidget(self.lbl_gen_progress_vector)
+        gen_progress_row_vector.addWidget(self.gen_progress_bar_vector)
+        layout_vector_editor.addLayout(gen_progress_row_vector)
+
+        self.vector_canvas = VectorCanvasView(self.layer_manager)
+        layout_vector_editor.addWidget(self.vector_canvas)
+
+        pos_box = QGroupBox("Propriétés de l'objet sélectionné")
+        pos_form = QVBoxLayout()
+        pos_row1 = QHBoxLayout()
+        pos_row1.addWidget(QLabel("X (mm) :"))
+        self.spin_vec_x = QDoubleSpinBox(); self.spin_vec_x.setRange(-1000.0, 1000.0); self.spin_vec_x.setDecimals(2)
+        self.spin_vec_x.valueChanged.connect(self.on_vector_position_spin_changed)
+        pos_row1.addWidget(self.spin_vec_x)
+        pos_row1.addWidget(QLabel("Y (mm) :"))
+        self.spin_vec_y = QDoubleSpinBox(); self.spin_vec_y.setRange(-1000.0, 1000.0); self.spin_vec_y.setDecimals(2)
+        self.spin_vec_y.valueChanged.connect(self.on_vector_position_spin_changed)
+        pos_row1.addWidget(self.spin_vec_y)
+        pos_row1.addWidget(QLabel("Rotation (°) :"))
+        self.spin_vec_rot = QDoubleSpinBox(); self.spin_vec_rot.setRange(-360.0, 360.0); self.spin_vec_rot.setDecimals(1)
+        self.spin_vec_rot.valueChanged.connect(self.on_vector_position_spin_changed)
+        pos_row1.addWidget(self.spin_vec_rot)
+        pos_row1.addStretch()
+        pos_form.addLayout(pos_row1)
+
+        pos_row2 = QHBoxLayout()
+        pos_row2.addWidget(QLabel("Calque :"))
+        self.combo_vec_layer = QComboBox()
+        self.combo_vec_layer.currentIndexChanged.connect(self.on_vector_layer_spin_changed)
+        pos_row2.addWidget(self.combo_vec_layer)
+        pos_row2.addStretch()
+        pos_form.addLayout(pos_row2)
+
+        pos_box.setLayout(pos_form)
+        pos_box.setEnabled(False)
+        self.pos_box_vector = pos_box
+        layout_vector_editor.addWidget(pos_box)
+
+        self.lbl_vector_selection = QLabel("Aucune sélection")
+        layout_vector_editor.addWidget(self.lbl_vector_selection)
+        self.vector_canvas.selection_changed.connect(self.on_vector_selection_changed)
+        self.vector_canvas.object_moved.connect(self.on_vector_object_moved)
+        self.vector_canvas.edit_requested.connect(self.edit_vector_object)
+
+        self.main_tabs_view.addTab(tab_vector_editor, "Éditeur Vectoriel (Texte & Formes)")
+        self.tab_vector_editor = tab_vector_editor
+
+        tab_vector_2d = QWidget()
+        layout_vector_2d = QVBoxLayout(tab_vector_2d)
+        
+        self.plot_widget = pg.PlotWidget(title="Visualisation 2D du Parcours Laser")
+        self.plot_widget.setBackground('#111111')
+        self.plot_widget.setAspectLocked(True)
+        self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
+        self.plot_widget.setLabel('bottom', "Axe X (mm)", color='#ffffff')
+        self.plot_widget.setLabel('left', "Axe Y (mm)", color='#ffffff')
+        
+        self.info_text_item = pg.TextItem(html='<div style="color: #cccccc;">Génère un job pour voir l\'aperçu ici.</div>', anchor=(0, 0))
+        self.plot_widget.addItem(self.info_text_item)
+        
+        layout_vector_2d.addWidget(self.plot_widget)
+
+        self.main_tabs_view.addTab(tab_vector_2d, "Visualisation 2D G-Code")
+        self.tab_vector_2d = tab_vector_2d
+        center_panel.addWidget(self.main_tabs_view, stretch=3)
+
+        jog_box = QGroupBox("Mouvements Manuel Laser (Jog) & Commandes")
+        jog_layout = QGridLayout()
+
+        btn_up = QPushButton("▲ Y+")
+        btn_down = QPushButton("▼ Y-")
+        btn_left = QPushButton("◄ X-")
+        btn_right = QPushButton("► X+")
+        
+        btn_up_left = QPushButton("◤")
+        btn_up_right = QPushButton("◥")
+        btn_down_left = QPushButton("◣")
+        btn_down_right = QPushButton("◢")
+
+        btn_up.clicked.connect(lambda: self.jog_move(0, 1))
+        btn_down.clicked.connect(lambda: self.jog_move(0, -1))
+        btn_left.clicked.connect(lambda: self.jog_move(-1, 0))
+        btn_right.clicked.connect(lambda: self.jog_move(1, 0))
+
+        btn_up_left.clicked.connect(lambda: self.jog_move(-1, 1))
+        btn_up_right.clicked.connect(lambda: self.jog_move(1, 1))
+        btn_down_left.clicked.connect(lambda: self.jog_move(-1, -1))
+        btn_down_right.clicked.connect(lambda: self.jog_move(1, -1))
+
+        self.combo_step = QComboBox()
+        self.combo_step.addItems(["0.1 mm", "1 mm", "10 mm", "100 mm"])
+        self.combo_step.setCurrentIndex(2)
+
+        self.spin_jog_speed = QSpinBox()
+        self.spin_jog_speed.setRange(100, 10000)
+        self.spin_jog_speed.setValue(3000)
+
+        btn_homing_now = QPushButton("HOMING ($H)")
+        btn_homing_now.clicked.connect(lambda: self.send_manual_direct_cmd("$H"))
+
+        btn_zero_xy = QPushButton("Zéro Travail (G92 X0 Y0)")
+        btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
+
+        btn_go_zero = QPushButton("Go Zéro (G0 X0 Y0)")
+        btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
+
+        btn_pause = QPushButton("PAUSE (!)")
+        btn_pause.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
+        btn_pause.clicked.connect(self.send_pause)
+
+        btn_resume = QPushButton("REPRISE (~)")
+        btn_resume.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold;")
+        btn_resume.clicked.connect(self.send_resume)
+
+        btn_reset = QPushButton("RESET GRBL (Ctrl+X)")
+        btn_reset.setStyleSheet("background-color: #c0392b; color: white; font-weight: bold;")
+        btn_reset.clicked.connect(self.send_reset)
+
+        btn_kill = QPushButton("ARRÊT URGENCE (KILL)")
+        btn_kill.setStyleSheet("background-color: #ff0000; color: white; font-weight: bold;")
+        btn_kill.clicked.connect(self.send_kill)
+
+        btn_frame = QPushButton("Cadrage (Frame)")
+        btn_frame.clicked.connect(self.run_frame)
+        
+        self.btn_send = QPushButton("ENVOYER AU LASER (USB)")
+        self.btn_send.setStyleSheet("background-color: #2980b9; color: white; font-weight: bold;")
+        self.btn_send.clicked.connect(self.send_to_laser)
+
+        jog_layout.addWidget(btn_up_left, 0, 0)
+        jog_layout.addWidget(btn_up, 0, 1)
+        jog_layout.addWidget(btn_up_right, 0, 2)
+        jog_layout.addWidget(btn_left, 1, 0)
+        jog_layout.addWidget(btn_homing_now, 1, 1)
+        jog_layout.addWidget(btn_right, 1, 2)
+        jog_layout.addWidget(btn_down_left, 2, 0)
+        jog_layout.addWidget(btn_down, 2, 1)
+        jog_layout.addWidget(btn_down_right, 2, 2)
+
+        jog_layout.addWidget(QLabel("Pas (mm):"), 0, 3)
+        jog_layout.addWidget(self.combo_step, 0, 4)
+        jog_layout.addWidget(QLabel("Vitesse:"), 1, 3)
+        jog_layout.addWidget(self.spin_jog_speed, 1, 4)
+
+        jog_layout.addWidget(btn_zero_xy, 2, 3)
+        jog_layout.addWidget(btn_go_zero, 2, 4)
+
+        jog_layout.addWidget(btn_pause, 3, 0)
+        jog_layout.addWidget(btn_resume, 3, 1)
+        jog_layout.addWidget(btn_reset, 3, 2)
+        jog_layout.addWidget(btn_kill, 3, 3)
+        jog_layout.addWidget(btn_frame, 4, 0)
+        jog_layout.addWidget(self.btn_send, 4, 1, 1, 4)
+
+        jog_box.setLayout(jog_layout)
+        center_panel.addWidget(jog_box)
+
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setValue(0)
+        center_panel.addWidget(self.progress_bar)
+
+        cmd_box = QGroupBox("Console de Commandes Directes GRBL")
+        cmd_layout = QHBoxLayout()
+        self.txt_manual_cmd = QLineEdit()
+        self.txt_manual_cmd.setPlaceholderText("Tapez une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)...")
+        self.txt_manual_cmd.returnPressed.connect(self.send_manual_cmd)
+        
+        btn_send_cmd = QPushButton("Envoyer")
+        btn_send_cmd.clicked.connect(self.send_manual_cmd)
+
+        cmd_layout.addWidget(self.txt_manual_cmd)
+        cmd_layout.addWidget(btn_send_cmd)
+        cmd_box.setLayout(cmd_layout)
+        center_panel.addWidget(cmd_box)
+
+        tab_console_gcode = QWidget()
+        layout_console_gcode = QVBoxLayout(tab_console_gcode)
+        layout_console_gcode.setContentsMargins(6, 6, 6, 6)
+
+        stats_box = QGroupBox("Statistiques du Job")
+        stats_layout = QVBoxLayout()
+        self.lbl_stat_lines = QLabel("Lignes: 0")
+        self.lbl_stat_power = QLabel("Puissance Moyenne: 0 %")
+        self.lbl_stat_time = QLabel("Temps Estimé: 00:00")
+        stats_layout.addWidget(self.lbl_stat_lines)
+        stats_layout.addWidget(self.lbl_stat_power)
+        stats_layout.addWidget(self.lbl_stat_time)
+        stats_box.setLayout(stats_layout)
+        layout_console_gcode.addWidget(stats_box)
+
+        export_box = QGroupBox("Export G-Code (3 Formats au choix)")
+        export_layout = QHBoxLayout()
+        
+        btn_exp_gcode = QPushButton("Export .gcode")
+        btn_exp_gcode.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold; padding: 6px;")
+        btn_exp_gcode.clicked.connect(lambda: self.export_gcode_with_ext(".gcode"))
+        
+        btn_exp_nc = QPushButton("Export .nc")
+        btn_exp_nc.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold; padding: 6px;")
+        btn_exp_nc.clicked.connect(lambda: self.export_gcode_with_ext(".nc"))
+        
+        btn_exp_gc = QPushButton("Export .gc")
+        btn_exp_gc.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold; padding: 6px;")
+        btn_exp_gc.clicked.connect(lambda: self.export_gcode_with_ext(".gc"))
+
+        export_layout.addWidget(btn_exp_gcode)
+        export_layout.addWidget(btn_exp_nc)
+        export_layout.addWidget(btn_exp_gc)
+        export_box.setLayout(export_layout)
+        layout_console_gcode.addWidget(export_box)
+
+        layout_console_gcode.addWidget(QLabel("Console / G-Code Généré :"))
+        self.txt_console = QTextEdit()
+        self.txt_console.setFontFamily("Courier")
+        layout_console_gcode.addWidget(self.txt_console)
+
+        gen_progress_row = QHBoxLayout()
+        self.lbl_gen_progress = QLabel("")
+        self.gen_progress_bar = QProgressBar()
+        self.gen_progress_bar.setRange(0, 100)
+        self.gen_progress_bar.setValue(0)
+        self.gen_progress_bar.setVisible(False)
+        self.gen_progress_bar.setMaximumHeight(16)
+        gen_progress_row.addWidget(self.lbl_gen_progress)
+        gen_progress_row.addWidget(self.gen_progress_bar)
+        layout_console_gcode.addLayout(gen_progress_row)
+
+        self.main_tabs_view.addTab(tab_console_gcode, "Console / G-Code")
+        self.tab_console_gcode = tab_console_gcode
+
+        splitter.addWidget(left_widget)
+        splitter.addWidget(center_widget)
+
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 3)
+        # Empêche le panneau gauche de se retrouver écrasé à quelques pixels
+        # si la fenêtre est redimensionnée manuellement en dessous de la
+        # taille confortable.
+        left_widget.setMinimumWidth(280)
+        self.main_splitter = splitter
+        splitter.splitterMoved.connect(self.save_splitter_sizes)
+
+        main_layout.addWidget(splitter)

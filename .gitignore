@@ -1,0 +1,26 @@
+# Environnements virtuels
+venv/
+.venv/
+env/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Projets utilisateur (sauvegardes .json de Laser Studio Pro)
+# Retire cette ligne si tu veux versionner tes propres projets d'exemple
+*.json
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Environnements / IDE
+.vscode/
+.idea/
