@@ -1,3 +1,5 @@
+Laser Studio Pro est un logiciel de pilotage pour graveuse/découpeuse laser GRBL, développé par un maker qui aime tester et bidouiller toutes sortes de projets. Il permet la gravure d'images (avec plusieurs algorithmes de tramage), la découpe et gravure de tracés vectoriels par calques, ainsi que la génération de matrices de test pour calibrer précisément puissance et vitesse selon le matériau.
+
 # Laser Studio Pro — code découpé en modules
 
 Ce dossier remplace `app.py` (3424 lignes) par 14 fichiers organisés par thème.
