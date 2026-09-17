@@ -28,8 +28,41 @@ class LaserControlMixin:
                 self.btn_connect.setText("Déconnecter")
                 self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
                 self.txt_console.append(f"Connecté à {port} avec succès.")
+                self._check_grbl_laser_mode()
             else:
                 QMessageBox.critical(self, "Erreur", f"Échec de connexion sur {port}.")
+
+    def _check_grbl_laser_mode(self):
+        """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
+        optimisations du G-Code généré en mode M4 (pas de coupure laser
+        renvoyée à chaque ligne, en comptant sur la coupure automatique de
+        GRBL pendant les déplacements rapides G0) supposent ce réglage."""
+        try:
+            response = self.usb.send_command("$$")
+        except Exception:
+            return
+        for line in response.splitlines():
+            line = line.strip()
+            if line.startswith("$32="):
+                value = line.split("=", 1)[1].strip()
+                self.txt_console.append(f">>> Mode laser GRBL ($32) : {value}")
+                if value != "1":
+                    QMessageBox.warning(
+                        self, "Mode laser GRBL désactivé",
+                        "Le paramètre GRBL $32 (mode laser) n'est pas activé sur "
+                        f"cette machine (valeur actuelle : {value}).\n\n"
+                        "Ce logiciel suppose ce mode activé : sans lui, le laser "
+                        "peut rester actif pendant les déplacements rapides (G0) "
+                        "dans certains G-Codes générés (mode M4), ce qui peut "
+                        "créer des marques de brûlure indésirables.\n\n"
+                        "Pour l'activer, envoie la commande $32=1 dans la console "
+                        "ci-dessous, puis $$ pour vérifier."
+                    )
+                return
+        self.txt_console.append(
+            ">>> Impossible de vérifier le mode laser GRBL ($32) : "
+            "réglage non trouvé dans la réponse de la machine."
+        )
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
@@ -128,6 +161,7 @@ class LaserControlMixin:
         if not self.usb.is_connected():
             QMessageBox.warning(self, "USB non connecté", "Connectez le laser via USB.")
             return
+        self.txt_manual_cmd.add_to_history(cmd)
         self._run_commands_async(cmd)
         self.txt_manual_cmd.clear()
 

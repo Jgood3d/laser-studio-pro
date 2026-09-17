@@ -1,5 +1,5 @@
 """Gestion des profils machine et des profils matériaux (sauvegarde/chargement via QSettings)."""
-from PyQt6.QtWidgets import (QMessageBox, QInputDialog)
+from PyQt6.QtWidgets import (QMessageBox, QInputDialog, QFileDialog)
 from PyQt6.QtCore import QSettings
 import json
 
@@ -182,6 +182,56 @@ class MachineProfilesMixin:
         if reply == QMessageBox.StandardButton.Yes:
             self.machine_profiles.pop(idx)
             self._refresh_machine_profile_combo()
+
+    def export_material_profiles(self):
+        """Exporte tous les profils matériaux courants dans un fichier .json
+        séparé, partageable avec d'autres utilisateurs (ex: même machine)."""
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Exporter les profils matériaux", "materiaux_laser.json", "JSON (*.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(self.materials_db, f, indent=2, ensure_ascii=False)
+            QMessageBox.information(
+                self, "Export réussi", f"{len(self.materials_db)} profil(s) exporté(s) vers :\n{path}"
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Impossible d'exporter les profils :\n{e}")
+
+    def import_material_profiles(self):
+        """Importe des profils matériaux depuis un fichier .json exporté par
+        cette application (ou par un·e autre utilisateur·rice) : les profils
+        du même nom sont mis à jour, les nouveaux sont ajoutés."""
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Importer des profils matériaux", "", "JSON (*.json)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                imported = json.load(f)
+            if not isinstance(imported, dict):
+                raise ValueError("Le fichier ne contient pas un dictionnaire de profils valide.")
+            added, updated = 0, 0
+            for name, profile in imported.items():
+                if not isinstance(profile, dict):
+                    continue
+                if name in self.materials_db:
+                    updated += 1
+                else:
+                    added += 1
+                self.materials_db[name] = profile
+            self.combo_mat.blockSignals(True)
+            self.combo_mat.clear()
+            self.combo_mat.addItems(list(self.materials_db.keys()))
+            self.combo_mat.blockSignals(False)
+            QMessageBox.information(
+                self, "Import réussi", f"{added} profil(s) ajouté(s), {updated} mis à jour."
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Erreur", f"Impossible d'importer ce fichier :\n{e}")
 
     def apply_material_profile(self):
         mat_name = self.combo_mat.currentText()

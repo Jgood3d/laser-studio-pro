@@ -34,10 +34,18 @@ class GcodeGenerationMixin:
             except Exception as e:
                 QMessageBox.critical(self, "Erreur d'exportation", f"Impossible de sauvegarder le fichier :\n{e}")
 
-    def _plot_raster_reconstruction(self, raster_strokes):
-        """Reconstruit une vraie image en niveaux de gris à partir des segments
-        de gravure raster (position + puissance S), façon LaserGRBL, affichée
-        sous les tracés vectoriels (découpe/calques).
+    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None):
+        """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
+        couleur du calque, si fournie) à partir des segments de gravure
+        raster (position + puissance S), façon LaserGRBL, affichée sous les
+        tracés vectoriels (découpe/calques).
+
+        IMPORTANT : cette fonction ne doit être appelée qu'avec les segments
+        d'UN SEUL calque à la fois (voir l'appelant) — mélanger plusieurs
+        calques dans un même appel produirait une image bâtarde sans
+        rapport avec ce qui est réellement gravé (chaque calque a sa propre
+        étendue, sa propre densité de balayage, et parfois même une position
+        totalement différente sur la pièce).
 
         Chaque ligne de balayage est placée à sa position Y RÉELLE et
         proportionnelle dans l'image (pas juste à un indice séquentiel) :
@@ -94,8 +102,11 @@ class GcodeGenerationMixin:
             if max_s <= 0:
                 max_s = 1.0
 
-            # arr[ligne, colonne] : ligne 0 = Y le plus petit (bas de la gravure)
-            arr = np.full((img_h, img_w), 255, dtype=np.uint8)
+            # power[ligne, colonne] : puissance normalisée (0-1). ligne 0 =
+            # Y le plus petit (bas de la gravure). On combine les
+            # chevauchements avec un maximum (la puissance la plus forte
+            # gagne visuellement), pas une moyenne.
+            power_arr = np.zeros((img_h, img_w), dtype=np.float32)
             for y_key in row_ys:
                 row_idx = int(round((y_key - min_y_data) * px_per_mm_y))
                 row_idx = max(0, min(img_h - 1, row_idx))
@@ -103,24 +114,40 @@ class GcodeGenerationMixin:
                     if not s_val or s_val <= 0:
                         continue
                     power = min(max(s_val / max_s, 0.0), 1.0)
-                    if getattr(self, "chk_negative_raster_preview", None) and self.chk_negative_raster_preview.isChecked():
-                        gray = int(255 * power)  # négatif : plus de puissance = plus clair
-                    else:
-                        gray = int(255 * (1.0 - power))  # positif (réaliste) : plus de puissance = plus sombre
                     col_a = max(0, min(img_w - 1, int(round((xa - min_x) * px_per_mm_x))))
                     col_b = max(col_a + 1, min(img_w, int(round((xb - min_x) * px_per_mm_x)) + 1))
-                    np.minimum(arr[row_idx, col_a:col_b], gray, out=arr[row_idx, col_a:col_b])
+                    np.maximum(power_arr[row_idx, col_a:col_b], power, out=power_arr[row_idx, col_a:col_b])
+
+            negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
+                                     and self.chk_negative_raster_preview.isChecked())
+            if negative_preview:
+                power_arr = 1.0 - power_arr  # négatif : plus de puissance = plus clair
+
+            if tint_color:
+                tint_rgb = pg.mkColor(tint_color).getRgb()[:3]
+                white = np.array([255, 255, 255], dtype=np.float32)
+                tint = np.array(tint_rgb, dtype=np.float32)
+                # Blanc (pas de puissance) -> couleur du calque (pleine
+                # puissance). power_arr reflète déjà l'inversion négative
+                # ci-dessus si elle est active : pas besoin de la retester.
+                blend = power_arr[..., None]
+                rgb = white + blend * (tint - white)
+                arr = np.clip(rgb, 0, 255).astype(np.uint8)
+            else:
+                gray = 255 * (1.0 - power_arr)
+                arr = np.clip(gray, 0, 255).astype(np.uint8)
 
             # pyqtgraph (mode par défaut) attend un tableau indexé [x, y] où
             # l'indice y croissant correspond au Y croissant du tracé (comme
             # nos autres coordonnées mm) : on transpose simplement, sans
             # inverser, car nos lignes sont déjà triées Y croissant = bas -> haut.
-            pg_array = arr.T
+            pg_array = arr.transpose(1, 0, 2) if tint_color else arr.T
             if getattr(self, "chk_flip_raster_preview", None) and self.chk_flip_raster_preview.isChecked():
-                pg_array = pg_array[:, ::-1]
+                pg_array = pg_array[:, ::-1] if not tint_color else pg_array[:, ::-1, :]
 
             image_item = pg.ImageItem(pg_array)
-            image_item.setLevels([0, 255])
+            if not tint_color:
+                image_item.setLevels([0, 255])
             image_item.setRect(QRectF(min_x, min_y_data, bbox_w, bbox_h))
             image_item.setZValue(-50)
             # Sans ça, pyqtgraph affiche l'image dézoomée en échantillonnant
@@ -452,10 +479,71 @@ class GcodeGenerationMixin:
             'overscan_dist': self.spin_overscan_dist.value(),
             'overscan_pct': self.spin_overscan_pct.value(),
         }
+        # Mémorisé pour permettre le clic sur une case de l'aperçu 2D
+        # (voir _on_plot_clicked) afin d'appliquer directement sa
+        # puissance/vitesse aux réglages de gravure/découpe courants.
+        self.last_test_matrix_params = dict(params)
 
         self.matrix_worker = TestMatrixWorker(params)
         self.matrix_worker.finished.connect(self.on_gcode_generated)
         self.matrix_worker.start()
+
+    def _on_plot_clicked(self, event):
+        """Clic sur l'aperçu 2D : si le G-Code affiché est bien la dernière
+        matrice de test générée, retrouve la case cliquée et applique sa
+        puissance/vitesse (ou nombre de passes) aux réglages de gravure ou
+        de découpe courants — évite de retaper les valeurs à la main une
+        fois la case idéale repérée visuellement."""
+        params = getattr(self, "last_test_matrix_params", None)
+        if not params:
+            return
+        try:
+            view_box = self.plot_widget.getPlotItem().vb
+            pos = view_box.mapSceneToView(event.scenePos())
+            x_mm, y_mm = pos.x(), pos.y()
+
+            offset_labels_x, offset_labels_y = 22.0, 14.0
+            mat_off_x = params.get('matrix_offset_x', 0.0)
+            mat_off_y = params.get('matrix_offset_y', 0.0)
+            start_x = mat_off_x + offset_labels_x
+            start_y = mat_off_y + offset_labels_y
+            sq_size = params['size_square']
+            gap = params['gap']
+
+            min_s, max_s, steps_s = params['min_speed'], params['max_speed'], int(params['steps_speed'])
+            speeds = np.linspace(min_s, max_s, steps_s)
+
+            mode = params.get('mode', 'Gravure')
+            if mode == "Gravure":
+                min_p, max_p, steps_p = params['min_power'], params['max_power'], int(params['steps_power'])
+                col_values = np.linspace(min_p, max_p, steps_p)
+            else:
+                min_pa, max_pa, steps_pa = params['min_passes'], params['max_passes'], int(params['steps_passes'])
+                col_values = np.unique(np.round(np.linspace(min_pa, max_pa, steps_pa))).astype(int)
+
+            col = int((x_mm - start_x) // (sq_size + gap))
+            row = int((y_mm - start_y) // (sq_size + gap))
+            if not (0 <= col < len(col_values) and 0 <= row < len(speeds)):
+                return
+            cell_x0 = start_x + col * (sq_size + gap)
+            cell_y0 = start_y + row * (sq_size + gap)
+            if not (cell_x0 <= x_mm <= cell_x0 + sq_size and cell_y0 <= y_mm <= cell_y0 + sq_size):
+                return  # clic dans l'espace entre les cases, pas dans une case
+
+            speed_val = round(float(speeds[row]))
+            if mode == "Gravure":
+                power_val = round(float(col_values[col]))
+                self.spin_speed_engrave.setValue(speed_val)
+                self.spin_power_engrave.setValue(power_val)
+                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
+            else:
+                passes_val = int(col_values[col])
+                self.spin_speed_cut.setValue(speed_val)
+                self.spin_passes_cut.setValue(passes_val)
+                self.spin_power_cut.setValue(round(params.get('single_power', self.spin_power_cut.value())))
+                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
+        except Exception:
+            pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
 
     def on_gcode_generated(self, gcode_str, num_lines, avg_power, time_str):
         self.gen_progress_bar.setValue(100)
@@ -507,7 +595,15 @@ class GcodeGenerationMixin:
         # qui se chevauchent visuellement en blocs pleins à l'écran, au lieu
         # de la reconstruction en niveaux de gris (façon LaserGRBL) qui reflète
         # vraiment la puissance ligne par ligne.
-        RASTER_LIKE_LABELS = {RASTER_LABEL, UNKNOWN_LABEL}
+        # Un import non identifié, OU un calque vectoriel utilisant un
+        # remplissage par balayage (ex: texte/forme "Gravure remplie"), a le
+        # même besoin : ce sont des lignes de balayage très rapprochées qui,
+        # dessinées en traits vectoriels classiques, se chevauchent
+        # visuellement en un bloc plein — masquant la forme réelle gravée
+        # (ex: le contour des lettres d'un texte). On collecte donc les
+        # segments candidats pour TOUS les calques, et on décide ensuite,
+        # groupe par groupe, s'il faut les reconstruire en image ou les
+        # dessiner en traits (voir plus bas).
 
         current_label = UNKNOWN_LABEL
         current_color = "#00cc66"
@@ -591,8 +687,7 @@ class GcodeGenerationMixin:
                     xs, ys = g1_segments[key]
                     xs.extend([cx, nx, float('nan')])
                     ys.extend([cy, ny, float('nan')])
-                    if current_label in RASTER_LIKE_LABELS:
-                        raster_strokes_by_key.setdefault(key, []).append((cx, cy, nx, ny, last_modal_s))
+                    raster_strokes_by_key.setdefault(key, []).append((cx, cy, nx, ny, last_modal_s))
 
                 cx, cy = nx, ny
             except Exception:
@@ -604,13 +699,19 @@ class GcodeGenerationMixin:
         # image (façon LaserGRBL) ou dessiné en traits vectoriels classiques :
         # - notre propre phase de gravure raster (RASTER_LABEL) est TOUJOURS
         #   reconstruite en image : on sait avec certitude que c'en est.
-        # - un import non identifié (UNKNOWN_LABEL) peut être un vrai raster
-        #   (test de gravure, image importée...) ou un simple contour
-        #   vectoriel : on ne le traite comme raster que s'il ressemble
-        #   vraiment à du balayage — beaucoup de segments, denses sur peu de
-        #   lignes Y distinctes — pour ne pas transformer un simple rectangle
-        #   en image floue.
-        raster_strokes = []
+        # - tout autre calque (import non identifié, calque vectoriel avec
+        #   remplissage par balayage, matrice de test...) peut être un vrai
+        #   raster ou un simple contour vectoriel : on ne le traite comme
+        #   raster que s'il ressemble vraiment à du balayage — beaucoup de
+        #   segments, très denses sur peu de lignes Y distinctes — pour ne
+        #   pas transformer un simple contour de découpe (qui peut avoir pas
+        #   mal de segments lui aussi, à cause du surbalayage) en image floue.
+        #   Seuils volontairement stricts : un contour de découpe, même
+        #   complexe, garde presque toujours ~1 segment par ligne Y (il
+        #   suit le tracé point par point) ; un vrai remplissage par
+        #   balayage a lui plusieurs dizaines de segments concentrés sur
+        #   quelques lignes.
+        raster_groups = {}  # (label,color) -> strokes, un groupe par calque — jamais fusionnés entre eux
         raster_keys_rendered_as_image = set()
         for key, strokes in raster_strokes_by_key.items():
             label, _color = key
@@ -620,14 +721,14 @@ class GcodeGenerationMixin:
                 row_keys = {round((y1 + y2) / 2.0, 4) for (_, y1, _, y2, _) in strokes}
                 n_rows = len(row_keys)
                 avg_segs_per_row = (len(strokes) / n_rows) if n_rows else 0
-                is_raster = (n_rows >= 2 and len(strokes) >= 10 and avg_segs_per_row >= 2.0)
+                is_raster = (n_rows >= 2 and len(strokes) >= 40 and avg_segs_per_row >= 4.0)
             if is_raster:
-                raster_strokes.extend(strokes)
+                raster_groups[key] = strokes
                 raster_keys_rendered_as_image.add(key)
 
         legend_rows = (
             f'<div><span style="color:#888888">■</span> G0 Rapide ({len(g0_x)//3} segments)</div>'
-            f'<div><span style="color:#4488ff">■</span> Overscan ({len(ov_x)//3} segments)</div>'
+            f'<div><span style="color:#ff3355">■</span> Overscan ({len(ov_x)//3} segments)</div>'
         )
         for label, color in seen_order:
             xs, ys = g1_segments[(label, color)]
@@ -643,13 +744,22 @@ class GcodeGenerationMixin:
         )
         self.plot_widget.addItem(self.info_text_item)
 
-        if raster_strokes:
-            self._plot_raster_reconstruction(raster_strokes)
+        # Un appel séparé par calque : jamais deux calques mélangés dans la
+        # même reconstruction (chacun a sa propre étendue et sa propre
+        # densité de balayage — les combiner produit une image sans rapport
+        # avec la pièce réelle). Notre propre phase de gravure image
+        # (RASTER_LABEL) garde le rendu en niveaux de gris classique (photo),
+        # les autres calques sont teintés avec leur couleur pour rester
+        # identifiables visuellement.
+        for key, strokes in raster_groups.items():
+            label, color = key
+            tint = None if label == RASTER_LABEL else color
+            self._plot_raster_reconstruction(strokes, tint_color=tint)
 
         if g0_x:
             self.plot_widget.plot(g0_x, g0_y, pen=pg.mkPen(color='#888888', width=1, style=Qt.PenStyle.DotLine), connect='finite')
         if ov_x:
-            self.plot_widget.plot(ov_x, ov_y, pen=pg.mkPen(color='#4488ff', width=2, style=Qt.PenStyle.DashLine), connect='finite')
+            self.plot_widget.plot(ov_x, ov_y, pen=pg.mkPen(color='#ff3355', width=2, style=Qt.PenStyle.DashLine), connect='finite')
         for (label, color), (xs, ys) in g1_segments.items():
             if (label, color) in raster_keys_rendered_as_image:
                 continue  # déjà rendu en image par _plot_raster_reconstruction

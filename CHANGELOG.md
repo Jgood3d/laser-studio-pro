@@ -4,6 +4,44 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [1.3.0]
+
+### Ajouté
+- **Vérification du mode laser GRBL ($32)** à la connexion USB : avertit si
+  ce réglage n'est pas activé (l'optimisation du G-Code en mode M4 suppose
+  ce mode actif pour couper le laser pendant les déplacements rapides).
+- **Sauvegarde automatique périodique** du projet en cours (toutes les
+  5 minutes), avec proposition de récupération au démarrage suivant en cas
+  de fermeture inattendue.
+- **Historique des commandes manuelles** dans la console GRBL : flèches
+  Haut/Bas pour rappeler les dernières commandes tapées.
+- **Projets récents** : nouveau sous-menu dans Fichier pour rouvrir vite un
+  projet déjà utilisé.
+- **File d'attente de jobs** : empiler plusieurs G-Codes à envoyer au laser
+  les uns après les autres, sans reconfigurer manuellement entre chaque.
+- **Clic sur une case de la matrice de test** (aperçu 2D) : applique
+  directement sa puissance/vitesse (ou nombre de passes) aux réglages de
+  gravure/découpe courants.
+- **Export/import des profils matériaux** en fichier `.json` séparé,
+  partageable entre utilisateurs d'une machine similaire.
+
+### Corrigé
+- `load_project` utilisait par erreur la boîte de dialogue "Enregistrer"
+  au lieu de "Ouvrir" pour choisir le fichier projet à charger.
+
+## [1.2.0]
+
+### Ajouté
+- Début du support multilingue : nouveau menu **Langue** (entre Fichier
+  et Aide) permettant de choisir Français ou English. Le changement
+  s'applique au prochain démarrage de l'application.
+- Nouveau module `i18n.py` : dictionnaire de traduction centralisé et
+  fonction `tr()`, sans dépendance externe.
+- Traduits pour l'instant : les menus Fichier/Langue/Aide et les 7 noms
+  d'onglets du panneau de réglages. Le reste de l'interface (champs,
+  boutons, messages) sera traduit progressivement dans les prochaines
+  versions.
+
 ## [1.1.0]
 
 ### Ajouté
