@@ -1,29 +1,8 @@
-## [1.3.1]
+# Changelog
 
 Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
-
-Laser Studio Pro 1.3.1
-Version corrective consacrée à l'amélioration de l'aperçu 2D du G-Code.
-
-Corrections
-Correction du rendu 2D des fichiers SVG en découpe.
-Correction de l'affichage des matrices de test en gravure et en découpe.
-Les contours SVG ne sont plus confondus avec une image raster.
-Amélioration de la détection des G-Codes importés depuis LaserGRBL et d'autres logiciels.
-Correction de la gestion des segments à puissance nulle (S0) et des commandes M5.
-Suppression des faux fonds blancs dans certains aperçus raster.
-Amélioration de la lisibilité des déplacements rapides G0.
-Autres changements
-Mise à jour de l'interface et des traductions.
-Version affichée : 1.3.1.
-Téléchargement
-Pour Windows, téléchargez :
-
-LaserStudioPro-1.3.1-Windows.exe
-
-Vérifiez les réglages de votre machine et réalisez vos premiers essais avec prudence avant toute gravure ou découpe réelle.
 
 ## [1.3.0]
 

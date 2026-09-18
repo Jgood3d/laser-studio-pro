@@ -59,15 +59,15 @@ class UiSetupMixin:
                 pass
 
     def closeEvent(self, event):
-    self.save_machine_settings()
-    self.save_splitter_sizes()
-    reply = QMessageBox.question(
-        self,
-        tr("ui.quit_title"),
-        tr("ui.quit_save_prompt"),
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Yes
-    )
+        self.save_machine_settings()
+        self.save_splitter_sizes()
+        reply = QMessageBox.question(
+            self,
+            tr("ui.quit_title"),
+            tr("ui.quit_save_prompt"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes
+        )
 
         if reply == QMessageBox.StandardButton.Yes:
             self.save_project()
@@ -190,7 +190,7 @@ class UiSetupMixin:
                 lbl_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(lbl_banner)
             else:
-                lbl_banner_missing = QLabel(f"(Image trouvée mais illisible : {banner_path})")
+                lbl_banner_missing = QLabel(tr("ui.banner_unreadable").format(path=banner_path))
                 lbl_banner_missing.setStyleSheet("color: #cc6666;")
                 lbl_banner_missing.setWordWrap(True)
                 layout.addWidget(lbl_banner_missing)
@@ -200,7 +200,7 @@ class UiSetupMixin:
                 os.path.join(get_bundle_dir(), "laser_studio_pro_banner.png"),
             ]
             searched_txt = "\n".join(sorted(set(searched)))
-            lbl_banner_missing = QLabel(f"(Bannière introuvable, cherchée ici :\n{searched_txt})")
+            lbl_banner_missing = QLabel(tr("ui.banner_missing").format(paths=searched_txt))
             lbl_banner_missing.setStyleSheet("color: #cc6666;")
             lbl_banner_missing.setWordWrap(True)
             layout.addWidget(lbl_banner_missing)
@@ -809,13 +809,13 @@ class UiSetupMixin:
         tab_previews = QWidget()
         layout_previews = QHBoxLayout(tab_previews)
         
-        box_src = QGroupBox("Image Originale (Glissez pour déplacer, molette pour zoomer)")
+        box_src = QGroupBox(tr("ui.source_image_box"))
         layout_src = QVBoxLayout()
         self.view_preview_src = ZoomableGraphicsView()
         layout_src.addWidget(self.view_preview_src)
         box_src.setLayout(layout_src)
 
-        box_dither = QGroupBox("Rendu Tramé Final (Glissez pour déplacer, molette pour zoomer)")
+        box_dither = QGroupBox(tr("ui.final_raster_box"))
         layout_dither = QVBoxLayout()
         self.view_preview_dither = ZoomableGraphicsView()
         layout_dither.addWidget(self.view_preview_dither)
@@ -823,30 +823,30 @@ class UiSetupMixin:
 
         layout_previews.addWidget(box_src)
         layout_previews.addWidget(box_dither)
-        self.main_tabs_view.addTab(tab_previews, "Images & Tramage")
+        self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
 
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 
         toolbar_vector = QHBoxLayout()
-        btn_add_text = QPushButton("+ Texte")
+        btn_add_text = QPushButton(tr("ui.vector_add_text"))
         btn_add_text.clicked.connect(self.insert_text_object)
-        btn_add_shape = QPushButton("+ Forme")
+        btn_add_shape = QPushButton(tr("ui.vector_add_shape"))
         btn_add_shape.clicked.connect(self.insert_shape_object)
-        btn_import_svg_vector = QPushButton("📥 Importer SVG (multi-calques)")
+        btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
         btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
-        btn_edit_selected = QPushButton("Modifier Sélection")
+        btn_edit_selected = QPushButton(tr("ui.vector_edit_selection"))
         btn_edit_selected.clicked.connect(self.edit_selected_vector_object)
-        btn_rotate_selected = QPushButton("↻ Pivoter 90°")
+        btn_rotate_selected = QPushButton(tr("ui.vector_rotate_90"))
         btn_rotate_selected.clicked.connect(self.rotate_selected_vector_object)
-        btn_dup_selected = QPushButton("Dupliquer")
+        btn_dup_selected = QPushButton(tr("ui.vector_duplicate"))
         btn_dup_selected.clicked.connect(self.duplicate_selected_vector_object)
-        btn_del_selected = QPushButton("Supprimer")
+        btn_del_selected = QPushButton(tr("ui.vector_delete"))
         btn_del_selected.clicked.connect(self.delete_selected_vector_object)
-        btn_undo_vector = QPushButton("↶ Annuler (Ctrl+Z)")
+        btn_undo_vector = QPushButton(tr("ui.vector_undo"))
         btn_undo_vector.clicked.connect(lambda: self.vector_canvas.undo())
-        btn_fullscreen_vector = QPushButton("⛶ Plein Écran")
+        btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
         toolbar_vector.addWidget(btn_add_text)
         toolbar_vector.addWidget(btn_add_shape)
@@ -874,18 +874,18 @@ class UiSetupMixin:
         self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas)
 
-        pos_box = QGroupBox("Propriétés de l'objet sélectionné")
+        pos_box = QGroupBox(tr("ui.selection_props_box"))
         pos_form = QVBoxLayout()
         pos_row1 = QHBoxLayout()
-        pos_row1.addWidget(QLabel("X (mm) :"))
+        pos_row1.addWidget(QLabel(tr("ui.vector_x_mm")))
         self.spin_vec_x = QDoubleSpinBox(); self.spin_vec_x.setRange(-1000.0, 1000.0); self.spin_vec_x.setDecimals(2)
         self.spin_vec_x.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_x)
-        pos_row1.addWidget(QLabel("Y (mm) :"))
+        pos_row1.addWidget(QLabel(tr("ui.vector_y_mm")))
         self.spin_vec_y = QDoubleSpinBox(); self.spin_vec_y.setRange(-1000.0, 1000.0); self.spin_vec_y.setDecimals(2)
         self.spin_vec_y.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_y)
-        pos_row1.addWidget(QLabel("Rotation (°) :"))
+        pos_row1.addWidget(QLabel(tr("ui.vector_rotation_deg")))
         self.spin_vec_rot = QDoubleSpinBox(); self.spin_vec_rot.setRange(-360.0, 360.0); self.spin_vec_rot.setDecimals(1)
         self.spin_vec_rot.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_rot)
@@ -893,7 +893,7 @@ class UiSetupMixin:
         pos_form.addLayout(pos_row1)
 
         pos_row2 = QHBoxLayout()
-        pos_row2.addWidget(QLabel("Calque :"))
+        pos_row2.addWidget(QLabel(tr("ui.vector_layer")))
         self.combo_vec_layer = QComboBox()
         self.combo_vec_layer.currentIndexChanged.connect(self.on_vector_layer_spin_changed)
         pos_row2.addWidget(self.combo_vec_layer)
@@ -905,13 +905,13 @@ class UiSetupMixin:
         self.pos_box_vector = pos_box
         layout_vector_editor.addWidget(pos_box)
 
-        self.lbl_vector_selection = QLabel("Aucune sélection")
+        self.lbl_vector_selection = QLabel(tr("ui.no_selection_label"))
         layout_vector_editor.addWidget(self.lbl_vector_selection)
         self.vector_canvas.selection_changed.connect(self.on_vector_selection_changed)
         self.vector_canvas.object_moved.connect(self.on_vector_object_moved)
         self.vector_canvas.edit_requested.connect(self.edit_vector_object)
 
-        self.main_tabs_view.addTab(tab_vector_editor, "Éditeur Vectoriel (Texte & Formes)")
+        self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
 
         tab_vector_2d = QWidget()
@@ -930,13 +930,13 @@ class UiSetupMixin:
         
         layout_vector_2d.addWidget(self.plot_widget)
 
-        self.main_tabs_view.addTab(tab_vector_2d, "Visualisation 2D G-Code")
+        self.main_tabs_view.addTab(tab_vector_2d, tr("ui.tab_2d_preview"))
         self.tab_vector_2d = tab_vector_2d
         center_bottom_widget = QWidget()
         center_bottom_layout = QVBoxLayout(center_bottom_widget)
         center_bottom_layout.setContentsMargins(0, 0, 0, 0)
 
-        jog_box = QGroupBox("Mouvements Manuel Laser (Jog) & Commandes")
+        jog_box = QGroupBox(tr("ui.jog_box"))
         jog_layout = QGridLayout()
 
         btn_up = QPushButton("▲ Y+")
@@ -967,24 +967,24 @@ class UiSetupMixin:
         self.spin_jog_speed.setRange(100, 10000)
         self.spin_jog_speed.setValue(3000)
 
-        btn_homing_now = QPushButton("HOMING ($H)")
+        btn_homing_now = QPushButton(tr("ui.homing_cmd"))
         btn_homing_now.clicked.connect(lambda: self.send_manual_direct_cmd("$H"))
 
-        btn_zero_xy = QPushButton("Zéro Travail (G92 X0 Y0)")
+        btn_zero_xy = QPushButton(tr("ui.zero_work"))
         btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
 
-        btn_go_zero = QPushButton("Go Zéro (G0 X0 Y0)")
+        btn_go_zero = QPushButton(tr("ui.go_zero"))
         btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
 
         btn_pause = QPushButton("PAUSE (!)")
         btn_pause.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
         btn_pause.clicked.connect(self.send_pause)
 
-        btn_resume = QPushButton("REPRISE (~)")
+        btn_resume = QPushButton(tr("ui.resume"))
         btn_resume.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold;")
         btn_resume.clicked.connect(self.send_resume)
 
-        btn_reset = QPushButton("RESET GRBL (Ctrl+X)")
+        btn_reset = QPushButton(tr("ui.reset"))
         btn_reset.setStyleSheet("background-color: #c0392b; color: white; font-weight: bold;")
         btn_reset.clicked.connect(self.send_reset)
 
@@ -992,10 +992,10 @@ class UiSetupMixin:
         btn_kill.setStyleSheet("background-color: #ff0000; color: white; font-weight: bold;")
         btn_kill.clicked.connect(self.send_kill)
 
-        btn_frame = QPushButton("Cadrage (Frame)")
+        btn_frame = QPushButton(tr("ui.frame"))
         btn_frame.clicked.connect(self.run_frame)
         
-        self.btn_send = QPushButton("ENVOYER AU LASER (USB)")
+        self.btn_send = QPushButton(tr("ui.send_to_laser"))
         self.btn_send.setStyleSheet("background-color: #2980b9; color: white; font-weight: bold;")
         self.btn_send.clicked.connect(self.send_to_laser)
 
@@ -1031,13 +1031,13 @@ class UiSetupMixin:
         self.progress_bar.setValue(0)
         center_bottom_layout.addWidget(self.progress_bar)
 
-        cmd_box = QGroupBox("Console de Commandes Directes GRBL")
+        cmd_box = QGroupBox(tr("ui.direct_console_box"))
         cmd_layout = QHBoxLayout()
         self.txt_manual_cmd = HistoryLineEdit()
-        self.txt_manual_cmd.setPlaceholderText("Tapez une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)")
+        self.txt_manual_cmd.setPlaceholderText(tr("ui.manual_grbl_placeholder"))
         self.txt_manual_cmd.returnPressed.connect(self.send_manual_cmd)
         
-        btn_send_cmd = QPushButton("Envoyer")
+        btn_send_cmd = QPushButton(tr("ui.manual_send"))
         btn_send_cmd.clicked.connect(self.send_manual_cmd)
 
         cmd_layout.addWidget(self.txt_manual_cmd)
@@ -1060,18 +1060,18 @@ class UiSetupMixin:
         layout_console_gcode = QVBoxLayout(tab_console_gcode)
         layout_console_gcode.setContentsMargins(6, 6, 6, 6)
 
-        stats_box = QGroupBox("Statistiques du Job")
+        stats_box = QGroupBox(tr("ui.job_stats_box"))
         stats_layout = QVBoxLayout()
-        self.lbl_stat_lines = QLabel("Lignes: 0")
-        self.lbl_stat_power = QLabel("Puissance Moyenne: 0 %")
-        self.lbl_stat_time = QLabel("Temps Estimé: 00:00")
+        self.lbl_stat_lines = QLabel(tr("ui.job_lines"))
+        self.lbl_stat_power = QLabel(tr("ui.job_avg_power"))
+        self.lbl_stat_time = QLabel(tr("ui.job_estimated_time"))
         stats_layout.addWidget(self.lbl_stat_lines)
         stats_layout.addWidget(self.lbl_stat_power)
         stats_layout.addWidget(self.lbl_stat_time)
         stats_box.setLayout(stats_layout)
         layout_console_gcode.addWidget(stats_box)
 
-        export_box = QGroupBox("Export G-Code (3 Formats au choix)")
+        export_box = QGroupBox(tr("ui.gcode_export_box"))
         export_layout = QHBoxLayout()
         
         btn_exp_gcode = QPushButton("Export .gcode")
@@ -1092,7 +1092,7 @@ class UiSetupMixin:
         export_box.setLayout(export_layout)
         layout_console_gcode.addWidget(export_box)
 
-        layout_console_gcode.addWidget(QLabel("Console / G-Code Généré :"))
+        layout_console_gcode.addWidget(QLabel(tr("ui.generated_console_label")))
         self.txt_console = QTextEdit()
         self.txt_console.setFontFamily("Courier")
         layout_console_gcode.addWidget(self.txt_console)
@@ -1108,7 +1108,7 @@ class UiSetupMixin:
         gen_progress_row.addWidget(self.gen_progress_bar)
         layout_console_gcode.addLayout(gen_progress_row)
 
-        self.main_tabs_view.addTab(tab_console_gcode, "Console / G-Code")
+        self.main_tabs_view.addTab(tab_console_gcode, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab_console_gcode
 
         tab_job_queue = QWidget()
@@ -1119,26 +1119,26 @@ class UiSetupMixin:
         layout_job_queue.addWidget(self.list_job_queue)
 
         queue_btn_row1 = QHBoxLayout()
-        btn_queue_add = QPushButton("+ Ajouter le G-Code actuel")
+        btn_queue_add = QPushButton(tr("ui.queue_add_current"))
         btn_queue_add.clicked.connect(self.add_current_gcode_to_queue)
-        btn_queue_remove = QPushButton("Retirer la sélection")
+        btn_queue_remove = QPushButton(tr("ui.queue_remove_selected"))
         btn_queue_remove.clicked.connect(self.remove_selected_from_queue)
-        btn_queue_clear = QPushButton("Vider la file")
+        btn_queue_clear = QPushButton(tr("ui.queue_clear"))
         btn_queue_clear.clicked.connect(self.clear_job_queue)
         queue_btn_row1.addWidget(btn_queue_add)
         queue_btn_row1.addWidget(btn_queue_remove)
         queue_btn_row1.addWidget(btn_queue_clear)
         layout_job_queue.addLayout(queue_btn_row1)
 
-        self.btn_run_queue = QPushButton("▶ Lancer la file (l'un après l'autre)")
+        self.btn_run_queue = QPushButton(tr("ui.queue_run"))
         self.btn_run_queue.setStyleSheet("background-color: #8e44ad; color: white; font-weight: bold; padding: 6px;")
         self.btn_run_queue.clicked.connect(self.run_job_queue)
         layout_job_queue.addWidget(self.btn_run_queue)
 
-        self.lbl_queue_status = QLabel("File vide.")
+        self.lbl_queue_status = QLabel(tr("ui.queue_empty"))
         layout_job_queue.addWidget(self.lbl_queue_status)
 
-        self.main_tabs_view.addTab(tab_job_queue, "File d'attente")
+        self.main_tabs_view.addTab(tab_job_queue, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab_job_queue
 
         splitter.addWidget(left_widget)
