@@ -781,6 +781,14 @@ class UiSetupMixin:
         self.chk_negative_raster_preview = QCheckBox("Aperçu en négatif (voir ce qui sera réellement gravé)")
         self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
         left_bottom_layout.addWidget(self.chk_negative_raster_preview)
+        self.chk_hide_rapid_moves = QCheckBox(
+            "Masquer les déplacements rapides G0 dans l'aperçu"
+        )
+        self.chk_hide_rapid_moves.stateChanged.connect(
+            self.on_flip_raster_preview_changed
+        )
+        left_bottom_layout.addWidget(self.chk_hide_rapid_moves)
+        
         self._last_gcode_text = None
 
         # Séparateur vertical redimensionnable entre les onglets de réglages
