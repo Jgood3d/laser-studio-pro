@@ -224,12 +224,7 @@ class UiSetupMixin:
         dialog.setWindowTitle(tr("ui.support_title"))
         layout = QVBoxLayout(dialog)
 
-        lbl_text = QLabel(
-            "Suggestion, problème rencontré... Contacte-nous à l'adresse "
-            "suivante :<br><br>"
-            "<a href=\"mailto:laserstudiopro.support@proton.me\">"
-            "laserstudiopro.support@proton.me</a>"
-        )
+        lbl_text = QLabel(tr("ui.support_body"))
         lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_text.setWordWrap(True)
         lbl_text.setOpenExternalLinks(True)
@@ -247,11 +242,11 @@ class UiSetupMixin:
         layout = QVBoxLayout(dialog)
 
         lbl_text = QLabel(
-            "Si ce logiciel t'est utile et que tu veux soutenir son développement,<br>"
-            "tu peux m'offrir un café ici :<br><br>"
-            "<a href=\"https://ko-fi.com/jb3dlaser\">ko-fi.com/jb3dlaser</a><br><br>"
-            "Merci !"
-        )
+    tr("ui.coffee_body").format(
+        link="<a href=\"https://ko-fi.com/jb3dlaser\">"
+             "ko-fi.com/jb3dlaser</a>"
+    )
+)
         lbl_text.setTextFormat(Qt.TextFormat.RichText)
         lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
         lbl_text.setWordWrap(True)
@@ -507,7 +502,7 @@ class UiSetupMixin:
         self.chk_keep_ratio = QCheckBox(tr("dim.keep_ratio")); self.chk_keep_ratio.setChecked(True)
 
         self.combo_origin = QComboBox()
-        self.combo_origin.addItems(["Bas-Gauche (0,0)", "Centre"])
+        self.combo_origin.addItems([tr("ui.origin_bottom_left"), tr("ui.origin_center")])
         self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
         self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
 
@@ -570,13 +565,16 @@ class UiSetupMixin:
         self.form_matrix = QFormLayout(tab_matrix)
 
         self.combo_mat_mode = QComboBox()
-        self.combo_mat_mode.addItems(["Gravure", "Découpe"])
+        self.combo_mat_mode.addItems([
+    tr("ui.material_mode_engraving"),
+    tr("ui.material_mode_cutting"),
+])
         self.combo_mat_mode.currentIndexChanged.connect(self.on_mat_mode_changed)
 
         self.spin_mat_off_x = QDoubleSpinBox(); self.spin_mat_off_x.setRange(-1000.0, 1000.0); self.spin_mat_off_x.setValue(0.0)
         self.spin_mat_off_y = QDoubleSpinBox(); self.spin_mat_off_y.setRange(-1000.0, 1000.0); self.spin_mat_off_y.setValue(0.0)
 
-        self.lbl_mat_p1 = QLabel("Puissance Min (%):")
+        self.lbl_mat_p1 = QLabel(tr("ui.mat_min_power"))
         self.spin_mat_min_p = QSpinBox(); self.spin_mat_min_p.setRange(5, 100); self.spin_mat_min_p.setValue(10)
         
         self.spin_mat_max_p = QSpinBox(); self.spin_mat_max_p.setRange(5, 100); self.spin_mat_max_p.setValue(80)
@@ -598,29 +596,28 @@ class UiSetupMixin:
         self.combo_mat_laser_cmd = QComboBox()
         self.combo_mat_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
 
-        self.chk_mat_homing = QCheckBox("Inclure $H (Auto Homing au départ)")
+        self.chk_mat_homing = QCheckBox(tr("ui.mat_homing"))
         self.chk_mat_homing.setChecked(False)
 
-        btn_gen_matrix = QPushButton("GÉNÉRER MATRICE DE TEST")
+        btn_gen_matrix = QPushButton(tr("ui.gen_test_matrix"))
         btn_gen_matrix.setStyleSheet("background-color: #d35400; color: white; font-weight: bold; padding: 6px;")
         btn_gen_matrix.clicked.connect(self.generate_test_matrix)
 
-        self.form_matrix.addRow("Mode de Test:", self.combo_mat_mode)
-        self.form_matrix.addRow("Matrice Offset X (mm):", self.spin_mat_off_x)
-        self.form_matrix.addRow("Matrice Offset Y (mm):", self.spin_mat_off_y)
-        self.form_matrix.addRow(self.lbl_mat_p1, self.spin_mat_min_p)
-        self.form_matrix.addRow("Puissance Max (%):", self.spin_mat_max_p)
-        self.form_matrix.addRow("Pas de Puissance:", self.spin_mat_steps_p)
-        self.form_matrix.addRow("Passes Min:", self.spin_mat_min_passes)
-        self.form_matrix.addRow("Passes Max:", self.spin_mat_max_passes)
-        self.form_matrix.addRow("Pas de Passes:", self.spin_mat_steps_passes)
-        self.form_matrix.addRow("Vitesse Min (mm/min):", self.spin_mat_min_s)
-        self.form_matrix.addRow("Vitesse Max (mm/min):", self.spin_mat_max_s)
-        self.form_matrix.addRow("Pas de Vitesse:", self.spin_mat_steps_s)
-        self.form_matrix.addRow("Taille Carré (mm):", self.spin_mat_size)
-        self.form_matrix.addRow("Espacement (mm):", self.spin_mat_gap)
-        self.form_matrix.addRow("Lignes / mm (Gravure):", self._lines_mm_row(self.spin_mat_lmm))
-        self.form_matrix.addRow("Commande Laser:", self.combo_mat_laser_cmd)
+        self.form_matrix.addRow(tr("ui.test_mode"), self.combo_mat_mode)
+        self.form_matrix.addRow(tr("ui.mat_offset_x"), self.spin_mat_off_x)
+        self.form_matrix.addRow(tr("ui.mat_offset_y"), self.spin_mat_off_y)
+        self.form_matrix.addRow(tr("ui.mat_max_power"), self.spin_mat_max_p)
+        self.form_matrix.addRow(tr("ui.mat_power_step"), self.spin_mat_steps_p)
+        self.form_matrix.addRow(tr("ui.mat_min_passes"), self.spin_mat_min_passes)
+        self.form_matrix.addRow(tr("ui.mat_max_passes"), self.spin_mat_max_passes)
+        self.form_matrix.addRow(tr("ui.mat_passes_step"), self.spin_mat_steps_passes)
+        self.form_matrix.addRow(tr("ui.mat_min_speed"), self.spin_mat_min_s)
+        self.form_matrix.addRow(tr("ui.mat_max_speed"), self.spin_mat_max_s)
+        self.form_matrix.addRow(tr("ui.mat_speed_step"), self.spin_mat_steps_s)
+        self.form_matrix.addRow(tr("ui.mat_square_size"), self.spin_mat_size)
+        self.form_matrix.addRow(tr("ui.mat_spacing"), self.spin_mat_gap)
+        self.form_matrix.addRow(tr("ui.mat_lmm"), self._lines_mm_row(self.spin_mat_lmm))
+        self.form_matrix.addRow(tr("ui.mat_laser_cmd"), self.combo_mat_laser_cmd)
         self.form_matrix.addRow("", self.chk_mat_homing)
         self.form_matrix.addRow("", btn_gen_matrix)
         tabs.addTab(tab_matrix, tr("tab.test_matrix"))
@@ -633,12 +630,11 @@ class UiSetupMixin:
         self.combo_laser_cmd = QComboBox()
         self.combo_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
         self.spin_smax = QSpinBox(); self.spin_smax.setRange(1, 10000); self.spin_smax.setValue(1000)
-        self.chk_homing = QCheckBox("Inclure $H (Auto Homing au départ)"); self.chk_homing.setChecked(False)
+        self.chk_homing = QCheckBox(tr("ui.grbl_homing")); self.chk_homing.setChecked(False)
+        self.chk_overscan = QCheckBox(tr("ui.overscan_enabled")); self.chk_overscan.setChecked(True)
 
-        self.chk_overscan = QCheckBox("Activer le Surbalayage (Overscan)"); self.chk_overscan.setChecked(True)
-        
         self.combo_overscan_mode = QComboBox()
-        self.combo_overscan_mode.addItems(["Distance Fixe (mm)", "Pourcentage (%)"])
+        self.combo_overscan_mode.addItems([tr("ui.overscan_mode_fixed"), tr("ui.overscan_mode_pct")])
         self.combo_overscan_mode.currentIndexChanged.connect(self.on_overscan_mode_changed)
 
         self.spin_overscan_dist = QDoubleSpinBox()
@@ -668,14 +664,14 @@ class UiSetupMixin:
         self.txt_end_gcode.setMaximumHeight(45)
         self.txt_end_gcode.setPlainText("M5 ; Extinction Laser\nG0 X0 Y0 ; Retour origine")
 
-        layout_gcode_cfg.addRow("Commande Laser:", self.combo_laser_cmd)
-        layout_gcode_cfg.addRow("S-Max Value ($30):", self.spin_smax)
+        layout_gcode_cfg.addRow(tr("ui.gcode_laser_cmd"), self.combo_laser_cmd)
+        layout_gcode_cfg.addRow(tr("ui.gcode_smax"), self.spin_smax)
         layout_gcode_cfg.addRow("", self.chk_homing)
         layout_gcode_cfg.addRow("", self.chk_overscan)
-        layout_gcode_cfg.addRow("Mode Surbalayage:", self.combo_overscan_mode)
-        layout_gcode_cfg.addRow("Valeur Surbalayage:", self.overscan_stacked)
-        layout_gcode_cfg.addRow("G-Code Début:", self.txt_start_gcode)
-        layout_gcode_cfg.addRow("G-Code Fin:", self.txt_end_gcode)
+        layout_gcode_cfg.addRow(tr("ui.overscan_mode_label"), self.combo_overscan_mode)
+        layout_gcode_cfg.addRow(tr("ui.overscan_value_label"), self.overscan_stacked)
+        layout_gcode_cfg.addRow(tr("ui.gcode_start"), self.txt_start_gcode)
+        layout_gcode_cfg.addRow(tr("ui.gcode_end"), self.txt_end_gcode)
         tabs.addTab(tab_gcode_cfg, tr("tab.grbl_config"))
 
         tab_layers = QWidget()
@@ -685,7 +681,7 @@ class UiSetupMixin:
         layout_layers.addWidget(self.layer_widget)
         tabs.addTab(tab_layers, tr("tab.layers"))
 
-        laser_box = QGroupBox("Paramètres d'Exécution Laser — Gravure Image")
+        laser_box = QGroupBox(tr("ui.laser_exec_box"))
         laser_layout = QFormLayout()
         # Gardés en interne (alimentés automatiquement par le calque choisi
         # ci-dessous) : plus de saisie manuelle séparée, tout se règle depuis
@@ -696,7 +692,7 @@ class UiSetupMixin:
 
         self.combo_engrave_layer = QComboBox()
         self.combo_engrave_layer.currentIndexChanged.connect(self._on_engrave_layer_selected)
-        laser_layout.addRow("Calque pour la gravure image :", self.combo_engrave_layer)
+        laser_layout.addRow(tr("ui.image_layer_label"), self.combo_engrave_layer)
         laser_box.setLayout(laser_layout)
         # Rattachée à l'onglet "Paramètres Machine" (regroupe tous les
         # réglages liés à la machine au même endroit), insérée juste avant le
@@ -709,7 +705,7 @@ class UiSetupMixin:
         # les widgets internes restent vivants et fonctionnels (juste invisibles).
         laser_box.setVisible(False)
 
-        legacy_svg_box = QGroupBox("[Ancien mode, déprécié] Découpe SVG globale (un seul réglage pour tout le fichier)")
+        legacy_svg_box = QGroupBox(tr("ui.svg_legacy_title"))
         legacy_svg_layout = QFormLayout()
         lbl_legacy_info = QLabel(
             "⚠ Ce mode charge un SVG entier avec UN SEUL réglage de puissance/vitesse,\n"
@@ -721,21 +717,21 @@ class UiSetupMixin:
         lbl_legacy_info.setWordWrap(True)
         legacy_svg_layout.addRow(lbl_legacy_info)
 
-        btn_svg = QPushButton("Charger SVG (ancien mode)")
+        btn_svg = QPushButton(tr("ui.load_svg_legacy"))
         btn_svg.clicked.connect(self.load_svg)
 
-        self.chk_enable_cut = QCheckBox("Activer Passe de Découpe")
+        self.chk_enable_cut = QCheckBox(tr("ui.enable_cut"))
         self.chk_enable_cut.setChecked(False)
 
         self.spin_speed_cut = QSpinBox(); self.spin_speed_cut.setRange(10, 5000); self.spin_speed_cut.setValue(300)
         self.spin_power_cut = QSpinBox(); self.spin_power_cut.setValue(90)
         self.spin_passes_cut = QSpinBox(); self.spin_passes_cut.setValue(2)
 
-        legacy_svg_layout.addRow("Fichier Vectoriel:", btn_svg)
+        legacy_svg_layout.addRow(tr("ui.vector_file_label"), btn_svg)
         legacy_svg_layout.addRow("", self.chk_enable_cut)
-        legacy_svg_layout.addRow("Vitesse Découpe (mm/min):", self.spin_speed_cut)
-        legacy_svg_layout.addRow("Puissance Découpe (%):", self.spin_power_cut)
-        legacy_svg_layout.addRow("Passes Découpe:", self.spin_passes_cut)
+        legacy_svg_layout.addRow(tr("ui.cut_speed"), self.spin_speed_cut)
+        legacy_svg_layout.addRow(tr("ui.cut_power"), self.spin_power_cut)
+        legacy_svg_layout.addRow(tr("ui.cut_passes"), self.spin_passes_cut)
         legacy_svg_box.setLayout(legacy_svg_layout)
 
         left_bottom_widget = QWidget()
@@ -917,15 +913,15 @@ class UiSetupMixin:
         tab_vector_2d = QWidget()
         layout_vector_2d = QVBoxLayout(tab_vector_2d)
         
-        self.plot_widget = pg.PlotWidget(title="Visualisation 2D du Parcours Laser")
+        self.plot_widget = pg.PlotWidget(title=tr("ui.plot_title"))
         self.plot_widget.setBackground('#111111')
         self.plot_widget.setAspectLocked(True)
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
-        self.plot_widget.setLabel('bottom', "Axe X (mm)", color='#ffffff')
-        self.plot_widget.setLabel('left', "Axe Y (mm)", color='#ffffff')
+        self.plot_widget.setLabel('bottom', tr("ui.plot_x"), color='#ffffff')
+        self.plot_widget.setLabel('left', tr("ui.plot_y"), color='#ffffff')
         self.plot_widget.scene().sigMouseClicked.connect(self._on_plot_clicked)
         
-        self.info_text_item = pg.TextItem(html='<div style="color: #cccccc;">Génère un job pour voir l\'aperçu ici.</div>', anchor=(0, 0))
+        self.info_text_item = pg.TextItem(html=f'<div style="color: #cccccc;">{tr("ui.plot_empty_state")}</div>', anchor=(0, 0))
         self.plot_widget.addItem(self.info_text_item)
         
         layout_vector_2d.addWidget(self.plot_widget)
@@ -976,7 +972,7 @@ class UiSetupMixin:
         btn_go_zero = QPushButton(tr("ui.go_zero"))
         btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
 
-        btn_pause = QPushButton("PAUSE (!)")
+        btn_pause = QPushButton(tr("ui.pause"))
         btn_pause.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
         btn_pause.clicked.connect(self.send_pause)
 
@@ -988,7 +984,7 @@ class UiSetupMixin:
         btn_reset.setStyleSheet("background-color: #c0392b; color: white; font-weight: bold;")
         btn_reset.clicked.connect(self.send_reset)
 
-        btn_kill = QPushButton("ARRÊT URGENCE (KILL)")
+        btn_kill = QPushButton(tr("ui.kill"))
         btn_kill.setStyleSheet("background-color: #ff0000; color: white; font-weight: bold;")
         btn_kill.clicked.connect(self.send_kill)
 
@@ -1009,9 +1005,9 @@ class UiSetupMixin:
         jog_layout.addWidget(btn_down, 2, 1)
         jog_layout.addWidget(btn_down_right, 2, 2)
 
-        jog_layout.addWidget(QLabel("Pas (mm):"), 0, 3)
+        jog_layout.addWidget(QLabel(tr("ui.jog_step_label")), 0, 3)
         jog_layout.addWidget(self.combo_step, 0, 4)
-        jog_layout.addWidget(QLabel("Vitesse:"), 1, 3)
+        jog_layout.addWidget(QLabel(tr("ui.jog_speed_label")), 1, 3)
         jog_layout.addWidget(self.spin_jog_speed, 1, 4)
 
         jog_layout.addWidget(btn_zero_xy, 2, 3)

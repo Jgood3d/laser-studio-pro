@@ -1759,6 +1759,340 @@ TRANSLATIONS = {
         "de": "Warteschlange",
         "es": "Cola de trabajos",
     },
+    "ui.origin_bottom_left": {
+        "fr": "Bas-Gauche (0,0)",
+        "en": "Bottom-Left (0,0)",
+        "de": "Unten links (0,0)",
+        "es": "Abajo-izquierda (0,0)",
+    },
+    "ui.origin_center": {
+        "fr": "Centre",
+        "en": "Center",
+        "de": "Mitte",
+        "es": "Centro",
+    },
+    "ui.mat_min_power": {
+        "fr": "Puissance Min (%):",
+        "en": "Min Power (%):",
+        "de": "Min. Leistung (%):",
+        "es": "Potencia mín. (%):",
+    },
+    "ui.mat_max_power": {
+        "fr": "Puissance Max (%):",
+        "en": "Max Power (%):",
+        "de": "Max. Leistung (%):",
+        "es": "Potencia máx. (%):",
+    },
+    "ui.mat_power_step": {
+        "fr": "Pas de Puissance:",
+        "en": "Power Step:",
+        "de": "Leistungs-Schritt:",
+        "es": "Paso de potencia:",
+    },
+    "ui.mat_min_passes": {
+        "fr": "Passes Min:",
+        "en": "Min Passes:",
+        "de": "Min. Durchgänge:",
+        "es": "Pasadas mín.:",
+    },
+    "ui.mat_max_passes": {
+        "fr": "Passes Max:",
+        "en": "Max Passes:",
+        "de": "Max. Durchgänge:",
+        "es": "Pasadas máx.:",
+    },
+    "ui.mat_passes_step": {
+        "fr": "Pas de Passes:",
+        "en": "Passes Step:",
+        "de": "Durchgangs-Schritt:",
+        "es": "Paso de pasadas:",
+    },
+    "ui.mat_min_speed": {
+        "fr": "Vitesse Min (mm/min):",
+        "en": "Min Speed (mm/min):",
+        "de": "Min. Geschwindigkeit (mm/min):",
+        "es": "Velocidad mín. (mm/min):",
+    },
+    "ui.mat_max_speed": {
+        "fr": "Vitesse Max (mm/min):",
+        "en": "Max Speed (mm/min):",
+        "de": "Max. Geschwindigkeit (mm/min):",
+        "es": "Velocidad máx. (mm/min):",
+    },
+    "ui.mat_speed_step": {
+        "fr": "Pas de Vitesse:",
+        "en": "Speed Step:",
+        "de": "Geschwindigkeits-Schritt:",
+        "es": "Paso de velocidad:",
+    },
+    "ui.mat_square_size": {
+        "fr": "Taille Carré (mm):",
+        "en": "Square Size (mm):",
+        "de": "Quadratgröße (mm):",
+        "es": "Tamaño del cuadrado (mm):",
+    },
+    "ui.mat_spacing": {
+        "fr": "Espacement (mm):",
+        "en": "Spacing (mm):",
+        "de": "Abstand (mm):",
+        "es": "Espaciado (mm):",
+    },
+    "ui.mat_lmm": {
+        "fr": "Lignes / mm (Gravure):",
+        "en": "Lines / mm (Engraving):",
+        "de": "Linien / mm (Gravur):",
+        "es": "Líneas / mm (Grabado):",
+    },
+    "ui.mat_laser_cmd": {
+        "fr": "Commande Laser:",
+        "en": "Laser Command:",
+        "de": "Laserbefehl:",
+        "es": "Comando láser:",
+    },
+    "ui.mat_homing": {
+        "fr": "Inclure $H (Auto Homing au départ)",
+        "en": "Include $H (Auto Homing at start)",
+        "de": "$H einbeziehen (Auto-Homing am Start)",
+        "es": "Incluir $H (homing automático al inicio)",
+    },
+    "ui.gen_test_matrix": {
+        "fr": "GÉNÉRER MATRICE DE TEST",
+        "en": "GENERATE TEST MATRIX",
+        "de": "TESTMATRIX GENERIEREN",
+        "es": "GENERAR MATRIZ DE PRUEBA",
+    },
+    "ui.test_mode": {
+        "fr": "Mode de Test:",
+        "en": "Test Mode:",
+        "de": "Testmodus:",
+        "es": "Modo de prueba:",
+    },
+    "ui.mat_offset_x": {
+        "fr": "Matrice Offset X (mm):",
+        "en": "Matrix Offset X (mm):",
+        "de": "Matrix-Offset X (mm):",
+        "es": "Offset X de la matriz (mm):",
+    },
+    "ui.mat_offset_y": {
+        "fr": "Matrice Offset Y (mm):",
+        "en": "Matrix Offset Y (mm):",
+        "de": "Matrix-Offset Y (mm):",
+        "es": "Offset Y de la matriz (mm):",
+    },
+    "ui.grbl_homing": {
+        "fr": "Inclure $H (Auto Homing au départ)",
+        "en": "Include $H (Auto Homing at start)",
+        "de": "$H einbeziehen (Auto-Homing am Start)",
+        "es": "Incluir $H (homing automático al inicio)",
+    },
+    "ui.overscan_enabled": {
+        "fr": "Activer le Surbalayage (Overscan)",
+        "en": "Enable Overscan",
+        "de": "Overscan aktivieren",
+        "es": "Activar sobremuestreo",
+    },
+    "ui.overscan_mode_fixed": {
+        "fr": "Distance Fixe (mm)",
+        "en": "Fixed Distance (mm)",
+        "de": "Feste Distanz (mm)",
+        "es": "Distancia fija (mm)",
+    },
+    "ui.overscan_mode_pct": {
+        "fr": "Pourcentage (%)",
+        "en": "Percentage (%)",
+        "de": "Prozent (%)",
+        "es": "Porcentaje (%)",
+    },
+    "ui.gcode_laser_cmd": {
+        "fr": "Commande Laser:",
+        "en": "Laser Command:",
+        "de": "Laserbefehl:",
+        "es": "Comando láser:",
+    },
+    "ui.gcode_smax": {
+        "fr": "S-Max Value ($30):",
+        "en": "S-Max Value ($30):",
+        "de": "S-Max-Wert ($30):",
+        "es": "Valor S-Max ($30):",
+    },
+    "ui.overscan_mode_label": {
+        "fr": "Mode Surbalayage:",
+        "en": "Overscan Mode:",
+        "de": "Overscan-Modus:",
+        "es": "Modo de sobremuestreo:",
+    },
+    "ui.overscan_value_label": {
+        "fr": "Valeur Surbalayage:",
+        "en": "Overscan Value:",
+        "de": "Overscan-Wert:",
+        "es": "Valor de sobremuestreo:",
+    },
+    "ui.gcode_start": {
+        "fr": "G-Code Début:",
+        "en": "Start G-Code:",
+        "de": "G-Code Beginn:",
+        "es": "G-Code de inicio:",
+    },
+    "ui.gcode_end": {
+        "fr": "G-Code Fin:",
+        "en": "End G-Code:",
+        "de": "G-Code Ende:",
+        "es": "G-Code final:",
+    },
+    "ui.laser_exec_box": {
+        "fr": "Paramètres d'Exécution Laser — Gravure Image",
+        "en": "Laser Execution Settings — Image Engraving",
+        "de": "Laser-Ausführungsparameter — Bildgravur",
+        "es": "Parámetros de ejecución láser — Grabado de imagen",
+    },
+    "ui.image_layer_label": {
+        "fr": "Calque pour la gravure image :",
+        "en": "Layer for image engraving:",
+        "de": "Ebene für Bildgravur:",
+        "es": "Capa para grabado de imagen:",
+    },
+    "ui.svg_legacy_title": {
+        "fr": "[Ancien mode, déprécié] Découpe SVG globale",
+        "en": "[Legacy mode, deprecated] Global SVG Cutting",
+        "de": "[Altmodus, veraltet] Globale SVG-Schneideoption",
+        "es": "[Modo antiguo, obsoleto] Corte SVG global",
+    },
+    "ui.load_svg_legacy": {
+        "fr": "Charger SVG (ancien mode)",
+        "en": "Load SVG (legacy mode)",
+        "de": "SVG laden (Altmodus)",
+        "es": "Cargar SVG (modo antiguo)",
+    },
+    "ui.enable_cut": {
+        "fr": "Activer Passe de Découpe",
+        "en": "Enable Cutting Pass",
+        "de": "Schnittdurchgang aktivieren",
+        "es": "Activar pasada de corte",
+    },
+    "ui.cut_speed": {
+        "fr": "Vitesse Découpe (mm/min):",
+        "en": "Cut Speed (mm/min):",
+        "de": "Schnittgeschwindigkeit (mm/min):",
+        "es": "Velocidad de corte (mm/min):",
+    },
+    "ui.cut_power": {
+        "fr": "Puissance Découpe (%):",
+        "en": "Cut Power (%):",
+        "de": "Schnittleistung (%):",
+        "es": "Potencia de corte (%):",
+    },
+    "ui.cut_passes": {
+        "fr": "Passes Découpe:",
+        "en": "Cut Passes:",
+        "de": "Schnittdurchgänge:",
+        "es": "Pasadas de corte:",
+    },
+    "ui.vector_file_label": {
+        "fr": "Fichier Vectoriel:",
+        "en": "Vector File:",
+        "de": "Vektordatei:",
+        "es": "Archivo vectorial:",
+    },
+    "ui.plot_title": {
+        "fr": "Visualisation 2D du Parcours Laser",
+        "en": "2D Laser Path Visualization",
+        "de": "2D-Laserpfadvisualisierung",
+        "es": "Visualización 2D del recorrido láser",
+    },
+    "ui.plot_x": {
+        "fr": "Axe X (mm)",
+        "en": "X Axis (mm)",
+        "de": "X-Achse (mm)",
+        "es": "Eje X (mm)",
+    },
+    "ui.plot_y": {
+        "fr": "Axe Y (mm)",
+        "en": "Y Axis (mm)",
+        "de": "Y-Achse (mm)",
+        "es": "Eje Y (mm)",
+    },
+    "ui.plot_empty_state": {
+        "fr": "Génère un job pour voir l'aperçu ici.",
+        "en": "Generate a job to see the preview here.",
+        "de": "Erzeuge einen Job, um hier die Vorschau zu sehen.",
+        "es": "Genera un trabajo para ver la vista previa aquí.",
+    },
+    "ui.jog_step_label": {
+        "fr": "Pas (mm):",
+        "en": "Step (mm):",
+        "de": "Schritt (mm):",
+        "es": "Paso (mm):",
+    },
+    "ui.jog_speed_label": {
+        "fr": "Vitesse:",
+        "en": "Speed:",
+        "de": "Geschwindigkeit:",
+        "es": "Velocidad:",
+    },
+    "ui.material_mode_engraving": {
+        "fr": "Gravure",
+        "en": "Engraving",
+        "de": "Gravur",
+        "es": "Grabado",
+    },
+    "ui.material_mode_cutting": {
+        "fr": "Découpe",
+        "en": "Cutting",
+        "de": "Schneiden",
+        "es": "Corte",
+    },
+    "ui.support_body": {
+        "fr": (
+            "Suggestion, problème rencontré... Contacte-nous à l'adresse "
+            "suivante :<br><br>"
+            "<a href=\"mailto:laserstudiopro.support@proton.me\">"
+            "laserstudiopro.support@proton.me</a>"
+        ),
+        "en": (
+            "Suggestion or problem encountered... Contact us at:"
+            "<br><br>"
+            "<a href=\"mailto:laserstudiopro.support@proton.me\">"
+            "laserstudiopro.support@proton.me</a>"
+        ),
+        "de": (
+            "Vorschlag oder Problem... Kontaktiere uns unter:"
+            "<br><br>"
+            "<a href=\"mailto:laserstudiopro.support@proton.me\">"
+            "laserstudiopro.support@proton.me</a>"
+        ),
+        "es": (
+            "Sugerencia o problema encontrado... Contáctanos en:"
+            "<br><br>"
+            "<a href=\"mailto:laserstudiopro.support@proton.me\">"
+            "laserstudiopro.support@proton.me</a>"
+        ),
+    },
+    "ui.coffee_body": {
+        "fr": (
+            "Si ce logiciel t'est utile et que tu veux soutenir son développement,"
+            "<br>tu peux m'offrir un café ici :<br><br>"
+            "{link}<br><br>"
+            "Merci !"
+        ),
+        "en": (
+            "If this software is useful to you and you want to support its "
+            "development,<br>you can buy me a coffee here:<br><br>"
+            "{link}<br><br>"
+            "Thank you!"
+        ),
+        "de": (
+            "Wenn diese Software für dich nützlich ist und du die Entwicklung "
+            "unterstützen möchtest,<br>kannst du mir hier einen Kaffee kaufen:"
+            "<br><br>{link}<br><br>"
+            "Danke!"
+        ),
+        "es": (
+            "Si este software te resulta útil y quieres apoyar su desarrollo,"
+            "<br>puedes invitarme a un café aquí:<br><br>"
+            "{link}<br><br>"
+            "¡Gracias!"
+        ),
+    },
 }
 
 _current_lang = None
