@@ -9,6 +9,7 @@ import json
 import os
 
 from app_utils import get_app_dir
+from i18n import tr
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
 
@@ -52,7 +53,12 @@ class ProjectIOMixin:
         return proj_data
 
     def save_project(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Sauvegarder Projet Laser", "", "Projet Laser (*.json)")
+        path, _ = QFileDialog.getSaveFileName(
+    self,
+    tr("project.save_title"),
+    "",
+    tr("project.file_filter")
+)
         if not path:
             return
         try:
@@ -61,12 +67,25 @@ class ProjectIOMixin:
                 json.dump(proj_data, f, indent=4)
             self._add_to_recent_projects(path)
             self._clear_autosave()
-            QMessageBox.information(self, "Sauvegarde", "Projet sauvegardé avec succès.")
+            QMessageBox.information(
+    self,
+    tr("project.save_success_title"),
+    tr("project.save_success")
+)
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de sauvegarder le projet :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("laser.error"),
+    tr("project.save_error").format(error=e)
+)
 
     def load_project(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Ouvrir Projet Laser", "", "Projet Laser (*.json)")
+        path, _ = QFileDialog.getOpenFileName(
+    self,
+    tr("project.open_title"),
+    "",
+    tr("project.file_filter")
+)
         if not path:
             return
         self._load_project_from_path(path)
@@ -127,10 +146,18 @@ class ProjectIOMixin:
 
             self.update_image_processing()
             self._add_to_recent_projects(path)
-            QMessageBox.information(self, "Succès", "Projet chargé avec succès.")
+            QMessageBox.information(
+    self,
+    tr("project.load_success_title"),
+    tr("project.load_success")
+)
 
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Échec du chargement du projet :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("laser.error"),
+    tr("project.load_error").format(error=e)
+)
 
     # ------------------------------------------------------------------
     # Projets récents
@@ -158,7 +185,9 @@ class ProjectIOMixin:
             recents = [recents]
         recents = [p for p in (recents or []) if os.path.exists(p)]
         if not recents:
-            action_none = self.menu_recent_projects.addAction("(aucun)")
+            action_none = self.menu_recent_projects.addAction(
+    tr("project.no_recent")
+)
             action_none.setEnabled(False)
             return
         for path in recents:
@@ -198,13 +227,12 @@ class ProjectIOMixin:
         if not os.path.exists(path):
             return
         reply = QMessageBox.question(
-            self, "Récupération de session",
-            "Une sauvegarde automatique d'une session précédente a été trouvée "
-            "(probablement suite à une fermeture inattendue).\n\n"
-            "Veux-tu la récupérer ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+    self,
+    tr("project.autosave_recovery_title"),
+    tr("project.autosave_recovery_body"),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+    QMessageBox.StandardButton.No
+)
         if reply == QMessageBox.StandardButton.Yes:
             self._load_project_from_path(path)
         self._clear_autosave()

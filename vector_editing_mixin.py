@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt
 from vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
-
+from i18n import tr
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
@@ -57,7 +57,11 @@ class VectorEditingMixin:
 
     def insert_text_object(self):
         if not self.layer_manager.layers:
-            QMessageBox.warning(self, "Aucun calque", "Créez d'abord un calque dans l'onglet 'Calques (Layers)'.")
+            QMessageBox.warning(
+    self,
+    tr("vector.no_layer_title"),
+    tr("vector.no_layer_body")
+)
             return
         dialog = TextInsertDialog(self.layer_manager, parent=self)
         if dialog.exec():
@@ -78,7 +82,11 @@ class VectorEditingMixin:
     def edit_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()
         if obj is None:
-            QMessageBox.information(self, "Sélection", "Sélectionnez d'abord un objet dans le canevas.")
+            QMessageBox.information(
+    self,
+    tr("vector.selection_title"),
+    tr("vector.no_selection")
+)
             return
         self._open_edit_dialog(item, obj)
 
@@ -104,7 +112,7 @@ class VectorEditingMixin:
                 self.on_vector_selection_changed(obj)
         elif isinstance(obj, SvgPathObject):
             dialog = AssignLayerDialog(self.layer_manager, svg_obj=obj,
-                                        title="Propriétés de l'élément SVG (calque, taille)", parent=self)
+                                        title=tr("vector.svg_properties"), parent=self)
             if dialog.exec():
                 self.vector_canvas.push_undo_snapshot()
                 dialog.apply_to(obj)
@@ -213,12 +221,14 @@ class VectorEditingMixin:
         # dialogue) : ça lui donne les boutons minimiser/agrandir/fermer
         # standards de Windows et un vrai comportement plein écran.
         dialog.setWindowFlags(Qt.WindowType.Window)
-        dialog.setWindowTitle("Éditeur Vectoriel — Plein Écran")
+        dialog.setWindowTitle(tr("vector.fullscreen_title"))
 
         dlg_layout = QVBoxLayout(dialog)
         dlg_layout.setContentsMargins(4, 4, 4, 4)
 
-        btn_close_fullscreen = QPushButton("✕ Fermer le plein écran (retour à la fenêtre normale)")
+        btn_close_fullscreen = QPushButton(
+    tr("vector.close_fullscreen")
+)
         btn_close_fullscreen.setStyleSheet("background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;")
         btn_close_fullscreen.clicked.connect(dialog.close)
         dlg_layout.addWidget(btn_close_fullscreen)
@@ -229,7 +239,11 @@ class VectorEditingMixin:
         def restore(_result=None):
             dlg_layout.removeWidget(self.tab_vector_editor)
             self.tab_vector_editor.setParent(None)
-            self.main_tabs_view.insertTab(idx, self.tab_vector_editor, "Éditeur Vectoriel (Texte & Formes)")
+            self.main_tabs_view.insertTab(
+    idx,
+    self.tab_vector_editor,
+    tr("tab.vector_editor")
+)
             self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
             self.tab_vector_editor.setVisible(True)
 
@@ -244,32 +258,53 @@ class VectorEditingMixin:
         if not self.layer_manager.layers:
             QMessageBox.warning(self, "Aucun calque", "Créez d'abord un calque dans l'onglet 'Calques (Layers)'.")
             return
-        path, _ = QFileDialog.getOpenFileName(self, "Importer un SVG (multi-calques)", "", "Vectoriel SVG (*.svg)")
+        path, _ = QFileDialog.getOpenFileName(
+    self,
+    tr("vector.import_title"),
+    "",
+    tr("vector.svg_filter")
+)
         if not path:
             return
         default_layer_id = self.layer_manager.layers[0].id
         try:
             objects = extract_svg_objects(path, default_layer_id, self.spin_machine_h.value())
         except Exception as e:
-            QMessageBox.critical(self, "Erreur d'import SVG", f"Impossible d'importer ce fichier :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("vector.svg_error_title"),
+    tr("vector.svg_error").format(error=e)
+)
             return
         if not objects:
-            QMessageBox.information(self, "Import SVG", "Aucun élément exploitable n'a été trouvé dans ce fichier.")
+            QMessageBox.information(
+    self,
+    tr("vector.svg_empty_title"),
+    tr("vector.svg_empty")
+)
             return
         self.vector_canvas.push_undo_snapshot()
         for obj in objects:
             self.vector_canvas.add_object(obj)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         QMessageBox.information(
-            self, "Import SVG réussi",
-            f"{len(objects)} élément(s) importé(s) dans l'éditeur vectoriel, tous assignés par défaut "
-            f"au calque « {self.layer_manager.layers[0].name} ».\n\n"
-            "Sélectionne un élément puis double-clique dessus (ou 'Modifier Sélection') pour "
-            "lui assigner un autre calque (ex: découpe pour le contour, gravure remplie pour l'intérieur)."
-        )
+    self,
+    tr("vector.svg_success_title"),
+    tr("vector.svg_success").format(
+        count=len(objects),
+        layer=self.layer_manager.layers[0].name
+    )
+)
 
     def load_svg(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Ouvrir SVG Découpe", "", "Vectoriel SVG (*.svg)")
+        path, _ = QFileDialog.getOpenFileName(
+    self,
+    tr("vector.open_svg_title"),
+    "",
+    tr("vector.svg_filter")
+)
         if path:
             self.loaded_svg_path = path
-            self.txt_console.append(f"Fichier SVG chargé : {path}")
+            self.txt_console.append(
+    tr("vector.svg_loaded").format(path=path)
+)

@@ -3,6 +3,8 @@ from PyQt6.QtWidgets import (QMessageBox, QInputDialog, QFileDialog)
 from PyQt6.QtCore import QSettings
 import json
 
+from i18n import tr
+
 
 class MachineProfilesMixin:
     def save_machine_settings(self):
@@ -147,7 +149,11 @@ class MachineProfilesMixin:
         self._apply_machine_profile_fields(self.machine_profiles[idx])
 
     def _add_machine_profile(self):
-        name, ok = QInputDialog.getText(self, "Nouvelle Machine", "Nom de la machine :")
+        name, ok = QInputDialog.getText(
+    self,
+    tr("machine.new_title"),
+    tr("machine.new_prompt")
+)
         if not ok or not name.strip():
             return
         profile = {"name": name.strip()}
@@ -163,22 +169,30 @@ class MachineProfilesMixin:
         updated = self._capture_machine_profile_fields()
         updated["name"] = name
         self.machine_profiles[idx] = updated
-        QMessageBox.information(self, "Profil mis à jour",
-                                 f"Le profil « {name} » a été mis à jour avec les réglages actuels "
-                                 "(dimensions, origine, limites, G-code début/fin).")
+        QMessageBox.information(
+    self,
+    tr("machine.updated_title"),
+    tr("machine.updated_body").format(name=name)
+)
 
     def _delete_machine_profile(self):
         idx = self.combo_machine_profile.currentIndex()
         if idx < 0 or idx >= len(self.machine_profiles):
             return
         if len(self.machine_profiles) <= 1:
-            QMessageBox.warning(self, "Impossible", "Il doit rester au moins un profil de machine.")
+            QMessageBox.warning(
+    self,
+    tr("machine.cannot_delete_title"),
+    tr("machine.cannot_delete_body")
+)
             return
         name = self.machine_profiles[idx]["name"]
         reply = QMessageBox.question(
-            self, "Supprimer le profil", f"Supprimer le profil « {name} » ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+    self,
+    tr("machine.delete_title"),
+    tr("machine.delete_body").format(name=name),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+)
         if reply == QMessageBox.StandardButton.Yes:
             self.machine_profiles.pop(idx)
             self._refresh_machine_profile_combo()
@@ -187,33 +201,48 @@ class MachineProfilesMixin:
         """Exporte tous les profils matériaux courants dans un fichier .json
         séparé, partageable avec d'autres utilisateurs (ex: même machine)."""
         path, _ = QFileDialog.getSaveFileName(
-            self, "Exporter les profils matériaux", "materiaux_laser.json", "JSON (*.json)"
-        )
+    self,
+    tr("material.export_title"),
+    "materiaux_laser.json",
+    "JSON (*.json)"
+)
         if not path:
             return
         try:
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(self.materials_db, f, indent=2, ensure_ascii=False)
             QMessageBox.information(
-                self, "Export réussi", f"{len(self.materials_db)} profil(s) exporté(s) vers :\n{path}"
-            )
+    self,
+    tr("material.export_success_title"),
+    tr("material.export_success_body").format(
+        count=len(self.materials_db),
+        path=path
+    )
+)
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible d'exporter les profils :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("laser.error"),
+    tr("material.error_export").format(error=e)
+)
 
     def import_material_profiles(self):
         """Importe des profils matériaux depuis un fichier .json exporté par
         cette application (ou par un·e autre utilisateur·rice) : les profils
         du même nom sont mis à jour, les nouveaux sont ajoutés."""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Importer des profils matériaux", "", "JSON (*.json)"
-        )
+    self,
+    tr("material.import_title"),
+    "",
+    "JSON (*.json)"
+)
         if not path:
             return
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 imported = json.load(f)
             if not isinstance(imported, dict):
-                raise ValueError("Le fichier ne contient pas un dictionnaire de profils valide.")
+                raise ValueError(tr("material.invalid_file"))
             added, updated = 0, 0
             for name, profile in imported.items():
                 if not isinstance(profile, dict):
@@ -228,10 +257,19 @@ class MachineProfilesMixin:
             self.combo_mat.addItems(list(self.materials_db.keys()))
             self.combo_mat.blockSignals(False)
             QMessageBox.information(
-                self, "Import réussi", f"{added} profil(s) ajouté(s), {updated} mis à jour."
-            )
+    self,
+    tr("material.import_success_title"),
+    tr("material.import_success_body").format(
+        added=added,
+        updated=updated
+    )
+)
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible d'importer ce fichier :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("laser.error"),
+    tr("material.error_import").format(error=e)
+)
 
     def apply_material_profile(self):
         mat_name = self.combo_mat.currentText()
@@ -252,10 +290,18 @@ class MachineProfilesMixin:
             "pw_c": self.spin_power_cut.value(),
             "pass_c": self.spin_passes_cut.value()
         }
-        QMessageBox.information(self, "Profil Enregistré", f"Les paramètres pour '{mat_name}' ont été sauvegardés.")
+        QMessageBox.information(
+    self,
+    tr("material.saved_title"),
+    tr("material.saved_body").format(name=mat_name)
+)
 
     def add_material_profile(self):
-        name, ok = QInputDialog.getText(self, "Nouveau Profil", "Nom du matériau :")
+        name, ok = QInputDialog.getText(
+    self,
+    tr("material.new_profile_title"),
+    tr("material.new_profile_prompt")
+)
         if ok and name.strip():
             name = name.strip()
             self.materials_db[name] = {
@@ -271,10 +317,18 @@ class MachineProfilesMixin:
     def delete_material_profile(self):
         mat_name = self.combo_mat.currentText()
         if mat_name == "Personnalisé":
-            QMessageBox.warning(self, "Action Interdite", "Le profil par défaut ne peut être supprimé.")
+            QMessageBox.warning(
+    self,
+    tr("material.delete_forbidden_title"),
+    tr("material.delete_forbidden_body")
+)
             return
-        reply = QMessageBox.question(self, "Suppression", f"Supprimer le profil '{mat_name}' ?",
-                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        reply = QMessageBox.question(
+    self,
+    tr("material.delete_title"),
+    tr("material.delete_body").format(name=mat_name),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+)
         if reply == QMessageBox.StandardButton.Yes:
             del self.materials_db[mat_name]
             self.combo_mat.removeItem(self.combo_mat.currentIndex())

@@ -10,29 +10,55 @@ from vector_layers import (
     extract_vector_layer_data
 )
 from workers import AdvancedGCodeWorker, TestMatrixWorker
+from i18n import tr
 
 
 class GcodeGenerationMixin:
     def export_gcode_with_ext(self, extension):
         gcode_text = self.txt_console.toPlainText()
+
         if not gcode_text.strip():
-            QMessageBox.warning(self, "G-Code vide", "Générez d'abord le job G-Code avant de l'exporter.")
+            QMessageBox.warning(
+                self,
+                tr("gcode.empty_title"),
+                tr("gcode.empty_export")
+            )
             return
 
-        file_filter = f"Fichier (*{extension})"
+        file_filter = tr("gcode.file_filter").format(
+            extension=extension
+        )
         default_filename = f"job_laser{extension}"
-        path, _ = QFileDialog.getSaveFileName(self, f"Exporter au format {extension}", default_filename, file_filter)
-        
+
+        path, _ = QFileDialog.getSaveFileName(
+            self,
+            tr("gcode.export_title").format(
+                extension=extension
+            ),
+            default_filename,
+            file_filter
+        )
+
         if path:
             if not path.lower().endswith(extension):
                 path += extension
 
             try:
-                with open(path, 'w', encoding='utf-8') as f:
+                with open(path, "w", encoding="utf-8") as f:
                     f.write(gcode_text)
-                QMessageBox.information(self, "Exportation Réussie", f"Le fichier a été enregistré :\n{path}")
+
+                QMessageBox.information(
+                    self,
+                    tr("gcode.export_success_title"),
+                    tr("gcode.export_success").format(path=path)
+                )
+
             except Exception as e:
-                QMessageBox.critical(self, "Erreur d'exportation", f"Impossible de sauvegarder le fichier :\n{e}")
+                QMessageBox.critical(
+                    self,
+                    tr("gcode.export_error_title"),
+                    tr("gcode.export_error").format(error=e)
+                )
 
     def _plot_raster_reconstruction(self, raster_strokes, tint_color=None):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
@@ -222,22 +248,20 @@ class GcodeGenerationMixin:
         total_seconds = 0.0
         details = []
 
-        if self.raw_image:
-            w_mm = self.spin_w.value()
+        if self.processed_array is not None:
             h_mm = self.spin_h.value()
+            w_mm = self.spin_w.value()
             lmm = self.spin_lmm.value()
             speed = self.spin_speed_engrave.value()
-            overscan_dist = 0.0
-            if self.chk_overscan.isChecked():
-                if self.combo_overscan_mode.currentText() == "Pourcentage (%)":
-                    overscan_dist = w_mm * (self.spin_overscan_pct.value() / 100.0)
-                else:
-                    overscan_dist = self.spin_overscan_dist.value()
+            overscan_dist = getattr(self, "spin_overscan", None)
+            overscan = overscan_dist.value() if overscan_dist else 0.0
             rows = max(1, int(h_mm * lmm))
-            distance = rows * (w_mm + 2 * overscan_dist)
+            distance = rows * (w_mm + 2 * overscan)
             t = (distance / max(speed, 1)) * 60.0
             total_seconds += t
-            details.append(f"Gravure image : {self._format_duration(t)}")
+            details.append(tr("gcode.image_details").format(
+                duration=self._format_duration(t)
+            ))
 
         if self.loaded_svg_path:
             try:
@@ -256,7 +280,9 @@ class GcodeGenerationMixin:
                 passes_cut = self.spin_passes_cut.value()
                 t = (total_len_svg / max(speed_cut, 1)) * 60.0 * passes_cut
                 total_seconds += t
-                details.append(f"Découpe SVG importée : {self._format_duration(t)}")
+                details.append(tr("gcode.svg_details").format(
+                    duration=self._format_duration(t)
+                ))
             except Exception:
                 pass
 
@@ -276,17 +302,29 @@ class GcodeGenerationMixin:
                     total_len = sum(o.world_path().length() for o in objs)
                     t = (total_len / max(layer.speed, 1)) * 60.0 * max(layer.passes, 1)
                 total_seconds += t
-                details.append(f"Calque « {layer.name} » : {self._format_duration(t)}")
+                details.append(tr("gcode.layer_details").format(
+                    name=layer.name,
+                    duration=self._format_duration(t)
+                ))
 
         if total_seconds == 0.0:
-            QMessageBox.information(self, "Estimation", "Rien à estimer : charge une image, un SVG ou ajoute des objets vectoriels.")
+            QMessageBox.information(
+                self,
+                tr("gcode.estimate_title"),
+                tr("gcode.nothing_to_estimate")
+            )
             return
 
-        msg = "Estimation RAPIDE (approximative, sans générer le G-Code complet) :\n\n"
-        msg += "\n".join(details)
-        msg += f"\n\nTOTAL estimé : {self._format_duration(total_seconds)}"
-        msg += "\n\n(Ignore les accélérations/décélérations et les déplacements rapides G0 — le temps réel sera généralement un peu supérieur à cette estimation.)"
-        QMessageBox.information(self, "Estimation du temps de gravure", msg)
+        msg = tr("gcode.estimate_details").format(
+            details="\n".join(details),
+            total=self._format_duration(total_seconds)
+        )
+
+        QMessageBox.information(
+            self,
+            tr("gcode.estimate_title_full"),
+            msg
+        )
 
     def import_gcode_file(self):
         """Importe un fichier G-Code existant (généré par un autre outil : LaserGRBL,
@@ -294,8 +332,10 @@ class GcodeGenerationMixin:
         l'afficher dans la console et le visualiser dans l'aperçu 2D, sans passer par
         le pipeline de génération interne (image/vecteurs) de l'application."""
         path, _ = QFileDialog.getOpenFileName(
-            self, "Importer un G-Code", "",
-            "Fichiers G-Code (*.gcode *.nc *.ngc *.txt *.tap);;Tous les fichiers (*.*)"
+            self,
+            tr("gcode.import_title"),
+            "",
+            tr("gcode.import_filter")
         )
         if not path:
             return
@@ -303,7 +343,11 @@ class GcodeGenerationMixin:
             with open(path, 'r', encoding='utf-8', errors='replace') as f:
                 gcode_text = f.read()
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de lire le fichier :\n{e}")
+            QMessageBox.critical(
+                self,
+                tr("gcode.export_error_title"),
+                tr("gcode.import_error").format(error=e)
+            )
             return
 
         self.txt_console.setPlainText(gcode_text)
@@ -313,7 +357,9 @@ class GcodeGenerationMixin:
         self.lbl_stat_time.setText("Temps Estimé: — (fichier importé)")
         self.plot_gcode_preview(gcode_text)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
-        self.txt_console.append(f"\n; --- Importé depuis : {path} ---")
+        self.txt_console.append(
+    tr("gcode.imported_from").format(path=path)
+)
 
     def generate_job(self):
         try:

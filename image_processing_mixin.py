@@ -4,6 +4,7 @@ from PyQt6.QtGui import QPixmap, QImage
 import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
+from i18n import tr
 
 
 class ImageProcessingMixin:
@@ -66,7 +67,13 @@ class ImageProcessingMixin:
         self.spin_lmm.blockSignals(False)
         self._sync_dpi_and_quality_from_lmm(lmm)
         dpi = lmm * 25.4
-        self.lbl_focal_info.setText(f"Focale : {focal:.3f} mm  →  {lmm:.2f} lignes/mm  (≈ {dpi:.0f} DPI)")
+        self.lbl_focal_info.setText(
+    tr("image.focal_info").format(
+        focal=focal,
+        lmm=lmm,
+        dpi=dpi
+    )
+)
         self.update_image_processing()
 
     def _on_machine_focal_changed(self, _value):
@@ -100,18 +107,22 @@ class ImageProcessingMixin:
         spacing = 1.0 / lmm
         ratio = spacing / focal
         if ratio < 0.6:
-            text, color = "trop fin (risque de surgravure)", "#e05656"
+            text, color = tr("image.quality_too_fine"), "#e05656"
         elif ratio < 0.9:
-            text, color = "fin (surgravure probable)", "#e0a656"
+            text, color = tr("image.quality_fine"), "#e0a656"
         elif ratio < 1.25:
-            text, color = "fin mais correct", "#999999"
+            text, color = tr("image.quality_fine_ok"), "#999999"
         elif ratio <= 2.25:
-            text, color = "zone recommandée", "#56c271"
+            text, color = tr("image.quality_recommended"), "#56c271"
         else:
-            text, color = "grossier mais correct", "#999999"
+            text, color = tr("image.quality_coarse"), "#999999"
         self.lbl_resolution_quality.setText(
-            f"Écart : {spacing:.3f} mm ({ratio:.1f}× la focale) — {text}"
-        )
+    tr("image.quality_result").format(
+        spacing=spacing,
+        ratio=ratio,
+        quality=text
+    )
+)
         self.lbl_resolution_quality.setStyleSheet(f"color: {color};")
 
     def goto_laser_focal_settings(self):
@@ -135,10 +146,11 @@ class ImageProcessingMixin:
         new_focal = 1.0 / lmm
         current_focal = self.spin_machine_focal.value()
         reply = QMessageBox.question(
-            self, "Enregistrer la focale machine",
-            f"Mettre à jour la focale du laser (Paramètres Machine) :\n"
-            f"{current_focal:.3f} mm  →  {new_focal:.3f} mm\n\n"
-            "et sauvegarder ce réglage machine maintenant ?",
+            self, tr("image.save_focal_title"),
+            tr("image.save_focal_question").format(
+                current=current_focal,
+                new=new_focal
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -146,9 +158,10 @@ class ImageProcessingMixin:
         self.spin_machine_focal.setValue(new_focal)
         self.save_machine_settings()
         QMessageBox.information(
-            self, "Focale enregistrée",
-            f"La focale machine a été mise à jour à {new_focal:.3f} mm et sauvegardée."
-        )
+    self,
+    tr("image.focal_saved_title"),
+    tr("image.focal_saved").format(focal=new_focal)
+)
 
     def rotate_image_left(self):
         if self.raw_image:
@@ -173,7 +186,12 @@ class ImageProcessingMixin:
             self.update_image_processing()
 
     def load_image(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Ouvrir Image", "", "Images (*.png *.jpg *.jpeg *.bmp)")
+        path, _ = QFileDialog.getOpenFileName(
+    self,
+    tr("image.open_title"),
+    "",
+    tr("image.file_filter")
+)
         if path:
             self.load_image_from_path(path)
 
@@ -183,17 +201,18 @@ class ImageProcessingMixin:
         if not self.raw_image and self.processed_array is None:
             return
         reply = QMessageBox.question(
-            self, "Supprimer l'image",
-            "Supprimer l'image chargée ? Cette action est irréversible (il faudra la recharger).",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
+    self,
+    tr("image.delete_title"),
+    tr("image.delete_question"),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+)
         if reply != QMessageBox.StandardButton.Yes:
             return
         self.raw_image = None
         self.processed_array = None
         self.view_preview_src.clear_image()
         self.view_preview_dither.clear_image()
-        self.txt_console.append("Image supprimée.")
+        self.txt_console.append(tr("image.deleted"))
 
     def load_image_from_path(self, path):
         try:
@@ -215,9 +234,15 @@ class ImageProcessingMixin:
             self.block_aspect_signal = False
             self.display_source_image()
             self.update_image_processing()
-            self.txt_console.append(f"Image chargée : {path}")
+            self.txt_console.append(
+    tr("image.loaded").format(path=path)
+)
         except Exception as e:
-            QMessageBox.critical(self, "Erreur", f"Impossible de charger l'image :\n{e}")
+            QMessageBox.critical(
+    self,
+    tr("image.error_title"),
+    tr("image.load_error").format(error=e)
+)
 
     def on_dimension_changed(self, changed_axis, value):
         if self.block_aspect_signal or not self.chk_keep_ratio.isChecked() or not self.raw_image:
@@ -290,7 +315,11 @@ class ImageProcessingMixin:
         contraste/gamma/négatif), pour choisir sans faire d'allers-retours.
         Calculé sur une miniature basse résolution : quasi instantané."""
         if not self.raw_image:
-            QMessageBox.information(self, "Comparer les algorithmes", "Charge d'abord une image.")
+            QMessageBox.information(
+    self,
+    tr("image.compare_title"),
+    tr("image.compare_empty")
+)
             return
 
         img = self.raw_image.copy()
@@ -320,7 +349,7 @@ class ImageProcessingMixin:
         dummy_worker = ImageProcessingWorker(None, {})
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Comparaison des algorithmes de tramage")
+        dialog.setWindowTitle(tr("image.compare_dialog_title"))
         grid = QGridLayout(dialog)
         cols = 5
         for i, algo in enumerate(algos):

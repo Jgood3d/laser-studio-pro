@@ -3,6 +3,7 @@ import serial
 import serial.tools.list_ports
 from PyQt6.QtWidgets import (QMessageBox)
 from workers import GCodeStreamerThread, CommandThread
+from i18n import tr
 
 
 class LaserControlMixin:
@@ -15,22 +16,32 @@ class LaserControlMixin:
     def toggle_usb(self):
         if self.usb.is_connected():
             self.usb.disconnect()
-            self.btn_connect.setText("Connecter GRBL")
+            self.btn_connect.setText(tr("laser.connect"))
             self.btn_connect.setStyleSheet("")
-            self.txt_console.append("Déconnecté du port COM.")
+            self.txt_console.append(tr("laser.disconnected"))
         else:
             selected = self.combo_ports.currentText()
             if not selected:
-                QMessageBox.warning(self, "Erreur", "Aucun port COM sélectionné.")
+                QQMessageBox.warning(
+    self,
+    tr("laser.no_port_title"),
+    tr("laser.no_port")
+)
                 return
             port = selected.split(" - ")[0]
             if self.usb.connect(port):
-                self.btn_connect.setText("Déconnecter")
+                self.btn_connect.setText(tr("laser.disconnect"))
                 self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
-                self.txt_console.append(f"Connecté à {port} avec succès.")
+                self.txt_console.append(
+    tr("laser.connected").format(port=port)
+)
                 self._check_grbl_laser_mode()
             else:
-                QMessageBox.critical(self, "Erreur", f"Échec de connexion sur {port}.")
+                QMessageBox.critical(
+    self,
+    tr("laser.no_port_title"),
+    tr("laser.connection_error").format(port=port)
+)
 
     def _check_grbl_laser_mode(self):
         """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
@@ -45,24 +56,17 @@ class LaserControlMixin:
             line = line.strip()
             if line.startswith("$32="):
                 value = line.split("=", 1)[1].strip()
-                self.txt_console.append(f">>> Mode laser GRBL ($32) : {value}")
+                self.txt_console.append(
+    tr("laser.grbl_mode_status").format(value=value)
+)
                 if value != "1":
                     QMessageBox.warning(
-                        self, "Mode laser GRBL désactivé",
-                        "Le paramètre GRBL $32 (mode laser) n'est pas activé sur "
-                        f"cette machine (valeur actuelle : {value}).\n\n"
-                        "Ce logiciel suppose ce mode activé : sans lui, le laser "
-                        "peut rester actif pendant les déplacements rapides (G0) "
-                        "dans certains G-Codes générés (mode M4), ce qui peut "
-                        "créer des marques de brûlure indésirables.\n\n"
-                        "Pour l'activer, envoie la commande $32=1 dans la console "
-                        "ci-dessous, puis $$ pour vérifier."
-                    )
+    self,
+    tr("laser.grbl_dynamic_off_title"),
+    tr("laser.grbl_dynamic_off").format(value=value)
+)
                 return
-        self.txt_console.append(
-            ">>> Impossible de vérifier le mode laser GRBL ($32) : "
-            "réglage non trouvé dans la réponse de la machine."
-        )
+        self.txt_console.append(tr("laser.grbl_mode_unknown"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
@@ -73,7 +77,11 @@ class LaserControlMixin:
 
     def jog_move(self, dx, dy):
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "USB non connecté", "Connectez d'abord le laser.")
+            QMessageBox.warning(
+    self,
+    tr("laser.usb_not_connected_title"),
+    tr("laser.connect_first")
+)
             return
 
         step_str = self.combo_step.currentText().replace(" mm", "")
@@ -88,30 +96,39 @@ class LaserControlMixin:
 
     def send_manual_direct_cmd(self, cmd):
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "USB non connecté", "Connectez le laser via USB.")
+            QMessageBox.warning(
+    self,
+    tr("laser.usb_not_connected_title"),
+    tr("laser.connect_via_usb")
+)
             return
         self._run_commands_async(cmd)
 
     def send_to_laser(self):
         gcode_text = self.txt_console.toPlainText()
         if not gcode_text.strip():
-            QMessageBox.warning(self, "Erreur", "Aucun G-Code à envoyer.")
+            QMessageBox.warning(
+    self,
+    tr("laser.no_port_title"),
+    tr("laser.no_gcode")
+)
             return
 
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "Erreur USB", "Veuillez connecter le laser en USB.")
+            QMessageBox.warning(
+    self,
+    tr("laser.usb_error_title"),
+    tr("laser.connect_via_usb")
+)
             return
 
         reply = QMessageBox.question(
-            self, "Confirmer le lancement",
-            "Le laser va démarrer.\n\nVérifiez que :\n"
-            "- la zone de travail est dégagée,\n"
-            "- le capot/protection est en place,\n"
-            "- vous portez une protection oculaire adaptée.\n\n"
-            "Lancer le job maintenant ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+    self,
+    tr("laser.confirm_title"),
+    tr("laser.confirm_body"),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+    QMessageBox.StandardButton.No
+)
         if reply != QMessageBox.StandardButton.Yes:
             return
 
@@ -126,40 +143,48 @@ class LaserControlMixin:
     def on_stream_finished(self, clean_finish):
         self.btn_send.setEnabled(True)
         if clean_finish:
-            QMessageBox.information(self, "Terminé", "Envoi du G-Code au laser terminé avec succès.")
+            QMessageBox.information(
+    self,
+    tr("laser.finished_title"),
+    tr("laser.finished")
+)
         else:
             QMessageBox.warning(
-                self, "Job interrompu",
-                "L'envoi du G-Code a été interrompu (erreur GRBL, alarme, perte de "
-                "connexion ou arrêt manuel). Consultez la console avant de relancer."
-            )
+    self,
+    tr("laser.interrupted_title"),
+    tr("laser.interrupted")
+)
 
     def send_pause(self):
         self.usb.send_raw_byte(b'!')
-        self.txt_console.append(">>> Commande Temps Réel: PAUSE (!)")
+        self.txt_console.append(tr("laser.pause_log"))
 
     def send_resume(self):
         self.usb.send_raw_byte(b'~')
-        self.txt_console.append(">>> Commande Temps Réel: REPRISE (~)")
+        self.txt_console.append(tr("laser.resume_log"))
 
     def send_reset(self):
         if self.streamer and self.streamer.isRunning():
             self.streamer.stop()
         self.usb.send_raw_byte(b'\x18')
-        self.txt_console.append(">>> Commande Temps Réel: RESET (Ctrl+X)")
+        self.txt_console.append(tr("laser.reset_log"))
 
     def send_kill(self):
         if self.streamer and self.streamer.isRunning():
             self.streamer.stop()
         self.usb.send_raw_byte(b'\x18')
-        self.txt_console.append(">>> ARRÊT D'URGENCE (KILL / RESET envoyé)")
+        self.txt_console.append(tr("laser.kill_log"))
 
     def send_manual_cmd(self):
         cmd = self.txt_manual_cmd.text().strip()
         if not cmd:
             return
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "USB non connecté", "Connectez le laser via USB.")
+            QMessageBox.warning(
+    self,
+    tr("laser.usb_not_connected_title"),
+    tr("laser.connect_first")
+)
             return
         self.txt_manual_cmd.add_to_history(cmd)
         self._run_commands_async(cmd)
@@ -167,7 +192,11 @@ class LaserControlMixin:
 
     def run_frame(self):
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "USB non connecté", "Connectez d'abord le laser.")
+            QMessageBox.warning(
+    self,
+    tr("laser.usb_not_connected_title"),
+    tr("laser.connect_first")
+)
             return
 
         w = self.spin_w.value()

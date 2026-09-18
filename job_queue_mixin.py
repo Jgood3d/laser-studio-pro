@@ -3,6 +3,7 @@ l'une après l'autre, sans reconfigurer/relancer manuellement entre chaque."""
 import datetime
 from PyQt6.QtWidgets import QMessageBox, QListWidgetItem
 from workers import GCodeStreamerThread
+from i18n import tr
 
 
 class JobQueueMixin:
@@ -11,7 +12,11 @@ class JobQueueMixin:
         d'attente, sous un nom horodaté."""
         gcode_text = self.txt_console.toPlainText()
         if not gcode_text.strip():
-            QMessageBox.warning(self, "File d'attente", "Aucun G-Code à ajouter (génère d'abord un job).")
+            QMessageBox.warning(
+    self,
+    tr("queue.empty_title"),
+    tr("queue.no_gcode")
+)
             return
         if not hasattr(self, "job_queue"):
             self.job_queue = []
@@ -38,9 +43,9 @@ class JobQueueMixin:
     def _update_queue_status(self):
         n = len(getattr(self, "job_queue", []))
         if n == 0:
-            self.lbl_queue_status.setText("File vide.")
+            self.lbl_queue_status.setText(tr("queue.status_empty"))
         else:
-            self.lbl_queue_status.setText(f"{n} job(s) en file.")
+            self.lbl_queue_status.setText(tr("queue.status_count").format(count=n))
 
     def run_job_queue(self):
         """Lance l'envoi des jobs de la file les uns après les autres : dès
@@ -48,21 +53,27 @@ class JobQueueMixin:
         Une erreur/interruption sur un job arrête la file (pas d'envoi en
         aveugle du reste si quelque chose s'est mal passé)."""
         if not getattr(self, "job_queue", None):
-            QMessageBox.warning(self, "File d'attente", "La file est vide.")
+            QMessageBox.warning(
+    self,
+    tr("queue.empty_title"),
+    tr("queue.status_empty")
+)
             return
         if not self.usb.is_connected():
-            QMessageBox.warning(self, "Erreur USB", "Veuillez connecter le laser en USB.")
+            QMessageBox.warning(
+    self,
+    tr("queue.usb_error"),
+    tr("queue.usb_connect")
+)
             return
 
         reply = QMessageBox.question(
-            self, "Lancer la file d'attente",
-            f"{len(self.job_queue)} job(s) vont être envoyés l'un après l'autre.\n\n"
-            "Vérifie que :\n- la zone de travail est dégagée entre chaque pièce,\n"
-            "- le capot/protection est en place,\n- tu portes une protection oculaire adaptée.\n\n"
-            "Lancer la file maintenant ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
-        )
+    self,
+    tr("queue.confirm_title"),
+    tr("queue.confirm_body").format(count=len(self.job_queue)),
+    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+    QMessageBox.StandardButton.No
+)
         if reply != QMessageBox.StandardButton.Yes:
             return
 
@@ -73,17 +84,32 @@ class JobQueueMixin:
     def _run_next_queued_job(self):
         if self._queue_running_index >= len(self.job_queue):
             self.txt_console.append(">>> File d'attente terminée.")
-            QMessageBox.information(self, "File d'attente terminée", "Tous les jobs de la file ont été envoyés.")
+            QMessageBox.information(
+    self,
+    tr("queue.done_title"),
+    tr("queue.done_body")
+)
             self.btn_run_queue.setEnabled(True)
             self.clear_job_queue()
             return
 
         job = self.job_queue[self._queue_running_index]
         self.list_job_queue.setCurrentRow(self._queue_running_index)
-        self.txt_console.append(f">>> File d'attente : envoi de « {job['name']} » "
-                                 f"({self._queue_running_index + 1}/{len(self.job_queue)})")
+
+        self.txt_console.append(
+            tr("queue.job_log").format(
+                name=job["name"],
+                index=self._queue_running_index + 1,
+                total=len(self.job_queue)
+            )
+        )
+
         self.lbl_queue_status.setText(
-            f"Envoi en cours : {job['name']} ({self._queue_running_index + 1}/{len(self.job_queue)})"
+            tr("queue.in_progress").format(
+                name=job["name"],
+                index=self._queue_running_index + 1,
+                total=len(self.job_queue)
+            )
         )
 
         self.progress_bar.setValue(0)
@@ -97,10 +123,8 @@ class JobQueueMixin:
         if not clean_finish:
             self.btn_run_queue.setEnabled(True)
             QMessageBox.warning(
-                self, "File d'attente interrompue",
-                "Un job de la file a été interrompu (erreur GRBL, alarme, perte de "
-                "connexion ou arrêt manuel). La file est arrêtée — consulte la "
-                "console avant de relancer."
+                self, tr("queue.stopped_title"),
+                tr("queue.stopped_body")
             )
             return
         self._queue_running_index += 1

@@ -59,14 +59,16 @@ class UiSetupMixin:
                 pass
 
     def closeEvent(self, event):
-        self.save_machine_settings()
-        self.save_splitter_sizes()
-        reply = QMessageBox.question(
-            self, "Quitter",
-            "Voulez-vous sauvegarder le projet avant de fermer ?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Yes
-        )
+    self.save_machine_settings()
+    self.save_splitter_sizes()
+    reply = QMessageBox.question(
+        self,
+        tr("ui.quit_title"),
+        tr("ui.quit_save_prompt"),
+        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
+        QMessageBox.StandardButton.Yes
+    )
+
         if reply == QMessageBox.StandardButton.Yes:
             self.save_project()
             event.accept()
@@ -176,7 +178,7 @@ class UiSetupMixin:
 
     def show_about_dialog(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("À propos de Laser Studio Pro")
+        dialog.setWindowTitle(tr("ui.about_title"))
         layout = QVBoxLayout(dialog)
 
         banner_path = find_resource("laser_studio_pro_banner.png")
@@ -219,7 +221,7 @@ class UiSetupMixin:
 
     def show_support_dialog(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Support")
+        dialog.setWindowTitle(tr("ui.support_title"))
         layout = QVBoxLayout(dialog)
 
         lbl_text = QLabel(
@@ -241,7 +243,7 @@ class UiSetupMixin:
 
     def show_buy_me_a_coffee_dialog(self):
         dialog = QDialog(self)
-        dialog.setWindowTitle("Buy me a coffee")
+        dialog.setWindowTitle(tr("ui.coffee_title"))
         layout = QVBoxLayout(dialog)
 
         lbl_text = QLabel(
@@ -496,25 +498,25 @@ class UiSetupMixin:
         tab_dim = QWidget()
         layout_dim = QVBoxLayout(tab_dim)
 
-        dim_box = QGroupBox("Dimensions & Origine Machine")
+        dim_box = QGroupBox(tr("dim.box_title"))
         dim_layout = QFormLayout()
         self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(0.1, 2000.0); self.spin_w.setValue(100.0)
         self.spin_w.valueChanged.connect(lambda v: self.on_dimension_changed('w', v))
         self.spin_h = QDoubleSpinBox(); self.spin_h.setRange(0.1, 2000.0); self.spin_h.setValue(100.0)
         self.spin_h.valueChanged.connect(lambda v: self.on_dimension_changed('h', v))
-        self.chk_keep_ratio = QCheckBox("Conserver le ratio"); self.chk_keep_ratio.setChecked(True)
+        self.chk_keep_ratio = QCheckBox(tr("dim.keep_ratio")); self.chk_keep_ratio.setChecked(True)
 
         self.combo_origin = QComboBox()
         self.combo_origin.addItems(["Bas-Gauche (0,0)", "Centre"])
         self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
         self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
 
-        dim_layout.addRow("Largeur (mm):", self.spin_w)
-        dim_layout.addRow("Hauteur (mm):", self.spin_h)
+        dim_layout.addRow(tr("dim.width"), self.spin_w)
+        dim_layout.addRow(tr("dim.height"), self.spin_h)
         dim_layout.addRow("", self.chk_keep_ratio)
-        dim_layout.addRow("Ancrage Origine:", self.combo_origin)
-        dim_layout.addRow("Offset X (mm):", self.spin_off_x)
-        dim_layout.addRow("Offset Y (mm):", self.spin_off_y)
+        dim_layout.addRow(tr("dim.origin"), self.combo_origin)
+        dim_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
+        dim_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
         dim_box.setLayout(dim_layout)
         layout_dim.addWidget(dim_box)
         layout_dim.addStretch()
@@ -523,37 +525,37 @@ class UiSetupMixin:
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
 
-        usb_box = QGroupBox("Connexion USB Laser")
+        usb_box = QGroupBox(tr("usb.box_title"))
         usb_layout = QFormLayout()
         self.combo_ports = QComboBox()
-        btn_refresh = QPushButton("Rafraîchir Ports")
+        btn_refresh = QPushButton(tr("usb.refresh_ports"))
         btn_refresh.clicked.connect(self.refresh_com_ports)
-        self.btn_connect = QPushButton("Connecter GRBL")
+        self.btn_connect = QPushButton(tr("usb.connect"))
         self.btn_connect.clicked.connect(self.toggle_usb)
-        usb_layout.addRow("Port COM:", self.combo_ports)
+        usb_layout.addRow(tr("usb.port"), self.combo_ports)
         usb_layout.addRow("", btn_refresh)
         usb_layout.addRow("", self.btn_connect)
         usb_box.setLayout(usb_layout)
         layout_mach.addWidget(usb_box)
 
-        mat_box = QGroupBox("Profils Matériaux")
+        mat_box = QGroupBox(tr("material.box_title"))
         mat_layout = QFormLayout()
         self.combo_mat = QComboBox()
         self.combo_mat.addItems(list(self.materials_db.keys()))
         self.combo_mat.currentIndexChanged.connect(self.apply_material_profile)
 
-        btn_save_mat = QPushButton("Sauvegarder Modifs Profil")
+        btn_save_mat = QPushButton(tr("material.save"))
         btn_save_mat.clicked.connect(self.save_material_profile)
-        btn_add_mat = QPushButton("Nouveau Profil...")
+        btn_add_mat = QPushButton(tr("material.new"))
         btn_add_mat.clicked.connect(self.add_material_profile)
-        btn_del_mat = QPushButton("Supprimer Profil")
+        btn_del_mat = QPushButton(tr("material.delete"))
         btn_del_mat.clicked.connect(self.delete_material_profile)
-        btn_export_mat = QPushButton("Exporter les profils (.json)...")
+        btn_export_mat = QPushButton(tr("material.export"))
         btn_export_mat.clicked.connect(self.export_material_profiles)
-        btn_import_mat = QPushButton("Importer des profils (.json)...")
+        btn_import_mat = QPushButton(tr("material.import"))
         btn_import_mat.clicked.connect(self.import_material_profiles)
 
-        mat_layout.addRow("Sélection Profil:", self.combo_mat)
+        mat_layout.addRow(tr("material.select"), self.combo_mat)
         mat_layout.addRow("", btn_save_mat)
         mat_layout.addRow("", btn_add_mat)
         mat_layout.addRow("", btn_del_mat)
@@ -750,11 +752,11 @@ class UiSetupMixin:
         left_bottom_layout.addWidget(legacy_svg_box)
         legacy_svg_box.setVisible(False)
 
-        btn_estimate = QPushButton("⏱ Estimer le temps de gravure (rapide, sans générer)")
+        btn_estimate = QPushButton(tr("gcode.estimate"))
         btn_estimate.clicked.connect(self.estimate_job_time)
         left_bottom_layout.addWidget(btn_estimate)
 
-        btn_generate = QPushButton("GÉNÉRER LE G-CODE")
+        btn_generate = QPushButton(tr("gcode.generate"))
         btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 10px;")
         btn_generate.clicked.connect(self.generate_job)
         left_bottom_layout.addWidget(btn_generate)
@@ -770,20 +772,18 @@ class UiSetupMixin:
         gen_progress_row_main.addWidget(self.gen_progress_bar_main)
         left_bottom_layout.addLayout(gen_progress_row_main)
 
-        btn_import_gcode = QPushButton("Importer un G-Code existant (.gcode/.nc/.txt)")
+        btn_import_gcode = QPushButton(tr("gcode.import"))
         btn_import_gcode.clicked.connect(self.import_gcode_file)
         left_bottom_layout.addWidget(btn_import_gcode)
 
-        self.chk_flip_raster_preview = QCheckBox("Inverser aperçu image (si l'image gravée apparaît retournée)")
+        self.chk_flip_raster_preview = QCheckBox(tr("preview.flip"))
         self.chk_flip_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
         left_bottom_layout.addWidget(self.chk_flip_raster_preview)
 
-        self.chk_negative_raster_preview = QCheckBox("Aperçu en négatif (voir ce qui sera réellement gravé)")
+        self.chk_negative_raster_preview = QCheckBox(tr("preview.negative"))
         self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
         left_bottom_layout.addWidget(self.chk_negative_raster_preview)
-        self.chk_hide_rapid_moves = QCheckBox(
-            "Masquer les déplacements rapides G0 dans l'aperçu"
-        )
+        self.chk_hide_rapid_moves = QCheckBox(tr("preview.hide_rapid"))
         self.chk_hide_rapid_moves.stateChanged.connect(
             self.on_flip_raster_preview_changed
         )
