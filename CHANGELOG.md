@@ -4,6 +4,23 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [1.3.1]
+
+### Ajouté
+- Finalisation du support multilingue sur les derniers libellés restants
+  de l’interface utilisateur.
+- Traductions complètes pour les éléments de la matrice de test,
+  de la configuration GRBL, des dialogues et de l’éditeur vectoriel.
+- Localisation des libellés de support et des messages de
+  “Buy me a coffee”.
+- Meilleure cohérence de l’interface selon la langue sélectionnée.
+
+### Corrigé
+- Suppression des textes encore en français codés en dur dans
+  `ui_setup_mixin.py`.
+- Correction des libellés non traduits dans les boîtes de dialogue
+  et les contrôles de pilotage laser.
+
 ## [1.3.0]
 
 ### Ajouté
