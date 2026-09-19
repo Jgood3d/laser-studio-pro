@@ -61,12 +61,6 @@ python main.py
 ---
 *Cette version apporte plus de souplesse dans la manipulation des calques vectoriels et accélère la préparation de vos projets.*
 
-## 🚀 Release v1.4.1
-✨ Améliorations & Ergonomie
-Positionnement dynamique à la souris : Possibilité de sélectionner et de déplacer l'intégralité d'un fichier SVG directement sur le plan de travail.
-Ajustement de précision (Offset X / Y) : Ajout des contrôles de décalage X et Y pour affiner la position exacte de vos éléments vectoriels au millimètre près.
-Cette version apporte plus de souplesse dans la manipulation des calques vectoriels et accélère la préparation de vos projets.
-
 ## [1.4.0]
 Ajouté
 Traduction quasi complète de l'application (Français, Anglais, Allemand, Espagnol) : quasiment toutes les boîtes de dialogue, messages d'erreur/confirmation et libellés de boutons de l'ensemble des onglets utilisent désormais le système i18n.py — 319 chaînes traduites au total, vérifiées une à une contre le dictionnaire (aucune clé manquante).
