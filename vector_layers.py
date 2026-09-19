@@ -841,82 +841,82 @@ class VectorCanvasView(QGraphicsView):
         self.scale(factor, factor)
 
     def mousePressEvent(self, event):
-    if event.button() == Qt.MouseButton.MiddleButton:
-        self._pan_last_pos = event.position().toPoint()
-        self.setCursor(Qt.CursorShape.ClosedHandCursor)
-        event.accept()
-        return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self._pan_last_pos = event.position().toPoint()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
 
-    if event.button() == Qt.MouseButton.LeftButton:
-        item_at = self.itemAt(event.position().toPoint())
+        if event.button() == Qt.MouseButton.LeftButton:
+            item_at = self.itemAt(event.position().toPoint())
 
-        if isinstance(item_at, VectorGraphicsItem):
-            modifiers = event.modifiers()
+            if isinstance(item_at, VectorGraphicsItem):
+                modifiers = event.modifiers()
 
-            # Si l'objet cliqué ne fait pas déjà partie de la sélection,
-            # il devient l'unique objet sélectionné, sauf avec Ctrl.
-            if (
-                not item_at.isSelected()
-                and not (modifiers & Qt.KeyboardModifier.ControlModifier)
-            ):
-                self.scene_obj.clearSelection()
-                item_at.setSelected(True)
+                # Si l'objet cliqué ne fait pas déjà partie de la sélection,
+                # il devient l'unique objet sélectionné, sauf avec Ctrl.
+                if (
+                    not item_at.isSelected()
+                    and not (modifiers & Qt.KeyboardModifier.ControlModifier)
+                ):
+                    self.scene_obj.clearSelection()
+                    item_at.setSelected(True)
 
-            selected = self.selected_items_vector()
+                selected = self.selected_items_vector()
 
-            if selected:
-                self.push_undo_snapshot()
-                self._group_drag_items = selected
-                self._group_drag_last_scene_pos = self.mapToScene(
-                    event.position().toPoint()
-                )
-                event.accept()
-                return
+                if selected:
+                    self.push_undo_snapshot()
+                    self._group_drag_items = selected
+                    self._group_drag_last_scene_pos = self.mapToScene(
+                        event.position().toPoint()
+                    )
+                    event.accept()
+                    return
 
-    # Permet de conserver la sélection rectangulaire par cliquer-glisser
-    super().mousePressEvent(event)
+        # Permet de conserver la sélection rectangulaire par cliquer-glisser
+        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-    if self._pan_last_pos is not None and (
-        event.buttons() & Qt.MouseButton.MiddleButton
-    ):
-        new_pos = event.position().toPoint()
-        delta = new_pos - self._pan_last_pos
-        self._pan_last_pos = new_pos
+        if self._pan_last_pos is not None and (
+            event.buttons() & Qt.MouseButton.MiddleButton
+        ):
+            new_pos = event.position().toPoint()
+            delta = new_pos - self._pan_last_pos
+            self._pan_last_pos = new_pos
 
-        self.horizontalScrollBar().setValue(
-            self.horizontalScrollBar().value() - delta.x()
-        )
-        self.verticalScrollBar().setValue(
-            self.verticalScrollBar().value() - delta.y()
-        )
-        event.accept()
-        return
+            self.horizontalScrollBar().setValue(
+                self.horizontalScrollBar().value() - delta.x()
+            )
+            self.verticalScrollBar().setValue(
+                self.verticalScrollBar().value() - delta.y()
+            )
+            event.accept()
+            return
 
-    # Déplacement groupé des objets sélectionnés
-    if (
-        self._group_drag_items
-        and event.buttons() & Qt.MouseButton.LeftButton
-        and self._group_drag_last_scene_pos is not None
-    ):
-        current_scene_pos = self.mapToScene(event.position().toPoint())
-        delta = current_scene_pos - self._group_drag_last_scene_pos
+        # Déplacement groupé des objets sélectionnés
+        if (
+            self._group_drag_items
+            and event.buttons() & Qt.MouseButton.LeftButton
+            and self._group_drag_last_scene_pos is not None
+        ):
+            current_scene_pos = self.mapToScene(event.position().toPoint())
+            delta = current_scene_pos - self._group_drag_last_scene_pos
 
-        if delta.x() or delta.y():
-            delta_x_mm = delta.x() / self.px_per_mm
-            delta_y_mm = -delta.y() / self.px_per_mm
+            if delta.x() or delta.y():
+                delta_x_mm = delta.x() / self.px_per_mm
+                delta_y_mm = -delta.y() / self.px_per_mm
 
-            for item in self._group_drag_items:
-                item.obj.x_mm += delta_x_mm
-                item.obj.y_mm += delta_y_mm
-                item.refresh()
+                for item in self._group_drag_items:
+                    item.obj.x_mm += delta_x_mm
+                    item.obj.y_mm += delta_y_mm
+                    item.refresh()
 
-            self._group_drag_last_scene_pos = current_scene_pos
+                self._group_drag_last_scene_pos = current_scene_pos
 
-        event.accept()
-        return
+            event.accept()
+            return
 
-    super().mouseMoveEvent(event)
+        super().mouseMoveEvent(event)
 
     # -- gestion des objets ---------------------------------------------------
     def add_object(self, obj: VectorObject):
@@ -968,25 +968,25 @@ class VectorCanvasView(QGraphicsView):
         self.selection_changed.emit(obj)
 
     def mouseReleaseEvent(self, event):
-    if event.button() == Qt.MouseButton.MiddleButton:
-        self._pan_last_pos = None
-        self.setCursor(Qt.CursorShape.ArrowCursor)
-        event.accept()
-        return
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self._pan_last_pos = None
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
 
-    if event.button() == Qt.MouseButton.LeftButton and self._group_drag_items:
-        moved_items = list(self._group_drag_items)
+        if event.button() == Qt.MouseButton.LeftButton and self._group_drag_items:
+            moved_items = list(self._group_drag_items)
 
-        self._group_drag_items = []
-        self._group_drag_last_scene_pos = None
+            self._group_drag_items = []
+            self._group_drag_last_scene_pos = None
 
-        for item in moved_items:
-            self.object_moved.emit(item.obj)
+            for item in moved_items:
+                self.object_moved.emit(item.obj)
 
-        event.accept()
-        return
+            event.accept()
+            return
 
-    super().mouseReleaseEvent(event)
+        super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.SelectAll):
@@ -1573,22 +1573,54 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         real_ex, real_ey = to_gcode_xy(ex_mm, y)
 
                         if overscan_dist > 0:
-                            pre_x, pre_y = to_gcode_xy(sx_mm - direction * overscan_dist, y)
-                            post_x, post_y = to_gcode_xy(ex_mm + direction * overscan_dist, y)
-                            gcode.append(f"G0 X{pre_x:.3f} Y{pre_y:.3f}")
+                            pre_x, pre_y = to_gcode_xy(
+                                sx_mm - direction * overscan_dist, y
+                            )
+                            post_x, post_y = to_gcode_xy(
+                                ex_mm + direction * overscan_dist, y
+                            )
+
+                            # Déplacement avant balayage avec laser éteint.
+                            gcode.append(
+                                f"G0 X{pre_x:.3f} Y{pre_y:.3f}"
+                            )
                             gcode.append(f"{laser_cmd} S0")
-                            gcode.append(f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}")
+                            gcode.append(
+                                f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}"
+                            )
+
+                            # Gravure du segment réel.
                             gcode.append(f"{laser_cmd} S{power_val}")
-                            gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
+                            gcode.append(
+                                f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
+                            )
+
+                            # Sortie de balayage avec laser éteint.
                             gcode.append(f"{laser_cmd} S0")
-                            gcode.append(f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}")
-                            total_time_seconds += (abs(post_x - pre_x) / max(speed, 1)) * 60.0
+                            gcode.append(
+                                f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}"
+                            )
+
+                            total_time_seconds += (
+                                abs(post_x - pre_x) / max(speed, 1)
+                            ) * 60.0
                         else:
-                            gcode.append(f"G0 X{real_sx:.3f} Y{real_sy:.3f}")
+                            gcode.append(
+                                f"G0 X{real_sx:.3f} Y{real_sy:.3f}"
+                            )
                             gcode.append(f"{laser_cmd} S{power_val}")
-                            gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
-                            total_time_seconds += (abs(real_ex - real_sx) / max(speed, 1)) * 60.0
-                        gcode.append("M5")
+                            gcode.append(
+                                f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
+                            )
+
+                            total_time_seconds += (
+                                abs(real_ex - real_sx) / max(speed, 1)
+                            ) * 60.0
+
+                            # Prépare le prochain déplacement avec le laser
+                            # éteint, sans arrêter complètement le mode M4.
+                            gcode.append(f"{laser_cmd} S0")
+
                         power_samples.append(layer["power"])
                 y += step
                 line_idx += 1

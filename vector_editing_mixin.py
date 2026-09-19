@@ -147,84 +147,84 @@ class VectorEditingMixin:
         return self.vector_canvas.selected_items_vector()
 
     def on_vector_selection_changed(self, obj):
-    items = self._selected_vector_items()
+        items = self._selected_vector_items()
 
-    if not items:
-        self.lbl_vector_selection.setText(tr("ui.no_selection_label"))
-        self.pos_box_vector.setEnabled(False)
-        return
+        if not items:
+            self.lbl_vector_selection.setText(tr("ui.no_selection_label"))
+            self.pos_box_vector.setEnabled(False)
+            return
 
-    objects = [item.obj for item in items]
+        objects = [item.obj for item in items]
 
-    boxes = [obj.world_path().boundingRect() for obj in objects]
-    group_left = min(box.left() for box in boxes)
-    group_bottom = min(box.top() for box in boxes)
-    group_right = max(box.right() for box in boxes)
-    group_top = max(box.bottom() for box in boxes)
+        boxes = [obj.world_path().boundingRect() for obj in objects]
+        group_left = min(box.left() for box in boxes)
+        group_bottom = min(box.top() for box in boxes)
+        group_right = max(box.right() for box in boxes)
+        group_top = max(box.bottom() for box in boxes)
 
-    if len(objects) > 1:
-        desc = (
-            f"{len(objects)} objets sélectionnés — "
-            f"Zone : {group_right - group_left:.2f} × "
-            f"{group_top - group_bottom:.2f} mm"
-        )
-    else:
-        obj = objects[0]
-        layer = self.layer_manager.get(obj.layer_id)
-        layer_name = layer.name if layer else "?"
-
-        if isinstance(obj, TextObject):
+        if len(objects) > 1:
             desc = (
-                f"Texte : « {obj.text} » — "
-                f"police {obj.font_family}, {obj.size_mm:.1f} mm — "
-                f"Calque : {layer_name}"
-            )
-        elif isinstance(obj, SvgPathObject):
-            desc = (
-                f"Élément SVG importé ({obj.source_tag}) — "
-                f"Calque : {layer_name}"
+                f"{len(objects)} objets sélectionnés — "
+                f"Zone : {group_right - group_left:.2f} × "
+                f"{group_top - group_bottom:.2f} mm"
             )
         else:
-            desc = (
-                f"Forme : {obj.shape_type} "
-                f"({obj.width_mm:.1f} × {obj.height_mm:.1f} mm) — "
-                f"Calque : {layer_name}"
+            obj = objects[0]
+            layer = self.layer_manager.get(obj.layer_id)
+            layer_name = layer.name if layer else "?"
+
+            if isinstance(obj, TextObject):
+                desc = (
+                    f"Texte : « {obj.text} » — "
+                    f"police {obj.font_family}, {obj.size_mm:.1f} mm — "
+                    f"Calque : {layer_name}"
+                )
+            elif isinstance(obj, SvgPathObject):
+                desc = (
+                    f"Élément SVG importé ({obj.source_tag}) — "
+                    f"Calque : {layer_name}"
+                )
+            else:
+                desc = (
+                    f"Forme : {obj.shape_type} "
+                    f"({obj.width_mm:.1f} × {obj.height_mm:.1f} mm) — "
+                    f"Calque : {layer_name}"
+                )
+
+        self.lbl_vector_selection.setText(desc)
+        self.pos_box_vector.setEnabled(True)
+
+        self.spin_vec_x.blockSignals(True)
+        self.spin_vec_y.blockSignals(True)
+        self.spin_vec_rot.blockSignals(True)
+
+        # X/Y représentent maintenant le coin inférieur gauche du groupe.
+        self.spin_vec_x.setValue(group_left)
+        self.spin_vec_y.setValue(group_bottom)
+
+        # La rotation de groupe n'est pas encore calculée.
+        # On affiche la rotation du premier objet.
+        self.spin_vec_rot.setValue(objects[0].rotation_deg)
+
+        self.spin_vec_x.blockSignals(False)
+        self.spin_vec_y.blockSignals(False)
+        self.spin_vec_rot.blockSignals(False)
+
+        self.combo_vec_layer.blockSignals(True)
+        self.combo_vec_layer.clear()
+
+        for layer in self.layer_manager.layers:
+            self.combo_vec_layer.addItem(
+                f"{layer.name}  [{layer.mode}]",
+                layer.id
             )
 
-    self.lbl_vector_selection.setText(desc)
-    self.pos_box_vector.setEnabled(True)
+        if len(objects) == 1:
+            idx = self.combo_vec_layer.findData(objects[0].layer_id)
+            if idx >= 0:
+                self.combo_vec_layer.setCurrentIndex(idx)
 
-    self.spin_vec_x.blockSignals(True)
-    self.spin_vec_y.blockSignals(True)
-    self.spin_vec_rot.blockSignals(True)
-
-    # X/Y représentent maintenant le coin inférieur gauche du groupe.
-    self.spin_vec_x.setValue(group_left)
-    self.spin_vec_y.setValue(group_bottom)
-
-    # La rotation de groupe n'est pas encore calculée.
-    # On affiche la rotation du premier objet.
-    self.spin_vec_rot.setValue(objects[0].rotation_deg)
-
-    self.spin_vec_x.blockSignals(False)
-    self.spin_vec_y.blockSignals(False)
-    self.spin_vec_rot.blockSignals(False)
-
-    self.combo_vec_layer.blockSignals(True)
-    self.combo_vec_layer.clear()
-
-    for layer in self.layer_manager.layers:
-        self.combo_vec_layer.addItem(
-            f"{layer.name}  [{layer.mode}]",
-            layer.id
-        )
-
-    if len(objects) == 1:
-        idx = self.combo_vec_layer.findData(objects[0].layer_id)
-        if idx >= 0:
-            self.combo_vec_layer.setCurrentIndex(idx)
-
-    self.combo_vec_layer.blockSignals(False)
+        self.combo_vec_layer.blockSignals(False)
 
     def on_vector_layer_spin_changed(self, _idx):
         item, obj = self.vector_canvas.selected_object()
@@ -248,39 +248,39 @@ class VectorEditingMixin:
             self.spin_vec_y.blockSignals(False)
 
     def on_vector_position_spin_changed(self, _value):
-    """Déplace l'objet ou le groupe sélectionné vers l'offset demandé."""
-    items = self._selected_vector_items()
+        """Déplace l'objet ou le groupe sélectionné vers l'offset demandé."""
+        items = self._selected_vector_items()
 
-    if not items:
-        return
+        if not items:
+            return
 
-    objects = [item.obj for item in items]
-    boxes = [obj.world_path().boundingRect() for obj in objects]
+        objects = [item.obj for item in items]
+        boxes = [obj.world_path().boundingRect() for obj in objects]
 
-    current_left = min(box.left() for box in boxes)
-    current_bottom = min(box.top() for box in boxes)
+        current_left = min(box.left() for box in boxes)
+        current_bottom = min(box.top() for box in boxes)
 
-    target_left = self.spin_vec_x.value()
-    target_bottom = self.spin_vec_y.value()
+        target_left = self.spin_vec_x.value()
+        target_bottom = self.spin_vec_y.value()
 
-    delta_x = target_left - current_left
-    delta_y = target_bottom - current_bottom
+        delta_x = target_left - current_left
+        delta_y = target_bottom - current_bottom
 
-    self.vector_canvas.push_undo_snapshot()
+        self.vector_canvas.push_undo_snapshot()
 
-    for item in items:
-        item.obj.x_mm += delta_x
-        item.obj.y_mm += delta_y
-        item.refresh()
+        for item in items:
+            item.obj.x_mm += delta_x
+            item.obj.y_mm += delta_y
+            item.refresh()
 
-    # La rotation de groupe n'est pas modifiée ici.
-    # Pour un seul objet, on conserve le comportement actuel.
-    if len(items) == 1:
-        item = items[0]
-        item.obj.rotation_deg = self.spin_vec_rot.value()
-        item.refresh()
+        # La rotation de groupe n'est pas modifiée ici.
+        # Pour un seul objet, on conserve le comportement actuel.
+        if len(items) == 1:
+            item = items[0]
+            item.obj.rotation_deg = self.spin_vec_rot.value()
+            item.refresh()
 
-    self.on_vector_selection_changed(items[0].obj)
+        self.on_vector_selection_changed(items[0].obj)
 
     def toggle_fullscreen_vector_editor(self):
         """Ouvre l'éditeur vectoriel (texte/formes/SVG) dans une fenêtre à
