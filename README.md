@@ -51,6 +51,8 @@ python main.py
   - Réglages fins de vectorisation : ajustement du seuil de tolérance (Noir/Blanc), simplification et lissage des contours, et filtrage du bruit.
   - Aperçu instantané du rendu vectoriel avant insertion dans le projet de découpe ou gravure.
 
+![Capture d'écran](assets/Pngtosvg.png)
+
 ## 🚀 Release v1.4.1
 
 ### ✨ Améliorations & Ergonomie
