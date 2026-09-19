@@ -4,6 +4,29 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [1.4.0]
+
+### Ajouté
+- **Traduction quasi complète de l'application** (Français, Anglais,
+  Allemand, Espagnol) : quasiment toutes les boîtes de dialogue, messages
+  d'erreur/confirmation et libellés de boutons de l'ensemble des onglets
+  utilisent désormais le système `i18n.py` — 319 chaînes traduites au
+  total, vérifiées une à une contre le dictionnaire (aucune clé manquante).
+
+### Corrigé
+- `1.3.1` : corrections du rendu 2D pour les calques vectoriels/texte/SVG
+  (voir détails ci-dessous) et adresse e-mail Support mise à jour
+  (`laserstudiopro.support@proton.me`).
+- Coquille `QQMessageBox` (au lieu de `QMessageBox`) dans
+  `laser_control_mixin.py`, qui aurait fait planter l'appli au clic sur
+  "Connecter" sans port COM sélectionné.
+- `UnboundLocalError` au démarrage : `legacy_svg_box` était utilisé avant
+  sa création dans `ui_setup_mixin.py` (ordre des blocs corrigé).
+- Rendu 2D des calques vectoriels/texte/SVG : plusieurs calques classés à
+  tort comme "balayage raster" étaient fusionnés dans une seule image,
+  produisant un rendu incohérent. Chaque calque raster est maintenant
+  reconstruit séparément, teinté avec sa propre couleur.
+
 ## [1.3.0]
 
 ### Ajouté

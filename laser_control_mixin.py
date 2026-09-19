@@ -22,7 +22,7 @@ class LaserControlMixin:
         else:
             selected = self.combo_ports.currentText()
             if not selected:
-                QQMessageBox.warning(
+                QMessageBox.warning(
     self,
     tr("laser.no_port_title"),
     tr("laser.no_port")
