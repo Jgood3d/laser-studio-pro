@@ -519,17 +519,21 @@ def _svg_path_element_to_subpaths(d):
     return paths
 
 
-def extract_svg_objects(svg_path, layer_id, bed_h_mm):
+def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y_mm=10.0):
     """Importe un fichier SVG comme objets vectoriels INDÉPENDANTS — un objet
     par tracé/forme du fichier (« dégroupé ») — assignables individuellement à
     des calques différents (ex : certaines parties en découpe, d'autres en
     gravure remplie), avec aperçu visuel immédiat dans l'éditeur vectoriel.
 
     Convention : 1 unité SVG = 1 mm (même convention que l'ancien mode de
-    découpe SVG global de cette application). L'origine du SVG (0,0, coin
-    haut-gauche) est alignée sur le coin haut-gauche de la zone de travail
-    machine ; les positions relatives entre les tracés sont conservées (le
-    dessin reste visuellement intact juste après import).
+    découpe SVG global de cette application). Les positions relatives entre
+    les tracés sont conservées (le dessin reste visuellement intact juste
+    après import) ; l'ensemble du dessin est ensuite translaté en bloc pour
+    que son coin inférieur gauche se retrouve à (offset_x_mm, offset_y_mm) —
+    10, 10 mm par défaut — plutôt qu'à l'ancrage brut issu des coordonnées
+    SVG d'origine (qui pouvait toucher le bord de la zone de travail).
+    Utilisé aussi bien par l'import SVG classique de l'Éditeur Vectoriel que
+    par l'envoi depuis l'onglet PNG -> SVG.
     """
     import xml.etree.ElementTree as ET
 
@@ -610,6 +614,18 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm):
         obj = SvgPathObject(local_path_data=local, source_tag=tag,
                              layer_id=layer_id, x_mm=world_x, y_mm=world_y)
         objects.append(obj)
+
+    if objects:
+        # Translation en bloc de tout le dessin importé (positions relatives
+        # entre tracés inchangées) pour ancrer son coin inférieur gauche à
+        # l'offset demandé au lieu de l'ancrage brut issu du SVG.
+        min_x = min(obj.x_mm for obj in objects)
+        min_y = min(obj.y_mm for obj in objects)
+        delta_x = offset_x_mm - min_x
+        delta_y = offset_y_mm - min_y
+        for obj in objects:
+            obj.x_mm += delta_x
+            obj.y_mm += delta_y
 
     return objects
 

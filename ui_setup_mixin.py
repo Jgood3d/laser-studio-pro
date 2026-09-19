@@ -821,6 +821,9 @@ class UiSetupMixin:
         layout_previews.addWidget(box_dither)
         self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
 
+        tab_png2svg = self._init_png2svg_tab()
+        self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
+
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 

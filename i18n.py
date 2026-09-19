@@ -2093,6 +2093,146 @@ TRANSLATIONS = {
             "¡Gracias!"
         ),
     },
+
+    # --- Onglet PNG → SVG (convertisseur intégré) ---
+    "png2svg.tab_title": {
+        "fr": "PNG → SVG", "en": "PNG to SVG", "de": "PNG zu SVG", "es": "PNG a SVG",
+    },
+    "png2svg.open_image": {
+        "fr": "Ouvrir une image…", "en": "Open image…",
+        "de": "Bild öffnen…", "es": "Abrir imagen…",
+    },
+    "png2svg.export_svg": {
+        "fr": "Exporter en SVG…", "en": "Export as SVG…",
+        "de": "Als SVG exportieren…", "es": "Exportar como SVG…",
+    },
+    "png2svg.send_to_vector": {
+        "fr": "Envoyer vers l'Éditeur Vectoriel", "en": "Send to Vector Editor",
+        "de": "An Vektor-Editor senden", "es": "Enviar al Editor Vectorial",
+    },
+    "png2svg.settings": {
+        "fr": "Réglages", "en": "Settings", "de": "Einstellungen", "es": "Ajustes",
+    },
+    "png2svg.mode": {
+        "fr": "Mode", "en": "Mode", "de": "Modus", "es": "Modo",
+    },
+    "png2svg.mode_bw": {
+        "fr": "Noir & blanc", "en": "Black & white",
+        "de": "Schwarz-weiß", "es": "Blanco y negro",
+    },
+    "png2svg.mode_color": {
+        "fr": "Couleur", "en": "Color", "de": "Farbe", "es": "Color",
+    },
+    "png2svg.render_mode": {
+        "fr": "Rendu", "en": "Render", "de": "Darstellung", "es": "Render",
+    },
+    "png2svg.render_fill": {
+        "fr": "Remplissage (gravure)", "en": "Fill (engraving)",
+        "de": "Füllung (Gravur)", "es": "Relleno (grabado)",
+    },
+    "png2svg.render_outline": {
+        "fr": "Contour (découpe)", "en": "Outline (cutting)",
+        "de": "Kontur (Schneiden)", "es": "Contorno (corte)",
+    },
+    "png2svg.centerline": {
+        "fr": "Ligne centrale (évite le doublage des traits)",
+        "en": "Centerline (avoids doubled lines)",
+        "de": "Mittellinie (vermeidet doppelte Linien)",
+        "es": "Línea central (evita líneas duplicadas)",
+    },
+    "png2svg.stroke_width": {
+        "fr": "Épaisseur de trait", "en": "Stroke width",
+        "de": "Strichstärke", "es": "Grosor de línea",
+    },
+    "png2svg.fill_threshold": {
+        "fr": "Seuil remplissage plein (px)", "en": "Solid-fill threshold (px)",
+        "de": "Schwelle für Vollfüllung (px)", "es": "Umbral de relleno sólido (px)",
+    },
+    "png2svg.threshold": {
+        "fr": "Seuil", "en": "Threshold", "de": "Schwellenwert", "es": "Umbral",
+    },
+    "png2svg.auto_threshold": {
+        "fr": "Seuil automatique", "en": "Auto threshold",
+        "de": "Automatischer Schwellenwert", "es": "Umbral automático",
+    },
+    "png2svg.invert": {
+        "fr": "Inverser", "en": "Invert", "de": "Invertieren", "es": "Invertir",
+    },
+    "png2svg.smoothing": {
+        "fr": "Lissage", "en": "Smoothing", "de": "Glättung", "es": "Suavizado",
+    },
+    "png2svg.simplify": {
+        "fr": "Simplification", "en": "Simplify",
+        "de": "Vereinfachung", "es": "Simplificación",
+    },
+    "png2svg.min_area": {
+        "fr": "Aire minimale", "en": "Minimum area",
+        "de": "Mindestfläche", "es": "Área mínima",
+    },
+    "png2svg.n_colors": {
+        "fr": "Nombre de couleurs", "en": "Number of colors",
+        "de": "Anzahl Farben", "es": "Número de colores",
+    },
+    "png2svg.output_size": {
+        "fr": "Dimension de sortie", "en": "Output size",
+        "de": "Ausgabegröße", "es": "Tamaño de salida",
+    },
+    "png2svg.width": {
+        "fr": "Largeur", "en": "Width", "de": "Breite", "es": "Ancho",
+    },
+    "png2svg.height": {
+        "fr": "Hauteur", "en": "Height", "de": "Höhe", "es": "Alto",
+    },
+    "png2svg.unit": {
+        "fr": "Unité", "en": "Unit", "de": "Einheit", "es": "Unidad",
+    },
+    "png2svg.keep_aspect_ratio": {
+        "fr": "Conserver les proportions", "en": "Keep aspect ratio",
+        "de": "Seitenverhältnis beibehalten", "es": "Mantener proporciones",
+    },
+    "png2svg.original": {
+        "fr": "Image originale", "en": "Original image",
+        "de": "Originalbild", "es": "Imagen original",
+    },
+    "png2svg.svg_preview": {
+        "fr": "Aperçu SVG", "en": "SVG preview",
+        "de": "SVG-Vorschau", "es": "Vista previa SVG",
+    },
+    "png2svg.paths_count": {
+        "fr": "{n} chemin(s) généré(s)", "en": "{n} path(s) generated",
+        "de": "{n} Pfad(e) erzeugt", "es": "{n} trayecto(s) generado(s)",
+    },
+    "png2svg.no_image": {
+        "fr": "Aucune image chargée", "en": "No image loaded",
+        "de": "Kein Bild geladen", "es": "Ninguna imagen cargada",
+    },
+    "png2svg.export_success": {
+        "fr": "SVG exporté avec succès", "en": "SVG exported successfully",
+        "de": "SVG erfolgreich exportiert", "es": "SVG exportado con éxito",
+    },
+    "png2svg.zoom_in": {
+        "fr": "Zoom +", "en": "Zoom in", "de": "Vergrößern", "es": "Acercar",
+    },
+    "png2svg.zoom_out": {
+        "fr": "Zoom −", "en": "Zoom out", "de": "Verkleinern", "es": "Alejar",
+    },
+    "png2svg.zoom_fit": {
+        "fr": "Ajuster", "en": "Fit", "de": "Einpassen", "es": "Ajustar",
+    },
+    "png2svg.fullscreen": {
+        "fr": "⛶ Plein Écran", "en": "⛶ Full Screen",
+        "de": "⛶ Vollbild", "es": "⛶ Pantalla completa",
+    },
+    "png2svg.fullscreen_title": {
+        "fr": "PNG → SVG — Plein Écran", "en": "PNG to SVG — Full Screen",
+        "de": "PNG zu SVG — Vollbild", "es": "PNG a SVG — Pantalla completa",
+    },
+    "png2svg.close_fullscreen": {
+        "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
+        "en": "✕ Exit full screen (return to normal window)",
+        "de": "✕ Vollbild schließen (zum normalen Fenster zurückkehren)",
+        "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
+    },
 }
 
 _current_lang = None

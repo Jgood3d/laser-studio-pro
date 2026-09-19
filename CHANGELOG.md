@@ -4,6 +4,14 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [1.5.0]
+
+### Ajouté
+- **Utilitaire de conversion PNG vers SVG (Vectorisation)** :
+  - Outil intégré permettant de transformer directement des images matricielles (PNG) en tracés vectoriels SVG.
+  - Réglages fins de vectorisation : ajustement du seuil de tolérance (Noir/Blanc), simplification et lissage des contours, et filtrage du bruit.
+  - Aperçu instantané du rendu vectoriel avant insertion dans le projet de découpe ou gravure.
+
 ## 🚀 Release v1.4.1
 
 ### ✨ Améliorations & Ergonomie

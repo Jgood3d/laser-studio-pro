@@ -2,11 +2,17 @@
 # Installation : pip install -r requirements-linux.txt
 
 PyQt6>=6.7
+PyQt6-sip>=13.6
 pyserial>=3.5
 pyqtgraph>=0.13
-numpy>=1.26
+# Bridé à <2.0.0 pour compatibilité PyInstaller et pyqtgraph / numba
+numpy>=1.26,<2.0.0
 Pillow>=10.0
 svg.path>=6.3
+
+# Traitement d'image & vectorisation (PNG -> SVG)
+opencv-python>=4.8
+scikit-image>=0.22
 
 # Optionnel : accélère le tramage (dithering) d'image.
 # Si numba pose problème à l'installation (versions Python très récentes

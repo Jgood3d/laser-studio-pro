@@ -1,12 +1,26 @@
 # Compiler Laser Studio Pro
 
 Ce guide explique comment installer les dépendances et compiler l'application
-en exécutable autonome, sur Windows et sur Linux.
+en exécutable autonome, sur Windows et sur Linux, en évitant les pièges de
+modules manquants ou de conflits de bibliothèques (DLL).
 
 > **Important** : PyInstaller ne fait pas de cross-compilation. Un exécutable
 > compilé sur Linux ne fonctionne que sur Linux, un exécutable compilé sur
 > Windows ne fonctionne que sur Windows. Il faut lancer la compilation
 > **sur chaque OS cible** (ou dans une VM / conteneur de cet OS).
+
+---
+
+## Windows
+
+### 1. Installer Python
+Télécharger Python 3.11 ou 3.12 depuis [python.org](https://www.python.org/downloads/)
+et cocher **"Add Python to PATH"** pendant l'installation.
+
+### 2. Créer un environnement virtuel (recommandé)
+```powershell
+python -m venv venv
+venv\Scripts\activate
 
 ---
 

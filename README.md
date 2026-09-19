@@ -43,6 +43,24 @@ python main.py
 
 ## Fonctionnalités récentes
 
+## [1.5.0]
+
+### Ajouté
+- **Utilitaire de conversion PNG vers SVG (Vectorisation)** :
+  - Outil intégré permettant de transformer directement des images matricielles (PNG) en tracés vectoriels SVG.
+  - Réglages fins de vectorisation : ajustement du seuil de tolérance (Noir/Blanc), simplification et lissage des contours, et filtrage du bruit.
+  - Aperçu instantané du rendu vectoriel avant insertion dans le projet de découpe ou gravure.
+
+## 🚀 Release v1.4.1
+
+### ✨ Améliorations & Ergonomie
+
+* **Positionnement dynamique à la souris :** Possibilité de sélectionner et de déplacer l'intégralité d'un fichier SVG directement sur le plan de travail.
+* **Ajustement de précision (Offset X / Y) :** Ajout des contrôles de décalage X et Y pour affiner la position exacte de vos éléments vectoriels au millimètre près.
+
+---
+*Cette version apporte plus de souplesse dans la manipulation des calques vectoriels et accélère la préparation de vos projets.*
+
 ## 🚀 Release v1.4.1
 ✨ Améliorations & Ergonomie
 Positionnement dynamique à la souris : Possibilité de sélectionner et de déplacer l'intégralité d'un fichier SVG directement sur le plan de travail.

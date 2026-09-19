@@ -13,11 +13,12 @@ from gcode_generation_mixin import GcodeGenerationMixin
 from laser_control_mixin import LaserControlMixin
 from project_io_mixin import ProjectIOMixin
 from job_queue_mixin import JobQueueMixin
+from png2svg_mixin import Png2SvgMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
-                       JobQueueMixin):
+                       JobQueueMixin, Png2SvgMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Laser Studio Pro - GRBL Controller")

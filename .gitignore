@@ -24,3 +24,11 @@ Thumbs.db
 # Environnements / IDE
 .vscode/
 .idea/
+Output/ 
+dist/ 
+build/ 
+*.exe 
+Output/ 
+dist/ 
+build/ 
+*.exe 
