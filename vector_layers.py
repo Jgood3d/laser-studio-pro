@@ -727,6 +727,8 @@ class VectorCanvasView(QGraphicsView):
         self._pan_last_pos = None
         self._undo_stack = []
         self._max_undo = 30
+        self._group_drag_items = []
+        self._group_drag_last_scene_pos = None
 
         self.work_rect_item = None
         self.set_work_area(100.0, 100.0)
@@ -839,29 +841,82 @@ class VectorCanvasView(QGraphicsView):
         self.scale(factor, factor)
 
     def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
-            self._pan_last_pos = event.position().toPoint()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-            event.accept()
-            return
-        if event.button() == Qt.MouseButton.LeftButton:
-            item_at = self.itemAt(event.pos())
-            if isinstance(item_at, VectorGraphicsItem):
-                # Sauvegarde avant un déplacement à la souris, pour pouvoir
-                # l'annuler avec Ctrl+Z même si aucun autre bouton n'est utilisé.
+    if event.button() == Qt.MouseButton.MiddleButton:
+        self._pan_last_pos = event.position().toPoint()
+        self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        event.accept()
+        return
+
+    if event.button() == Qt.MouseButton.LeftButton:
+        item_at = self.itemAt(event.position().toPoint())
+
+        if isinstance(item_at, VectorGraphicsItem):
+            modifiers = event.modifiers()
+
+            # Si l'objet cliqué ne fait pas déjà partie de la sélection,
+            # il devient l'unique objet sélectionné, sauf avec Ctrl.
+            if (
+                not item_at.isSelected()
+                and not (modifiers & Qt.KeyboardModifier.ControlModifier)
+            ):
+                self.scene_obj.clearSelection()
+                item_at.setSelected(True)
+
+            selected = self.selected_items_vector()
+
+            if selected:
                 self.push_undo_snapshot()
-        super().mousePressEvent(event)
+                self._group_drag_items = selected
+                self._group_drag_last_scene_pos = self.mapToScene(
+                    event.position().toPoint()
+                )
+                event.accept()
+                return
+
+    # Permet de conserver la sélection rectangulaire par cliquer-glisser
+    super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
-        if self._pan_last_pos is not None and (event.buttons() & Qt.MouseButton.MiddleButton):
-            new_pos = event.position().toPoint()
-            delta = new_pos - self._pan_last_pos
-            self._pan_last_pos = new_pos
-            self.horizontalScrollBar().setValue(self.horizontalScrollBar().value() - delta.x())
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta.y())
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
+    if self._pan_last_pos is not None and (
+        event.buttons() & Qt.MouseButton.MiddleButton
+    ):
+        new_pos = event.position().toPoint()
+        delta = new_pos - self._pan_last_pos
+        self._pan_last_pos = new_pos
+
+        self.horizontalScrollBar().setValue(
+            self.horizontalScrollBar().value() - delta.x()
+        )
+        self.verticalScrollBar().setValue(
+            self.verticalScrollBar().value() - delta.y()
+        )
+        event.accept()
+        return
+
+    # Déplacement groupé des objets sélectionnés
+    if (
+        self._group_drag_items
+        and event.buttons() & Qt.MouseButton.LeftButton
+        and self._group_drag_last_scene_pos is not None
+    ):
+        current_scene_pos = self.mapToScene(event.position().toPoint())
+        delta = current_scene_pos - self._group_drag_last_scene_pos
+
+        if delta.x() or delta.y():
+            delta_x_mm = delta.x() / self.px_per_mm
+            delta_y_mm = -delta.y() / self.px_per_mm
+
+            for item in self._group_drag_items:
+                item.obj.x_mm += delta_x_mm
+                item.obj.y_mm += delta_y_mm
+                item.refresh()
+
+            self._group_drag_last_scene_pos = current_scene_pos
+
+        event.accept()
+        return
+
+    super().mouseMoveEvent(event)
 
     # -- gestion des objets ---------------------------------------------------
     def add_object(self, obj: VectorObject):
@@ -900,22 +955,38 @@ class VectorCanvasView(QGraphicsView):
             if isinstance(item, VectorGraphicsItem):
                 return item, item.obj
         return None, None
+    def selected_items_vector(self):
+        """Renvoie tous les éléments vectoriels actuellement sélectionnés."""
+        return [
+            item
+            for item in self.scene_obj.selectedItems()
+            if isinstance(item, VectorGraphicsItem)
+    ]
 
     def _on_selection_changed(self):
         _, obj = self.selected_object()
         self.selection_changed.emit(obj)
 
     def mouseReleaseEvent(self, event):
-        if event.button() == Qt.MouseButton.MiddleButton:
-            self._pan_last_pos = None
-            self.setCursor(Qt.CursorShape.ArrowCursor)
-            event.accept()
-            return
-        super().mouseReleaseEvent(event)
-        for item in self.scene_obj.selectedItems():
-            if isinstance(item, VectorGraphicsItem):
-                item.sync_position_from_scene()
-                self.object_moved.emit(item.obj)
+    if event.button() == Qt.MouseButton.MiddleButton:
+        self._pan_last_pos = None
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        event.accept()
+        return
+
+    if event.button() == Qt.MouseButton.LeftButton and self._group_drag_items:
+        moved_items = list(self._group_drag_items)
+
+        self._group_drag_items = []
+        self._group_drag_last_scene_pos = None
+
+        for item in moved_items:
+            self.object_moved.emit(item.obj)
+
+        event.accept()
+        return
+
+    super().mouseReleaseEvent(event)
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.SelectAll):
