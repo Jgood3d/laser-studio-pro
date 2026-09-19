@@ -1,55 +1,67 @@
-# Laser Studio Pro — code découpé en modules
+# Laser Studio Pro
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
 
-Ce dossier remplace `app.py` (3424 lignes) par 14 fichiers organisés par thème.
-Fonctionnalité strictement identique — seul le découpage a changé (aucune
-logique modifiée, uniquement déplacée).
+Laser Studio Pro est un logiciel de pilotage GRBL pour graveur et découpeuse laser, avec :
+- gravure d’images,
+- découpe/gravure vectorielle,
+- gestion de calques,
+- génération de G-Code,
+- export/import de projets,
+- support multilingue (Français, English, Deutsch, Español).
 
-## Comment lancer l'appli
-Lancer **`main.py`** (au lieu de `app.py`). `vector_layers.py` reste inchangé
-et doit rester dans le même dossier.
+## Lancer l’application
 
-## Structure
+Lancez `main.py` depuis le dossier du projet.
 
-**Point d'entrée**
-- `main.py` — lance l'application (anciennement le bloc `if __name__ == "__main__"`)
-- `app_utils.py` — `get_app_dir()` et `APP_VERSION`
+```bash
+python main.py
+```
 
-**Classes autonomes**
+## Structure du projet
+
+### Point d’entrée
+- `main.py` — lance l’application
+- `app_utils.py` — version de l’application et chemins de ressources
+
+### Composants autonomes
 - `graphics_view.py` — `ZoomableGraphicsView`
 - `vector_font.py` — `VectorFont`
 - `usb_controller.py` — `LaserUSBController`
-- `workers.py` — tous les threads (`ImageProcessingWorker`, `GCodeStreamerThread`,
-  `AdvancedGCodeWorker`, `CommandThread`, `TestMatrixWorker`) + fonctions de tramage
+- `workers.py` — threads et fonctions de traitement image / G-Code
+- `i18n.py` — système de traduction multilingue
 
-**Fenêtre principale, découpée en mixins** (tous partagent le même `self`,
-donc le comportement est identique à avant — seul l'emplacement du code change) :
-- `main_window.py` — classe `FullLaserStudio` : `__init__` + assemblage des mixins
-- `ui_setup_mixin.py` — construction de l'UI, menu, boîtes de dialogue
+### Fenêtre principale découpée en mixins
+- `main_window.py` — assemblage de la fenêtre principale
+- `ui_setup_mixin.py` — interface utilisateur, menus, onglets, dialogues
 - `machine_profiles_mixin.py` — profils machine / matériaux
-- `image_processing_mixin.py` — chargement et traitement d'image
-- `vector_editing_mixin.py` — édition des objets vectoriels (texte, formes, SVG)
-- `gcode_generation_mixin.py` — génération, aperçu, estimation, export G-Code
-- `laser_control_mixin.py` — USB/GRBL, streaming, commandes temps réel
-- `project_io_mixin.py` — sauvegarde / chargement de projet (.json)
+- `image_processing_mixin.py` — chargement et traitement d’image
+- `vector_editing_mixin.py` — éditeur vectoriel et SVG
+- `gcode_generation_mixin.py` — génération, aperçu et export G-Code
+- `laser_control_mixin.py` — USB / GRBL / commandes temps réel
+- `project_io_mixin.py` — sauvegarde et ouverture de projet
 
-## Ce qui n'a pas changé
-- Aucune ligne de logique métier n'a été réécrite : chaque méthode a été
-  déplacée telle quelle (extraction automatisée par analyse du code, pas de
-  retype manuel, pour éviter toute erreur de copie).
-- Les imports ont été recalculés fichier par fichier (chaque module n'importe
-  que ce dont il a besoin).
-- Tous les fichiers ont été vérifiés avec `py_compile` (syntaxe correcte) et
-  un script maison de détection de noms non définis, pour repérer les imports
-  manquants — un cas réel a été trouvé et corrigé (`build_vector_layers_gcode`
-  manquant dans `workers.py`).
+## Fonctionnalités récentes
 
-## Pour bien tester
-1. Vérifie que l'appli se lance et s'affiche normalement (`python main.py`).
-2. Passe en revue chaque onglet/fonctionnalité une fois : image, calques
-   vectoriels, génération G-Code, connexion USB, sauvegarde/chargement de
-   projet — pour confirmer qu'aucun comportement n'a changé.
-3. Comme `PyQt6`, `pyserial`, `pyqtgraph` et `svg.path` ne sont pas installés
-   dans mon environnement, je n'ai pas pu lancer l'app moi-même ni tester le
-   runtime — seule la syntaxe a été vérifiée de mon côté.
+### 1.3.1
+- finalisation du support multilingue sur les libellés restants de l’interface,
+- traduction des onglets, panneaux, matrices de test, dialogues, messages GRBL,
+- localisation des éléments de la console et du système d’édition vectorielle,
+- texte de support et bouton “Buy me a coffee” maintenant traduits,
+- amélioration de la cohérence de l’interface entre les langues supportées.
+
+## Développement / validation
+
+Pour vérifier la syntaxe Python :
+
+```bash
+py -m py_compile i18n.py ui_setup_mixin.py main_window.py
+```
+
+## Remerciements
+
+Merci à toutes les personnes qui contribuent au projet, testent les fonctionnalités et signalent les bugs.
+
+## Licence
+
+Voir le fichier `LICENSE` associé au dépôt si présent.
