@@ -1,4 +1,3 @@
-<img width="1504" height="694" alt="Pngtosvg" src="https://github.com/user-attachments/assets/d0ba31f9-e33a-4533-8a87-b722a30fc6ec" />
 # Laser Studio Pro
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
@@ -52,7 +51,7 @@ python main.py
   - Réglages fins de vectorisation : ajustement du seuil de tolérance (Noir/Blanc), simplification et lissage des contours, et filtrage du bruit.
   - Aperçu instantané du rendu vectoriel avant insertion dans le projet de découpe ou gravure.
 
-![Capture d'écran](assets/Pngtosvg.png)
+<img width="752" height="347" alt="Pngtosvg" src="https://github.com/user-attachments/assets/d0ba31f9-e33a-4533-8a87-b722a30fc6ec" />
 
 ## 🚀 Release v1.4.1
 
