@@ -1,3 +1,4 @@
+<img width="1504" height="694" alt="Pngtosvg" src="https://github.com/user-attachments/assets/d0ba31f9-e33a-4533-8a87-b722a30fc6ec" />
 # Laser Studio Pro
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
