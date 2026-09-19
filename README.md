@@ -1,8 +1,8 @@
 # Laser Studio Pro
 
-<img width="1907" height="1005" alt="Tramage" src="https://github.com/user-attachments/assets/9773a087-8070-49e2-9c92-3c520c2b9403" />
+<img width="954" height="503" alt="Tramage" src="https://github.com/user-attachments/assets/9773a087-8070-49e2-9c92-3c520c2b9403" />
 
-<img width="1919" height="1035" alt="Apercu tramages" src="https://github.com/user-attachments/assets/244cbaa5-4200-44b2-95b6-4b4946204c4f" />
+<img width="960" height="518" alt="Apercu tramages" src="https://github.com/user-attachments/assets/244cbaa5-4200-44b2-95b6-4b4946204c4f" />
 
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
