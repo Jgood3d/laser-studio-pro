@@ -221,12 +221,18 @@ class GCodeStreamerThread(QThread):
     progress = pyqtSignal(int, int)
     log_signal = pyqtSignal(str)
     finished_signal = pyqtSignal(bool)
+    # DRO pendant le streaming : (état, x, y, z), à partir des rapports de
+    # statut GRBL ("<...>") obtenus par requêtes '?' périodiques envoyées
+    # par ce même thread (voir _status_poll_interval) — pas de thread séparé
+    # pendant un job actif, pour ne jamais se disputer l'accès au port série.
+    status_updated = pyqtSignal(str, float, float, float)
 
     def __init__(self, usb_controller, gcode_text):
         super().__init__()
         self.usb = usb_controller
         self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
         self.is_running = True
+        self._status_poll_interval = 0.4  # secondes entre deux requêtes '?' pendant le job
 
     def stop(self):
         self.is_running = False
@@ -249,6 +255,7 @@ class GCodeStreamerThread(QThread):
         MAX_BUF_SIZE = 127
         
         line_idx = 0
+        last_status_poll = time.time()
         try:
             while line_idx < total and self.is_running:
                 while line_idx < total and self.is_running:
@@ -271,6 +278,19 @@ class GCodeStreamerThread(QThread):
                 with self.usb._lock:
                     if not (ser and ser.is_open):
                         raise Exception("Connexion perdue")
+
+                    # Requête de statut temps réel ('?', un seul caractère non
+                    # bufferisé par GRBL) à intervalle régulier, pour le DRO
+                    # (position/état machine) pendant le job — sans perturber
+                    # le streaming : GRBL y répond immédiatement, sans jamais
+                    # consommer le buffer RX du G-Code en cours d'envoi.
+                    now = time.time()
+                    if now - last_status_poll >= self._status_poll_interval:
+                        try:
+                            ser.write(b'?')
+                        except Exception:
+                            pass
+                        last_status_poll = now
                     
                     while ser.in_waiting > 0:
                         resp = ser.readline().decode('utf-8', errors='ignore').strip()
@@ -285,6 +305,10 @@ class GCodeStreamerThread(QThread):
                             clean_finish = False
                             self.is_running = False
                             break
+                        elif resp.startswith('<'):
+                            parsed = self.usb.update_last_status(resp)
+                            if parsed:
+                                self.status_updated.emit(*parsed)
                         else:
                             pass
 
@@ -305,6 +329,10 @@ class GCodeStreamerThread(QThread):
                         elif resp.startswith('error') or resp.startswith('ALARM'):
                             clean_finish = False
                             break
+                        elif resp.startswith('<'):
+                            parsed = self.usb.update_last_status(resp)
+                            if parsed:
+                                self.status_updated.emit(*parsed)
                     else:
                         time.sleep(0.01)
 
@@ -313,6 +341,44 @@ class GCodeStreamerThread(QThread):
             clean_finish = False
 
         self.finished_signal.emit(clean_finish)
+
+
+class StatusPollThread(QThread):
+    """Interroge périodiquement GRBL (requête temps réel '?') pour afficher
+    la position machine et l'état courant en direct (DRO) quand aucun
+    streaming n'est actif (idle, jog, homing...). Pendant un streaming,
+    c'est GCodeStreamerThread qui s'en charge lui-même (voir plus haut) :
+    ce thread doit alors être mis en pause via pause()/resume() pour éviter
+    toute concurrence d'accès au port série entre deux threads."""
+    status_updated = pyqtSignal(str, float, float, float)  # état, x, y, z
+    connection_lost = pyqtSignal()
+
+    def __init__(self, usb_controller, interval_sec=0.4):
+        super().__init__()
+        self.usb = usb_controller
+        self.interval_sec = interval_sec
+        self.is_running = True
+        self._paused = False
+
+    def stop(self):
+        self.is_running = False
+
+    def pause(self):
+        self._paused = True
+
+    def resume(self):
+        self._paused = False
+
+    def run(self):
+        while self.is_running:
+            if not self._paused:
+                if not self.usb.is_connected():
+                    self.connection_lost.emit()
+                    break
+                result = self.usb.query_status()
+                if result:
+                    self.status_updated.emit(*result)
+            time.sleep(self.interval_sec)
 
 
 class AdvancedGCodeWorker(QThread):

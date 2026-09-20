@@ -13,6 +13,14 @@ class ZoomableGraphicsView(QGraphicsView):
         self.pixmap_item = QGraphicsPixmapItem()
         # Activation du lissage pour un rendu visuel net et sans artéfacts de moiré sur le tramage
         self.pixmap_item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
+        # PAS de CacheMode.DeviceCoordinateCache ici : ce widget affiche un
+        # aperçu qui change de CONTENU en permanence (tramage recalculé à
+        # chaque réglage), pas seulement de zoom/pan sur une image fixe. Un
+        # cache par coordonnées appareil doit être reconstruit entièrement à
+        # chaque nouveau pixmap — ça ajoute une passe de rendu complète en
+        # plus à chaque mise à jour au lieu d'économiser du travail, d'où le
+        # ralentissement (constaté aussi bien en plein écran que dans
+        # l'onglet normal une fois ce cache activé).
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
         self.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         self.scene_obj.addItem(self.pixmap_item)
@@ -37,6 +45,15 @@ class ZoomableGraphicsView(QGraphicsView):
     def clear_image(self):
         self.pixmap_item.setPixmap(QPixmap())
         self.setSceneRect(QRectF())
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        # Force un repaint complet du viewport au redimensionnement : sans ça,
+        # la bascule plein écran <-> normal pouvait laisser d'anciens pixels
+        # affichés ("superposition") jusqu'à ce qu'un autre événement (ex.
+        # changement d'onglet, qui cache/affiche le widget) déclenche un
+        # repaint complet.
+        self.viewport().update()
 
     def wheelEvent(self, event: QWheelEvent):
         if event.angleDelta().y() > 0:

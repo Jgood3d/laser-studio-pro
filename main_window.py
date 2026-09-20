@@ -34,6 +34,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         self.block_aspect_signal = False
         self.streamer = None
         self.cmd_thread = None
+        self.status_poll_thread = None
         self.img_worker = None
         self.pending_reprocess = False
         self.job_queue = []
@@ -65,4 +66,11 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         self.update_vector_work_area()
         self._refresh_engrave_layer_combo()
         self.refresh_com_ports()
-        self.check_for_autosave_recovery()
+        # Différé (au lieu d'un appel direct ici) : à ce stade du __init__,
+        # la fenêtre n'est pas encore affichée (main.py appelle showMaximized()
+        # après la construction de FullLaserStudio). Une QMessageBox modale
+        # lancée maintenant peut donc apparaître invisible/hors-écran avant
+        # même que la fenêtre existe visuellement — QTimer.singleShot(0, ...)
+        # reporte l'appel au tout début de la boucle d'événements, une fois
+        # la fenêtre déjà affichée.
+        QTimer.singleShot(0, self.check_for_autosave_recovery)

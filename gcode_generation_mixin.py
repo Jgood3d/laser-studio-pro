@@ -653,6 +653,18 @@ class GcodeGenerationMixin:
         
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
 
+    def update_gcode_position_marker(self, x, y):
+        """Met à jour le marqueur de position temps réel (DRO) affiché sur
+        l'aperçu 2D G-Code, à partir de la position machine renvoyée par
+        GRBL (MPos ou WPos selon le réglage $10 du firmware). Remarque :
+        aucune compensation d'un éventuel décalage G92/G54 n'est appliquée
+        ici — ce marqueur est un repère visuel approximatif de suivi de
+        job, pas une mesure de précision.
+        """
+        if not hasattr(self, "gcode_position_marker"):
+            return
+        self.gcode_position_marker.setData([x], [y])
+
     def plot_gcode_preview(self, gcode_text):
         self._last_gcode_text = gcode_text
         try:
@@ -678,12 +690,13 @@ class GcodeGenerationMixin:
         UNKNOWN_LABEL = "G-Code (import ou sans calque identifié)"
 
         current_label = UNKNOWN_LABEL
-        current_color = "#00cc66"
+        current_color = "#00ff88"
         current_layer_mode = None
         current_is_test_matrix = False
 
         g0_x, g0_y = [], []
         ov_x, ov_y = [], []
+        g1_travel_x, g1_travel_y = [], []  # G1 à puissance nulle (déplacement, pas de gravure)
         g1_segments = {}  # (label, color) -> ([xs], [ys]) avec NaN en séparateur
         seen_order = []   # ordre d'apparition, pour une légende stable
         raster_strokes_by_key = {}  # (label,color) -> [(x1,y1,x2,y2,S), ...]
@@ -711,7 +724,7 @@ class GcodeGenerationMixin:
                         current_is_test_matrix = False
                     elif raw_line.startswith('; --- MATRICE DE TEST LASER'):
                         current_label = "Matrice de test"
-                        current_color = "#00cc66"
+                        current_color = "#00ff88"
                         current_layer_mode = "Matrice"
                         current_is_test_matrix = True
                     elif raw_line.startswith('; --- CALQUE'):
@@ -769,19 +782,31 @@ class GcodeGenerationMixin:
                     g0_y.extend([cy, ny, float('nan')])
                 elif cmd_g == 1:
                     key = (current_label, current_color)
-                    if key not in g1_segments:
-                        g1_segments[key] = ([], [])
-                        seen_order.append(key)
-                        layer_mode_by_key[key] = current_layer_mode
+                    has_power = last_modal_s is not None and last_modal_s > 0
 
-                    xs, ys = g1_segments[key]
-                    xs.extend([cx, nx, float('nan')])
-                    ys.extend([cy, ny, float('nan')])
-
-                    # IMPORTANT : les segments à puissance 0 / M5 ne doivent pas
-                    # être traités comme du raster gravé.
-                    if last_modal_s is not None and last_modal_s > 0:
+                    if has_power:
+                        # Gravure réelle : comptée pour la légende et
+                        # affichée dans la couleur du calque/label.
+                        if key not in g1_segments:
+                            g1_segments[key] = ([], [])
+                            seen_order.append(key)
+                            layer_mode_by_key[key] = current_layer_mode
+                        xs, ys = g1_segments[key]
+                        xs.extend([cx, nx, float('nan')])
+                        ys.extend([cy, ny, float('nan')])
                         raster_strokes_by_key.setdefault(key, []).append((cx, cy, nx, ny, last_modal_s))
+                    else:
+                        # G1 à puissance nulle (laser éteint / M5) : un vrai
+                        # déplacement, jamais de la gravure. Affiché comme un
+                        # G0 (gris pointillé), pour ne jamais se confondre
+                        # avec un tracé réellement gravé de la même couleur —
+                        # sinon, entre deux motifs séparés par un déplacement
+                        # G1 à vide (ex: les carrés d'une matrice de test),
+                        # l'écart entre les motifs apparaît à tort dans la
+                        # couleur de la gravure, rendant impossible de
+                        # distinguer visuellement gravure et non-gravure.
+                        g1_travel_x.extend([cx, nx, float('nan')])
+                        g1_travel_y.extend([cy, ny, float('nan')])
 
                 cx, cy = nx, ny
             except Exception:
@@ -862,6 +887,8 @@ class GcodeGenerationMixin:
             f'<div><span style="color:#888888">■</span> G0 Rapide ({len(g0_x)//3} segments)</div>'
             f'<div><span style="color:#ff3355">■</span> Overscan ({len(ov_x)//3} segments)</div>'
         )
+        if g1_travel_x:
+            legend_rows += f'<div><span style="color:#888888">■</span> Déplacement G1 sans gravure ({len(g1_travel_x)//3} segments)</div>'
         for label, color in seen_order:
             xs, ys = g1_segments[(label, color)]
             n_segs = len(xs) // 3
@@ -891,6 +918,22 @@ class GcodeGenerationMixin:
             self.plot_widget.plot(
                 g0_x,
                 g0_y,
+                pen=pg.mkPen(
+                    color="#555555",
+                    width=1,
+                    style=Qt.PenStyle.DotLine
+                ),
+                connect="finite"
+            )
+
+        if g1_travel_x and not hide_rapid:
+            # G1 à puissance nulle : un déplacement, pas de la gravure — même
+            # style que le G0 rapide pour qu'il soit clair qu'il ne s'agit
+            # pas d'un tracé gravé, malgré le G1 (voir le commentaire à
+            # l'enregistrement, plus haut dans cette fonction).
+            self.plot_widget.plot(
+                g1_travel_x,
+                g1_travel_y,
                 pen=pg.mkPen(
                     color="#555555",
                     width=1,

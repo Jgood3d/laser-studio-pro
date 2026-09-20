@@ -1603,6 +1603,26 @@ TRANSLATIONS = {
         "de": "Ebene:",
         "es": "Capa:",
     },
+    "ui.dro_box": {
+        "fr": "Position Machine (DRO)", "en": "Machine Position (DRO)",
+        "de": "Maschinenposition (DRO)", "es": "Posición de la máquina (DRO)",
+    },
+    "ui.dro_state": {
+        "fr": "État : {value}", "en": "State: {value}",
+        "de": "Status: {value}", "es": "Estado: {value}",
+    },
+    "ui.dro_x": {
+        "fr": "X : {value} mm", "en": "X: {value} mm",
+        "de": "X: {value} mm", "es": "X: {value} mm",
+    },
+    "ui.dro_y": {
+        "fr": "Y : {value} mm", "en": "Y: {value} mm",
+        "de": "Y: {value} mm", "es": "Y: {value} mm",
+    },
+    "ui.dro_z": {
+        "fr": "Z : {value} mm", "en": "Z: {value} mm",
+        "de": "Z: {value} mm", "es": "Z: {value} mm",
+    },
     "ui.jog_box": {
         "fr": "Mouvements Manuel Laser (Jog) & Commandes",
         "en": "Manual Laser Moves (Jog) & Commands",

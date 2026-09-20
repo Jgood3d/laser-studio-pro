@@ -79,11 +79,15 @@ class JobQueueMixin:
 
         self._queue_running_index = 0
         self.btn_run_queue.setEnabled(False)
+        if getattr(self, "status_poll_thread", None):
+            self.status_poll_thread.pause()
         self._run_next_queued_job()
 
     def _run_next_queued_job(self):
         if self._queue_running_index >= len(self.job_queue):
             self.txt_console.append(">>> File d'attente terminée.")
+            if getattr(self, "status_poll_thread", None):
+                self.status_poll_thread.resume()
             QMessageBox.information(
     self,
     tr("queue.done_title"),
@@ -116,12 +120,15 @@ class JobQueueMixin:
         self.streamer = GCodeStreamerThread(self.usb, job["gcode"])
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
         self.streamer.log_signal.connect(self.txt_console.append)
+        self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self._on_queued_job_finished)
         self.streamer.start()
 
     def _on_queued_job_finished(self, clean_finish):
         if not clean_finish:
             self.btn_run_queue.setEnabled(True)
+            if getattr(self, "status_poll_thread", None):
+                self.status_poll_thread.resume()
             QMessageBox.warning(
                 self, tr("queue.stopped_title"),
                 tr("queue.stopped_body")

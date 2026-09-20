@@ -2,7 +2,7 @@
 import serial
 import serial.tools.list_ports
 from PyQt6.QtWidgets import (QMessageBox)
-from workers import GCodeStreamerThread, CommandThread
+from workers import GCodeStreamerThread, CommandThread, StatusPollThread
 from i18n import tr
 
 
@@ -15,10 +15,12 @@ class LaserControlMixin:
 
     def toggle_usb(self):
         if self.usb.is_connected():
+            self._stop_status_poll()
             self.usb.disconnect()
             self.btn_connect.setText(tr("laser.connect"))
             self.btn_connect.setStyleSheet("")
             self.txt_console.append(tr("laser.disconnected"))
+            self._update_dro_display(None, None, None, None)
         else:
             selected = self.combo_ports.currentText()
             if not selected:
@@ -36,12 +38,59 @@ class LaserControlMixin:
     tr("laser.connected").format(port=port)
 )
                 self._check_grbl_laser_mode()
+                self._start_status_poll()
             else:
                 QMessageBox.critical(
     self,
     tr("laser.no_port_title"),
     tr("laser.connection_error").format(port=port)
 )
+
+    def _start_status_poll(self):
+        """Démarre le thread de polling DRO (position/état machine en
+        direct) via requêtes '?' périodiques — utilisé hors streaming actif
+        (idle, jog, homing...). Mis en pause pendant un job (voir
+        send_to_laser / run_job_queue), car c'est alors GCodeStreamerThread
+        qui interroge lui-même le statut."""
+        self._stop_status_poll()
+        self.status_poll_thread = StatusPollThread(self.usb)
+        self.status_poll_thread.status_updated.connect(self._on_status_updated)
+        self.status_poll_thread.start()
+
+    def _stop_status_poll(self):
+        thread = getattr(self, "status_poll_thread", None)
+        if thread is not None:
+            thread.stop()
+            thread.wait(1000)
+            self.status_poll_thread = None
+
+    def _on_status_updated(self, state, x, y, z):
+        """Reçu du DRO (StatusPollThread en idle, ou GCodeStreamerThread
+        pendant un job) : met à jour l'affichage position/état et le
+        marqueur de position sur l'aperçu 2D G-Code."""
+        self._update_dro_display(state, x, y, z)
+        if hasattr(self, "update_gcode_position_marker"):
+            self.update_gcode_position_marker(x, y)
+
+    def _update_dro_display(self, state, x, y, z):
+        if not hasattr(self, "lbl_dro_state"):
+            return
+        if state is None:
+            self.lbl_dro_state.setText(tr("ui.dro_state").format(value="—"))
+            self.lbl_dro_x.setText(tr("ui.dro_x").format(value="—"))
+            self.lbl_dro_y.setText(tr("ui.dro_y").format(value="—"))
+            self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
+            return
+        self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
+        self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
+        self.lbl_dro_y.setText(tr("ui.dro_y").format(value=f"{y:.3f}"))
+        self.lbl_dro_z.setText(tr("ui.dro_z").format(value=f"{z:.3f}"))
+        state_colors = {
+            "Idle": "#2ecc71", "Run": "#3498db", "Hold": "#e67e22",
+            "Alarm": "#e74c3c", "Home": "#9b59b6", "Jog": "#1abc9c",
+        }
+        color = state_colors.get(state, "#cccccc")
+        self.lbl_dro_state.setStyleSheet(f"color: {color}; font-weight: bold;")
 
     def _check_grbl_laser_mode(self):
         """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
@@ -134,14 +183,19 @@ class LaserControlMixin:
 
         self.btn_send.setEnabled(False)
         self.progress_bar.setValue(0)
+        if getattr(self, "status_poll_thread", None):
+            self.status_poll_thread.pause()
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
         self.streamer.log_signal.connect(self.txt_console.append)
+        self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self.on_stream_finished)
         self.streamer.start()
 
     def on_stream_finished(self, clean_finish):
         self.btn_send.setEnabled(True)
+        if getattr(self, "status_poll_thread", None):
+            self.status_poll_thread.resume()
         if clean_finish:
             QMessageBox.information(
     self,

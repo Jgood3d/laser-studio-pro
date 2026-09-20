@@ -1,5 +1,5 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
 from PyQt6.QtCore import Qt, QSettings
 from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent
 import pyqtgraph as pg
@@ -58,7 +58,145 @@ class UiSetupMixin:
             except (TypeError, ValueError):
                 pass
 
+    def _toggle_fullscreen_image_tab(self):
+        """Plein écran spécifique à l'onglet Images/Tramage : contrairement
+        aux autres onglets (voir _toggle_fullscreen_tab), celui-ci inclut
+        aussi le panneau de réglages du tramage (algorithme, seuil,
+        luminosité/contraste/gamma, inversion...) normalement affiché dans
+        le panneau de gauche (self.tab_img, dans self.settings_tabs_widget)
+        — pour voir l'effet des réglages en direct sans avoir à sortir du
+        plein écran."""
+        preview_idx = self.main_tabs_view.indexOf(self.tab_previews)
+        if preview_idx == -1:
+            return  # déjà en plein écran
+        settings_idx = self.settings_tabs_widget.indexOf(self.tab_img)
+        # Mémorise l'onglet actif du panneau de gauche avant de retirer
+        # tab_img, pour pouvoir y revenir précisément à la fermeture (que ce
+        # soit tab_img lui-même ou un autre onglet, ex. "Dimensions Origine").
+        prev_settings_widget = self.settings_tabs_widget.currentWidget()
+
+        dialog = QDialog(self)
+        dialog.setWindowFlags(Qt.WindowType.Window)
+        dialog.setWindowTitle(tr("ui.tab_image_tracing"))
+
+        outer_layout = QVBoxLayout(dialog)
+        outer_layout.setContentsMargins(4, 4, 4, 4)
+
+        btn_close_fullscreen = QPushButton(tr("vector.close_fullscreen"))
+        btn_close_fullscreen.setStyleSheet(
+            "background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;"
+        )
+        btn_close_fullscreen.clicked.connect(dialog.close)
+        outer_layout.addWidget(btn_close_fullscreen)
+
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+
+        # Le panneau de réglages passe dans un défilement, pour rester
+        # entièrement accessible même si la fenêtre est réduite.
+        settings_scroll = QScrollArea()
+        settings_scroll.setWidget(self.tab_img)
+        settings_scroll.setWidgetResizable(True)
+        settings_scroll.setMinimumWidth(320)
+        settings_scroll.setMaximumWidth(480)
+
+        content_splitter.addWidget(settings_scroll)
+        content_splitter.addWidget(self.tab_previews)
+        content_splitter.setStretchFactor(0, 0)
+        content_splitter.setStretchFactor(1, 1)
+        content_splitter.setSizes([360, 1200])
+        outer_layout.addWidget(content_splitter)
+
+        self.tab_img.setVisible(True)
+        self.tab_previews.setVisible(True)
+
+        def restore(_result=None):
+            settings_scroll.takeWidget()  # détache tab_img sans le supprimer
+            self.tab_previews.setParent(None)
+            self.settings_tabs_widget.insertTab(settings_idx, self.tab_img, tr("tab.image_filters"))
+            self.main_tabs_view.insertTab(preview_idx, self.tab_previews, tr("ui.tab_image_tracing"))
+            self.main_tabs_view.setCurrentWidget(self.tab_previews)
+            # Resélectionne l'onglet qui était actif avant le plein écran
+            # (via setCurrentWidget, le mécanisme normal du QTabWidget — pas
+            # un setVisible forcé, qui recréerait la superposition).
+            self.settings_tabs_widget.setCurrentWidget(prev_settings_widget)
+            # Pas de setVisible(True) forcé ici : un QTabWidget gère lui-même
+            # la visibilité de ses pages (seule la page active doit être
+            # affichée). Forcer tab_img à rester visible même quand un autre
+            # onglet est sélectionné dans settings_tabs_widget est justement
+            # ce qui causait la superposition (tab_img restait affiché
+            # par-dessus l'onglet réellement actif, ex. "Dimensions Origine").
+            # La fenêtre plein écran qui vient de se fermer recouvrait
+            # entièrement la fenêtre principale : selon le système, Qt ne
+            # force pas toujours un repaint complet de ce qui était caché
+            # dessous, ce qui laissait apparaître une "superposition" tant
+            # qu'un autre événement (changement d'onglet) ne forçait pas ce
+            # repaint. On le force explicitement ici.
+            self.tab_img.updateGeometry()
+            self.tab_previews.updateGeometry()
+            self.settings_tabs_widget.update()
+            self.main_tabs_view.update()
+            self.update()
+            self.repaint()
+
+        dialog.finished.connect(restore)
+        dialog.show()
+        dialog.setWindowState(Qt.WindowState.WindowMaximized)
+
+    def _toggle_fullscreen_tab(self, tab_attr, title_key):
+        """Ouvre l'onglet désigné par l'attribut tab_attr (self.<tab_attr>)
+        dans une fenêtre à part, maximisée, et le replace à sa position
+        d'origine dans main_tabs_view à la fermeture. Mécanisme générique
+        utilisé par les onglets Images/Tramage, Visualisation 2D G-Code et
+        Console/G-Code (voir aussi toggle_fullscreen_vector_editor et
+        toggle_fullscreen_png2svg, qui suivent le même principe pour leurs
+        onglets respectifs)."""
+        tab_widget = getattr(self, tab_attr, None)
+        if tab_widget is None:
+            return
+        idx = self.main_tabs_view.indexOf(tab_widget)
+        if idx == -1:
+            return  # déjà en plein écran (fenêtre déjà ouverte)
+
+        dialog = QDialog(self)
+        dialog.setWindowFlags(Qt.WindowType.Window)
+        dialog.setWindowTitle(tr(title_key))
+
+        dlg_layout = QVBoxLayout(dialog)
+        dlg_layout.setContentsMargins(4, 4, 4, 4)
+
+        btn_close_fullscreen = QPushButton(tr("vector.close_fullscreen"))
+        btn_close_fullscreen.setStyleSheet(
+            "background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;"
+        )
+        btn_close_fullscreen.clicked.connect(dialog.close)
+        dlg_layout.addWidget(btn_close_fullscreen)
+
+        dlg_layout.addWidget(tab_widget)
+        tab_widget.setVisible(True)
+
+        def restore(_result=None):
+            dlg_layout.removeWidget(tab_widget)
+            tab_widget.setParent(None)
+            self.main_tabs_view.insertTab(idx, tab_widget, tr(title_key))
+            self.main_tabs_view.setCurrentWidget(tab_widget)
+            # Pas de setVisible(True) forcé : voir le commentaire équivalent
+            # dans _toggle_fullscreen_image_tab. setCurrentWidget() suffit à
+            # rendre tab_widget visible puisqu'il devient la page active.
+            # Voir le commentaire équivalent dans _toggle_fullscreen_image_tab :
+            # force un repaint complet pour éviter la superposition visuelle
+            # laissée par la fenêtre plein écran qui vient de se fermer.
+            tab_widget.updateGeometry()
+            self.main_tabs_view.update()
+            self.update()
+            self.repaint()
+
+        dialog.finished.connect(restore)
+        dialog.show()
+        dialog.setWindowState(Qt.WindowState.WindowMaximized)
+
     def closeEvent(self, event):
+        if hasattr(self, "_stop_status_poll"):
+            self._stop_status_poll()
         self.save_machine_settings()
         self.save_splitter_sizes()
         reply = QMessageBox.question(
@@ -489,6 +627,8 @@ class UiSetupMixin:
         layout_img.addRow("", btn_compare_algos)
 
         tabs.addTab(tab_img, tr("tab.image_filters"))
+        self.tab_img = tab_img
+        self.settings_tabs_widget = tabs
 
         tab_dim = QWidget()
         layout_dim = QVBoxLayout(tab_dim)
@@ -780,6 +920,10 @@ class UiSetupMixin:
         self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
         left_bottom_layout.addWidget(self.chk_negative_raster_preview)
         self.chk_hide_rapid_moves = QCheckBox(tr("preview.hide_rapid"))
+        # Coché par défaut : les carrés/tracés gravés sont bien plus visibles
+        # sans le fouillis des déplacements rapides G0 par-dessus. Décocher
+        # reste possible pour qui veut vérifier ces trajets.
+        self.chk_hide_rapid_moves.setChecked(True)
         self.chk_hide_rapid_moves.stateChanged.connect(
             self.on_flip_raster_preview_changed
         )
@@ -803,7 +947,17 @@ class UiSetupMixin:
         self.main_tabs_view.setMovable(True)
 
         tab_previews = QWidget()
-        layout_previews = QHBoxLayout(tab_previews)
+        outer_layout_previews = QVBoxLayout(tab_previews)
+        outer_layout_previews.setContentsMargins(4, 4, 4, 4)
+
+        toolbar_previews = QHBoxLayout()
+        toolbar_previews.addStretch()
+        btn_fullscreen_previews = QPushButton(tr("ui.vector_fullscreen"))
+        btn_fullscreen_previews.clicked.connect(self._toggle_fullscreen_image_tab)
+        toolbar_previews.addWidget(btn_fullscreen_previews)
+        outer_layout_previews.addLayout(toolbar_previews)
+
+        layout_previews = QHBoxLayout()
         
         box_src = QGroupBox(tr("ui.source_image_box"))
         layout_src = QVBoxLayout()
@@ -819,7 +973,9 @@ class UiSetupMixin:
 
         layout_previews.addWidget(box_src)
         layout_previews.addWidget(box_dither)
+        outer_layout_previews.addLayout(layout_previews)
         self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
+        self.tab_previews = tab_previews
 
         tab_png2svg = self._init_png2svg_tab()
         self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
@@ -915,6 +1071,15 @@ class UiSetupMixin:
 
         tab_vector_2d = QWidget()
         layout_vector_2d = QVBoxLayout(tab_vector_2d)
+
+        toolbar_vector_2d = QHBoxLayout()
+        toolbar_vector_2d.addStretch()
+        btn_fullscreen_vector_2d = QPushButton(tr("ui.vector_fullscreen"))
+        btn_fullscreen_vector_2d.clicked.connect(
+            lambda: self._toggle_fullscreen_tab("tab_vector_2d", "ui.tab_2d_preview")
+        )
+        toolbar_vector_2d.addWidget(btn_fullscreen_vector_2d)
+        layout_vector_2d.addLayout(toolbar_vector_2d)
         
         self.plot_widget = pg.PlotWidget(title=tr("ui.plot_title"))
         self.plot_widget.setBackground('#111111')
@@ -923,6 +1088,16 @@ class UiSetupMixin:
         self.plot_widget.setLabel('bottom', tr("ui.plot_x"), color='#ffffff')
         self.plot_widget.setLabel('left', tr("ui.plot_y"), color='#ffffff')
         self.plot_widget.scene().sigMouseClicked.connect(self._on_plot_clicked)
+
+        # Marqueur de position temps réel (DRO) : tête laser en direct
+        # pendant un job (ou un jog manuel), superposé au tracé G-Code.
+        # Masqué tant qu'aucune position n'a encore été reçue.
+        self.gcode_position_marker = pg.ScatterPlotItem(
+            size=14, pen=pg.mkPen('#ffffff', width=2), brush=pg.mkBrush('#ff2d55'),
+            symbol='o'
+        )
+        self.gcode_position_marker.setZValue(1000)
+        self.plot_widget.addItem(self.gcode_position_marker)
         
         self.info_text_item = pg.TextItem(html=f'<div style="color: #cccccc;">{tr("ui.plot_empty_state")}</div>', anchor=(0, 0))
         self.plot_widget.addItem(self.info_text_item)
@@ -934,6 +1109,22 @@ class UiSetupMixin:
         center_bottom_widget = QWidget()
         center_bottom_layout = QVBoxLayout(center_bottom_widget)
         center_bottom_layout.setContentsMargins(0, 0, 0, 0)
+
+        dro_box = QGroupBox(tr("ui.dro_box"))
+        dro_layout = QHBoxLayout()
+        self.lbl_dro_state = QLabel(tr("ui.dro_state").format(value="—"))
+        self.lbl_dro_x = QLabel(tr("ui.dro_x").format(value="—"))
+        self.lbl_dro_y = QLabel(tr("ui.dro_y").format(value="—"))
+        self.lbl_dro_z = QLabel(tr("ui.dro_z").format(value="—"))
+        for lbl in (self.lbl_dro_state, self.lbl_dro_x, self.lbl_dro_y, self.lbl_dro_z):
+            lbl.setStyleSheet("font-family: monospace; font-size: 13px;")
+        dro_layout.addWidget(self.lbl_dro_state)
+        dro_layout.addStretch()
+        dro_layout.addWidget(self.lbl_dro_x)
+        dro_layout.addWidget(self.lbl_dro_y)
+        dro_layout.addWidget(self.lbl_dro_z)
+        dro_box.setLayout(dro_layout)
+        center_bottom_layout.addWidget(dro_box)
 
         jog_box = QGroupBox(tr("ui.jog_box"))
         jog_layout = QGridLayout()
@@ -1058,6 +1249,15 @@ class UiSetupMixin:
         tab_console_gcode = QWidget()
         layout_console_gcode = QVBoxLayout(tab_console_gcode)
         layout_console_gcode.setContentsMargins(6, 6, 6, 6)
+
+        toolbar_console_gcode = QHBoxLayout()
+        toolbar_console_gcode.addStretch()
+        btn_fullscreen_console_gcode = QPushButton(tr("ui.vector_fullscreen"))
+        btn_fullscreen_console_gcode.clicked.connect(
+            lambda: self._toggle_fullscreen_tab("tab_console_gcode", "ui.tab_console_gcode")
+        )
+        toolbar_console_gcode.addWidget(btn_fullscreen_console_gcode)
+        layout_console_gcode.addLayout(toolbar_console_gcode)
 
         stats_box = QGroupBox(tr("ui.job_stats_box"))
         stats_layout = QVBoxLayout()

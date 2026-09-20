@@ -4,6 +4,39 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [1.6.0]
+
+feat: DRO temps réel, plein écran étendu, corrections rendu 2D (v1.6.0)
+
+### Ajouté :
+- Plein écran pour les onglets Images/Tramage, Visualisation 2D G-Code et
+  Console/G-Code (même principe que l'Éditeur Vectoriel et PNG -> SVG).
+- Plein écran Images/Tramage : panneau de réglages du tramage affiché à
+  côté des aperçus, pour un retour en direct sans sortir du plein écran.
+- DRO (position machine en temps réel) : état GRBL (Idle/Run/Hold/Alarm)
+  et position X/Y/Z en direct, en jog comme en cours de job.
+- Marqueur de position en direct sur l'aperçu 2D G-Code pendant le
+  streaming.
+
+### Corrigé :
+- Éditeur Vectoriel : 3 messages restaient codés en dur en français au
+  lieu de suivre la langue choisie.
+- Aperçu 2D G-Code : les déplacements G1 à puissance nulle étaient
+  affichés dans la couleur de la gravure réelle, rendant les deux
+  indiscernables (visible entre les carrés de la matrice de test) ;
+  affichés maintenant en gris pointillé, comme les G0.
+- Couleur par défaut de la matrice de test / G-code importé : vert plus
+  lumineux et contrasté (#00ff88 au lieu de #00cc66).
+- Démarrage : la demande de restauration de sauvegarde automatique
+  s'affichait avant que la fenêtre soit visible ; différée jusqu'à
+  l'affichage réel de la fenêtre (évite un dialogue invisible bloqué en
+  arrière-plan).
+
+Fichiers modifiés :
+usb_controller.py, workers.py, laser_control_mixin.py, job_queue_mixin.py,
+gcode_generation_mixin.py, ui_setup_mixin.py, i18n.py, main_window.py,
+vector_editing_mixin.py, app_utils.py
+
 ## [1.5.0]
 
 ### Ajouté

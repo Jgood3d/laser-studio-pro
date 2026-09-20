@@ -71,7 +71,7 @@ class VectorEditingMixin:
 
     def insert_shape_object(self):
         if not self.layer_manager.layers:
-            QMessageBox.warning(self, "Aucun calque", "Créez d'abord un calque dans l'onglet 'Calques (Layers)'.")
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         dialog = ShapeInsertDialog(self.layer_manager, parent=self)
         if dialog.exec():
@@ -129,7 +129,7 @@ class VectorEditingMixin:
     def rotate_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()
         if obj is None:
-            QMessageBox.information(self, "Sélection", "Sélectionnez d'abord un objet dans le canevas.")
+            QMessageBox.information(self, tr("vector.selection_title"), tr("vector.no_selection"))
             return
         self.vector_canvas.push_undo_snapshot()
         obj.rotation_deg = (obj.rotation_deg + 90.0) % 360.0
@@ -331,7 +331,7 @@ class VectorEditingMixin:
         un objet indépendant (« dégroupé »), assignable à un calque différent
         (découpe, gravure remplie...), avec aperçu visuel immédiat."""
         if not self.layer_manager.layers:
-            QMessageBox.warning(self, "Aucun calque", "Créez d'abord un calque dans l'onglet 'Calques (Layers)'.")
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         path, _ = QFileDialog.getOpenFileName(
     self,
