@@ -1,24 +1,34 @@
 # -*- mode: python ; coding: utf-8 -*-
 """Spec PyInstaller — Laser Studio Pro pour macOS.
 
+Vit dans macos/, à côté de l'icône .icns, séparément du code source et
+des chaînes de build Windows/Linux qui restent à la racine du dépôt.
+Les chemins ci-dessous sont dérivés de SPECPATH (dossier de ce fichier,
+fourni automatiquement par PyInstaller) pour fonctionner quel que soit le
+répertoire courant au moment de l'appel.
+
 Cible l'architecture de la machine de compilation (target_arch=None) :
 pas de build universal2, car numba/opencv n'ont pas toujours de wheels
 universal2 disponibles. Compiler séparément sur Apple Silicon et sur
 Intel si les deux cibles sont nécessaires (voir build_macos.sh).
 
-Utilisation :
-    pyinstaller LaserStudioPro.spec
+Utilisation (depuis la racine du dépôt, ou build_macos.sh) :
+    pyinstaller macos/LaserStudioPro.spec
 """
+import os
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
+REPO_ROOT = os.path.dirname(SPECPATH)  # SPECPATH = dossier macos/
+
 # Ressources embarquées à côté de l'exécutable dans le bundle (retrouvées au
-# runtime par app_utils.find_resource() / get_bundle_dir()).
+# runtime par app_utils.find_resource() / get_bundle_dir()). Ces images
+# sources restent à la racine, partagées avec les builds Windows/Linux.
 datas = [
-    ('laser_studio_pro.ico', '.'),
-    ('laser_studio_pro_512.png', '.'),
-    ('laser_studio_pro_banner.png', '.'),
+    (os.path.join(REPO_ROOT, 'laser_studio_pro.ico'), '.'),
+    (os.path.join(REPO_ROOT, 'laser_studio_pro_512.png'), '.'),
+    (os.path.join(REPO_ROOT, 'laser_studio_pro_banner.png'), '.'),
 ]
 datas += collect_data_files('pyqtgraph')
 datas += collect_data_files('skimage')
@@ -34,8 +44,8 @@ hiddenimports += collect_submodules('skimage.morphology')
 hiddenimports += collect_submodules('pyqtgraph')
 
 a = Analysis(
-    ['main.py'],
-    pathex=[],
+    [os.path.join(REPO_ROOT, 'main.py')],
+    pathex=[REPO_ROOT],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
@@ -70,7 +80,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='laser_studio_pro.icns',
+    icon=os.path.join(SPECPATH, 'laser_studio_pro.icns'),
 )
 
 coll = COLLECT(
@@ -87,7 +97,7 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='LaserStudioPro.app',
-    icon='laser_studio_pro.icns',
+    icon=os.path.join(SPECPATH, 'laser_studio_pro.icns'),
     bundle_identifier='com.jb3dlaser.laserstudiopro',
     info_plist={
         'CFBundleName': 'Laser Studio Pro',

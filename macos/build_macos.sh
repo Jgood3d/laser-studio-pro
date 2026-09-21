@@ -2,9 +2,14 @@
 # Compile Laser Studio Pro en .app puis en .dmg sur macOS.
 # Cible l'architecture de LA MACHINE qui exécute ce script (pas de
 # cross-compilation, pas d'universal2 — voir LaserStudioPro.spec).
+# Ce script vit dans macos/ mais s'exécute depuis la racine du dépôt (où
+# se trouve main.py), pour ne rien changer à l'arborescence Windows/Linux.
+# dist/ et build/ sont créés à la racine, comme pour les builds Windows/Linux.
 set -e
 
-cd "$(dirname "$0")"
+MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(dirname "$MACOS_DIR")"
+cd "$REPO_ROOT"
 
 APP_NAME="LaserStudioPro"
 VERSION="1.6.0"
@@ -30,11 +35,14 @@ source build_venv/bin/activate
 
 echo "Installation des dépendances..."
 pip install --upgrade pip -q
-pip install -r requirements-macos.txt -q
+pip install -r "${MACOS_DIR}/requirements-macos.txt" -q
 pip install pyinstaller -q
 
 # 2. Génération de l'icône .icns si absente ou si la source a changé.
-if [ ! -f "laser_studio_pro.icns" ] || [ "laser_studio_pro_512.png" -nt "laser_studio_pro.icns" ]; then
+#    Source (laser_studio_pro_512.png) partagée avec Windows/Linux, reste
+#    à la racine ; l'icône .icns générée, elle, va dans macos/.
+ICNS_PATH="${MACOS_DIR}/laser_studio_pro.icns"
+if [ ! -f "$ICNS_PATH" ] || [ "laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
     echo "Génération de l'icône .icns..."
     ICONSET_DIR="$(mktemp -d)/laser_studio_pro.iconset"
     mkdir -p "$ICONSET_DIR"
@@ -44,7 +52,7 @@ if [ ! -f "laser_studio_pro.icns" ] || [ "laser_studio_pro_512.png" -nt "laser_s
         sips -z "$double" "$double" laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}@2x.png" >/dev/null
     done
     sips -z 1024 1024 laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null
-    iconutil -c icns "$ICONSET_DIR" -o laser_studio_pro.icns
+    iconutil -c icns "$ICONSET_DIR" -o "$ICNS_PATH"
     rm -rf "$(dirname "$ICONSET_DIR")"
 fi
 
@@ -52,9 +60,9 @@ fi
 echo "Nettoyage des builds précédents..."
 rm -rf build dist
 
-# 4. Compilation.
+# 4. Compilation. dist/ et build/ sont créés ici, à la racine du dépôt.
 echo "Compilation avec PyInstaller..."
-pyinstaller --noconfirm LaserStudioPro.spec
+pyinstaller --noconfirm "${MACOS_DIR}/LaserStudioPro.spec"
 
 if [ ! -d "dist/${APP_NAME}.app" ]; then
     echo "ERREUR : dist/${APP_NAME}.app n'a pas été généré."
