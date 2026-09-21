@@ -1,13 +1,28 @@
 name: Build macOS
 
 # Compile Laser Studio Pro en .app/.dmg pour macOS, un job par
-# architecture (pas d'universal2 — voir LaserStudioPro.spec). Déclenché
-# sur un tag "v*" (avec publication en release) ou manuellement (build
-# + artefact seulement, sans release).
+# architecture (pas d'universal2 — voir LaserStudioPro.spec).
+#
+# Déclenché :
+# - sur un tag "v*" : build + publication en release (comme avant) ;
+# - sur une Pull Request vers main qui touche du code Python ou les
+#   fichiers macOS : build de validation (sans release), pour détecter
+#   immédiatement sur la PR une dépendance ou un import cassé côté
+#   macOS (ex. nouvelle lib ajoutée à requirements-windows.txt sans
+#   l'ajouter à macos/requirements-macos.txt), au lieu de le découvrir
+#   seulement à la prochaine sortie de version ;
+# - manuellement (build + artefact seulement, sans release).
 on:
   push:
     tags:
       - "v*"
+  pull_request:
+    branches: [main]
+    paths:
+      - "**.py"
+      - "macos/**"
+      - "requirements-*.txt"
+      - ".github/workflows/macos-build.yml"
   workflow_dispatch: {}
 
 jobs:
@@ -28,6 +43,11 @@ jobs:
           - runner: macos-15-intel
             arch: x86_64
 
+    # Sur une PR (build de validation seulement), l'arm64 suffit pour
+    # détecter un import/dépendance cassé — inutile de payer aussi
+    # l'Intel à chaque proposition de changement. Les deux tournent
+    # toujours sur un tag (vraie release) ou en déclenchement manuel.
+    if: matrix.arch == 'arm64' || github.event_name != 'pull_request'
     runs-on: ${{ matrix.runner }}
     name: build (${{ matrix.arch }})
 
