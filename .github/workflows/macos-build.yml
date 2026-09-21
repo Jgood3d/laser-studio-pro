@@ -43,11 +43,6 @@ jobs:
           - runner: macos-15-intel
             arch: x86_64
 
-    # Sur une PR (build de validation seulement), l'arm64 suffit pour
-    # détecter un import/dépendance cassé — inutile de payer aussi
-    # l'Intel à chaque proposition de changement. Les deux tournent
-    # toujours sur un tag (vraie release) ou en déclenchement manuel.
-    if: matrix.arch == 'arm64' || github.event_name != 'pull_request'
     runs-on: ${{ matrix.runner }}
     name: build (${{ matrix.arch }})
 
