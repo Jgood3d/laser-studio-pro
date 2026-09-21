@@ -96,8 +96,6 @@ vector_editing_mixin.py, app_utils.py
 
 ### ✨ Améliorations & Ergonomie
 
-## 🚀 Release v1.4.1
-✨ Améliorations & Ergonomie
 Positionnement dynamique à la souris : Possibilité de sélectionner et de déplacer l'intégralité d'un fichier SVG directement sur le plan de travail.
 Ajustement de précision (Offset X / Y) : Ajout des contrôles de décalage X et Y pour affiner la position exacte de vos éléments vectoriels au millimètre près.
 Cette version apporte plus de souplesse dans la manipulation des calques vectoriels et accélère la préparation de vos projets.
