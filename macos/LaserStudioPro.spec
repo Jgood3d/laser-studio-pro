@@ -16,11 +16,19 @@ Utilisation (depuis la racine du dépôt, ou build_macos.sh) :
     pyinstaller macos/LaserStudioPro.spec
 """
 import os
+import sys
 from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
 REPO_ROOT = os.path.dirname(SPECPATH)  # SPECPATH = dossier macos/
+
+# Numéro de version : lu depuis app_utils.py (source unique, déjà utilisée
+# par l'app elle-même pour l'"À propos") plutôt que dupliqué ici en dur —
+# une seule ligne à changer dans app_utils.py suffit pour toutes les
+# plateformes qui en dépendent.
+sys.path.insert(0, REPO_ROOT)
+from app_utils import APP_VERSION
 
 # Ressources embarquées à côté de l'exécutable dans le bundle (retrouvées au
 # runtime par app_utils.find_resource() / get_bundle_dir()). Ces images
@@ -102,8 +110,8 @@ app = BUNDLE(
     info_plist={
         'CFBundleName': 'Laser Studio Pro',
         'CFBundleDisplayName': 'Laser Studio Pro',
-        'CFBundleShortVersionString': '1.6.0',
-        'CFBundleVersion': '1.6.0',
+        'CFBundleShortVersionString': APP_VERSION,
+        'CFBundleVersion': APP_VERSION,
         'NSHighResolutionCapable': True,
         'NSHumanReadableCopyright': 'Laser Studio Pro',
         # Justification affichée par macOS si l'app demande l'accès à un

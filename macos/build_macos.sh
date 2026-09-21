@@ -12,7 +12,9 @@ REPO_ROOT="$(dirname "$MACOS_DIR")"
 cd "$REPO_ROOT"
 
 APP_NAME="LaserStudioPro"
-VERSION="1.6.0"
+# Version lue depuis app_utils.py (source unique, voir LaserStudioPro.spec)
+# plutôt que dupliquée ici en dur.
+VERSION="$(grep -m1 '^APP_VERSION' "${REPO_ROOT}/app_utils.py" | sed -E 's/.*"([^"]+)".*/\1/')"
 ARCH="$(uname -m)"
 DMG_NAME="${APP_NAME}_${VERSION}_macos_${ARCH}.dmg"
 
