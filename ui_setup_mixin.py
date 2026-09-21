@@ -746,13 +746,6 @@ class UiSetupMixin:
         self.form_matrix.addRow(tr("ui.test_mode"), self.combo_mat_mode)
         self.form_matrix.addRow(tr("ui.mat_offset_x"), self.spin_mat_off_x)
         self.form_matrix.addRow(tr("ui.mat_offset_y"), self.spin_mat_off_y)
-        # self.lbl_mat_p1 (et non une chaîne) comme libellé : son texte
-        # bascule dynamiquement entre "Puissance Min (%)" et "Puissance
-        # Unique (%)" selon le mode (voir on_mat_mode_changed) — cette ligne
-        # avait été oubliée du formulaire, rendant spin_mat_min_p (pourtant
-        # déjà utilisé par generate_test_matrix) invisible et donc bloqué à
-        # sa valeur par défaut.
-        self.form_matrix.addRow(self.lbl_mat_p1, self.spin_mat_min_p)
         self.form_matrix.addRow(tr("ui.mat_max_power"), self.spin_mat_max_p)
         self.form_matrix.addRow(tr("ui.mat_power_step"), self.spin_mat_steps_p)
         self.form_matrix.addRow(tr("ui.mat_min_passes"), self.spin_mat_min_passes)
@@ -823,7 +816,10 @@ class UiSetupMixin:
 
         tab_layers = QWidget()
         layout_layers = QVBoxLayout(tab_layers)
-        self.layer_widget = LayerManagerWidget(self.layer_manager)
+        self.layer_widget = LayerManagerWidget(
+            self.layer_manager,
+            focal_getter=lambda: self.spin_machine_focal.value(),
+        )
         self.layer_widget.layers_changed.connect(self.on_layers_changed)
         layout_layers.addWidget(self.layer_widget)
         tabs.addTab(tab_layers, tr("tab.layers"))
@@ -924,12 +920,15 @@ class UiSetupMixin:
         left_bottom_layout.addWidget(self.chk_flip_raster_preview)
 
         self.chk_negative_raster_preview = QCheckBox(tr("preview.negative"))
+        # Coché par défaut au démarrage : rend le rendu 2D plus lisible
+        # (ce qui sera réellement gravé) tout en laissant la possibilité de
+        # décocher pour voir l'aperçu "normal".
+        self.chk_negative_raster_preview.setChecked(True)
         self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
         left_bottom_layout.addWidget(self.chk_negative_raster_preview)
         self.chk_hide_rapid_moves = QCheckBox(tr("preview.hide_rapid"))
-        # Coché par défaut : les carrés/tracés gravés sont bien plus visibles
-        # sans le fouillis des déplacements rapides G0 par-dessus. Décocher
-        # reste possible pour qui veut vérifier ces trajets.
+        # Coché par défaut pour la même raison : un rendu plus clair par
+        # défaut, sans empêcher de le décocher au besoin.
         self.chk_hide_rapid_moves.setChecked(True)
         self.chk_hide_rapid_moves.stateChanged.connect(
             self.on_flip_raster_preview_changed

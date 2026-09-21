@@ -64,7 +64,7 @@ class LaserLayer:
 
     def __init__(self, name="Calque", color="#ff3b30", mode="Découpe",
                  power=80.0, speed=300, passes=1, line_interval=0.10,
-                 enabled=True, layer_id=None):
+                 enabled=True, layer_id=None, line_interval_linked=False):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.name = name
         self.color = color
@@ -73,6 +73,9 @@ class LaserLayer:
         self.speed = int(speed)             # mm/min
         self.passes = int(passes)
         self.line_interval = float(line_interval)  # mm (pas du remplissage)
+        # Si True, line_interval suit automatiquement la taille du spot
+        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
+        self.line_interval_linked = bool(line_interval_linked)
         self.enabled = bool(enabled)
 
     def to_dict(self):
@@ -96,10 +99,13 @@ class LayerManager:
                        mode="Gravure Remplie", power=35, speed=2000, passes=1),
         ]
 
-    def add_layer(self):
+    def add_layer(self, line_interval=None, line_interval_linked=False):
         idx = len(self.layers)
         color = DEFAULT_LAYER_COLORS[idx % len(DEFAULT_LAYER_COLORS)]
-        layer = LaserLayer(name=f"Calque {idx + 1}", color=color)
+        kwargs = {"line_interval_linked": line_interval_linked}
+        if line_interval is not None:
+            kwargs["line_interval"] = line_interval
+        layer = LaserLayer(name=f"Calque {idx + 1}", color=color, **kwargs)
         self.layers.append(layer)
         return layer
 
@@ -127,9 +133,15 @@ class LayerManagerWidget(QWidget):
     COLUMNS = ["Couleur", "Nom", "Mode", "Puissance (%)", "Vitesse (mm/min)",
                "Passes", "Pas remplissage (mm)", "Actif"]
 
-    def __init__(self, layer_manager: LayerManager, parent=None):
+    def __init__(self, layer_manager: LayerManager, parent=None, focal_getter=None):
         super().__init__(parent)
         self.mgr = layer_manager
+        # Callable optionnel (ex. lambda: self.spin_machine_focal.value())
+        # renvoyant la taille du spot laser (mm) réglée dans Paramètres
+        # Machine — même logique de lien que l'onglet Image & Filtres
+        # (mode "Focale laser" pour l'intervalle de lignes du tramage).
+        self.focal_getter = focal_getter
+        self._fill_spins = []  # [(spin_fill, layer), ...] pour refresh_focal_quality()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -157,6 +169,7 @@ class LayerManagerWidget(QWidget):
     def refresh(self):
         self.table.blockSignals(True)
         self.table.setRowCount(0)
+        self._fill_spins = []
         for layer in self.mgr.layers:
             self._add_row(layer)
         self.table.blockSignals(False)
@@ -194,10 +207,32 @@ class LayerManagerWidget(QWidget):
         spin_passes.valueChanged.connect(lambda v, l=layer: self._set(l, "passes", v))
         self.table.setCellWidget(row, 5, spin_passes)
 
+        fill_cell = QWidget()
+        fill_layout = QHBoxLayout(fill_cell)
+        fill_layout.setContentsMargins(2, 0, 2, 0)
+        fill_layout.setSpacing(2)
+
         spin_fill = QDoubleSpinBox(); spin_fill.setRange(0.02, 5.0); spin_fill.setSingleStep(0.02)
         spin_fill.setDecimals(2); spin_fill.setValue(layer.line_interval)
         spin_fill.valueChanged.connect(lambda v, l=layer: self._set(l, "line_interval", v))
-        self.table.setCellWidget(row, 6, spin_fill)
+        spin_fill.valueChanged.connect(lambda _v, s=spin_fill: self._update_fill_quality(s))
+        fill_layout.addWidget(spin_fill)
+
+        btn_focal = QToolButton()
+        btn_focal.setCheckable(True)
+        btn_focal.setChecked(layer.line_interval_linked)
+        btn_focal.setFixedSize(24, 22)
+        btn_focal.setEnabled(self.focal_getter is not None)
+        self._style_link_button(btn_focal, layer.line_interval_linked)
+        btn_focal.toggled.connect(
+            lambda checked, l=layer, s=spin_fill, b=btn_focal: self._on_link_toggled(checked, l, s, b)
+        )
+        fill_layout.addWidget(btn_focal)
+        spin_fill.setEnabled(not layer.line_interval_linked)
+
+        self.table.setCellWidget(row, 6, fill_cell)
+        self._fill_spins.append((spin_fill, layer))
+        self._update_fill_quality(spin_fill)
 
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, l=layer: self._set(l, "enabled", bool(v)))
@@ -217,8 +252,91 @@ class LayerManagerWidget(QWidget):
         setattr(layer, attr, value)
         self.layers_changed.emit()
 
+    def _apply_focal_to_fill(self, spin_fill):
+        """Cale le pas de remplissage sur la taille du spot laser configurée
+        dans Paramètres Machine (même principe que le mode 'Focale laser' de
+        l'onglet Image & Filtres)."""
+        if self.focal_getter is None:
+            return
+        focal = self.focal_getter()
+        if focal and focal > 0:
+            spin_fill.setValue(max(spin_fill.minimum(), min(spin_fill.maximum(), focal)))
+
+    def _style_link_button(self, button, linked):
+        if linked:
+            button.setText("🔗")
+            button.setToolTip(
+                "Pas remplissage lié à la taille du spot : se met à jour "
+                "automatiquement à chaque changement de focale. "
+                "Cliquer pour déverrouiller et régler manuellement."
+            )
+            button.setStyleSheet("background-color:#2f6f4f;")
+        else:
+            button.setText("🎯")
+            button.setToolTip(
+                "Cliquer pour lier ce pas de remplissage à la taille du "
+                "spot (mise à jour automatique à chaque changement de focale)"
+            )
+            button.setStyleSheet("")
+
+    def _on_link_toggled(self, checked, layer, spin_fill, button):
+        layer.line_interval_linked = checked
+        spin_fill.setEnabled(not checked)
+        self._style_link_button(button, checked)
+        if checked:
+            self._apply_focal_to_fill(spin_fill)  # déclenche aussi _set + pastille
+        else:
+            self.layers_changed.emit()
+
+    def _update_fill_quality(self, spin_fill):
+        """Colore la bordure du champ selon l'adéquation du pas choisi avec
+        la taille du spot laser — mêmes seuils que la pastille de qualité de
+        l'onglet Image & Filtres (ratio pas/focale)."""
+        if self.focal_getter is None:
+            spin_fill.setStyleSheet("")
+            return
+        focal = self.focal_getter()
+        if not focal or focal <= 0:
+            spin_fill.setStyleSheet("")
+            return
+        ratio = spin_fill.value() / focal
+        if ratio < 0.6:
+            color = "#e05656"      # trop fin
+        elif ratio < 0.9:
+            color = "#e0a656"      # fin
+        elif ratio <= 2.25:
+            color = "#56c271"      # correct / recommandé
+        else:
+            color = "#999999"      # grossier mais correct
+        spin_fill.setStyleSheet(f"border: 1px solid {color};")
+
+    def refresh_focal_quality(self):
+        """À appeler quand la taille du spot change dans Paramètres Machine.
+        Les calques 'liés' voient leur pas remplissage recalculé
+        automatiquement ; les autres n'ont que leur pastille de qualité
+        rafraîchie."""
+        for spin_fill, layer in self._fill_spins:
+            if layer.line_interval_linked:
+                self._apply_focal_to_fill(spin_fill)
+            else:
+                self._update_fill_quality(spin_fill)
+
+    def link_all_to_focal(self):
+        """Lie tous les calques à la taille du spot en une fois (et applique
+        immédiatement la valeur) — appelé automatiquement à la validation
+        des Paramètres Machine, pour éviter d'avoir à cocher le 🔗 sur
+        chaque calque un par un."""
+        if self.focal_getter is None:
+            return
+        for layer in self.mgr.layers:
+            layer.line_interval_linked = True
+        self.refresh()
+        self.layers_changed.emit()
+
     def on_add(self):
-        self.mgr.add_layer()
+        linked = self.focal_getter is not None
+        default_interval = self.focal_getter() if linked else None
+        self.mgr.add_layer(line_interval=default_interval, line_interval_linked=linked)
         self.refresh()
         self.layers_changed.emit()
 

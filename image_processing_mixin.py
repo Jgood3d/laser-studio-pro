@@ -77,15 +77,18 @@ class ImageProcessingMixin:
         self.update_image_processing()
 
     def _on_machine_focal_changed(self, _value):
-        """La focale est une caractéristique physique du laser : toute
-        modification dans les Paramètres Machine met désormais à jour
-        Lignes/mm, DPI et la pastille de qualité dans Image & Filtres —
-        quel que soit le mode de saisie actuellement sélectionné là-bas
-        (avant, cette mise à jour n'avait lieu qu'en mode 'Focale laser' ;
-        en mode 'Lignes/mm' ou 'DPI', un changement de focale ne mettait à
-        jour que la pastille de qualité, laissant Lignes/mm et DPI
-        obsolètes par rapport à la nouvelle focale)."""
-        self._apply_focal_to_lmm()
+        """La modification de la focale dans les Paramètres Machine met à
+        jour l'intervalle de lignes en direct si le mode 'Focale laser' est
+        actif, et rafraîchit sinon simplement l'indicateur de qualité (la
+        focale a pu changer même si on n'est pas en mode Focale)."""
+        if hasattr(self, "combo_lmm_mode") and self.combo_lmm_mode.currentIndex() == 2:
+            self._apply_focal_to_lmm()
+        else:
+            self._update_resolution_quality()
+        # Même lien côté onglet Calques : les pastilles de qualité du "Pas
+        # remplissage (mm)" de chaque calque dépendent aussi de la focale.
+        if hasattr(self, "layer_widget"):
+            self.layer_widget.refresh_focal_quality()
 
     def _update_resolution_quality(self):
         """Pastille indiquant si l'écart de lignes actuellement réglé est

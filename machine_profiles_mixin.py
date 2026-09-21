@@ -46,6 +46,11 @@ class MachineProfilesMixin:
                 self.spin_machine_focal.setValue(float(focal))
             except (TypeError, ValueError):
                 pass
+        # Même logique qu'à chaque validation de profil machine : les
+        # calques suivent automatiquement la focale dès le démarrage, sans
+        # action manuelle.
+        if hasattr(self, "layer_widget"):
+            self.layer_widget.link_all_to_focal()
 
         raw_profiles = settings.value("machine_profiles_json", "")
         try:
@@ -169,6 +174,11 @@ class MachineProfilesMixin:
         updated = self._capture_machine_profile_fields()
         updated["name"] = name
         self.machine_profiles[idx] = updated
+        # Reboucle automatiquement le pas de remplissage de tous les calques
+        # sur la focale qui vient d'être validée : plus besoin de cocher le
+        # 🔗 manuellement calque par calque (source d'oubli sinon).
+        if hasattr(self, "layer_widget"):
+            self.layer_widget.link_all_to_focal()
         QMessageBox.information(
     self,
     tr("machine.updated_title"),
