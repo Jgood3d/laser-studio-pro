@@ -563,7 +563,7 @@ class AdvancedGCodeWorker(QThread):
                     sy = base_offset_y + (h_mm - start_pt.imag)
                     
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
-                    gcode.append(f"M3 S{p_cut_val}")
+                    gcode.append(f"{laser_cmd} S{p_cut_val}")
 
                     curr_x, curr_y = sx, sy
                     
