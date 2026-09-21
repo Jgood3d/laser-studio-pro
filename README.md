@@ -49,6 +49,58 @@ python main.py
 
 ## Fonctionnalités récentes
 
+feat: liaison focale automatique (Image Filtres + calques), correctifs plein écran (v1.7.0)
+
+## Ajouté :
+- Puissance minimum réglable dans la matrice de test (le champ existait
+  déjà côté génération, il manquait juste sa ligne dans le formulaire) ;
+  libellé dynamique "Puissance Min (%)" / "Puissance Unique (%)" selon le
+  mode, traduit FR/EN/DE/ES.
+- Liaison focale automatique par calque (onglet Calques) : bouton 🔗/🎯
+  par calque pour lier son "Pas remplissage (mm)" à la taille du spot
+  laser réglée dans Paramètres Machine, avec mise à jour immédiate à
+  chaque changement de focale et pastille de qualité colorée (même
+  logique que l'onglet Image & Filtres).
+- Cases "Aperçu en négatif" et "Masquer les déplacements rapides G0"
+  cochées par défaut, pour une meilleure lisibilité de l'aperçu 2D dès
+  l'ouverture d'un projet.
+
+## Corrigé :
+- Focale (Paramètres Machine) : Lignes/mm, DPI et la pastille de qualité
+  d'Image & Filtres se recalculent désormais systématiquement à chaque
+  changement de focale, quel que soit le mode de résolution actif (avant :
+  uniquement en mode "Focale laser", laissant Lignes/mm et DPI obsolètes
+  dans les deux autres modes).
+- Changement de profil machine (liste déroulante) : force maintenant le
+  même rafraîchissement (Image Filtres + pastilles de qualité des
+  calques), qui ne se déclenchait pas si la nouvelle focale coïncidait
+  avec l'ancienne ou était absente d'un profil ancien format.
+- Liaison focale par calque (`link_all_to_focal`) : posait le drapeau
+  "lié" (icône verte) sans jamais appliquer la valeur de la focale au
+  pas de remplissage, qui restait bloqué à 0.10 mm (valeur par défaut de
+  la classe) tant qu'aucun changement de focale en direct n'avait eu
+  lieu — lien vert trompeur ne correspondant pas à la focale réelle.
+- Plein écran "Images / Tramage" : superposition visuelle du panneau de
+  réglages par-dessus l'onglet réellement actif à la fermeture (forçage
+  de visibilité en trop) ; l'onglet de réglages actif avant le plein
+  écran est maintenant correctement restauré.
+- Aperçu image (tramage) : régression de lenteur introduite par un cache
+  de rendu (`CacheMode.DeviceCoordinateCache`) mal adapté à un contenu
+  qui change en permanence — retiré, gardant uniquement le correctif de
+  repaint au redimensionnement.
+- Éditeur de calques : libellé "Puissance Unique (%)" de la matrice de
+  test qui restait codé en dur en français.
+- Windows : sur certains systèmes, le texte d'aide de l'onglet
+  "Paramètres Machine" pouvait dépasser l'espace disponible (police
+  système par défaut plus haute qu'en test), bloquant le glisseur des
+  séparateurs gauche et centre/droite sans marge pour redimensionner.
+  Cet onglet est maintenant défilant, et une hauteur minimale explicite
+  a été posée sur les panneaux des deux séparateurs verticaux.
+
+## Fichiers modifiés :
+app_utils.py, ui_setup_mixin.py, image_processing_mixin.py,
+machine_profiles_mixin.py, vector_layers.py, graphics_view.py, i18n.py
+
 ## [1.6.0]
 
 feat: DRO temps réel, plein écran étendu, corrections rendu 2D (v1.6.0)
