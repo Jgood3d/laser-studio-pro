@@ -12,6 +12,10 @@ __pycache__/
 build/
 dist/
 *.spec
+# Exception : spec macOS volontairement versionné (dans macos/, voir
+# macos/README.md), contrairement aux .spec auto-générés sur Windows/Linux.
+!macos/LaserStudioPro.spec
+build_venv/
 
 # Projets utilisateur (sauvegardes .json de Laser Studio Pro)
 # Retire cette ligne si tu veux versionner tes propres projets d'exemple

@@ -8,7 +8,7 @@ import base64
 import json
 import os
 
-from app_utils import get_app_dir
+from app_utils import get_autosave_dir
 from i18n import tr
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
@@ -205,7 +205,7 @@ class ProjectIOMixin:
         erreur ici est simplement ignorée."""
         try:
             proj_data = self._get_project_data()
-            path = os.path.join(get_app_dir(), AUTOSAVE_FILENAME)
+            path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
             with open(path, 'w', encoding='utf-8') as f:
                 json.dump(proj_data, f)
         except Exception:
@@ -213,7 +213,7 @@ class ProjectIOMixin:
 
     def _clear_autosave(self):
         try:
-            path = os.path.join(get_app_dir(), AUTOSAVE_FILENAME)
+            path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
             if os.path.exists(path):
                 os.remove(path)
         except Exception:
@@ -223,7 +223,7 @@ class ProjectIOMixin:
         """Appelé une fois au démarrage : propose de récupérer la dernière
         sauvegarde automatique si l'application a été fermée anormalement
         (plantage, coupure de courant) avant un enregistrement manuel."""
-        path = os.path.join(get_app_dir(), AUTOSAVE_FILENAME)
+        path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
         if not os.path.exists(path):
             return
         reply = QMessageBox.question(

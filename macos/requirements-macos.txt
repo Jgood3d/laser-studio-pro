@@ -1,0 +1,23 @@
+# Dépendances Laser Studio Pro — macOS
+# Installation : pip install -r requirements-macos.txt
+
+PyQt6>=6.7
+PyQt6-sip>=13.6
+pyserial>=3.5
+pyqtgraph>=0.13
+# Bridé à <2.0.0 pour compatibilité PyInstaller et pyqtgraph / numba
+numpy>=1.26,<2.0.0
+Pillow>=10.0
+svg.path>=6.3
+
+# Traitement d'image & vectorisation (PNG -> SVG)
+opencv-python>=4.8
+scikit-image>=0.22
+
+# numba est volontairement exclu par défaut sur macOS : les wheels
+# précompilées arm64/Apple Silicon accusent souvent un retard par rapport
+# aux dernières versions de Python, ce qui peut faire échouer l'install.
+# L'appli fonctionne sans (tramage d'image simplement plus lent). Pour
+# l'activer si ta version de Python est compatible :
+#   pip install numba>=0.59
+# numba>=0.59
