@@ -24,6 +24,20 @@ def get_bundle_dir():
     return get_app_dir()
 
 
+def get_autosave_dir():
+    """Dossier où écrire les fichiers utilisateur modifiables (autosave).
+    Sur Windows/Linux, comportement inchangé (dossier de l'exécutable).
+    Sur macOS packagé (.app), get_app_dir() pointerait vers
+    Contents/MacOS/, en lecture seule une fois l'app installée/signée :
+    on utilise alors ~/Library/Application Support/LaserStudioPro/,
+    l'emplacement standard macOS pour les données d'appli modifiables."""
+    if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
+        base = os.path.expanduser('~/Library/Application Support/LaserStudioPro')
+        os.makedirs(base, exist_ok=True)
+        return base
+    return get_app_dir()
+
+
 def find_resource(filename):
     """Cherche un fichier de ressource (icône, bannière...) à deux endroits
     possibles, dans cet ordre :
