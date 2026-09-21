@@ -1797,6 +1797,12 @@ TRANSLATIONS = {
         "de": "Min. Leistung (%):",
         "es": "Potencia mín. (%):",
     },
+    "ui.mat_unique_power": {
+        "fr": "Puissance Unique (%):",
+        "en": "Single Power (%):",
+        "de": "Einzelleistung (%):",
+        "es": "Potencia única (%):",
+    },
     "ui.mat_max_power": {
         "fr": "Puissance Max (%):",
         "en": "Max Power (%):",

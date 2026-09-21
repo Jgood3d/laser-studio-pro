@@ -335,7 +335,7 @@ class MachineProfilesMixin:
 
     def on_mat_mode_changed(self, index):
         is_gravure = (index == 0)
-        self.lbl_mat_p1.setText("Puissance Min (%):" if is_gravure else "Puissance Unique (%):")
+        self.lbl_mat_p1.setText(tr("ui.mat_min_power") if is_gravure else tr("ui.mat_unique_power"))
         self.spin_mat_max_p.setVisible(is_gravure)
         self.form_matrix.labelForField(self.spin_mat_max_p).setVisible(is_gravure)
         self.spin_mat_steps_p.setVisible(is_gravure)

@@ -746,6 +746,13 @@ class UiSetupMixin:
         self.form_matrix.addRow(tr("ui.test_mode"), self.combo_mat_mode)
         self.form_matrix.addRow(tr("ui.mat_offset_x"), self.spin_mat_off_x)
         self.form_matrix.addRow(tr("ui.mat_offset_y"), self.spin_mat_off_y)
+        # self.lbl_mat_p1 (et non une chaîne) comme libellé : son texte
+        # bascule dynamiquement entre "Puissance Min (%)" et "Puissance
+        # Unique (%)" selon le mode (voir on_mat_mode_changed) — cette ligne
+        # avait été oubliée du formulaire, rendant spin_mat_min_p (pourtant
+        # déjà utilisé par generate_test_matrix) invisible et donc bloqué à
+        # sa valeur par défaut.
+        self.form_matrix.addRow(self.lbl_mat_p1, self.spin_mat_min_p)
         self.form_matrix.addRow(tr("ui.mat_max_power"), self.spin_mat_max_p)
         self.form_matrix.addRow(tr("ui.mat_power_step"), self.spin_mat_steps_p)
         self.form_matrix.addRow(tr("ui.mat_min_passes"), self.spin_mat_min_passes)
