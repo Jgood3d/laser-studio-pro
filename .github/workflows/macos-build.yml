@@ -25,6 +25,13 @@ on:
       - ".github/workflows/macos-build.yml"
   workflow_dispatch: {}
 
+# Nécessaire pour que l'étape "Publier en release" (softprops/action-gh-release)
+# puisse créer/mettre à jour une release avec le token par défaut du workflow —
+# sans ça, GitHub renvoie 403 "Resource not accessible by integration" à la
+# création de la release, même si le job de compilation lui-même réussit.
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
