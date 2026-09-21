@@ -413,8 +413,8 @@ class UiSetupMixin:
         tabs = QTabWidget()
         tabs.setMovable(True)
         self.settings_tabs = tabs
-        self.tab_machine_params = tab_machine_params = QWidget()
-        layout_machine_params = QVBoxLayout(tab_machine_params)
+        tab_machine_params_content = QWidget()
+        layout_machine_params = QVBoxLayout(tab_machine_params_content)
 
         machine_profiles_box = QGroupBox(tr("mach.profiles_box"))
         machine_profiles_layout = QVBoxLayout()
@@ -488,6 +488,19 @@ class UiSetupMixin:
         machine_limits_box.setLayout(machine_limits_layout)
         layout_machine_params.addWidget(machine_limits_box)
         layout_machine_params.addStretch()
+
+        # QScrollArea plutôt qu'un simple QWidget : sur Windows, la police
+        # système par défaut peut rendre les textes d'aide (retour à la
+        # ligne) plus hauts qu'en test, faisant dépasser le contenu de cet
+        # onglet la hauteur disponible dans le splitter gauche — sans zone
+        # de défilement, ça bloquait le glisseur du splitter (plus de marge
+        # pour réduire cette partie). Avec, le contenu reste entièrement
+        # accessible quelle que soit la police, en défilant si besoin.
+        tab_machine_params = QScrollArea()
+        tab_machine_params.setWidget(tab_machine_params_content)
+        tab_machine_params.setWidgetResizable(True)
+        tab_machine_params.setFrameShape(QScrollArea.Shape.NoFrame)
+        self.tab_machine_params = tab_machine_params
         tabs.addTab(tab_machine_params, tr("tab.machine_params"))
 
         tab_img = QWidget()
@@ -941,6 +954,15 @@ class UiSetupMixin:
         # et ce bloc de génération/import, pour ajuster la hauteur de chacun
         # selon ses besoins (comme le séparateur gauche/centre) — taille
         # mémorisée entre les sessions (voir save/load_splitter_sizes).
+        # setMinimumHeight bas et explicite sur les deux panneaux : sans ça,
+        # Qt calcule la hauteur minimale à partir du contenu (textes d'aide
+        # en retour à la ligne inclus), qui peut dépasser l'espace
+        # disponible selon la police par défaut du système (constaté sous
+        # Windows) — le glisseur devient alors bloqué, sans marge pour
+        # bouger, même si on voudrait réduire une partie pour agrandir
+        # l'autre.
+        tabs.setMinimumHeight(120)
+        left_bottom_widget.setMinimumHeight(80)
         self.left_v_splitter = QSplitter(Qt.Orientation.Vertical)
         self.left_v_splitter.addWidget(tabs)
         self.left_v_splitter.addWidget(left_bottom_widget)
@@ -1244,7 +1266,13 @@ class UiSetupMixin:
         # Séparateur vertical redimensionnable entre la vue à onglets
         # (images, éditeur vectoriel, aperçu 2D, console...) et les
         # contrôles Jog/Commandes en dessous — taille mémorisée entre les
-        # sessions (voir save/load_splitter_sizes).
+        # sessions (voir save/load_splitter_sizes). Hauteurs minimales
+        # basses et explicites : sans ça, le contenu (notamment depuis
+        # l'ajout du panneau DRO) peut dépasser l'espace disponible selon la
+        # police par défaut du système, bloquant le glisseur sans marge pour
+        # bouger (constaté sous Windows).
+        self.main_tabs_view.setMinimumHeight(150)
+        center_bottom_widget.setMinimumHeight(100)
         self.center_v_splitter = QSplitter(Qt.Orientation.Vertical)
         self.center_v_splitter.addWidget(self.main_tabs_view)
         self.center_v_splitter.addWidget(center_bottom_widget)

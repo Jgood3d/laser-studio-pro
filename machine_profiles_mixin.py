@@ -152,6 +152,18 @@ class MachineProfilesMixin:
         if idx < 0 or idx >= len(self.machine_profiles):
             return
         self._apply_machine_profile_fields(self.machine_profiles[idx])
+        # Force le rafraîchissement de l'onglet Image & Filtres (DPI,
+        # Lignes/mm, pastille de qualité) — sans ça, si la nouvelle focale
+        # est identique à l'ancienne (Qt n'émet alors pas valueChanged) ou
+        # absente du profil (anciens profils sans focale enregistrée), rien
+        # ne se met à jour tant qu'on ne va pas soi-même rouvrir les options
+        # de résolution. Même appel que _on_machine_focal_changed, pour un
+        # comportement cohérent partout : Lignes/mm et DPI suivent toujours
+        # la focale, peu importe le mode actif.
+        if hasattr(self, "_apply_focal_to_lmm"):
+            self._apply_focal_to_lmm()
+        if hasattr(self, "layer_widget"):
+            self.layer_widget.refresh_focal_quality()
 
     def _add_machine_profile(self):
         name, ok = QInputDialog.getText(

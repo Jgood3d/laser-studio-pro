@@ -322,14 +322,21 @@ class LayerManagerWidget(QWidget):
                 self._update_fill_quality(spin_fill)
 
     def link_all_to_focal(self):
-        """Lie tous les calques à la taille du spot en une fois (et applique
-        immédiatement la valeur) — appelé automatiquement à la validation
-        des Paramètres Machine, pour éviter d'avoir à cocher le 🔗 sur
-        chaque calque un par un."""
+        """Lie tous les calques à la taille du spot en une fois ET applique
+        immédiatement la valeur de la focale à chacun — appelé
+        automatiquement au démarrage et à la validation des Paramètres
+        Machine, pour éviter d'avoir à cocher le 🔗 sur chaque calque un par
+        un. Avant, seul le drapeau 'lié' était posé (icône verte) sans
+        jamais recalculer line_interval : un calque encore à sa valeur par
+        défaut (0.10 mm, celle de LaserLayer) restait affiché tel quel,
+        avec un lien vert trompeur ne correspondant pas à la focale réelle."""
         if self.focal_getter is None:
             return
+        focal = self.focal_getter()
         for layer in self.mgr.layers:
             layer.line_interval_linked = True
+            if focal and focal > 0:
+                layer.line_interval = focal
         self.refresh()
         self.layers_changed.emit()
 
