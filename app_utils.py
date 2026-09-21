@@ -2,7 +2,7 @@
 import sys
 import os
 
-APP_VERSION = "1.6.1"
+APP_VERSION = "1.7.0"
 
 
 def get_app_dir():
