@@ -49,7 +49,7 @@ python main.py
 
 ## Fonctionnalités récentes
 
-##[V2.0.0]
+## [V2.0.0]
 
 feat: Éditeur Vectoriel (redo/alignement/accroche), file d'attente persistante, GRBL complet, matériaux par machine, JPEG (v2.0.0)
 
