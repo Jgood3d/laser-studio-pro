@@ -90,6 +90,8 @@ app_utils.py, vector_layers.py, vector_editing_mixin.py, ui_setup_mixin.py,
 i18n.py, job_queue_mixin.py, main_window.py, laser_control_mixin.py,
 machine_profiles_mixin.py, png2svg_widget.py, project_io_mixin.py
 
+## [1.7.0]
+
 feat: liaison focale automatique (Image Filtres + calques), correctifs plein écran (v1.7.0)
 
 ## Ajouté :

@@ -45,6 +45,25 @@ app_utils.py, vector_layers.py, vector_editing_mixin.py, ui_setup_mixin.py,
 i18n.py, job_queue_mixin.py, main_window.py, laser_control_mixin.py,
 machine_profiles_mixin.py, png2svg_widget.py, project_io_mixin.py
 
+## [1.7.0] - 2026-09-21
+
+## Ajouté
+
+Puissance minimum réglable dans la matrice de test (le champ existait déjà côté génération, il manquait sa ligne dans le formulaire).
+Liaison focale automatique par calque (onglet Calques) : bouton 🔗/🎯 par calque pour lier son pas de remplissage à la taille du spot laser, avec pastille de qualité colorée.
+Notification sonore de fin de job (2 bips), en plus du message déjà affiché.
+Bouton de déverrouillage GRBL ($X) apparaissant automatiquement en état Alarm, toujours avec confirmation avant envoi.
+Cases "Aperçu en négatif" et "Masquer les déplacements rapides G0" cochées par défaut.
+
+## Corrigé
+
+Focale (Paramètres Machine) : Lignes/mm, DPI et pastille de qualité d'Image & Filtres se recalculent systématiquement, quel que soit le mode de résolution actif.
+Changement de profil machine : force le même rafraîchissement, qui ne se déclenchait pas si la nouvelle focale coïncidait avec l'ancienne.
+Liaison focale par calque : posait le drapeau "lié" sans jamais appliquer la valeur de la focale au pas de remplissage.
+Plein écran "Images / Tramage" : superposition visuelle du panneau de réglages par-dessus l'onglet réellement actif à la fermeture.
+Aperçu image : régression de lenteur due à un cache de rendu mal adapté à un contenu changeant en permanence.
+Windows : texte d'aide de "Paramètres Machine" pouvant dépasser l'espace disponible et bloquer le glisseur des séparateurs.
+
 ## [1.6.0]
 
 feat: DRO temps réel, plein écran étendu, corrections rendu 2D (v1.6.0)
