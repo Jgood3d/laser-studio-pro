@@ -825,6 +825,40 @@ class UiSetupMixin:
         layout_gcode_cfg.addRow(tr("ui.overscan_value_label"), self.overscan_stacked)
         layout_gcode_cfg.addRow(tr("ui.gcode_start"), self.txt_start_gcode)
         layout_gcode_cfg.addRow(tr("ui.gcode_end"), self.txt_end_gcode)
+
+        # --- Réglages GRBL complets ($$) : au-delà des dimensions/focale déjà
+        # gérées par les profils machine, ceci sauvegarde/restaure TOUTE la
+        # configuration EEPROM de la machine (steps/mm, limites logicielles,
+        # accélérations GRBL natives...), lue directement depuis le firmware.
+        grbl_settings_box = QGroupBox(tr("ui.grbl_settings_box"))
+        grbl_settings_layout = QVBoxLayout()
+
+        self.txt_grbl_settings = QTextEdit()
+        self.txt_grbl_settings.setPlaceholderText(tr("ui.grbl_settings_placeholder"))
+        self.txt_grbl_settings.setMaximumHeight(140)
+        self.txt_grbl_settings.setStyleSheet("font-family: monospace;")
+        grbl_settings_layout.addWidget(self.txt_grbl_settings)
+
+        grbl_settings_btn_row = QHBoxLayout()
+        btn_grbl_read = QPushButton(tr("ui.grbl_read"))
+        btn_grbl_read.clicked.connect(self.read_grbl_settings)
+        btn_grbl_send = QPushButton(tr("ui.grbl_send"))
+        btn_grbl_send.clicked.connect(self.send_grbl_settings)
+        btn_grbl_export = QPushButton(tr("ui.grbl_export"))
+        btn_grbl_export.clicked.connect(self.export_grbl_settings)
+        btn_grbl_import = QPushButton(tr("ui.grbl_import"))
+        btn_grbl_import.clicked.connect(self.import_grbl_settings)
+        for b in (btn_grbl_read, btn_grbl_send, btn_grbl_export, btn_grbl_import):
+            grbl_settings_btn_row.addWidget(b)
+        grbl_settings_layout.addLayout(grbl_settings_btn_row)
+
+        btn_grbl_link_profile = QPushButton(tr("ui.grbl_link_profile"))
+        btn_grbl_link_profile.clicked.connect(self.save_grbl_settings_to_profile)
+        grbl_settings_layout.addWidget(btn_grbl_link_profile)
+
+        grbl_settings_box.setLayout(grbl_settings_layout)
+        layout_gcode_cfg.addRow(grbl_settings_box)
+
         tabs.addTab(tab_gcode_cfg, tr("tab.grbl_config"))
 
         tab_layers = QWidget()
@@ -1029,6 +1063,8 @@ class UiSetupMixin:
         btn_del_selected.clicked.connect(self.delete_selected_vector_object)
         btn_undo_vector = QPushButton(tr("ui.vector_undo"))
         btn_undo_vector.clicked.connect(lambda: self.vector_canvas.undo())
+        btn_redo_vector = QPushButton(tr("ui.vector_redo"))
+        btn_redo_vector.clicked.connect(lambda: self.vector_canvas.redo())
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
         toolbar_vector.addWidget(btn_add_text)
@@ -1039,9 +1075,54 @@ class UiSetupMixin:
         toolbar_vector.addWidget(btn_dup_selected)
         toolbar_vector.addWidget(btn_del_selected)
         toolbar_vector.addWidget(btn_undo_vector)
+        toolbar_vector.addWidget(btn_redo_vector)
         toolbar_vector.addWidget(btn_fullscreen_vector)
         toolbar_vector.addStretch()
         layout_vector_editor.addLayout(toolbar_vector)
+
+        # Alignement / distribution (nécessite au moins 2 objets sélectionnés
+        # pour aligner, 3 pour répartir — voir align_vector_selection /
+        # distribute_vector_selection) et accroche à la grille pendant un
+        # déplacement à la souris (voir VectorCanvasView.mouseMoveEvent).
+        align_box = QGroupBox(tr("ui.vector_align_box"))
+        align_layout = QHBoxLayout()
+
+        btn_align_left = QPushButton(tr("ui.vector_align_left"))
+        btn_align_left.clicked.connect(lambda: self.align_vector_selection("left"))
+        btn_align_center_h = QPushButton(tr("ui.vector_align_center_h"))
+        btn_align_center_h.clicked.connect(lambda: self.align_vector_selection("center_h"))
+        btn_align_right = QPushButton(tr("ui.vector_align_right"))
+        btn_align_right.clicked.connect(lambda: self.align_vector_selection("right"))
+        btn_align_top = QPushButton(tr("ui.vector_align_top"))
+        btn_align_top.clicked.connect(lambda: self.align_vector_selection("top"))
+        btn_align_middle_v = QPushButton(tr("ui.vector_align_middle_v"))
+        btn_align_middle_v.clicked.connect(lambda: self.align_vector_selection("middle_v"))
+        btn_align_bottom = QPushButton(tr("ui.vector_align_bottom"))
+        btn_align_bottom.clicked.connect(lambda: self.align_vector_selection("bottom"))
+        btn_distribute_h = QPushButton(tr("ui.vector_distribute_h"))
+        btn_distribute_h.clicked.connect(lambda: self.distribute_vector_selection("h"))
+        btn_distribute_v = QPushButton(tr("ui.vector_distribute_v"))
+        btn_distribute_v.clicked.connect(lambda: self.distribute_vector_selection("v"))
+
+        for b in (btn_align_left, btn_align_center_h, btn_align_right,
+                  btn_align_top, btn_align_middle_v, btn_align_bottom,
+                  btn_distribute_h, btn_distribute_v):
+            align_layout.addWidget(b)
+
+        align_layout.addStretch()
+
+        self.chk_vector_snap = QCheckBox(tr("ui.vector_snap_enable"))
+        self.chk_vector_snap.toggled.connect(self.set_vector_snap_enabled)
+        align_layout.addWidget(self.chk_vector_snap)
+        self.spin_vector_snap_step = QDoubleSpinBox()
+        self.spin_vector_snap_step.setRange(0.1, 100.0)
+        self.spin_vector_snap_step.setValue(5.0)
+        self.spin_vector_snap_step.setSuffix(" mm")
+        self.spin_vector_snap_step.valueChanged.connect(self.set_vector_snap_step)
+        align_layout.addWidget(self.spin_vector_snap_step)
+
+        align_box.setLayout(align_layout)
+        layout_vector_editor.addWidget(align_box)
 
         gen_progress_row_vector = QHBoxLayout()
         self.lbl_gen_progress_vector = QLabel("")
@@ -1146,7 +1227,18 @@ class UiSetupMixin:
         self.lbl_dro_z = QLabel(tr("ui.dro_z").format(value="—"))
         for lbl in (self.lbl_dro_state, self.lbl_dro_x, self.lbl_dro_y, self.lbl_dro_z):
             lbl.setStyleSheet("font-family: monospace; font-size: 13px;")
+        # Bouton de déverrouillage ($X) : cache/montré automatiquement selon
+        # l'état GRBL détecté par le DRO (voir _update_dro_display) — évite
+        # d'avoir à taper "$X" à la main dans la commande manuelle après un
+        # déclenchement de fin de course, pas évident pour qui débute.
+        self.btn_unlock_alarm = QPushButton(tr("ui.unlock_alarm"))
+        self.btn_unlock_alarm.setStyleSheet(
+            "background-color: #c0392b; color: white; font-weight: bold; padding: 3px 10px;"
+        )
+        self.btn_unlock_alarm.clicked.connect(self.unlock_alarm)
+        self.btn_unlock_alarm.setVisible(False)
         dro_layout.addWidget(self.lbl_dro_state)
+        dro_layout.addWidget(self.btn_unlock_alarm)
         dro_layout.addStretch()
         dro_layout.addWidget(self.lbl_dro_x)
         dro_layout.addWidget(self.lbl_dro_y)
@@ -1349,6 +1441,11 @@ class UiSetupMixin:
         layout_job_queue.setContentsMargins(6, 6, 6, 6)
 
         self.list_job_queue = QListWidget()
+        # Glisser-déposer pour réordonner les jobs directement dans la liste
+        # (voir _on_queue_reordered, qui reconstruit job_queue en conséquence
+        # après chaque déplacement).
+        self.list_job_queue.setDragDropMode(QListWidget.DragDropMode.InternalMove)
+        self.list_job_queue.model().rowsMoved.connect(self._on_queue_reordered)
         layout_job_queue.addWidget(self.list_job_queue)
 
         queue_btn_row1 = QHBoxLayout()

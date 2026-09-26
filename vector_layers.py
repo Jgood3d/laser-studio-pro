@@ -867,9 +867,16 @@ class VectorCanvasView(QGraphicsView):
         # annulé par fitInView(), ce qui cassait tout l'alignement.)
         self._pan_last_pos = None
         self._undo_stack = []
+        self._redo_stack = []
         self._max_undo = 30
         self._group_drag_items = []
         self._group_drag_last_scene_pos = None
+        self._group_drag_anchor_item = None
+        # Accroche à la grille pendant un déplacement à la souris (voir
+        # mouseMoveEvent) : désactivée par défaut, réglable depuis la barre
+        # d'outils de l'Éditeur Vectoriel (case + pas en mm).
+        self.snap_enabled = False
+        self.snap_step_mm = 5.0
 
         self.work_rect_item = None
         self.set_work_area(100.0, 100.0)
@@ -1008,6 +1015,7 @@ class VectorCanvasView(QGraphicsView):
                 if selected:
                     self.push_undo_snapshot()
                     self._group_drag_items = selected
+                    self._group_drag_anchor_item = item_at
                     self._group_drag_last_scene_pos = self.mapToScene(
                         event.position().toPoint()
                     )
@@ -1050,6 +1058,28 @@ class VectorCanvasView(QGraphicsView):
                 for item in self._group_drag_items:
                     item.obj.x_mm += delta_x_mm
                     item.obj.y_mm += delta_y_mm
+
+                # Accroche à la grille : on ne recale QUE l'objet réellement
+                # cliqué (l'ancre) sur le pas de grille, puis on répercute le
+                # même petit correctif sur le reste de la sélection — plutôt
+                # que d'accrocher chaque objet indépendamment, ce qui
+                # déformerait l'agencement relatif d'une sélection multiple.
+                if (
+                    self.snap_enabled
+                    and self.snap_step_mm > 0
+                    and self._group_drag_anchor_item is not None
+                ):
+                    anchor = self._group_drag_anchor_item
+                    snapped_x = round(anchor.obj.x_mm / self.snap_step_mm) * self.snap_step_mm
+                    snapped_y = round(anchor.obj.y_mm / self.snap_step_mm) * self.snap_step_mm
+                    corr_x = snapped_x - anchor.obj.x_mm
+                    corr_y = snapped_y - anchor.obj.y_mm
+                    if corr_x or corr_y:
+                        for item in self._group_drag_items:
+                            item.obj.x_mm += corr_x
+                            item.obj.y_mm += corr_y
+
+                for item in self._group_drag_items:
                     item.refresh()
 
                 self._group_drag_last_scene_pos = current_scene_pos
@@ -1120,6 +1150,7 @@ class VectorCanvasView(QGraphicsView):
 
             self._group_drag_items = []
             self._group_drag_last_scene_pos = None
+            self._group_drag_anchor_item = None
 
             for item in moved_items:
                 self.object_moved.emit(item.obj)
@@ -1138,6 +1169,10 @@ class VectorCanvasView(QGraphicsView):
             return
         if event.matches(QKeySequence.StandardKey.Undo):
             self.undo()
+            event.accept()
+            return
+        if event.matches(QKeySequence.StandardKey.Redo):
+            self.redo()
             event.accept()
             return
         if event.matches(QKeySequence.StandardKey.Copy):
@@ -1195,11 +1230,15 @@ class VectorCanvasView(QGraphicsView):
         self._undo_stack.append(snapshot)
         if len(self._undo_stack) > self._max_undo:
             self._undo_stack.pop(0)
+        # Toute nouvelle action invalide le futur "refaire" (comportement
+        # standard undo/redo : impossible de "refaire" une branche qu'une
+        # nouvelle action vient de remplacer).
+        self._redo_stack.clear()
 
-    def undo(self):
-        if not self._undo_stack:
-            return
-        snapshot = self._undo_stack.pop()
+    def _current_snapshot(self):
+        return [o.to_dict() for o in self.objects]
+
+    def _restore_snapshot(self, snapshot):
         for item in list(self.scene_obj.items()):
             if isinstance(item, VectorGraphicsItem):
                 self.scene_obj.removeItem(item)
@@ -1209,6 +1248,29 @@ class VectorCanvasView(QGraphicsView):
                 self.add_object(VectorObject.from_dict(d))
             except Exception:
                 continue
+
+    def undo(self):
+        if not self._undo_stack:
+            return
+        current = self._current_snapshot()
+        snapshot = self._undo_stack.pop()
+        self._redo_stack.append(current)
+        if len(self._redo_stack) > self._max_undo:
+            self._redo_stack.pop(0)
+        self._restore_snapshot(snapshot)
+
+    def redo(self):
+        """Ctrl+Y (ou Ctrl+Maj+Z selon la plateforme, via
+        QKeySequence.StandardKey.Redo) : rétablit la dernière action annulée
+        par undo()."""
+        if not self._redo_stack:
+            return
+        current = self._current_snapshot()
+        snapshot = self._redo_stack.pop()
+        self._undo_stack.append(current)
+        if len(self._undo_stack) > self._max_undo:
+            self._undo_stack.pop(0)
+        self._restore_snapshot(snapshot)
 
     def contextMenuEvent(self, event):
         """Clic droit : assigner un calque (découpe/gravure) ou redimensionner

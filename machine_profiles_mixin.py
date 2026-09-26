@@ -5,6 +5,21 @@ import json
 
 from i18n import tr
 
+# Base de matériaux utilisée (1) au tout premier lancement de l'application,
+# avant tout profil machine, et (2) comme repli pour un ancien profil machine
+# enregistré avant l'ajout de la liaison materials_db <-> profil (voir
+# _apply_machine_profile_fields). Une nouvelle machine créée après cet ajout
+# démarre avec une COPIE de cette base, qu'elle peut ensuite personnaliser
+# sans affecter les autres profils (voir _capture_machine_profile_fields).
+DEFAULT_MATERIALS_DB = {
+    "Personnalisé": {"sp_e": 2000, "pw_e": 30, "sp_c": 300, "pw_c": 90, "pass_c": 1},
+    "Contreplaqué 3mm": {"sp_e": 2500, "pw_e": 35, "sp_c": 250, "pw_c": 95, "pass_c": 2},
+    "MDF 4mm": {"sp_e": 2200, "pw_e": 40, "sp_c": 180, "pw_c": 100, "pass_c": 3},
+    "Acrylique 3mm": {"sp_e": 3000, "pw_e": 25, "sp_c": 200, "pw_c": 90, "pass_c": 2},
+    "Ardoise / Carrelage": {"sp_e": 1500, "pw_e": 45, "sp_c": 500, "pw_c": 0, "pass_c": 0},
+    "Cuir 2mm": {"sp_e": 2800, "pw_e": 20, "sp_c": 350, "pw_c": 80, "pass_c": 1},
+}
+
 
 class MachineProfilesMixin:
     def save_machine_settings(self):
@@ -128,6 +143,16 @@ class MachineProfilesMixin:
             "accel": self.spin_machine_accel.value(),
             "start_gcode": self.txt_start_gcode.toPlainText() if hasattr(self, "txt_start_gcode") else "",
             "end_gcode": self.txt_end_gcode.toPlainText() if hasattr(self, "txt_end_gcode") else "",
+            # Réglages GRBL complets ($$, lus depuis la machine ou importés
+            # d'un fichier — voir read_grbl_settings/import_grbl_settings) :
+            # capturés automatiquement s'ils sont affichés, pour que "Nouvelle
+            # Machine" et "Mettre à jour" sauvegardent TOUTE la config
+            # machine, pas seulement les dimensions/focale.
+            "grbl_settings": self.txt_grbl_settings.toPlainText() if hasattr(self, "txt_grbl_settings") else "",
+            # Base de matériaux propre à CETTE machine (voir
+            # _apply_machine_profile_fields) : une copie, pour que modifier
+            # les matériaux d'un profil n'affecte jamais les autres.
+            "materials_db": dict(self.materials_db) if hasattr(self, "materials_db") else dict(DEFAULT_MATERIALS_DB),
         }
 
     def _apply_machine_profile_fields(self, p):
@@ -147,6 +172,24 @@ class MachineProfilesMixin:
             self.txt_start_gcode.setPlainText(p["start_gcode"])
         if hasattr(self, "txt_end_gcode") and "end_gcode" in p:
             self.txt_end_gcode.setPlainText(p["end_gcode"])
+        # Affiche les réglages GRBL complets ($$) liés à ce profil, s'il y en
+        # a — jamais envoyés automatiquement à la machine (voir
+        # send_grbl_settings) : la lecture/écriture EEPROM reste toujours une
+        # action volontaire.
+        if hasattr(self, "txt_grbl_settings") and "grbl_settings" in p:
+            self.txt_grbl_settings.setPlainText(p["grbl_settings"])
+        # Bascule vers la base de matériaux propre à ce profil — ne propose
+        # ainsi que les matériaux pertinents pour la machine sélectionnée
+        # (repli sur la base par défaut pour un profil enregistré avant
+        # cette liaison materials_db <-> profil).
+        if hasattr(self, "combo_mat"):
+            self.materials_db = dict(p.get("materials_db", DEFAULT_MATERIALS_DB))
+            self.combo_mat.blockSignals(True)
+            self.combo_mat.clear()
+            self.combo_mat.addItems(list(self.materials_db.keys()))
+            self.combo_mat.blockSignals(False)
+            if hasattr(self, "apply_material_profile"):
+                self.apply_material_profile()
 
     def _on_machine_profile_selected(self, idx):
         if idx < 0 or idx >= len(self.machine_profiles):
@@ -177,6 +220,14 @@ class MachineProfilesMixin:
         profile.update(self._capture_machine_profile_fields())
         self.machine_profiles.append(profile)
         self._refresh_machine_profile_combo(select_name=profile["name"])
+
+    def save_grbl_settings_to_profile(self):
+        """Raccourci pratique depuis l'onglet Configuration GRBL : les
+        réglages GRBL sont déjà capturés automatiquement par
+        _capture_machine_profile_fields, ce bouton se contente donc
+        d'appeler la mise à jour du profil actif (comme le bouton "Mettre à
+        jour" des Paramètres Machine), sans avoir à changer d'onglet."""
+        self._update_machine_profile()
 
     def _update_machine_profile(self):
         idx = self.combo_machine_profile.currentIndex()

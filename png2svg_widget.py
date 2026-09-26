@@ -13,10 +13,13 @@ globale à l'application (menu Langue, redémarrage requis).
 
 from __future__ import annotations
 
+import os
+import tempfile
+
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QByteArray, QSettings, QRectF
-from PyQt6.QtGui import QPixmap, QPainter
+from PyQt6.QtGui import QPixmap, QPainter, QImage, QShortcut, QKeySequence
 from PyQt6.QtWidgets import (
-    QWidget, QLabel, QPushButton, QSlider,
+    QApplication, QWidget, QLabel, QPushButton, QSlider,
     QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox, QVBoxLayout, QHBoxLayout,
     QFormLayout, QGroupBox, QFileDialog, QMessageBox, QSplitter,
     QScrollArea, QGraphicsView, QGraphicsScene,
@@ -99,6 +102,12 @@ class PngToSvgWidget(QWidget):
         self._build_ui()
         self._retranslate()
         self._restore_ui_state()
+        self.setAcceptDrops(True)
+        # QShortcut plutôt qu'un simple keyPressEvent : reste actif même si
+        # le focus est sur un des champs de réglage (slider, spinbox...),
+        # pas seulement quand le widget lui-même a le focus.
+        self._paste_shortcut = QShortcut(QKeySequence.StandardKey.Paste, self)
+        self._paste_shortcut.activated.connect(self._paste_from_clipboard)
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
@@ -407,10 +416,20 @@ class PngToSvgWidget(QWidget):
 
     def _on_open(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, tr("png2svg.open_image"), "", "PNG (*.png)"
+            self, tr("png2svg.open_image"), "",
+            "Images (*.png *.jpg *.jpeg);;PNG (*.png);;JPEG (*.jpg *.jpeg)",
         )
         if not path:
             return
+        self._load_image_path(path)
+
+    def _load_image_path(self, path):
+        """Charge une image (PNG ou JPEG) depuis un chemin de fichier —
+        factorisé entre l'ouverture manuelle, le glisser-déposer et le
+        collage presse-papiers (qui écrit d'abord dans un fichier
+        temporaire). Le pipeline de conversion (converter.py, via Pillow)
+        accepte déjà nativement le JPEG, aucun changement nécessaire de ce
+        côté-là."""
         self.image_path = path
         self.original_view.setPixmap(
             QPixmap(path).scaled(
@@ -420,6 +439,49 @@ class PngToSvgWidget(QWidget):
             )
         )
         self.btn_export.setEnabled(True)
+        self._regenerate()
+
+    def _load_image_from_qimage(self, qimage: QImage):
+        """Reçoit une image déjà en mémoire (glisser-déposer d'une image
+        sans fichier, ou collage presse-papiers) : l'écrit dans un fichier
+        temporaire PNG pour réutiliser tel quel tout le pipeline existant
+        (converter.py travaille à partir d'un chemin)."""
+        if qimage.isNull():
+            return
+        fd, tmp_path = tempfile.mkstemp(suffix=".png")
+        os.close(fd)
+        qimage.save(tmp_path, "PNG")
+        self._load_image_path(tmp_path)
+
+    def _paste_from_clipboard(self):
+        image = QApplication.clipboard().image()
+        if image.isNull():
+            QMessageBox.information(
+                self, tr("png2svg.open_image"), tr("png2svg.no_image_clipboard")
+            )
+            return
+        self._load_image_from_qimage(image)
+
+    def dragEnterEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasImage() or (
+            mime.hasUrls()
+            and any(u.toLocalFile().lower().endswith((".png", ".jpg", ".jpeg")) for u in mime.urls())
+        ):
+            event.acceptProposedAction()
+
+    def dropEvent(self, event):
+        mime = event.mimeData()
+        if mime.hasUrls():
+            for url in mime.urls():
+                path = url.toLocalFile()
+                if path.lower().endswith((".png", ".jpg", ".jpeg")):
+                    self._load_image_path(path)
+                    event.acceptProposedAction()
+                    return
+        if mime.hasImage():
+            self._load_image_from_qimage(QImage(mime.imageData()))
+            event.acceptProposedAction()
         self._regenerate()
 
     def _queue_update(self, *_):

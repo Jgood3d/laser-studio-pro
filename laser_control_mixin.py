@@ -1,7 +1,8 @@
 """Connexion USB/GRBL, streaming et commandes temps réel vers le laser."""
 import serial
 import serial.tools.list_ports
-from PyQt6.QtWidgets import (QMessageBox)
+from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
+from PyQt6.QtCore import QTimer
 from workers import GCodeStreamerThread, CommandThread, StatusPollThread
 from i18n import tr
 
@@ -80,17 +81,132 @@ class LaserControlMixin:
             self.lbl_dro_x.setText(tr("ui.dro_x").format(value="—"))
             self.lbl_dro_y.setText(tr("ui.dro_y").format(value="—"))
             self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
+            if hasattr(self, "btn_unlock_alarm"):
+                self.btn_unlock_alarm.setVisible(False)
             return
         self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
         self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
         self.lbl_dro_y.setText(tr("ui.dro_y").format(value=f"{y:.3f}"))
         self.lbl_dro_z.setText(tr("ui.dro_z").format(value=f"{z:.3f}"))
+        if hasattr(self, "btn_unlock_alarm"):
+            # Le bouton apparaît de lui-même dès que l'état Alarm est
+            # détecté (ex : fin de course déclenchée) et disparaît dès que
+            # l'état change — jamais de déverrouillage automatique sans
+            # action volontaire de l'utilisateur, pour rester sûr.
+            self.btn_unlock_alarm.setVisible(state == "Alarm")
         state_colors = {
             "Idle": "#2ecc71", "Run": "#3498db", "Hold": "#e67e22",
             "Alarm": "#e74c3c", "Home": "#9b59b6", "Jog": "#1abc9c",
         }
         color = state_colors.get(state, "#cccccc")
         self.lbl_dro_state.setStyleSheet(f"color: {color}; font-weight: bold;")
+
+    def read_grbl_settings(self):
+        """Lit l'intégralité de la configuration GRBL ($$) depuis la machine
+        connectée et l'affiche dans le champ dédié de l'onglet Configuration
+        GRBL — au-delà des seules dimensions/focale déjà gérées par les
+        profils machine, ceci couvre tous les réglages EEPROM natifs
+        (steps/mm, limites logicielles, accélérations GRBL...)."""
+        if not self.usb.is_connected():
+            QMessageBox.warning(
+                self, tr("laser.usb_not_connected_title"), tr("laser.connect_first")
+            )
+            return
+        try:
+            response = self.usb.send_command("$$")
+        except Exception as e:
+            QMessageBox.critical(self, tr("laser.error"), str(e))
+            return
+        lines = [l.strip() for l in response.splitlines() if l.strip().startswith("$")]
+        if not lines:
+            QMessageBox.warning(
+                self, tr("ui.grbl_settings_box"), tr("ui.grbl_read_empty")
+            )
+            return
+        self.txt_grbl_settings.setPlainText("\n".join(lines))
+        self.txt_console.append(tr("ui.grbl_read_success").format(count=len(lines)))
+
+    def send_grbl_settings(self):
+        """Envoie à la machine chaque ligne $N=valeur actuellement affichée
+        (après lecture, import de fichier, ou modification manuelle) —
+        modifie la configuration EEPROM persistante de la machine, donc
+        toujours avec confirmation avant envoi."""
+        if not self.usb.is_connected():
+            QMessageBox.warning(
+                self, tr("laser.usb_not_connected_title"), tr("laser.connect_first")
+            )
+            return
+        lines = [
+            l.strip() for l in self.txt_grbl_settings.toPlainText().splitlines()
+            if l.strip().startswith("$") and "=" in l
+        ]
+        if not lines:
+            QMessageBox.warning(
+                self, tr("ui.grbl_settings_box"), tr("ui.grbl_send_empty")
+            )
+            return
+        reply = QMessageBox.question(
+            self, tr("ui.grbl_send_confirm_title"),
+            tr("ui.grbl_send_confirm_body").format(count=len(lines)),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        errors = []
+        for line in lines:
+            try:
+                resp = self.usb.send_command(line)
+            except Exception as e:
+                errors.append(f"{line}: {e}")
+                continue
+            if "error" in resp.lower():
+                errors.append(f"{line}: {resp.strip()}")
+        if errors:
+            self.txt_console.append(tr("ui.grbl_send_errors").format(errors="\n".join(errors)))
+            QMessageBox.warning(
+                self, tr("ui.grbl_settings_box"),
+                tr("ui.grbl_send_partial").format(count=len(lines) - len(errors), total=len(lines)),
+            )
+        else:
+            self.txt_console.append(tr("ui.grbl_send_success").format(count=len(lines)))
+            QMessageBox.information(
+                self, tr("ui.grbl_settings_box"),
+                tr("ui.grbl_send_all_success").format(count=len(lines)),
+            )
+
+    def export_grbl_settings(self):
+        text = self.txt_grbl_settings.toPlainText().strip()
+        if not text:
+            QMessageBox.warning(
+                self, tr("ui.grbl_settings_box"), tr("ui.grbl_send_empty")
+            )
+            return
+        path, _ = QFileDialog.getSaveFileName(
+            self, tr("ui.grbl_export"), "grbl_settings.txt", "Texte (*.txt)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(text + "\n")
+        except Exception as e:
+            QMessageBox.critical(self, tr("laser.error"), str(e))
+
+    def import_grbl_settings(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, tr("ui.grbl_import"), "", "Texte (*.txt);;Tous (*.*)"
+        )
+        if not path:
+            return
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except Exception as e:
+            QMessageBox.critical(self, tr("laser.error"), str(e))
+            return
+        lines = [l.strip() for l in content.splitlines() if l.strip().startswith("$") and "=" in l]
+        self.txt_grbl_settings.setPlainText("\n".join(lines))
 
     def _check_grbl_laser_mode(self):
         """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
@@ -192,10 +308,29 @@ class LaserControlMixin:
         self.streamer.finished_signal.connect(self.on_stream_finished)
         self.streamer.start()
 
+    def unlock_alarm(self):
+        """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de
+        course déclenchée). Toujours une action volontaire de
+        l'utilisateur — jamais envoyé automatiquement sans clic, l'alarme
+        pouvant signaler un vrai problème mécanique à vérifier avant de
+        reprendre."""
+        if not self.usb.is_connected():
+            return
+        self._run_commands_async("$X")
+        self.txt_console.append(tr("laser.unlock_log"))
+
+    def _notify_job_finished(self):
+        """Signal sonore de fin de job (2 bips espacés) — en plus du
+        message déjà affiché, pour être prévenu même sans regarder l'écran
+        (ex : gravure longue, utilisateur dans une autre pièce)."""
+        QTimer.singleShot(0, QApplication.beep)
+        QTimer.singleShot(250, QApplication.beep)
+
     def on_stream_finished(self, clean_finish):
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()
+        self._notify_job_finished()
         if clean_finish:
             QMessageBox.information(
     self,

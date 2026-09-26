@@ -383,3 +383,87 @@ class VectorEditingMixin:
             self.txt_console.append(
     tr("vector.svg_loaded").format(path=path)
 )
+
+    # ------------------------------------------------------------------
+    # Alignement / distribution multi-objets
+    # ------------------------------------------------------------------
+    def align_vector_selection(self, mode):
+        """Aligne les objets sélectionnés les uns par rapport aux autres
+        (mode: 'left', 'right', 'center_h', 'top', 'bottom', 'middle_v').
+        Le repère est la boîte englobante de l'ENSEMBLE de la sélection —
+        avec un seul objet sélectionné, ne fait donc rien (rien à aligner
+        par rapport à soi-même)."""
+        items = self._selected_vector_items()
+        if len(items) < 2:
+            return
+
+        boxes = [(it, it.obj.world_path().boundingRect()) for it in items]
+        group_left = min(b.left() for _, b in boxes)
+        group_right = max(b.right() for _, b in boxes)
+        # Convention déjà établie ailleurs dans ce fichier (voir
+        # on_vector_position_spin_changed) : box.top() correspond au bord
+        # BAS de l'objet en mm, box.bottom() à son bord HAUT.
+        group_bottom = min(b.top() for _, b in boxes)
+        group_top = max(b.bottom() for _, b in boxes)
+
+        self.vector_canvas.push_undo_snapshot()
+        for it, b in boxes:
+            dx = dy = 0.0
+            if mode == "left":
+                dx = group_left - b.left()
+            elif mode == "right":
+                dx = group_right - b.right()
+            elif mode == "center_h":
+                dx = (group_left + group_right) / 2.0 - (b.left() + b.right()) / 2.0
+            elif mode == "bottom":
+                dy = group_bottom - b.top()
+            elif mode == "top":
+                dy = group_top - b.bottom()
+            elif mode == "middle_v":
+                dy = (group_bottom + group_top) / 2.0 - (b.top() + b.bottom()) / 2.0
+            it.obj.x_mm += dx
+            it.obj.y_mm += dy
+            it.refresh()
+
+        self.on_vector_selection_changed(items[0].obj)
+
+    def distribute_vector_selection(self, axis):
+        """Répartit les objets sélectionnés avec un espacement égal entre
+        eux (axis: 'h' ou 'v'), en gardant fixes les deux objets aux
+        extrémités. Nécessite au moins 3 objets — avec 2, il n'y a qu'un
+        seul espacement possible, rien à répartir."""
+        items = self._selected_vector_items()
+        if len(items) < 3:
+            return
+
+        boxes = [(it, it.obj.world_path().boundingRect()) for it in items]
+        self.vector_canvas.push_undo_snapshot()
+
+        if axis == "h":
+            boxes.sort(key=lambda pair: pair[1].left())
+            span = boxes[-1][1].right() - boxes[0][1].left()
+            total_size = sum(b.width() for _, b in boxes)
+            gap = (span - total_size) / (len(boxes) - 1)
+            cursor = boxes[0][1].left()
+            for it, b in boxes:
+                it.obj.x_mm += cursor - b.left()
+                it.refresh()
+                cursor += b.width() + gap
+        else:  # "v"
+            boxes.sort(key=lambda pair: pair[1].top())  # bas -> haut, en mm
+            span = boxes[-1][1].bottom() - boxes[0][1].top()
+            total_size = sum(b.height() for _, b in boxes)
+            gap = (span - total_size) / (len(boxes) - 1)
+            cursor = boxes[0][1].top()
+            for it, b in boxes:
+                it.obj.y_mm += cursor - b.top()
+                it.refresh()
+                cursor += b.height() + gap
+
+        self.on_vector_selection_changed(items[0].obj)
+
+    def set_vector_snap_enabled(self, enabled):
+        self.vector_canvas.snap_enabled = bool(enabled)
+
+    def set_vector_snap_step(self, value):
+        self.vector_canvas.snap_step_mm = float(value)

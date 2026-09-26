@@ -653,6 +653,12 @@ TRANSLATIONS = {
         "de": ">>> Echtzeitbefehl: PAUSE (!)",
         "es": ">>> Comando en tiempo real: PAUSA (!)",
     },
+    "laser.unlock_log": {
+        "fr": ">>> Déverrouillage ($X) envoyé",
+        "en": ">>> Unlock ($X) sent",
+        "de": ">>> Entsperren ($X) gesendet",
+        "es": ">>> Desbloqueo ($X) enviado",
+    },
     "laser.resume_log": {
         "fr": ">>> Commande Temps Réel: REPRISE (~)",
         "en": ">>> Real-Time Command: RESUME (~)",
@@ -1573,6 +1579,48 @@ TRANSLATIONS = {
         "de": "↶ Rückgängig (Ctrl+Z)",
         "es": "↶ Deshacer (Ctrl+Z)",
     },
+    "ui.vector_redo": {
+        "fr": "↷ Refaire (Ctrl+Y)",
+        "en": "↷ Redo (Ctrl+Y)",
+        "de": "↷ Wiederholen (Ctrl+Y)",
+        "es": "↷ Rehacer (Ctrl+Y)",
+    },
+    "ui.vector_align_box": {
+        "fr": "Alignement / Distribution",
+        "en": "Alignment / Distribution",
+        "de": "Ausrichtung / Verteilung",
+        "es": "Alineación / Distribución",
+    },
+    "ui.vector_align_left": {
+        "fr": "⊢ Gauche", "en": "⊢ Left", "de": "⊢ Links", "es": "⊢ Izquierda",
+    },
+    "ui.vector_align_center_h": {
+        "fr": "⊟ Centre H", "en": "⊟ Center H", "de": "⊟ Mitte H", "es": "⊟ Centro H",
+    },
+    "ui.vector_align_right": {
+        "fr": "⊣ Droite", "en": "⊣ Right", "de": "⊣ Rechts", "es": "⊣ Derecha",
+    },
+    "ui.vector_align_top": {
+        "fr": "⊤ Haut", "en": "⊤ Top", "de": "⊤ Oben", "es": "⊤ Arriba",
+    },
+    "ui.vector_align_middle_v": {
+        "fr": "⊞ Milieu V", "en": "⊞ Middle V", "de": "⊞ Mitte V", "es": "⊞ Centro V",
+    },
+    "ui.vector_align_bottom": {
+        "fr": "⊥ Bas", "en": "⊥ Bottom", "de": "⊥ Unten", "es": "⊥ Abajo",
+    },
+    "ui.vector_distribute_h": {
+        "fr": "⇹ Répartir H", "en": "⇹ Distribute H",
+        "de": "⇹ Verteilen H", "es": "⇹ Distribuir H",
+    },
+    "ui.vector_distribute_v": {
+        "fr": "⇳ Répartir V", "en": "⇳ Distribute V",
+        "de": "⇳ Verteilen V", "es": "⇳ Distribuir V",
+    },
+    "ui.vector_snap_enable": {
+        "fr": "🧲 Accroche à la grille", "en": "🧲 Snap to grid",
+        "de": "🧲 Am Raster einrasten", "es": "🧲 Ajustar a la cuadrícula",
+    },
     "ui.vector_fullscreen": {
         "fr": "⛶ Plein Écran",
         "en": "⛶ Full Screen",
@@ -1622,6 +1670,10 @@ TRANSLATIONS = {
     "ui.dro_z": {
         "fr": "Z : {value} mm", "en": "Z: {value} mm",
         "de": "Z: {value} mm", "es": "Z: {value} mm",
+    },
+    "ui.unlock_alarm": {
+        "fr": "🔓 Déverrouiller ($X)", "en": "🔓 Unlock ($X)",
+        "de": "🔓 Entsperren ($X)", "es": "🔓 Desbloquear ($X)",
     },
     "ui.jog_box": {
         "fr": "Mouvements Manuel Laser (Jog) & Commandes",
@@ -1965,6 +2017,86 @@ TRANSLATIONS = {
         "de": "G-Code Ende:",
         "es": "G-Code final:",
     },
+    "ui.grbl_settings_box": {
+        "fr": "Réglages GRBL complets ($$)", "en": "Full GRBL settings ($$)",
+        "de": "Vollständige GRBL-Einstellungen ($$)", "es": "Ajustes completos de GRBL ($$)",
+    },
+    "ui.grbl_settings_placeholder": {
+        "fr": "Clique sur « Lire depuis la machine » pour récupérer tous les réglages $0 à $132...",
+        "en": "Click \"Read from machine\" to retrieve all $0 to $132 settings...",
+        "de": "Klicke auf „Von Maschine lesen“, um alle Einstellungen $0 bis $132 abzurufen...",
+        "es": "Haz clic en «Leer desde la máquina» para obtener todos los ajustes $0 a $132...",
+    },
+    "ui.grbl_read": {
+        "fr": "📥 Lire depuis la machine", "en": "📥 Read from machine",
+        "de": "📥 Von Maschine lesen", "es": "📥 Leer desde la máquina",
+    },
+    "ui.grbl_send": {
+        "fr": "⬆️ Envoyer à la machine", "en": "⬆️ Send to machine",
+        "de": "⬆️ An Maschine senden", "es": "⬆️ Enviar a la máquina",
+    },
+    "ui.grbl_export": {
+        "fr": "💾 Exporter...", "en": "💾 Export...",
+        "de": "💾 Exportieren...", "es": "💾 Exportar...",
+    },
+    "ui.grbl_import": {
+        "fr": "📂 Importer...", "en": "📂 Import...",
+        "de": "📂 Importieren...", "es": "📂 Importar...",
+    },
+    "ui.grbl_link_profile": {
+        "fr": "🔗 Lier au profil machine actif", "en": "🔗 Link to active machine profile",
+        "de": "🔗 Mit aktivem Maschinenprofil verknüpfen", "es": "🔗 Vincular al perfil de máquina activo",
+    },
+    "ui.grbl_read_empty": {
+        "fr": "Aucun réglage $ reçu de la machine.", "en": "No $ setting received from the machine.",
+        "de": "Keine $-Einstellung von der Maschine erhalten.", "es": "No se recibió ningún ajuste $ de la máquina.",
+    },
+    "ui.grbl_read_success": {
+        "fr": ">>> {count} réglage(s) GRBL lus depuis la machine.",
+        "en": ">>> {count} GRBL setting(s) read from the machine.",
+        "de": ">>> {count} GRBL-Einstellung(en) von der Maschine gelesen.",
+        "es": ">>> {count} ajuste(s) GRBL leídos desde la máquina.",
+    },
+    "ui.grbl_send_empty": {
+        "fr": "Aucun réglage $ à envoyer (champ vide ou format incorrect).",
+        "en": "No $ setting to send (empty field or wrong format).",
+        "de": "Keine $-Einstellung zu senden (Feld leer oder falsches Format).",
+        "es": "No hay ningún ajuste $ que enviar (campo vacío o formato incorrecto).",
+    },
+    "ui.grbl_send_confirm_title": {
+        "fr": "Envoyer les réglages GRBL ?", "en": "Send GRBL settings?",
+        "de": "GRBL-Einstellungen senden?", "es": "¿Enviar los ajustes GRBL?",
+    },
+    "ui.grbl_send_confirm_body": {
+        "fr": "{count} réglage(s) vont être envoyés à la machine et écrits dans sa mémoire EEPROM.\n\nCette action modifie durablement la configuration de la machine. Continuer ?",
+        "en": "{count} setting(s) will be sent to the machine and written to its EEPROM memory.\n\nThis permanently changes the machine's configuration. Continue?",
+        "de": "{count} Einstellung(en) werden an die Maschine gesendet und in ihren EEPROM-Speicher geschrieben.\n\nDies ändert die Maschinenkonfiguration dauerhaft. Fortfahren?",
+        "es": "Se enviarán {count} ajuste(s) a la máquina y se escribirán en su memoria EEPROM.\n\nEsto modifica permanentemente la configuración de la máquina. ¿Continuar?",
+    },
+    "ui.grbl_send_errors": {
+        "fr": ">>> Erreurs lors de l'envoi des réglages GRBL :\n{errors}",
+        "en": ">>> Errors while sending GRBL settings:\n{errors}",
+        "de": ">>> Fehler beim Senden der GRBL-Einstellungen:\n{errors}",
+        "es": ">>> Errores al enviar los ajustes GRBL:\n{errors}",
+    },
+    "ui.grbl_send_partial": {
+        "fr": "{count}/{total} réglage(s) envoyés avec succès, le reste a échoué (voir la console).",
+        "en": "{count}/{total} setting(s) sent successfully, the rest failed (see console).",
+        "de": "{count}/{total} Einstellung(en) erfolgreich gesendet, der Rest ist fehlgeschlagen (siehe Konsole).",
+        "es": "{count}/{total} ajuste(s) enviados con éxito, el resto falló (ver consola).",
+    },
+    "ui.grbl_send_success": {
+        "fr": ">>> {count} réglage(s) GRBL envoyés avec succès.",
+        "en": ">>> {count} GRBL setting(s) sent successfully.",
+        "de": ">>> {count} GRBL-Einstellung(en) erfolgreich gesendet.",
+        "es": ">>> {count} ajuste(s) GRBL enviados con éxito.",
+    },
+    "ui.grbl_send_all_success": {
+        "fr": "Les {count} réglage(s) ont été envoyés avec succès à la machine.",
+        "en": "All {count} setting(s) were sent successfully to the machine.",
+        "de": "Alle {count} Einstellung(en) wurden erfolgreich an die Maschine gesendet.",
+        "es": "Los {count} ajuste(s) se enviaron con éxito a la máquina.",
+    },
     "ui.laser_exec_box": {
         "fr": "Paramètres d'Exécution Laser — Gravure Image",
         "en": "Laser Execution Settings — Image Engraving",
@@ -2120,9 +2252,10 @@ TRANSLATIONS = {
         ),
     },
 
-    # --- Onglet PNG → SVG (convertisseur intégré) ---
+    # --- Onglet PNG/JPEG → SVG (convertisseur intégré) ---
     "png2svg.tab_title": {
-        "fr": "PNG → SVG", "en": "PNG to SVG", "de": "PNG zu SVG", "es": "PNG a SVG",
+        "fr": "PNG/JPEG → SVG", "en": "PNG/JPEG to SVG",
+        "de": "PNG/JPEG zu SVG", "es": "PNG/JPEG a SVG",
     },
     "png2svg.open_image": {
         "fr": "Ouvrir une image…", "en": "Open image…",
@@ -2232,6 +2365,12 @@ TRANSLATIONS = {
         "fr": "Aucune image chargée", "en": "No image loaded",
         "de": "Kein Bild geladen", "es": "Ninguna imagen cargada",
     },
+    "png2svg.no_image_clipboard": {
+        "fr": "Aucune image dans le presse-papiers",
+        "en": "No image in clipboard",
+        "de": "Kein Bild in der Zwischenablage",
+        "es": "No hay ninguna imagen en el portapapeles",
+    },
     "png2svg.export_success": {
         "fr": "SVG exporté avec succès", "en": "SVG exported successfully",
         "de": "SVG erfolgreich exportiert", "es": "SVG exportado con éxito",
@@ -2250,8 +2389,8 @@ TRANSLATIONS = {
         "de": "⛶ Vollbild", "es": "⛶ Pantalla completa",
     },
     "png2svg.fullscreen_title": {
-        "fr": "PNG → SVG — Plein Écran", "en": "PNG to SVG — Full Screen",
-        "de": "PNG zu SVG — Vollbild", "es": "PNG a SVG — Pantalla completa",
+        "fr": "PNG/JPEG → SVG — Plein Écran", "en": "PNG/JPEG to SVG — Full Screen",
+        "de": "PNG/JPEG zu SVG — Vollbild", "es": "PNG/JPEG a SVG — Pantalla completa",
     },
     "png2svg.close_fullscreen": {
         "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",

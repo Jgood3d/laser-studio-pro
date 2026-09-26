@@ -1,9 +1,17 @@
 """File d'attente de jobs : empiler plusieurs gravures à envoyer au laser
-l'une après l'autre, sans reconfigurer/relancer manuellement entre chaque."""
+l'une après l'autre, sans reconfigurer/relancer manuellement entre chaque.
+La file est sauvegardée sur disque à chaque modification et restaurée au
+démarrage (voir _save_job_queue / _load_job_queue), pour ne pas la perdre
+à la fermeture de l'application."""
 import datetime
+import json
+import os
 from PyQt6.QtWidgets import QMessageBox, QListWidgetItem
 from workers import GCodeStreamerThread
+from app_utils import get_autosave_dir
 from i18n import tr
+
+QUEUE_FILENAME = "laser_studio_pro_queue.json"
 
 
 class JobQueueMixin:
@@ -24,6 +32,7 @@ class JobQueueMixin:
         self.job_queue.append({"name": name, "gcode": gcode_text})
         self.list_job_queue.addItem(QListWidgetItem(name))
         self._update_queue_status()
+        self._save_job_queue()
 
     def remove_selected_from_queue(self):
         if not hasattr(self, "job_queue"):
@@ -34,10 +43,64 @@ class JobQueueMixin:
         self.list_job_queue.takeItem(row)
         del self.job_queue[row]
         self._update_queue_status()
+        self._save_job_queue()
 
     def clear_job_queue(self):
         self.job_queue = []
         self.list_job_queue.clear()
+        self._update_queue_status()
+        self._save_job_queue()
+
+    def _on_queue_reordered(self, *args):
+        """Appelé après un glisser-déposer de réordonnancement dans la
+        liste (voir setDragDropMode InternalMove dans ui_setup_mixin.py) :
+        reconstruit job_queue pour qu'il corresponde au nouvel ordre
+        visuel — les jobs sont réappariés par nom, unique en pratique
+        puisqu'horodaté à la création."""
+        if not hasattr(self, "job_queue"):
+            return
+        by_name = {job["name"]: job for job in self.job_queue}
+        new_order = []
+        for i in range(self.list_job_queue.count()):
+            name = self.list_job_queue.item(i).text()
+            if name in by_name:
+                new_order.append(by_name[name])
+        if len(new_order) == len(self.job_queue):
+            self.job_queue = new_order
+            self._save_job_queue()
+
+    def _save_job_queue(self):
+        """Sauvegarde silencieuse de la file — une erreur ici ne doit
+        jamais interrompre l'utilisateur (même principe que l'autosave de
+        projet, voir project_io_mixin.py)."""
+        try:
+            path = os.path.join(get_autosave_dir(), QUEUE_FILENAME)
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(getattr(self, "job_queue", []), f)
+        except Exception:
+            pass
+
+    def load_job_queue_from_disk(self):
+        """Restaure la file d'attente sauvegardée lors de la précédente
+        session — appelé une fois au démarrage (voir main_window.py)."""
+        path = os.path.join(get_autosave_dir(), QUEUE_FILENAME)
+        if not os.path.exists(path):
+            return
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                loaded = json.load(f)
+            if not isinstance(loaded, list):
+                return
+            self.job_queue = [
+                job for job in loaded
+                if isinstance(job, dict) and "name" in job and "gcode" in job
+            ]
+        except Exception:
+            self.job_queue = []
+            return
+        self.list_job_queue.clear()
+        for job in self.job_queue:
+            self.list_job_queue.addItem(QListWidgetItem(job["name"]))
         self._update_queue_status()
 
     def _update_queue_status(self):
@@ -88,6 +151,8 @@ class JobQueueMixin:
             self.txt_console.append(">>> File d'attente terminée.")
             if getattr(self, "status_poll_thread", None):
                 self.status_poll_thread.resume()
+            if hasattr(self, "_notify_job_finished"):
+                self._notify_job_finished()
             QMessageBox.information(
     self,
     tr("queue.done_title"),
@@ -129,6 +194,8 @@ class JobQueueMixin:
             self.btn_run_queue.setEnabled(True)
             if getattr(self, "status_poll_thread", None):
                 self.status_poll_thread.resume()
+            if hasattr(self, "_notify_job_finished"):
+                self._notify_job_finished()
             QMessageBox.warning(
                 self, tr("queue.stopped_title"),
                 tr("queue.stopped_body")

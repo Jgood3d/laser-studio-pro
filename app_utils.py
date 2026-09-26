@@ -2,7 +2,7 @@
 import sys
 import os
 
-APP_VERSION = "1.7.0"
+APP_VERSION = "2.0.0"
 
 
 def get_app_dir():
@@ -25,17 +25,24 @@ def get_bundle_dir():
 
 
 def get_autosave_dir():
-    """Dossier où écrire les fichiers utilisateur modifiables (autosave).
-    Sur Windows/Linux, comportement inchangé (dossier de l'exécutable).
-    Sur macOS packagé (.app), get_app_dir() pointerait vers
-    Contents/MacOS/, en lecture seule une fois l'app installée/signée :
-    on utilise alors ~/Library/Application Support/LaserStudioPro/,
-    l'emplacement standard macOS pour les données d'appli modifiables."""
-    if sys.platform == 'darwin' and getattr(sys, 'frozen', False):
-        base = os.path.expanduser('~/Library/Application Support/LaserStudioPro')
-        os.makedirs(base, exist_ok=True)
-        return base
-    return get_app_dir()
+    """Dossier pour les fichiers de données de l'application (sauvegarde
+    automatique de projet, file d'attente...) : un emplacement utilisateur
+    TOUJOURS accessible en écriture, contrairement à get_app_dir() qui peut
+    être en lecture seule une fois l'app installée (ex : Program Files sous
+    Windows sans droits administrateur). Créé automatiquement s'il n'existe
+    pas encore."""
+    if sys.platform == "win32":
+        base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    elif sys.platform == "darwin":
+        base = os.path.expanduser("~/Library/Application Support")
+    else:
+        base = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")
+    path = os.path.join(base, "LaserStudioPro")
+    try:
+        os.makedirs(path, exist_ok=True)
+    except Exception:
+        return get_app_dir()
+    return path
 
 
 def find_resource(filename):

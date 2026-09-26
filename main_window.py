@@ -14,6 +14,7 @@ from laser_control_mixin import LaserControlMixin
 from project_io_mixin import ProjectIOMixin
 from job_queue_mixin import JobQueueMixin
 from png2svg_mixin import Png2SvgMixin
+from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProcessingMixin,
@@ -39,14 +40,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         self.pending_reprocess = False
         self.job_queue = []
 
-        self.materials_db = {
-            "Personnalisé": {"sp_e": 2000, "pw_e": 30, "sp_c": 300, "pw_c": 90, "pass_c": 1},
-            "Contreplaqué 3mm": {"sp_e": 2500, "pw_e": 35, "sp_c": 250, "pw_c": 95, "pass_c": 2},
-            "MDF 4mm": {"sp_e": 2200, "pw_e": 40, "sp_c": 180, "pw_c": 100, "pass_c": 3},
-            "Acrylique 3mm": {"sp_e": 3000, "pw_e": 25, "sp_c": 200, "pw_c": 90, "pass_c": 2},
-            "Ardoise / Carrelage": {"sp_e": 1500, "pw_e": 45, "sp_c": 500, "pw_c": 0, "pass_c": 0},
-            "Cuir 2mm": {"sp_e": 2800, "pw_e": 20, "sp_c": 350, "pw_c": 80, "pass_c": 1}
-        }
+        self.materials_db = dict(DEFAULT_MATERIALS_DB)
         
         self.process_timer = QTimer()
         self.process_timer.setSingleShot(True)
@@ -74,3 +68,4 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         # reporte l'appel au tout début de la boucle d'événements, une fois
         # la fenêtre déjà affichée.
         QTimer.singleShot(0, self.check_for_autosave_recovery)
+        self.load_job_queue_from_disk()
