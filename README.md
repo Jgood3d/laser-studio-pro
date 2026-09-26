@@ -49,6 +49,47 @@ python main.py
 
 ## Fonctionnalités récentes
 
+##[V2.0.0]
+
+feat: Éditeur Vectoriel (redo/alignement/accroche), file d'attente persistante, GRBL complet, matériaux par machine, JPEG (v2.0.0)
+
+## Ajouté :
+- Éditeur Vectoriel : vrai Refaire (Ctrl+Y), alignement multi-objets
+  (gauche/centre/droite, haut/milieu/bas) et distribution avec espacement
+  égal (dès 3 objets, extrémités fixes), accroche à la grille pendant un
+  déplacement (pas réglable en mm, préserve l'agencement relatif d'une
+  sélection multiple en n'accrochant que l'objet réellement cliqué).
+- File d'attente : réordonnancement des jobs par glisser-déposer, et
+  persistance complète entre deux sessions (sauvegardée à chaque
+  modification, restaurée au démarrage).
+- Profils machine : import/export complet des réglages GRBL ($$) —
+  lecture depuis la machine, envoi (avec confirmation, écrit en EEPROM),
+  export/import en fichier texte ; capturés automatiquement par "Nouvelle
+  Machine"/"Mettre à jour" comme le reste du profil.
+- Base de matériaux (`materials_db`) propre à chaque profil machine —
+  une nouvelle machine hérite de la liste active à sa création,
+  personnalisable ensuite sans affecter les autres profils.
+- Onglet PNG/JPEG → SVG (renommé) : accepte maintenant le JPEG en plus
+  du PNG (le pipeline de conversion le gérait déjà nativement), glisser-
+  déposer direct d'un fichier, et collage presse-papiers (Ctrl+V,
+  pratique pour une capture d'écran).
+- app_utils.py : nouvelle fonction get_autosave_dir() — dossier
+  utilisateur toujours accessible en écriture (~/.local/share sous
+  Linux, %APPDATA% sous Windows) pour l'autosave de projet et la file
+  d'attente, plutôt que le dossier de l'exécutable (pouvait être en
+  lecture seule une fois installé).
+
+## Corrigé :
+- Plantage au lancement (ImportError: get_autosave_dir) sur une
+  installation où project_io_mixin.py avait déjà été mis à jour pour
+  utiliser ce nouveau dossier utilisateur, sans que la fonction existe
+  encore côté app_utils.py.
+
+Fichiers modifiés :
+app_utils.py, vector_layers.py, vector_editing_mixin.py, ui_setup_mixin.py,
+i18n.py, job_queue_mixin.py, main_window.py, laser_control_mixin.py,
+machine_profiles_mixin.py, png2svg_widget.py, project_io_mixin.py
+
 feat: liaison focale automatique (Image Filtres + calques), correctifs plein écran (v1.7.0)
 
 ## Ajouté :
