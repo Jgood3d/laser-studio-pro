@@ -49,6 +49,28 @@ python main.py
 
 ## Fonctionnalités récentes
 
+## [2.1.0] — 2026-09-28
+
+### Ajouté
+- **Éditeur vectoriel — sélection multiple** : Ctrl + clic gauche ajoute un objet à la sélection (ou le retire s'il y est déjà). Le déplacement groupé fonctionne ensuite sur tout le groupe.
+- **Éditeur vectoriel — regroupement** : clic droit → « Regrouper en un seul objet » (ou Ctrl+G) fusionne les objets sélectionnés en un seul tracé, à leur position exacte, déplaçable et redimensionnable d'un bloc. Annulable avec Ctrl+Z.
+- **Calques — ordre modifiable** : boutons « ▲ Monter » / « ▼ Descendre ». L'ordre de la liste est l'ordre d'exécution des calques dans le G-Code (ex. gravure avant découpe).
+- **Onglet Machine — aide aux drivers USB** : indication discrète avec liens officiels pour installer le driver du contrôleur (CH340, CP210x, FTDI) et rappel Linux (groupe `dialout`). Traduit en FR / EN / DE / ES.
+- **Aperçu 2D — bouton de soutien** : petit bouton (logo) dans la barre d'outils, ouvre la page Ko-fi dans le navigateur. Nouvelle ressource `buy_me_a_coffee.png` à embarquer dans le build (`--add-data`).
+
+### Modifié
+- **Matrice de test (gravure)** : le champ « Lignes/mm » reprend automatiquement la valeur de l'onglet Image / Filtres (champ grisé, mise à jour en direct, quel que soit le mode de saisie : lignes/mm, DPI ou focale).
+- **Image / Filtres** : la ligne « Écart : … » n'est plus affichée que pour signaler un réglage trop fin (< 0,9× la focale, risque de surgravure) ; masquée quand l'écart est correct ou recommandé.
+
+### Corrigé
+- **Matrice de test** : le champ « Puissance Min » (gravure) / « Puissance Unique » (découpe) existait mais n'était jamais affiché dans le formulaire.
+- **Éditeur vectoriel** : Ctrl + clic n'ajoutait pas l'objet cliqué à la sélection existante.
+- **Interface** : espace vide sous le bouton « Générer le G-Code » (les libellés de progression de génération se masquent maintenant quand ils sont vides ; même correction dans les deux autres onglets concernés).
+
+### Build
+- Ajouter `--add-data "buy_me_a_coffee.png;."` (Windows) / `--add-data "buy_me_a_coffee.png:."` (Linux) aux commandes PyInstaller.
+- Supprimer `build/`, `dist/` et `LaserStudioPro.spec` avant de rebuilder, pour que le nouveau fichier de ressource soit bien pris en compte.
+
 ## [V2.0.0]
 
 feat: Éditeur Vectoriel (redo/alignement/accroche), file d'attente persistante, GRBL complet, matériaux par machine, JPEG (v2.0.0)
