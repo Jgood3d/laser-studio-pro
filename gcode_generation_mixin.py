@@ -483,7 +483,8 @@ class GcodeGenerationMixin:
         # ici dans le thread principal (Qt requis), le résultat est du texte/nombres
         # purs, sans risque pour le QThread qui va s'en servir.
         vector_layers_data = extract_vector_layer_data(
-            self.vector_canvas.objects, self.layer_manager
+            self.vector_canvas.objects, self.layer_manager,
+            optimize_path=getattr(self, "chk_optimize_path", None) is None or self.chk_optimize_path.isChecked(),
         ) if hasattr(self, "vector_canvas") else {}
 
         if params['enable_overscan'] and hasattr(self, "vector_canvas"):
@@ -544,6 +545,8 @@ class GcodeGenerationMixin:
         self.lbl_gen_progress_main.setText(f"Génération en cours… {pct}%")
 
     def generate_test_matrix(self):
+        # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
+        self._sync_matrix_lmm_from_image()
         params = {
             'min_power': self.spin_mat_min_p.value(),
             'max_power': self.spin_mat_max_p.value(),

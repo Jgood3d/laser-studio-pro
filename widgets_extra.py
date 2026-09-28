@@ -1,5 +1,5 @@
 """Petits widgets réutilisables qui ne rentrent pas ailleurs."""
-from PyQt6.QtWidgets import QLineEdit
+from PyQt6.QtWidgets import QLineEdit, QLabel
 from PyQt6.QtCore import Qt
 
 
@@ -39,3 +39,18 @@ class HistoryLineEdit(QLineEdit):
             event.accept()
             return
         super().keyPressEvent(event)
+
+
+class AutoHideLabel(QLabel):
+    """QLabel qui se masque tout seul quand son texte est vide et
+    réapparaît dès qu'il contient quelque chose. Évite de garder un trou
+    vide dans la mise en page pour les libellés d'état temporaires
+    (ex. « Génération en cours… ») qui sont vides la plupart du temps."""
+
+    def __init__(self, text="", parent=None):
+        super().__init__(text, parent)
+        self.setVisible(bool(text))
+
+    def setText(self, text):
+        super().setText(text)
+        self.setVisible(bool(text))

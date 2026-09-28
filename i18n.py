@@ -232,6 +232,14 @@ TRANSLATIONS = {
         "fr": "Réinitialiser Réglages Image", "en": "Reset Image Settings",
         "de": "Bildeinstellungen zurücksetzen", "es": "Restablecer ajustes de imagen",
     },
+    "ui.img_undo": {
+        "fr": "↶ Annuler (Ctrl+Z)", "en": "↶ Undo (Ctrl+Z)",
+        "de": "↶ Rückgängig (Ctrl+Z)", "es": "↶ Deshacer (Ctrl+Z)",
+    },
+    "ui.img_redo": {
+        "fr": "↷ Refaire (Ctrl+Y)", "en": "↷ Redo (Ctrl+Y)",
+        "de": "↷ Wiederholen (Ctrl+Y)", "es": "↷ Rehacer (Ctrl+Y)",
+    },
     "img.brightness": {"fr": "Luminosité:", "en": "Brightness:", "de": "Helligkeit:", "es": "Brillo:"},
     "img.contrast": {"fr": "Contraste:", "en": "Contrast:", "de": "Kontrast:", "es": "Contraste:"},
     "img.gamma": {"fr": "Gamma:", "en": "Gamma:", "de": "Gamma:", "es": "Gamma:"},
@@ -456,6 +464,12 @@ TRANSLATIONS = {
         "de": "Schnelle G0-Bewegungen in der Vorschau ausblenden",
         "es": "Ocultar movimientos rápidos G0 en la vista previa",
     },
+    "ui.optimize_path": {
+        "fr": "🧭 Optimiser le chemin (réduire les déplacements G0)",
+        "en": "🧭 Optimize path (reduce G0 travel)",
+        "de": "🧭 Weg optimieren (G0-Fahrten reduzieren)",
+        "es": "🧭 Optimizar el recorrido (reducir desplazamientos G0)",
+    },
     # --- Contrôle laser / USB / GRBL ---
     "laser.connect": {
         "fr": "Connecter GRBL",
@@ -498,6 +512,54 @@ TRANSLATIONS = {
         "en": "USB not connected",
         "de": "USB nicht verbunden",
         "es": "USB no conectado",
+    },
+    "laser.no_homing_title": {
+        "fr": "Machine non référencée", "en": "Machine not homed",
+        "de": "Maschine nicht referenziert", "es": "Máquina no referenciada",
+    },
+    "laser.no_homing_body": {
+        "fr": "Aucun homing ($H) n'a été fait depuis la connexion à la machine.\n\nSans référence fiable, la position de la pièce gravée peut être décalée.\n\nContinuer quand même ?",
+        "en": "No homing ($H) has been done since connecting to the machine.\n\nWithout a reliable reference, the engraved piece's position may be off.\n\nContinue anyway?",
+        "de": "Seit der Verbindung mit der Maschine wurde kein Homing ($H) durchgeführt.\n\nOhne zuverlässige Referenz kann die Position des gravierten Teils verschoben sein.\n\nTrotzdem fortfahren?",
+        "es": "No se ha realizado ningún homing ($H) desde la conexión con la máquina.\n\nSin una referencia fiable, la posición de la pieza grabada puede estar desplazada.\n\n¿Continuar de todos modos?",
+    },
+    "laser.reconnecting": {
+        "fr": ">>> Connexion USB perdue — tentative de reconnexion automatique...",
+        "en": ">>> USB connection lost — attempting automatic reconnection...",
+        "de": ">>> USB-Verbindung verloren — automatischer Wiederverbindungsversuch...",
+        "es": ">>> Conexión USB perdida — intentando reconectar automáticamente...",
+    },
+    "laser.reconnect_success": {
+        "fr": ">>> Reconnexion USB réussie.",
+        "en": ">>> USB reconnection successful.",
+        "de": ">>> USB-Wiederverbindung erfolgreich.",
+        "es": ">>> Reconexión USB exitosa.",
+    },
+    "laser.reconnect_success_title": {
+        "fr": "Connexion rétablie", "en": "Connection restored",
+        "de": "Verbindung wiederhergestellt", "es": "Conexión restablecida",
+    },
+    "laser.reconnect_success_body": {
+        "fr": "La liaison USB a été rétablie automatiquement.\n\nLe job a été arrêté par sécurité : la position de la machine n'est plus fiable après une coupure. Vérifie la position et refais un homing ($H) avant de relancer.",
+        "en": "The USB link was automatically restored.\n\nThe job was stopped for safety: the machine's position is no longer reliable after a disconnection. Check the position and re-home ($H) before restarting.",
+        "de": "Die USB-Verbindung wurde automatisch wiederhergestellt.\n\nDer Job wurde aus Sicherheitsgründen gestoppt: Die Maschinenposition ist nach einer Unterbrechung nicht mehr zuverlässig. Position prüfen und vor dem Neustart erneut referenzieren ($H).",
+        "es": "El enlace USB se restableció automáticamente.\n\nEl trabajo se detuvo por seguridad: la posición de la máquina ya no es fiable tras una desconexión. Verifica la posición y vuelve a hacer homing ($H) antes de reiniciar.",
+    },
+    "laser.reconnect_failed": {
+        "fr": ">>> Échec de la reconnexion USB automatique.",
+        "en": ">>> Automatic USB reconnection failed.",
+        "de": ">>> Automatische USB-Wiederverbindung fehlgeschlagen.",
+        "es": ">>> Falló la reconexión USB automática.",
+    },
+    "laser.reconnect_failed_title": {
+        "fr": "Reconnexion impossible", "en": "Reconnection failed",
+        "de": "Wiederverbindung nicht möglich", "es": "Reconexión imposible",
+    },
+    "laser.reconnect_failed_body": {
+        "fr": "Impossible de rétablir la connexion USB après plusieurs tentatives.\n\nVérifie le câble, le port, et reconnecte-toi manuellement.",
+        "en": "Could not restore the USB connection after several attempts.\n\nCheck the cable, the port, and reconnect manually.",
+        "de": "Die USB-Verbindung konnte nach mehreren Versuchen nicht wiederhergestellt werden.\n\nKabel und Port prüfen und manuell erneut verbinden.",
+        "es": "No se pudo restablecer la conexión USB tras varios intentos.\n\nRevisa el cable, el puerto, y reconéctate manualmente.",
     },
     "laser.connect_first": {
         "fr": "Connectez d'abord le laser.",
@@ -1735,6 +1797,10 @@ TRANSLATIONS = {
         "de": "AN DEN LASER SENDEN (USB)",
         "es": "ENVIAR AL LÁSER (USB)",
     },
+    "ui.repeat_last_job": {
+        "fr": "🔁 Répéter le dernier job", "en": "🔁 Repeat last job",
+        "de": "🔁 Letzten Job wiederholen", "es": "🔁 Repetir el último trabajo",
+    },
     "ui.direct_console_box": {
         "fr": "Console de Commandes Directes GRBL",
         "en": "GRBL Direct Commands Console",
@@ -2397,6 +2463,24 @@ TRANSLATIONS = {
         "en": "✕ Exit full screen (return to normal window)",
         "de": "✕ Vollbild schließen (zum normalen Fenster zurückkehren)",
         "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
+    },
+    "usb.driver_hint": {
+        "fr": "Port introuvable ? Installez le driver USB de votre contrôleur (le plus courant : CH340) : <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Sous Linux, aucun driver à installer, mais votre utilisateur doit être dans le groupe « dialout ».",
+        "en": "Port not showing up? Install your controller's USB driver (most common: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. On Linux no driver is needed, but your user must be in the \"dialout\" group.",
+        "de": "Port nicht gefunden? Installieren Sie den USB-Treiber Ihres Controllers (am häufigsten: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Unter Linux ist kein Treiber nötig, aber Ihr Benutzer muss in der Gruppe „dialout“ sein.",
+        "es": "¿No aparece el puerto? Instale el driver USB de su controlador (el más común: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. En Linux no hace falta driver, pero su usuario debe estar en el grupo «dialout».",
+    },
+    "ui.mat_lmm_auto_tooltip": {
+        "fr": "Repris automatiquement de l'onglet Image / Filtre",
+        "en": "Automatically taken from the Image / Filter tab",
+        "de": "Automatisch aus dem Tab Bild / Filter übernommen",
+        "es": "Tomado automáticamente de la pestaña Imagen / Filtro",
+    },
+    "ui.support_button_tooltip": {
+        "fr": "Soutenir le développement ☕",
+        "en": "Support development ☕",
+        "de": "Entwicklung unterstützen ☕",
+        "es": "Apoyar el desarrollo ☕",
     },
 }
 

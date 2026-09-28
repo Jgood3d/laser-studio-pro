@@ -112,6 +112,20 @@ class LayerManager:
     def remove_layer(self, layer_id):
         self.layers = [l for l in self.layers if l.id != layer_id]
 
+    def move_layer(self, layer_id, delta):
+        """Décale un calque de `delta` positions dans la liste (-1 = monter,
+        +1 = descendre). L'ordre de la liste est aussi l'ordre d'exécution
+        des calques dans le G-Code. Renvoie le nouvel index, ou None si le
+        calque est introuvable / déjà en butée."""
+        idx = next((i for i, l in enumerate(self.layers) if l.id == layer_id), None)
+        if idx is None:
+            return None
+        new_idx = idx + delta
+        if new_idx < 0 or new_idx >= len(self.layers):
+            return None
+        self.layers.insert(new_idx, self.layers.pop(idx))
+        return new_idx
+
     def get(self, layer_id):
         for l in self.layers:
             if l.id == layer_id:
@@ -151,8 +165,16 @@ class LayerManagerWidget(QWidget):
         btn_add.clicked.connect(self.on_add)
         btn_del = QPushButton("Supprimer Calque")
         btn_del.clicked.connect(self.on_remove)
+        btn_up = QPushButton("▲ Monter")
+        btn_up.setToolTip("Monter le calque sélectionné (exécuté plus tôt dans le G-Code)")
+        btn_up.clicked.connect(lambda: self.on_move(-1))
+        btn_down = QPushButton("▼ Descendre")
+        btn_down.setToolTip("Descendre le calque sélectionné (exécuté plus tard dans le G-Code)")
+        btn_down.clicked.connect(lambda: self.on_move(1))
         btn_row.addWidget(btn_add)
         btn_row.addWidget(btn_del)
+        btn_row.addWidget(btn_up)
+        btn_row.addWidget(btn_down)
         btn_row.addStretch()
         layout.addLayout(btn_row)
 
@@ -354,6 +376,20 @@ class LayerManagerWidget(QWidget):
         layer = self.mgr.layers[row]
         self.mgr.remove_layer(layer.id)
         self.refresh()
+        self.layers_changed.emit()
+
+    def on_move(self, delta):
+        """Monte (-1) ou descend (+1) le calque sélectionné, puis garde la
+        ligne déplacée sélectionnée pour pouvoir enchaîner les clics."""
+        row = self.table.currentRow()
+        if row < 0 or row >= len(self.mgr.layers):
+            return
+        new_row = self.mgr.move_layer(self.mgr.layers[row].id, delta)
+        if new_row is None:
+            return
+        self.refresh()
+        self.table.setCurrentCell(new_row, 1)
+        self.table.selectRow(new_row)
         self.layers_changed.emit()
 
     def current_layer_id(self):
@@ -1001,12 +1037,20 @@ class VectorCanvasView(QGraphicsView):
             if isinstance(item_at, VectorGraphicsItem):
                 modifiers = event.modifiers()
 
-                # Si l'objet cliqué ne fait pas déjà partie de la sélection,
-                # il devient l'unique objet sélectionné, sauf avec Ctrl.
-                if (
-                    not item_at.isSelected()
-                    and not (modifiers & Qt.KeyboardModifier.ControlModifier)
-                ):
+                if modifiers & Qt.KeyboardModifier.ControlModifier:
+                    # Ctrl + clic : ajoute l'objet à la sélection (ou le
+                    # retire s'il en faisait déjà partie), sans toucher au
+                    # reste de la sélection.
+                    new_state = not item_at.isSelected()
+                    item_at.setSelected(new_state)
+                    if not new_state:
+                        # Objet désélectionné : simple bascule, pas de
+                        # déplacement groupé à démarrer.
+                        event.accept()
+                        return
+                elif not item_at.isSelected():
+                    # Sans Ctrl : si l'objet cliqué ne fait pas déjà partie
+                    # de la sélection, il devient l'unique objet sélectionné.
                     self.scene_obj.clearSelection()
                     item_at.setSelected(True)
 
@@ -1116,6 +1160,49 @@ class VectorCanvasView(QGraphicsView):
                 new_items.append(self.add_object(clone))
         return new_items
 
+    def group_selected(self):
+        """Regroupe les objets sélectionnés (Ctrl+clic, rectangle ou Ctrl+A)
+        en UN SEUL objet tracé (SvgPathObject) : la géométrie de chaque
+        partie est reprise telle qu'elle est actuellement positionnée sur
+        le canevas (position, rotation, miroir, taille), puis fusionnée.
+        Le nouvel objet se déplace / se redimensionne / change de calque
+        comme un tout. Le calque retenu est celui de l'objet le plus ancien
+        de la sélection. Annulable avec Ctrl+Z. Renvoie le nouvel item, ou
+        None si moins de 2 objets sont sélectionnés."""
+        items = self.selected_items_vector()
+        if len(items) < 2:
+            return None
+        order = {id(o): i for i, o in enumerate(self.objects)}
+        items.sort(key=lambda it: order.get(id(it.obj), 0))
+
+        combined = QPainterPath()
+        for it in items:
+            combined.addPath(it.obj.world_path())
+        bbox = combined.boundingRect()
+        if bbox.isNull():
+            return None
+
+        self.push_undo_snapshot()
+
+        # Repère monde (origine bas-gauche, Y vers le haut) -> repère local
+        # d'un SvgPathObject (ancré sur le coin bas-gauche de la boîte
+        # englobante, Y vers le bas), comme dans extract_svg_objects.
+        x0, y0 = bbox.left(), bbox.top()
+        to_local = QTransform(1, 0, 0, -1, -x0, y0)
+        local = to_local.map(combined)
+
+        group_obj = SvgPathObject(
+            local_path_data=local, source_tag="group",
+            layer_id=items[0].obj.layer_id, x_mm=x0, y_mm=y0,
+        )
+
+        for it in items:
+            self.objects.remove(it.obj)
+            self.scene_obj.removeItem(it)
+        new_item = self.add_object(group_obj)
+        new_item.setSelected(True)
+        return new_item
+
     def refresh_all(self):
         for item in self.scene_obj.items():
             if isinstance(item, VectorGraphicsItem):
@@ -1181,6 +1268,10 @@ class VectorCanvasView(QGraphicsView):
             return
         if event.matches(QKeySequence.StandardKey.Paste):
             self.paste_clipboard()
+            event.accept()
+            return
+        if event.key() == Qt.Key.Key_G and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            self.group_selected()
             event.accept()
             return
         if event.key() == Qt.Key.Key_D and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
@@ -1296,6 +1387,10 @@ class VectorCanvasView(QGraphicsView):
 
         resize_action = menu.addAction(f"Redimensionner{label_suffix}…")
         resize_action.triggered.connect(lambda: self._bulk_resize(selected))
+
+        if n >= 2:
+            group_action = menu.addAction(f"Regrouper en un seul objet ({n} objets)")
+            group_action.triggered.connect(self.group_selected)
 
         menu.addSeparator()
         rotate_action = menu.addAction("↻ Pivoter 90°")
@@ -1675,10 +1770,53 @@ class ShapeInsertDialog(QDialog):
 # 5) EXTRACTION GEOMETRIQUE (thread-safe) + GENERATION G-CODE PAR CALQUE
 # ============================================================================
 
-def extract_vector_layer_data(objects, layer_manager: LayerManager):
+def _optimize_polygon_order(polygons):
+    """Réordonne une liste de polygones par plus proche voisin (glouton) en
+    partant du premier tracé : à chaque étape, choisit le polygone restant
+    dont le point de départ est le plus proche du dernier point du tracé
+    précédent. Ne change JAMAIS la géométrie elle-même, seulement l'ordre
+    de passage — réduit les déplacements G0 entre les tracés d'un même
+    calque (Découpe/Marquage), qui suivaient sinon l'ordre de création/
+    import des objets, souvent loin d'être optimal.
+
+    Plafonné en pratique par l'appelant (voir extract_vector_layer_data) :
+    algorithme glouton en O(n²), appelé dans le thread principal Qt — pas
+    de coût significatif pour un nombre raisonnable de tracés, mais à
+    éviter sur des milliers d'objets."""
+    if len(polygons) < 2:
+        return polygons
+    remaining = list(polygons)
+    ordered = [remaining.pop(0)]
+    current_end = ordered[-1][-1]
+    while remaining:
+        best_idx = min(
+            range(len(remaining)),
+            key=lambda i: (remaining[i][0][0] - current_end[0]) ** 2
+                        + (remaining[i][0][1] - current_end[1]) ** 2
+        )
+        nxt = remaining.pop(best_idx)
+        ordered.append(nxt)
+        current_end = nxt[-1]
+    return ordered
+
+
+# Au-delà de ce nombre de tracés dans un même calque, l'optimisation
+# glouton (O(n²)) est sautée pour ce calque — évite de bloquer l'UI
+# plusieurs secondes sur un design très complexe (des milliers d'objets),
+# puisque extract_vector_layer_data s'exécute dans le thread principal Qt.
+MAX_POLYGONS_FOR_PATH_OPTIMIZATION = 1500
+
+
+def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_path=True):
     """À appeler dans le thread principal (Qt). Convertit chaque VectorObject en
     polygones purement numériques (mm), groupés par calque. Aucun objet Qt
     n'est conservé ensuite -> peut être passé sans risque à un QThread.
+
+    optimize_path (défaut True) : réordonne les tracés de chaque calque par
+    plus proche voisin pour réduire les déplacements G0 (voir
+    _optimize_polygon_order) — sans effet sur les calques en mode 'Gravure
+    Remplie' (balayage scanline sur toute la zone, l'ordre des tracés n'y
+    change rien au trajet réel).
     """
     layers_data = {}
     for layer in layer_manager.layers:
@@ -1698,6 +1836,14 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager):
                 poly_points.append(pts)
         if poly_points:
             layers_data[obj.layer_id]["polygons"].extend(poly_points)
+
+    if optimize_path:
+        for layer_id, data in layers_data.items():
+            if data["layer"].get("mode") == "Gravure Remplie":
+                continue  # balayage scanline : l'ordre des tracés n'a pas d'effet
+            polys = data["polygons"]
+            if 1 < len(polys) <= MAX_POLYGONS_FOR_PATH_OPTIMIZATION:
+                data["polygons"] = _optimize_polygon_order(polys)
 
     return layers_data
 

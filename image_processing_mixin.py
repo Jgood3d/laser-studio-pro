@@ -90,6 +90,14 @@ class ImageProcessingMixin:
         if hasattr(self, "layer_widget"):
             self.layer_widget.refresh_focal_quality()
 
+    def _sync_matrix_lmm_from_image(self):
+        """Reporte automatiquement le lignes/mm de l'onglet Image / Filtre
+        (self.spin_lmm) dans la Matrice de Test gravure (self.spin_mat_lmm),
+        pour que le test soit fait avec exactement la même densité de lignes
+        que la gravure réelle."""
+        if hasattr(self, "spin_mat_lmm") and hasattr(self, "spin_lmm"):
+            self.spin_mat_lmm.setValue(self.spin_lmm.value())
+
     def _update_resolution_quality(self):
         """Pastille indiquant si l'écart de lignes actuellement réglé est
         bien adapté à la taille du spot laser configurée, quel que soit le
@@ -101,6 +109,10 @@ class ImageProcessingMixin:
           - 1.25x - 2.25x   : zone recommandée
           - > 2.25x         : grossier mais correct
         """
+        # Appelée après chaque changement de lignes/mm (saisie, DPI, focale,
+        # restauration au démarrage) : point central pour garder la matrice
+        # de test synchronisée.
+        self._sync_matrix_lmm_from_image()
         if not hasattr(self, "lbl_resolution_quality") or not hasattr(self, "spin_machine_focal"):
             return
         focal = self.spin_machine_focal.value()
@@ -110,6 +122,12 @@ class ImageProcessingMixin:
             return
         spacing = 1.0 / lmm
         ratio = spacing / focal
+        if ratio >= 0.9:
+            # Écart correct ou recommandé : rien à signaler, on n'affiche
+            # pas la ligne (elle ne sert qu'à prévenir d'un réglage trop
+            # fin — risque de surgravure / brûlure).
+            self.lbl_resolution_quality.setText("")
+            return
         if ratio < 0.6:
             text, color = tr("image.quality_too_fine"), "#e05656"
         elif ratio < 0.9:
@@ -267,7 +285,85 @@ class ImageProcessingMixin:
             qimg = QImage(img.tobytes(), img.width, img.height, img.width, QImage.Format.Format_Grayscale8)
             self.view_preview_src.set_image(qimg)
 
+    def _capture_image_settings_snapshot(self):
+        """État des réglages de tramage proprement dits (pas les dimensions
+        ni la résolution, qui ont leur propre logique ailleurs) — utilisé
+        pour l'undo/redo dédié de cet onglet."""
+        return {
+            "bright": self.slider_bright.value(),
+            "contrast": self.slider_contrast.value(),
+            "gamma": self.slider_gamma.value(),
+            "invert": self.chk_invert.isChecked(),
+            "mirror_h": self.chk_mirror_h.isChecked(),
+            "mirror_v": self.chk_mirror_v.isChecked(),
+            "algo": self.combo_algo.currentText(),
+        }
+
+    def _restore_image_settings_snapshot(self, snap):
+        for slider, key in (
+            (self.slider_bright, "bright"),
+            (self.slider_contrast, "contrast"),
+            (self.slider_gamma, "gamma"),
+        ):
+            slider.blockSignals(True)
+            slider.setValue(snap[key])
+            slider.blockSignals(False)
+        for chk, key in (
+            (self.chk_invert, "invert"),
+            (self.chk_mirror_h, "mirror_h"),
+            (self.chk_mirror_v, "mirror_v"),
+        ):
+            chk.blockSignals(True)
+            chk.setChecked(snap[key])
+            chk.blockSignals(False)
+        self.combo_algo.blockSignals(True)
+        self.combo_algo.setCurrentText(snap["algo"])
+        self.combo_algo.blockSignals(False)
+        self._img_last_known_settings = snap
+        self.update_image_processing()
+
+    def _push_image_undo_if_changed(self):
+        """Appelé par update_image_processing (point d'entrée commun à TOUS
+        les contrôles de tramage) : empile l'état précédent dès qu'il
+        diffère du dernier connu. Les changements rapprochés dans le temps
+        (glissement continu d'un slider) sont regroupés en une seule étape
+        d'annulation — sinon défaire un glissement de slider demanderait
+        des dizaines de Ctrl+Z."""
+        current = self._capture_image_settings_snapshot()
+        last = getattr(self, "_img_last_known_settings", None)
+        if last is not None and last != current:
+            import time
+            now = time.time()
+            if now - self._img_last_undo_push_time > 0.6 or not self._img_undo_stack:
+                self._img_undo_stack.append(last)
+                if len(self._img_undo_stack) > 30:
+                    self._img_undo_stack.pop(0)
+                self._img_redo_stack.clear()
+            self._img_last_undo_push_time = now
+        self._img_last_known_settings = current
+
+    def undo_image_settings(self):
+        if not self._img_undo_stack:
+            return
+        current = self._capture_image_settings_snapshot()
+        previous = self._img_undo_stack.pop()
+        self._img_redo_stack.append(current)
+        if len(self._img_redo_stack) > 30:
+            self._img_redo_stack.pop(0)
+        self._restore_image_settings_snapshot(previous)
+
+    def redo_image_settings(self):
+        if not self._img_redo_stack:
+            return
+        current = self._capture_image_settings_snapshot()
+        nxt = self._img_redo_stack.pop()
+        self._img_undo_stack.append(current)
+        if len(self._img_undo_stack) > 30:
+            self._img_undo_stack.pop(0)
+        self._restore_image_settings_snapshot(nxt)
+
     def update_image_processing(self, *args):
+        self._push_image_undo_if_changed()
         self.process_timer.start(150)
 
     def _do_update_image_processing(self):

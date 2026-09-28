@@ -1,7 +1,7 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
-from PyQt6.QtCore import Qt, QSettings
-from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent
+from PyQt6.QtCore import Qt, QSettings, QSize, QUrl
+from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor
 import pyqtgraph as pg
 from PIL import Image
 import os
@@ -14,10 +14,38 @@ from app_utils import get_bundle_dir
 from app_utils import find_resource
 from app_utils import APP_VERSION
 from i18n import tr, SUPPORTED_LANGUAGES, get_current_language, set_language
-from widgets_extra import HistoryLineEdit
+from widgets_extra import HistoryLineEdit, AutoHideLabel
+
+# Lien de soutien affiché en discret dans l'aperçu 2D (voir
+# _build_support_button) — un seul endroit à modifier si l'URL change.
+SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
 
 
 class UiSetupMixin:
+    def _build_support_button(self, icon_size=40, button_size=44):
+        """Petit bouton rond, discret (icône seule, fond transparent, léger
+        surlignage au survol) qui ouvre la page de soutien (Ko-fi) dans le
+        navigateur par défaut."""
+        btn = QPushButton()
+        btn.setFlat(True)
+        btn.setFixedSize(button_size, button_size)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setToolTip(tr("ui.support_button_tooltip"))
+        btn.setStyleSheet(
+            "QPushButton { border: none; border-radius: %dpx; background-color: transparent; }"
+            "QPushButton:hover { background-color: rgba(255, 221, 0, 45); }"
+            % (button_size // 2)
+        )
+        icon_path = find_resource("buy_me_a_coffee.png")
+        if icon_path:
+            btn.setIcon(QIcon(icon_path))
+            btn.setIconSize(QSize(icon_size, icon_size))
+        else:
+            # Repli si l'image n'est pas trouvée : un symbole reste visible.
+            btn.setText("☕")
+        btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(SUPPORT_LINK_URL)))
+        return btn
+
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
@@ -546,6 +574,19 @@ class UiSetupMixin:
 
         btn_reset_img = QPushButton(tr("img.reset"))
         btn_reset_img.clicked.connect(self.reset_image_settings)
+        btn_undo_img = QPushButton(tr("ui.img_undo"))
+        btn_undo_img.clicked.connect(self.undo_image_settings)
+        btn_redo_img = QPushButton(tr("ui.img_redo"))
+        btn_redo_img.clicked.connect(self.redo_image_settings)
+        # Raccourcis Ctrl+Z / Ctrl+Y scopés à cet onglet (WidgetWithChildrenShortcut) :
+        # ne s'activent que quand le focus est dans Image & Filtres, sans jamais
+        # entrer en conflit avec l'undo/redo propre à l'Éditeur Vectoriel.
+        shortcut_undo_img = QShortcut(QKeySequence.StandardKey.Undo, tab_img)
+        shortcut_undo_img.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        shortcut_undo_img.activated.connect(self.undo_image_settings)
+        shortcut_redo_img = QShortcut(QKeySequence.StandardKey.Redo, tab_img)
+        shortcut_redo_img.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        shortcut_redo_img.activated.connect(self.redo_image_settings)
 
         self.combo_algo = QComboBox()
         self.combo_algo.addItems([
@@ -613,7 +654,7 @@ class UiSetupMixin:
         # Indicateur de qualité (toujours visible, quel que soit le mode
         # choisi), comparant l'écart de lignes réellement utilisé à la
         # focale configurée dans les Paramètres Machine.
-        self.lbl_resolution_quality = QLabel()
+        self.lbl_resolution_quality = AutoHideLabel()
         self.lbl_resolution_quality.setWordWrap(True)
 
         layout_img.addRow(tr("img.brightness"), self.create_slider_with_buttons(self.slider_bright, step=5))
@@ -622,6 +663,10 @@ class UiSetupMixin:
             self.slider_gamma, step=10, value_formatter=lambda v: f"{v / 100.0:.2f}"
         ))
         layout_img.addRow("", self.chk_invert)
+        undo_redo_img_row = QHBoxLayout()
+        undo_redo_img_row.addWidget(btn_undo_img)
+        undo_redo_img_row.addWidget(btn_redo_img)
+        layout_img.addRow("", undo_redo_img_row)
         layout_img.addRow("", btn_reset_img)
         layout_img.addRow(tr("img.algorithm"), self.combo_algo)
         layout_img.addRow(tr("img.resolution"), self.combo_lmm_mode)
@@ -683,6 +728,18 @@ class UiSetupMixin:
         usb_layout.addRow(tr("usb.port"), self.combo_ports)
         usb_layout.addRow("", btn_refresh)
         usb_layout.addRow("", self.btn_connect)
+        # Suggestion discrète d'installer le driver USB-série du contrôleur
+        # (CH340 / CP210x / FTDI) : cause n°1 d'un port COM qui n'apparaît
+        # pas dans la liste ci-dessus.
+        lbl_driver_hint = QLabel(tr("usb.driver_hint"))
+        lbl_driver_hint.setTextFormat(Qt.TextFormat.RichText)
+        lbl_driver_hint.setOpenExternalLinks(True)
+        lbl_driver_hint.setWordWrap(True)
+        lbl_driver_hint.setStyleSheet("color: #888888;")
+        hint_palette = lbl_driver_hint.palette()
+        hint_palette.setColor(QPalette.ColorRole.Link, QColor("#5aa9ff"))
+        lbl_driver_hint.setPalette(hint_palette)
+        usb_layout.addRow(lbl_driver_hint)
         usb_box.setLayout(usb_layout)
         layout_mach.addWidget(usb_box)
 
@@ -744,7 +801,11 @@ class UiSetupMixin:
         self.spin_mat_size = QDoubleSpinBox(); self.spin_mat_size.setRange(2.0, 50.0); self.spin_mat_size.setValue(10.0)
         self.spin_mat_gap = QDoubleSpinBox(); self.spin_mat_gap.setRange(0.5, 20.0); self.spin_mat_gap.setValue(3.0)
         
-        self.spin_mat_lmm = QDoubleSpinBox(); self.spin_mat_lmm.setRange(1.0, 50.0); self.spin_mat_lmm.setValue(5.0)
+        self.spin_mat_lmm = QDoubleSpinBox(); self.spin_mat_lmm.setRange(1.0, 50.0); self.spin_mat_lmm.setValue(self.spin_lmm.value())
+        # Valeur reprise automatiquement de l'onglet Image / Filtre (voir
+        # _sync_matrix_lmm_from_image) : affichée mais non modifiable ici.
+        self.spin_mat_lmm.setEnabled(False)
+        self.spin_mat_lmm.setToolTip(tr("ui.mat_lmm_auto_tooltip"))
 
         self.combo_mat_laser_cmd = QComboBox()
         self.combo_mat_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
@@ -759,6 +820,10 @@ class UiSetupMixin:
         self.form_matrix.addRow(tr("ui.test_mode"), self.combo_mat_mode)
         self.form_matrix.addRow(tr("ui.mat_offset_x"), self.spin_mat_off_x)
         self.form_matrix.addRow(tr("ui.mat_offset_y"), self.spin_mat_off_y)
+        # Ligne manquante : spin_mat_min_p existait (et son libellé bascule via
+        # on_mat_mode_changed entre "Puissance Min" en Gravure et "Puissance
+        # Unique" en Découpe) mais n'était jamais inséré dans le formulaire.
+        self.form_matrix.addRow(self.lbl_mat_p1, self.spin_mat_min_p)
         self.form_matrix.addRow(tr("ui.mat_max_power"), self.spin_mat_max_p)
         self.form_matrix.addRow(tr("ui.mat_power_step"), self.spin_mat_steps_p)
         self.form_matrix.addRow(tr("ui.mat_min_passes"), self.spin_mat_min_passes)
@@ -948,7 +1013,7 @@ class UiSetupMixin:
         left_bottom_layout.addWidget(btn_generate)
 
         gen_progress_row_main = QHBoxLayout()
-        self.lbl_gen_progress_main = QLabel("")
+        self.lbl_gen_progress_main = AutoHideLabel("")
         self.gen_progress_bar_main = QProgressBar()
         self.gen_progress_bar_main.setRange(0, 100)
         self.gen_progress_bar_main.setValue(0)
@@ -981,6 +1046,15 @@ class UiSetupMixin:
             self.on_flip_raster_preview_changed
         )
         left_bottom_layout.addWidget(self.chk_hide_rapid_moves)
+
+        self.chk_optimize_path = QCheckBox(tr("ui.optimize_path"))
+        # Coché par défaut : réduit les déplacements G0 entre les tracés
+        # d'un même calque sans jamais changer la géométrie gravée — aucune
+        # raison de le décocher sauf design ne comportant que des centaines
+        # d'objets (voir MAX_POLYGONS_FOR_PATH_OPTIMIZATION), auquel cas
+        # c'est sauté automatiquement de toute façon.
+        self.chk_optimize_path.setChecked(True)
+        left_bottom_layout.addWidget(self.chk_optimize_path)
         
         self._last_gcode_text = None
 
@@ -1125,7 +1199,7 @@ class UiSetupMixin:
         layout_vector_editor.addWidget(align_box)
 
         gen_progress_row_vector = QHBoxLayout()
-        self.lbl_gen_progress_vector = QLabel("")
+        self.lbl_gen_progress_vector = AutoHideLabel("")
         self.gen_progress_bar_vector = QProgressBar()
         self.gen_progress_bar_vector.setRange(0, 100)
         self.gen_progress_bar_vector.setValue(0)
@@ -1183,6 +1257,8 @@ class UiSetupMixin:
 
         toolbar_vector_2d = QHBoxLayout()
         toolbar_vector_2d.addStretch()
+        toolbar_vector_2d.addWidget(self._build_support_button())
+        toolbar_vector_2d.addSpacing(6)
         btn_fullscreen_vector_2d = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector_2d.clicked.connect(
             lambda: self._toggle_fullscreen_tab("tab_vector_2d", "ui.tab_2d_preview")
@@ -1278,7 +1354,7 @@ class UiSetupMixin:
         self.spin_jog_speed.setValue(3000)
 
         btn_homing_now = QPushButton(tr("ui.homing_cmd"))
-        btn_homing_now.clicked.connect(lambda: self.send_manual_direct_cmd("$H"))
+        btn_homing_now.clicked.connect(self.send_homing)
 
         btn_zero_xy = QPushButton(tr("ui.zero_work"))
         btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
@@ -1309,6 +1385,10 @@ class UiSetupMixin:
         self.btn_send.setStyleSheet("background-color: #2980b9; color: white; font-weight: bold;")
         self.btn_send.clicked.connect(self.send_to_laser)
 
+        self.btn_repeat_last_job = QPushButton(tr("ui.repeat_last_job"))
+        self.btn_repeat_last_job.clicked.connect(self.repeat_last_job)
+        self.btn_repeat_last_job.setEnabled(False)
+
         jog_layout.addWidget(btn_up_left, 0, 0)
         jog_layout.addWidget(btn_up, 0, 1)
         jog_layout.addWidget(btn_up_right, 0, 2)
@@ -1333,6 +1413,7 @@ class UiSetupMixin:
         jog_layout.addWidget(btn_kill, 3, 3)
         jog_layout.addWidget(btn_frame, 4, 0)
         jog_layout.addWidget(self.btn_send, 4, 1, 1, 4)
+        jog_layout.addWidget(self.btn_repeat_last_job, 5, 1, 1, 4)
 
         jog_box.setLayout(jog_layout)
         center_bottom_layout.addWidget(jog_box)
@@ -1423,7 +1504,7 @@ class UiSetupMixin:
         layout_console_gcode.addWidget(self.txt_console)
 
         gen_progress_row = QHBoxLayout()
-        self.lbl_gen_progress = QLabel("")
+        self.lbl_gen_progress = AutoHideLabel("")
         self.gen_progress_bar = QProgressBar()
         self.gen_progress_bar.setRange(0, 100)
         self.gen_progress_bar.setValue(0)
