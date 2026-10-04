@@ -160,6 +160,16 @@
   .spot-text > p{ color:var(--text-dim); font-size:15px; }
   .spot-text .badge{ margin-bottom:14px; }
 
+  .frame-img.square{ aspect-ratio:1/1; }
+  .frame-img.square img{ object-position:center; }
+  .results-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+  dl.specs{
+    display:grid; grid-template-columns:max-content 1fr; gap:6px 18px; margin-top:28px;
+    padding:18px 22px; background:var(--bg-raised); border:1px solid var(--line); font-size:14px;
+  }
+  dl.specs dt{ color:var(--text-dim); }
+  dl.specs dd{ color:var(--text); }
+
   .gallery-sub{ font-size:18px; margin:8px 0 24px; }
   .gallery{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
 
@@ -195,10 +205,12 @@
     .spot{ grid-template-columns:1fr; gap:24px; margin-bottom:56px; }
     .spot.reverse .frame{ order:0; }
     .gallery{ grid-template-columns:1fr 1fr; }
+    .results-grid{ grid-template-columns:1fr 1fr; }
   }
   @media (max-width:720px){
     .grid{ grid-template-columns:1fr; }
     .gallery{ grid-template-columns:1fr; }
+    .results-grid{ grid-template-columns:1fr; }
     .steps{ grid-template-columns:repeat(2,1fr); }
     .hero h1{ font-size:32px; }
     nav.links{ display:none; }
@@ -212,6 +224,7 @@
     <div class="brand">LASER<span>_</span>STUDIO<span>_</span>PRO</div>
     <nav class="links">
       <a href="#news">Nouveautés</a>
+      <a href="#results">Réalisations</a>
       <a href="#features">Fonctionnalités</a>
       <a href="#gallery">En images</a>
       <a href="#howto">Utilisation</a>
@@ -237,7 +250,7 @@
     </p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener">Télécharger la dernière version</a>
-      <a class="btn btn-ghost" href="#gallery">Voir le logiciel en images</a>
+      <a class="btn btn-ghost" href="#results">Voir des réalisations</a>
     </div>
     <p class="hero-note">Pour Windows et Linux, avec une interface en français, anglais, allemand et espagnol.</p>
   </div>
@@ -285,6 +298,80 @@
     <p class="news-more">
       Le détail complet et les versions précédentes sont dans le
       <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
+    </p>
+  </div>
+</section>
+
+<section id="results">
+  <div class="wrap">
+    <h2>Réalisations</h2>
+    <p class="section-lead">
+      Une photo en couleur sur du verre peint en noir : le logiciel prépare le calque à graver
+      et le calque couleur à imprimer, la lumière placée derrière fait le reste.
+    </p>
+
+    <div class="results-grid">
+      <figure class="frame">
+        <div class="frame-bar"><span>Étape 1</span><span>Calque noir gravé</span></div>
+        <div class="frame-img square">
+          <img src="result-black-layer.jpg" alt="Photo de figurines gravée en niveaux de gris sur du verre peint en noir" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Le calque noir est gravé sur le verre peint</h3>
+          <p>Le laser retire la peinture là où la lumière doit passer. La gravure est faite en miroir : elle se lit à l'endroit à travers le verre.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="frame">
+        <div class="frame-bar"><span>Étape 2</span><span>Calque couleur imprimé</span></div>
+        <div class="frame-img square">
+          <img src="result-color-layer.jpg" alt="Calque couleur imprimé sur papier : la même photo aux couleurs vives" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Le calque couleur est imprimé à l'échelle 1:1</h3>
+          <p>Le logiciel exporte un PDF A4 à l'échelle réelle, avec des repères de coin, à imprimer puis à placer derrière le verre.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="frame">
+        <div class="frame-bar"><span>Étape 3</span><span>Rétro-éclairé</span></div>
+        <div class="frame-img square">
+          <img src="result-backlit.jpg" alt="Verre gravé avec le calque couleur derrière, rétro-éclairé : la photo apparaît en couleurs chaudes" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Les deux assemblés, avec la lumière derrière</h3>
+          <p>Le noir gravé laisse passer la lumière, le calque couleur la teinte : la photo apparaît en couleur.</p>
+        </figcaption>
+      </figure>
+
+      <figure class="frame">
+        <div class="frame-bar"><span>Même pièce</span><span>Lumière ambiante</span></div>
+        <div class="frame-img square">
+          <img src="result-ambient.jpg" alt="Le même assemblage en lumière ambiante, aux couleurs plus pastel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Sans lumière derrière, un rendu plus doux</h3>
+          <p>Le rendu change avec l'éclairage : plus pastel en lumière de pièce, plus saturé quand on rétro-éclaire.</p>
+        </figcaption>
+      </figure>
+    </div>
+
+    <!--
+      Fiche technique : à décommenter une fois remplie. Les réglages réels intéressent
+      beaucoup les visiteurs. Remplace les valeurs entre crochets.
+
+    <dl class="specs">
+      <dt>Matière</dt><dd>[verre peint en noir, épaisseur ...]</dd>
+      <dt>Taille gravée</dt><dd>[... x ... mm]</dd>
+      <dt>Machine</dt><dd>[modèle, puissance du laser]</dd>
+      <dt>Réglages</dt><dd>[puissance ... %, vitesse ... mm/min, ... lignes/mm]</dd>
+      <dt>Tramage</dt><dd>[algorithme utilisé]</dd>
+    </dl>
+    -->
+
+    <p class="news-more">
+      Ces pièces sont préparées avec l'onglet <a href="#gallery">Séparation Couleur / Verre</a>
+      du logiciel.
     </p>
   </div>
 </section>
