@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Laser Studio Pro — Logiciel gratuit de pilotage laser/CNC GRBL</title>
+<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Gravure d'image, découpe vectorielle, séparation couleur/verre, calques par machine, aperçu 2D du G-Code. Windows et Linux.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Laser Studio Pro — pilotage laser/CNC GRBL">
+<meta property="og:description" content="Du fichier SVG ou de l'image jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit.">
+<!-- À remplacer par l'URL complète de l'image sur ton site (https://...) pour l'aperçu des liens partagés -->
+<meta property="og:image" content="laser_studio_pro_banner.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -31,19 +37,22 @@
   h1,h2,h3, .mono{ font-family:'JetBrains Mono', monospace; }
   a{color:inherit;}
   img{max-width:100%; display:block;}
+  :focus-visible{ outline:2px solid var(--ember); outline-offset:3px; }
+  @media (prefers-reduced-motion:reduce){ html{ scroll-behavior:auto; } }
 
   .wrap{ max-width:1080px; margin:0 auto; padding:0 32px; }
 
   /* ---------- header ---------- */
   header{
     position:sticky; top:0; z-index:10;
-    background:rgba(20,18,15,0.9); backdrop-filter:blur(6px);
+    background:rgba(17,20,24,0.92); backdrop-filter:blur(6px);
     border-bottom:1px solid var(--line);
   }
   .nav{ display:flex; align-items:center; justify-content:space-between; padding:16px 0; }
   .brand{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:16px; letter-spacing:0.02em; }
   .brand span{ color:var(--ember); }
   nav.links{ display:flex; gap:28px; font-size:14px; color:var(--text-dim); }
+  nav.links a{ text-decoration:none; }
   nav.links a:hover{ color:var(--text); }
   .btn{
     display:inline-flex; align-items:center; gap:8px;
@@ -81,28 +90,87 @@
     margin-top:22px; max-width:560px; color:var(--text-dim); font-size:17px;
   }
   .hero-cta{ display:flex; gap:14px; margin-top:34px; flex-wrap:wrap; }
+  .hero-note{ margin-top:18px; font-size:13px; color:var(--text-dim); max-width:560px; }
+  .version-pill{
+    display:inline-block; margin-bottom:22px; padding:6px 12px;
+    border:1px solid var(--ember); color:var(--steel);
+    font-size:13px; text-decoration:none; border-radius:2px;
+  }
+  .version-pill b{ color:var(--ember); }
+  .version-pill:hover{ background:var(--ember-dim); }
 
   /* ---------- section shared ---------- */
   section{ padding:72px 0; border-bottom:1px solid var(--line); }
   section h2{ font-size:26px; margin-bottom:12px; }
   section .section-lead{ color:var(--text-dim); max-width:600px; margin-bottom:40px; font-size:15px; }
 
+  /* ---------- badges (sentence case) ---------- */
+  .badge{
+    display:inline-block; font-family:'JetBrains Mono',monospace; font-size:12px; line-height:1;
+    padding:4px 8px; border-radius:2px; border:1px solid var(--steel); color:var(--steel);
+  }
+  .badge-new{ background:var(--ember); border-color:var(--ember); color:#04202c; font-weight:700; }
+
+  /* ---------- news ---------- */
+  .news-more{ margin-top:22px; font-size:14px; color:var(--text-dim); }
+  .news-more a{ color:var(--steel); }
+
   /* ---------- features ---------- */
   .grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
   .feature{ background:var(--bg); padding:28px 24px; }
   .feature .tag{ font-size:12px; color:var(--ember); margin-bottom:10px; }
+  .feature .badge{ margin-bottom:12px; }
   .feature h3{ font-size:17px; font-weight:600; font-family:'Inter',sans-serif; margin-bottom:8px; }
   .feature p{ color:var(--text-dim); font-size:14px; }
 
-  /* ---------- gallery ---------- */
-  .gallery{ display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
-  .shot{
-    aspect-ratio:16/10; background:var(--bg-raised); border:1px solid var(--line);
-    display:flex; align-items:center; justify-content:center;
-    color:var(--text-dim); font-size:13px; text-align:center;
-    overflow:hidden;
+  /* ---------- framed screenshots ---------- */
+  .frame{ background:var(--bg-raised); border:1px solid var(--line); margin:0; display:flex; flex-direction:column; }
+  .frame-bar{
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:9px 14px; border-bottom:1px solid var(--line);
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-dim);
   }
-  .shot img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+  .frame-img{
+    position:relative; aspect-ratio:16/10; background:#0b0e11; overflow:hidden; cursor:zoom-in;
+  }
+  .frame-img img{ width:100%; height:100%; object-fit:cover; object-position:top; }
+  .frame.no-img .frame-img{ cursor:default; }
+  .frame.no-img img{ display:none; }
+  .frame.no-img .frame-img::after{
+    content:"Capture à venir"; position:absolute; inset:0;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--text-dim); font-size:13px;
+  }
+  .frame-cap{ padding:20px 22px 24px; }
+  .frame-cap h3{ font-family:'Inter',sans-serif; font-size:16px; font-weight:600; margin-bottom:6px; }
+  .frame-cap > p{ font-size:14px; color:var(--text-dim); }
+
+  .points{ list-style:none; margin-top:14px; }
+  .points li{ position:relative; padding-left:18px; margin-top:8px; font-size:14px; color:var(--text-dim); }
+  .points li::before{ content:"›"; position:absolute; left:0; color:var(--ember); font-family:'JetBrains Mono',monospace; font-weight:700; }
+  .points li b{ color:var(--text); font-weight:600; }
+
+  /* grandes lignes : cadre + texte */
+  .spot{
+    display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);
+    gap:44px; align-items:center; margin-bottom:72px;
+  }
+  .spot.reverse .frame{ order:2; }
+  .spot-text h3{ font-family:'Inter',sans-serif; font-size:22px; font-weight:600; line-height:1.25; margin-bottom:10px; }
+  .spot-text > p{ color:var(--text-dim); font-size:15px; }
+  .spot-text .badge{ margin-bottom:14px; }
+
+  .gallery-sub{ font-size:18px; margin:8px 0 24px; }
+  .gallery{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+
+  /* agrandissement au clic */
+  dialog#lightbox{
+    background:var(--bg-raised); color:var(--text); border:1px solid var(--line);
+    padding:12px; max-width:min(1240px,94vw); max-height:94vh; margin:auto;
+  }
+  dialog#lightbox::backdrop{ background:rgba(0,0,0,0.85); }
+  dialog#lightbox img{ max-width:100%; max-height:78vh; width:auto; height:auto; margin:0 auto; }
+  dialog#lightbox p{ margin-top:10px; font-size:13px; color:var(--text-dim); text-align:center; }
 
   /* ---------- steps ---------- */
   .steps{ display:grid; grid-template-columns:repeat(4,1fr); gap:24px; }
@@ -114,14 +182,20 @@
   .get-it{ display:flex; justify-content:space-between; align-items:flex-end; gap:40px; flex-wrap:wrap; }
   .get-it .panel{
     background:var(--bg-raised); border:1px solid var(--line); padding:28px;
-    font-size:13px; color:var(--text-dim); max-width:420px;
+    font-size:13px; color:var(--text-dim); max-width:460px;
   }
   .get-it code{ color:var(--steel); }
   .get-it pre{ overflow-x:auto; margin:10px 0; }
 
   footer{ padding:36px 0; text-align:center; color:var(--text-dim); font-size:13px; }
   footer a{ color:var(--text); text-decoration:underline; }
+  footer p + p{ margin-top:8px; }
 
+  @media (max-width:900px){
+    .spot{ grid-template-columns:1fr; gap:24px; margin-bottom:56px; }
+    .spot.reverse .frame{ order:0; }
+    .gallery{ grid-template-columns:1fr 1fr; }
+  }
   @media (max-width:720px){
     .grid{ grid-template-columns:1fr; }
     .gallery{ grid-template-columns:1fr; }
@@ -137,8 +211,9 @@
   <div class="wrap nav">
     <div class="brand">LASER<span>_</span>STUDIO<span>_</span>PRO</div>
     <nav class="links">
+      <a href="#news">Nouveautés</a>
       <a href="#features">Fonctionnalités</a>
-      <a href="#gallery">Aperçu</a>
+      <a href="#gallery">En images</a>
       <a href="#howto">Utilisation</a>
       <a href="#get-it">Télécharger</a>
     </nav>
@@ -152,6 +227,7 @@
 
 <section class="hero">
   <div class="wrap">
+    <a class="version-pill mono" href="#news"><b>Version 2.2.0</b> — voir les nouveautés</a>
     <div class="kicker mono">LOGICIEL LIBRE — PILOTAGE LASER / CNC GRBL</div>
     <h1>Pilote ton laser de la découpe d'un fichier SVG à l'envoi du G-Code.</h1>
     <p class="lead">
@@ -161,8 +237,55 @@
     </p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener">Télécharger la dernière version</a>
-      <a class="btn btn-ghost" href="#features">Voir les fonctionnalités</a>
+      <a class="btn btn-ghost" href="#gallery">Voir le logiciel en images</a>
     </div>
+    <p class="hero-note">Pour Windows et Linux, avec une interface en français, anglais, allemand et espagnol.</p>
+  </div>
+</section>
+
+<section id="news">
+  <div class="wrap">
+    <h2>Nouveautés de la version 2.2.0</h2>
+    <p class="section-lead">
+      Publiée en octobre 2026. Tes projets, profils machine et files d'attente existants
+      se chargent normalement.
+    </p>
+    <div class="grid">
+      <div class="feature">
+        <span class="badge badge-new">Nouveau</span>
+        <h3>Matière : fond noir ou fond clair</h3>
+        <p>Un choix et le négatif se règle tout seul : aluminium anodisé, verre peint, ardoise (fond noir) ou bois, carton, cuir (fond clair). La matière est rappelée avant la gravure.</p>
+      </div>
+      <div class="feature">
+        <span class="badge badge-new">Nouveau</span>
+        <h3>Réglages des calques par machine</h3>
+        <p>Vitesse, puissance, passes… retrouvés à la réouverture, et propres à chaque profil machine.</p>
+      </div>
+      <div class="feature">
+        <span class="badge badge-new">Nouveau</span>
+        <h3>Séparation couleur / verre</h3>
+        <p>Calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage et PDF d'impression à l'échelle 1:1.</p>
+      </div>
+      <div class="feature">
+        <span class="badge">Corrigé</span>
+        <h3>Gravure d'image plus fidèle</h3>
+        <p>La puissance était appliquée au mauvais segment du G-Code : les zones à conserver et à graver sont maintenant respectées. Régénère tes anciens G-Codes d'image.</p>
+      </div>
+      <div class="feature">
+        <span class="badge">Fiabilité</span>
+        <h3>Reset et arrêt d'urgence plus sûrs</h3>
+        <p>Si la machine bougeait au moment du reset, un nouveau homing est demandé avant le job suivant.</p>
+      </div>
+      <div class="feature">
+        <span class="badge">Fiabilité</span>
+        <h3>Sauvegardes à l'épreuve des plantages</h3>
+        <p>Sauvegarde automatique, file d'attente et projet sont écrits de façon atomique : plus de fichier tronqué après une coupure.</p>
+      </div>
+    </div>
+    <p class="news-more">
+      Le détail complet et les versions précédentes sont dans le
+      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
+    </p>
   </div>
 </section>
 
@@ -207,15 +330,156 @@
 
 <section id="gallery">
   <div class="wrap">
-    <h2>Aperçu</h2>
+    <h2>Le logiciel en images</h2>
     <p class="section-lead">
-      Quelques captures d'écran du logiciel en action.
+      Les écrans qui comptent, avec ce qu'il faut retenir de chacun. Clique sur une capture pour l'agrandir.
     </p>
+
+    <!-- 1. Image & tramage -->
+    <article class="spot">
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Image &amp; Filtres</span><span class="badge badge-new">Nouveau : matière</span></div>
+        <div class="frame-img">
+          <img src="shot-image-filters.png" alt="Onglet Image et Filtres : réglages de tramage, sélecteur de matière et aperçu du rendu tramé" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3>Gravure d'image et tramage</h3>
+        <p>Compare les rendus avant de lancer la gravure, et règle le négatif d'un seul choix.</p>
+        <ul class="points">
+          <li><b>Luminosité, contraste, gamma</b> et plusieurs algorithmes de tramage.</li>
+          <li><b>Résolution liée au spot laser</b> : lignes/mm, DPI ou focale, avec un indicateur de qualité.</li>
+          <li><b>Sélecteur de matière</b> : fond noir ou fond clair, la case « Inverser Couleurs » suit.</li>
+          <li><b>Aperçu avant/après</b> pour choisir le meilleur rendu.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 2. Éditeur vectoriel & calques -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Éditeur Vectoriel</span><span class="badge badge-new">Nouveau : calques par machine</span></div>
+        <div class="frame-img">
+          <img src="shot-vector-editor.png" alt="Éditeur vectoriel avec la liste des calques, leurs réglages de puissance et de vitesse" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3>Éditeur vectoriel et calques</h3>
+        <p>Prépare une découpe ou une gravure vectorielle sans quitter le logiciel.</p>
+        <ul class="points">
+          <li><b>Import SVG, texte, rotation, miroir</b>, sélection multiple et regroupement (Ctrl+G).</li>
+          <li><b>Alignement, distribution</b> et accroche à la grille.</li>
+          <li><b>Calques réordonnables</b> : l'ordre de la liste est l'ordre d'exécution dans le G-Code.</li>
+          <li><b>Réglages mémorisés par machine</b> : vitesse, puissance, passes retrouvés à la réouverture.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 3. Séparation couleur / verre -->
+    <article class="spot">
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Séparation Couleur / Verre</span><span class="badge badge-new">Nouveau</span></div>
+        <div class="frame-img">
+          <img src="shot-separation.png" alt="Onglet Séparation couleur et verre : calque noir, calque couleur et simulation du rétro-éclairage" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3>Séparation couleur / verre</h3>
+        <p>Pour graver une photo en couleur sur du verre peint en noir, avec un calque couleur imprimé derrière.</p>
+        <ul class="points">
+          <li><b>Calque noir à graver</b>, réglable comme n'importe quelle image.</li>
+          <li><b>Calque couleur</b> à imprimer à la taille exacte de la plaque.</li>
+          <li><b>Simulation du rétro-éclairage</b> pour juger le résultat avant de graver.</li>
+          <li><b>PDF A4 à l'échelle 1:1</b> avec repères de coin pour l'impression.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 4. Aperçu 2D & pilotage -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Visualisation 2D G-Code</span></div>
+        <div class="frame-img">
+          <img src="shot-2d-preview.png" alt="Visualisation 2D du parcours G-Code avec la position de la machine en direct" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3>Aperçu 2D et pilotage</h3>
+        <p>Vérifie le parcours avant l'envoi, puis suis la machine en direct.</p>
+        <ul class="points">
+          <li><b>Aperçu 2D du G-Code</b> : gravure, découpe et déplacements rapides bien distincts.</li>
+          <li><b>Position X/Y/Z et état GRBL en direct</b>, pendant le jog comme pendant un job.</li>
+          <li><b>File d'attente persistante</b> : glisse-dépose pour réordonner, reprise après fermeture.</li>
+          <li><b>Pause, Reset et Arrêt d'urgence</b> toujours accessibles pendant un job.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!--
+      Avant/après : à décommenter quand tu as une belle photo de gravure réussie
+      (rendu du logiciel à gauche, photo de la gravure à droite).
+
+    <h3 class="gallery-sub">Du logiciel à la gravure</h3>
+    <div class="gallery" style="grid-template-columns:1fr 1fr; margin-bottom:72px;">
+      <figure class="frame">
+        <div class="frame-bar"><span>Rendu du logiciel</span></div>
+        <div class="frame-img">
+          <img src="result-software.png" alt="Rendu tramé affiché dans le logiciel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Rendu gravé</span></div>
+        <div class="frame-img">
+          <img src="result-engraved.jpg" alt="Photo de la gravure réalisée sur la matière" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+    </div>
+    -->
+
+    <h3 class="gallery-sub">Et aussi</h3>
     <div class="gallery">
-      <div class="shot"><img src="shot-vector-editor.png" alt="Éditeur vectoriel"></div>
-      <div class="shot"><img src="shot-2d-preview.png" alt="Visualisation 2D du G-Code"></div>
-      <div class="shot"><img src="shot-image-filters.png" alt="Traitement d'image et tramage"></div>
-      <div class="shot"><img src="shot-machine-control.png" alt="Pilotage machine (Jog / Console)"></div>
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet PNG / JPEG → SVG</span></div>
+        <div class="frame-img">
+          <img src="shot-png2svg.png" alt="Conversion d'une image en tracé vectoriel SVG avec aperçu" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>De l'image au tracé vectoriel</h3>
+          <ul class="points">
+            <li>Seuil, simplification et lissage réglables.</li>
+            <li>Aperçu avant insertion dans l'éditeur.</li>
+            <li>Glisser-déposer ou collage d'une capture (Ctrl+V).</li>
+          </ul>
+        </figcaption>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Matrice de test</span></div>
+        <div class="frame-img">
+          <img src="shot-test-matrix.png" alt="Matrice de test de puissance et de vitesse pour calibrer un matériau" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Calibrer un matériau</h3>
+          <ul class="points">
+            <li>Grille de puissance et de vitesse en un seul passage.</li>
+            <li>Réglages repris de l'onglet Image / Filtres.</li>
+            <li>Matériaux enregistrés par profil machine.</li>
+          </ul>
+        </figcaption>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Machine et console</span></div>
+        <div class="frame-img">
+          <img src="shot-machine-control.png" alt="Pilotage de la machine : jog, homing et console GRBL" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+        <figcaption class="frame-cap">
+          <h3>Pilotage GRBL complet</h3>
+          <ul class="points">
+            <li>Jog, homing et console de commandes avec historique.</li>
+            <li>Réglages GRBL ($$) lus, envoyés, exportés par machine.</li>
+            <li>Aide à l'installation des drivers USB (CH340, CP210x, FTDI).</li>
+          </ul>
+        </figcaption>
+      </figure>
     </div>
   </div>
 </section>
@@ -232,7 +496,7 @@
       <div class="step">
         <div class="num">02</div>
         <h3>Régler</h3>
-        <p>Dimensions, matériau, puissance et vitesse par calque.</p>
+        <p>Dimensions, matériau, matière, puissance et vitesse par calque.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
@@ -260,19 +524,62 @@
     <div class="panel mono">
       <div style="color:var(--text); margin-bottom:8px;">Depuis les sources :</div>
       <pre>git clone https://github.com/Jgood3d/laser-studio-pro
-cd LaserStudioPro
-pip install -r requirements.txt
+cd laser-studio-pro
+pip install -r requirements-windows.txt
 python main.py</pre>
+      <div>Sous Linux, utilise <code>requirements-linux.txt</code> à la place.</div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    Laser Studio Pro est un projet indépendant, développé sur mon temps libre.
-    Si tu veux le soutenir : <a href="https://ko-fi.com/jb3dlaser" target="_blank" rel="noopener">ko-fi.com/jb3dlaser</a> ☕
+    <p>
+      Laser Studio Pro est un projet indépendant, développé sur mon temps libre.
+      Si tu veux le soutenir : <a href="https://ko-fi.com/jb3dlaser" target="_blank" rel="noopener">ko-fi.com/jb3dlaser</a> ☕
+    </p>
+    <p>
+      Version 2.2.0 —
+      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>
+    </p>
   </div>
 </footer>
+
+<dialog id="lightbox" aria-label="Capture agrandie">
+  <img src="" alt="">
+  <p></p>
+</dialog>
+
+<script>
+(function () {
+  var dlg = document.getElementById('lightbox');
+  if (!dlg || typeof dlg.showModal !== 'function') return;
+  var big = dlg.querySelector('img');
+  var cap = dlg.querySelector('p');
+
+  document.querySelectorAll('.frame-img').forEach(function (box) {
+    var img = box.querySelector('img');
+    if (!img) return;
+    box.setAttribute('role', 'button');
+    box.setAttribute('tabindex', '0');
+    box.setAttribute('aria-label', 'Agrandir la capture');
+
+    function open() {
+      if (box.closest('.frame').classList.contains('no-img')) return;
+      big.src = img.currentSrc || img.src;
+      big.alt = img.alt;
+      cap.textContent = img.alt + ' — clique ou appuie sur Échap pour fermer';
+      dlg.showModal();
+    }
+    box.addEventListener('click', open);
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+    });
+  });
+
+  dlg.addEventListener('click', function () { dlg.close(); });
+})();
+</script>
 
 </body>
 </html>
