@@ -3,12 +3,29 @@
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
 
 Laser Studio Pro est un logiciel de pilotage GRBL pour graveur et découpeuse laser, avec :
-- gravure d’images,
-- découpe/gravure vectorielle,
-- gestion de calques,
-- génération de G-Code,
-- export/import de projets,
+- gravure d’images (tramage, niveaux de gris, résolution liée à la taille du spot),
+- sélecteur de matière (fond noir / fond clair) pour graver en négatif ou en positif,
+- séparation couleur / verre (calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage, PDF à l’échelle 1:1),
+- découpe/gravure vectorielle et conversion PNG/JPEG → SVG,
+- gestion de calques, avec leurs réglages mémorisés par machine,
+- génération et aperçu 2D du G-Code, file d’attente de jobs,
+- profils machine (dimensions, focale, réglages GRBL, matériaux),
+- export/import de projets, sauvegarde automatique,
 - support multilingue (Français, English, Deutsch, Español).
+
+L’historique détaillé des versions est dans [`CHANGELOG.md`](CHANGELOG.md).
+
+## Installation
+
+Python 3 est requis. Installez les dépendances selon votre système :
+
+```bash
+pip install -r requirements-windows.txt    # Windows
+pip install -r requirements-linux.txt      # Linux
+```
+
+`numba` est optionnel : il accélère le tramage, l’application fonctionne sans.
+Sous Linux, l’utilisateur doit appartenir au groupe `dialout` pour accéder au port série.
 
 ## Lancer l’application
 
@@ -22,24 +39,37 @@ python main.py
 
 ### Point d’entrée
 - `main.py` — lance l’application
-- `app_utils.py` — version de l’application et chemins de ressources
+- `app_utils.py` — version de l’application, chemins de ressources, écriture atomique des fichiers de données
 
 ### Composants autonomes
 - `graphics_view.py` — `ZoomableGraphicsView`
 - `vector_font.py` — `VectorFont`
+- `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `usb_controller.py` — `LaserUSBController`
 - `workers.py` — threads et fonctions de traitement image / G-Code
+- `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
+- `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
+- `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
 - `i18n.py` — système de traduction multilingue
 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — assemblage de la fenêtre principale
 - `ui_setup_mixin.py` — interface utilisateur, menus, onglets, dialogues
-- `machine_profiles_mixin.py` — profils machine / matériaux
-- `image_processing_mixin.py` — chargement et traitement d’image
+- `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
+- `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
-- `project_io_mixin.py` — sauvegarde et ouverture de projet
+- `project_io_mixin.py` — sauvegarde et ouverture de projet, sauvegarde automatique
+- `job_queue_mixin.py` — file d’attente de jobs
+- `png2svg_mixin.py` — onglet PNG/JPEG → SVG
+- `separation_mixin.py` — onglet Séparation Couleur / Verre
+
+### Qualité
+- `tests/` — tests automatiques (G-Code, écriture atomique, reset/référencement, calques par machine, traductions)
+- `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
+
+## Captures d’écran
 
 <img width="1907" height="1005" alt="Tramage" src="https://github.com/user-attachments/assets/42ae3b7c-7740-4c4c-a704-d3b78d4d36ab" />
 
@@ -47,208 +77,53 @@ python main.py
 
 <img width="3258" height="1830" alt="655698064-05eeca85-b211-4a80-817a-aea536a2c92c" src="https://github.com/user-attachments/assets/e6796d7b-6238-44d2-b888-1afc7ba696b0" />
 
-## Fonctionnalités récentes
-
-## [2.1.0] — 2026-09-28
-
-### Ajouté
-- **Éditeur vectoriel — sélection multiple** : Ctrl + clic gauche ajoute un objet à la sélection (ou le retire s'il y est déjà). Le déplacement groupé fonctionne ensuite sur tout le groupe.
-- **Éditeur vectoriel — regroupement** : clic droit → « Regrouper en un seul objet » (ou Ctrl+G) fusionne les objets sélectionnés en un seul tracé, à leur position exacte, déplaçable et redimensionnable d'un bloc. Annulable avec Ctrl+Z.
-- **Calques — ordre modifiable** : boutons « ▲ Monter » / « ▼ Descendre ». L'ordre de la liste est l'ordre d'exécution des calques dans le G-Code (ex. gravure avant découpe).
-- **Onglet Machine — aide aux drivers USB** : indication discrète avec liens officiels pour installer le driver du contrôleur (CH340, CP210x, FTDI) et rappel Linux (groupe `dialout`). Traduit en FR / EN / DE / ES.
-- **Aperçu 2D — bouton de soutien** : petit bouton (logo) dans la barre d'outils, ouvre la page Ko-fi dans le navigateur. Nouvelle ressource `buy_me_a_coffee.png` à embarquer dans le build (`--add-data`).
-
-### Modifié
-- **Matrice de test (gravure)** : le champ « Lignes/mm » reprend automatiquement la valeur de l'onglet Image / Filtres (champ grisé, mise à jour en direct, quel que soit le mode de saisie : lignes/mm, DPI ou focale).
-- **Image / Filtres** : la ligne « Écart : … » n'est plus affichée que pour signaler un réglage trop fin (< 0,9× la focale, risque de surgravure) ; masquée quand l'écart est correct ou recommandé.
-
-### Corrigé
-- **Matrice de test** : le champ « Puissance Min » (gravure) / « Puissance Unique » (découpe) existait mais n'était jamais affiché dans le formulaire.
-- **Éditeur vectoriel** : Ctrl + clic n'ajoutait pas l'objet cliqué à la sélection existante.
-- **Interface** : espace vide sous le bouton « Générer le G-Code » (les libellés de progression de génération se masquent maintenant quand ils sont vides ; même correction dans les deux autres onglets concernés).
-
-### Build
-- Ajouter `--add-data "buy_me_a_coffee.png;."` (Windows) / `--add-data "buy_me_a_coffee.png:."` (Linux) aux commandes PyInstaller.
-- Supprimer `build/`, `dist/` et `LaserStudioPro.spec` avant de rebuilder, pour que le nouveau fichier de ressource soit bien pris en compte.
-
-## [V2.0.0]
-
-feat: Éditeur Vectoriel (redo/alignement/accroche), file d'attente persistante, GRBL complet, matériaux par machine, JPEG (v2.0.0)
-
-## Ajouté :
-- Éditeur Vectoriel : vrai Refaire (Ctrl+Y), alignement multi-objets
-  (gauche/centre/droite, haut/milieu/bas) et distribution avec espacement
-  égal (dès 3 objets, extrémités fixes), accroche à la grille pendant un
-  déplacement (pas réglable en mm, préserve l'agencement relatif d'une
-  sélection multiple en n'accrochant que l'objet réellement cliqué).
-- File d'attente : réordonnancement des jobs par glisser-déposer, et
-  persistance complète entre deux sessions (sauvegardée à chaque
-  modification, restaurée au démarrage).
-- Profils machine : import/export complet des réglages GRBL ($$) —
-  lecture depuis la machine, envoi (avec confirmation, écrit en EEPROM),
-  export/import en fichier texte ; capturés automatiquement par "Nouvelle
-  Machine"/"Mettre à jour" comme le reste du profil.
-- Base de matériaux (`materials_db`) propre à chaque profil machine —
-  une nouvelle machine hérite de la liste active à sa création,
-  personnalisable ensuite sans affecter les autres profils.
-- Onglet PNG/JPEG → SVG (renommé) : accepte maintenant le JPEG en plus
-  du PNG (le pipeline de conversion le gérait déjà nativement), glisser-
-  déposer direct d'un fichier, et collage presse-papiers (Ctrl+V,
-  pratique pour une capture d'écran).
-- app_utils.py : nouvelle fonction get_autosave_dir() — dossier
-  utilisateur toujours accessible en écriture (~/.local/share sous
-  Linux, %APPDATA% sous Windows) pour l'autosave de projet et la file
-  d'attente, plutôt que le dossier de l'exécutable (pouvait être en
-  lecture seule une fois installé).
-
-## Corrigé :
-- Plantage au lancement (ImportError: get_autosave_dir) sur une
-  installation où project_io_mixin.py avait déjà été mis à jour pour
-  utiliser ce nouveau dossier utilisateur, sans que la fonction existe
-  encore côté app_utils.py.
-
-Fichiers modifiés :
-app_utils.py, vector_layers.py, vector_editing_mixin.py, ui_setup_mixin.py,
-i18n.py, job_queue_mixin.py, main_window.py, laser_control_mixin.py,
-machine_profiles_mixin.py, png2svg_widget.py, project_io_mixin.py
-
-## [1.7.0]
-
-feat: liaison focale automatique (Image Filtres + calques), correctifs plein écran (v1.7.0)
-
-## Ajouté :
-- Puissance minimum réglable dans la matrice de test (le champ existait
-  déjà côté génération, il manquait juste sa ligne dans le formulaire) ;
-  libellé dynamique "Puissance Min (%)" / "Puissance Unique (%)" selon le
-  mode, traduit FR/EN/DE/ES.
-- Liaison focale automatique par calque (onglet Calques) : bouton 🔗/🎯
-  par calque pour lier son "Pas remplissage (mm)" à la taille du spot
-  laser réglée dans Paramètres Machine, avec mise à jour immédiate à
-  chaque changement de focale et pastille de qualité colorée (même
-  logique que l'onglet Image & Filtres).
-- Cases "Aperçu en négatif" et "Masquer les déplacements rapides G0"
-  cochées par défaut, pour une meilleure lisibilité de l'aperçu 2D dès
-  l'ouverture d'un projet.
-
-## Corrigé :
-- Focale (Paramètres Machine) : Lignes/mm, DPI et la pastille de qualité
-  d'Image & Filtres se recalculent désormais systématiquement à chaque
-  changement de focale, quel que soit le mode de résolution actif (avant :
-  uniquement en mode "Focale laser", laissant Lignes/mm et DPI obsolètes
-  dans les deux autres modes).
-- Changement de profil machine (liste déroulante) : force maintenant le
-  même rafraîchissement (Image Filtres + pastilles de qualité des
-  calques), qui ne se déclenchait pas si la nouvelle focale coïncidait
-  avec l'ancienne ou était absente d'un profil ancien format.
-- Liaison focale par calque (`link_all_to_focal`) : posait le drapeau
-  "lié" (icône verte) sans jamais appliquer la valeur de la focale au
-  pas de remplissage, qui restait bloqué à 0.10 mm (valeur par défaut de
-  la classe) tant qu'aucun changement de focale en direct n'avait eu
-  lieu — lien vert trompeur ne correspondant pas à la focale réelle.
-- Plein écran "Images / Tramage" : superposition visuelle du panneau de
-  réglages par-dessus l'onglet réellement actif à la fermeture (forçage
-  de visibilité en trop) ; l'onglet de réglages actif avant le plein
-  écran est maintenant correctement restauré.
-- Aperçu image (tramage) : régression de lenteur introduite par un cache
-  de rendu (`CacheMode.DeviceCoordinateCache`) mal adapté à un contenu
-  qui change en permanence — retiré, gardant uniquement le correctif de
-  repaint au redimensionnement.
-- Éditeur de calques : libellé "Puissance Unique (%)" de la matrice de
-  test qui restait codé en dur en français.
-- Windows : sur certains systèmes, le texte d'aide de l'onglet
-  "Paramètres Machine" pouvait dépasser l'espace disponible (police
-  système par défaut plus haute qu'en test), bloquant le glisseur des
-  séparateurs gauche et centre/droite sans marge pour redimensionner.
-  Cet onglet est maintenant défilant, et une hauteur minimale explicite
-  a été posée sur les panneaux des deux séparateurs verticaux.
-
-## Fichiers modifiés :
-app_utils.py, ui_setup_mixin.py, image_processing_mixin.py,
-machine_profiles_mixin.py, vector_layers.py, graphics_view.py, i18n.py
-
-## [1.6.0]
-
-feat: DRO temps réel, plein écran étendu, corrections rendu 2D (v1.6.0)
-
-### Ajouté :
-- Plein écran pour les onglets Images/Tramage, Visualisation 2D G-Code et
-  Console/G-Code (même principe que l'Éditeur Vectoriel et PNG -> SVG).
-- Plein écran Images/Tramage : panneau de réglages du tramage affiché à
-  côté des aperçus, pour un retour en direct sans sortir du plein écran.
-- DRO (position machine en temps réel) : état GRBL (Idle/Run/Hold/Alarm)
-  et position X/Y/Z en direct, en jog comme en cours de job.
-- Marqueur de position en direct sur l'aperçu 2D G-Code pendant le
-  streaming.
-
-### Corrigé :
-- Éditeur Vectoriel : 3 messages restaient codés en dur en français au
-  lieu de suivre la langue choisie.
-- Aperçu 2D G-Code : les déplacements G1 à puissance nulle étaient
-  affichés dans la couleur de la gravure réelle, rendant les deux
-  indiscernables (visible entre les carrés de la matrice de test) ;
-  affichés maintenant en gris pointillé, comme les G0.
-- Couleur par défaut de la matrice de test / G-code importé : vert plus
-  lumineux et contrasté (#00ff88 au lieu de #00cc66).
-- Démarrage : la demande de restauration de sauvegarde automatique
-  s'affichait avant que la fenêtre soit visible ; différée jusqu'à
-  l'affichage réel de la fenêtre (évite un dialogue invisible bloqué en
-  arrière-plan).
-
-Fichiers modifiés :
-usb_controller.py, workers.py, laser_control_mixin.py, job_queue_mixin.py,
-gcode_generation_mixin.py, ui_setup_mixin.py, i18n.py, main_window.py,
-vector_editing_mixin.py, app_utils.py
-
-## [1.5.0]
-
-### Ajouté
-- **Utilitaire de conversion PNG vers SVG (Vectorisation)** :
-  - Outil intégré permettant de transformer directement des images matricielles (PNG) en tracés vectoriels SVG.
-  - Réglages fins de vectorisation : ajustement du seuil de tolérance (Noir/Blanc), simplification et lissage des contours, et filtrage du bruit.
-  - Aperçu instantané du rendu vectoriel avant insertion dans le projet de découpe ou gravure.
+Conversion PNG → SVG :
 
 <img width="1511" height="641" alt="Test svg" src="https://github.com/user-attachments/assets/0a68799f-e198-4044-b051-a263d4755464" />
 
-
-## 🚀 Release v1.4.1
-
-### ✨ Améliorations & Ergonomie
-
-Positionnement dynamique à la souris : Possibilité de sélectionner et de déplacer l'intégralité d'un fichier SVG directement sur le plan de travail.
-Ajustement de précision (Offset X / Y) : Ajout des contrôles de décalage X et Y pour affiner la position exacte de vos éléments vectoriels au millimètre près.
-Cette version apporte plus de souplesse dans la manipulation des calques vectoriels et accélère la préparation de vos projets.
+Déplacement d’un SVG sur le plan de travail :
 
 <img width="340" height="357" alt="Déplacement" src="https://github.com/user-attachments/assets/01d1e7df-ed98-4724-8aee-4857904e19cc" />
 
-
-## [1.4.0]
-Ajouté
-Traduction quasi complète de l'application (Français, Anglais, Allemand, Espagnol) : quasiment toutes les boîtes de dialogue, messages d'erreur/confirmation et libellés de boutons de l'ensemble des onglets utilisent désormais le système i18n.py — 319 chaînes traduites au total, vérifiées une à une contre le dictionnaire (aucune clé manquante).
-Corrigé
+Interface en anglais et en allemand :
 
 <img width="1918" height="1010" alt="English" src="https://github.com/user-attachments/assets/eaa4c939-b36d-4588-8538-12aa54dc01ea" />
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
+## Nouveautés de la version 2.2.0
 
-## 1.3.1 + : corrections du rendu 2D pour les calques vectoriels/texte/SVG (voir détails ci-dessous) et adresse e-mail Support mise à jours.
-Coquille QQMessageBox (au lieu de QMessageBox) dans laser_control_mixin.py, qui aurait fait planter l'appli au clic sur "Connecter" sans port COM sélectionné.
-UnboundLocalError au démarrage : legacy_svg_box était utilisé avant sa création dans ui_setup_mixin.py (ordre des blocs corrigé).
-Rendu 2D des calques vectoriels/texte/SVG : plusieurs calques classés à tort comme "balayage raster" étaient fusionnés dans une seule image, produisant un rendu incohérent. Chaque calque raster est maintenant reconstruit séparément, teinté avec sa propre couleur.
+- **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser Couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
+- **Réglages des calques mémorisés par machine** : vitesse, puissance, passes… retrouvés à la réouverture, propres à chaque profil machine.
+- **Séparation Couleur / Verre** : calque noir, calque couleur, simulation et PDF d’impression à l’échelle 1:1.
+- **Correction importante de la gravure d’image** : le G-Code appliquait la puissance au mauvais segment ; régénérez les G-Codes d’image créés avec une version antérieure.
+- **Reset / arrêt d’urgence** : le statut « référencé » est retiré si la machine n’était pas à l’arrêt, un nouveau homing est demandé.
+- **Sauvegardes atomiques** (autosave, file d’attente, projet) : plus de fichier tronqué en cas de plantage.
 
-### 1.3.1
-- finalisation du support multilingue sur les libellés restants de l’interface,
-- traduction des onglets, panneaux, matrices de test, dialogues, messages GRBL,
-- localisation des éléments de la console et du système d’édition vectorielle,
-- texte de support et bouton “Buy me a coffee” maintenant traduits,
-- amélioration de la cohérence de l’interface entre les langues supportées.
+Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail et les versions précédentes.
+
+## Compilation (PyInstaller)
+
+Les ressources suivantes sont cherchées à côté de l’exécutable puis dans le bundle PyInstaller : `laser_studio_pro.ico` (ou `laser_studio_pro_256.png` / `laser_studio_pro_512.png`), `laser_studio_pro_banner.png` et `buy_me_a_coffee.png`. Pour les embarquer, ajoutez `--add-data "fichier;."` (Windows) ou `--add-data "fichier:."` (Linux) à la commande PyInstaller. Supprimez `build/`, `dist/` et `LaserStudioPro.spec` avant de recompiler pour que les nouvelles ressources soient prises en compte.
 
 ## Développement / validation
 
-Pour vérifier la syntaxe Python :
+Vérifier la syntaxe Python :
 
 ```bash
 py -m py_compile i18n.py ui_setup_mixin.py main_window.py
+```
+
+Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :
+
+```bash
+python -m unittest discover tests -v
+```
+
+Contrôler les traductions (rapport détaillé) :
+
+```bash
+python tools/check_translations.py
 ```
 
 ## Remerciements

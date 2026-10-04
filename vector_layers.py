@@ -34,7 +34,7 @@ import uuid
 
 from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier, Arc
 
-from PyQt6.QtCore import Qt, QRectF, QPointF, pyqtSignal
+from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import (QColor, QFont, QFontMetricsF, QPainterPath, QPen,
                           QBrush, QTransform, QPolygonF, QPainter, QKeySequence)
 from PyQt6.QtWidgets import (
@@ -46,12 +46,22 @@ from PyQt6.QtWidgets import (
     QMessageBox, QAbstractItemView, QToolButton, QMenu, QInputDialog
 )
 
+from i18n import tr
+
 
 # ============================================================================
 # 1) CALQUES (LAYERS)
 # ============================================================================
 
-LAYER_MODES = ["Découpe", "Gravure Remplie", "Marquage (Contour)"]
+LAYER_MODES = ["Gravure Remplie", "Découpe", "Marquage (Contour)"]
+# Les valeurs de LAYER_MODES sont des identifiants internes (sauvegardés dans
+# les projets, testés dans le générateur de G-Code) : elles ne changent jamais.
+# Seul leur AFFICHAGE est traduit, via ces clés.
+LAYER_MODE_TR_KEYS = {
+    "Découpe": "layers.mode.cut",
+    "Gravure Remplie": "layers.mode.fill",
+    "Marquage (Contour)": "layers.mode.mark",
+}
 
 DEFAULT_LAYER_COLORS = [
     "#ff3b30", "#34c759", "#0a84ff", "#ff9f0a",
@@ -92,11 +102,13 @@ class LayerManager:
     """Conteneur ordonné de LaserLayer, avec un signal Qt-free (callbacks simples)."""
 
     def __init__(self):
+        # Gravure en première position : calque proposé par défaut pour la
+        # gravure des images (tramage / séparation couleur).
         self.layers = [
-            LaserLayer(name="Découpe", color=DEFAULT_LAYER_COLORS[0],
-                       mode="Découpe", power=90, speed=250, passes=2),
-            LaserLayer(name="Gravure Texte", color=DEFAULT_LAYER_COLORS[2],
+            LaserLayer(name=tr("layers.default_name_engrave_text"), color=DEFAULT_LAYER_COLORS[2],
                        mode="Gravure Remplie", power=35, speed=2000, passes=1),
+            LaserLayer(name=tr("layers.default_name_cut"), color=DEFAULT_LAYER_COLORS[0],
+                       mode="Découpe", power=90, speed=250, passes=2),
         ]
 
     def add_layer(self, line_interval=None, line_interval_linked=False):
@@ -132,6 +144,14 @@ class LayerManager:
                 return l
         return None
 
+    def default_svg_layer(self):
+        """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
+        le premier calque en mode Découpe. À défaut, le premier calque."""
+        for l in self.layers:
+            if l.mode == "Découpe":
+                return l
+        return self.layers[0] if self.layers else None
+
     def to_list(self):
         return [l.to_dict() for l in self.layers]
 
@@ -144,8 +164,9 @@ class LayerManagerWidget(QWidget):
 
     layers_changed = pyqtSignal()
 
-    COLUMNS = ["Couleur", "Nom", "Mode", "Puissance (%)", "Vitesse (mm/min)",
-               "Passes", "Pas remplissage (mm)", "Actif"]
+    COLUMN_KEYS = ["layers.col.color", "layers.col.name", "layers.col.mode",
+                   "layers.col.power", "layers.col.speed", "layers.col.passes",
+                   "layers.col.fill_step", "layers.col.active"]
 
     def __init__(self, layer_manager: LayerManager, parent=None, focal_getter=None):
         super().__init__(parent)
@@ -157,19 +178,21 @@ class LayerManagerWidget(QWidget):
         self.focal_getter = focal_getter
         self._fill_spins = []  # [(spin_fill, layer), ...] pour refresh_focal_quality()
 
+        self.COLUMNS = [tr(k) for k in self.COLUMN_KEYS]
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
         btn_row = QHBoxLayout()
-        btn_add = QPushButton("+ Calque")
+        btn_add = QPushButton(tr("layers.add"))
         btn_add.clicked.connect(self.on_add)
-        btn_del = QPushButton("Supprimer Calque")
+        btn_del = QPushButton(tr("layers.remove"))
         btn_del.clicked.connect(self.on_remove)
-        btn_up = QPushButton("▲ Monter")
-        btn_up.setToolTip("Monter le calque sélectionné (exécuté plus tôt dans le G-Code)")
+        btn_up = QPushButton(tr("layers.move_up"))
+        btn_up.setToolTip(tr("layers.move_up_tip"))
         btn_up.clicked.connect(lambda: self.on_move(-1))
-        btn_down = QPushButton("▼ Descendre")
-        btn_down.setToolTip("Descendre le calque sélectionné (exécuté plus tard dans le G-Code)")
+        btn_down = QPushButton(tr("layers.move_down"))
+        btn_down.setToolTip(tr("layers.move_down_tip"))
         btn_down.clicked.connect(lambda: self.on_move(1))
         btn_row.addWidget(btn_add)
         btn_row.addWidget(btn_del)
@@ -212,9 +235,14 @@ class LayerManagerWidget(QWidget):
         self.table.setCellWidget(row, 1, name_edit)
 
         combo_mode = QComboBox()
-        combo_mode.addItems(LAYER_MODES)
-        combo_mode.setCurrentText(layer.mode)
-        combo_mode.currentTextChanged.connect(lambda t, l=layer: self._set(l, "mode", t))
+        for mode_id in LAYER_MODES:
+            combo_mode.addItem(tr(LAYER_MODE_TR_KEYS[mode_id]), mode_id)
+        idx_mode = combo_mode.findData(layer.mode)
+        if idx_mode >= 0:
+            combo_mode.setCurrentIndex(idx_mode)
+        combo_mode.currentIndexChanged.connect(
+            lambda i, l=layer, c=combo_mode: self._set(l, "mode", c.itemData(i))
+        )
         self.table.setCellWidget(row, 2, combo_mode)
 
         spin_power = QDoubleSpinBox(); spin_power.setRange(0, 100); spin_power.setValue(layer.power)
@@ -264,7 +292,7 @@ class LayerManagerWidget(QWidget):
         self.table.setProperty(f"row_layer_{row}", layer.id)
 
     def _pick_color(self, layer, button):
-        color = QColorDialog.getColor(QColor(layer.color), self, "Couleur du calque")
+        color = QColorDialog.getColor(QColor(layer.color), self, tr("layers.color_dialog_title"))
         if color.isValid():
             layer.color = color.name()
             button.setStyleSheet(f"background-color:{layer.color}; border:1px solid #222;")
@@ -287,18 +315,11 @@ class LayerManagerWidget(QWidget):
     def _style_link_button(self, button, linked):
         if linked:
             button.setText("🔗")
-            button.setToolTip(
-                "Pas remplissage lié à la taille du spot : se met à jour "
-                "automatiquement à chaque changement de focale. "
-                "Cliquer pour déverrouiller et régler manuellement."
-            )
+            button.setToolTip(tr("layers.link_tip_linked"))
             button.setStyleSheet("background-color:#2f6f4f;")
         else:
             button.setText("🎯")
-            button.setToolTip(
-                "Cliquer pour lier ce pas de remplissage à la taille du "
-                "spot (mise à jour automatique à chaque changement de focale)"
-            )
+            button.setToolTip(tr("layers.link_tip_unlinked"))
             button.setStyleSheet("")
 
     def _on_link_toggled(self, checked, layer, spin_fill, button):
@@ -913,6 +934,14 @@ class VectorCanvasView(QGraphicsView):
         # d'outils de l'Éditeur Vectoriel (case + pas en mm).
         self.snap_enabled = False
         self.snap_step_mm = 5.0
+        # Recentrage différé de la vue (voir request_recenter) : attend la
+        # fin des redimensionnements (plein écran, changement d'onglet)
+        # avant de centrer, sinon la taille du viewport est encore fausse.
+        self._recenter_items = None
+        self._recenter_pending = False
+        self._recenter_timer = QTimer(self)
+        self._recenter_timer.setSingleShot(True)
+        self._recenter_timer.timeout.connect(self._do_recenter)
 
         self.work_rect_item = None
         self.set_work_area(100.0, 100.0)
@@ -920,6 +949,77 @@ class VectorCanvasView(QGraphicsView):
         self.scene_obj.selectionChanged.connect(self._on_selection_changed)
 
     # -- zone de travail ----------------------------------------------------
+    def request_recenter(self, items=None):
+        """Demande de centrer la vue sur `items` (liste de VectorGraphicsItem),
+        ou à défaut sur la sélection, ou à défaut sur tous les objets. Le
+        recentrage est différé et re-planifié à chaque redimensionnement
+        (voir resizeEvent) : il s'exécute une fois la fenêtre / l'onglet
+        réellement affiché à sa taille définitive."""
+        self._recenter_items = list(items) if items else None
+        self._recenter_pending = True
+        self._recenter_timer.start(120)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if self._recenter_pending:
+            self._recenter_timer.start(120)
+
+    def _do_recenter(self):
+        self._recenter_pending = False
+        items = self._recenter_items
+        self._recenter_items = None
+        self.center_on_items(items)
+
+    def center_on_items(self, items=None, margin_px=40, max_scale=10.0):
+        """Cadre la vue sur la boîte englobante de `items` (sinon la
+        sélection, sinon tous les objets, sinon la zone de travail) : zoom
+        ajusté pour que l'ensemble remplisse la fenêtre (avec une marge), et
+        centré au milieu. Le zoom est plafonné (`max_scale`) pour qu'un tout
+        petit objet ne soit pas agrandi démesurément."""
+        rect = QRectF()
+        candidates = items if items else (self.selected_items_vector() or [
+            i for i in self.scene_obj.items() if isinstance(i, VectorGraphicsItem)
+        ])
+        for it in candidates:
+            try:
+                if it.scene() is self.scene_obj:
+                    rect = rect.united(it.sceneBoundingRect())
+            except RuntimeError:
+                pass  # objet supprimé entre-temps
+        if rect.isNull() and self.work_rect_item:
+            rect = self.work_rect_item.sceneBoundingRect()
+        if rect.isNull():
+            return
+
+        vp = self.viewport().size()
+        if vp.width() <= 2 * margin_px or vp.height() <= 2 * margin_px:
+            return  # vue pas encore affichée à sa taille définitive
+
+        # Zoom qui fait tenir l'ensemble dans la fenêtre, marge comprise.
+        target = min(
+            (vp.width() - 2 * margin_px) / max(rect.width(), 1e-6),
+            (vp.height() - 2 * margin_px) / max(rect.height(), 1e-6),
+            max_scale,
+        )
+
+        # Zone de la scène assez grande pour que la cible puisse être
+        # réellement centrée (un QGraphicsView ne défile pas au-delà de sa
+        # sceneRect : sans ça, un objet près de l'origine resterait
+        # décentré). Recalculée à chaque fois depuis la zone de travail,
+        # pour ne pas grossir indéfiniment.
+        half_w = vp.width() / 2.0 / target
+        half_h = vp.height() / 2.0 / target
+        center = rect.center()
+        needed = QRectF(center.x() - half_w, center.y() - half_h, 2 * half_w, 2 * half_h)
+        base = QRectF()
+        if self.work_rect_item:
+            base = self.work_rect_item.sceneBoundingRect().adjusted(-50, -50, 50, 50)
+        self.scene_obj.setSceneRect(base.united(rect.adjusted(-50, -50, 50, 50)).united(needed))
+
+        self.resetTransform()
+        self.scale(target, target)
+        self.centerOn(center)
+
     def set_work_area(self, w_mm, h_mm):
         self.work_w_mm, self.work_h_mm = w_mm, h_mm
         if self.work_rect_item:
@@ -1378,26 +1478,26 @@ class VectorCanvasView(QGraphicsView):
 
         menu = QMenu(self)
         n = len(selected)
-        label_suffix = f" ({n} objets)" if n > 1 else ""
+        label_suffix = tr("vector.n_objects").format(n=n) if n > 1 else ""
 
-        layer_menu = menu.addMenu(f"Assigner au calque{label_suffix}")
+        layer_menu = menu.addMenu(tr("vector.assign_to_layer") + label_suffix)
         for layer in self.layer_manager.layers:
             action = layer_menu.addAction(f"{layer.name}  [{layer.mode}]")
             action.triggered.connect(lambda checked=False, lid=layer.id, items=selected: self._bulk_assign_layer(items, lid))
 
-        resize_action = menu.addAction(f"Redimensionner{label_suffix}…")
+        resize_action = menu.addAction(tr("vector.resize_ellipsis") + label_suffix)
         resize_action.triggered.connect(lambda: self._bulk_resize(selected))
 
         if n >= 2:
-            group_action = menu.addAction(f"Regrouper en un seul objet ({n} objets)")
+            group_action = menu.addAction(tr("vector.group_objects").format(n=n))
             group_action.triggered.connect(self.group_selected)
 
         menu.addSeparator()
-        rotate_action = menu.addAction("↻ Pivoter 90°")
+        rotate_action = menu.addAction(tr("ui.vector_rotate_90"))
         rotate_action.triggered.connect(lambda: self._bulk_rotate(selected))
-        dup_action = menu.addAction("Dupliquer")
+        dup_action = menu.addAction(tr("ui.vector_duplicate"))
         dup_action.triggered.connect(self.duplicate_selected)
-        del_action = menu.addAction("Supprimer")
+        del_action = menu.addAction(tr("ui.vector_delete"))
         del_action.triggered.connect(self.remove_selected)
 
         menu.exec(event.globalPos())

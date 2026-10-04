@@ -21,6 +21,11 @@ class LaserUSBController:
         self.last_x = None
         self.last_y = None
         self.last_z = None
+        # Retenus même après une déconnexion (voir disconnect) : nécessaires
+        # pour tenter une reconnexion automatique sur le MÊME port après une
+        # coupure USB en cours de job (voir ReconnectThread dans workers.py).
+        self.last_port = None
+        self.last_baudrate = 115200
 
     @staticmethod
     def parse_status_line(line):
@@ -77,6 +82,8 @@ class LaserUSBController:
             self.ser.write(b"\r\n\r\n")
             time.sleep(0.5)
             self.ser.reset_input_buffer()
+            self.last_port = port
+            self.last_baudrate = baudrate
             return True
         except Exception as e:
             print(f"Erreur connexion : {e}")
@@ -96,7 +103,19 @@ class LaserUSBController:
         self.last_y = None
         self.last_z = None
 
-    def send_command(self, cmd):
+    # Commandes dont la réponse « ok » n'arrive qu'à la fin d'un mouvement
+    # physique (cycle de homing) : elles dépassent largement 2 s.
+    SLOW_COMMAND_TIMEOUT = 90.0
+    DEFAULT_COMMAND_TIMEOUT = 2.0
+
+    def send_command(self, cmd, timeout=None):
+        """Envoie une commande et lit la réponse jusqu'à 'ok' / 'error' /
+        'ALARM'. `timeout` (secondes) : par défaut 2 s, porté à 90 s pour le
+        homing ($H, $HX...) afin de ne pas renvoyer une réponse tronquée
+        pendant que la machine est encore en mouvement."""
+        if timeout is None:
+            timeout = (self.SLOW_COMMAND_TIMEOUT if cmd.strip().upper().startswith("$H")
+                       else self.DEFAULT_COMMAND_TIMEOUT)
         with self._lock:
             if not (self.ser and self.ser.is_open):
                 return "Non connecté"
@@ -110,7 +129,7 @@ class LaserUSBController:
                         response_lines.append(line)
                         if line == 'ok' or line.startswith('error') or line.startswith('ALARM'):
                             break
-                    if time.time() - start_time > 2.0:
+                    if time.time() - start_time > timeout:
                         break
                 return "\n".join(response_lines) if response_lines else "Pas de réponse"
             except Exception as e:

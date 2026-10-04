@@ -3,7 +3,7 @@ import serial
 import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
-from workers import GCodeStreamerThread, CommandThread, StatusPollThread
+from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread
 from i18n import tr
 
 
@@ -22,6 +22,7 @@ class LaserControlMixin:
             self.btn_connect.setStyleSheet("")
             self.txt_console.append(tr("laser.disconnected"))
             self._update_dro_display(None, None, None, None)
+            self.has_homed_since_connect = False
         else:
             selected = self.combo_ports.currentText()
             if not selected:
@@ -38,6 +39,7 @@ class LaserControlMixin:
                 self.txt_console.append(
     tr("laser.connected").format(port=port)
 )
+                self.has_homed_since_connect = False
                 self._check_grbl_laser_mode()
                 self._start_status_poll()
             else:
@@ -46,6 +48,33 @@ class LaserControlMixin:
     tr("laser.no_port_title"),
     tr("laser.connection_error").format(port=port)
 )
+
+    def send_homing(self):
+        """Lance le homing ($H) et retient qu'il a eu lieu depuis la
+        connexion — utilisé pour avertir avant un envoi de job si ça n'a
+        jamais été fait (voir _confirm_homed_before_job)."""
+        if not self.usb.is_connected():
+            QMessageBox.warning(
+                self, tr("laser.usb_not_connected_title"), tr("laser.connect_first")
+            )
+            return
+        self._run_commands_async("$H")
+        self.has_homed_since_connect = True
+
+    def _confirm_homed_before_job(self):
+        """Avertit avant de lancer un job si aucun homing n'a été fait
+        depuis la connexion — une position non référencée peut décaler
+        toute la pièce gravée. Renvoie True pour continuer, False pour
+        annuler. Ne bloque jamais : c'est une confirmation, pas une
+        interdiction (certaines machines n'ont pas de fins de course)."""
+        if getattr(self, "has_homed_since_connect", False):
+            return True
+        reply = QMessageBox.question(
+            self, tr("laser.no_homing_title"), tr("laser.no_homing_body"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return reply == QMessageBox.StandardButton.Yes
 
     def _start_status_poll(self):
         """Démarre le thread de polling DRO (position/état machine en
@@ -287,6 +316,9 @@ class LaserControlMixin:
 )
             return
 
+        if not self._confirm_homed_before_job():
+            return
+
         reply = QMessageBox.question(
     self,
     tr("laser.confirm_title"),
@@ -301,12 +333,63 @@ class LaserControlMixin:
         self.progress_bar.setValue(0)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.pause()
+        # Mémorisé pour "Répéter le dernier job" (voir repeat_last_job) —
+        # le G-Code RÉELLEMENT envoyé, pas juste généré, pour que "répéter"
+        # corresponde toujours à ce qui a vraiment été gravé la dernière
+        # fois, même si la console a changé depuis (nouvelle génération,
+        # import...).
+        self._last_sent_gcode = gcode_text
+        if hasattr(self, "btn_repeat_last_job"):
+            self.btn_repeat_last_job.setEnabled(True)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self.on_stream_finished)
+        self.streamer.connection_lost.connect(self._on_job_connection_lost)
         self.streamer.start()
+
+    def _on_job_connection_lost(self):
+        """Coupure USB détectée en cours de job (voir GCodeStreamerThread) :
+        tente de rouvrir automatiquement le même port en arrière-plan. Le
+        job reste arrêté (voir on_stream_finished, déjà appelé séparément
+        avec clean_finish=False) — seule la LIAISON est rétablie
+        automatiquement, jamais l'envoi du G-Code."""
+        port = getattr(self.usb, "last_port", None)
+        if not port:
+            return
+        self.txt_console.append(tr("laser.reconnecting"))
+        self._reconnect_thread = ReconnectThread(self.usb, port, getattr(self.usb, "last_baudrate", 115200))
+        self._reconnect_thread.reconnected.connect(self._on_reconnect_result)
+        self._reconnect_thread.start()
+
+    def _on_reconnect_result(self, success):
+        if success:
+            self.btn_connect.setText(tr("laser.disconnect"))
+            self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
+            self.has_homed_since_connect = False
+            self._start_status_poll()
+            self.txt_console.append(tr("laser.reconnect_success"))
+            QMessageBox.warning(
+                self, tr("laser.reconnect_success_title"), tr("laser.reconnect_success_body")
+            )
+        else:
+            self.txt_console.append(tr("laser.reconnect_failed"))
+            QMessageBox.critical(
+                self, tr("laser.reconnect_failed_title"), tr("laser.reconnect_failed_body")
+            )
+
+    def repeat_last_job(self):
+        """Relance directement le dernier G-Code effectivement envoyé au
+        laser, sans repasser par tout le pipeline de réglages — pratique
+        pour une petite série de pièces identiques. Réutilise send_to_laser
+        (donc les mêmes vérifications de sécurité : connexion, homing,
+        confirmation)."""
+        last = getattr(self, "_last_sent_gcode", None)
+        if not last:
+            return
+        self.txt_console.setPlainText(last)
+        self.send_to_laser()
 
     def unlock_alarm(self):
         """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de
@@ -352,17 +435,31 @@ class LaserControlMixin:
         self.usb.send_raw_byte(b'~')
         self.txt_console.append(tr("laser.resume_log"))
 
-    def send_reset(self):
-        if self.streamer and self.streamer.isRunning():
+    def _soft_reset(self, log_key):
+        """Reset logiciel GRBL (0x18), commun à RESET et KILL : arrête
+        l'envoi en cours puis réinitialise le contrôleur.
+
+        Si la machine n'était PAS à l'arrêt complet (job en cours, pause,
+        jog, état inconnu), GRBL perd sa position (ALARM:3 « Reset while in
+        motion »). On retire alors le statut « référencé » pour que le
+        prochain job redemande un homing, au lieu de se fier à une position
+        devenue fausse. Un reset fait machine à l'arrêt (Idle) ne change
+        rien : la position reste valide."""
+        streaming = bool(self.streamer and self.streamer.isRunning())
+        was_idle = (not streaming) and getattr(self.usb, "last_state", None) == "Idle"
+        if streaming:
             self.streamer.stop()
         self.usb.send_raw_byte(b'\x18')
-        self.txt_console.append(tr("laser.reset_log"))
+        self.txt_console.append(tr(log_key))
+        if not was_idle:
+            self.has_homed_since_connect = False
+            self.txt_console.append(tr("laser.position_lost_log"))
+
+    def send_reset(self):
+        self._soft_reset("laser.reset_log")
 
     def send_kill(self):
-        if self.streamer and self.streamer.isRunning():
-            self.streamer.stop()
-        self.usb.send_raw_byte(b'\x18')
-        self.txt_console.append(tr("laser.kill_log"))
+        self._soft_reset("laser.kill_log")
 
     def send_manual_cmd(self):
         cmd = self.txt_manual_cmd.text().strip()

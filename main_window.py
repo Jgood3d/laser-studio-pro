@@ -15,11 +15,12 @@ from project_io_mixin import ProjectIOMixin
 from job_queue_mixin import JobQueueMixin
 from png2svg_mixin import Png2SvgMixin
 from machine_profiles_mixin import DEFAULT_MATERIALS_DB
+from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
-                       JobQueueMixin, Png2SvgMixin):
+                       JobQueueMixin, Png2SvgMixin, SeparationMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Laser Studio Pro - GRBL Controller")
@@ -36,9 +37,13 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         self.streamer = None
         self.cmd_thread = None
         self.status_poll_thread = None
+        self.has_homed_since_connect = False
         self.img_worker = None
         self.pending_reprocess = False
         self.job_queue = []
+        self._img_undo_stack = []
+        self._img_redo_stack = []
+        self._img_last_undo_push_time = 0.0
 
         self.materials_db = dict(DEFAULT_MATERIALS_DB)
         

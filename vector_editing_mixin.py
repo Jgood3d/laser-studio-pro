@@ -38,11 +38,43 @@ class VectorEditingMixin:
         self.combo_engrave_layer.clear()
         for layer in self.layer_manager.layers:
             self.combo_engrave_layer.addItem(f"{layer.name}  [{layer.mode}]", layer.id)
-        if current_id:
-            idx = self.combo_engrave_layer.findData(current_id)
-            if idx >= 0:
-                self.combo_engrave_layer.setCurrentIndex(idx)
+        idx = self.combo_engrave_layer.findData(current_id) if current_id else -1
+        if idx < 0:
+            # Pas de sélection (démarrage) ou calque disparu : on propose par
+            # défaut le premier calque en mode gravure, jamais "Découpe".
+            idx = self._first_engrave_layer_index()
+        if idx >= 0:
+            self.combo_engrave_layer.setCurrentIndex(idx)
         self.combo_engrave_layer.blockSignals(False)
+
+    def _first_engrave_layer_index(self):
+        """Index (dans combo_engrave_layer) du premier calque en mode
+        Gravure Remplie, ou -1 s'il n'y en a aucun."""
+        for i in range(self.combo_engrave_layer.count()):
+            layer = self.layer_manager.get(self.combo_engrave_layer.itemData(i))
+            if layer and layer.mode == "Gravure Remplie":
+                return i
+        return -1
+
+    def _ensure_engrave_layer_for_image(self):
+        """Appelé avant la génération du G-Code d'une image (Image Tramage /
+        Séparation couleur) : si le calque sélectionné n'est pas en mode
+        gravure, bascule sur le premier calque de gravure et applique sa
+        puissance/vitesse. Sans calque de gravure, ne change rien."""
+        if not hasattr(self, "combo_engrave_layer"):
+            return
+        layer = self.layer_manager.get(self.combo_engrave_layer.currentData())
+        if layer and layer.mode == "Gravure Remplie":
+            return
+        idx = self._first_engrave_layer_index()
+        if idx < 0:
+            self.txt_console.append(
+                ">>> Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.")
+            return
+        self.combo_engrave_layer.setCurrentIndex(idx)  # déclenche _on_engrave_layer_selected
+        self._on_engrave_layer_selected()
+        self.txt_console.append(
+            f">>> Image : calque de gravure « {self.combo_engrave_layer.currentText()} » sélectionné automatiquement.")
 
     def _on_engrave_layer_selected(self, *_args):
         """La gravure image utilise toujours la puissance/vitesse du calque
@@ -321,10 +353,13 @@ class VectorEditingMixin:
 )
             self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
             self.tab_vector_editor.setVisible(True)
+            self.vector_canvas.request_recenter()
 
         dialog.finished.connect(restore)
         dialog.show()
         dialog.setWindowState(Qt.WindowState.WindowMaximized)
+        # Recentre la vue sur le contenu une fois la fenêtre maximisée.
+        self.vector_canvas.request_recenter()
 
     def import_svg_to_vector_editor(self):
         """Importe un SVG dans l'éditeur vectoriel : chaque tracé/forme devient
@@ -341,7 +376,8 @@ class VectorEditingMixin:
 )
         if not path:
             return
-        default_layer_id = self.layer_manager.layers[0].id
+        default_layer = self.layer_manager.default_svg_layer()
+        default_layer_id = default_layer.id
         try:
             objects = extract_svg_objects(path, default_layer_id, self.spin_machine_h.value())
         except Exception as e:
@@ -359,15 +395,17 @@ class VectorEditingMixin:
 )
             return
         self.vector_canvas.push_undo_snapshot()
-        for obj in objects:
-            self.vector_canvas.add_object(obj)
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        # Centre la grille sur le SVG importé (au lieu de laisser
+        # l'utilisateur le chercher en faisant défiler la vue).
+        self.vector_canvas.request_recenter(new_items)
         QMessageBox.information(
     self,
     tr("vector.svg_success_title"),
     tr("vector.svg_success").format(
         count=len(objects),
-        layer=self.layer_manager.layers[0].name
+        layer=default_layer.name
     )
 )
 

@@ -9,12 +9,49 @@ from i18n import tr
 
 class ImageProcessingMixin:
     def reset_image_settings(self):
+        # Réinitialisation explicite : plus rien à restaurer depuis Séparation.
+        self._sep_glass_settings_active = False
         self.slider_bright.setValue(0)
         self.slider_contrast.setValue(0)
         self.slider_gamma.setValue(100)
+        self.combo_material_bg.blockSignals(True)
+        self.combo_material_bg.setCurrentIndex(self.combo_material_bg.findData("light"))
+        self.combo_material_bg.blockSignals(False)
         self.chk_invert.setChecked(False)
         self.chk_mirror_h.setChecked(False)
         self.chk_mirror_v.setChecked(False)
+
+    def get_material_bg(self):
+        """Matière choisie : "dark" (fond noir) ou "light" (fond clair)."""
+        return self.combo_material_bg.currentData() or "light"
+
+    def set_material_bg(self, key):
+        """Positionne le sélecteur de matière SANS toucher à la case
+        « Inverser Couleurs » (utilisé au chargement d'un projet, où l'état
+        de la case est restauré séparément)."""
+        idx = self.combo_material_bg.findData(key)
+        if idx < 0:
+            idx = self.combo_material_bg.findData("light")
+        self.combo_material_bg.blockSignals(True)
+        self.combo_material_bg.setCurrentIndex(idx)
+        self.combo_material_bg.blockSignals(False)
+
+    def _on_material_bg_changed(self, index):
+        """Fond noir : le laser éclaircit ce qu'il brûle -> négatif activé.
+        Fond clair : le laser noircit ce qu'il brûle -> négatif désactivé.
+        Ne fait que cocher/décocher la case ; le miroir n'est pas touché."""
+        self.chk_invert.setChecked(self.get_material_bg() == "dark")
+        # Si la case était déjà dans le bon état, aucun signal n'est émis :
+        # on force la mise à jour pour que l'undo capture aussi le sélecteur.
+        self.update_image_processing()
+
+    def material_summary_text(self):
+        """Ex. « Matière : fond noir (négatif activé) » — reflète l'état
+        RÉEL de la case, donc signale une incohérence si elle a été
+        modifiée à la main."""
+        bg_key = "gen.material_dark" if self.get_material_bg() == "dark" else "gen.material_light"
+        neg_key = "gen.negative_on" if self.chk_invert.isChecked() else "gen.negative_off"
+        return tr("gen.material_summary").format(bg=tr(bg_key), negative=tr(neg_key))
 
     def on_lmm_mode_changed(self, index):
         """Change le mode de saisie de la résolution (Lignes/mm, DPI, ou
@@ -237,6 +274,10 @@ class ImageProcessingMixin:
         self.txt_console.append(tr("image.deleted"))
 
     def load_image_from_path(self, path):
+        # Image classique (Images Tramage) : on rend les réglages miroir /
+        # négatif / matière modifiés par un import de l'onglet Séparation.
+        if hasattr(self, "separation_release_image_settings"):
+            self.separation_release_image_settings()
         try:
             img = Image.open(path)
             # Les PNG avec transparence (RGBA, LA, ou palette avec canal alpha)
@@ -294,6 +335,7 @@ class ImageProcessingMixin:
             "contrast": self.slider_contrast.value(),
             "gamma": self.slider_gamma.value(),
             "invert": self.chk_invert.isChecked(),
+            "material_bg": self.get_material_bg(),
             "mirror_h": self.chk_mirror_h.isChecked(),
             "mirror_v": self.chk_mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
@@ -308,6 +350,7 @@ class ImageProcessingMixin:
             slider.blockSignals(True)
             slider.setValue(snap[key])
             slider.blockSignals(False)
+        self.set_material_bg(snap.get("material_bg", "light"))
         for chk, key in (
             (self.chk_invert, "invert"),
             (self.chk_mirror_h, "mirror_h"),
@@ -400,6 +443,8 @@ class ImageProcessingMixin:
         self.processed_array = out_arr
         qimg = QImage(dither_img.tobytes(), dither_img.width, dither_img.height, dither_img.width, QImage.Format.Format_Grayscale8)
         self.view_preview_dither.set_image(qimg)
+        if hasattr(self, "separation_on_processed"):
+            self.separation_on_processed()
 
         if self.pending_reprocess:
             # Des réglages ont changé (ex. négatif coché/décoché, algorithme

@@ -8,7 +8,7 @@ import base64
 import json
 import os
 
-from app_utils import get_autosave_dir
+from app_utils import get_autosave_dir, atomic_write_json
 from i18n import tr
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
@@ -30,6 +30,7 @@ class ProjectIOMixin:
             "contrast": self.slider_contrast.value(),
             "gamma": self.slider_gamma.value(),
             "invert": self.chk_invert.isChecked(),
+            "material_bg": self.get_material_bg(),
             "mirror_h": self.chk_mirror_h.isChecked(),
             "mirror_v": self.chk_mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
@@ -63,8 +64,7 @@ class ProjectIOMixin:
             return
         try:
             proj_data = self._get_project_data()
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(proj_data, f, indent=4)
+            atomic_write_json(path, proj_data, indent=4)
             self._add_to_recent_projects(path)
             self._clear_autosave()
             QMessageBox.information(
@@ -98,6 +98,13 @@ class ProjectIOMixin:
             with open(path, 'r', encoding='utf-8') as f:
                 proj_data = json.load(f)
 
+            # Le projet chargé impose ses propres réglages matière / négatif /
+            # miroir : on oublie l'état mémorisé par l'onglet Séparation, sinon
+            # un chargement d'image ultérieur côté Images Tramage « rendrait »
+            # à tort l'ancien état par-dessus ceux du projet.
+            self._sep_glass_settings_active = False
+            self._sep_prev_image_settings = None
+
             self.spin_w.setValue(proj_data.get("w_mm", 100.0))
             self.spin_h.setValue(proj_data.get("h_mm", 100.0))
             self.spin_machine_w.setValue(proj_data.get("machine_bed_w_mm", self.spin_machine_w.value()))
@@ -109,6 +116,8 @@ class ProjectIOMixin:
             self.slider_bright.setValue(proj_data.get("bright", 0))
             self.slider_contrast.setValue(proj_data.get("contrast", 0))
             self.slider_gamma.setValue(proj_data.get("gamma", 100))
+            # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
+            self.set_material_bg(proj_data.get("material_bg", "dark" if proj_data.get("invert", False) else "light"))
             self.chk_invert.setChecked(proj_data.get("invert", False))
             self.chk_mirror_h.setChecked(proj_data.get("mirror_h", False))
             self.chk_mirror_v.setChecked(proj_data.get("mirror_v", False))
@@ -206,8 +215,7 @@ class ProjectIOMixin:
         try:
             proj_data = self._get_project_data()
             path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(proj_data, f)
+            atomic_write_json(path, proj_data)
         except Exception:
             pass
 

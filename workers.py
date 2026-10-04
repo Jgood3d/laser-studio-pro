@@ -226,6 +226,7 @@ class GCodeStreamerThread(QThread):
     # par ce même thread (voir _status_poll_interval) — pas de thread séparé
     # pendant un job actif, pour ne jamais se disputer l'accès au port série.
     status_updated = pyqtSignal(str, float, float, float)
+    connection_lost = pyqtSignal()
 
     def __init__(self, usb_controller, gcode_text):
         super().__init__()
@@ -339,6 +340,13 @@ class GCodeStreamerThread(QThread):
         except Exception as e:
             self.log_signal.emit(f"!!! ERREUR STREAMING : {e}")
             clean_finish = False
+            # Signale une coupure probable (USB débranché, driver qui
+            # décroche...) pour que l'UI propose une reconnexion automatique
+            # — voir ReconnectThread plus bas et _on_job_connection_lost
+            # dans laser_control_mixin.py. Le job lui-même reste arrêté :
+            # jamais de reprise automatique de l'envoi (position potentiellement
+            # plus fiable après une coupure).
+            self.connection_lost.emit()
 
         self.finished_signal.emit(clean_finish)
 
@@ -515,9 +523,21 @@ class AdvancedGCodeWorker(QThread):
                     p_val = int(round((p_percent / 100.0) * s_max))
 
                     if p_val != last_p_val:
-                        gcode.append(f"G1 X{actual_x:.3f} F{speed_engrave} S{p_val}")
-                        total_time_seconds += (abs(actual_x - cx) / max(speed_engrave, 1)) * 60.0
-                        cx = actual_x
+                        # Frontière entre le pixel précédent et celui-ci, dans
+                        # le sens du balayage : bord gauche du pixel en
+                        # balayage gauche->droite, bord droit en droite->gauche.
+                        boundary_x = base_offset_x + (x_pixel if is_ltr else x_pixel + 1) * step_x
+                        # GRBL applique le S d'une ligne G1 au déplacement de
+                        # CETTE ligne : le trajet jusqu'à la frontière
+                        # appartient au run qui se termine, donc on l'effectue
+                        # à SA puissance (last_p_val), pas à celle du run
+                        # suivant. (Avant : le S du run suivant était appliqué
+                        # au run précédent, ce qui gravait les zones à garder
+                        # et épargnait celles à graver, une ligne sur deux.)
+                        if abs(boundary_x - cx) > 1e-9:
+                            gcode.append(f"G1 X{boundary_x:.3f} F{speed_engrave} S{last_p_val}")
+                            total_time_seconds += (abs(boundary_x - cx) / max(speed_engrave, 1)) * 60.0
+                            cx = boundary_x
                         last_p_val = p_val
                         if p_val > 0:
                             total_power_samples.append(p_percent)
@@ -563,7 +583,7 @@ class AdvancedGCodeWorker(QThread):
                     sy = base_offset_y + (h_mm - start_pt.imag)
                     
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
-                    gcode.append(f"{laser_cmd} S{p_cut_val}")
+                    gcode.append(f"M3 S{p_cut_val}")
 
                     curr_x, curr_y = sx, sy
                     
@@ -858,4 +878,31 @@ class TestMatrixWorker(QThread):
         time_str = f"{mins} min {secs} sec"
 
         self.finished.emit("\n".join(gcode), len(gcode), avg_p, time_str)
+
+
+class ReconnectThread(QThread):
+    """Tente de rouvrir automatiquement le port série après une coupure USB
+    survenue en cours de job (câble qui bouge, driver Windows capricieux...).
+    Reconnecte uniquement la LIAISON série — ne relance JAMAIS le job
+    lui-même : après une coupure, la position réelle de la machine n'est
+    plus fiable, reprendre l'envoi à l'aveugle serait dangereux (risque de
+    collision ou de gravure décalée). C'est à l'utilisateur de décider de la
+    suite (re-homing, relance manuelle...) une fois la liaison rétablie."""
+    reconnected = pyqtSignal(bool)
+
+    def __init__(self, usb_controller, port, baudrate=115200, max_attempts=5, delay_sec=2.0):
+        super().__init__()
+        self.usb = usb_controller
+        self.port = port
+        self.baudrate = baudrate
+        self.max_attempts = max_attempts
+        self.delay_sec = delay_sec
+
+    def run(self):
+        for _ in range(self.max_attempts):
+            if self.usb.connect(self.port, self.baudrate):
+                self.reconnected.emit(True)
+                return
+            time.sleep(self.delay_sec)
+        self.reconnected.emit(False)
 

@@ -29,7 +29,9 @@ class HistoryLineEdit(QLineEdit):
             event.accept()
             return
         if event.key() == Qt.Key.Key_Down:
-            if self._history:
+            # Déjà sur la ligne « nouvelle saisie » : Bas ne doit pas effacer
+            # ce que l'utilisateur est en train de taper.
+            if self._history and self._history_index < len(self._history):
                 if self._history_index < len(self._history) - 1:
                     self._history_index += 1
                     self.setText(self._history[self._history_index])
@@ -49,7 +51,10 @@ class AutoHideLabel(QLabel):
 
     def __init__(self, text="", parent=None):
         super().__init__(text, parent)
-        self.setVisible(bool(text))
+        # Ne masque que si vide : appeler setVisible(True) sur un label sans
+        # parent l'afficherait comme une fenêtre isolée avant son layout.
+        if not text:
+            self.hide()
 
     def setText(self, text):
         super().setText(text)

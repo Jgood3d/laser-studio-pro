@@ -12,6 +12,9 @@ from vector_layers import (
 from workers import AdvancedGCodeWorker, TestMatrixWorker
 from i18n import tr
 
+# Couleur du "matériau" simulé sous la gravure dans l'aperçu 2D normal (non négatif).
+PREVIEW_MATERIAL_RGB = (225, 225, 225)
+
 
 class GcodeGenerationMixin:
     def export_gcode_with_ext(self, extension):
@@ -180,44 +183,30 @@ class GcodeGenerationMixin:
                 )
 
             else:
-                # Rendu transparent :
-                # - fond sans gravure : alpha 0 ;
-                # - puissance maximale : alpha 255 ;
-                # - gravure noire ou teintée au-dessus du fond du graphique.
+                # Rendu "normal" : la gravure est simulée sur un matériau
+                # clair (fond opaque gris clair, brûlure noire ou teintée).
+                # Avant, le rendu était transparent avec une gravure NOIRE
+                # posée sur le fond sombre du graphique : illisible. Le
+                # rectangle opaque reste sous les tracés (zValue -50), donc
+                # les découpes / contours restent visibles par-dessus.
+                material = np.array(PREVIEW_MATERIAL_RGB, dtype=np.float32)
                 if tint_color:
-                    tint_rgb = np.array(
-                        pg.mkColor(tint_color).getRgb()[:3],
-                        dtype=np.uint8
-                    )
-                    rgb = np.zeros(
-                        (*power_arr.shape, 3),
-                        dtype=np.uint8
-                    )
-                    rgb[:, :, :] = tint_rgb
+                    burn = np.array(pg.mkColor(tint_color).getRgb()[:3], dtype=np.float32)
                 else:
-                    rgb = np.zeros(
-                        (*power_arr.shape, 3),
-                        dtype=np.uint8
-                    )
-
-                alpha = np.clip(
-                    power_arr * 255.0,
-                    0,
-                    255
-                ).astype(np.uint8)
-
-                rgba = np.dstack((rgb, alpha))
-                pg_array = rgba.transpose(1, 0, 2)
+                    burn = np.zeros(3, dtype=np.float32)
+                blend = power_arr[..., None]
+                rgb = material + blend * (burn - material)
+                arr = np.clip(rgb, 0, 255).astype(np.uint8)
+                pg_array = arr.transpose(1, 0, 2)
             if getattr(self, "chk_flip_raster_preview", None) and self.chk_flip_raster_preview.isChecked():
                 pg_array = pg_array[:, ::-1] if not tint_color else pg_array[:, ::-1, :]
 
             image_item = pg.ImageItem(pg_array)
 
-            # Le tableau est déjà en RGBA lorsque le rendu transparent est
-            # utilisé. Il ne faut pas appliquer de niveaux de gris dans ce
-            # cas, sinon l'alpha peut être ignoré ou mal interprété.
-            if not tint_color and negative_preview:
-                image_item.setLevels([0, 255])
+            # Tous les rendus sont maintenant opaques et déjà à l'échelle
+            # 0-255 : on fige les niveaux pour éviter tout étirement de
+            # contraste automatique de pyqtgraph.
+            image_item.setLevels([0, 255])
             image_item.setRect(QRectF(min_x, min_y_data, bbox_w, bbox_h))
             image_item.setZValue(-50)
             # Sans ça, pyqtgraph affiche l'image dézoomée en échantillonnant
@@ -352,9 +341,9 @@ class GcodeGenerationMixin:
 
         self.txt_console.setPlainText(gcode_text)
         num_lines = len([l for l in gcode_text.split('\n') if l.strip()])
-        self.lbl_stat_lines.setText(f"Lignes: {num_lines}")
-        self.lbl_stat_power.setText("Puissance Moyenne: — (fichier importé)")
-        self.lbl_stat_time.setText("Temps Estimé: — (fichier importé)")
+        self.lbl_stat_lines.setText(tr("gen.stat_lines").format(n=num_lines))
+        self.lbl_stat_power.setText(tr("gen.stat_power_imported"))
+        self.lbl_stat_time.setText(tr("gen.stat_time_imported"))
         self.plot_gcode_preview(gcode_text)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.txt_console.append(
@@ -371,39 +360,43 @@ class GcodeGenerationMixin:
             self.gen_progress_bar_vector.setVisible(False)
             self.gen_progress_bar_main.setVisible(False)
             self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
-            QMessageBox.critical(self, "Erreur", f"Impossible de démarrer la génération :\n\n{error_text}")
+            QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
 
     def _generate_job_impl(self):
+        # Image (tramage / séparation couleur) : toujours en mode gravure par
+        # défaut, avant la lecture des vitesses/puissances ci-dessous.
+        if self.processed_array is not None:
+            self._ensure_engrave_layer_for_image()
         job_w = self.spin_w.value()
         job_h = self.spin_h.value()
         bed_w = self.spin_machine_w.value()
         bed_h = self.spin_machine_h.value()
         if job_w > bed_w or job_h > bed_h:
             QMessageBox.warning(
-                self, "Dimensions trop grandes",
-                f"La zone de gravure configurée ({job_w:.1f} x {job_h:.1f} mm) dépasse la "
-                f"surface de travail de la machine ({bed_w:.1f} x {bed_h:.1f} mm, définie dans "
-                f"l'onglet 'Paramètres Machine').\n\n"
-                "Ce n'est pas possible avec ces réglages : réduis les dimensions du job "
-                "(onglet 'Dimensions & Origine') ou agrandis la zone machine avant de continuer."
+                self, tr("gen.too_big_title"),
+                tr("gen.too_big_body").format(
+                    job_w=job_w, job_h=job_h, bed_w=bed_w, bed_h=bed_h,
+                    tab_machine=tr("tab.machine_params"), tab_dims=tr("tab.dimensions"),
+                )
             )
             return
 
         max_speed_limit = self.spin_machine_max_speed.value()
-        speeds_to_check = [("Vitesse Gravure", self.spin_speed_engrave.value())]
+        speeds_to_check = [(tr("gen.speed_row_engrave"), self.spin_speed_engrave.value())]
         if self.chk_enable_cut.isChecked():
-            speeds_to_check.append(("Vitesse Découpe (ancien mode)", self.spin_speed_cut.value()))
+            speeds_to_check.append((tr("gen.speed_row_cut_old"), self.spin_speed_cut.value()))
         for layer in self.layer_manager.layers:
             if layer.enabled:
-                speeds_to_check.append((f"Calque « {layer.name} »", layer.speed))
+                speeds_to_check.append((tr("gen.speed_row_layer").format(name=layer.name), layer.speed))
         over_limit = [(name, spd) for name, spd in speeds_to_check if spd > max_speed_limit]
         if over_limit:
             details = "\n".join(f"  • {name} : {spd:.0f} mm/min" for name, spd in over_limit)
             reply = QMessageBox.warning(
-                self, "Vitesse au-delà des limites machine",
-                f"La machine active a une vitesse max de {max_speed_limit:.0f} mm/min "
-                f"(onglet 'Paramètres Machine'), mais ces réglages la dépassent :\n\n{details}\n\n"
-                "Continuer quand même ?",
+                self, tr("gen.speed_limit_title"),
+                tr("gen.speed_limit_body").format(
+                    limit=max_speed_limit, details=details,
+                    tab_machine=tr("tab.machine_params"),
+                ),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )
             if reply != QMessageBox.StandardButton.Yes:
@@ -418,14 +411,16 @@ class GcodeGenerationMixin:
                 if self.layer_manager.get(o.layer_id)
             ))
             summary = (
-                f"• Gravure de l'image chargée\n"
-                f"• {len(self.vector_canvas.objects)} objet(s) vectoriel(s) sur "
-                f"{len(layer_names)} calque(s) : {', '.join(layer_names) if layer_names else '—'}"
+                tr("gen.confirm_image") + "\n"
+                + tr("gen.confirm_vectors").format(
+                    count=len(self.vector_canvas.objects),
+                    layers=len(layer_names),
+                    names=', '.join(layer_names) if layer_names else '—',
+                )
             )
             reply = QMessageBox.question(
-                self, "Confirmer la génération",
-                f"Ce job va combiner :\n\n{summary}\n\n"
-                "Confirmer et générer le G-Code, ou annuler pour modifier d'abord ?",
+                self, tr("gen.confirm_title"),
+                tr("gen.confirm_body").format(summary=summary),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Yes
             )
@@ -469,13 +464,12 @@ class GcodeGenerationMixin:
 
             if base_x_check - overscan_check < 0:
                 QMessageBox.critical(
-                    self, "Position invalide (Surbalayage)",
-                    f"Avec le surbalayage actuel ({overscan_check:.2f} mm) et le décalage X "
-                    f"configuré ({params['offset_x']:.2f} mm), le point de départ calculé serait "
-                    f"à X={base_x_check - overscan_check:.2f} mm — une position NÉGATIVE, "
-                    "impossible pour la machine.\n\n"
-                    "Augmente le décalage X (onglet 'Dimensions & Origine') ou réduis la distance "
-                    "de surbalayage (onglet 'Configuration GRBL') avant de générer."
+                    self, tr("gen.overscan_title"),
+                    tr("gen.overscan_body").format(
+                        overscan=overscan_check, offset=params['offset_x'],
+                        start=base_x_check - overscan_check,
+                        tab_dims=tr("tab.dimensions"), tab_grbl=tr("tab.grbl_config"),
+                    )
                 )
                 return
 
@@ -501,15 +495,34 @@ class GcodeGenerationMixin:
                 base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == "Centre" else params['offset_x']
                 if base_x + min_x - vec_overscan_check < 0:
                     QMessageBox.critical(
-                        self, "Position invalide (Surbalayage — calque vectoriel)",
-                        f"Le calque « {layer['name']} » (Gravure Remplie) commence trop près du "
-                        f"bord gauche pour le surbalayage configuré ({vec_overscan_check:.2f} mm) : "
-                        f"le point de départ serait à X={base_x + min_x - vec_overscan_check:.2f} mm — "
-                        "une position NÉGATIVE, impossible pour la machine.\n\n"
-                        "Déplace cet objet vers la droite dans l'éditeur vectoriel, ou réduis la "
-                        "distance de surbalayage (onglet 'Configuration GRBL') avant de générer."
+                        self, tr("gen.overscan_vec_title"),
+                        tr("gen.overscan_vec_body").format(
+                            name=layer['name'], overscan=vec_overscan_check,
+                            start=base_x + min_x - vec_overscan_check,
+                            tab_grbl=tr("tab.grbl_config"),
+                        )
                     )
                     return
+
+        # Dernier garde-fou avant de générer une gravure image : rappel de la
+        # puissance et de la vitesse, comme l'alerte de surbalayage ci-dessus.
+        if self.processed_array is not None:
+            layer_label = self.combo_engrave_layer.currentText() if hasattr(self, "combo_engrave_layer") else "—"
+            reply = QMessageBox.question(
+                self, tr("gen.engrave_confirm_title"),
+                tr("gen.engrave_confirm_body").format(
+                    layer=layer_label or "—",
+                    power=params['power_engrave'],
+                    speed=params['speed_engrave'],
+                    width=params['width_mm'],
+                    height=params['height_mm'],
+                    material=self.material_summary_text(),
+                ),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes
+            )
+            if reply != QMessageBox.StandardButton.Yes:
+                return
 
         self.worker = AdvancedGCodeWorker(self.processed_array, self.loaded_svg_path, params, vector_layers_data)
         self.worker.finished.connect(self.on_gcode_generated)
@@ -517,13 +530,13 @@ class GcodeGenerationMixin:
         self.worker.error.connect(self.on_gcode_generation_error)
         self.gen_progress_bar.setValue(0)
         self.gen_progress_bar.setVisible(True)
-        self.lbl_gen_progress.setText("Génération en cours…")
+        self.lbl_gen_progress.setText(tr("gen.in_progress"))
         self.gen_progress_bar_vector.setValue(0)
         self.gen_progress_bar_vector.setVisible(True)
-        self.lbl_gen_progress_vector.setText("Génération en cours…")
+        self.lbl_gen_progress_vector.setText(tr("gen.in_progress"))
         self.gen_progress_bar_main.setValue(0)
         self.gen_progress_bar_main.setVisible(True)
-        self.lbl_gen_progress_main.setText("Génération en cours…")
+        self.lbl_gen_progress_main.setText(tr("gen.in_progress"))
         self.worker.start()
 
     def on_gcode_generation_error(self, error_text):
@@ -534,15 +547,15 @@ class GcodeGenerationMixin:
         self.gen_progress_bar_main.setVisible(False)
         self.lbl_gen_progress_main.setText("")
         self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
-        QMessageBox.critical(self, "Erreur de génération", f"La génération du G-Code a échoué :\n\n{error_text}")
+        QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
     def on_gcode_generation_progress(self, pct):
         self.gen_progress_bar.setValue(pct)
-        self.lbl_gen_progress.setText(f"Génération en cours… {pct}%")
+        self.lbl_gen_progress.setText(tr("gen.in_progress_pct").format(pct=pct))
         self.gen_progress_bar_vector.setValue(pct)
-        self.lbl_gen_progress_vector.setText(f"Génération en cours… {pct}%")
+        self.lbl_gen_progress_vector.setText(tr("gen.in_progress_pct").format(pct=pct))
         self.gen_progress_bar_main.setValue(pct)
-        self.lbl_gen_progress_main.setText(f"Génération en cours… {pct}%")
+        self.lbl_gen_progress_main.setText(tr("gen.in_progress_pct").format(pct=pct))
 
     def generate_test_matrix(self):
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
@@ -640,18 +653,18 @@ class GcodeGenerationMixin:
 
     def on_gcode_generated(self, gcode_str, num_lines, avg_power, time_str):
         self.gen_progress_bar.setValue(100)
-        self.lbl_gen_progress.setText("Terminé ✓")
+        self.lbl_gen_progress.setText(tr("gen.done"))
         QTimer.singleShot(1500, lambda: (self.gen_progress_bar.setVisible(False), self.lbl_gen_progress.setText("")))
         self.gen_progress_bar_vector.setValue(100)
-        self.lbl_gen_progress_vector.setText("Terminé ✓")
+        self.lbl_gen_progress_vector.setText(tr("gen.done"))
         QTimer.singleShot(1500, lambda: (self.gen_progress_bar_vector.setVisible(False), self.lbl_gen_progress_vector.setText("")))
         self.gen_progress_bar_main.setValue(100)
-        self.lbl_gen_progress_main.setText("Terminé ✓")
+        self.lbl_gen_progress_main.setText(tr("gen.done"))
         QTimer.singleShot(1500, lambda: (self.gen_progress_bar_main.setVisible(False), self.lbl_gen_progress_main.setText("")))
         self.txt_console.setPlainText(gcode_str)
-        self.lbl_stat_lines.setText(f"Lignes: {num_lines}")
-        self.lbl_stat_power.setText(f"Puissance Moyenne: {avg_power:.1f} %")
-        self.lbl_stat_time.setText(f"Temps Estimé: {time_str}")
+        self.lbl_stat_lines.setText(tr("gen.stat_lines").format(n=num_lines))
+        self.lbl_stat_power.setText(tr("gen.stat_power").format(value=f"{avg_power:.1f}"))
+        self.lbl_stat_time.setText(tr("gen.stat_time").format(value=time_str))
         self.plot_gcode_preview(gcode_str)
         
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
@@ -678,8 +691,8 @@ class GcodeGenerationMixin:
             # ligne inattendue qui fait planter l'analyse, on le signale
             # clairement dans la console plutôt que d'afficher un graphique vide.
             self.txt_console.append(f"\n; ERREUR aperçu 2D : {e}")
-            QMessageBox.warning(self, "Aperçu 2D",
-                                 f"L'aperçu 2D n'a pas pu être généré pour ce G-Code :\n{e}")
+            QMessageBox.warning(self, tr("gen.preview_error_title"),
+                                 tr("gen.preview_error_body").format(error=e))
 
     def _plot_gcode_preview_impl(self, gcode_text):
         self.plot_widget.clear()
@@ -689,8 +702,8 @@ class GcodeGenerationMixin:
         # commentaires déjà présents dans le G-Code généré.
         DEFAULT_SVG_COLOR = "#ff00ff"
         DEFAULT_LAYER_COLOR = "#00ff88"
-        RASTER_LABEL = "Gravure Image (Raster)"
-        UNKNOWN_LABEL = "G-Code (import ou sans calque identifié)"
+        RASTER_LABEL = tr("gen.legend_raster")
+        UNKNOWN_LABEL = tr("gen.legend_unknown")
 
         current_label = UNKNOWN_LABEL
         current_color = "#00ff88"
@@ -722,11 +735,11 @@ class GcodeGenerationMixin:
                         current_layer_mode = "Gravure Remplie"
                         current_is_test_matrix = False
                     elif 'PHASE 2' in raw_line and 'DÉCOUPE VECTORIELLE SVG' in raw_line:
-                        current_label, current_color = "Découpe SVG (import)", DEFAULT_SVG_COLOR
+                        current_label, current_color = tr("gen.legend_svg_cut"), DEFAULT_SVG_COLOR
                         current_layer_mode = "Découpe"
                         current_is_test_matrix = False
                     elif raw_line.startswith('; --- MATRICE DE TEST LASER'):
-                        current_label = "Matrice de test"
+                        current_label = tr("gen.legend_test_matrix")
                         current_color = "#00ff88"
                         current_layer_mode = "Matrice"
                         current_is_test_matrix = True
@@ -736,7 +749,7 @@ class GcodeGenerationMixin:
                             layer_name = m.group(1)
                             layer_mode = m.group(2)
                             layer = next((l for l in self.layer_manager.layers if l.name == layer_name), None)
-                            current_label = f"Calque « {layer_name} »"
+                            current_label = tr("gen.legend_layer").format(name=layer_name)
                             current_color = layer.color if layer else DEFAULT_LAYER_COLOR
                             current_layer_mode = layer_mode
                             current_is_test_matrix = False
@@ -836,11 +849,11 @@ class GcodeGenerationMixin:
                 # Image générée par l'application.
                 is_raster = True
 
-            elif label == "Matrice de test":
+            elif label == tr("gen.legend_test_matrix"):
                 # Une matrice de test doit rester affichée en vectoriel.
                 is_raster = False
 
-            elif label == "Découpe SVG (import)":
+            elif label == tr("gen.legend_svg_cut"):
                 # Un SVG de découpe doit rester affiché comme des contours.
                 is_raster = False
 
@@ -887,18 +900,31 @@ class GcodeGenerationMixin:
                 raster_keys_rendered_as_image.add(key)
 
         legend_rows = (
-            f'<div><span style="color:#888888">■</span> G0 Rapide ({len(g0_x)//3} segments)</div>'
-            f'<div><span style="color:#ff3355">■</span> Overscan ({len(ov_x)//3} segments)</div>'
+            f'<div><span style="color:#888888">■</span> {tr("gen.legend_g0").format(n=len(g0_x)//3)}</div>'
+            f'<div><span style="color:#ff3355">■</span> {tr("gen.legend_overscan").format(n=len(ov_x)//3)}</div>'
         )
         if g1_travel_x:
-            legend_rows += f'<div><span style="color:#888888">■</span> Déplacement G1 sans gravure ({len(g1_travel_x)//3} segments)</div>'
+            legend_rows += f'<div><span style="color:#888888">■</span> {tr("gen.legend_g1_travel").format(n=len(g1_travel_x)//3)}</div>'
+        # Pastille de légende = couleur réellement affichée. La gravure image
+        # n'est jamais teintée (tint=None) : elle est dessinée en noir sur le
+        # matériau clair, ou en blanc sur noir si l'aperçu négatif est coché.
+        # La couleur interne de la phase (orange) ne sert qu'au regroupement.
+        negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
+                                and self.chk_negative_raster_preview.isChecked())
+        if negative_preview:
+            raster_swatch = '<span style="color:#ffffff; background-color:#000000">■</span>'
+        else:
+            material_hex = "#%02x%02x%02x" % PREVIEW_MATERIAL_RGB
+            raster_swatch = f'<span style="color:#000000; background-color:{material_hex}">■</span>'
+
         for label, color in seen_order:
             xs, ys = g1_segments[(label, color)]
             n_segs = len(xs) // 3
             if (label, color) in raster_keys_rendered_as_image:
-                legend_rows += f'<div><span style="color:{color}">■</span> {label} ({n_segs} segments — rendu en image ci-dessous)</div>'
+                swatch = raster_swatch if label == RASTER_LABEL else f'<span style="color:{color}">■</span>'
+                legend_rows += f'<div>{swatch} {tr("gen.legend_layer_raster_note").format(label=label, n=n_segs)}</div>'
             else:
-                legend_rows += f'<div><span style="color:{color}">■</span> {label} ({n_segs} segments)</div>'
+                legend_rows += f'<div><span style="color:{color}">■</span> {tr("gen.legend_layer_segments").format(label=label, n=n_segs)}</div>'
 
         self.info_text_item = pg.TextItem(
             html=f'<div style="color: #ffffff; background-color: rgba(0,0,0,170); padding: 4px;">{legend_rows}</div>',

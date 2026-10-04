@@ -1,8 +1,9 @@
 """Petits utilitaires partagés par l'application (version, chemin de l'exécutable)."""
 import sys
 import os
+import json
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.0"
 
 
 def get_app_dir():
@@ -43,6 +44,35 @@ def get_autosave_dir():
     except Exception:
         return get_app_dir()
     return path
+
+
+def atomic_write_text(path, text, encoding="utf-8"):
+    """Écrit `text` dans `path` de façon atomique : le contenu est d'abord
+    écrit et vidé sur disque dans un fichier voisin « .tmp », puis ce fichier
+    REMPLACE l'ancien d'un seul coup (os.replace). Un plantage, une coupure de
+    courant ou un disque plein en cours d'écriture laisse donc l'ancien
+    fichier intact au lieu d'un fichier tronqué — précieux pour l'autosave et
+    la file d'attente, qui servent justement à se remettre d'un incident."""
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding=encoding) as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_path, path)
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def atomic_write_json(path, data, **dump_kwargs):
+    """Sérialise `data` en JSON puis l'écrit de façon atomique (voir
+    atomic_write_text). La sérialisation se fait AVANT toute écriture : une
+    donnée non sérialisable ne touche donc jamais au fichier existant."""
+    atomic_write_text(path, json.dumps(data, **dump_kwargs))
 
 
 def find_resource(filename):

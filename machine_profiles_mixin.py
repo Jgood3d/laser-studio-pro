@@ -1,6 +1,6 @@
 """Gestion des profils machine et des profils matériaux (sauvegarde/chargement via QSettings)."""
 from PyQt6.QtWidgets import (QMessageBox, QInputDialog, QFileDialog)
-from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QSettings, QTimer
 import json
 
 from i18n import tr
@@ -31,6 +31,10 @@ class MachineProfilesMixin:
         settings.setValue("machine_bed_h_mm", self.spin_machine_h.value())
         if hasattr(self, "spin_machine_focal"):
             settings.setValue("machine_focal_mm", self.spin_machine_focal.value())
+        # Les réglages des calques (vitesse, puissance, passes...) sont
+        # rangés dans le profil de la machine active : ils sont donc
+        # retrouvés à la réouverture, propres à chaque machine.
+        self._store_layers_in_active_profile()
         settings.setValue("machine_profiles_json", json.dumps(getattr(self, "machine_profiles", [])))
         if hasattr(self, "combo_machine_profile") and self.combo_machine_profile.currentIndex() >= 0:
             settings.setValue("last_machine_profile", self.combo_machine_profile.currentText())
@@ -85,7 +89,9 @@ class MachineProfilesMixin:
         # ne les charge réellement au démarrage.
         idx = self.combo_machine_profile.currentIndex() if hasattr(self, "combo_machine_profile") else -1
         if 0 <= idx < len(self.machine_profiles):
-            self._apply_machine_profile_fields(self.machine_profiles[idx])
+            # Au démarrage, aucun objet n'est encore sur le canevas : on peut
+            # restaurer les calques en entier (noms, couleurs, nombre, réglages).
+            self._apply_machine_profile_fields(self.machine_profiles[idx], restore_layers_fully=True)
 
         mode_index = settings.value("lmm_mode_index", None)
         dpi_value = settings.value("lmm_dpi_value", None)
@@ -117,6 +123,107 @@ class MachineProfilesMixin:
             self.on_lmm_mode_changed(self.combo_lmm_mode.currentIndex())
         elif hasattr(self, "spin_lmm"):
             self._sync_dpi_and_quality_from_lmm(self.spin_lmm.value())
+        # À partir d'ici seulement, un changement de calque peut être
+        # enregistré (voir _schedule_layer_persist) : avant, on risquerait
+        # d'écraser les calques sauvegardés par ceux, par défaut, du démarrage.
+        self._layers_persist_ready = True
+
+    # ------------------------------------------------------------------
+    # Réglages des calques liés à la machine
+    # ------------------------------------------------------------------
+    # Réglages repris d'un profil machine quand on CHANGE de machine en cours
+    # de session (le nom, la couleur et l'identité des calques ne bougent pas :
+    # les objets du canevas y sont rattachés par identifiant).
+    _LAYER_SETTING_CASTS = (
+        ("mode", str), ("power", float), ("speed", int), ("passes", int),
+        ("line_interval", float), ("line_interval_linked", bool), ("enabled", bool),
+    )
+
+    def _store_layers_in_active_profile(self):
+        """Copie l'état courant des calques dans le profil machine actif
+        (en mémoire ; écrit sur disque par save_machine_settings)."""
+        if not (hasattr(self, "layer_manager") and hasattr(self, "combo_machine_profile")):
+            return
+        profiles = getattr(self, "machine_profiles", None) or []
+        idx = self.combo_machine_profile.currentIndex()
+        if 0 <= idx < len(profiles):
+            profiles[idx]["layers"] = self.layer_manager.to_list()
+
+    def _apply_profile_layers(self, saved_layers, full=False):
+        """Applique les calques mémorisés dans un profil machine.
+
+        full=True (démarrage) : remplace entièrement la liste des calques.
+        full=False (changement de machine en cours de session) : ne reprend
+        que les réglages (mode, puissance, vitesse, passes, pas, actif) et
+        les applique aux calques existants, retrouvés par identifiant puis,
+        à défaut, par position. Les calques ne sont ni ajoutés, ni supprimés,
+        ni renommés : sinon des objets du canevas perdraient leur calque et
+        ne seraient plus gravés.
+        Un profil sans calques mémorisés (ancien profil) ne change rien."""
+        if not saved_layers or not isinstance(saved_layers, list) or not hasattr(self, "layer_manager"):
+            return
+        saved_layers = [d for d in saved_layers if isinstance(d, dict)]
+        if not saved_layers:
+            return
+        mgr = self.layer_manager
+        if full:
+            mgr.load_list(saved_layers)
+            # Valeurs corrompues dans les réglages enregistrés : on retombe sur
+            # un type valide plutôt que de planter à l'ouverture.
+            for layer in mgr.layers:
+                self._coerce_layer_settings(layer, layer.to_dict(), reset_invalid=True)
+        else:
+            by_id = {d.get("id"): d for d in saved_layers}
+            for i, layer in enumerate(mgr.layers):
+                d = by_id.get(layer.id) or (saved_layers[i] if i < len(saved_layers) else None)
+                if d:
+                    self._coerce_layer_settings(layer, d)
+        if hasattr(self, "layer_widget"):
+            self.layer_widget.refresh()
+            # Les calques liés à la focale suivent la focale de CETTE machine.
+            self.layer_widget.link_all_to_focal()
+
+    def _coerce_layer_settings(self, layer, source, reset_invalid=False):
+        """Copie les réglages de `source` vers `layer` en forçant le bon type.
+        Une valeur inutilisable est ignorée (le calque garde sa valeur) ; avec
+        reset_invalid=True (calque tout juste chargé, dont la valeur
+        corrompue est déjà en place), elle est remplacée par la valeur par
+        défaut d'un calque neuf."""
+        try:
+            from vector_layers import LAYER_MODES
+        except ImportError:
+            LAYER_MODES = None
+        defaults = type(layer)() if reset_invalid else None
+        for key, cast in self._LAYER_SETTING_CASTS:
+            if key not in source:
+                continue
+            try:
+                value = cast(source[key])
+                if key == "mode" and LAYER_MODES is not None and value not in LAYER_MODES:
+                    raise ValueError(value)
+            except (TypeError, ValueError):
+                if defaults is not None:
+                    setattr(layer, key, getattr(defaults, key))
+                continue
+            setattr(layer, key, value)
+
+    def _schedule_layer_persist(self, *args):
+        """Un calque a changé : enregistre les calques de la machine active
+        peu après (regroupe les rafales de changements, ex. saisie d'un
+        nombre) — sans attendre la fermeture, pour survivre à un plantage."""
+        if not getattr(self, "_layers_persist_ready", False):
+            return
+        # Rangement immédiat (en mémoire) dans le profil actif : si on change
+        # de machine juste après, les dernières modifications de la machine
+        # quittée sont déjà dans SON profil. Seule l'écriture disque est
+        # différée.
+        self._store_layers_in_active_profile()
+        if not hasattr(self, "_layer_persist_timer"):
+            self._layer_persist_timer = QTimer()
+            self._layer_persist_timer.setSingleShot(True)
+            self._layer_persist_timer.setInterval(600)
+            self._layer_persist_timer.timeout.connect(self.save_machine_settings)
+        self._layer_persist_timer.start()
 
     def _refresh_machine_profile_combo(self, select_name=None):
         if not hasattr(self, "combo_machine_profile"):
@@ -153,9 +260,12 @@ class MachineProfilesMixin:
             # _apply_machine_profile_fields) : une copie, pour que modifier
             # les matériaux d'un profil n'affecte jamais les autres.
             "materials_db": dict(self.materials_db) if hasattr(self, "materials_db") else dict(DEFAULT_MATERIALS_DB),
+            # Réglages des calques (vitesse, puissance, passes...) propres à
+            # cette machine — voir _apply_profile_layers.
+            "layers": self.layer_manager.to_list() if hasattr(self, "layer_manager") else [],
         }
 
-    def _apply_machine_profile_fields(self, p):
+    def _apply_machine_profile_fields(self, p, restore_layers_fully=False):
         """Applique tous les réglages d'un profil machine aux widgets
         correspondants (dimensions, origine, limites, G-code début/fin)."""
         self.spin_machine_w.setValue(p.get("w", self.spin_machine_w.value()))
@@ -190,6 +300,7 @@ class MachineProfilesMixin:
             self.combo_mat.blockSignals(False)
             if hasattr(self, "apply_material_profile"):
                 self.apply_material_profile()
+        self._apply_profile_layers(p.get("layers"), full=restore_layers_fully)
 
     def _on_machine_profile_selected(self, idx):
         if idx < 0 or idx >= len(self.machine_profiles):

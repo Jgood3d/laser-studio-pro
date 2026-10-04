@@ -91,7 +91,8 @@ class Png2SvgMixin:
             fd, tmp_path = tempfile.mkstemp(suffix=".svg")
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(svg_text)
-            default_layer_id = self.layer_manager.layers[0].id
+            default_layer = self.layer_manager.default_svg_layer()
+            default_layer_id = default_layer.id
             objects = extract_svg_objects(tmp_path, default_layer_id, self.spin_machine_h.value())
         except Exception as e:
             QMessageBox.critical(
@@ -116,14 +117,15 @@ class Png2SvgMixin:
             return
 
         self.vector_canvas.push_undo_snapshot()
-        for obj in objects:
-            self.vector_canvas.add_object(obj)
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        # Centre la grille sur le résultat de la conversion.
+        self.vector_canvas.request_recenter(new_items)
         QMessageBox.information(
             self,
             tr("vector.svg_success_title"),
             tr("vector.svg_success").format(
                 count=len(objects),
-                layer=self.layer_manager.layers[0].name,
+                layer=default_layer.name,
             ),
         )

@@ -8,7 +8,7 @@ import json
 import os
 from PyQt6.QtWidgets import QMessageBox, QListWidgetItem
 from workers import GCodeStreamerThread
-from app_utils import get_autosave_dir
+from app_utils import get_autosave_dir, atomic_write_json
 from i18n import tr
 
 QUEUE_FILENAME = "laser_studio_pro_queue.json"
@@ -28,11 +28,25 @@ class JobQueueMixin:
             return
         if not hasattr(self, "job_queue"):
             self.job_queue = []
-        name = f"Job {len(self.job_queue) + 1} — {datetime.datetime.now().strftime('%H:%M:%S')}"
+        base_name = f"Job {len(self.job_queue) + 1} — {datetime.datetime.now().strftime('%H:%M:%S')}"
+        name = self._unique_job_name(base_name)
         self.job_queue.append({"name": name, "gcode": gcode_text})
         self.list_job_queue.addItem(QListWidgetItem(name))
         self._update_queue_status()
         self._save_job_queue()
+
+    def _unique_job_name(self, base_name):
+        """Garantit un nom unique dans la file : deux jobs ajoutés dans la
+        même seconde portaient le même nom, ce qui faisait échouer le
+        réappariement par nom de _on_queue_reordered (l'ordre n'était alors
+        jamais sauvegardé)."""
+        existing = {job["name"] for job in getattr(self, "job_queue", [])}
+        if base_name not in existing:
+            return base_name
+        n = 2
+        while f"{base_name} ({n})" in existing:
+            n += 1
+        return f"{base_name} ({n})"
 
     def remove_selected_from_queue(self):
         if not hasattr(self, "job_queue"):
@@ -75,8 +89,7 @@ class JobQueueMixin:
         projet, voir project_io_mixin.py)."""
         try:
             path = os.path.join(get_autosave_dir(), QUEUE_FILENAME)
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(getattr(self, "job_queue", []), f)
+            atomic_write_json(path, getattr(self, "job_queue", []))
         except Exception:
             pass
 
@@ -91,10 +104,12 @@ class JobQueueMixin:
                 loaded = json.load(f)
             if not isinstance(loaded, list):
                 return
-            self.job_queue = [
-                job for job in loaded
-                if isinstance(job, dict) and "name" in job and "gcode" in job
-            ]
+            self.job_queue = []
+            for job in loaded:
+                if isinstance(job, dict) and "name" in job and "gcode" in job:
+                    # Files sauvegardées avant correction : noms dédoublonnés.
+                    job["name"] = self._unique_job_name(job["name"])
+                    self.job_queue.append(job)
         except Exception:
             self.job_queue = []
             return
@@ -130,6 +145,9 @@ class JobQueueMixin:
 )
             return
 
+        if hasattr(self, "_confirm_homed_before_job") and not self._confirm_homed_before_job():
+            return
+
         reply = QMessageBox.question(
     self,
     tr("queue.confirm_title"),
@@ -148,7 +166,7 @@ class JobQueueMixin:
 
     def _run_next_queued_job(self):
         if self._queue_running_index >= len(self.job_queue):
-            self.txt_console.append(">>> File d'attente terminée.")
+            self.txt_console.append(tr("queue.finished_log"))
             if getattr(self, "status_poll_thread", None):
                 self.status_poll_thread.resume()
             if hasattr(self, "_notify_job_finished"):
@@ -183,10 +201,13 @@ class JobQueueMixin:
 
         self.progress_bar.setValue(0)
         self.streamer = GCodeStreamerThread(self.usb, job["gcode"])
-        self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
+        self.streamer.progress.connect(
+            lambda current, total: self.progress_bar.setValue(int((current / total) * 100) if total else 0))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self._on_queued_job_finished)
+        if hasattr(self, "_on_job_connection_lost"):
+            self.streamer.connection_lost.connect(self._on_job_connection_lost)
         self.streamer.start()
 
     def _on_queued_job_finished(self, clean_finish):
