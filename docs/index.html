@@ -170,6 +170,12 @@
   dl.specs dt{ color:var(--text-dim); }
   dl.specs dd{ color:var(--text); }
 
+  .frame-img.ratio54{ aspect-ratio:5/4; }
+  .frame-img.ratio54 img{ object-position:center; }
+  .frame-img.wide{ aspect-ratio:16/9; }
+  .frame-img.wide img{ object-position:center; }
+  .tests-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:20px; margin-top:20px; }
+
   .gallery-sub{ font-size:18px; margin:8px 0 24px; }
   .gallery{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
 
@@ -211,6 +217,7 @@
     .grid{ grid-template-columns:1fr; }
     .gallery{ grid-template-columns:1fr; }
     .results-grid{ grid-template-columns:1fr; }
+    .tests-grid{ grid-template-columns:1fr; }
     .steps{ grid-template-columns:repeat(2,1fr); }
     .hero h1{ font-size:32px; }
     nav.links{ display:none; }
@@ -225,6 +232,7 @@
     <nav class="links">
       <a href="#news">Nouveautés</a>
       <a href="#results">Réalisations</a>
+      <a href="#tests">Tests de gravure</a>
       <a href="#features">Fonctionnalités</a>
       <a href="#gallery">En images</a>
       <a href="#howto">Utilisation</a>
@@ -373,6 +381,56 @@
       Ces pièces sont préparées avec l'onglet <a href="#gallery">Séparation Couleur / Verre</a>
       du logiciel.
     </p>
+  </div>
+</section>
+
+<section id="tests">
+  <div class="wrap">
+    <h2>Tests de gravure</h2>
+    <p class="section-lead">
+      Une même image gravée plusieurs fois avec des réglages différents, à comparer
+      avec l'image d'origine.
+    </p>
+
+    <figure class="frame">
+      <div class="frame-bar"><span>Image d'origine</span><span>Fichier source</span></div>
+      <div class="frame-img wide">
+        <img src="images/gravure-test-original.jpg" alt="Image d'origine : faille dans un désert avec projections de roches et de lave" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+      </div>
+    </figure>
+
+    <div class="tests-grid">
+      <figure class="frame">
+        <div class="frame-bar"><span>Test 1</span><span>Gravure</span></div>
+        <div class="frame-img ratio54">
+          <img src="images/gravure-test-1.jpg" alt="Test de gravure 1 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Test 2</span><span>Gravure</span></div>
+        <div class="frame-img ratio54">
+          <img src="images/gravure-test-2.jpg" alt="Test de gravure 2 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Test 3</span><span>Gravure</span></div>
+        <div class="frame-img ratio54">
+          <img src="images/gravure-test-3.jpg" alt="Test de gravure 3 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span>Test 4</span><span>Gravure</span></div>
+        <div class="frame-img ratio54">
+          <img src="images/gravure-test-4.jpg" alt="Test de gravure 4 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+    </div>
+
+    <dl class="specs">
+      <dt>Graveur</dt><dd>Elegoo Phecda 20W</dd>
+      <dt>Résolution</dt><dd>195 DPI</dd>
+      <dt>Dimensions de gravure</dt><dd>250 x 200 mm</dd>
+    </dl>
   </div>
 </section>
 
