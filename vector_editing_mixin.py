@@ -5,6 +5,10 @@ from vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
 from i18n import tr
+import box_generator
+import dxf_import
+from box_dialog import BoxGeneratorDialog, error_message
+from vector_import import box_to_objects, decor_to_objects, dxf_to_objects
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
@@ -362,37 +366,47 @@ class VectorEditingMixin:
         self.vector_canvas.request_recenter()
 
     def import_svg_to_vector_editor(self):
-        """Importe un SVG dans l'éditeur vectoriel : chaque tracé/forme devient
-        un objet indépendant (« dégroupé »), assignable à un calque différent
+        """Importe un SVG ou un DXF dans l'éditeur vectoriel : chaque tracé/forme
+        devient un objet indépendant (« dégroupé »), assignable à un calque différent
         (découpe, gravure remplie...), avec aperçu visuel immédiat."""
         if not self.layer_manager.layers:
             QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         path, _ = QFileDialog.getOpenFileName(
-    self,
-    tr("vector.import_title"),
-    "",
-    tr("vector.svg_filter")
-)
+            self,
+            tr("vector.import_title"),
+            "",
+            tr("vector.import_filter")
+        )
         if not path:
+            return
+        self._import_vector_file(path)
+
+    def _import_vector_file(self, path):
+        """Importe le fichier SVG ou DXF `path` (aussi appelé par le glisser-déposer)."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         default_layer = self.layer_manager.default_svg_layer()
         default_layer_id = default_layer.id
+        if path.lower().endswith(".dxf"):
+            self._import_dxf_file(path, default_layer)
+            return
         try:
             objects = extract_svg_objects(path, default_layer_id, self.spin_machine_h.value())
         except Exception as e:
             QMessageBox.critical(
-    self,
-    tr("vector.svg_error_title"),
-    tr("vector.svg_error").format(error=e)
-)
+                self,
+                tr("vector.svg_error_title"),
+                tr("vector.svg_error").format(error=e)
+            )
             return
         if not objects:
             QMessageBox.information(
-    self,
-    tr("vector.svg_empty_title"),
-    tr("vector.svg_empty")
-)
+                self,
+                tr("vector.svg_empty_title"),
+                tr("vector.svg_empty")
+            )
             return
         self.vector_canvas.push_undo_snapshot()
         new_items = [self.vector_canvas.add_object(obj) for obj in objects]
@@ -401,13 +415,89 @@ class VectorEditingMixin:
         # l'utilisateur le chercher en faisant défiler la vue).
         self.vector_canvas.request_recenter(new_items)
         QMessageBox.information(
-    self,
-    tr("vector.svg_success_title"),
-    tr("vector.svg_success").format(
-        count=len(objects),
-        layer=default_layer.name
-    )
-)
+            self,
+            tr("vector.svg_success_title"),
+            tr("vector.svg_success").format(
+                count=len(objects),
+                layer=default_layer.name
+            )
+        )
+
+    def _import_dxf_file(self, path, default_layer):
+        """Import d'un DXF (texte ASCII) : un objet par tracé, tous sur le calque par défaut."""
+        try:
+            drawing = dxf_import.read_dxf(path)
+        except dxf_import.DxfError as e:
+            key = f"vector.dxf_err.{e.code}"
+            text = tr(key)
+            if text == key:
+                text = tr("vector.dxf_error").format(error=e)
+            else:
+                text = text.format(**e.info) if e.info else text
+            QMessageBox.critical(self, tr("vector.dxf_title"), text)
+            return
+        except Exception as e:
+            QMessageBox.critical(self, tr("vector.dxf_title"), tr("vector.dxf_error").format(error=e))
+            return
+        skipped = ", ".join(f"{kind} x{count}" for kind, count in sorted(drawing.skipped.items()))
+        objects = dxf_to_objects(drawing, default_layer.id)
+        if not objects:
+            message = tr("vector.dxf_empty")
+            if skipped:
+                message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
+            QMessageBox.information(self, tr("vector.dxf_title"), message)
+            return
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+        message = tr("vector.dxf_success").format(
+            count=len(objects), layer=default_layer.name, unit=dxf_import.units_label(drawing))
+        if skipped:
+            message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
+        QMessageBox.information(self, tr("vector.dxf_title"), message)
+
+    def open_box_generator(self):
+        """Fenêtre du générateur de boîte à encoches : crée les panneaux (calque de découpe) et le
+        décor texte/SVG (calque de gravure) dans l'éditeur vectoriel."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return
+        dialog = BoxGeneratorDialog(
+            self, self.layer_manager.layers, self.spin_machine_w.value(), self.spin_machine_h.value(),
+            getattr(self, "_box_settings", None))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._box_settings = dialog.settings()
+        try:
+            result = box_generator.build_box(dialog.params())
+        except box_generator.BoxError as e:
+            QMessageBox.warning(self, tr("box.title"), error_message(e))
+            return
+        offset = 10.0
+        panels = box_to_objects(result, dialog.cut_layer_id(), offset, offset)
+        by_name = {panel.name: panel for panel, _ in panels}
+        decor_objects = []
+        bed_h = self.spin_machine_h.value()
+        for decor in dialog.decors():
+            panel = by_name.get(decor.face)
+            if panel is None:
+                continue                       # face absente (ex. dessus d'une boîte ouverte)
+            try:
+                decor_objects += decor_to_objects(decor, panel, dialog.engrave_layer_id(), bed_h, offset, offset)
+            except Exception as e:
+                QMessageBox.warning(self, tr("box.title"), tr("box.decor_error").format(error=e))
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for _, obj in panels]
+        new_items += [self.vector_canvas.add_object(obj) for obj in decor_objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+        message = tr("box.done").format(count=len(panels), decor=len(decor_objects),
+                                        w=result.width, h=result.height)
+        if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
+            message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
+        QMessageBox.information(self, tr("box.title"), message)
+
 
     def load_svg(self):
         path, _ = QFileDialog.getOpenFileName(

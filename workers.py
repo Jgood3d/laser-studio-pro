@@ -20,6 +20,7 @@ except ImportError:
 
 from vector_font import VectorFont
 from vector_layers import build_vector_layers_gcode
+import separation_engine
 
 
 def _round_half_up(value):
@@ -233,10 +234,60 @@ class GCodeStreamerThread(QThread):
         self.usb = usb_controller
         self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
         self.is_running = True
+        self._stopped_by_user = False
         self._status_poll_interval = 0.4  # secondes entre deux requêtes '?' pendant le job
+        # Fin de job : GRBL répond « ok » dès qu'il a ACCEPTÉ une ligne, pas
+        # quand le mouvement est terminé. Après le dernier « ok », on attend
+        # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
+        self._idle_poll_interval = 0.2    # secondes entre deux requêtes '?' pendant l'attente
+        self._idle_reply_timeout = 8.0    # aucun rapport de statut pendant ce délai : liaison considérée perdue
 
     def stop(self):
         self.is_running = False
+        self._stopped_by_user = True
+
+    def _wait_until_idle(self, ser):
+        """Attend que GRBL passe à l'état Idle (planificateur vide, plus aucun
+        mouvement). Tant que la machine est en mouvement (Run, Hold, Jog...)
+        on attend sans limite de durée : un dernier trajet lent peut être long,
+        et l'utilisateur garde la main (Reset/Stop). Renvoie True si Idle est
+        atteint ; False en cas d'alarme, d'arrêt demandé ou si GRBL cesse de
+        répondre. Lève une exception si le port se ferme."""
+        last_poll = 0.0
+        last_reply = time.time()
+        while self.is_running:
+            state = None
+            with self.usb._lock:
+                if not (ser and ser.is_open):
+                    raise Exception("Connexion perdue")
+                now = time.time()
+                if now - last_poll >= self._idle_poll_interval:
+                    try:
+                        ser.write(b'?')
+                    except Exception:
+                        pass
+                    last_poll = now
+                while ser.in_waiting > 0:
+                    resp = ser.readline().decode('utf-8', errors='ignore').strip()
+                    if resp.startswith('<'):
+                        parsed = self.usb.update_last_status(resp)
+                        if parsed:
+                            last_reply = time.time()
+                            state = parsed[0]
+                            self.status_updated.emit(*parsed)
+                    elif resp.startswith('ALARM') or resp.startswith('error'):
+                        self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
+                        return False
+            if state == 'Idle':
+                return True
+            if state == 'Alarm':
+                self.log_signal.emit("!!! GRBL en état ALARM à la fin du job")
+                return False
+            if time.time() - last_reply > self._idle_reply_timeout:
+                self.log_signal.emit("!!! GRBL ne répond plus (attente de la fin du mouvement)")
+                return False
+            time.sleep(0.02)
+        return False
 
     def run(self):
         total = len(self.lines)
@@ -322,12 +373,16 @@ class GCodeStreamerThread(QThread):
             while ring_buffer and self.is_running:
                 with self.usb._lock:
                     if not (ser and ser.is_open):
+                        # Port fermé avant d'avoir reçu tous les « ok » : ce n'est
+                        # pas une fin propre.
+                        clean_finish = False
                         break
                     if ser.in_waiting > 0:
                         resp = ser.readline().decode('utf-8', errors='ignore').strip()
                         if resp == 'ok':
                             ring_buffer.pop(0)
                         elif resp.startswith('error') or resp.startswith('ALARM'):
+                            self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
                             clean_finish = False
                             break
                         elif resp.startswith('<'):
@@ -336,6 +391,12 @@ class GCodeStreamerThread(QThread):
                                 self.status_updated.emit(*parsed)
                     else:
                         time.sleep(0.01)
+
+            # Tous les « ok » sont reçus : la machine peut encore bouger.
+            # On n'annonce la fin qu'une fois GRBL revenu à l'état Idle.
+            if clean_finish and self.is_running and not ring_buffer:
+                if not self._wait_until_idle(ser):
+                    clean_finish = False
 
         except Exception as e:
             self.log_signal.emit(f"!!! ERREUR STREAMING : {e}")
@@ -347,6 +408,12 @@ class GCodeStreamerThread(QThread):
             # jamais de reprise automatique de l'envoi (position potentiellement
             # plus fiable après une coupure).
             self.connection_lost.emit()
+
+        # Arrêt demandé par l'utilisateur (Reset / Arrêt d'urgence) : ce n'est
+        # pas une fin propre — sinon l'interface annonçait « Terminé » et la
+        # file d'attente enchaînait sur le job suivant.
+        if self._stopped_by_user:
+            clean_finish = False
 
         self.finished_signal.emit(clean_finish)
 
@@ -467,6 +534,18 @@ class AdvancedGCodeWorker(QThread):
             else:
                 overscan_dist = 0.0
 
+            # Décalage aller/retour (mm) : la mécanique et le délai d'allumage du
+            # laser font que les lignes gravées en balayage retour (droite ->
+            # gauche) tombent légèrement à côté de celles de l'aller. On décale
+            # donc toute la ligne retour de cette valeur (positif = vers la
+            # droite) pour que les contours verticaux se superposent.
+            # Réglage propre à la machine ; se calibre avec le motif de test
+            # « aller/retour » (voir bidir_test_gcode).
+            try:
+                scan_offset = float(self.params.get('scan_offset_mm', 0.0) or 0.0)
+            except (TypeError, ValueError):
+                scan_offset = 0.0
+
             def pixel_power_percent(val):
                 if algo == "Niveaux de Gris":
                     return power_engrave * (255.0 - float(val)) / 255.0
@@ -481,10 +560,13 @@ class AdvancedGCodeWorker(QThread):
                     self.progress.emit(int((y / h) * 70))
                 actual_y = base_offset_y + (h - 1 - y) * step_y
                 is_ltr = (y % 2 == 0)
+                # Origine X de CETTE ligne : décalée du réglage aller/retour
+                # pour les lignes retour (voir scan_offset plus haut).
+                row_x0 = base_offset_x if is_ltr else base_offset_x + scan_offset
 
-                margin_start_x = base_offset_x - overscan_dist if is_ltr else base_offset_x + w_mm + overscan_dist
-                margin_end_x = base_offset_x + w_mm + overscan_dist if is_ltr else base_offset_x - overscan_dist
-                image_edge_x = base_offset_x + w_mm if is_ltr else base_offset_x
+                margin_start_x = row_x0 - overscan_dist if is_ltr else row_x0 + w_mm + overscan_dist
+                margin_end_x = row_x0 + w_mm + overscan_dist if is_ltr else row_x0 - overscan_dist
+                image_edge_x = row_x0 + w_mm if is_ltr else row_x0
 
                 if overscan_dist > 0:
                     gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f} ; OVERSCAN_START")
@@ -499,7 +581,7 @@ class AdvancedGCodeWorker(QThread):
                     # 0 avant d'attaquer la ligne, sans renvoyer M4.
                     gcode.append("S0")
 
-                image_start_x = base_offset_x if is_ltr else base_offset_x + w_mm
+                image_start_x = row_x0 if is_ltr else row_x0 + w_mm
 
                 if overscan_dist > 0:
                     # Traverse la zone de surbalayage à puissance nulle avant
@@ -517,7 +599,7 @@ class AdvancedGCodeWorker(QThread):
 
                 for x_idx, val in enumerate(row):
                     x_pixel = x_idx if is_ltr else (w - 1 - x_idx)
-                    actual_x = base_offset_x + x_pixel * step_x
+                    actual_x = row_x0 + x_pixel * step_x
 
                     p_percent = pixel_power_percent(val)
                     p_val = int(round((p_percent / 100.0) * s_max))
@@ -526,7 +608,7 @@ class AdvancedGCodeWorker(QThread):
                         # Frontière entre le pixel précédent et celui-ci, dans
                         # le sens du balayage : bord gauche du pixel en
                         # balayage gauche->droite, bord droit en droite->gauche.
-                        boundary_x = base_offset_x + (x_pixel if is_ltr else x_pixel + 1) * step_x
+                        boundary_x = row_x0 + (x_pixel if is_ltr else x_pixel + 1) * step_x
                         # GRBL applique le S d'une ligne G1 au déplacement de
                         # CETTE ligne : le trajet jusqu'à la frontière
                         # appartient au run qui se termine, donc on l'effectue
@@ -905,4 +987,201 @@ class ReconnectThread(QThread):
                 return
             time.sleep(self.delay_sec)
         self.reconnected.emit(False)
+
+
+# ----------------------------------------------------------------------
+# Motifs de calibrage (fonctions pures : testables sans Qt ni machine)
+# ----------------------------------------------------------------------
+def _format_duration(total_seconds):
+    time_minutes = (total_seconds / 60.0) * 1.15
+    mins = int(time_minutes)
+    secs = int((time_minutes - mins) * 60)
+    return f"{mins} min {secs} sec" if mins > 0 else f"{secs} sec"
+
+
+def _text_segments(text, x, y, height_mm):
+    """Traits (x1, y1, x2, y2) en mm d'un texte en police vectorielle 5x7
+    (chiffres et lettres de VectorFont), le coin bas-gauche en (x, y)."""
+    scale = height_mm / 7.0
+    advance = (5 + 2) * scale
+    segments = []
+    for i, char in enumerate(str(text).upper()):
+        for x1, y1, x2, y2 in VectorFont.FONT_5X7.get(char, []):
+            ox = x + i * advance
+            segments.append((ox + x1 * scale, y + y1 * scale, ox + x2 * scale, y + y2 * scale))
+    return segments
+
+
+BIDIR_TEST_DEFAULT_OFFSETS = tuple(round(-0.40 + 0.05 * i, 2) for i in range(17))   # -0,40 ... +0,40 mm
+
+
+def bidir_test_gcode(params):
+    """Motif de calibrage du décalage aller/retour.
+
+    Une rangée de colonnes numérotées ; chaque colonne est une barre pleine
+    gravée en lignes alternées aller (gauche -> droite) / retour (droite ->
+    gauche), exactement comme une gravure d'image. Les lignes ALLER sont
+    gravées sans décalage, les lignes RETOUR avec le décalage propre à la
+    colonne (-0,40 ... +0,40 mm par pas de 0,05). Sur la colonne dont le
+    décalage compense celui de la machine, le bord vertical de la barre est
+    parfaitement droit ; sur les autres il est en dents de scie.
+
+    params : origin_pos, offset_x, offset_y, speed_engrave, power_engrave,
+    s_max, laser_cmd, homing, start_gcode, end_gcode, overscan_dist (mm, déjà
+    calculée), line_pitch_mm (= 1 / lignes par mm), et en option offsets,
+    rows (lignes par colonne, paire), bar_w, gap, label_h.
+    Renvoie (gcode, nb_lignes, puissance_moyenne_%, durée) comme le font les
+    workers de génération.
+    """
+    offsets = [float(o) for o in params.get("offsets", BIDIR_TEST_DEFAULT_OFFSETS)]
+    rows = int(params.get("rows", 16))
+    rows += rows % 2                                   # paire : autant d'aller que de retour
+    bar_w = float(params.get("bar_w", 4.0))
+    gap = float(params.get("gap", 2.0))
+    label_h = float(params.get("label_h", 2.0))
+    pitch = max(float(params.get("line_pitch_mm", 0.1)), 0.02)
+    speed = max(int(params["speed_engrave"]), 1)
+    power_pct = float(params["power_engrave"])
+    s_max = int(params["s_max"])
+    s_on = int(round(power_pct / 100.0 * s_max))
+    laser_cmd = params["laser_cmd"]
+    overscan = max(float(params.get("overscan_dist", 0.0)), 2.5)   # le laser doit être à vitesse avant la barre
+
+    n = len(offsets)
+    pitch_x = bar_w + gap
+    total_w = n * pitch_x - gap
+    bars_h = (rows - 1) * pitch
+    label_gap = 2.0
+    total_h = bars_h + label_gap + label_h
+    if params.get("origin_pos") == "Centre":
+        base_x = params.get("offset_x", 0.0) - total_w / 2.0
+        base_y = params.get("offset_y", 0.0) - total_h / 2.0
+    else:
+        base_x = params.get("offset_x", 0.0)
+        base_y = params.get("offset_y", 0.0)
+
+    gcode = ["; --- TEST DE DÉCALAGE ALLER/RETOUR ---",
+             f"; {n} colonnes, décalages des lignes retour de {offsets[0]:+.2f} à {offsets[-1]:+.2f} mm",
+             "; Grave avec la vitesse et la puissance habituelles, puis repère la colonne au bord le plus droit."]
+    if params.get("homing"):
+        gcode.append("$H ; Homing initial")
+    start = str(params.get("start_gcode", "")).strip()
+    if start:
+        gcode.append("; --- G-Code de Début ---")
+        gcode.append(start)
+    if laser_cmd == "M4":
+        gcode.append(f"{laser_cmd} S0 ; Mode laser dynamique")
+    gcode.append(f"F{speed}")
+
+    total_time = 0.0
+    burn_len = 0.0
+
+    # Numéros de colonnes (au-dessus des barres)
+    label_y = base_y + bars_h + label_gap
+    for i in range(n):
+        text = str(i + 1)
+        text_w = len(text) * (5 + 2) * (label_h / 7.0) - 2 * (label_h / 7.0)
+        tx = base_x + i * pitch_x + (bar_w - text_w) / 2.0
+        for x1, y1, x2, y2 in _text_segments(text, tx, label_y, label_h):
+            gcode.append(f"G0 X{x1:.3f} Y{y1:.3f}")
+            gcode.append("S0" if laser_cmd == "M4" else f"{laser_cmd} S0")
+            gcode.append(f"G1 X{x2:.3f} Y{y2:.3f} F{speed} S{s_on}")
+            gcode.append("S0")
+            seg = math.hypot(x2 - x1, y2 - y1)
+            total_time += seg / speed * 60.0
+            burn_len += seg
+
+    # Lignes de barres : une passe pleine largeur par ligne, comme une vraie gravure
+    for j in range(rows):
+        y = base_y + (rows - 1 - j) * pitch
+        ltr = (j % 2 == 0)
+        if ltr:
+            runs = [(base_x + i * pitch_x, base_x + i * pitch_x + bar_w) for i in range(n)]
+            start_x, end_x = base_x - overscan, base_x + total_w + overscan
+        else:
+            runs = [(base_x + i * pitch_x + offsets[i], base_x + i * pitch_x + offsets[i] + bar_w)
+                    for i in range(n)][::-1]
+            start_x, end_x = base_x + total_w + overscan, base_x - overscan
+        gcode.append(f"G0 X{start_x:.3f} Y{y:.3f}")
+        gcode.append("S0" if laser_cmd == "M4" else f"{laser_cmd} S0")
+        cursor = start_x
+        for a, b in runs:
+            first, second = (a, b) if ltr else (b, a)          # entrée puis sortie dans le sens du balayage
+            gcode.append(f"G1 X{first:.3f} F{speed} S0")        # trajet à puissance nulle jusqu'à la barre
+            gcode.append(f"G1 X{second:.3f} F{speed} S{s_on}")  # la barre elle-même
+            total_time += (abs(first - cursor) + abs(second - first)) / speed * 60.0
+            burn_len += abs(second - first)
+            cursor = second
+        gcode.append(f"G1 X{end_x:.3f} F{speed} S0")
+        total_time += abs(end_x - cursor) / speed * 60.0
+
+    end = str(params.get("end_gcode", "")).strip()
+    if end:
+        gcode.append("; --- G-Code de Fin ---")
+        gcode.append(end)
+    else:
+        gcode.append("M5\nG0 X0 Y0\n; FIN DU TEST")
+    avg_power = power_pct if burn_len > 0 else 0.0
+    text = "\n".join(gcode)
+    return text, len(text.split("\n")), avg_power, _format_duration(total_time)
+
+
+GAIN_TEST_GAINS = (0, 5, 10, 15, 20)              # valeurs du curseur « gain de point » (en %)
+GAIN_TEST_TONES = tuple(i / 10.0 for i in range(11))   # 0 % (verre intact) ... 100 % (verre dégagé)
+
+
+def build_gain_test_array(lines_per_mm, mirror=False, patch_mm=8.0, gap_mm=1.5, label_mm=7.0,
+                          gains=GAIN_TEST_GAINS, tones=GAIN_TEST_TONES):
+    """Image de calibrage du gain de point pour le verre peint.
+
+    Grille : une LIGNE par valeur de gain (celles du curseur de l'onglet
+    Séparation), une COLONNE par ton, de 0 % (peinture intacte) à 100 % (verre
+    entièrement dégagé). Chaque case est tramée (Floyd-Steinberg) avec la
+    couverture compensée compenser_gain_point(ton, gain) ; les valeurs du
+    gain sont gravées à gauche de chaque ligne.
+    Renvoie (tableau uint8 : 0 = brûlé, 255 = intact ; largeur_mm ; hauteur_mm).
+    mirror=True retourne tout à l'horizontale, pour une gravure vue à travers
+    le verre (le texte se lit alors à l'endroit de l'autre côté)."""
+    lpm = float(lines_per_mm)
+
+    def px(mm):
+        return max(1, int(round(mm * lpm)))
+
+    cell = px(patch_mm)
+    gap = px(gap_mm)
+    label_w = px(label_mm)
+    n_t, n_g = len(tones), len(gains)
+    width = label_w + n_t * cell + (n_t - 1) * gap
+    height = n_g * cell + (n_g - 1) * gap
+    arr = np.full((height, width), 255, np.uint8)
+
+    for gi, g in enumerate(gains):
+        y0 = gi * (cell + gap)
+        for ti, tone in enumerate(tones):
+            x0 = label_w + ti * (cell + gap)
+            coverage = float(separation_engine.compenser_gain_point(np.float32(tone), g / 100.0))
+            coverage = min(max(coverage, 0.0), 1.0)
+            gray = np.full((cell, cell), int(round(255 * (1.0 - coverage))), np.uint8)
+            bits = np.array(Image.fromarray(gray, "L").convert("1"))      # tramage Floyd-Steinberg
+            arr[y0:y0 + cell, x0:x0 + cell] = np.where(bits, 255, 0).astype(np.uint8)
+
+    # Valeurs du gain, à gauche de chaque ligne (police vectorielle 5x7, tracée avec PIL)
+    canvas = Image.fromarray(arr, "L")
+    draw = ImageDraw.Draw(canvas)
+    text_h_px = min(cell, px(3.0))
+    stroke = max(1, int(round(text_h_px / 7.0)))
+    for gi, g in enumerate(gains):
+        label = str(g)
+        scale = text_h_px / 7.0
+        y_mid = gi * (cell + gap) + cell / 2.0
+        x_left = px(0.8)
+        for i, char in enumerate(label):
+            for x1, y1, x2, y2 in VectorFont.FONT_5X7.get(char, []):
+                ox = x_left + i * (5 + 2) * scale
+                draw.line([(ox + x1 * scale, y_mid + (3.5 - y1) * scale),
+                           (ox + x2 * scale, y_mid + (3.5 - y2) * scale)], fill=0, width=stroke)
+    arr = np.array(canvas)
+    if mirror:
+        arr = np.ascontiguousarray(arr[:, ::-1])
+    return arr, width / lpm, height / lpm
 

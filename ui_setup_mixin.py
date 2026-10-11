@@ -14,6 +14,7 @@ from app_utils import get_bundle_dir
 from app_utils import find_resource
 from app_utils import APP_VERSION
 from i18n import tr, SUPPORTED_LANGUAGES, get_current_language, set_language
+from settings_window import SettingsWindow
 from widgets_extra import HistoryLineEdit, AutoHideLabel
 
 SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
@@ -49,6 +50,9 @@ class UiSetupMixin:
             file_path = url.toLocalFile()
             if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                 self.load_image_from_path(file_path)
+                break
+            if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "_import_vector_file"):
+                self._import_vector_file(file_path)
                 break
 
     def _job_in_progress(self):
@@ -225,11 +229,23 @@ class UiSetupMixin:
 
         if reply == QMessageBox.StandardButton.Yes:
             self.save_project()
+            self._flush_background_writes()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
+            self._flush_background_writes()
             event.accept()
         else:
             event.ignore()
+
+    def _flush_background_writes(self):
+        """Attend (au plus quelques secondes) la fin des sauvegardes en
+        arrière-plan — file d'attente, sauvegarde automatique — avant que le
+        processus ne s'arrête, sinon une écriture en cours serait perdue."""
+        try:
+            from app_utils import get_background_writer
+            get_background_writer().wait_idle(10)
+        except Exception:
+            pass
 
     def create_slider_with_buttons(self, slider, step=5, value_formatter=None):
         layout = QHBoxLayout()
@@ -275,6 +291,20 @@ class UiSetupMixin:
         spin_box.dpi_row_layout = row_layout
         return row_layout
 
+    def show_settings_window(self, kind):
+        """Ouvre (ou ramène au premier plan) la fenêtre « Machine & Profils » (kind="machine") ou
+        « Configuration GRBL » (kind="grbl"). Créée à la première demande, puis réutilisée."""
+        windows = self.__dict__.setdefault("_settings_windows", {})
+        if kind not in windows:
+            page, title = {
+                "machine": (getattr(self, "tab_machine_profiles", None), tr("tab.machine_profiles")),
+                "grbl": (getattr(self, "tab_grbl_config", None), tr("tab.grbl_config")),
+            }[kind]
+            if page is None:
+                return
+            windows[kind] = SettingsWindow(self, title, page, kind)
+        windows[kind].bring_to_front()
+
     def _build_menu_bar(self):
         menu_bar = self.menuBar()
 
@@ -288,6 +318,13 @@ class UiSetupMixin:
         menu_fichier.addSeparator()
         action_quit = menu_fichier.addAction(tr("menu.file.quit"))
         action_quit.triggered.connect(self.close)
+
+        # Réglages propres à la machine : fenêtres ouvertes en un clic depuis la barre de menus
+        # (ils occupaient deux onglets de la colonne de gauche).
+        self.action_machine_window = menu_bar.addAction(tr("tab.machine_profiles"))
+        self.action_machine_window.triggered.connect(lambda: self.show_settings_window("machine"))
+        self.action_grbl_window = menu_bar.addAction(tr("tab.grbl_config"))
+        self.action_grbl_window.triggered.connect(lambda: self.show_settings_window("grbl"))
 
         menu_langue = menu_bar.addMenu(tr("menu.language"))
         current_lang = get_current_language()
@@ -548,6 +585,16 @@ class UiSetupMixin:
         self.combo_material_bg.addItem(tr("img.bg_light"), "light")
         self.combo_material_bg.setCurrentIndex(1)  # fond clair = négatif désactivé (comportement historique)
         self.combo_material_bg.setToolTip(tr("img.material_bg_tooltip"))
+        # Les libellés sont longs (exemples de matières : 62 caractères en français, 85 en allemand).
+        # Par défaut, une liste déroulante prend la largeur de son élément le PLUS LONG comme largeur
+        # minimale : la colonne de gauche ne pouvait plus être rétrécie avec le séparateur. On fixe donc
+        # une largeur minimale courte ; la liste ouverte, elle, reste assez large pour tout lire.
+        self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_material_bg.setMinimumContentsLength(12)
+        for i in range(self.combo_material_bg.count()):
+            self.combo_material_bg.setItemData(i, self.combo_material_bg.itemText(i), Qt.ItemDataRole.ToolTipRole)
+        _popup = self.combo_material_bg.view()
+        _popup.setMinimumWidth(_popup.sizeHintForColumn(0) + 24)
         self.combo_material_bg.currentIndexChanged.connect(self._on_material_bg_changed)
 
         btn_reset_img = QPushButton(tr("img.reset"))
@@ -730,7 +777,8 @@ class UiSetupMixin:
         mat_box.setLayout(mat_layout)
         layout_mach.addWidget(mat_box)
         layout_mach.addStretch()
-        tabs.addTab(tab_mach, tr("tab.machine_profiles"))
+        # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
+        self.tab_machine_profiles = tab_mach
 
         tab_matrix = QWidget()
         self.form_matrix = QFormLayout(tab_matrix)
@@ -844,6 +892,22 @@ class UiSetupMixin:
         layout_gcode_cfg.addRow("", self.chk_overscan)
         layout_gcode_cfg.addRow(tr("ui.overscan_mode_label"), self.combo_overscan_mode)
         layout_gcode_cfg.addRow(tr("ui.overscan_value_label"), self.overscan_stacked)
+
+        # Décalage aller/retour : compense le jeu mécanique et le délai d'allumage du laser
+        # entre les lignes gravées dans un sens et dans l'autre (propre à la machine).
+        self.spin_scan_offset = QDoubleSpinBox()
+        self.spin_scan_offset.setRange(-2.0, 2.0)
+        self.spin_scan_offset.setSingleStep(0.01)
+        self.spin_scan_offset.setDecimals(2)
+        self.spin_scan_offset.setValue(0.0)
+        self.spin_scan_offset.setSuffix(" mm")
+        self.spin_scan_offset.setToolTip(tr("ui.scan_offset_tip"))
+        btn_bidir_test = QPushButton(tr("ui.bidir_test_btn"))
+        btn_bidir_test.setToolTip(tr("ui.scan_offset_tip"))
+        btn_bidir_test.clicked.connect(self.generate_bidir_test)
+        self.spin_scan_offset.valueChanged.connect(self._schedule_layer_persist)   # mémorisé dans le profil de la machine
+        layout_gcode_cfg.addRow(tr("ui.scan_offset_label"), self.spin_scan_offset)
+        layout_gcode_cfg.addRow("", btn_bidir_test)
         layout_gcode_cfg.addRow(tr("ui.gcode_start"), self.txt_start_gcode)
         layout_gcode_cfg.addRow(tr("ui.gcode_end"), self.txt_end_gcode)
 
@@ -876,7 +940,8 @@ class UiSetupMixin:
         grbl_settings_box.setLayout(grbl_settings_layout)
         layout_gcode_cfg.addRow(grbl_settings_box)
 
-        tabs.addTab(tab_gcode_cfg, tr("tab.grbl_config"))
+        # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
+        self.tab_grbl_config = tab_gcode_cfg
 
         tab_layers = QWidget()
         layout_layers = QVBoxLayout(tab_layers)
@@ -943,7 +1008,7 @@ class UiSetupMixin:
         left_bottom_layout.addWidget(btn_estimate)
 
         btn_generate = QPushButton(tr("gcode.generate"))
-        btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 10px;")
+        btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 3px;")
         btn_generate.clicked.connect(self.generate_job)
         left_bottom_layout.addWidget(btn_generate)
 
@@ -1044,6 +1109,9 @@ class UiSetupMixin:
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
         btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
+        btn_box_generator = QPushButton(tr("ui.vector_box_generator"))
+        btn_box_generator.setToolTip(tr("ui.vector_box_generator_tip"))
+        btn_box_generator.clicked.connect(self.open_box_generator)
         btn_edit_selected = QPushButton(tr("ui.vector_edit_selection"))
         btn_edit_selected.clicked.connect(self.edit_selected_vector_object)
         btn_rotate_selected = QPushButton(tr("ui.vector_rotate_90"))
@@ -1058,18 +1126,24 @@ class UiSetupMixin:
         btn_redo_vector.clicked.connect(lambda: self.vector_canvas.redo())
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
+        # Deux lignes : en une seule, les 11 boutons demandaient ~1 500 px et leurs libellés étaient
+        # tronqués dès que la fenêtre était un peu étroite. Ligne 1 : créer / importer ; ligne 2 : modifier.
         toolbar_vector.addWidget(btn_add_text)
         toolbar_vector.addWidget(btn_add_shape)
         toolbar_vector.addWidget(btn_import_svg_vector)
-        toolbar_vector.addWidget(btn_edit_selected)
-        toolbar_vector.addWidget(btn_rotate_selected)
-        toolbar_vector.addWidget(btn_dup_selected)
-        toolbar_vector.addWidget(btn_del_selected)
-        toolbar_vector.addWidget(btn_undo_vector)
-        toolbar_vector.addWidget(btn_redo_vector)
-        toolbar_vector.addWidget(btn_fullscreen_vector)
+        toolbar_vector.addWidget(btn_box_generator)
         toolbar_vector.addStretch()
+        toolbar_vector.addWidget(btn_fullscreen_vector)
         layout_vector_editor.addLayout(toolbar_vector)
+        toolbar_vector_edit = QHBoxLayout()
+        toolbar_vector_edit.addWidget(btn_edit_selected)
+        toolbar_vector_edit.addWidget(btn_rotate_selected)
+        toolbar_vector_edit.addWidget(btn_dup_selected)
+        toolbar_vector_edit.addWidget(btn_del_selected)
+        toolbar_vector_edit.addWidget(btn_undo_vector)
+        toolbar_vector_edit.addWidget(btn_redo_vector)
+        toolbar_vector_edit.addStretch()
+        layout_vector_editor.addLayout(toolbar_vector_edit)
 
         align_box = QGroupBox(tr("ui.vector_align_box"))
         align_layout = QHBoxLayout()
@@ -1459,6 +1533,12 @@ class UiSetupMixin:
         splitter.setStretchFactor(0, 1)
         splitter.setStretchFactor(1, 3)
         left_widget.setMinimumWidth(280)
+        # Largeur minimale EXPLICITE du centre. Sans elle, le séparateur prend la largeur minimale
+        # calculée d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px)
+        # et la rangée d'alignement imposaient environ 1500 px au centre, et la colonne de gauche ne
+        # pouvait plus être élargie au-delà de ce qui restait. Trop étroit, le centre se contente de
+        # serrer ses boutons : on peut toujours réduire à nouveau la colonne de gauche.
+        center_widget.setMinimumWidth(480)
         self.main_splitter = splitter
         splitter.splitterMoved.connect(self.save_splitter_sizes)
         self.left_v_splitter.splitterMoved.connect(self.save_splitter_sizes)

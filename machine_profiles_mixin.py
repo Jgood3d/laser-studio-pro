@@ -1,6 +1,7 @@
 """Gestion des profils machine et des profils matériaux (sauvegarde/chargement via QSettings)."""
 from PyQt6.QtWidgets import (QMessageBox, QInputDialog, QFileDialog)
 from PyQt6.QtCore import QSettings, QTimer
+import copy
 import json
 
 from i18n import tr
@@ -142,12 +143,16 @@ class MachineProfilesMixin:
     def _store_layers_in_active_profile(self):
         """Copie l'état courant des calques dans le profil machine actif
         (en mémoire ; écrit sur disque par save_machine_settings)."""
+        if getattr(self, "_applying_machine_profile", False):
+            return
         if not (hasattr(self, "layer_manager") and hasattr(self, "combo_machine_profile")):
             return
         profiles = getattr(self, "machine_profiles", None) or []
         idx = self.combo_machine_profile.currentIndex()
         if 0 <= idx < len(profiles):
             profiles[idx]["layers"] = self.layer_manager.to_list()
+            if hasattr(self, "spin_scan_offset"):
+                profiles[idx]["scan_offset_mm"] = self.spin_scan_offset.value()
 
     def _apply_profile_layers(self, saved_layers, full=False):
         """Applique les calques mémorisés dans un profil machine.
@@ -211,7 +216,7 @@ class MachineProfilesMixin:
         """Un calque a changé : enregistre les calques de la machine active
         peu après (regroupe les rafales de changements, ex. saisie d'un
         nombre) — sans attendre la fermeture, pour survivre à un plantage."""
-        if not getattr(self, "_layers_persist_ready", False):
+        if not getattr(self, "_layers_persist_ready", False) or getattr(self, "_applying_machine_profile", False):
             return
         # Rangement immédiat (en mémoire) dans le profil actif : si on change
         # de machine juste après, les dernières modifications de la machine
@@ -263,11 +268,29 @@ class MachineProfilesMixin:
             # Réglages des calques (vitesse, puissance, passes...) propres à
             # cette machine — voir _apply_profile_layers.
             "layers": self.layer_manager.to_list() if hasattr(self, "layer_manager") else [],
+            # Décalage des lignes retour de la gravure d'image (mm) : mécanique, donc propre à la machine.
+            "scan_offset_mm": self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
         }
 
     def _apply_machine_profile_fields(self, p, restore_layers_fully=False):
-        """Applique tous les réglages d'un profil machine aux widgets
-        correspondants (dimensions, origine, limites, G-code début/fin)."""
+        """Applique tous les réglages d'un profil machine : widgets (dimensions,
+        origine, limites, G-code début/fin...) puis réglages des calques.
+
+        Les calques mémorisés sont lus AVANT de toucher au moindre widget, et
+        l'enregistrement automatique des calques est suspendu pendant
+        l'opération : changer la focale ou le décalage émet des signaux qui
+        auraient sinon écrit les calques de l'ANCIENNE machine dans le profil de
+        la NOUVELLE, juste avant qu'on ne les y relise."""
+        saved_layers = copy.deepcopy(p.get("layers"))
+        self._applying_machine_profile = True
+        try:
+            self._apply_machine_profile_widgets(p)
+        finally:
+            self._applying_machine_profile = False
+        self._apply_profile_layers(saved_layers, full=restore_layers_fully)
+
+    def _apply_machine_profile_widgets(self, p):
+        """Partie « widgets » de _apply_machine_profile_fields."""
         self.spin_machine_w.setValue(p.get("w", self.spin_machine_w.value()))
         self.spin_machine_h.setValue(p.get("h", self.spin_machine_h.value()))
         if hasattr(self, "spin_machine_focal"):
@@ -300,7 +323,11 @@ class MachineProfilesMixin:
             self.combo_mat.blockSignals(False)
             if hasattr(self, "apply_material_profile"):
                 self.apply_material_profile()
-        self._apply_profile_layers(p.get("layers"), full=restore_layers_fully)
+        if hasattr(self, "spin_scan_offset"):
+            try:
+                self.spin_scan_offset.setValue(float(p.get("scan_offset_mm", 0.0)))
+            except (TypeError, ValueError):
+                self.spin_scan_offset.setValue(0.0)
 
     def _on_machine_profile_selected(self, idx):
         if idx < 0 or idx >= len(self.machine_profiles):

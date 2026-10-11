@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 
 import separation_engine as engine
+from workers import AdvancedGCodeWorker, build_gain_test_array
 from graphics_view import ZoomableGraphicsView
 from i18n import tr
 
@@ -167,6 +168,10 @@ class SeparationMixin:
         f.addRow(info)
         self.sep_gain = self._sep_slider(f, "sep.gain", 0, 20, 0, lambda v: f"{v}",
                                          self._sep_schedule_push, "sep.gain_tip")
+        btn_gain_test = QPushButton(tr("sep.gain_test_btn"))
+        btn_gain_test.setToolTip(tr("sep.gain_test_tip"))
+        btn_gain_test.clicked.connect(self.separation_gain_test)
+        f.addRow(btn_gain_test)
         pl.addWidget(gb)
 
         # --- Calque couleur ---
@@ -555,6 +560,39 @@ class SeparationMixin:
     # ------------------------------------------------------------------
     # Export
     # ------------------------------------------------------------------
+    # --- Assistant de calibrage du gain de point ---
+    def separation_gain_test(self):
+        """Génère la grille de test du gain de point : une ligne par valeur du
+        curseur « Gain de point » (0 à 20), une colonne par ton (0 à 100 %), avec
+        la résolution, la vitesse, la puissance et la machine actuelles. Une fois
+        gravée, on repère la ligne dont les cases passent régulièrement du noir
+        au clair, et on règle le curseur sur la valeur écrite à gauche."""
+        mirror = self.chk_mirror_h.isChecked()
+        arr, w_mm, h_mm = build_gain_test_array(self.spin_lmm.value(), mirror=mirror)
+        bed_w, bed_h = self.spin_machine_w.value(), self.spin_machine_h.value()
+        if w_mm > bed_w or h_mm > bed_h:
+            QMessageBox.warning(
+                self, tr("sep.gain_test_title"),
+                tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h),
+            )
+            return
+        params = self._build_gcode_params()
+        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg", enable_cut=False)
+        self._gain_test_worker = AdvancedGCodeWorker(arr, None, params, None)
+        self._gain_test_worker.finished.connect(self._on_gain_test_ready)
+        self._gain_test_worker.error.connect(self.on_gcode_generation_error)
+        self._gain_test_worker.start()
+
+    def _on_gain_test_ready(self, gcode, n_lines, avg_power, time_str):
+        header = (
+            "; --- TEST DU GAIN DE POINT ---\n"
+            "; Lignes de haut en bas : gain 0, 5, 10, 15, 20. Colonnes : 0 % (peinture intacte) a 100 % (verre degage).\n"
+            "; Repere la ligne dont les cases passent regulierement du noir au clair,\n"
+            "; puis regle le curseur Gain de point sur la valeur ecrite a gauche de cette ligne.\n"
+        )
+        self.on_gcode_generated(header + gcode, n_lines + header.count("\n"), avg_power, time_str)
+        QMessageBox.information(self, tr("sep.gain_test_title"), tr("sep.gain_test_done"))
+
     def separation_export(self):
         if self.sep_src is None or self.processed_array is None:
             QMessageBox.information(self, tr("sep.tab_title"), tr("sep.no_image_loaded"))

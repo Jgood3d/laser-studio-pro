@@ -9,7 +9,7 @@ from svg.path import parse_path
 from vector_layers import (
     extract_vector_layer_data
 )
-from workers import AdvancedGCodeWorker, TestMatrixWorker
+from workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode
 from i18n import tr
 
 # Couleur du "matériau" simulé sous la gravure dans l'aperçu 2D normal (non négatif).
@@ -350,6 +350,69 @@ class GcodeGenerationMixin:
     tr("gcode.imported_from").format(path=path)
 )
 
+    def _overscan_mode_value(self):
+        """Mode de surbalayage sous une forme indépendante de la langue : les
+        libellés du menu sont traduits, alors que le générateur de G-Code
+        compare à « Pourcentage (%) » (avant, le mode pourcentage n'était pas
+        reconnu en anglais, allemand et espagnol)."""
+        return "Pourcentage (%)" if self.combo_overscan_mode.currentIndex() == 1 else "Distance Fixe (mm)"
+
+    def _build_gcode_params(self):
+        """Paramètres de génération du G-Code, lus depuis l'interface."""
+        return {
+            'width_mm': self.spin_w.value(),
+            'height_mm': self.spin_h.value(),
+            'origin_pos': self.combo_origin.currentText(),
+            'offset_x': self.spin_off_x.value(),
+            'offset_y': self.spin_off_y.value(),
+            'speed_engrave': self.spin_speed_engrave.value(),
+            'power_engrave': self.spin_power_engrave.value(),
+            'enable_cut': self.chk_enable_cut.isChecked(),
+            'speed_cut': self.spin_speed_cut.value(),
+            'power_cut': self.spin_power_cut.value(),
+            'passes_cut': self.spin_passes_cut.value(),
+            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
+            'algo': self.combo_algo.currentText(),
+            's_max': self.spin_smax.value(),
+            'homing': self.chk_homing.isChecked(),
+            'enable_overscan': self.chk_overscan.isChecked(),
+            'overscan_mode': self._overscan_mode_value(),
+            'overscan_dist': self.spin_overscan_dist.value(),
+            'overscan_pct': self.spin_overscan_pct.value(),
+            'start_gcode': self.txt_start_gcode.toPlainText(),
+            'end_gcode': self.txt_end_gcode.toPlainText(),
+            # Décalage des lignes retour (mm), propre à la machine : voir workers.py.
+            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+        }
+
+    def generate_bidir_test(self):
+        """Génère le motif de calibrage du décalage aller/retour (voir
+        workers.bidir_test_gcode) avec la vitesse, la puissance et la résolution
+        actuelles, puis l'affiche comme n'importe quel G-Code généré."""
+        if self.chk_overscan.isChecked():
+            overscan = self.spin_overscan_dist.value() if self.combo_overscan_mode.currentIndex() == 0 else 2.5
+        else:
+            overscan = 0.0
+        params = {
+            'origin_pos': self.combo_origin.currentText(),
+            'offset_x': self.spin_off_x.value(),
+            'offset_y': self.spin_off_y.value(),
+            'speed_engrave': self.spin_speed_engrave.value(),
+            'power_engrave': self.spin_power_engrave.value(),
+            's_max': self.spin_smax.value(),
+            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
+            'homing': self.chk_homing.isChecked(),
+            'start_gcode': self.txt_start_gcode.toPlainText(),
+            'end_gcode': self.txt_end_gcode.toPlainText(),
+            'overscan_dist': overscan,
+            'line_pitch_mm': 1.0 / max(self.spin_lmm.value(), 0.1),
+        }
+        gcode, n_lines, avg_power, time_str = bidir_test_gcode(params)
+        # La matrice de test mémorisée ne correspond plus au G-Code affiché.
+        self.last_test_matrix_params = None
+        self.on_gcode_generated(gcode, n_lines, avg_power, time_str)
+        QMessageBox.information(self, tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
+
     def generate_job(self):
         try:
             self._generate_job_impl()
@@ -427,29 +490,7 @@ class GcodeGenerationMixin:
             if reply != QMessageBox.StandardButton.Yes:
                 return
 
-        params = {
-            'width_mm': self.spin_w.value(),
-            'height_mm': self.spin_h.value(),
-            'origin_pos': self.combo_origin.currentText(),
-            'offset_x': self.spin_off_x.value(),
-            'offset_y': self.spin_off_y.value(),
-            'speed_engrave': self.spin_speed_engrave.value(),
-            'power_engrave': self.spin_power_engrave.value(),
-            'enable_cut': self.chk_enable_cut.isChecked(),
-            'speed_cut': self.spin_speed_cut.value(),
-            'power_cut': self.spin_power_cut.value(),
-            'passes_cut': self.spin_passes_cut.value(),
-            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
-            'algo': self.combo_algo.currentText(),
-            's_max': self.spin_smax.value(),
-            'homing': self.chk_homing.isChecked(),
-            'enable_overscan': self.chk_overscan.isChecked(),
-            'overscan_mode': self.combo_overscan_mode.currentText(),
-            'overscan_dist': self.spin_overscan_dist.value(),
-            'overscan_pct': self.spin_overscan_pct.value(),
-            'start_gcode': self.txt_start_gcode.toPlainText(),
-            'end_gcode': self.txt_end_gcode.toPlainText()
-        }
+        params = self._build_gcode_params()
 
         if params['enable_overscan'] and self.processed_array is not None:
             if params['overscan_mode'] == "Pourcentage (%)":
@@ -581,7 +622,7 @@ class GcodeGenerationMixin:
             'laser_cmd': self.combo_mat_laser_cmd.currentText().split()[0],
             'homing': self.chk_mat_homing.isChecked(),
             'enable_overscan': self.chk_overscan.isChecked(),
-            'overscan_mode': self.combo_overscan_mode.currentText(),
+            'overscan_mode': self._overscan_mode_value(),
             'overscan_dist': self.spin_overscan_dist.value(),
             'overscan_pct': self.spin_overscan_pct.value(),
         }

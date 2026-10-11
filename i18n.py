@@ -247,7 +247,7 @@ TRANSLATIONS = {
     "img.material_bg_tooltip": {
         "fr": "Coche ou décoche « Inverser Couleurs » à ta place.\nFond noir : le laser éclaircit ce qu'il brûle (négatif activé, les zones claires sont gravées).\nFond clair : le laser noircit ce qu'il brûle (négatif désactivé, les zones sombres sont gravées).\nTu peux toujours modifier la case à la main. Le miroir n'est pas modifié.",
         "en": "Checks or unchecks \"Invert Colors\" for you.\nDark background: the laser lightens what it burns (negative on, light areas are engraved).\nLight background: the laser darkens what it burns (negative off, dark areas are engraved).\nYou can still change the checkbox by hand. Mirror is not changed.",
-        "de": "Aktiviert oder deaktiviert \"Farben invertieren\" für Sie.\nDunkler Untergrund: Der Laser hellt auf, was er brennt (Negativ aktiv, helle Bereiche werden graviert).\nHeller Untergrund: Der Laser dunkelt ab, was er brennt (Negativ inaktiv, dunkle Bereiche werden graviert).\nSie können das Kontrollkästchen weiterhin manuell ändern. Die Spiegelung bleibt unverändert.",
+        "de": "Aktiviert oder deaktiviert \"Farben invertieren\" für dich.\nDunkler Untergrund: Der Laser hellt auf, was er brennt (Negativ aktiv, helle Bereiche werden graviert).\nHeller Untergrund: Der Laser dunkelt ab, was er brennt (Negativ inaktiv, dunkle Bereiche werden graviert).\nDu kannst das Kontrollkästchen weiterhin manuell ändern. Die Spiegelung bleibt unverändert.",
         "es": "Marca o desmarca \"Invertir colores\" por ti.\nFondo negro: el láser aclara lo que quema (negativo activado, se graban las zonas claras).\nFondo claro: el láser oscurece lo que quema (negativo desactivado, se graban las zonas oscuras).\nSiempre puedes cambiar la casilla a mano. El espejo no se modifica.",
     },
     "gen.material_dark": {
@@ -269,6 +269,583 @@ TRANSLATIONS = {
     "gen.material_summary": {
         "fr": "Matière : {bg} ({negative})", "en": "Material: {bg} ({negative})",
         "de": "Material: {bg} ({negative})", "es": "Material: {bg} ({negative})",
+    },
+    # --- Boîtes de dialogue de l'éditeur vectoriel / erreurs de sauvegarde ---
+    "vector.dlg.resize_title": {
+        "fr": "Redimensionner la sélection (groupe)", "en": "Resize selection (group)",
+        "de": "Auswahl skalieren (Gruppe)", "es": "Redimensionar la selección (grupo)",
+    },
+    "vector.dlg.group_size": {
+        "fr": "Taille actuelle du groupe : {w:.2f} x {h:.2f} mm", "en": "Current group size: {w:.2f} x {h:.2f} mm",
+        "de": "Aktuelle Gruppengröße: {w:.2f} x {h:.2f} mm", "es": "Tamaño actual del grupo: {w:.2f} x {h:.2f} mm",
+    },
+    "vector.dlg.keep_ratio": {
+        "fr": "Conserver le ratio largeur/hauteur", "en": "Keep width/height ratio",
+        "de": "Seitenverhältnis beibehalten", "es": "Mantener la proporción ancho/alto",
+    },
+    "vector.dlg.new_width": {
+        "fr": "Nouvelle largeur :", "en": "New width:",
+        "de": "Neue Breite:", "es": "Nuevo ancho:",
+    },
+    "vector.dlg.new_height": {
+        "fr": "Nouvelle hauteur :", "en": "New height:",
+        "de": "Neue Höhe:", "es": "Nuevo alto:",
+    },
+    "vector.dlg.text_title_new": {
+        "fr": "Texte", "en": "Text",
+        "de": "Text", "es": "Texto",
+    },
+    "vector.dlg.text_title_edit": {
+        "fr": "Modifier le texte", "en": "Edit text",
+        "de": "Text bearbeiten", "es": "Editar texto",
+    },
+    "vector.dlg.text_default": {
+        "fr": "TEXTE", "en": "TEXT",
+        "de": "TEXT", "es": "TEXTO",
+    },
+    "vector.dlg.text_label": {
+        "fr": "Texte :", "en": "Text:",
+        "de": "Text:", "es": "Texto:",
+    },
+    "vector.dlg.font": {
+        "fr": "Police :", "en": "Font:",
+        "de": "Schriftart:", "es": "Fuente:",
+    },
+    "vector.dlg.bold": {
+        "fr": "Gras", "en": "Bold",
+        "de": "Fett", "es": "Negrita",
+    },
+    "vector.dlg.italic": {
+        "fr": "Italique", "en": "Italic",
+        "de": "Kursiv", "es": "Cursiva",
+    },
+    "vector.dlg.style": {
+        "fr": "Style :", "en": "Style:",
+        "de": "Stil:", "es": "Estilo:",
+    },
+    "vector.dlg.size_height": {
+        "fr": "Taille (hauteur) :", "en": "Size (height):",
+        "de": "Größe (Höhe):", "es": "Tamaño (altura):",
+    },
+    "vector.dlg.letter_spacing": {
+        "fr": "Espacement des lettres :", "en": "Letter spacing:",
+        "de": "Buchstabenabstand:", "es": "Espaciado entre letras:",
+    },
+    "vector.dlg.horizontal": {
+        "fr": "Horizontal", "en": "Horizontal",
+        "de": "Horizontal", "es": "Horizontal",
+    },
+    "vector.dlg.vertical": {
+        "fr": "Vertical", "en": "Vertical",
+        "de": "Vertikal", "es": "Vertical",
+    },
+    "vector.dlg.orientation": {
+        "fr": "Orientation :", "en": "Orientation:",
+        "de": "Ausrichtung:", "es": "Orientación:",
+    },
+    "vector.dlg.mirror": {
+        "fr": "Miroir :", "en": "Mirror:",
+        "de": "Spiegeln:", "es": "Espejo:",
+    },
+    "vector.dlg.corner_pos": {
+        "fr": "Coin bas-gauche de l'objet à (mm) :", "en": "Object's bottom-left corner at (mm):",
+        "de": "Untere linke Ecke des Objekts bei (mm):", "es": "Esquina inferior izquierda del objeto en (mm):",
+    },
+    "vector.dlg.width": {
+        "fr": "Largeur :", "en": "Width:",
+        "de": "Breite:", "es": "Ancho:",
+    },
+    "vector.dlg.height": {
+        "fr": "Hauteur :", "en": "Height:",
+        "de": "Höhe:", "es": "Alto:",
+    },
+    "vector.dlg.shape_title_new": {
+        "fr": "Insérer une forme", "en": "Insert a shape",
+        "de": "Form einfügen", "es": "Insertar una forma",
+    },
+    "vector.dlg.shape_title_edit": {
+        "fr": "Modifier la forme", "en": "Edit shape",
+        "de": "Form bearbeiten", "es": "Editar forma",
+    },
+    "vector.dlg.shape_type": {
+        "fr": "Type :", "en": "Type:",
+        "de": "Typ:", "es": "Tipo:",
+    },
+    "vector.dlg.sides": {
+        "fr": "Côtés (polygone) :", "en": "Sides (polygon):",
+        "de": "Seiten (Polygon):", "es": "Lados (polígono):",
+    },
+    "project.autosave_failed": {
+        "fr": "Sauvegarde automatique impossible : {error}", "en": "Automatic save failed: {error}",
+        "de": "Automatische Sicherung nicht möglich: {error}", "es": "No se pudo realizar el guardado automático: {error}",
+    },
+    "queue.save_failed": {
+        "fr": "Sauvegarde de la file d'attente impossible : {error}", "en": "Could not save the job queue: {error}",
+        "de": "Die Warteschlange konnte nicht gespeichert werden: {error}", "es": "No se pudo guardar la cola de trabajos: {error}",
+    },
+    # --- Nouvelles options : décalage aller/retour et test du gain de point ---
+    "ui.scan_offset_label": {
+        "fr": "Décalage lignes retour :",
+        "en": "Return-line offset:",
+        "de": "Versatz der Rücklauf-Zeilen:",
+        "es": "Desplazamiento de líneas de retorno:",
+    },
+    "ui.scan_offset_tip": {
+        "fr": "Décale les lignes gravées en balayage retour (droite → gauche) par rapport à l'aller, pour corriger le jeu mécanique et le délai d'allumage du laser. Positif = vers la droite. Pour trouver la bonne valeur, grave le motif de test et choisis la colonne au bord le plus droit.",
+        "en": "Shifts the lines engraved on the return pass (right → left) relative to the forward pass, to compensate for mechanical play and the laser's turn-on delay. Positive = to the right. To find the right value, engrave the test pattern and pick the column with the straightest edge.",
+        "de": "Verschiebt die im Rücklauf (rechts → links) gravierten Zeilen gegenüber dem Hinlauf, um mechanisches Spiel und die Einschaltverzögerung des Lasers auszugleichen. Positiv = nach rechts. Um den richtigen Wert zu finden, graviere das Testmuster und wähle die Spalte mit der geradesten Kante.",
+        "es": "Desplaza las líneas grabadas en la pasada de retorno (derecha → izquierda) respecto a la de ida, para compensar el juego mecánico y el retardo de encendido del láser. Positivo = hacia la derecha. Para encontrar el valor correcto, graba el patrón de prueba y elige la columna con el borde más recto.",
+    },
+    "ui.bidir_test_btn": {
+        "fr": "Générer le test aller/retour",
+        "en": "Generate forward/return test",
+        "de": "Hin-/Rücklauf-Test erzeugen",
+        "es": "Generar prueba de ida y vuelta",
+    },
+    "gen.bidir_test_title": {
+        "fr": "Test aller/retour",
+        "en": "Forward/return test",
+        "de": "Hin-/Rücklauf-Test",
+        "es": "Prueba de ida y vuelta",
+    },
+    "gen.bidir_test_body": {
+        "fr": "Le motif est prêt (aperçu 2D et console).\n\nGrave-le avec la vitesse et la puissance habituelles. Repère ensuite le numéro de la colonne dont le bord vertical est le plus droit, sans dents de scie : la colonne 9 correspond à 0,00 mm, et chaque colonne décale de 0,05 mm (colonne 1 = -0,40 mm, colonne 17 = +0,40 mm).\n\nSaisis cette valeur dans « Décalage lignes retour ».",
+        "en": "The pattern is ready (2D preview and console).\n\nEngrave it with your usual speed and power. Then find the number of the column whose vertical edge is the straightest, without a saw-tooth look: column 9 is 0.00 mm, and each column shifts by 0.05 mm (column 1 = -0.40 mm, column 17 = +0.40 mm).\n\nEnter that value in “Return-line offset”.",
+        "de": "Das Muster ist fertig (2D-Vorschau und Konsole).\n\nGraviere es mit deiner üblichen Geschwindigkeit und Leistung. Suche dann die Nummer der Spalte, deren senkrechte Kante am geradesten ist, ohne Sägezahn: Spalte 9 entspricht 0,00 mm, jede Spalte verschiebt um 0,05 mm (Spalte 1 = -0,40 mm, Spalte 17 = +0,40 mm).\n\nTrage diesen Wert bei „Versatz der Rücklauf-Zeilen“ ein.",
+        "es": "El patrón está listo (vista previa 2D y consola).\n\nGrábalo con tu velocidad y potencia habituales. Después busca el número de la columna cuyo borde vertical sea el más recto, sin efecto de sierra: la columna 9 equivale a 0,00 mm y cada columna desplaza 0,05 mm (columna 1 = -0,40 mm, columna 17 = +0,40 mm).\n\nIntroduce ese valor en «Desplazamiento de líneas de retorno».",
+    },
+    "sep.gain_test_btn": {
+        "fr": "Tester le gain de point…",
+        "en": "Test the dot gain…",
+        "de": "Punktzuwachs testen…",
+        "es": "Probar la ganancia de punto…",
+    },
+    "sep.gain_test_tip": {
+        "fr": "Génère une grille de test à graver sur ton verre pour trouver la bonne valeur du gain de point.",
+        "en": "Generates a test grid to engrave on your glass to find the right dot gain value.",
+        "de": "Erzeugt ein Testraster zum Gravieren auf deinem Glas, um den richtigen Punktzuwachs zu finden.",
+        "es": "Genera una cuadrícula de prueba para grabar en tu vidrio y encontrar el valor correcto de ganancia de punto.",
+    },
+    "sep.gain_test_title": {
+        "fr": "Test du gain de point",
+        "en": "Dot gain test",
+        "de": "Punktzuwachs-Test",
+        "es": "Prueba de ganancia de punto",
+    },
+    "sep.gain_test_too_big": {
+        "fr": "La grille de test ({w:.0f} x {h:.0f} mm) dépasse la surface de travail de la machine ({bed_w:.0f} x {bed_h:.0f} mm).",
+        "en": "The test grid ({w:.0f} x {h:.0f} mm) is larger than the machine's work area ({bed_w:.0f} x {bed_h:.0f} mm).",
+        "de": "Das Testraster ({w:.0f} x {h:.0f} mm) ist größer als die Arbeitsfläche der Maschine ({bed_w:.0f} x {bed_h:.0f} mm).",
+        "es": "La cuadrícula de prueba ({w:.0f} x {h:.0f} mm) supera la superficie de trabajo de la máquina ({bed_w:.0f} x {bed_h:.0f} mm).",
+    },
+    "sep.gain_test_done": {
+        "fr": "La grille est prête (aperçu 2D et console).\n\nGrave-la sur ton verre avec la résolution, la vitesse et la puissance habituelles. Elle comporte une ligne par valeur du gain (0, 5, 10, 15 et 20, écrites à gauche) et 11 colonnes, de 0 % (peinture intacte) à 100 % (verre dégagé).\n\nPlace le verre devant la lumière et choisis la ligne dont les cases passent régulièrement du noir au clair (la case à 50 % doit paraître à mi-chemin). Règle ensuite le curseur « Gain de point » sur la valeur de cette ligne.",
+        "en": "The grid is ready (2D preview and console).\n\nEngrave it on your glass with your usual resolution, speed and power. It has one row per gain value (0, 5, 10, 15 and 20, written on the left) and 11 columns, from 0 % (paint untouched) to 100 % (glass fully cleared).\n\nHold the glass in front of a light and pick the row whose cells go evenly from black to light (the 50 % cell should look halfway). Then set the “Dot gain” slider to that row's value.",
+        "de": "Das Raster ist fertig (2D-Vorschau und Konsole).\n\nGraviere es mit deiner üblichen Auflösung, Geschwindigkeit und Leistung auf dein Glas. Es hat eine Zeile pro Gain-Wert (0, 5, 10, 15 und 20, links geschrieben) und 11 Spalten, von 0 % (Farbe unberührt) bis 100 % (Glas vollständig freigelegt).\n\nHalte das Glas vor eine Lichtquelle und wähle die Zeile, deren Felder gleichmäßig von Schwarz zu Hell übergehen (das 50-%-Feld sollte genau in der Mitte wirken). Stelle dann den Regler „Punktzuwachs“ auf den Wert dieser Zeile ein.",
+        "es": "La cuadrícula está lista (vista previa 2D y consola).\n\nGrábala en tu vidrio con tu resolución, velocidad y potencia habituales. Tiene una fila por valor de ganancia (0, 5, 10, 15 y 20, escritos a la izquierda) y 11 columnas, de 0 % (pintura intacta) a 100 % (vidrio totalmente despejado).\n\nColoca el vidrio frente a la luz y elige la fila cuyas casillas pasan de forma uniforme del negro al claro (la casilla del 50 % debe verse a medio camino). Después ajusta el control «Ganancia de punto» al valor de esa fila.",
+    },
+    # --- Import DXF et générateur de boîte ---
+    "ui.vector_box_generator": {
+        "fr": "📦 Générateur de boîte",
+        "en": "📦 Box generator",
+        "de": "📦 Box-Generator",
+        "es": "📦 Generador de cajas",
+    },
+    "ui.vector_box_generator_tip": {
+        "fr": "Crée une boîte à encoches de dimensions X, Y, Z, avec un décor texte ou SVG sur les faces.",
+        "en": "Creates a finger-joint box with the X, Y, Z dimensions you choose, with text or SVG decoration on its faces.",
+        "de": "Erstellt eine Fingerzinken-Box mit frei wählbaren Maßen X, Y, Z und Text- oder SVG-Dekor auf den Seiten.",
+        "es": "Crea una caja con encastres de dimensiones X, Y, Z, con decoración de texto o SVG en las caras.",
+    },
+    "vector.import_filter": {
+        "fr": "Vectoriel SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "en": "Vector SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "de": "Vektor SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "es": "Vectorial SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+    },
+    "vector.dxf_title": {
+        "fr": "Import DXF",
+        "en": "DXF import",
+        "de": "DXF-Import",
+        "es": "Importación DXF",
+    },
+    "vector.dxf_err.binary": {
+        "fr": "Ce DXF est au format binaire, non pris en charge. Dans ton logiciel de CAO, enregistre-le au format DXF ASCII (texte).",
+        "en": "This DXF is in binary format, which is not supported. In your CAD software, save it as ASCII (text) DXF.",
+        "de": "Diese DXF-Datei hat das Binärformat, das nicht unterstützt wird. Speichere sie in deiner CAD-Software als ASCII-DXF (Text).",
+        "es": "Este DXF está en formato binario, que no es compatible. En tu programa de CAD, guárdalo como DXF ASCII (texto).",
+    },
+    "vector.dxf_err.not_dxf": {
+        "fr": "Ce fichier ne ressemble pas à un DXF texte (problème à la ligne {line}).",
+        "en": "This file does not look like a text DXF (problem at line {line}).",
+        "de": "Diese Datei sieht nicht wie eine Text-DXF aus (Problem in Zeile {line}).",
+        "es": "Este archivo no parece un DXF de texto (problema en la línea {line}).",
+    },
+    "vector.dxf_err.no_entities": {
+        "fr": "Ce DXF ne contient aucune section d'entités (ENTITIES).",
+        "en": "This DXF contains no entities section (ENTITIES).",
+        "de": "Diese DXF enthält keinen Entitätenabschnitt (ENTITIES).",
+        "es": "Este DXF no contiene ninguna sección de entidades (ENTITIES).",
+    },
+    "vector.dxf_error": {
+        "fr": "Impossible de lire le DXF : {error}",
+        "en": "Could not read the DXF: {error}",
+        "de": "Die DXF-Datei konnte nicht gelesen werden: {error}",
+        "es": "No se pudo leer el DXF: {error}",
+    },
+    "vector.dxf_empty": {
+        "fr": "Aucune ligne, courbe ou polyligne exploitable n'a été trouvée dans ce DXF.",
+        "en": "No usable line, curve or polyline was found in this DXF.",
+        "de": "In dieser DXF wurde keine verwendbare Linie, Kurve oder Polylinie gefunden.",
+        "es": "No se encontró ninguna línea, curva o polilínea utilizable en este DXF.",
+    },
+    "vector.dxf_skipped": {
+        "fr": "Éléments non gérés et ignorés : {skipped}.\nAstuce : convertis les textes en courbes dans ton logiciel de CAO avant l'export.",
+        "en": "Unsupported elements that were ignored: {skipped}.\nTip: convert text to curves in your CAD software before exporting.",
+        "de": "Nicht unterstützte, ignorierte Elemente: {skipped}.\nTipp: Wandle Texte in deiner CAD-Software vor dem Export in Kurven um.",
+        "es": "Elementos no compatibles que se ignoraron: {skipped}.\nConsejo: convierte los textos en curvas en tu programa de CAD antes de exportar.",
+    },
+    "vector.dxf_success": {
+        "fr": "{count} tracé(s) importé(s) dans l'éditeur vectoriel (unité du fichier : {unit}), tous assignés par défaut au calque « {layer} ».",
+        "en": "{count} path(s) imported into the vector editor (file unit: {unit}), all assigned by default to the \"{layer}\" layer.",
+        "de": "{count} Pfad(e) in den Vektoreditor importiert (Einheit der Datei: {unit}), alle standardmäßig der Ebene „{layer}“ zugewiesen.",
+        "es": "{count} trazado(s) importado(s) en el editor vectorial (unidad del archivo: {unit}), todos asignados por defecto a la capa «{layer}».",
+    },
+    "box.title": {
+        "fr": "Générateur de boîte à encoches",
+        "en": "Finger-joint box generator",
+        "de": "Box-Generator mit Fingerzinken",
+        "es": "Generador de cajas con encastres",
+    },
+    "box.group_dimensions": {
+        "fr": "Dimensions et matériau",
+        "en": "Dimensions and material",
+        "de": "Abmessungen und Material",
+        "es": "Dimensiones y material",
+    },
+    "box.dimensions_are": {
+        "fr": "Les dimensions saisies sont :",
+        "en": "The entered dimensions are:",
+        "de": "Die eingegebenen Maße sind:",
+        "es": "Las dimensiones introducidas son:",
+    },
+    "box.mode_outer": {
+        "fr": "extérieures",
+        "en": "outer",
+        "de": "außen",
+        "es": "exteriores",
+    },
+    "box.mode_inner": {
+        "fr": "intérieures",
+        "en": "inner",
+        "de": "innen",
+        "es": "interiores",
+    },
+    "box.width_x": {
+        "fr": "Largeur (X) :",
+        "en": "Width (X):",
+        "de": "Breite (X):",
+        "es": "Ancho (X):",
+    },
+    "box.depth_y": {
+        "fr": "Profondeur (Y) :",
+        "en": "Depth (Y):",
+        "de": "Tiefe (Y):",
+        "es": "Profundidad (Y):",
+    },
+    "box.height_z": {
+        "fr": "Hauteur (Z) :",
+        "en": "Height (Z):",
+        "de": "Höhe (Z):",
+        "es": "Altura (Z):",
+    },
+    "box.thickness": {
+        "fr": "Épaisseur du matériau :",
+        "en": "Material thickness:",
+        "de": "Materialstärke:",
+        "es": "Grosor del material:",
+    },
+    "box.kerf": {
+        "fr": "Compensation du trait (kerf) :",
+        "en": "Kerf compensation:",
+        "de": "Schnittfugen-Kompensation (Kerf):",
+        "es": "Compensación del corte (kerf):",
+    },
+    "box.kerf_tip": {
+        "fr": "Largeur de matière retirée par le laser (souvent 0,1 à 0,2 mm). Les contours sont décalés de la moitié de cette valeur pour que les pièces s'emboîtent sans jeu. Mesure-la sur un essai : trop grande, les assemblages sont serrés ; trop petite, ils sont lâches.",
+        "en": "Width of material removed by the laser (often 0.1 to 0.2 mm). Outlines are offset by half this value so that parts fit without play. Measure it on a test piece: too large and the joints are tight; too small and they are loose.",
+        "de": "Breite des vom Laser entfernten Materials (oft 0,1 bis 0,2 mm). Die Konturen werden um die Hälfte dieses Werts versetzt, damit die Teile spielfrei passen. Miss sie an einem Test: zu groß, und die Verbindungen sitzen stramm; zu klein, und sie sind locker.",
+        "es": "Anchura de material que retira el láser (a menudo 0,1 a 0,2 mm). Los contornos se desplazan la mitad de este valor para que las piezas encajen sin holgura. Mídela con una prueba: si es demasiado grande, los ensambles quedan apretados; si es demasiado pequeña, quedan flojos.",
+    },
+    "box.finger": {
+        "fr": "Largeur des doigts :",
+        "en": "Finger width:",
+        "de": "Fingerbreite:",
+        "es": "Ancho de los dedos:",
+    },
+    "box.finger_auto": {
+        "fr": "Auto (3 × épaisseur)",
+        "en": "Auto (3 × thickness)",
+        "de": "Auto (3 × Stärke)",
+        "es": "Auto (3 × grosor)",
+    },
+    "box.finger_tip": {
+        "fr": "Largeur visée des doigts. Elle est ajustée pour obtenir, sur chaque arête, un nombre impair de doigts de même largeur, jamais inférieure à l'épaisseur du matériau.",
+        "en": "Target finger width. It is adjusted so that each edge gets an odd number of equal fingers, never narrower than the material thickness.",
+        "de": "Gewünschte Fingerbreite, die so angepasst wird, dass jede Kante eine ungerade Anzahl gleich breiter Finger erhält (nie schmaler als die Materialstärke).",
+        "es": "Ancho deseado de los dedos. Se ajusta para que cada arista tenga un número impar de dedos iguales, nunca más estrechos que el grosor del material.",
+    },
+    "box.lid": {
+        "fr": "Avec couvercle (dessus)",
+        "en": "With lid (top panel)",
+        "de": "Mit Deckel (Oberseite)",
+        "es": "Con tapa (parte superior)",
+    },
+    "box.gap": {
+        "fr": "Espace entre les pièces :",
+        "en": "Spacing between parts:",
+        "de": "Abstand zwischen den Teilen:",
+        "es": "Separación entre piezas:",
+    },
+    "box.group_layers": {
+        "fr": "Calques",
+        "en": "Layers",
+        "de": "Ebenen",
+        "es": "Capas",
+    },
+    "box.cut_layer": {
+        "fr": "Calque de découpe :",
+        "en": "Cut layer:",
+        "de": "Schneide-Ebene:",
+        "es": "Capa de corte:",
+    },
+    "box.engrave_layer": {
+        "fr": "Calque de gravure (décor) :",
+        "en": "Engraving layer (decoration):",
+        "de": "Gravur-Ebene (Dekor):",
+        "es": "Capa de grabado (decoración):",
+    },
+    "box.group_decor": {
+        "fr": "Décor à graver sur une face",
+        "en": "Decoration to engrave on a face",
+        "de": "Dekor zum Gravieren auf einer Seite",
+        "es": "Decoración para grabar en una cara",
+    },
+    "box.face_front": {
+        "fr": "Avant",
+        "en": "Front",
+        "de": "Vorderseite",
+        "es": "Frente",
+    },
+    "box.face_back": {
+        "fr": "Arrière",
+        "en": "Back",
+        "de": "Rückseite",
+        "es": "Trasera",
+    },
+    "box.face_left": {
+        "fr": "Gauche",
+        "en": "Left",
+        "de": "Links",
+        "es": "Izquierda",
+    },
+    "box.face_right": {
+        "fr": "Droite",
+        "en": "Right",
+        "de": "Rechts",
+        "es": "Derecha",
+    },
+    "box.face_top": {
+        "fr": "Dessus",
+        "en": "Top",
+        "de": "Oben",
+        "es": "Superior",
+    },
+    "box.face_bottom": {
+        "fr": "Dessous",
+        "en": "Bottom",
+        "de": "Unten",
+        "es": "Inferior",
+    },
+    "box.decor_face": {
+        "fr": "Face :",
+        "en": "Face:",
+        "de": "Seite:",
+        "es": "Cara:",
+    },
+    "box.decor_kind": {
+        "fr": "Type :",
+        "en": "Type:",
+        "de": "Art:",
+        "es": "Tipo:",
+    },
+    "box.decor_text": {
+        "fr": "Texte",
+        "en": "Text",
+        "de": "Text",
+        "es": "Texto",
+    },
+    "box.decor_svg": {
+        "fr": "Fichier SVG",
+        "en": "SVG file",
+        "de": "SVG-Datei",
+        "es": "Archivo SVG",
+    },
+    "box.decor_text_placeholder": {
+        "fr": "Le texte à graver",
+        "en": "Text to engrave",
+        "de": "Zu gravierender Text",
+        "es": "Texto a grabar",
+    },
+    "box.decor_browse": {
+        "fr": "Parcourir…",
+        "en": "Browse…",
+        "de": "Durchsuchen…",
+        "es": "Examinar…",
+    },
+    "box.decor_svg_file": {
+        "fr": "Fichier SVG :",
+        "en": "SVG file:",
+        "de": "SVG-Datei:",
+        "es": "Archivo SVG:",
+    },
+    "box.decor_width": {
+        "fr": "Largeur du dessin :",
+        "en": "Drawing width:",
+        "de": "Breite der Zeichnung:",
+        "es": "Ancho del dibujo:",
+    },
+    "box.decor_width_original": {
+        "fr": "Taille d'origine",
+        "en": "Original size",
+        "de": "Originalgröße",
+        "es": "Tamaño original",
+    },
+    "box.decor_dx": {
+        "fr": "Décalage X :",
+        "en": "Offset X:",
+        "de": "Versatz X:",
+        "es": "Desplazamiento X:",
+    },
+    "box.decor_dy": {
+        "fr": "Décalage Y :",
+        "en": "Offset Y:",
+        "de": "Versatz Y:",
+        "es": "Desplazamiento Y:",
+    },
+    "box.decor_add": {
+        "fr": "Ajouter ce décor",
+        "en": "Add this decoration",
+        "de": "Dekor hinzufügen",
+        "es": "Añadir esta decoración",
+    },
+    "box.decor_remove": {
+        "fr": "Retirer le décor sélectionné",
+        "en": "Remove selected decoration",
+        "de": "Ausgewähltes Dekor entfernen",
+        "es": "Quitar la decoración seleccionada",
+    },
+    "box.svg_filter": {
+        "fr": "Vectoriel SVG (*.svg)",
+        "en": "SVG Vector (*.svg)",
+        "de": "SVG-Vektor (*.svg)",
+        "es": "Vectorial SVG (*.svg)",
+    },
+    "box.summary": {
+        "fr": "{n} panneaux, boîte de {w:.1f} x {d:.1f} x {h:.1f} mm (extérieur). Doigts par arête : X {fx}, Y {fy}, Z {fz}. Emprise de la découpe : {fw:.0f} x {fh:.0f} mm.",
+        "en": "{n} panels, box of {w:.1f} x {d:.1f} x {h:.1f} mm (outer). Fingers per edge: X {fx}, Y {fy}, Z {fz}. Cutting footprint: {fw:.0f} x {fh:.0f} mm.",
+        "de": "{n} Teile, Box von {w:.1f} x {d:.1f} x {h:.1f} mm (außen). Finger pro Kante: X {fx}, Y {fy}, Z {fz}. Schnittfläche: {fw:.0f} x {fh:.0f} mm.",
+        "es": "{n} paneles, caja de {w:.1f} x {d:.1f} x {h:.1f} mm (exterior). Dedos por arista: X {fx}, Y {fy}, Z {fz}. Superficie de corte: {fw:.0f} x {fh:.0f} mm.",
+    },
+    "box.too_big": {
+        "fr": "Les pièces dépassent la zone de travail de la machine ({bed_w:.0f} x {bed_h:.0f} mm) : réduis la boîte ou découpe en plusieurs fois.",
+        "en": "The parts exceed the machine's work area ({bed_w:.0f} x {bed_h:.0f} mm): make the box smaller or cut it in several runs.",
+        "de": "Die Teile überschreiten den Arbeitsbereich der Maschine ({bed_w:.0f} x {bed_h:.0f} mm): Verkleinere die Box oder schneide in mehreren Durchgängen.",
+        "es": "Las piezas superan la zona de trabajo de la máquina ({bed_w:.0f} x {bed_h:.0f} mm): reduce la caja o córtala en varias tandas.",
+    },
+    "box.done": {
+        "fr": "{count} panneau(x) créé(s) dans le calque de découpe, {decor} élément(s) de décor dans le calque de gravure. Emprise : {w:.0f} x {h:.0f} mm.\n\nTu peux déplacer chaque pièce, et annuler avec Ctrl+Z.",
+        "en": "{count} panel(s) created on the cut layer, {decor} decoration element(s) on the engraving layer. Footprint: {w:.0f} x {h:.0f} mm.\n\nYou can move each part, and undo with Ctrl+Z.",
+        "de": "{count} Teil(e) auf der Schneide-Ebene erstellt, {decor} Dekor-Element(e) auf der Gravur-Ebene. Fläche: {w:.0f} x {h:.0f} mm.\n\nDu kannst jedes Teil verschieben und mit Strg+Z rückgängig machen.",
+        "es": "{count} panel(es) creado(s) en la capa de corte, {decor} elemento(s) de decoración en la capa de grabado. Superficie: {w:.0f} x {h:.0f} mm.\n\nPuedes mover cada pieza y deshacer con Ctrl+Z.",
+    },
+    "box.decor_error": {
+        "fr": "Décor ignoré : {error}",
+        "en": "Decoration skipped: {error}",
+        "de": "Dekor übersprungen: {error}",
+        "es": "Decoración omitida: {error}",
+    },
+    "box.err.generic": {
+        "fr": "Paramètres de boîte invalides.",
+        "en": "Invalid box parameters.",
+        "de": "Ungültige Box-Parameter.",
+        "es": "Parámetros de caja no válidos.",
+    },
+    "box.err.thickness": {
+        "fr": "L'épaisseur du matériau doit être supérieure à 0.",
+        "en": "The material thickness must be greater than 0.",
+        "de": "Die Materialstärke muss größer als 0 sein.",
+        "es": "El grosor del material debe ser mayor que 0.",
+    },
+    "box.err.kerf": {
+        "fr": "La compensation du trait doit être comprise entre 0 et l'épaisseur du matériau (exclue).",
+        "en": "The kerf compensation must be between 0 and the material thickness (excluded).",
+        "de": "Die Schnittfugen-Kompensation muss zwischen 0 und der Materialstärke (ausschließlich) liegen.",
+        "es": "La compensación del corte debe estar entre 0 y el grosor del material (excluido).",
+    },
+    "box.err.dimensions_mode": {
+        "fr": "Mode de dimensions inconnu.",
+        "en": "Unknown dimensions mode.",
+        "de": "Unbekannter Maßmodus.",
+        "es": "Modo de dimensiones desconocido.",
+    },
+    "box.err.priority": {
+        "fr": "L'ordre de priorité des faces est invalide.",
+        "en": "The face priority order is invalid.",
+        "de": "Die Prioritätsreihenfolge der Seiten ist ungültig.",
+        "es": "El orden de prioridad de las caras no es válido.",
+    },
+    "box.err.finger_width": {
+        "fr": "La largeur des doigts ne peut pas être négative.",
+        "en": "The finger width cannot be negative.",
+        "de": "Die Fingerbreite darf nicht negativ sein.",
+        "es": "El ancho de los dedos no puede ser negativo.",
+    },
+    "box.err.too_small": {
+        "fr": "La dimension {axis} ({value:.1f} mm) est trop petite : il faut au moins {minimum:.1f} mm en extérieur (3 × l'épaisseur du matériau).",
+        "en": "The {axis} dimension ({value:.1f} mm) is too small: at least {minimum:.1f} mm outer is required (3 × material thickness).",
+        "de": "Das Maß {axis} ({value:.1f} mm) ist zu klein: außen sind mindestens {minimum:.1f} mm nötig (3 × Materialstärke).",
+        "es": "La dimensión {axis} ({value:.1f} mm) es demasiado pequeña: se necesitan al menos {minimum:.1f} mm exteriores (3 × grosor del material).",
+    },
+    "box.err.finger_too_small": {
+        "fr": "La largeur des doigts ({value:.1f} mm) doit être au moins égale à l'épaisseur du matériau ({minimum:.1f} mm).",
+        "en": "The finger width ({value:.1f} mm) must be at least the material thickness ({minimum:.1f} mm).",
+        "de": "Die Fingerbreite ({value:.1f} mm) muss mindestens der Materialstärke ({minimum:.1f} mm) entsprechen.",
+        "es": "El ancho de los dedos ({value:.1f} mm) debe ser al menos igual al grosor del material ({minimum:.1f} mm).",
+    },
+    "box.err.empty_panel": {
+        "fr": "Le contour d'un panneau n'a pas pu être calculé avec ces dimensions : modifie légèrement les dimensions ou la largeur des doigts.",
+        "en": "The outline of a panel could not be computed with these dimensions: change the dimensions or the finger width slightly.",
+        "de": "Die Kontur eines Teils konnte mit diesen Maßen nicht berechnet werden: Ändere die Maße oder die Fingerbreite leicht.",
+        "es": "No se pudo calcular el contorno de un panel con estas dimensiones: modifica un poco las dimensiones o el ancho de los dedos.",
+    },
+    "box.err.pinched_panel": {
+        "fr": "Le contour d'un panneau n'a pas pu être calculé avec ces dimensions : modifie légèrement les dimensions ou la largeur des doigts.",
+        "en": "The outline of a panel could not be computed with these dimensions: change the dimensions or the finger width slightly.",
+        "de": "Die Kontur eines Teils konnte mit diesen Maßen nicht berechnet werden: Ändere die Maße oder die Fingerbreite leicht.",
+        "es": "No se pudo calcular el contorno de un panel con estas dimensiones: modifica un poco las dimensiones o el ancho de los dedos.",
+    },
+    "box.err.open_outline": {
+        "fr": "Le contour d'un panneau n'a pas pu être calculé avec ces dimensions : modifie légèrement les dimensions ou la largeur des doigts.",
+        "en": "The outline of a panel could not be computed with these dimensions: change the dimensions or the finger width slightly.",
+        "de": "Die Kontur eines Teils konnte mit diesen Maßen nicht berechnet werden: Ändere die Maße oder die Fingerbreite leicht.",
+        "es": "No se pudo calcular el contorno de un panel con estas dimensiones: modifica un poco las dimensiones o el ancho de los dedos.",
+    },
+    "box.err.several_outlines": {
+        "fr": "Le contour d'un panneau n'a pas pu être calculé avec ces dimensions : modifie légèrement les dimensions ou la largeur des doigts.",
+        "en": "The outline of a panel could not be computed with these dimensions: change the dimensions or the finger width slightly.",
+        "de": "Die Kontur eines Teils konnte mit diesen Maßen nicht berechnet werden: Ändere die Maße oder die Fingerbreite leicht.",
+        "es": "No se pudo calcular el contorno de un panel con estas dimensiones: modifica un poco las dimensiones o el ancho de los dedos.",
     },
     "img.reset": {
         "fr": "Réinitialiser Réglages Image", "en": "Reset Image Settings",
@@ -604,13 +1181,13 @@ TRANSLATIONS = {
         "es": "No se pudo restablecer la conexión USB tras varios intentos.\n\nRevisa el cable, el puerto, y reconéctate manualmente.",
     },
     "laser.connect_first": {
-        "fr": "Connectez d'abord le laser.",
+        "fr": "Connecte d'abord le laser.",
         "en": "Connect the laser first.",
         "de": "Verbinde zuerst den Laser.",
         "es": "Conecta primero el láser.",
     },
     "laser.connect_via_usb": {
-        "fr": "Connectez le laser via USB.",
+        "fr": "Connecte le laser via USB.",
         "en": "Connect the laser via USB.",
         "de": "Verbinde den Laser über USB.",
         "es": "Conecta el láser mediante USB.",
@@ -646,11 +1223,7 @@ TRANSLATIONS = {
         "es": "Confirmar inicio",
     },
     "laser.confirm_body": {
-        "fr": "Le laser va démarrer.\n\nVérifiez que :\n"
-              "- la zone de travail est dégagée,\n"
-              "- le capot/protection est en place,\n"
-              "- vous portez une protection oculaire adaptée.\n\n"
-              "Lancer le job maintenant ?",
+        "fr": "Le laser va démarrer.\n\nVérifie que :\n- la zone de travail est dégagée,\n- le capot/protection est en place,\n- tu portes une protection oculaire adaptée.\n\nLancer le job maintenant ?",
         "en": "The laser is about to start.\n\nMake sure that:\n"
               "- the work area is clear,\n"
               "- the cover/protection is in place,\n"
@@ -686,8 +1259,7 @@ TRANSLATIONS = {
         "es": "Trabajo interrumpido",
     },
     "laser.interrupted": {
-        "fr": "L'envoi du G-Code a été interrompu (erreur GRBL, alarme, perte de "
-              "connexion ou arrêt manuel). Consultez la console avant de relancer.",
+        "fr": "L'envoi du G-Code a été interrompu (erreur GRBL, alarme, perte de connexion ou arrêt manuel). Consulte la console avant de relancer.",
         "en": "G-Code transmission was interrupted (GRBL error, alarm, lost "
               "connection, or manual stop). Check the console before restarting.",
         "de": "Die G-Code-Übertragung wurde unterbrochen (GRBL-Fehler, Alarm, "
@@ -1050,7 +1622,7 @@ TRANSLATIONS = {
         "es": "Error USB",
     },
     "queue.usb_connect": {
-        "fr": "Veuillez connecter le laser en USB.",
+        "fr": "Connecte le laser en USB.",
         "en": "Please connect the laser via USB.",
         "de": "Bitte verbinde den Laser per USB.",
         "es": "Por favor, conecta el láser por USB.",
@@ -1156,7 +1728,7 @@ TRANSLATIONS = {
         "es": "Salir",
     },
     "ui.quit_save_prompt": {
-        "fr": "Voulez-vous sauvegarder le projet avant de fermer ?",
+        "fr": "Veux-tu sauvegarder le projet avant de fermer ?",
         "en": "Do you want to save the project before closing?",
         "de": "Möchtest du das Projekt vor dem Schließen speichern?",
         "es": "¿Quieres guardar el proyecto antes de cerrar?",
@@ -1344,7 +1916,7 @@ TRANSLATIONS = {
         "es": "Ninguna capa",
     },
     "vector.no_layer_body": {
-        "fr": "Créez d'abord un calque dans l'onglet 'Calques (Layers)'.",
+        "fr": "Crée d'abord un calque dans l'onglet 'Calques (Layers)'.",
         "en": "Create a layer first in the 'Layers' tab.",
         "de": "Erstelle zuerst eine Ebene im Reiter „Ebenen“.",
         "es": "Crea primero una capa en la pestaña «Capas».",
@@ -1356,7 +1928,7 @@ TRANSLATIONS = {
         "es": "Selección",
     },
     "vector.no_selection": {
-        "fr": "Sélectionnez d'abord un objet dans le canevas.",
+        "fr": "Sélectionne d'abord un objet dans le canevas.",
         "en": "Select an object in the canvas first.",
         "de": "Wähle zuerst ein Objekt auf der Zeichenfläche aus.",
         "es": "Selecciona primero un objeto en el lienzo.",
@@ -1386,10 +1958,10 @@ TRANSLATIONS = {
         "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
     },
     "vector.import_title": {
-        "fr": "Importer un SVG (multi-calques)",
-        "en": "Import SVG (multi-layer)",
-        "de": "SVG importieren (mehrere Ebenen)",
-        "es": "Importar SVG (multicapa)",
+        "fr": "Importer un SVG ou un DXF (multi-calques)",
+        "en": "Import SVG or DXF (multi-layer)",
+        "de": "SVG oder DXF importieren (mehrere Ebenen)",
+        "es": "Importar SVG o DXF (multicapa)",
     },
     "vector.svg_filter": {
         "fr": "Vectoriel SVG (*.svg)",
@@ -1470,7 +2042,7 @@ TRANSLATIONS = {
         "es": "G-Code vacío",
     },
     "gcode.empty_export": {
-        "fr": "Générez d'abord le job G-Code avant de l'exporter.",
+        "fr": "Génère d'abord le job G-Code avant de l'exporter.",
         "en": "Generate the G-Code job before exporting it.",
         "de": "Generiere zuerst den G-Code-Job, bevor du ihn exportierst.",
         "es": "Genera primero el trabajo G-Code antes de exportarlo.",
@@ -1606,13 +2178,13 @@ TRANSLATIONS = {
         "es": "Vista previa 2D del G-Code",
     },
     "ui.source_image_box": {
-        "fr": "Image Originale (Glissez pour déplacer, molette pour zoomer)",
+        "fr": "Image Originale (Glisse pour déplacer, molette pour zoomer)",
         "en": "Original Image (Drag to move, mouse wheel to zoom)",
         "de": "Originalbild (ziehen zum Bewegen, Mausrad zum Zoomen)",
         "es": "Imagen original (arrastra para mover, rueda del ratón para ampliar)",
     },
     "ui.final_raster_box": {
-        "fr": "Rendu Tramé Final (Glissez pour déplacer, molette pour zoomer)",
+        "fr": "Rendu Tramé Final (Glisse pour déplacer, molette pour zoomer)",
         "en": "Final Rasterized Output (Drag to move, mouse wheel to zoom)",
         "de": "Finales gerastertes Ergebnis (ziehen zum Bewegen, Mausrad zum Zoomen)",
         "es": "Salida raster final (arrastra para mover, rueda del ratón para ampliar)",
@@ -1642,10 +2214,10 @@ TRANSLATIONS = {
         "es": "+ Forma",
     },
     "ui.vector_import_svg": {
-        "fr": "📥 Importer SVG (multi-calques)",
-        "en": "📥 Import SVG (multi-layer)",
-        "de": "📥 SVG importieren (Mehrfach-Ebenen)",
-        "es": "📥 Importar SVG (multicapa)",
+        "fr": "📥 Importer SVG / DXF (multi-calques)",
+        "en": "📥 Import SVG / DXF (multi-layer)",
+        "de": "📥 SVG / DXF importieren (Mehrfach-Ebenen)",
+        "es": "📥 Importar SVG / DXF (multicapa)",
     },
     "ui.vector_edit_selection": {
         "fr": "Modifier Sélection",
@@ -1844,7 +2416,7 @@ TRANSLATIONS = {
         "es": "Consola de comandos directos GRBL",
     },
     "ui.manual_grbl_placeholder": {
-        "fr": "Tapez une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)",
+        "fr": "Tape une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)",
         "en": "Type a GRBL command ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ for history)",
         "de": "Gib einen GRBL-Befehl ein ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ für Verlauf)",
         "es": "Escribe un comando GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ para historial)",
@@ -2660,7 +3232,7 @@ TRANSLATIONS = {
     "gen.too_big_body": {
         "fr": "La zone de gravure configurée ({job_w:.1f} x {job_h:.1f} mm) dépasse la surface de travail de la machine ({bed_w:.1f} x {bed_h:.1f} mm, définie dans l'onglet '{tab_machine}').\n\nCe n'est pas possible avec ces réglages : réduis les dimensions du job (onglet '{tab_dims}') ou agrandis la zone machine avant de continuer.",
         "en": "The configured engraving area ({job_w:.1f} x {job_h:.1f} mm) exceeds the machine's work area ({bed_w:.1f} x {bed_h:.1f} mm, set in the '{tab_machine}' tab).\n\nThis is not possible with these settings: reduce the job dimensions ('{tab_dims}' tab) or enlarge the machine area before continuing.",
-        "de": "Der eingestellte Gravurbereich ({job_w:.1f} x {job_h:.1f} mm) überschreitet die Arbeitsfläche der Maschine ({bed_w:.1f} x {bed_h:.1f} mm, festgelegt im Tab '{tab_machine}').\n\nMit diesen Einstellungen ist das nicht möglich: Verkleinern Sie die Job-Abmessungen (Tab '{tab_dims}') oder vergrößern Sie den Maschinenbereich, bevor Sie fortfahren.",
+        "de": "Der eingestellte Gravurbereich ({job_w:.1f} x {job_h:.1f} mm) überschreitet die Arbeitsfläche der Maschine ({bed_w:.1f} x {bed_h:.1f} mm, festgelegt im Tab '{tab_machine}').\n\nMit diesen Einstellungen ist das nicht möglich: Verkleinere die Job-Abmessungen (Tab '{tab_dims}') oder vergrößere den Maschinenbereich, bevor du fortfährst.",
         "es": "El área de grabado configurada ({job_w:.1f} x {job_h:.1f} mm) supera la superficie de trabajo de la máquina ({bed_w:.1f} x {bed_h:.1f} mm, definida en la pestaña '{tab_machine}').\n\nNo es posible con estos ajustes: reduce las dimensiones del trabajo (pestaña '{tab_dims}') o amplía el área de la máquina antes de continuar.",
     },
     "gen.speed_limit_title": {
@@ -2726,7 +3298,7 @@ TRANSLATIONS = {
     "gen.engrave_confirm_body": {
         "fr": "Avant de générer la gravure de l'image, vérifie les réglages :\n\n• Calque : {layer}\n• Puissance : {power:.0f} %\n• Vitesse : {speed:.0f} mm/min\n• Dimensions : {width:.1f} x {height:.1f} mm\n• {material}\n\nCes valeurs te conviennent pour ce matériau ? Confirmer et générer le G-Code, ou annuler pour les modifier d'abord.",
         "en": "Before generating the image engraving, check the settings:\n\n• Layer: {layer}\n• Power: {power:.0f} %\n• Speed: {speed:.0f} mm/min\n• Size: {width:.1f} x {height:.1f} mm\n• {material}\n\nAre these values right for this material? Confirm and generate the G-code, or cancel to change them first.",
-        "de": "Prüfen Sie vor dem Generieren der Bildgravur die Einstellungen:\n\n• Ebene: {layer}\n• Leistung: {power:.0f} %\n• Geschwindigkeit: {speed:.0f} mm/min\n• Abmessungen: {width:.1f} x {height:.1f} mm\n• {material}\n\nPassen diese Werte für dieses Material? Bestätigen und G-Code generieren, oder abbrechen, um sie zuerst zu ändern.",
+        "de": "Prüfe vor dem Generieren der Bildgravur die Einstellungen:\n\n• Ebene: {layer}\n• Leistung: {power:.0f} %\n• Geschwindigkeit: {speed:.0f} mm/min\n• Abmessungen: {width:.1f} x {height:.1f} mm\n• {material}\n\nPassen diese Werte für dieses Material? Bestätigen und G-Code generieren, oder abbrechen, um sie zuerst zu ändern.",
         "es": "Antes de generar el grabado de la imagen, comprueba los ajustes:\n\n• Capa: {layer}\n• Potencia: {power:.0f} %\n• Velocidad: {speed:.0f} mm/min\n• Dimensiones: {width:.1f} x {height:.1f} mm\n• {material}\n\n¿Son correctos estos valores para este material? Confirma y genera el G-code, o cancela para modificarlos antes.",
     },
     "gen.overscan_title": {
@@ -2736,10 +3308,10 @@ TRANSLATIONS = {
         "es": "Posición no válida (Sobrebarrido)",
     },
     "gen.overscan_body": {
-        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (onglet '{tab_dims}') ou réduis la distance de surbalayage (onglet '{tab_grbl}') avant de générer.",
-        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset ('{tab_dims}' tab) or reduce the overscan distance ('{tab_grbl}' tab) before generating.",
-        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhen Sie den X-Versatz (Tab '{tab_dims}') oder verringern Sie den Overscan-Abstand (Tab '{tab_grbl}'), bevor Sie generieren.",
-        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (pestaña '{tab_dims}') o reduce la distancia de sobrebarrido (pestaña '{tab_grbl}') antes de generar.",
+        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (onglet '{tab_dims}') ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
+        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset ('{tab_dims}' tab) or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
+        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhe den X-Versatz (Tab '{tab_dims}') oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
+        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (pestaña '{tab_dims}') o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
     },
     "gen.overscan_vec_title": {
         "fr": "Position invalide (Surbalayage — calque vectoriel)",
@@ -2748,10 +3320,10 @@ TRANSLATIONS = {
         "es": "Posición no válida (Sobrebarrido — capa vectorial)",
     },
     "gen.overscan_vec_body": {
-        "fr": "Le calque « {name} » (Gravure Remplie) commence trop près du bord gauche pour le surbalayage configuré ({overscan:.2f} mm) : le point de départ serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nDéplace cet objet vers la droite dans l'éditeur vectoriel, ou réduis la distance de surbalayage (onglet '{tab_grbl}') avant de générer.",
-        "en": "Layer “{name}” (Fill Engraving) starts too close to the left edge for the configured overscan ({overscan:.2f} mm): the start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nMove this object to the right in the vector editor, or reduce the overscan distance ('{tab_grbl}' tab) before generating.",
-        "de": "Die Ebene „{name}“ (Gefüllte Gravur) beginnt zu nah am linken Rand für den eingestellten Overscan ({overscan:.2f} mm): Der Startpunkt läge bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nVerschieben Sie dieses Objekt im Vektor-Editor nach rechts oder verringern Sie den Overscan-Abstand (Tab '{tab_grbl}'), bevor Sie generieren.",
-        "es": "La capa «{name}» (Grabado relleno) empieza demasiado cerca del borde izquierdo para el sobrebarrido configurado ({overscan:.2f} mm): el punto de inicio estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nMueve este objeto hacia la derecha en el editor vectorial, o reduce la distancia de sobrebarrido (pestaña '{tab_grbl}') antes de generar.",
+        "fr": "Le calque « {name} » (Gravure Remplie) commence trop près du bord gauche pour le surbalayage configuré ({overscan:.2f} mm) : le point de départ serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nDéplace cet objet vers la droite dans l'éditeur vectoriel, ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
+        "en": "Layer “{name}” (Fill Engraving) starts too close to the left edge for the configured overscan ({overscan:.2f} mm): the start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nMove this object to the right in the vector editor, or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
+        "de": "Die Ebene „{name}“ (Gefüllte Gravur) beginnt zu nah am linken Rand für den eingestellten Overscan ({overscan:.2f} mm): Der Startpunkt läge bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nVerschiebe dieses Objekt im Vektor-Editor nach rechts oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
+        "es": "La capa «{name}» (Grabado relleno) empieza demasiado cerca del borde izquierdo para el sobrebarrido configurado ({overscan:.2f} mm): el punto de inicio estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nMueve este objeto hacia la derecha en el editor vectorial, o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
     },
     "gen.failed_title": {
         "fr": "Erreur de génération",
@@ -2886,10 +3458,10 @@ TRANSLATIONS = {
         "es": "{label} ({n} segmentos)",
     },
     "usb.driver_hint": {
-        "fr": "Port introuvable ? Installez le driver USB de votre contrôleur (le plus courant : CH340) : <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Sous Linux, aucun driver à installer, mais votre utilisateur doit être dans le groupe « dialout ».",
+        "fr": "Port introuvable ? Installe le driver USB de ton contrôleur (le plus courant : CH340) : <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Sous Linux, aucun driver à installer, mais ton utilisateur doit être dans le groupe « dialout ».",
         "en": "Port not showing up? Install your controller's USB driver (most common: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. On Linux no driver is needed, but your user must be in the \"dialout\" group.",
-        "de": "Port nicht gefunden? Installieren Sie den USB-Treiber Ihres Controllers (am häufigsten: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Unter Linux ist kein Treiber nötig, aber Ihr Benutzer muss in der Gruppe „dialout“ sein.",
-        "es": "¿No aparece el puerto? Instale el driver USB de su controlador (el más común: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. En Linux no hace falta driver, pero su usuario debe estar en el grupo «dialout».",
+        "de": "Port nicht gefunden? Installiere den USB-Treiber deines Controllers (am häufigsten: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Unter Linux ist kein Treiber nötig, aber dein Benutzer muss in der Gruppe „dialout“ sein.",
+        "es": "¿No aparece el puerto? Instala el driver USB de tu controlador (el más común: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. En Linux no hace falta driver, pero tu usuario debe estar en el grupo «dialout».",
     },
     "ui.mat_lmm_auto_tooltip": {
         "fr": "Repris automatiquement de l'onglet Image / Filtre",
@@ -2955,13 +3527,13 @@ TRANSLATIONS = {
     "sep.tab_engraving": {"fr": "Fichier Gravure", "en": "Engraving File", "de": "Gravurdatei", "es": "Archivo de grabado"},
     "sep.tab_print": {"fr": "Fichier Impression", "en": "Print File", "de": "Druckdatei", "es": "Archivo de impresión"},
     "sep.tab_simulation": {"fr": "Simulation", "en": "Simulation", "de": "Simulation", "es": "Simulación"},
-    "sep.no_image_loaded": {"fr": "Ouvrez d'abord une image.", "en": "Open an image first.", "de": "Öffnen Sie zuerst ein Bild.", "es": "Abra primero una imagen."},
+    "sep.no_image_loaded": {"fr": "Ouvre d'abord une image.", "en": "Open an image first.", "de": "Öffne zuerst ein Bild.", "es": "Abre primero una imagen."},
     "sep.export_folder": {"fr": "Dossier d'exportation", "en": "Export Folder", "de": "Exportordner", "es": "Carpeta de exportación"},
     "sep.choose_format_prompt": {
-        "fr": "Choisissez le format de fichier pour le calque couleur :",
+        "fr": "Choisis le format de fichier pour le calque couleur :",
         "en": "Choose the file format for the color layer:",
-        "de": "Wählen Sie das Dateiformat für die Farbebene:",
-        "es": "Elija el formato de archivo para la capa de color:",
+        "de": "Wähle das Dateiformat für die Farbebene:",
+        "es": "Elige el formato de archivo para la capa de color:",
     },
     "sep.files_created": {"fr": "Fichiers créés :", "en": "Files created:", "de": "Erstellte Dateien:", "es": "Archivos creados:"},
     "sep.pdf_too_large": {
@@ -2983,10 +3555,10 @@ TRANSLATIONS = {
         "es": "📂 Cargar imagen",
     },
     "sep.drag_drop_hint": {
-        "fr": "💡 Glissez-déposez une image ici",
+        "fr": "💡 Glisse-dépose une image ici",
         "en": "💡 Drag & drop an image here", 
         "de": "💡 Bild hierher ziehen", 
-        "es": "💡 Arrastre y suelte una imagen aquí",
+        "es": "💡 Arrastra y suelta una imagen aquí",
     },
     # --- Séparation Couleur : clés ajoutées pour la version PyQt (à coller avant le "}" final de TRANSLATIONS) ---
     "sep.black_info": {
@@ -3006,16 +3578,16 @@ TRANSLATIONS = {
         "de": "Punktzuwachs (%):", "es": "Ganancia de punto (%):",
     },
     "sep.gain_tip": {
-        "fr": "Augmentez si les tons moyens sortent trop clairs après gravure (points brûlés qui débordent). 0 = aucune correction.",
+        "fr": "Augmente si les tons moyens sortent trop clairs après gravure (points brûlés qui débordent). 0 = aucune correction.",
         "en": "Increase if midtones come out too light after engraving (burned dots spreading). 0 = no correction.",
         "de": "Erhöhen, wenn die Mitteltöne nach dem Gravieren zu hell werden (verbrannte Punkte laufen aus). 0 = keine Korrektur.",
-        "es": "Aumente si los tonos medios salen demasiado claros tras el grabado (los puntos quemados se expanden). 0 = sin corrección.",
+        "es": "Aumenta si los tonos medios salen demasiado claros tras el grabado (los puntos quemados se expanden). 0 = sin corrección.",
     },
     "sep.mirror_print_tip": {
-        "fr": "Cochez si le film est collé avec l'encre vers l'extérieur (image vue à travers le film).",
+        "fr": "Coche si le film est collé avec l'encre vers l'extérieur (image vue à travers le film).",
         "en": "Tick if the film is glued with the ink facing away from the glass (image seen through the film).",
         "de": "Aktivieren, wenn die Folie mit der Tintenseite vom Glas abgewandt aufgeklebt wird (Bild wird durch die Folie betrachtet).",
-        "es": "Marque si la película se pega con la tinta hacia fuera del vidrio (imagen vista a través de la película).",
+        "es": "Marca si la película se pega con la tinta hacia fuera del vidrio (imagen vista a través de la película).",
     },
     "sep.sync_note": {
         "fr": "Les dimensions de la plaque sont reportées dans Image & Filtres : les calques noir et couleur ont ainsi exactement la même taille.",
@@ -3024,16 +3596,16 @@ TRANSLATIONS = {
         "es": "Las dimensiones de la placa se copian a Imagen y Filtros, así las capas negra y de color tienen exactamente el mismo tamaño.",
     },
     "sep.not_ready": {
-        "fr": "Le calque noir est en cours de calcul, réessayez dans un instant.",
+        "fr": "Le calque noir est en cours de calcul, réessaie dans un instant.",
         "en": "The black layer is still being computed, try again in a moment.",
-        "de": "Die schwarze Ebene wird noch berechnet, versuchen Sie es gleich noch einmal.",
-        "es": "La capa negra aún se está calculando, inténtelo de nuevo en un momento.",
+        "de": "Die schwarze Ebene wird noch berechnet, versuche es gleich noch einmal.",
+        "es": "La capa negra aún se está calculando, inténtalo de nuevo en un momento.",
     },
     "sep.tip": {
-        "fr": "Astuce : imprimez le PDF à 100 % (sans mise à l'échelle) sur film transparent imprimable, puis collez-le à l'arrière du verre en alignant soigneusement avec la gravure.",
+        "fr": "Astuce : imprime le PDF à 100 % (sans mise à l'échelle) sur film transparent imprimable, puis colle-le à l'arrière du verre en alignant soigneusement avec la gravure.",
         "en": "Tip: print the PDF at 100 % (no scaling) on printable transparent film, then glue it to the back of the glass, aligning it carefully with the engraving.",
-        "de": "Tipp: Drucken Sie das PDF zu 100 % (ohne Skalierung) auf bedruckbare Klarsichtfolie und kleben Sie es sorgfältig ausgerichtet auf die Rückseite des Glases.",
-        "es": "Consejo: imprima el PDF al 100 % (sin escalar) en película transparente imprimible y péguelo en la parte trasera del vidrio, alineándolo con cuidado con el grabado.",
+        "de": "Tipp: Drucke das PDF zu 100 % (ohne Skalierung) auf bedruckbare Klarsichtfolie und klebe es sorgfältig ausgerichtet auf die Rückseite des Glases.",
+        "es": "Consejo: imprime el PDF al 100 % (sin escalar) en película transparente imprimible y pégalo en la parte trasera del vidrio, alineándolo con cuidado con el grabado.",
     },
     # --- Séparation Couleur : proportions et recadrage (à coller avant le "}" final de TRANSLATIONS) ---
     "sep.keep_ratio": {

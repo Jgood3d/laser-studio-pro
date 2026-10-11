@@ -135,6 +135,22 @@ class ImageProcessingMixin:
         if hasattr(self, "spin_mat_lmm") and hasattr(self, "spin_lmm"):
             self.spin_mat_lmm.setValue(self.spin_lmm.value())
 
+    def _sync_separation_with_resolution(self):
+        """L'onglet Séparation Couleur / Verre affiche et utilise la résolution
+        réglée ici (spin_lmm). Or spin_lmm est modifié avec les signaux bloqués
+        dès qu'on saisit des DPI ou qu'on suit la focale : aucun signal
+        « valeur changée » n'arrivait donc jusqu'à lui, et son libellé
+        « Résolution de gravure : … DPI » restait figé sur la valeur par
+        défaut (254 DPI), en désaccord avec le champ DPI d'ici.
+        Appelée depuis _update_resolution_quality, point central de tous les
+        changements de résolution."""
+        if hasattr(self, "sep_lbl_dpi") and hasattr(self, "_sep_update_dpi_label"):
+            self._sep_update_dpi_label()
+        # Une image est chargée côté Séparation : sa tonalité est cadrée à une
+        # densité de pixels qui dépend de la résolution de gravure — on la renvoie.
+        if getattr(self, "sep_src", None) is not None and hasattr(self, "_sep_schedule_push"):
+            self._sep_schedule_push()
+
     def _update_resolution_quality(self):
         """Pastille indiquant si l'écart de lignes actuellement réglé est
         bien adapté à la taille du spot laser configurée, quel que soit le
@@ -150,6 +166,7 @@ class ImageProcessingMixin:
         # restauration au démarrage) : point central pour garder la matrice
         # de test synchronisée.
         self._sync_matrix_lmm_from_image()
+        self._sync_separation_with_resolution()
         if not hasattr(self, "lbl_resolution_quality") or not hasattr(self, "spin_machine_focal"):
             return
         focal = self.spin_machine_focal.value()

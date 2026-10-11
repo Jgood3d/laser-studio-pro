@@ -8,7 +8,7 @@ import json
 import os
 from PyQt6.QtWidgets import QMessageBox, QListWidgetItem
 from workers import GCodeStreamerThread
-from app_utils import get_autosave_dir, atomic_write_json
+from app_utils import get_autosave_dir, get_background_writer
 from i18n import tr
 
 QUEUE_FILENAME = "laser_studio_pro_queue.json"
@@ -89,7 +89,15 @@ class JobQueueMixin:
         projet, voir project_io_mixin.py)."""
         try:
             path = os.path.join(get_autosave_dir(), QUEUE_FILENAME)
-            atomic_write_json(path, getattr(self, "job_queue", []))
+            writer = get_background_writer()
+            error = writer.pop_error(path)
+            if error is not None and hasattr(self, "txt_console"):
+                self.txt_console.append(tr("queue.save_failed").format(error=error))
+            # Copie légère (les textes G-Code sont partagés, pas dupliqués) : la
+            # sérialisation d'une file lourde et l'écriture disque se font dans le
+            # thread d'écriture, pas dans le fil de l'interface.
+            snapshot = [dict(job) for job in getattr(self, "job_queue", [])]
+            writer.submit(path, lambda: json.dumps(snapshot))
         except Exception:
             pass
 

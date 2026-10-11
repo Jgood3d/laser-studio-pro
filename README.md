@@ -6,8 +6,10 @@ Laser Studio Pro est un logiciel de pilotage GRBL pour graveur et découpeuse la
 - gravure d’images (tramage, niveaux de gris, résolution liée à la taille du spot),
 - sélecteur de matière (fond noir / fond clair) pour graver en négatif ou en positif,
 - séparation couleur / verre (calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage, PDF à l’échelle 1:1),
-- découpe/gravure vectorielle et conversion PNG/JPEG → SVG,
+- découpe/gravure vectorielle, import SVG et DXF, conversion PNG/JPEG → SVG,
+- générateur de boîte à encoches (dimensions X/Y/Z, décor texte ou SVG),
 - gestion de calques, avec leurs réglages mémorisés par machine,
+- calibrage guidé : matrice de test, décalage aller/retour et gain de point pour le verre,
 - génération et aperçu 2D du G-Code, file d’attente de jobs,
 - profils machine (dimensions, focale, réglages GRBL, matériaux),
 - export/import de projets, sauvegarde automatique,
@@ -49,6 +51,9 @@ python main.py
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
+- `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
+- `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
+- `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
 - `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
 - `i18n.py` — système de traduction multilingue
 
@@ -64,10 +69,13 @@ python main.py
 - `job_queue_mixin.py` — file d’attente de jobs
 - `png2svg_mixin.py` — onglet PNG/JPEG → SVG
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
+- `box_dialog.py` — fenêtre du générateur de boîte
+- `settings_window.py` — fenêtres « Machine & Profils » et « Configuration GRBL » ouvertes depuis la barre de menus
 
 ### Qualité
-- `tests/` — tests automatiques (G-Code, écriture atomique, reset/référencement, calques par machine, traductions)
+- `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)
 - `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
+- `tools/check_ui_attributes.py` — détecte les widgets utilisés mais jamais construits (fichier resté à l’ancienne version)
 
 ## Captures d’écran
 
@@ -91,7 +99,17 @@ Interface en anglais et en allemand :
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
-## Nouveautés de la version 2.2.0
+## Nouveautés de la version 2.3.0
+
+- **Import DXF** dans l’éditeur vectoriel (lignes, polylignes, cercles, arcs, ellipses, splines, blocs), avec réunion automatique des segments en contours.
+- **Générateur de boîte à encoches** : panneaux prêts à découper, avec décor texte ou SVG gravé sur les faces.
+- **Décalage aller/retour** : corrige le flou des contours verticaux de la gravure d’image, avec un motif de test pour trouver la bonne valeur (mémorisée par machine).
+- **Assistant de calibrage du gain de point** pour la gravure sur verre : une grille à graver pour régler le curseur au bon endroit.
+- **Fin de job fiable** : l’application attend que la machine soit réellement à l’arrêt (état Idle), et un Reset n’est plus annoncé comme une fin normale.
+- **Sauvegardes en arrière-plan** : l’autosave et la file d’attente ne figent plus l’interface.
+- **Boîtes de dialogue de l’éditeur vectoriel traduites**, et tutoiement harmonisé dans toutes les langues.
+
+Précédemment, dans la version 2.2.0 :
 
 - **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser Couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
 - **Réglages des calques mémorisés par machine** : vitesse, puissance, passes… retrouvés à la réouverture, propres à chaque profil machine.
@@ -118,6 +136,12 @@ Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépend
 
 ```bash
 python -m unittest discover tests -v
+```
+
+Vérifier qu’aucun widget n’est utilisé sans être construit (utile après avoir remplacé plusieurs fichiers) :
+
+```bash
+python tools/check_ui_attributes.py
 ```
 
 Contrôler les traductions (rapport détaillé) :

@@ -1522,11 +1522,11 @@ class VectorCanvasView(QGraphicsView):
         current_h = max(y_max - y_min, 1e-6)
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("Redimensionner la sélection (groupe)")
+        dialog.setWindowTitle(tr("vector.dlg.resize_title"))
         layout = QFormLayout(dialog)
-        layout.addRow(QLabel(f"Taille actuelle du groupe : {current_w:.2f} x {current_h:.2f} mm"))
+        layout.addRow(QLabel(tr("vector.dlg.group_size").format(w=current_w, h=current_h)))
 
-        chk_keep_ratio = QCheckBox("Conserver le ratio largeur/hauteur")
+        chk_keep_ratio = QCheckBox(tr("vector.dlg.keep_ratio"))
         chk_keep_ratio.setChecked(True)
         layout.addRow("", chk_keep_ratio)
 
@@ -1534,8 +1534,8 @@ class VectorCanvasView(QGraphicsView):
         spin_w.setValue(current_w); spin_w.setSuffix(" mm")
         spin_h = QDoubleSpinBox(); spin_h.setRange(0.1, 5000.0); spin_h.setDecimals(2)
         spin_h.setValue(current_h); spin_h.setSuffix(" mm")
-        layout.addRow("Nouvelle largeur :", spin_w)
-        layout.addRow("Nouvelle hauteur :", spin_h)
+        layout.addRow(tr("vector.dlg.new_width"), spin_w)
+        layout.addRow(tr("vector.dlg.new_height"), spin_h)
 
         ratio = current_w / current_h if current_h else 1.0
         state = {"updating": False}
@@ -1626,51 +1626,51 @@ class TextInsertDialog(QDialog):
 
     def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Texte" if text_obj is None else "Modifier le texte")
+        self.setWindowTitle(tr("vector.dlg.text_title_new") if text_obj is None else tr("vector.dlg.text_title_edit"))
         self.layer_manager = layer_manager
         self.editing = text_obj
 
         layout = QFormLayout(self)
 
-        self.edit_text = QLineEdit(text_obj.text if text_obj else "TEXTE")
-        layout.addRow("Texte :", self.edit_text)
+        self.edit_text = QLineEdit(text_obj.text if text_obj else tr("vector.dlg.text_default"))
+        layout.addRow(tr("vector.dlg.text_label"), self.edit_text)
 
         self.combo_font = QFontComboBox()
         if text_obj:
             self.combo_font.setCurrentFont(QFont(text_obj.font_family))
-        layout.addRow("Police :", self.combo_font)
+        layout.addRow(tr("vector.dlg.font"), self.combo_font)
 
         style_row = QHBoxLayout()
-        self.chk_bold = QCheckBox("Gras"); self.chk_bold.setChecked(bool(text_obj and text_obj.bold))
-        self.chk_italic = QCheckBox("Italique"); self.chk_italic.setChecked(bool(text_obj and text_obj.italic))
+        self.chk_bold = QCheckBox(tr("vector.dlg.bold")); self.chk_bold.setChecked(bool(text_obj and text_obj.bold))
+        self.chk_italic = QCheckBox(tr("vector.dlg.italic")); self.chk_italic.setChecked(bool(text_obj and text_obj.italic))
         style_row.addWidget(self.chk_bold); style_row.addWidget(self.chk_italic)
-        layout.addRow("Style :", style_row)
+        layout.addRow(tr("vector.dlg.style"), style_row)
 
         self.spin_size = QDoubleSpinBox(); self.spin_size.setRange(1.0, 500.0)
         self.spin_size.setValue(text_obj.size_mm if text_obj else 10.0)
         self.spin_size.setSuffix(" mm")
-        layout.addRow("Taille (hauteur) :", self.spin_size)
+        layout.addRow(tr("vector.dlg.size_height"), self.spin_size)
 
         self.spin_spacing = QDoubleSpinBox(); self.spin_spacing.setRange(-5.0, 50.0)
         self.spin_spacing.setValue(text_obj.letter_spacing_mm if text_obj else 0.0)
         self.spin_spacing.setSuffix(" mm")
-        layout.addRow("Espacement lettres :", self.spin_spacing)
+        layout.addRow(tr("vector.dlg.letter_spacing"), self.spin_spacing)
 
         orient_row = QHBoxLayout()
-        self.rb_horizontal = QRadioButton("Horizontal")
-        self.rb_vertical = QRadioButton("Vertical")
+        self.rb_horizontal = QRadioButton(tr("vector.dlg.horizontal"))
+        self.rb_vertical = QRadioButton(tr("vector.dlg.vertical"))
         (self.rb_vertical if (text_obj and text_obj.vertical) else self.rb_horizontal).setChecked(True)
         grp = QButtonGroup(self); grp.addButton(self.rb_horizontal); grp.addButton(self.rb_vertical)
         orient_row.addWidget(self.rb_horizontal); orient_row.addWidget(self.rb_vertical)
-        layout.addRow("Orientation :", orient_row)
+        layout.addRow(tr("vector.dlg.orientation"), orient_row)
 
         mirror_row = QHBoxLayout()
-        self.chk_mirror_h = QCheckBox("Miroir Horizontal")
+        self.chk_mirror_h = QCheckBox(tr("img.mirror_h"))
         self.chk_mirror_h.setChecked(bool(text_obj and text_obj.mirror_h))
-        self.chk_mirror_v = QCheckBox("Miroir Vertical")
+        self.chk_mirror_v = QCheckBox(tr("img.mirror_v"))
         self.chk_mirror_v.setChecked(bool(text_obj and text_obj.mirror_v))
         mirror_row.addWidget(self.chk_mirror_h); mirror_row.addWidget(self.chk_mirror_v)
-        layout.addRow("Miroir :", mirror_row)
+        layout.addRow(tr("vector.dlg.mirror"), mirror_row)
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
@@ -1679,7 +1679,7 @@ class TextInsertDialog(QDialog):
             idx = self.combo_layer.findData(text_obj.layer_id)
             if idx >= 0:
                 self.combo_layer.setCurrentIndex(idx)
-        layout.addRow("Calque :", self.combo_layer)
+        layout.addRow(tr("ui.vector_layer"), self.combo_layer)
 
         pos_row = QHBoxLayout()
         self.spin_x = QDoubleSpinBox(); self.spin_x.setRange(-1000.0, 1000.0)
@@ -1690,7 +1690,7 @@ class TextInsertDialog(QDialog):
         self.spin_y.setValue(text_obj.y_mm if text_obj else 10.0)
         pos_row.addWidget(QLabel("X :")); pos_row.addWidget(self.spin_x)
         pos_row.addWidget(QLabel("Y :")); pos_row.addWidget(self.spin_y)
-        layout.addRow("Coin bas-gauche de l'objet à (mm) :", pos_row)
+        layout.addRow(tr("vector.dlg.corner_pos"), pos_row)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -1740,7 +1740,7 @@ class AssignLayerDialog(QDialog):
             idx = self.combo_layer.findData(lid)
             if idx >= 0:
                 self.combo_layer.setCurrentIndex(idx)
-        layout.addRow("Calque :", self.combo_layer)
+        layout.addRow(tr("ui.vector_layer"), self.combo_layer)
 
         self.spin_w = None
         self.spin_h = None
@@ -1753,7 +1753,7 @@ class AssignLayerDialog(QDialog):
             cur_h = self._orig_h * getattr(svg_obj, "scale_y", 1.0)
             self._ratio = cur_w / cur_h if cur_h > 0 else 1.0
 
-            self.chk_keep_ratio = QCheckBox("Conserver le ratio largeur/hauteur")
+            self.chk_keep_ratio = QCheckBox(tr("vector.dlg.keep_ratio"))
             self.chk_keep_ratio.setChecked(True)
             layout.addRow("", self.chk_keep_ratio)
 
@@ -1763,8 +1763,8 @@ class AssignLayerDialog(QDialog):
             self.spin_h.setValue(cur_h); self.spin_h.setSuffix(" mm")
             self.spin_w.valueChanged.connect(self._on_w_changed)
             self.spin_h.valueChanged.connect(self._on_h_changed)
-            layout.addRow("Largeur :", self.spin_w)
-            layout.addRow("Hauteur :", self.spin_h)
+            layout.addRow(tr("vector.dlg.width"), self.spin_w)
+            layout.addRow(tr("vector.dlg.height"), self.spin_h)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -1802,7 +1802,7 @@ class ShapeInsertDialog(QDialog):
 
     def __init__(self, layer_manager: LayerManager, shape_obj: "ShapeObject" = None, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Insérer une forme" if shape_obj is None else "Modifier la forme")
+        self.setWindowTitle(tr("vector.dlg.shape_title_new") if shape_obj is None else tr("vector.dlg.shape_title_edit"))
         self.layer_manager = layer_manager
         self.editing = shape_obj
 
@@ -1812,18 +1812,18 @@ class ShapeInsertDialog(QDialog):
         self.combo_type.addItems(ShapeObject.SHAPE_TYPES)
         if shape_obj:
             self.combo_type.setCurrentText(shape_obj.shape_type)
-        layout.addRow("Type :", self.combo_type)
+        layout.addRow(tr("vector.dlg.shape_type"), self.combo_type)
 
         self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(0.5, 1000.0)
         self.spin_w.setValue(shape_obj.width_mm if shape_obj else 20.0); self.spin_w.setSuffix(" mm")
         self.spin_h = QDoubleSpinBox(); self.spin_h.setRange(0.5, 1000.0)
         self.spin_h.setValue(shape_obj.height_mm if shape_obj else 15.0); self.spin_h.setSuffix(" mm")
-        layout.addRow("Largeur :", self.spin_w)
-        layout.addRow("Hauteur :", self.spin_h)
+        layout.addRow(tr("vector.dlg.width"), self.spin_w)
+        layout.addRow(tr("vector.dlg.height"), self.spin_h)
 
         self.spin_sides = QSpinBox(); self.spin_sides.setRange(3, 24)
         self.spin_sides.setValue(shape_obj.sides if shape_obj else 6)
-        layout.addRow("Côtés (polygone) :", self.spin_sides)
+        layout.addRow(tr("vector.dlg.sides"), self.spin_sides)
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
@@ -1832,7 +1832,7 @@ class ShapeInsertDialog(QDialog):
             idx = self.combo_layer.findData(shape_obj.layer_id)
             if idx >= 0:
                 self.combo_layer.setCurrentIndex(idx)
-        layout.addRow("Calque :", self.combo_layer)
+        layout.addRow(tr("ui.vector_layer"), self.combo_layer)
 
         pos_row = QHBoxLayout()
         self.spin_x = QDoubleSpinBox(); self.spin_x.setRange(-1000.0, 1000.0)
@@ -1843,7 +1843,7 @@ class ShapeInsertDialog(QDialog):
         self.spin_y.setValue(shape_obj.y_mm if shape_obj else 10.0)
         pos_row.addWidget(QLabel("X :")); pos_row.addWidget(self.spin_x)
         pos_row.addWidget(QLabel("Y :")); pos_row.addWidget(self.spin_y)
-        layout.addRow("Coin bas-gauche de l'objet à (mm) :", pos_row)
+        layout.addRow(tr("vector.dlg.corner_pos"), pos_row)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)

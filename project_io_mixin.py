@@ -8,16 +8,19 @@ import base64
 import json
 import os
 
-from app_utils import get_autosave_dir, atomic_write_json
+from app_utils import get_autosave_dir, atomic_write_json, get_background_writer
 from i18n import tr
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
 
 
 class ProjectIOMixin:
-    def _get_project_data(self):
+    def _get_project_data(self, encode_image=True):
         """Rassemble l'état courant du projet dans un dictionnaire — utilisé
-        à la fois par la sauvegarde manuelle et la sauvegarde automatique."""
+        à la fois par la sauvegarde manuelle et la sauvegarde automatique.
+        encode_image=False laisse `raw_image_b64` à None : l'encodage PNG +
+        base64, de loin la partie la plus lente, est alors fait par l'appelant
+        (voir autosave_project, qui le déporte hors du fil de l'interface)."""
         proj_data = {
             "w_mm": self.spin_w.value(),
             "h_mm": self.spin_h.value(),
@@ -47,11 +50,15 @@ class ProjectIOMixin:
             "layers": self.layer_manager.to_list(),
             "vector_objects": self.vector_canvas.serialize_objects() if hasattr(self, "vector_canvas") else []
         }
-        if self.raw_image:
-            buffer = BytesIO()
-            self.raw_image.save(buffer, format="PNG")
-            proj_data["raw_image_b64"] = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        if self.raw_image and encode_image:
+            proj_data["raw_image_b64"] = self._encode_image_b64(self.raw_image)
         return proj_data
+
+    @staticmethod
+    def _encode_image_b64(image):
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     def save_project(self):
         path, _ = QFileDialog.getSaveFileName(
@@ -213,17 +220,34 @@ class ProjectIOMixin:
         par un QTimer. Ne doit jamais interrompre l'utilisateur — une
         erreur ici est simplement ignorée."""
         try:
-            proj_data = self._get_project_data()
             path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
-            atomic_write_json(path, proj_data)
+            writer = get_background_writer()
+            # Une erreur de la sauvegarde précédente (disque plein...) est
+            # signalée UNE fois dans la console, au lieu d'être ignorée.
+            error = writer.pop_error(path)
+            if error is not None and hasattr(self, "txt_console"):
+                self.txt_console.append(tr("project.autosave_failed").format(error=error))
+            # Dans le fil de l'interface : seulement la collecte de l'état (rapide)
+            # et une copie de l'image (quelques ms). L'encodage PNG/base64, le
+            # JSON et l'écriture disque se font dans le thread d'écriture.
+            proj_data = self._get_project_data(encode_image=False)
+            image = self.raw_image.copy() if self.raw_image else None
+
+            def produce():
+                if image is not None:
+                    proj_data["raw_image_b64"] = self._encode_image_b64(image)
+                return json.dumps(proj_data)
+
+            writer.submit(path, produce)
         except Exception:
             pass
 
     def _clear_autosave(self):
         try:
             path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
-            if os.path.exists(path):
-                os.remove(path)
+            # Annule aussi une sauvegarde automatique en cours d'écriture, pour
+            # qu'elle ne recrée pas le fichier juste après un enregistrement.
+            get_background_writer().discard(path)
         except Exception:
             pass
 
