@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Laser Studio Pro — Logiciel gratuit de pilotage laser/CNC GRBL</title>
-<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Gravure d'image, découpe vectorielle, séparation couleur/verre, calques par machine, aperçu 2D du G-Code. Windows et Linux.">
+<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Gravure d'image, découpe vectorielle, import DXF, générateur de boîtes, séparation couleur/verre. Windows et Linux.">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Laser Studio Pro — pilotage laser/CNC GRBL">
-<meta property="og:description" content="Du fichier SVG ou de l'image jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit.">
+<meta property="og:description" content="Du fichier SVG/DXF ou de l'image jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit.">
 <!-- À remplacer par l'URL complète de l'image sur ton site (https://...) pour l'aperçu des liens partagés -->
 <meta property="og:image" content="laser_studio_pro_banner.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -248,13 +248,13 @@
 
 <section class="hero">
   <div class="wrap">
-    <a class="version-pill mono" href="#news"><b>Version 2.2.0</b> — voir les nouveautés</a>
+    <a class="version-pill mono" href="#news"><b>Version 2.3.0</b> — voir les nouveautés</a>
     <div class="kicker mono">LOGICIEL LIBRE — PILOTAGE LASER / CNC GRBL</div>
-    <h1>Pilote ton laser de la découpe d'un fichier SVG à l'envoi du G-Code.</h1>
+    <h1>Pilote ton laser de la découpe d'un fichier SVG/DXF à l'envoi du G-Code.</h1>
     <p class="lead">
       Laser Studio Pro rassemble en un seul logiciel gratuit tout ce qu'il faut pour préparer
-      et envoyer un travail à une machine laser ou CNC pilotée par GRBL : import et édition
-      vectorielle, conversion d'image, réglages matériaux, et connexion USB directe.
+      et envoyer un travail à une machine laser ou CNC pilotée par GRBL : import vectoriel SVG/DXF,
+      générateur de boîtes, conversion d'image, réglages matériaux, et connexion USB directe.
     </p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener">Télécharger la dernière version</a>
@@ -266,41 +266,40 @@
 
 <section id="news">
   <div class="wrap">
-    <h2>Nouveautés de la version 2.2.0</h2>
+    <h2>Nouveautés de la version 2.3.0</h2>
     <p class="section-lead">
-      Publiée en octobre 2026. Tes projets, profils machine et files d'attente existants
-      se chargent normalement.
+      Publiée en octobre 2026. Cette mise à jour apporte l'import DXF, un générateur de boîtes à encoches et des raffinements de précision.
     </p>
     <div class="grid">
       <div class="feature">
         <span class="badge badge-new">Nouveau</span>
-        <h3>Matière : fond noir ou fond clair</h3>
-        <p>Un choix et le négatif se règle tout seul : aluminium anodisé, verre peint, ardoise (fond noir) ou bois, carton, cuir (fond clair). La matière est rappelée avant la gravure.</p>
+        <h3>Import DXF texte</h3>
+        <p>Glisse-dépose ou importe directement tes fichiers `.dxf` (lignes, polylignes, arcs, cercles, splines, blocs) avec conversion automatique des unités.</p>
       </div>
       <div class="feature">
         <span class="badge badge-new">Nouveau</span>
-        <h3>Réglages des calques par machine</h3>
-        <p>Vitesse, puissance, passes… retrouvés à la réouverture, et propres à chaque profil machine.</p>
+        <h3>Générateur de boîte à encoches</h3>
+        <p>Crée des boîtes sur-mesure (extérieures/intérieures, avec couvercle ou ouvertes) avec gestion du kerf et décors gravés automatiques.</p>
       </div>
       <div class="feature">
         <span class="badge badge-new">Nouveau</span>
-        <h3>Séparation couleur / verre</h3>
-        <p>Calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage et PDF d'impression à l'échelle 1:1.</p>
+        <h3>Décalage aller / retour (Backlash)</h3>
+        <p>Corrige le décalage des lignes en balayage pour des contours verticaux parfaitement nets, avec un test automatique intégré.</p>
       </div>
       <div class="feature">
-        <span class="badge">Corrigé</span>
-        <h3>Gravure d'image plus fidèle</h3>
-        <p>La puissance était appliquée au mauvais segment du G-Code : les zones à conserver et à graver sont maintenant respectées. Régénère tes anciens G-Codes d'image.</p>
+        <span class="badge badge-new">Nouveau</span>
+        <h3>Assistant gain de point (Verre)</h3>
+        <p>Un test dédié pour calibrer finement le gain de point lors de la gravure de photos sur verre peint.</p>
+      </div>
+      <div class="feature">
+        <span class="badge">Amélioré</span>
+        <h3>Menu Configuration GRBL</h3>
+        <p>Les profils et configurations GRBL migrent dans la barre de menus sous forme de fenêtre non modale pratique.</p>
       </div>
       <div class="feature">
         <span class="badge">Fiabilité</span>
-        <h3>Reset et arrêt d'urgence plus sûrs</h3>
-        <p>Si la machine bougeait au moment du reset, un nouveau homing est demandé avant le job suivant.</p>
-      </div>
-      <div class="feature">
-        <span class="badge">Fiabilité</span>
-        <h3>Sauvegardes à l'épreuve des plantages</h3>
-        <p>Sauvegarde automatique, file d'attente et projet sont écrits de façon atomique : plus de fichier tronqué après une coupure.</p>
+        <h3>Écritures atomiques & fin de job</h3>
+        <p>Sécurisation renforcée des sauvegardes en arrière-plan et détection exacte de la fin des mouvements GRBL.</p>
       </div>
     </div>
     <p class="news-more">
@@ -363,19 +362,6 @@
         </figcaption>
       </figure>
     </div>
-
-    <!--
-      Fiche technique : à décommenter une fois remplie. Les réglages réels intéressent
-      beaucoup les visiteurs. Remplace les valeurs entre crochets.
-
-    <dl class="specs">
-      <dt>Matière</dt><dd>[verre peint en noir, épaisseur ...]</dd>
-      <dt>Taille gravée</dt><dd>[... x ... mm]</dd>
-      <dt>Machine</dt><dd>[modèle, puissance du laser]</dd>
-      <dt>Réglages</dt><dd>[puissance ... %, vitesse ... mm/min, ... lignes/mm]</dd>
-      <dt>Tramage</dt><dd>[algorithme utilisé]</dd>
-    </dl>
-    -->
 
     <p class="news-more">
       Ces pièces sont préparées avec l'onglet <a href="#gallery">Séparation Couleur / Verre</a>
@@ -449,13 +435,13 @@
       </div>
       <div class="feature">
         <div class="tag mono">ÉDITION</div>
-        <h3>Éditeur vectoriel</h3>
-        <p>Import SVG, texte, déplacement, rotation, miroir, sélection multiple, regroupement d'objets et calques réordonnables.</p>
+        <h3>Éditeur vectoriel & DXF</h3>
+        <p>Import SVG et DXF texte, texte, rotation, miroir, sélection multiple, regroupement, générateur de boîtes et calques réordonnables.</p>
       </div>
       <div class="feature">
         <div class="tag mono">IMAGE</div>
         <h3>Traitement & tramage</h3>
-        <p>Luminosité, contraste, gamma, plusieurs algorithmes de tramage avec comparaison visuelle pour choisir le meilleur rendu.</p>
+        <p>Luminosité, contraste, gamma, choix de matière (fond clair/foncé), assistants de gain de point et réglage du décalage aller/retour.</p>
       </div>
       <div class="feature">
         <div class="tag mono">CALIBRAGE</div>
@@ -470,7 +456,7 @@
       <div class="feature">
         <div class="tag mono">FIABILITÉ</div>
         <h3>Projets & import G-Code</h3>
-        <p>Sauvegarde de projet, récupération automatique après un plantage, et import d'un G-Code déjà généré ailleurs.</p>
+        <p>Sauvegarde de projet atomique, récupération automatique après un plantage, et import d'un G-Code déjà généré ailleurs.</p>
       </div>
     </div>
   </div>
@@ -483,30 +469,49 @@
       Les écrans qui comptent, avec ce qu'il faut retenir de chacun. Clique sur une capture pour l'agrandir.
     </p>
 
-    <!-- 1. Image & tramage -->
+    <!-- Nouveautés 2.3.0 : Import DXF & Boîte -->
     <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Image &amp; Filtres</span><span class="badge badge-new">Nouveau : matière</span></div>
+        <div class="frame-bar"><span>Éditeur Vectoriel</span><span class="badge badge-new">Nouveau : Import DXF & Boîte</span></div>
+        <div class="frame-img">
+          <!-- Nom d'image prévu : shot-dxf-import.png -->
+          <img src="shot-dxf-import.png" alt="Import de fichiers DXF et générateur de boîtes à encoches dans l'éditeur vectoriel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3>Import DXF et Générateur de boîtes</h3>
+        <p>Intègre facilement des plans techniques et conçoit des objets assemblables.</p>
+        <ul class="points">
+          <li><b>Import DXF texte (ASCII)</b> : lignes, polylignes, arcs, cercles, splines et blocs avec conversion automatique en mm.</li>
+          <li><b>Générateur de boîte à encoches</b> : dimensions personnalisables, gestion du kerf, couvercle et décors gravés intégrés.</li>
+          <li><b>Barre d'outils sur deux lignes</b> pour un confort visuel optimal sans libellés tronqués.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- 1. Image & tramage -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span>Onglet Image &amp; Filtres</span><span class="badge badge-new">Nouveau : décalage aller/retour</span></div>
         <div class="frame-img">
           <img src="shot-image-filters.png" alt="Onglet Image et Filtres : réglages de tramage, sélecteur de matière et aperçu du rendu tramé" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Gravure d'image et tramage</h3>
-        <p>Compare les rendus avant de lancer la gravure, et règle le négatif d'un seul choix.</p>
+        <h3>Gravure d'image, matière et précision</h3>
+        <p>Compare les rendus avant de lancer la gravure et ajuste la mécanique laser.</p>
         <ul class="points">
-          <li><b>Luminosité, contraste, gamma</b> et plusieurs algorithmes de tramage.</li>
-          <li><b>Résolution liée au spot laser</b> : lignes/mm, DPI ou focale, avec un indicateur de qualité.</li>
-          <li><b>Sélecteur de matière</b> : fond noir ou fond clair, la case « Inverser Couleurs » suit.</li>
-          <li><b>Aperçu avant/après</b> pour choisir le meilleur rendu.</li>
+          <li><b>Luminosité, contraste, gamma</b> et algorithmes de tramage avancés.</li>
+          <li><b>Sélecteur de matière</b> : fond noir ou fond clair avec gestion automatique du négatif.</li>
+          <li><b>Réglage de décalage aller/retour (Backlash)</b> avec test automatique pour des contours ultra-nets.</li>
         </ul>
       </div>
     </article>
 
     <!-- 2. Éditeur vectoriel & calques -->
-    <article class="spot reverse">
+    <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Éditeur Vectoriel</span><span class="badge badge-new">Nouveau : calques par machine</span></div>
+        <div class="frame-bar"><span>Onglet Éditeur Vectoriel</span><span class="badge badge-new">Calques par machine</span></div>
         <div class="frame-img">
           <img src="shot-vector-editor.png" alt="Éditeur vectoriel avec la liste des calques, leurs réglages de puissance et de vitesse" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
         </div>
@@ -515,18 +520,17 @@
         <h3>Éditeur vectoriel et calques</h3>
         <p>Prépare une découpe ou une gravure vectorielle sans quitter le logiciel.</p>
         <ul class="points">
-          <li><b>Import SVG, texte, rotation, miroir</b>, sélection multiple et regroupement (Ctrl+G).</li>
+          <li><b>Import SVG/DXF, texte, rotation, miroir</b>, sélection multiple et regroupement (Ctrl+G).</li>
           <li><b>Alignement, distribution</b> et accroche à la grille.</li>
-          <li><b>Calques réordonnables</b> : l'ordre de la liste est l'ordre d'exécution dans le G-Code.</li>
-          <li><b>Réglages mémorisés par machine</b> : vitesse, puissance, passes retrouvés à la réouverture.</li>
+          <li><b>Réglages mémorisés par machine</b> : vitesse, puissance et passes propres à chaque profil.</li>
         </ul>
       </div>
     </article>
 
     <!-- 3. Séparation couleur / verre -->
-    <article class="spot">
+    <article class="spot reverse">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Séparation Couleur / Verre</span><span class="badge badge-new">Nouveau</span></div>
+        <div class="frame-bar"><span>Onglet Séparation Couleur / Verre</span><span class="badge badge-new">Nouveau : test de gain de point</span></div>
         <div class="frame-img">
           <img src="shot-separation.png" alt="Onglet Séparation couleur et verre : calque noir, calque couleur et simulation du rétro-éclairage" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
         </div>
@@ -535,16 +539,15 @@
         <h3>Séparation couleur / verre</h3>
         <p>Pour graver une photo en couleur sur du verre peint en noir, avec un calque couleur imprimé derrière.</p>
         <ul class="points">
-          <li><b>Calque noir à graver</b>, réglable comme n'importe quelle image.</li>
-          <li><b>Calque couleur</b> à imprimer à la taille exacte de la plaque.</li>
-          <li><b>Simulation du rétro-éclairage</b> pour juger le résultat avant de graver.</li>
-          <li><b>PDF A4 à l'échelle 1:1</b> avec repères de coin pour l'impression.</li>
+          <li><b>Calque noir à graver</b> et calque couleur PDF A4 à l'échelle 1:1.</li>
+          <li><b>Assistant « Tester le gain de point »</b> : grille dédiée pour calibrer parfaitement le rendu sur verre.</li>
+          <li><b>Simulation du rétro-éclairage</b> avant de lancer la fabrication.</li>
         </ul>
       </div>
     </article>
 
     <!-- 4. Aperçu 2D & pilotage -->
-    <article class="spot reverse">
+    <article class="spot">
       <figure class="frame">
         <div class="frame-bar"><span>Onglet Visualisation 2D G-Code</span></div>
         <div class="frame-img">
@@ -556,33 +559,11 @@
         <p>Vérifie le parcours avant l'envoi, puis suis la machine en direct.</p>
         <ul class="points">
           <li><b>Aperçu 2D du G-Code</b> : gravure, découpe et déplacements rapides bien distincts.</li>
-          <li><b>Position X/Y/Z et état GRBL en direct</b>, pendant le jog comme pendant un job.</li>
-          <li><b>File d'attente persistante</b> : glisse-dépose pour réordonner, reprise après fermeture.</li>
-          <li><b>Pause, Reset et Arrêt d'urgence</b> toujours accessibles pendant un job.</li>
+          <li><b>Position X/Y/Z et état GRBL en direct</b>, avec fin de job sécurisée attendant le retour à l'état Idle.</li>
+          <li><b>File d'attente persistante</b> et commandes de sécurité toujours accessibles.</li>
         </ul>
       </div>
     </article>
-
-    <!--
-      Avant/après : à décommenter quand tu as une belle photo de gravure réussie
-      (rendu du logiciel à gauche, photo de la gravure à droite).
-
-    <h3 class="gallery-sub">Du logiciel à la gravure</h3>
-    <div class="gallery" style="grid-template-columns:1fr 1fr; margin-bottom:72px;">
-      <figure class="frame">
-        <div class="frame-bar"><span>Rendu du logiciel</span></div>
-        <div class="frame-img">
-          <img src="result-software.png" alt="Rendu tramé affiché dans le logiciel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
-        </div>
-      </figure>
-      <figure class="frame">
-        <div class="frame-bar"><span>Rendu gravé</span></div>
-        <div class="frame-img">
-          <img src="result-engraved.jpg" alt="Photo de la gravure réalisée sur la matière" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
-        </div>
-      </figure>
-    </div>
-    -->
 
     <h3 class="gallery-sub">Et aussi</h3>
     <div class="gallery">
@@ -615,15 +596,16 @@
         </figcaption>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Machine et console</span></div>
+        <div class="frame-bar"><span>Menu Configuration GRBL</span></div>
         <div class="frame-img">
-          <img src="shot-machine-control.png" alt="Pilotage de la machine : jog, homing et console GRBL" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <!-- Nom d'image prévu : shot-machine-control.png -->
+          <img src="shot-machine-control.png" alt="Pilotage de la machine : jog, homing et configuration GRBL" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
         </div>
         <figcaption class="frame-cap">
-          <h3>Pilotage GRBL complet</h3>
+          <h3>Configuration & Pilotage GRBL</h3>
           <ul class="points">
+            <li>Fenêtre non modale accessible directement depuis la barre de menus.</li>
             <li>Jog, homing et console de commandes avec historique.</li>
-            <li>Réglages GRBL ($$) lus, envoyés, exportés par machine.</li>
             <li>Aide à l'installation des drivers USB (CH340, CP210x, FTDI).</li>
           </ul>
         </figcaption>
@@ -639,12 +621,12 @@
       <div class="step">
         <div class="num">01</div>
         <h3>Importer</h3>
-        <p>Une image ou un fichier SVG à graver ou découper.</p>
+        <p>Une image, un fichier SVG ou DXF, ou crée une boîte sur-mesure.</p>
       </div>
       <div class="step">
         <div class="num">02</div>
         <h3>Régler</h3>
-        <p>Dimensions, matériau, matière, puissance et vitesse par calque.</p>
+        <p>Dimensions, matériau, matière, puissance, vitesse et décalage aller/retour.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
@@ -654,7 +636,7 @@
       <div class="step">
         <div class="num">04</div>
         <h3>Graver</h3>
-        <p>Envoi direct par USB, ou export du fichier pour plus tard.</p>
+        <p>Envoi direct par USB avec suivi en direct, ou export du fichier.</p>
       </div>
     </div>
   </div>
@@ -687,7 +669,7 @@ python main.py</pre>
       Si tu veux le soutenir : <a href="https://ko-fi.com/jb3dlaser" target="_blank" rel="noopener">ko-fi.com/jb3dlaser</a> ☕
     </p>
     <p>
-      Version 2.2.0 —
+      Version 2.3.0 —
       <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>
     </p>
   </div>
