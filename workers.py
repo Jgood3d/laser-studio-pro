@@ -21,6 +21,7 @@ except ImportError:
 from vector_font import VectorFont
 from vector_layers import build_vector_layers_gcode
 import separation_engine
+from image_filters import sharpen_image
 
 
 def _round_half_up(value):
@@ -122,6 +123,12 @@ class ImageProcessingWorker(QThread):
         if gamma != 1.0:
             arr = 255.0 * ((arr / 255.0) ** (1.0 / gamma))
             arr = np.clip(arr, 0, 255)
+
+        # Netteté : après les réglages de tons, juste avant l'inversion et le tramage.
+        sharp = float(self.params.get('sharp', 0) or 0)
+        if sharp > 0:
+            sharpened = sharpen_image(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)), sharp, lmm)
+            arr = np.array(sharpened, dtype=np.float32)
 
         if self.params['invert']:
             arr = 255.0 - arr
@@ -701,7 +708,8 @@ class AdvancedGCodeWorker(QThread):
                 vector_overscan_dist = 0.0
             layer_gcode, layer_time, layer_power_samples = build_vector_layers_gcode(
                 self.vector_layers_data, base_offset_x, base_offset_y, h_mm,
-                laser_cmd, s_max, overscan_dist=vector_overscan_dist
+                laser_cmd, s_max, overscan_dist=vector_overscan_dist,
+                safe_cut_order=bool(self.params.get('safe_cut_order', True))
             )
             gcode.extend(layer_gcode)
             total_time_seconds += layer_time

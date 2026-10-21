@@ -4,7 +4,23 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
-## [2.3.0] — 2026-10-05
+## [2.4.0] — 2026-10-20
+
+### Ajouté
+- **Imbrication automatique (nesting)** : le bouton « 🧩 Imbrication auto » de l'éditeur vectoriel range les pièces sélectionnées (ou tous les objets des calques actifs) sur une feuille aux dimensions voulues pour gaspiller le moins de matière possible. Les pièces sont placées de la plus grande à la plus petite, en bas à gauche d'abord, avec la forme réelle des contours (une petite pièce se glisse dans le creux d'un « L ») ; rotations au choix (aucune, 0°/90°, par quarts de tour, tous les 45°), écart entre pièces, marge au bord de la feuille et précision de la grille réglables. Un trou ou un détail gravé reste avec sa pièce et tourne avec elle (regroupement par inclusion). Les pièces qui n'ont pas trouvé de place restent où elles sont et sont comptées. Annulable avec Ctrl+Z. Mesuré : 40 pièces sur 400 x 400 mm en moins d'une seconde à la précision normale.
+- **Ordre de découpe sûr** (réglage « Configuration GRBL », activé par défaut, enregistré dans le projet) : les calques de gravure et de marquage passent avant les calques de découpe, et dans un calque de découpe les contours intérieurs (trous, détails) sont coupés avant ceux qui les contiennent. La pièce ne bouge ni ne bascule avant que ses détails soient faits. Décoché, le G-Code reste strictement identique à celui des versions précédentes.
+- **Netteté dans les réglages photo** (Image / Filtres, après le gamma) : accentuation des contours avant le tramage (0 à 100), proportionnelle à la résolution de gravure, prise en compte par l'annulation, le projet, la comparaison des algorithmes de tramage et l'onglet Séparation. À 0, le résultat est identique à avant.
+- **Tests** : ordre de découpe, imbrication (aucune collision, espacement et marges, rotations, emboîtement dans les creux, groupes rigides), netteté, et un contrôle qui détecte tout nom utilisé sans être importé. La suite compte 294 tests.
+
+### Migration
+- Aucun format n'est cassé : la netteté vaut 0 et l'ordre de découpe sûr est activé par défaut pour les anciens projets (voir la note ci-dessus : décoche-le pour retrouver l'ancien ordre exact).
+
+Fichiers modifiés :
+app_utils.py, workers.py, image_processing_mixin.py, ui_setup_mixin.py, project_io_mixin.py, gcode_generation_mixin.py,
+vector_layers.py, vector_editing_mixin.py, i18n.py — nouveaux modules : image_filters.py, vector_order.py, nesting.py,
+nesting_apply.py, nesting_dialog.py — nouveaux tests : tests/
+
+## [2.3.0] — 2026-10-11
 
 ### Ajouté
 - **Import DXF dans l'éditeur vectoriel** : le bouton « Importer SVG / DXF » (et le glisser-déposer d'un fichier `.svg` ou `.dxf` sur la fenêtre) accepte maintenant les DXF texte (ASCII). Lecteur intégré, sans dépendance : lignes, polylignes (avec arrondis), cercles, arcs, ellipses, splines, et blocs (`INSERT`, imbriqués, avec rotation, échelle, symétrie et réseaux). Les unités du fichier (`$INSUNITS`) sont converties en mm. Les lignes séparées qui se touchent sont réunies en contours (fermés si le contour se referme), ce qui permet de graver en remplissage ou de découper proprement. Chaque tracé devient un objet indépendant sur le calque par défaut. Les éléments non gérés (textes, hachures, cotes…) sont ignorés et listés après l'import ; les DXF binaires sont refusés avec un message explicite.
@@ -12,7 +28,7 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 - **Décalage aller/retour** (Paramètres G-Code, à côté du surbalayage) : la mécanique et le délai d'allumage du laser font que les lignes gravées en balayage retour tombent à côté de celles de l'aller, ce qui rend les contours verticaux flous. Un réglage en mm (-2,00 à +2,00) décale les lignes retour ; il est mémorisé dans le profil de la machine active.
   Le bouton **« Générer le test aller/retour »** crée un motif de 17 colonnes numérotées (de -0,40 à +0,40 mm, par pas de 0,05) : la colonne au bord le plus droit donne la valeur à saisir. Réglé à 0, le G-Code est strictement identique à celui des versions précédentes.
 - **Assistant de calibrage du gain de point** (onglet Séparation Couleur / Verre, bouton « Tester le gain de point… ») : génère une grille à graver sur le verre, avec une ligne par valeur du curseur « Gain de point » (0, 5, 10, 15, 20) et 11 colonnes de 0 % (peinture intacte) à 100 % (verre dégagé), à la résolution, vitesse et puissance actuelles et en miroir si le miroir est actif. On repère la ligne dont les cases passent régulièrement du noir au clair et on règle le curseur dessus.
-- **Tests automatiques** : fin de job (faux GRBL), moteur de séparation (recadrage, gain de point, calque couleur, simulation du rétro-éclairage, PDF 1:1), écrivain de fichiers en arrière-plan, autosave, décalage aller/retour et motifs de calibrage, registre tu/vous des traductions. La suite compte 240 tests.
+- **Tests automatiques** : fin de job (faux GRBL), moteur de séparation (recadrage, gain de point, calque couleur, simulation du rétro-éclairage, PDF 1:1), écrivain de fichiers en arrière-plan, autosave, décalage aller/retour et motifs de calibrage, registre tu/vous des traductions. La suite compte 245 tests.
 
 - **Outil `tools/check_ui_attributes.py`** : détecte un widget ou une méthode privée utilisé dans un fichier mais construit dans aucun (typiquement un `ui_setup_mixin.py` resté à l'ancienne version alors que `image_processing_mixin.py` a été mis à jour : `AttributeError` au moment où la ligne est atteinte). Un test le lance sur tout le projet.
 

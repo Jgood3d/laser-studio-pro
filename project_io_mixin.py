@@ -32,6 +32,8 @@ class ProjectIOMixin:
             "bright": self.slider_bright.value(),
             "contrast": self.slider_contrast.value(),
             "gamma": self.slider_gamma.value(),
+            "sharp": self.slider_sharp.value(),
+            "safe_cut_order": self.chk_safe_cut_order.isChecked(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
             "mirror_h": self.chk_mirror_h.isChecked(),
@@ -123,6 +125,8 @@ class ProjectIOMixin:
             self.slider_bright.setValue(proj_data.get("bright", 0))
             self.slider_contrast.setValue(proj_data.get("contrast", 0))
             self.slider_gamma.setValue(proj_data.get("gamma", 100))
+            self.slider_sharp.setValue(proj_data.get("sharp", 0))
+            self.chk_safe_cut_order.setChecked(proj_data.get("safe_cut_order", True))
             # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
             self.set_material_bg(proj_data.get("material_bg", "dark" if proj_data.get("invert", False) else "light"))
             self.chk_invert.setChecked(proj_data.get("invert", False))

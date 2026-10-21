@@ -47,6 +47,7 @@ from PyQt6.QtWidgets import (
 )
 
 from i18n import tr
+from vector_order import CUT_MODE, order_layers_for_cutting, order_polygons_inner_first
 
 
 # ============================================================================
@@ -1972,7 +1973,7 @@ def _scanline_fill_segments(polygons, y):
 
 
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
-                               laser_cmd, s_max, overscan_dist=0.0):
+                               laser_cmd, s_max, overscan_dist=0.0, safe_cut_order=False):
     """Construit le G-Code (Phase "Calques Vectoriels") pour tous les calques actifs,
     à partir des données géométriques déjà extraites (voir extract_vector_layer_data).
     Les coordonnées des objets vectoriels sont déjà exprimées dans le repère
@@ -1983,7 +1984,11 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
 
     overscan_dist (mm) : distance de surbalayage appliquée aux lignes de
     remplissage (mode 'Gravure Remplie'), comme pour la gravure image —
-    le laser reste éteint pendant le dépassement de part et d'autre."""
+    le laser reste éteint pendant le dépassement de part et d'autre.
+
+    safe_cut_order : graver avant de découper (les calques de découpe passent après les autres) et, dans
+    un calque de découpe, couper les contours intérieurs avant ceux qui les contiennent (voir
+    vector_order) : une pièce ne bouge plus avant que ses détails soient faits."""
     gcode = []
     total_time_seconds = 0.0
     power_samples = []
@@ -1991,13 +1996,20 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
     def to_gcode_xy(x_mm, y_mm):
         return base_offset_x + x_mm, base_offset_y + y_mm
 
-    for layer_id, data in layers_data.items():
+    items = list(layers_data.items())
+    if safe_cut_order:
+        items = order_layers_for_cutting(items)
+    for layer_id, data in items:
         layer = data["layer"]
         polygons = data["polygons"]
         if not polygons:
             continue
+        if safe_cut_order and layer["mode"] == CUT_MODE:
+            polygons = order_polygons_inner_first(polygons)
 
         gcode.append(f"; --- CALQUE '{layer['name']}' [{layer['mode']}] ---")
+        if safe_cut_order and layer["mode"] == CUT_MODE:
+            gcode.append("; Ordre de découpe : intérieur avant extérieur")
         speed = layer["speed"]
         power_val = int(round((layer["power"] / 100.0) * s_max))
         gcode.append(f"F{speed}")

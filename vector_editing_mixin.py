@@ -1,5 +1,5 @@
 """Édition des objets vectoriels (texte, formes, SVG) sur le canevas."""
-from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog)
+from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
 from vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
@@ -9,6 +9,9 @@ import box_generator
 import dxf_import
 from box_dialog import BoxGeneratorDialog, error_message
 from vector_import import box_to_objects, decor_to_objects, dxf_to_objects
+import nesting
+from nesting_apply import apply_result, build_pieces
+from nesting_dialog import NestingDialog
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
@@ -456,6 +459,47 @@ class VectorEditingMixin:
         if skipped:
             message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
         QMessageBox.information(self, tr("vector.dxf_title"), message)
+
+    def open_nesting(self):
+        """Placement automatique : range les pièces sélectionnées (ou toutes) sur la feuille pour
+        gaspiller le moins de matière possible. Un trou ou un détail gravé reste avec sa pièce."""
+        canvas = self.vector_canvas
+        enabled_ids = {layer.id for layer in self.layer_manager.layers if layer.enabled}
+        candidates = [o for o in canvas.objects if o.layer_id in enabled_ids]
+        selected = [item.obj for item in canvas.scene_obj.selectedItems() if hasattr(item, "obj") and item.obj in candidates]
+        if not candidates:
+            QMessageBox.information(self, tr("nest.title"), tr("nest.no_objects"))
+            return
+        dialog = NestingDialog(self, self.spin_machine_w.value(), self.spin_machine_h.value(),
+                               len(selected), len(candidates), getattr(self, "_nesting_settings", None))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._nesting_settings = dialog.settings()
+        objects = selected if dialog.scope() == "selection" and selected else candidates
+        options = dialog.options()
+        pieces, members = build_pieces(objects)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            result = nesting.nest(pieces, options["sheet_w"], options["sheet_h"], spacing=options["spacing"],
+                                  margin=options["margin"], angles=options["angles"], cell=options["cell"],
+                                  origin=options["origin"])
+        finally:
+            QApplication.restoreOverrideCursor()
+        if not result.placements:
+            QMessageBox.warning(self, tr("nest.title"), tr("nest.nothing_placed"))
+            return
+        canvas.push_undo_snapshot()
+        moved = apply_result(canvas, members, result)
+        moved_ids = {id(o) for o in moved}
+        items = [item for item in canvas.scene_obj.items() if hasattr(item, "obj") and id(item.obj) in moved_ids]
+        if items:
+            canvas.request_recenter(items)
+        message = tr("nest.done").format(
+            placed=len(result.placements), sheet_w=options["sheet_w"], sheet_h=options["sheet_h"],
+            percent=result.utilization * 100.0, ext_w=result.extent[0], ext_h=result.extent[1])
+        if result.unplaced:
+            message += "\n\n" + tr("nest.unplaced").format(count=len(result.unplaced))
+        QMessageBox.information(self, tr("nest.title"), message)
 
     def open_box_generator(self):
         """Fenêtre du générateur de boîte à encoches : crée les panneaux (calque de découpe) et le

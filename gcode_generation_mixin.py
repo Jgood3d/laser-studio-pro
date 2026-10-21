@@ -383,6 +383,8 @@ class GcodeGenerationMixin:
             'end_gcode': self.txt_end_gcode.toPlainText(),
             # Décalage des lignes retour (mm), propre à la machine : voir workers.py.
             'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            # Graver avant de découper ; intérieurs avant extérieurs (voir vector_order.py).
+            'safe_cut_order': self.chk_safe_cut_order.isChecked() if hasattr(self, "chk_safe_cut_order") else True,
         }
 
     def generate_bidir_test(self):

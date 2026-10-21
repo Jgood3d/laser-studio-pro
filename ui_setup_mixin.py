@@ -573,6 +573,9 @@ class UiSetupMixin:
         
         self.slider_gamma = QSlider(Qt.Orientation.Horizontal); self.slider_gamma.setRange(10, 300); self.slider_gamma.setValue(100)
         self.slider_gamma.valueChanged.connect(self.update_image_processing)
+        self.slider_sharp = QSlider(Qt.Orientation.Horizontal); self.slider_sharp.setRange(0, 100); self.slider_sharp.setValue(0)
+        self.slider_sharp.setToolTip(tr("img.sharpness_tip"))
+        self.slider_sharp.valueChanged.connect(self.update_image_processing)
 
         self.chk_invert = QCheckBox(tr("img.invert"))
         self.chk_invert.stateChanged.connect(self.update_image_processing)
@@ -675,6 +678,7 @@ class UiSetupMixin:
         layout_img.addRow(tr("img.gamma"), self.create_slider_with_buttons(
             self.slider_gamma, step=10, value_formatter=lambda v: f"{v / 100.0:.2f}"
         ))
+        layout_img.addRow(tr("img.sharpness"), self.create_slider_with_buttons(self.slider_sharp, step=5))
         layout_img.addRow(tr("img.material_bg"), self.combo_material_bg)
         layout_img.addRow("", self.chk_invert)
         undo_redo_img_row = QHBoxLayout()
@@ -890,6 +894,10 @@ class UiSetupMixin:
         layout_gcode_cfg.addRow(tr("ui.gcode_smax"), self.spin_smax)
         layout_gcode_cfg.addRow("", self.chk_homing)
         layout_gcode_cfg.addRow("", self.chk_overscan)
+        self.chk_safe_cut_order = QCheckBox(tr("ui.safe_cut_order"))
+        self.chk_safe_cut_order.setChecked(True)
+        self.chk_safe_cut_order.setToolTip(tr("ui.safe_cut_order_tip"))
+        layout_gcode_cfg.addRow("", self.chk_safe_cut_order)
         layout_gcode_cfg.addRow(tr("ui.overscan_mode_label"), self.combo_overscan_mode)
         layout_gcode_cfg.addRow(tr("ui.overscan_value_label"), self.overscan_stacked)
 
@@ -1112,6 +1120,9 @@ class UiSetupMixin:
         btn_box_generator = QPushButton(tr("ui.vector_box_generator"))
         btn_box_generator.setToolTip(tr("ui.vector_box_generator_tip"))
         btn_box_generator.clicked.connect(self.open_box_generator)
+        btn_nesting = QPushButton(tr("ui.vector_nesting"))
+        btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
+        btn_nesting.clicked.connect(self.open_nesting)
         btn_edit_selected = QPushButton(tr("ui.vector_edit_selection"))
         btn_edit_selected.clicked.connect(self.edit_selected_vector_object)
         btn_rotate_selected = QPushButton(tr("ui.vector_rotate_90"))
@@ -1132,8 +1143,8 @@ class UiSetupMixin:
         toolbar_vector.addWidget(btn_add_shape)
         toolbar_vector.addWidget(btn_import_svg_vector)
         toolbar_vector.addWidget(btn_box_generator)
+        toolbar_vector.addWidget(btn_nesting)
         toolbar_vector.addStretch()
-        toolbar_vector.addWidget(btn_fullscreen_vector)
         layout_vector_editor.addLayout(toolbar_vector)
         toolbar_vector_edit = QHBoxLayout()
         toolbar_vector_edit.addWidget(btn_edit_selected)
@@ -1143,6 +1154,7 @@ class UiSetupMixin:
         toolbar_vector_edit.addWidget(btn_undo_vector)
         toolbar_vector_edit.addWidget(btn_redo_vector)
         toolbar_vector_edit.addStretch()
+        toolbar_vector_edit.addWidget(btn_fullscreen_vector)
         layout_vector_editor.addLayout(toolbar_vector_edit)
 
         align_box = QGroupBox(tr("ui.vector_align_box"))

@@ -4,6 +4,7 @@ from PyQt6.QtGui import QPixmap, QImage
 import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
+from image_filters import sharpen_image
 from i18n import tr
 
 
@@ -14,6 +15,7 @@ class ImageProcessingMixin:
         self.slider_bright.setValue(0)
         self.slider_contrast.setValue(0)
         self.slider_gamma.setValue(100)
+        self.slider_sharp.setValue(0)
         self.combo_material_bg.blockSignals(True)
         self.combo_material_bg.setCurrentIndex(self.combo_material_bg.findData("light"))
         self.combo_material_bg.blockSignals(False)
@@ -351,6 +353,7 @@ class ImageProcessingMixin:
             "bright": self.slider_bright.value(),
             "contrast": self.slider_contrast.value(),
             "gamma": self.slider_gamma.value(),
+            "sharp": self.slider_sharp.value(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
             "mirror_h": self.chk_mirror_h.isChecked(),
@@ -363,6 +366,7 @@ class ImageProcessingMixin:
             (self.slider_bright, "bright"),
             (self.slider_contrast, "contrast"),
             (self.slider_gamma, "gamma"),
+            (self.slider_sharp, "sharp"),
         ):
             slider.blockSignals(True)
             slider.setValue(snap[key])
@@ -448,6 +452,7 @@ class ImageProcessingMixin:
             'bright': self.slider_bright.value(),
             'contrast': self.slider_contrast.value(),
             'gamma': self.slider_gamma.value(),
+            'sharp': self.slider_sharp.value(),
             'invert': self.chk_invert.isChecked(),
             'algo': self.combo_algo.currentText()
         }
@@ -501,6 +506,9 @@ class ImageProcessingMixin:
         if gamma != 1.0:
             arr = 255.0 * ((arr / 255.0) ** (1.0 / gamma))
             arr = np.clip(arr, 0, 255)
+        if self.slider_sharp.value() > 0:
+            arr = np.array(sharpen_image(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)),
+                                         self.slider_sharp.value()), dtype=np.float32)
         if invert:
             arr = 255.0 - arr
 

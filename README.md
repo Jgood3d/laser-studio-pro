@@ -51,6 +51,9 @@ python main.py
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
+- `image_filters.py` — filtres d’image purs (netteté)
+- `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
+- `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
 - `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
 - `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
@@ -70,6 +73,7 @@ python main.py
 - `png2svg_mixin.py` — onglet PNG/JPEG → SVG
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
 - `box_dialog.py` — fenêtre du générateur de boîte
+- `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
 - `settings_window.py` — fenêtres « Machine & Profils » et « Configuration GRBL » ouvertes depuis la barre de menus
 
 ### Qualité
@@ -99,7 +103,13 @@ Interface en anglais et en allemand :
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
-## Nouveautés de la version 2.3.0
+## Nouveautés de la version 2.4.0
+
+- **Imbrication automatique** : range les pièces sur une feuille pour gaspiller le moins de matière possible (rotations, écart, marge, emboîtement dans les creux ; les trous et détails suivent leur pièce).
+- **Ordre de découpe sûr** : graver avant de découper, et couper l’intérieur avant l’extérieur, pour qu’une pièce ne bouge pas avant que ses détails soient faits.
+- **Netteté** dans les réglages photo : accentue les contours avant le tramage.
+
+Précédemment, dans la version 2.3.0 :
 
 - **Import DXF** dans l’éditeur vectoriel (lignes, polylignes, cercles, arcs, ellipses, splines, blocs), avec réunion automatique des segments en contours.
 - **Générateur de boîte à encoches** : panneaux prêts à découper, avec décor texte ou SVG gravé sur les faces.

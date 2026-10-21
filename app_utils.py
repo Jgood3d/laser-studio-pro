@@ -5,7 +5,7 @@ import json
 import collections
 import threading
 
-APP_VERSION = "2.3.0"
+APP_VERSION = "2.4.0"
 
 
 def get_app_dir():
