@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Laser Studio Pro — Logiciel gratuit de pilotage laser/CNC GRBL</title>
-<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Gravure d'image, découpe vectorielle, import DXF, générateur de boîtes, imbrication auto. Windows et Linux.">
+<title data-i18n="meta.title">Laser Studio Pro — Logiciel gratuit de pilotage laser/CNC GRBL</title>
+<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Gravure d'image, découpe vectorielle, import DXF, générateur de boîtes, imbrication auto. Windows et Linux." data-i18n-content="meta.description">
 <meta property="og:type" content="website">
-<meta property="og:title" content="Laser Studio Pro — pilotage laser/CNC GRBL">
-<meta property="og:description" content="Du fichier SVG/DXF ou de l'image jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit.">
+<meta property="og:title" content="Laser Studio Pro — pilotage laser/CNC GRBL" data-i18n-content="meta.og_title">
+<meta property="og:description" content="Du fichier SVG/DXF ou de l'image jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit." data-i18n-content="meta.og_description">
 <!-- À remplacer par l'URL complète de l'image sur ton site (https://...) pour l'aperçu des liens partagés -->
 <meta property="og:image" content="laser_studio_pro_banner.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -222,6 +222,23 @@
     .hero h1{ font-size:32px; }
     nav.links{ display:none; }
   }
+
+  /* ---------- sélecteur de langue ---------- */
+  header .wrap{ max-width:1240px; }   /* un peu plus large : menu + sélecteur de langue + bouton */
+  .nav{ gap:16px; }
+  .nav-right{ display:flex; align-items:center; gap:12px; flex-shrink:0; }
+  nav.links{ white-space:nowrap; gap:22px; }
+  .lang{ display:flex; border:1px solid var(--line); border-radius:2px; overflow:hidden; }
+  .lang button{
+    font:600 12px 'JetBrains Mono',monospace; letter-spacing:0.04em;
+    background:transparent; color:var(--text-dim); border:0; padding:9px 10px; cursor:pointer;
+  }
+  .lang button + button{ border-left:1px solid var(--line); }
+  .lang button:hover{ color:var(--text); }
+  .lang button[aria-pressed="true"]{ background:var(--ember); color:#04202c; }
+  @media (max-width:1240px){ nav.links{ gap:20px; } .nav-right .btn{ display:none; } }
+  @media (max-width:1040px){ nav.links{ display:none; } }
+  @media (max-width:560px){ .wrap{ padding:0 16px; } .brand{ font-size:13px; } }
 </style>
 </head>
 <body>
@@ -230,79 +247,87 @@
   <div class="wrap nav">
     <div class="brand">LASER<span>_</span>STUDIO<span>_</span>PRO</div>
     <nav class="links">
-      <a href="#news">Nouveautés</a>
-      <a href="#results">Réalisations</a>
-      <a href="#tests">Tests de gravure</a>
-      <a href="#features">Fonctionnalités</a>
-      <a href="#gallery">En images</a>
-      <a href="#howto">Utilisation</a>
-      <a href="#get-it">Télécharger</a>
+      <a href="#news" data-i18n="nav.01">Nouveautés</a>
+      <a href="#results" data-i18n="nav.02">Réalisations</a>
+      <a href="#tests" data-i18n="nav.03">Tests de gravure</a>
+      <a href="#features" data-i18n="nav.04">Fonctionnalités</a>
+      <a href="#gallery" data-i18n="nav.05">En images</a>
+      <a href="#howto" data-i18n="nav.06">Utilisation</a>
+      <a href="#get-it" data-i18n="nav.07">Télécharger</a>
     </nav>
-    <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro" target="_blank" rel="noopener">Voir sur GitHub</a>
+    <div class="nav-right">
+      <div class="lang" role="group" aria-label="Langue" data-i18n-aria-label="nav.lang_aria">
+        <button type="button" data-lang="fr" lang="fr" title="Français" aria-pressed="true">FR</button>
+        <button type="button" data-lang="en" lang="en" title="English" aria-pressed="false">EN</button>
+        <button type="button" data-lang="de" lang="de" title="Deutsch" aria-pressed="false">DE</button>
+        <button type="button" data-lang="es" lang="es" title="Español" aria-pressed="false">ES</button>
+      </div>
+      <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro" target="_blank" rel="noopener" data-i18n="nav.08">Voir sur GitHub</a>
+    </div>
   </div>
 </header>
 
 <div class="masthead">
-  <img src="laser_studio_pro_banner.png" alt="Laser Studio Pro — logo et bannière">
+  <img src="laser_studio_pro_banner.png" alt="Laser Studio Pro — logo et bannière" data-i18n-alt="alt.01">
 </div>
 
 <section class="hero">
   <div class="wrap">
-    <a class="version-pill mono" href="#news"><b>Version 2.4.0</b> — voir les nouveautés</a>
-    <div class="kicker mono">LOGICIEL LIBRE — PILOTAGE LASER / CNC GRBL</div>
-    <h1>Pilote ton laser de la découpe d'un fichier SVG/DXF à l'envoi du G-Code.</h1>
-    <p class="lead">
+    <a class="version-pill mono" href="#news" data-i18n="hero.01"><b>Version 2.4.0</b> — voir les nouveautés</a>
+    <div class="kicker mono" data-i18n="hero.02">LOGICIEL LIBRE — PILOTAGE LASER / CNC GRBL</div>
+    <h1 data-i18n="hero.03">Pilote ton laser de la découpe d'un fichier SVG/DXF à l'envoi du G-Code.</h1>
+    <p class="lead" data-i18n="hero.04">
       Laser Studio Pro rassemble en un seul logiciel gratuit tout ce qu'il faut pour préparer
       et envoyer un travail à une machine laser ou CNC pilotée par GRBL : imbrication automatique,
       ordre de découpe intelligent, netteté photo, import vectoriel et connexion USB directe.
     </p>
     <div class="hero-cta">
-      <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener">Télécharger la dernière version</a>
-      <a class="btn btn-ghost" href="#results">Voir des réalisations</a>
+      <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener" data-i18n="hero.05">Télécharger la dernière version</a>
+      <a class="btn btn-ghost" href="#results" data-i18n="hero.06">Voir des réalisations</a>
     </div>
-    <p class="hero-note">Pour Windows et Linux, avec une interface en français, anglais, allemand et espagnol.</p>
+    <p class="hero-note" data-i18n="hero.07">Pour Windows et Linux, avec une interface en français, anglais, allemand et espagnol.</p>
   </div>
 </section>
 
 <section id="news">
   <div class="wrap">
-    <h2>Nouveautés de la version 2.4.0</h2>
-    <p class="section-lead">
+    <h2 data-i18n="news.01">Nouveautés de la version 2.4.0</h2>
+    <p class="section-lead" data-i18n="news.02">
       Publiée en octobre 2026. Cette mise à jour intègre l'imbrication automatique de pièces, l'ordre de découpe optimisé et un filtre de netteté photo.
     </p>
     <div class="grid">
       <div class="feature">
-        <span class="badge badge-new">Nouveau</span>
-        <h3>Imbrication automatique (Nesting)</h3>
-        <p>Range automatiquement tes pièces de la plus grande à la plus petite sur une feuille pour gaspiller le moins de matière possible, avec gestion des trous et rotations.</p>
+        <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
+        <h3 data-i18n="news.04">Imbrication automatique (Nesting)</h3>
+        <p data-i18n="news.05">Range automatiquement tes pièces de la plus grande à la plus petite sur une feuille pour gaspiller le moins de matière possible, avec gestion des trous et rotations.</p>
       </div>
       <div class="feature">
-        <span class="badge badge-new">Nouveau</span>
-        <h3>Ordre de découpe sûr</h3>
-        <p>Les gravures passent avant les découpes, et les contours intérieurs (trous) sont coupés avant l'extérieur pour éviter tout basculement de pièce.</p>
+        <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
+        <h3 data-i18n="news.06">Ordre de découpe sûr</h3>
+        <p data-i18n="news.07">Les gravures passent avant les découpes, et les contours intérieurs (trous) sont coupés avant l'extérieur pour éviter tout basculement de pièce.</p>
       </div>
       <div class="feature">
-        <span class="badge badge-new">Nouveau</span>
-        <h3>Netteté dans les réglages photo</h3>
-        <p>Accentuation des contours réglable avant le tramage pour un rendu d'image encore plus précis et détaillé.</p>
+        <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
+        <h3 data-i18n="news.08">Netteté dans les réglages photo</h3>
+        <p data-i18n="news.09">Accentuation des contours réglable avant le tramage pour un rendu d'image encore plus précis et détaillé.</p>
       </div>
       <div class="feature">
-        <span class="badge">Précision</span>
-        <h3>Import DXF & Boîtes à encoches</h3>
-        <p>Profite des puissants outils d'import DXF textuels et du générateur de boîtes paramétriques introduits récemment.</p>
+        <span class="badge" data-i18n="news.10">Précision</span>
+        <h3 data-i18n="news.11">Import DXF & Boîtes à encoches</h3>
+        <p data-i18n="news.12">Profite des puissants outils d'import DXF textuels et du générateur de boîtes paramétriques introduits récemment.</p>
       </div>
       <div class="feature">
-        <span class="badge">Amélioré</span>
-        <h3>Menu Configuration GRBL</h3>
-        <p>Fenêtre non modale accessible directement depuis la barre de menus pour gérer tes profils machine en toute fluidité.</p>
+        <span class="badge" data-i18n="news.13">Amélioré</span>
+        <h3 data-i18n="news.14">Menu Configuration GRBL</h3>
+        <p data-i18n="news.15">Fenêtre non modale accessible directement depuis la barre de menus pour gérer tes profils machine en toute fluidité.</p>
       </div>
       <div class="feature">
-        <span class="badge">Fiabilité</span>
-        <h3>Tests robustes & Sécurité</h3>
-        <p>La suite de tests automatisés s'agrandit (294 tests) pour garantir des sauvegardes atomiques et des flux sans accroc.</p>
+        <span class="badge" data-i18n="news.16">Fiabilité</span>
+        <h3 data-i18n="news.17">Tests robustes & Sécurité</h3>
+        <p data-i18n="news.18">La suite de tests automatisés s'agrandit (294 tests) pour garantir des sauvegardes atomiques et des flux sans accroc.</p>
       </div>
     </div>
-    <p class="news-more">
+    <p class="news-more" data-i18n="news.19">
       Le détail complet et les versions précédentes sont dans le
       <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
     </p>
@@ -311,59 +336,59 @@
 
 <section id="results">
   <div class="wrap">
-    <h2>Réalisations</h2>
-    <p class="section-lead">
+    <h2 data-i18n="nav.02">Réalisations</h2>
+    <p class="section-lead" data-i18n="results.01">
       Une photo en couleur sur du verre peint en noir : le logiciel prépare le calque à graver
       et le calque couleur à imprimer, la lumière placée derrière fait le reste.
     </p>
 
     <div class="results-grid">
       <figure class="frame">
-        <div class="frame-bar"><span>Étape 1</span><span>Calque noir gravé</span></div>
+        <div class="frame-bar"><span data-i18n="results.02">Étape 1</span><span data-i18n="results.03">Calque noir gravé</span></div>
         <div class="frame-img square">
-          <img src="result-black-layer.jpg" alt="Photo de figurines gravée en niveaux de gris sur du verre peint en noir" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="result-black-layer.jpg" alt="Photo de figurines gravée en niveaux de gris sur du verre peint en noir" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.02">
         </div>
         <figcaption class="frame-cap">
-          <h3>Le calque noir est gravé sur le verre peint</h3>
-          <p>Le laser retire la peinture là où la lumière doit passer. La gravure est faite en miroir : elle se lit à l'endroit à travers le verre.</p>
+          <h3 data-i18n="results.04">Le calque noir est gravé sur le verre peint</h3>
+          <p data-i18n="results.05">Le laser retire la peinture là où la lumière doit passer. La gravure est faite en miroir : elle se lit à l'endroit à travers le verre.</p>
         </figcaption>
       </figure>
 
       <figure class="frame">
-        <div class="frame-bar"><span>Étape 2</span><span>Calque couleur imprimé</span></div>
+        <div class="frame-bar"><span data-i18n="results.06">Étape 2</span><span data-i18n="results.07">Calque couleur imprimé</span></div>
         <div class="frame-img square">
-          <img src="result-color-layer.jpg" alt="Calque couleur imprimé sur papier : la même photo aux couleurs vives" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="result-color-layer.jpg" alt="Calque couleur imprimé sur papier : la même photo aux couleurs vives" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.03">
         </div>
         <figcaption class="frame-cap">
-          <h3>Le calque couleur est imprimé à l'échelle 1:1</h3>
-          <p>Le logiciel exporte un PDF A4 à l'échelle réelle, avec des repères de coin, à imprimer puis à placer derrière le verre.</p>
+          <h3 data-i18n="results.08">Le calque couleur est imprimé à l'échelle 1:1</h3>
+          <p data-i18n="results.09">Le logiciel exporte un PDF A4 à l'échelle réelle, avec des repères de coin, à imprimer puis à placer derrière le verre.</p>
         </figcaption>
       </figure>
 
       <figure class="frame">
-        <div class="frame-bar"><span>Étape 3</span><span>Rétro-éclairé</span></div>
+        <div class="frame-bar"><span data-i18n="results.10">Étape 3</span><span data-i18n="results.11">Rétro-éclairé</span></div>
         <div class="frame-img square">
-          <img src="result-backlit.jpg" alt="Verre gravé avec le calque couleur derrière, rétro-éclairé : la photo apparaît en couleurs chaudes" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="result-backlit.jpg" alt="Verre gravé avec le calque couleur derrière, rétro-éclairé : la photo apparaît en couleurs chaudes" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.04">
         </div>
         <figcaption class="frame-cap">
-          <h3>Les deux assemblés, avec la lumière derrière</h3>
-          <p>Le noir gravé laisse passer la lumière, le calque couleur la teinte : la photo apparaît en couleur.</p>
+          <h3 data-i18n="results.12">Les deux assemblés, avec la lumière derrière</h3>
+          <p data-i18n="results.13">Le noir gravé laisse passer la lumière, le calque couleur la teinte : la photo apparaît en couleur.</p>
         </figcaption>
       </figure>
 
       <figure class="frame">
-        <div class="frame-bar"><span>Même pièce</span><span>Lumière ambiante</span></div>
+        <div class="frame-bar"><span data-i18n="results.14">Même pièce</span><span data-i18n="results.15">Lumière ambiante</span></div>
         <div class="frame-img square">
-          <img src="result-ambient.jpg" alt="Le même assemblage en lumière ambiante, aux couleurs plus pastel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="result-ambient.jpg" alt="Le même assemblage en lumière ambiante, aux couleurs plus pastel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.05">
         </div>
         <figcaption class="frame-cap">
-          <h3>Sans lumière derrière, un rendu plus doux</h3>
-          <p>Le rendu change avec l'éclairage : plus pastel en lumière de pièce, plus saturé quand on rétro-éclaire.</p>
+          <h3 data-i18n="results.16">Sans lumière derrière, un rendu plus doux</h3>
+          <p data-i18n="results.17">Le rendu change avec l'éclairage : plus pastel en lumière de pièce, plus saturé quand on rétro-éclaire.</p>
         </figcaption>
       </figure>
     </div>
 
-    <p class="news-more">
+    <p class="news-more" data-i18n="results.18">
       Ces pièces sont préparées avec l'onglet <a href="#gallery">Séparation Couleur / Verre</a>
       du logiciel.
     </p>
@@ -372,91 +397,91 @@
 
 <section id="tests">
   <div class="wrap">
-    <h2>Tests de gravure</h2>
-    <p class="section-lead">
+    <h2 data-i18n="nav.03">Tests de gravure</h2>
+    <p class="section-lead" data-i18n="tests.01">
       Une même image gravée plusieurs fois avec des réglages différents, à comparer
       avec l'image d'origine.
     </p>
 
     <figure class="frame">
-      <div class="frame-bar"><span>Image d'origine</span><span>Fichier source</span></div>
+      <div class="frame-bar"><span data-i18n="tests.02">Image d'origine</span><span data-i18n="tests.03">Fichier source</span></div>
       <div class="frame-img wide">
-        <img src="gravure-test-original.jpg" alt="Image d'origine : faille dans un désert avec projections de roches et de lave" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+        <img src="gravure-test-original.jpg" alt="Image d'origine : faille dans un désert avec projections de roches et de lave" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.06">
       </div>
     </figure>
 
     <div class="tests-grid">
       <figure class="frame">
-        <div class="frame-bar"><span>Test 1</span><span>Gravure</span></div>
+        <div class="frame-bar"><span data-i18n="tests.04">Test 1</span><span data-i18n="tests.05">Gravure</span></div>
         <div class="frame-img ratio54">
-          <img src="gravure-test-1.jpg" alt="Test de gravure 1 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="gravure-test-1.jpg" alt="Test de gravure 1 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.07">
         </div>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Test 2</span><span>Gravure</span></div>
+        <div class="frame-bar"><span data-i18n="tests.06">Test 2</span><span data-i18n="tests.05">Gravure</span></div>
         <div class="frame-img ratio54">
-          <img src="gravure-test-2.jpg" alt="Test de gravure 2 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="gravure-test-2.jpg" alt="Test de gravure 2 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.08">
         </div>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Test 3</span><span>Gravure</span></div>
+        <div class="frame-bar"><span data-i18n="tests.07">Test 3</span><span data-i18n="tests.05">Gravure</span></div>
         <div class="frame-img ratio54">
-          <img src="gravure-test-3.jpg" alt="Test de gravure 3 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="gravure-test-3.jpg" alt="Test de gravure 3 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.09">
         </div>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Test 4</span><span>Gravure</span></div>
+        <div class="frame-bar"><span data-i18n="tests.08">Test 4</span><span data-i18n="tests.05">Gravure</span></div>
         <div class="frame-img ratio54">
-          <img src="gravure-test-4.jpg" alt="Test de gravure 4 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="gravure-test-4.jpg" alt="Test de gravure 4 : image gravée sur plaque, rendu en niveaux de gris" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.10">
         </div>
       </figure>
     </div>
 
     <dl class="specs">
-      <dt>Graveur</dt><dd>Elegoo Phecda 20W</dd>
-      <dt>Résolution</dt><dd>195 DPI</dd>
-      <dt>Dimensions de gravure</dt><dd>250 x 200 mm</dd>
-      <dt>Tramage</dt><dd>Stucki</dd>
-      <dt>Vitesse</dt><dd>5500 mm/min</dd>
-      <dt>Puissance</dt><dd>50 %</dd>
+      <dt data-i18n="tests.09">Graveur</dt><dd>Elegoo Phecda 20W</dd>
+      <dt data-i18n="tests.10">Résolution</dt><dd>195 DPI</dd>
+      <dt data-i18n="tests.11">Dimensions de gravure</dt><dd>250 x 200 mm</dd>
+      <dt data-i18n="tests.12">Tramage</dt><dd>Stucki</dd>
+      <dt data-i18n="tests.13">Vitesse</dt><dd>5500 mm/min</dd>
+      <dt data-i18n="tests.14">Puissance</dt><dd>50 %</dd>
     </dl>
   </div>
 </section>
 
 <section id="features">
   <div class="wrap">
-    <h2>Tout le flux de travail, dans un seul logiciel</h2>
-    <p class="section-lead">De l'image ou du dessin vectoriel jusqu'à la gravure, sans jongler entre plusieurs outils.</p>
+    <h2 data-i18n="features.01">Tout le flux de travail, dans un seul logiciel</h2>
+    <p class="section-lead" data-i18n="features.02">De l'image ou du dessin vectoriel jusqu'à la gravure, sans jongler entre plusieurs outils.</p>
     <div class="grid">
       <div class="feature">
-        <div class="tag mono">CONVERSION</div>
-        <h3>PNG / JPEG → SVG</h3>
-        <p>Transforme une image en tracé vectoriel directement dans le logiciel, en noir & blanc ou en couleur, en remplissage ou en contour.</p>
+        <div class="tag mono" data-i18n="features.03">CONVERSION</div>
+        <h3 data-i18n="features.04">PNG / JPEG → SVG</h3>
+        <p data-i18n="features.05">Transforme une image en tracé vectoriel directement dans le logiciel, en noir & blanc ou en couleur, en remplissage ou en contour.</p>
       </div>
       <div class="feature">
-        <div class="tag mono">ÉDITION</div>
-        <h3>Imbrication & Éditeur Vectoriel</h3>
-        <p>Imbrication automatique (nesting) pour optimiser la matière, import SVG/DXF, générateur de boîtes et calques réordonnables.</p>
+        <div class="tag mono" data-i18n="features.06">ÉDITION</div>
+        <h3 data-i18n="features.07">Imbrication & Éditeur Vectoriel</h3>
+        <p data-i18n="features.08">Imbrication automatique (nesting) pour optimiser la matière, import SVG/DXF, générateur de boîtes et calques réordonnables.</p>
       </div>
       <div class="feature">
-        <div class="tag mono">IMAGE</div>
-        <h3>Traitement & Netteté</h3>
-        <p>Luminosité, contraste, gamma, filtre de netteté des contours, choix de matière et assistants de gain de point.</p>
+        <div class="tag mono" data-i18n="features.09">IMAGE</div>
+        <h3 data-i18n="features.10">Traitement & Netteté</h3>
+        <p data-i18n="features.11">Luminosité, contraste, gamma, filtre de netteté des contours, choix de matière et assistants de gain de point.</p>
       </div>
       <div class="feature">
-        <div class="tag mono">CALIBRAGE</div>
-        <h3>Matériaux & matrice de test</h3>
-        <p>Base de données de matériaux avec leurs réglages, et une grille de test pour calibrer précisément puissance et vitesse.</p>
+        <div class="tag mono" data-i18n="features.12">CALIBRAGE</div>
+        <h3 data-i18n="features.13">Matériaux & matrice de test</h3>
+        <p data-i18n="features.14">Base de données de matériaux avec leurs réglages, et une grille de test pour calibrer précisément puissance et vitesse.</p>
       </div>
       <div class="feature">
-        <div class="tag mono">CONTRÔLE</div>
-        <h3>Pilotage GRBL en direct</h3>
-        <p>Connexion USB, ordre de découpe sûr (trous d'abord), déplacements manuels, homing et file d'attente.</p>
+        <div class="tag mono" data-i18n="features.15">CONTRÔLE</div>
+        <h3 data-i18n="features.16">Pilotage GRBL en direct</h3>
+        <p data-i18n="features.17">Connexion USB, ordre de découpe sûr (trous d'abord), déplacements manuels, homing et file d'attente.</p>
       </div>
       <div class="feature">
-        <div class="tag mono">FIABILITÉ</div>
-        <h3>Projets & import G-Code</h3>
-        <p>Sauvegarde de projet atomique, récupération automatique après un plantage, et import d'un G-Code déjà généré ailleurs.</p>
+        <div class="tag mono" data-i18n="features.18">FIABILITÉ</div>
+        <h3 data-i18n="features.19">Projets & import G-Code</h3>
+        <p data-i18n="features.20">Sauvegarde de projet atomique, récupération automatique après un plantage, et import d'un G-Code déjà généré ailleurs.</p>
       </div>
     </div>
   </div>
@@ -464,27 +489,27 @@
 
 <section id="gallery">
   <div class="wrap">
-    <h2>Le logiciel en images</h2>
-    <p class="section-lead">
+    <h2 data-i18n="gallery.01">Le logiciel en images</h2>
+    <p class="section-lead" data-i18n="gallery.02">
       Les écrans qui comptent, avec ce qu'il faut retenir de chacun. Clique sur une capture pour l'agrandir.
     </p>
 
     <!-- Nouveautés 2.4.0 : Imbrication automatique -->
     <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Éditeur Vectoriel</span><span class="badge badge-new">Nouveau : Imbrication automatique</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.03">Éditeur Vectoriel</span><span class="badge badge-new" data-i18n="gallery.04">Nouveau : Imbrication automatique</span></div>
         <div class="frame-img">
           <!-- Nom d'image prévu : shot-nesting.png -->
-          <img src="shot-nesting.png" alt="Outil d'imbrication automatique (nesting) de pièces sur une feuille dans l'éditeur vectoriel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-nesting.png" alt="Outil d'imbrication automatique (nesting) de pièces sur une feuille dans l'éditeur vectoriel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.11">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Imbrication automatique (Nesting)</h3>
-        <p>Optimise l'utilisation de ta matière en rangeant intelligemment tes découpes.</p>
+        <h3 data-i18n="news.04">Imbrication automatique (Nesting)</h3>
+        <p data-i18n="gallery.05">Optimise l'utilisation de ta matière en rangeant intelligemment tes découpes.</p>
         <ul class="points">
-          <li><b>Placement optimisé</b> : tri de la plus grande à la plus petite pièce, en bas à gauche de la feuille.</li>
-          <li><b>Gestion des formes complexes</b> : les petites pièces se glissent dans les creux, et les trous/détails restent solidaires.</li>
-          <li><b>Paramètres ajustables</b> : choix des rotations (0°, 90°, etc.), espacement entre pièces et marges de bord.</li>
+          <li data-i18n="gallery.06"><b>Placement optimisé</b> : tri de la plus grande à la plus petite pièce, en bas à gauche de la feuille.</li>
+          <li data-i18n="gallery.07"><b>Gestion des formes complexes</b> : les petites pièces se glissent dans les creux, et les trous/détails restent solidaires.</li>
+          <li data-i18n="gallery.08"><b>Paramètres ajustables</b> : choix des rotations (0°, 90°, etc.), espacement entre pièces et marges de bord.</li>
         </ul>
       </div>
     </article>
@@ -492,18 +517,18 @@
     <!-- Nouveautés 2.4.0 : Ordre de découpe & Netteté -->
     <article class="spot reverse">
       <figure class="frame">
-        <div class="frame-bar"><span>Configuration GRBL & Image</span><span class="badge badge-new">Nouveau : Ordre de découpe & Netteté</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.09">Configuration GRBL & Image</span><span class="badge badge-new" data-i18n="gallery.10">Nouveau : Ordre de découpe & Netteté</span></div>
         <div class="frame-img">
           <!-- Nom d'image prévu : shot-cutting-order.png -->
-          <img src="shot-cutting-order.png" alt="Paramètres d'ordre de découpe sûr et curseur de netteté photo" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-cutting-order.png" alt="Paramètres d'ordre de découpe sûr et curseur de netteté photo" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.12">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Ordre de découpe sûr et Netteté photo</h3>
-        <p>Garantis la qualité physique de tes pièces et la précision de tes gravures.</p>
+        <h3 data-i18n="gallery.11">Ordre de découpe sûr et Netteté photo</h3>
+        <p data-i18n="gallery.12">Garantis la qualité physique de tes pièces et la précision de tes gravures.</p>
         <ul class="points">
-          <li><b>Ordre de découpe intelligent</b> : les gravures passent d'abord, et les contours intérieurs (trous) sont coupés avant les contours extérieurs.</li>
-          <li><b>Filtre de netteté</b> : accentuation des contours photo réglable (0 à 100) avant tramage.</li>
+          <li data-i18n="gallery.13"><b>Ordre de découpe intelligent</b> : les gravures passent d'abord, et les contours intérieurs (trous) sont coupés avant les contours extérieurs.</li>
+          <li data-i18n="gallery.14"><b>Filtre de netteté</b> : accentuation des contours photo réglable (0 à 100) avant tramage.</li>
         </ul>
       </div>
     </article>
@@ -511,17 +536,17 @@
     <!-- 1. Import DXF & Boîte -->
     <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Éditeur Vectoriel</span><span>Import DXF & Boîte</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.03">Éditeur Vectoriel</span><span data-i18n="gallery.15">Import DXF & Boîte</span></div>
         <div class="frame-img">
-          <img src="shot-dxf-import.png" alt="Import de fichiers DXF et générateur de boîtes à encoches dans l'éditeur vectoriel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-dxf-import.png" alt="Import de fichiers DXF et générateur de boîtes à encoches dans l'éditeur vectoriel" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.13">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Import DXF et Générateur de boîtes</h3>
-        <p>Intègre facilement des plans techniques et conçoit des objets assemblables.</p>
+        <h3 data-i18n="gallery.16">Import DXF et Générateur de boîtes</h3>
+        <p data-i18n="gallery.17">Intègre facilement des plans techniques et conçoit des objets assemblables.</p>
         <ul class="points">
-          <li><b>Import DXF texte (ASCII)</b> : lignes, polylignes, arcs, cercles et blocs avec conversion automatique en mm.</li>
-          <li><b>Générateur de boîte à encoches</b> : dimensions personnalisables, gestion du kerf et couvercle.</li>
+          <li data-i18n="gallery.18"><b>Import DXF texte (ASCII)</b> : lignes, polylignes, arcs, cercles et blocs avec conversion automatique en mm.</li>
+          <li data-i18n="gallery.19"><b>Générateur de boîte à encoches</b> : dimensions personnalisables, gestion du kerf et couvercle.</li>
         </ul>
       </div>
     </article>
@@ -529,17 +554,17 @@
     <!-- 2. Image & tramage -->
     <article class="spot reverse">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Image &amp; Filtres</span><span>Matière & Backlash</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.20">Onglet Image &amp; Filtres</span><span data-i18n="gallery.21">Matière & Backlash</span></div>
         <div class="frame-img">
-          <img src="shot-image-filters.png" alt="Onglet Image et Filtres : réglages de tramage et sélecteur de matière" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-image-filters.png" alt="Onglet Image et Filtres : réglages de tramage et sélecteur de matière" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.14">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Gravure d'image, matière et précision</h3>
-        <p>Compare les rendus avant de lancer la gravure et ajuste la mécanique laser.</p>
+        <h3 data-i18n="gallery.22">Gravure d'image, matière et précision</h3>
+        <p data-i18n="gallery.23">Compare les rendus avant de lancer la gravure et ajuste la mécanique laser.</p>
         <ul class="points">
-          <li><b>Sélecteur de matière</b> : fond noir ou fond clair avec gestion automatique du négatif.</li>
-          <li><b>Réglage de décalage aller/retour (Backlash)</b> avec test automatique intégré.</li>
+          <li data-i18n="gallery.24"><b>Sélecteur de matière</b> : fond noir ou fond clair avec gestion automatique du négatif.</li>
+          <li data-i18n="gallery.25"><b>Réglage de décalage aller/retour (Backlash)</b> avec test automatique intégré.</li>
         </ul>
       </div>
     </article>
@@ -547,17 +572,17 @@
     <!-- 3. Séparation couleur / verre -->
     <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Séparation Couleur / Verre</span><span>Test de gain de point</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.26">Onglet Séparation Couleur / Verre</span><span data-i18n="gallery.27">Test de gain de point</span></div>
         <div class="frame-img">
-          <img src="shot-separation.png" alt="Onglet Séparation couleur et verre : calque noir et calque couleur" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-separation.png" alt="Onglet Séparation couleur et verre : calque noir et calque couleur" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.15">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Séparation couleur / verre</h3>
-        <p>Pour graver une photo en couleur sur du verre peint en noir, avec un calque couleur imprimé derrière.</p>
+        <h3 data-i18n="gallery.28">Séparation couleur / verre</h3>
+        <p data-i18n="gallery.29">Pour graver une photo en couleur sur du verre peint en noir, avec un calque couleur imprimé derrière.</p>
         <ul class="points">
-          <li><b>Calque noir à graver</b> et calque couleur PDF A4 à l'échelle 1:1.</li>
-          <li><b>Assistant « Tester le gain de point »</b> pour calibrer parfaitement le rendu sur verre.</li>
+          <li data-i18n="gallery.30"><b>Calque noir à graver</b> et calque couleur PDF A4 à l'échelle 1:1.</li>
+          <li data-i18n="gallery.31"><b>Assistant « Tester le gain de point »</b> pour calibrer parfaitement le rendu sur verre.</li>
         </ul>
       </div>
     </article>
@@ -565,63 +590,63 @@
     <!-- 4. Aperçu 2D & pilotage -->
     <article class="spot reverse">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet Visualisation 2D G-Code</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.32">Onglet Visualisation 2D G-Code</span></div>
         <div class="frame-img">
-          <img src="shot-2d-preview.png" alt="Visualisation 2D du parcours G-Code avec la position de la machine en direct" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-2d-preview.png" alt="Visualisation 2D du parcours G-Code avec la position de la machine en direct" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.16">
         </div>
       </figure>
       <div class="spot-text">
-        <h3>Aperçu 2D et pilotage</h3>
-        <p>Vérifie le parcours avant l'envoi, puis suis la machine en direct.</p>
+        <h3 data-i18n="gallery.33">Aperçu 2D et pilotage</h3>
+        <p data-i18n="gallery.34">Vérifie le parcours avant l'envoi, puis suis la machine en direct.</p>
         <ul class="points">
-          <li><b>Aperçu 2D du G-Code</b> : gravure, découpe et déplacements rapides bien distincts.</li>
-          <li><b>Position X/Y/Z et état GRBL en direct</b>, avec fin de job sécurisée attendant le retour à l'état Idle.</li>
-          <li><b>File d'attente persistante</b> et commandes de sécurité toujours accessibles.</li>
+          <li data-i18n="gallery.35"><b>Aperçu 2D du G-Code</b> : gravure, découpe et déplacements rapides bien distincts.</li>
+          <li data-i18n="gallery.36"><b>Position X/Y/Z et état GRBL en direct</b>, avec fin de job sécurisée attendant le retour à l'état Idle.</li>
+          <li data-i18n="gallery.37"><b>File d'attente persistante</b> et commandes de sécurité toujours accessibles.</li>
         </ul>
       </div>
     </article>
 
-    <h3 class="gallery-sub">Et aussi</h3>
+    <h3 class="gallery-sub" data-i18n="gallery.38">Et aussi</h3>
     <div class="gallery">
       <figure class="frame">
-        <div class="frame-bar"><span>Onglet PNG / JPEG → SVG</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.39">Onglet PNG / JPEG → SVG</span></div>
         <div class="frame-img">
-          <img src="shot-png2svg.png" alt="Conversion d'une image en tracé vectoriel SVG avec aperçu" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-png2svg.png" alt="Conversion d'une image en tracé vectoriel SVG avec aperçu" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.17">
         </div>
         <figcaption class="frame-cap">
-          <h3>De l'image au tracé vectoriel</h3>
+          <h3 data-i18n="gallery.40">De l'image au tracé vectoriel</h3>
           <ul class="points">
-            <li>Seuil, simplification et lissage réglables.</li>
-            <li>Aperçu avant insertion dans l'éditeur.</li>
-            <li>Glisser-déposer ou collage d'une capture (Ctrl+V).</li>
+            <li data-i18n="gallery.41">Seuil, simplification et lissage réglables.</li>
+            <li data-i18n="gallery.42">Aperçu avant insertion dans l'éditeur.</li>
+            <li data-i18n="gallery.43">Glisser-déposer ou collage d'une capture (Ctrl+V).</li>
           </ul>
         </figcaption>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Matrice de test</span></div>
+        <div class="frame-bar"><span data-i18n="gallery.44">Matrice de test</span></div>
         <div class="frame-img">
-          <img src="shot-test-matrix.png" alt="Matrice de test de puissance et de vitesse pour calibrer un matériau" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-test-matrix.png" alt="Matrice de test de puissance et de vitesse pour calibrer un matériau" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.18">
         </div>
         <figcaption class="frame-cap">
-          <h3>Calibrer un matériau</h3>
+          <h3 data-i18n="gallery.45">Calibrer un matériau</h3>
           <ul class="points">
-            <li>Grille de puissance et de vitesse en un seul passage.</li>
-            <li>Réglages repris de l'onglet Image / Filtres.</li>
-            <li>Matériaux enregistrés par profil machine.</li>
+            <li data-i18n="gallery.46">Grille de puissance et de vitesse en un seul passage.</li>
+            <li data-i18n="gallery.47">Réglages repris de l'onglet Image / Filtres.</li>
+            <li data-i18n="gallery.48">Matériaux enregistrés par profil machine.</li>
           </ul>
         </figcaption>
       </figure>
       <figure class="frame">
-        <div class="frame-bar"><span>Menu Configuration GRBL</span></div>
+        <div class="frame-bar"><span data-i18n="news.14">Menu Configuration GRBL</span></div>
         <div class="frame-img">
-          <img src="shot-machine-control.png" alt="Pilotage de la machine : jog, homing et configuration GRBL" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')">
+          <img src="shot-machine-control.png" alt="Pilotage de la machine : jog, homing et configuration GRBL" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.19">
         </div>
         <figcaption class="frame-cap">
-          <h3>Configuration & Pilotage GRBL</h3>
+          <h3 data-i18n="gallery.49">Configuration & Pilotage GRBL</h3>
           <ul class="points">
-            <li>Fenêtre non modale accessible directement depuis la barre de menus.</li>
-            <li>Jog, homing et console de commandes avec historique.</li>
-            <li>Aide à l'installation des drivers USB (CH340, CP210x, FTDI).</li>
+            <li data-i18n="gallery.50">Fenêtre non modale accessible directement depuis la barre de menus.</li>
+            <li data-i18n="gallery.51">Jog, homing et console de commandes avec historique.</li>
+            <li data-i18n="gallery.52">Aide à l'installation des drivers USB (CH340, CP210x, FTDI).</li>
           </ul>
         </figcaption>
       </figure>
@@ -631,27 +656,27 @@
 
 <section id="howto">
   <div class="wrap">
-    <h2>En quatre étapes</h2>
+    <h2 data-i18n="howto.01">En quatre étapes</h2>
     <div class="steps">
       <div class="step">
         <div class="num">01</div>
-        <h3>Importer</h3>
-        <p>Une image, un fichier SVG/DXF, ou crée une boîte sur-mesure.</p>
+        <h3 data-i18n="howto.02">Importer</h3>
+        <p data-i18n="howto.03">Une image, un fichier SVG/DXF, ou crée une boîte sur-mesure.</p>
       </div>
       <div class="step">
         <div class="num">02</div>
-        <h3>Régler</h3>
-        <p>Dimensions, matériau, imbrication, puissance, vitesse et netteté.</p>
+        <h3 data-i18n="howto.04">Régler</h3>
+        <p data-i18n="howto.05">Dimensions, matériau, imbrication, puissance, vitesse et netteté.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
-        <h3>Générer</h3>
-        <p>Le G-Code optimisé (ordre de découpe sûr), avec un aperçu 2D du parcours.</p>
+        <h3 data-i18n="howto.06">Générer</h3>
+        <p data-i18n="howto.07">Le G-Code optimisé (ordre de découpe sûr), avec un aperçu 2D du parcours.</p>
       </div>
       <div class="step">
         <div class="num">04</div>
-        <h3>Graver</h3>
-        <p>Envoi direct par USB avec suivi en direct, ou export du fichier.</p>
+        <h3 data-i18n="howto.08">Graver</h3>
+        <p data-i18n="howto.09">Envoi direct par USB avec suivi en direct, ou export du fichier.</p>
       </div>
     </div>
   </div>
@@ -660,40 +685,656 @@
 <section id="get-it">
   <div class="wrap get-it">
     <div>
-      <h2>Gratuit, open source</h2>
-      <p class="section-lead">
+      <h2 data-i18n="get-it.01">Gratuit, open source</h2>
+      <p class="section-lead" data-i18n="get-it.02">
         Le code source complet et les exécutables Windows / Linux sont disponibles sur GitHub.
       </p>
       <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro" target="_blank" rel="noopener">github.com/Jgood3d/laser-studio-pro</a>
     </div>
     <div class="panel mono">
-      <div style="color:var(--text); margin-bottom:8px;">Depuis les sources :</div>
+      <div style="color:var(--text); margin-bottom:8px;" data-i18n="get-it.03">Depuis les sources :</div>
       <pre>git clone https://github.com/Jgood3d/laser-studio-pro
 cd laser-studio-pro
 pip install -r requirements-windows.txt
 python main.py</pre>
-      <div>Sous Linux, utilise <code>requirements-linux.txt</code> à la place.</div>
+      <div data-i18n="get-it.04">Sous Linux, utilise <code>requirements-linux.txt</code> à la place.</div>
     </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <p>
+    <p data-i18n="footer.01">
       Laser Studio Pro est un projet indépendant, développé sur mon temps libre.
       Si tu veux le soutenir : <a href="https://ko-fi.com/jb3dlaser" target="_blank" rel="noopener">ko-fi.com/jb3dlaser</a> ☕
     </p>
-    <p>
+    <p data-i18n="footer.02">
       Version 2.4.0 —
       <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>
     </p>
   </div>
 </footer>
 
-<dialog id="lightbox" aria-label="Capture agrandie">
+<dialog id="lightbox" aria-label="Capture agrandie" data-i18n-aria-label="lightbox.aria">
   <img src="" alt="">
   <p></p>
 </dialog>
+
+<script>
+/* Traduction du site.
+   - Le FRANÇAIS est écrit directement dans le HTML (source de vérité, lisible sans JavaScript).
+   - Les autres langues sont dans T ci-dessous : clé = attribut data-i18n (contenu),
+     data-i18n-alt / data-i18n-content / data-i18n-aria-label (attributs).
+   - {version} est remplacé par le numéro lu dans le texte français de la pastille de version.
+   - Une clé absente d'une langue retombe sur le français. */
+(function () {
+  'use strict';
+  var STORE_KEY = 'lsp-lang';
+  var LANGS = ['fr', 'en', 'de', 'es'];
+  var T = {
+ "en": {
+  "meta.title": "Laser Studio Pro — Free GRBL laser/CNC control software",
+  "meta.description": "Laser Studio Pro: free, open-source software to drive a GRBL laser or CNC. Image engraving, vector cutting, DXF import, box generator, automatic nesting. Windows and Linux.",
+  "meta.og_title": "Laser Studio Pro — GRBL laser/CNC control",
+  "meta.og_description": "From an SVG/DXF file or an image all the way to sending the G-Code, in a single free program.",
+  "nav.lang_aria": "Language",
+  "nav.01": "What's new",
+  "nav.02": "Showcase",
+  "nav.03": "Engraving tests",
+  "nav.04": "Features",
+  "nav.05": "Screenshots",
+  "nav.06": "How it works",
+  "nav.07": "Download",
+  "nav.08": "View on GitHub",
+  "hero.01": "<b>Version {version}<\/b> — see what's new",
+  "hero.02": "OPEN-SOURCE SOFTWARE — GRBL LASER / CNC CONTROL",
+  "hero.03": "Run your laser, from an SVG/DXF cutting file all the way to sending the G-Code.",
+  "hero.04": "Laser Studio Pro brings everything you need into one free program to prepare and send a job to a laser or CNC machine running GRBL: automatic nesting, smart cutting order, photo sharpening, vector import and direct USB connection.",
+  "hero.05": "Download the latest version",
+  "hero.06": "See some projects",
+  "hero.07": "For Windows and Linux, with an interface in French, English, German and Spanish.",
+  "news.01": "What's new in version {version}",
+  "news.02": "Released in October 2026. This update adds automatic part nesting, an optimized cutting order and a photo sharpening filter.",
+  "news.03": "New",
+  "news.04": "Automatic nesting",
+  "news.05": "Arranges your parts automatically, from largest to smallest, on a sheet to waste as little material as possible, handling holes and rotations.",
+  "news.06": "Safe cutting order",
+  "news.07": "Engraving runs before cutting, and inner contours (holes) are cut before the outside, so a part can never shift or tip over.",
+  "news.08": "Sharpness in photo settings",
+  "news.09": "Adjustable edge sharpening before dithering, for an even more precise and detailed image.",
+  "news.10": "Precision",
+  "news.11": "DXF import &amp; finger-joint boxes",
+  "news.12": "Take advantage of the powerful text-based DXF import tools and the parametric box generator introduced recently.",
+  "news.13": "Improved",
+  "news.14": "GRBL Configuration menu",
+  "news.15": "Non-modal window available straight from the menu bar to manage your machine profiles smoothly.",
+  "news.16": "Reliability",
+  "news.17": "Robust tests &amp; safety",
+  "news.18": "The automated test suite grows to 294 tests to guarantee atomic saves and smooth workflows.",
+  "news.19": "The full details and previous versions are in the <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">changelog<\/a>.",
+  "results.01": "A color photo on black-painted glass: the software prepares the layer to engrave and the color layer to print; the light placed behind does the rest.",
+  "results.02": "Step 1",
+  "results.03": "Black layer engraved",
+  "results.04": "The black layer is engraved on the painted glass",
+  "results.05": "The laser removes the paint where the light needs to pass. The engraving is mirrored: it reads correctly through the glass.",
+  "results.06": "Step 2",
+  "results.07": "Color layer printed",
+  "results.08": "The color layer is printed at 1:1 scale",
+  "results.09": "The software exports an A4 PDF at true scale, with corner marks, to print and place behind the glass.",
+  "results.10": "Step 3",
+  "results.11": "Backlit",
+  "results.12": "Both assembled, with the light behind",
+  "results.13": "The engraved black lets the light through, the color layer tints it: the photo appears in color.",
+  "results.14": "Same piece",
+  "results.15": "Ambient light",
+  "results.16": "Without light behind it, a softer look",
+  "results.17": "The look changes with the lighting: more pastel in room light, more saturated when backlit.",
+  "results.18": "These pieces are prepared with the <a href=\"#gallery\">Color / Glass Separation<\/a> tab of the software.",
+  "tests.01": "The same image engraved several times with different settings, to compare with the original image.",
+  "tests.02": "Original image",
+  "tests.03": "Source file",
+  "tests.04": "Test 1",
+  "tests.05": "Engraving",
+  "tests.06": "Test 2",
+  "tests.07": "Test 3",
+  "tests.08": "Test 4",
+  "tests.09": "Engraver",
+  "tests.10": "Resolution",
+  "tests.11": "Engraving size",
+  "tests.12": "Dithering",
+  "tests.13": "Speed",
+  "tests.14": "Power",
+  "features.01": "The whole workflow, in one program",
+  "features.02": "From the image or vector drawing to engraving, without juggling several tools.",
+  "features.03": "CONVERSION",
+  "features.05": "Turns an image into a vector path right inside the software, in black &amp; white or color, as fill or outline.",
+  "features.06": "EDITING",
+  "features.07": "Nesting &amp; Vector Editor",
+  "features.08": "Automatic nesting to optimize material, SVG/DXF import, box generator and reorderable layers.",
+  "features.09": "IMAGE",
+  "features.10": "Processing &amp; Sharpness",
+  "features.11": "Brightness, contrast, gamma, edge sharpening filter, material choice and dot-gain assistants.",
+  "features.12": "CALIBRATION",
+  "features.13": "Materials &amp; test matrix",
+  "features.14": "A materials database with their settings, and a test grid to calibrate power and speed precisely.",
+  "features.15": "CONTROL",
+  "features.16": "Live GRBL control",
+  "features.17": "USB connection, safe cutting order (holes first), manual moves, homing and job queue.",
+  "features.18": "RELIABILITY",
+  "features.19": "Projects &amp; G-Code import",
+  "features.20": "Atomic project saving, automatic recovery after a crash, and import of G-Code already generated elsewhere.",
+  "gallery.01": "The software in pictures",
+  "gallery.02": "The screens that matter, with what to remember about each one. Click a screenshot to enlarge it.",
+  "gallery.03": "Vector Editor",
+  "gallery.04": "New: automatic nesting",
+  "gallery.05": "Makes the most of your material by arranging your cut parts intelligently.",
+  "gallery.06": "<b>Optimized placement<\/b>: sorted from largest to smallest part, starting at the bottom left of the sheet.",
+  "gallery.07": "<b>Complex shapes handled<\/b>: small parts slip into the gaps, and holes/details stay with their part.",
+  "gallery.08": "<b>Adjustable settings<\/b>: choice of rotations (0°, 90°, etc.), spacing between parts and edge margins.",
+  "gallery.09": "GRBL Configuration &amp; Image",
+  "gallery.10": "New: Cutting order &amp; Sharpness",
+  "gallery.11": "Safe cutting order and photo sharpness",
+  "gallery.12": "Guarantee the physical quality of your parts and the precision of your engravings.",
+  "gallery.13": "<b>Smart cutting order<\/b>: engravings go first, and inner contours (holes) are cut before outer contours.",
+  "gallery.14": "<b>Sharpness filter<\/b>: adjustable photo edge sharpening (0 to 100) before dithering.",
+  "gallery.15": "DXF import &amp; Box",
+  "gallery.16": "DXF import and Box generator",
+  "gallery.17": "Easily bring in technical drawings and design parts that fit together.",
+  "gallery.18": "<b>Text (ASCII) DXF import<\/b>: lines, polylines, arcs, circles and blocks with automatic conversion to mm.",
+  "gallery.19": "<b>Finger-joint box generator<\/b>: custom dimensions, kerf handling and lid.",
+  "gallery.20": "Image &amp; Filters tab",
+  "gallery.21": "Material &amp; Backlash",
+  "gallery.22": "Image engraving, material and precision",
+  "gallery.23": "Compare the results before starting the engraving and fine-tune the laser mechanics.",
+  "gallery.24": "<b>Material selector<\/b>: black or light background with automatic negative handling.",
+  "gallery.25": "<b>Forward/backward offset adjustment (Backlash)<\/b> with a built-in automatic test.",
+  "gallery.26": "Color / Glass Separation tab",
+  "gallery.27": "Dot gain test",
+  "gallery.28": "Color / glass separation",
+  "gallery.29": "To engrave a color photo on black-painted glass, with a printed color layer behind it.",
+  "gallery.30": "<b>Black layer to engrave<\/b> and A4 PDF color layer at 1:1 scale.",
+  "gallery.31": "<b>“Test dot gain” assistant<\/b> to calibrate the result on glass perfectly.",
+  "gallery.32": "2D G-Code Preview tab",
+  "gallery.33": "2D preview and machine control",
+  "gallery.34": "Check the toolpath before sending, then follow the machine live.",
+  "gallery.35": "<b>2D G-Code preview<\/b>: engraving, cutting and rapid moves clearly distinct.",
+  "gallery.36": "<b>Live X/Y/Z position and GRBL state<\/b>, with a safe job end that waits for the Idle state.",
+  "gallery.37": "<b>Persistent job queue<\/b> and safety commands always within reach.",
+  "gallery.38": "And also",
+  "gallery.39": "PNG / JPEG → SVG tab",
+  "gallery.40": "From image to vector path",
+  "gallery.41": "Adjustable threshold, simplification and smoothing.",
+  "gallery.42": "Preview before inserting into the editor.",
+  "gallery.43": "Drag and drop, or paste a screenshot (Ctrl+V).",
+  "gallery.44": "Test matrix",
+  "gallery.45": "Calibrate a material",
+  "gallery.46": "A power and speed grid in a single pass.",
+  "gallery.47": "Settings carried over from the Image / Filters tab.",
+  "gallery.48": "Materials saved per machine profile.",
+  "gallery.49": "GRBL configuration &amp; control",
+  "gallery.50": "Non-modal window available straight from the menu bar.",
+  "gallery.51": "Jog, homing and a command console with history.",
+  "gallery.52": "Help installing USB drivers (CH340, CP210x, FTDI).",
+  "howto.01": "In four steps",
+  "howto.02": "Import",
+  "howto.03": "An image, an SVG/DXF file, or build a custom box.",
+  "howto.04": "Adjust",
+  "howto.05": "Dimensions, material, nesting, power, speed and sharpness.",
+  "howto.06": "Generate",
+  "howto.07": "Optimized G-Code (safe cutting order), with a 2D preview of the toolpath.",
+  "howto.08": "Engrave",
+  "howto.09": "Send directly over USB with live tracking, or export the file.",
+  "get-it.01": "Free and open source",
+  "get-it.02": "The full source code and the Windows / Linux executables are available on GitHub.",
+  "get-it.03": "From source:",
+  "get-it.04": "On Linux, use <code>requirements-linux.txt<\/code> instead.",
+  "footer.01": "Laser Studio Pro is an independent project, developed in my spare time. If you'd like to support it: <a href=\"https://ko-fi.com/jb3dlaser\" target=\"_blank\" rel=\"noopener\">ko-fi.com/jb3dlaser<\/a> ☕",
+  "footer.02": "Version {version} — <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">changelog<\/a>",
+  "lightbox.aria": "Enlarged screenshot",
+  "js.lightbox_open": "Enlarge screenshot",
+  "js.lightbox_close": " — click or press Esc to close",
+  "alt.01": "Laser Studio Pro — logo and banner",
+  "alt.02": "Photo of figurines engraved in grayscale on black-painted glass",
+  "alt.03": "Color layer printed on paper: the same photo in vivid colors",
+  "alt.04": "Engraved glass with the color layer behind it, backlit: the photo appears in warm colors",
+  "alt.05": "The same assembly in ambient light, with more pastel colors",
+  "alt.06": "Original image: a fissure in a desert with flying rocks and lava",
+  "alt.07": "Engraving test 1: image engraved on a plate, rendered in grayscale",
+  "alt.08": "Engraving test 2: image engraved on a plate, rendered in grayscale",
+  "alt.09": "Engraving test 3: image engraved on a plate, rendered in grayscale",
+  "alt.10": "Engraving test 4: image engraved on a plate, rendered in grayscale",
+  "alt.11": "Automatic nesting tool arranging parts on a sheet in the vector editor",
+  "alt.12": "Safe cutting order settings and photo sharpness slider",
+  "alt.13": "DXF file import and finger-joint box generator in the vector editor",
+  "alt.14": "Image and Filters tab: dithering settings and material selector",
+  "alt.15": "Color and glass separation tab: black layer and color layer",
+  "alt.16": "2D preview of the G-Code toolpath with the live machine position",
+  "alt.17": "Converting an image into an SVG vector path with preview",
+  "alt.18": "Power and speed test matrix to calibrate a material",
+  "alt.19": "Machine control: jog, homing and GRBL configuration"
+ },
+ "de": {
+  "meta.title": "Laser Studio Pro — Kostenlose Steuerungssoftware für GRBL-Laser/CNC",
+  "meta.description": "Laser Studio Pro: kostenlose Open-Source-Software zur Steuerung eines GRBL-Lasers oder einer CNC. Bildgravur, Vektorschnitt, DXF-Import, Boxgenerator, automatische Schachtelung. Windows und Linux.",
+  "meta.og_title": "Laser Studio Pro — GRBL-Laser-/CNC-Steuerung",
+  "meta.og_description": "Von der SVG/DXF-Datei oder dem Bild bis zum Senden des G-Codes – in einer einzigen kostenlosen Software.",
+  "nav.lang_aria": "Sprache",
+  "nav.01": "Neuheiten",
+  "nav.02": "Ergebnisse",
+  "nav.03": "Gravurtests",
+  "nav.04": "Funktionen",
+  "nav.05": "Bilder",
+  "nav.06": "Anwendung",
+  "nav.07": "Download",
+  "nav.08": "Auf GitHub ansehen",
+  "hero.01": "<b>Version {version}<\/b> — Neuheiten ansehen",
+  "hero.02": "FREIE SOFTWARE — GRBL-LASER- / CNC-STEUERUNG",
+  "hero.03": "Steuere deinen Laser – von der SVG/DXF-Schneiddatei bis zum Senden des G-Codes.",
+  "hero.04": "Laser Studio Pro vereint in einer kostenlosen Software alles, was du brauchst, um einen Auftrag für einen Laser oder eine CNC-Maschine mit GRBL vorzubereiten und zu senden: automatische Schachtelung (Nesting), intelligente Schneidreihenfolge, Foto-Schärfung, Vektorimport und direkte USB-Verbindung.",
+  "hero.05": "Neueste Version herunterladen",
+  "hero.06": "Beispiele ansehen",
+  "hero.07": "Für Windows und Linux, mit Oberfläche auf Französisch, Englisch, Deutsch und Spanisch.",
+  "news.01": "Neuheiten in Version {version}",
+  "news.02": "Veröffentlicht im Oktober 2026. Dieses Update bringt die automatische Teile-Schachtelung, eine optimierte Schneidreihenfolge und einen Foto-Schärfefilter.",
+  "news.03": "Neu",
+  "news.04": "Automatische Schachtelung (Nesting)",
+  "news.05": "Ordnet deine Teile automatisch von groß nach klein auf einer Platte an, damit möglichst wenig Material verschwendet wird – inklusive Löchern und Drehungen.",
+  "news.06": "Sichere Schneidreihenfolge",
+  "news.07": "Gravuren werden vor dem Schneiden ausgeführt, und innere Konturen (Löcher) werden vor der Außenkontur geschnitten, damit sich kein Teil verschiebt oder kippt.",
+  "news.08": "Schärfe in den Foto-Einstellungen",
+  "news.09": "Einstellbare Kantenschärfung vor der Rasterung (Dithering) für ein noch präziseres, detailreicheres Bild.",
+  "news.10": "Präzision",
+  "news.11": "DXF-Import &amp; Boxen mit Fingerzinken",
+  "news.12": "Nutze die leistungsstarken Werkzeuge für den DXF-Textimport und den kürzlich eingeführten parametrischen Boxgenerator.",
+  "news.13": "Verbessert",
+  "news.14": "Menü GRBL-Konfiguration",
+  "news.15": "Nicht-modales Fenster, direkt über die Menüleiste erreichbar, um deine Maschinenprofile reibungslos zu verwalten.",
+  "news.16": "Zuverlässigkeit",
+  "news.17": "Robuste Tests &amp; Sicherheit",
+  "news.18": "Die automatisierte Testsuite wächst auf 294 Tests, um atomare Speichervorgänge und reibungslose Abläufe zu gewährleisten.",
+  "news.19": "Alle Details und frühere Versionen findest du im <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">Änderungsprotokoll<\/a>.",
+  "results.01": "Ein Farbfoto auf schwarz lackiertem Glas: Die Software bereitet die zu gravierende Ebene und die zu druckende Farbebene vor, das Licht dahinter erledigt den Rest.",
+  "results.02": "Schritt 1",
+  "results.03": "Schwarze Ebene graviert",
+  "results.04": "Die schwarze Ebene wird auf das lackierte Glas graviert",
+  "results.05": "Der Laser entfernt die Farbe dort, wo das Licht durchscheinen soll. Die Gravur ist gespiegelt: Durch das Glas gesehen ist sie richtig herum lesbar.",
+  "results.06": "Schritt 2",
+  "results.07": "Farbebene gedruckt",
+  "results.08": "Die Farbebene wird im Maßstab 1:1 gedruckt",
+  "results.09": "Die Software exportiert ein A4-PDF im Originalmaßstab mit Eckmarkierungen, das du ausdruckst und hinter das Glas legst.",
+  "results.10": "Schritt 3",
+  "results.11": "Hintergrundbeleuchtet",
+  "results.12": "Beides zusammengesetzt, mit Licht dahinter",
+  "results.13": "Das gravierte Schwarz lässt das Licht durch, die Farbebene färbt es ein: Das Foto erscheint in Farbe.",
+  "results.14": "Gleiches Stück",
+  "results.15": "Umgebungslicht",
+  "results.16": "Ohne Licht dahinter wirkt es weicher",
+  "results.17": "Das Ergebnis ändert sich mit dem Licht: pastelliger im Raumlicht, satter bei Hintergrundbeleuchtung.",
+  "results.18": "Diese Stücke werden mit dem Tab <a href=\"#gallery\">Farb-/Glas-Trennung<\/a> der Software vorbereitet.",
+  "tests.01": "Dasselbe Bild mehrfach mit unterschiedlichen Einstellungen graviert, zum Vergleich mit dem Originalbild.",
+  "tests.02": "Originalbild",
+  "tests.03": "Quelldatei",
+  "tests.04": "Test 1",
+  "tests.05": "Gravur",
+  "tests.06": "Test 2",
+  "tests.07": "Test 3",
+  "tests.08": "Test 4",
+  "tests.09": "Graviergerät",
+  "tests.10": "Auflösung",
+  "tests.11": "Gravurgröße",
+  "tests.12": "Rasterung",
+  "tests.13": "Geschwindigkeit",
+  "tests.14": "Leistung",
+  "features.01": "Der gesamte Arbeitsablauf in einer Software",
+  "features.02": "Vom Bild oder der Vektorzeichnung bis zur Gravur – ohne zwischen mehreren Werkzeugen zu wechseln.",
+  "features.03": "KONVERTIERUNG",
+  "features.05": "Wandelt ein Bild direkt in der Software in einen Vektorpfad um – in Schwarzweiß oder Farbe, als Füllung oder Kontur.",
+  "features.06": "BEARBEITUNG",
+  "features.07": "Schachtelung &amp; Vektor-Editor",
+  "features.08": "Automatische Schachtelung zur Materialoptimierung, SVG/DXF-Import, Boxgenerator und umsortierbare Ebenen.",
+  "features.09": "BILD",
+  "features.10": "Bearbeitung &amp; Schärfe",
+  "features.11": "Helligkeit, Kontrast, Gamma, Kantenschärfungsfilter, Materialauswahl und Assistenten für den Punktzuwachs.",
+  "features.12": "KALIBRIERUNG",
+  "features.13": "Materialien &amp; Testmatrix",
+  "features.14": "Eine Materialdatenbank mit den passenden Einstellungen und ein Testraster, um Leistung und Geschwindigkeit präzise zu kalibrieren.",
+  "features.15": "STEUERUNG",
+  "features.16": "GRBL-Steuerung in Echtzeit",
+  "features.17": "USB-Verbindung, sichere Schneidreihenfolge (Löcher zuerst), manuelles Verfahren, Homing und Warteschlange.",
+  "features.18": "ZUVERLÄSSIGKEIT",
+  "features.19": "Projekte &amp; G-Code-Import",
+  "features.20": "Atomares Speichern von Projekten, automatische Wiederherstellung nach einem Absturz und Import von bereits anderswo erzeugtem G-Code.",
+  "gallery.01": "Die Software in Bildern",
+  "gallery.02": "Die wichtigsten Ansichten – mit dem, was man sich zu jeder merken sollte. Klicke auf einen Screenshot, um ihn zu vergrößern.",
+  "gallery.03": "Vektor-Editor",
+  "gallery.04": "Neu: Automatische Schachtelung",
+  "gallery.05": "Nutzt dein Material optimal aus, indem deine Schneidteile intelligent angeordnet werden.",
+  "gallery.06": "<b>Optimierte Platzierung<\/b>: Die Teile werden von groß nach klein sortiert, beginnend unten links auf der Platte.",
+  "gallery.07": "<b>Komplexe Formen<\/b>: Kleine Teile rutschen in Aussparungen, und Löcher/Details bleiben mit ihrem Teil verbunden.",
+  "gallery.08": "<b>Einstellbare Parameter<\/b>: Auswahl der Drehungen (0°, 90° usw.), Abstand zwischen den Teilen und Randabstände.",
+  "gallery.09": "GRBL-Konfiguration &amp; Bild",
+  "gallery.10": "Neu: Schneidreihenfolge &amp; Schärfe",
+  "gallery.11": "Sichere Schneidreihenfolge und Foto-Schärfe",
+  "gallery.12": "Sichere die physische Qualität deiner Teile und die Präzision deiner Gravuren.",
+  "gallery.13": "<b>Intelligente Schneidreihenfolge<\/b>: Gravuren kommen zuerst, und innere Konturen (Löcher) werden vor den Außenkonturen geschnitten.",
+  "gallery.14": "<b>Schärfefilter<\/b>: einstellbare Kantenschärfung des Fotos (0 bis 100) vor der Rasterung.",
+  "gallery.15": "DXF-Import &amp; Box",
+  "gallery.16": "DXF-Import und Boxgenerator",
+  "gallery.17": "Binde technische Zeichnungen einfach ein und konstruiere zusammensteckbare Objekte.",
+  "gallery.18": "<b>DXF-Textimport (ASCII)<\/b>: Linien, Polylinien, Bögen, Kreise und Blöcke mit automatischer Umrechnung in mm.",
+  "gallery.19": "<b>Boxgenerator mit Fingerzinken<\/b>: frei wählbare Maße, Berücksichtigung der Schnittfuge (Kerf) und Deckel.",
+  "gallery.20": "Tab Bild &amp; Filter",
+  "gallery.21": "Material &amp; Umkehrspiel (Backlash)",
+  "gallery.22": "Bildgravur, Material und Präzision",
+  "gallery.23": "Vergleiche die Ergebnisse, bevor du die Gravur startest, und passe die Laser-Mechanik fein an.",
+  "gallery.24": "<b>Materialauswahl<\/b>: dunkler oder heller Untergrund mit automatischer Negativ-Behandlung.",
+  "gallery.25": "<b>Einstellung des Hin-/Rück-Versatzes (Backlash)<\/b> mit integriertem automatischem Test.",
+  "gallery.26": "Tab Farb-/Glas-Trennung",
+  "gallery.27": "Punktzuwachs-Test",
+  "gallery.28": "Farb-/Glas-Trennung",
+  "gallery.29": "Zum Gravieren eines Farbfotos auf schwarz lackiertem Glas, mit einer gedruckten Farbebene dahinter.",
+  "gallery.30": "<b>Schwarze Ebene zum Gravieren<\/b> und Farbebene als A4-PDF im Maßstab 1:1.",
+  "gallery.31": "<b>Assistent „Punktzuwachs testen“<\/b>, um das Ergebnis auf Glas perfekt zu kalibrieren.",
+  "gallery.32": "Tab 2D-G-Code-Vorschau",
+  "gallery.33": "2D-Vorschau und Maschinensteuerung",
+  "gallery.34": "Prüfe den Verfahrweg vor dem Senden und verfolge die Maschine dann live.",
+  "gallery.35": "<b>2D-Vorschau des G-Codes<\/b>: Gravur, Schnitt und Eilgang klar unterscheidbar.",
+  "gallery.36": "<b>X/Y/Z-Position und GRBL-Status in Echtzeit<\/b>, mit sicherem Auftragsende, das auf den Idle-Zustand wartet.",
+  "gallery.37": "<b>Dauerhafte Warteschlange<\/b> und Sicherheitsbefehle jederzeit griffbereit.",
+  "gallery.38": "Und außerdem",
+  "gallery.39": "Tab PNG / JPEG → SVG",
+  "gallery.40": "Vom Bild zum Vektorpfad",
+  "gallery.41": "Einstellbarer Schwellenwert, Vereinfachung und Glättung.",
+  "gallery.42": "Vorschau vor dem Einfügen in den Editor.",
+  "gallery.43": "Drag &amp; Drop oder Einfügen eines Screenshots (Strg+V).",
+  "gallery.44": "Testmatrix",
+  "gallery.45": "Ein Material kalibrieren",
+  "gallery.46": "Ein Leistungs- und Geschwindigkeitsraster in einem einzigen Durchgang.",
+  "gallery.47": "Einstellungen werden aus dem Tab Bild / Filter übernommen.",
+  "gallery.48": "Materialien werden pro Maschinenprofil gespeichert.",
+  "gallery.49": "GRBL-Konfiguration &amp; Steuerung",
+  "gallery.50": "Nicht-modales Fenster, direkt über die Menüleiste erreichbar.",
+  "gallery.51": "Jog, Homing und Befehlskonsole mit Verlauf.",
+  "gallery.52": "Hilfe bei der Installation der USB-Treiber (CH340, CP210x, FTDI).",
+  "howto.01": "In vier Schritten",
+  "howto.02": "Importieren",
+  "howto.03": "Ein Bild, eine SVG/DXF-Datei oder erstelle eine maßgeschneiderte Box.",
+  "howto.04": "Einstellen",
+  "howto.05": "Abmessungen, Material, Schachtelung, Leistung, Geschwindigkeit und Schärfe.",
+  "howto.06": "Erzeugen",
+  "howto.07": "Optimierter G-Code (sichere Schneidreihenfolge) mit 2D-Vorschau des Verfahrwegs.",
+  "howto.08": "Gravieren",
+  "howto.09": "Direktes Senden per USB mit Live-Verfolgung oder Export der Datei.",
+  "get-it.01": "Kostenlos und Open Source",
+  "get-it.02": "Der vollständige Quellcode und die ausführbaren Dateien für Windows / Linux gibt es auf GitHub.",
+  "get-it.03": "Aus dem Quellcode:",
+  "get-it.04": "Verwende unter Linux stattdessen <code>requirements-linux.txt<\/code>.",
+  "footer.01": "Laser Studio Pro ist ein unabhängiges Projekt, das ich in meiner Freizeit entwickle. Wenn du es unterstützen möchtest: <a href=\"https://ko-fi.com/jb3dlaser\" target=\"_blank\" rel=\"noopener\">ko-fi.com/jb3dlaser<\/a> ☕",
+  "footer.02": "Version {version} — <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">Änderungsprotokoll<\/a>",
+  "lightbox.aria": "Vergrößerter Screenshot",
+  "js.lightbox_open": "Screenshot vergrößern",
+  "js.lightbox_close": " — klicke oder drücke Esc zum Schließen",
+  "alt.01": "Laser Studio Pro — Logo und Banner",
+  "alt.02": "Foto von Figuren, in Graustufen auf schwarz lackiertes Glas graviert",
+  "alt.03": "Auf Papier gedruckte Farbebene: dasselbe Foto in leuchtenden Farben",
+  "alt.04": "Graviertes Glas mit der Farbebene dahinter, hintergrundbeleuchtet: Das Foto erscheint in warmen Farben",
+  "alt.05": "Dieselbe Anordnung bei Umgebungslicht, mit pastelligeren Farben",
+  "alt.06": "Originalbild: Spalte in einer Wüste mit herumfliegenden Gesteinsbrocken und Lava",
+  "alt.07": "Gravurtest 1: auf eine Platte gravierte Abbildung, in Graustufen",
+  "alt.08": "Gravurtest 2: auf eine Platte gravierte Abbildung, in Graustufen",
+  "alt.09": "Gravurtest 3: auf eine Platte gravierte Abbildung, in Graustufen",
+  "alt.10": "Gravurtest 4: auf eine Platte gravierte Abbildung, in Graustufen",
+  "alt.11": "Werkzeug zur automatischen Schachtelung von Teilen auf einer Platte im Vektor-Editor",
+  "alt.12": "Einstellungen zur sicheren Schneidreihenfolge und Schieberegler für die Foto-Schärfe",
+  "alt.13": "DXF-Import und Boxgenerator mit Fingerzinken im Vektor-Editor",
+  "alt.14": "Tab Bild und Filter: Rasterungs-Einstellungen und Materialauswahl",
+  "alt.15": "Tab Farb- und Glastrennung: schwarze Ebene und Farbebene",
+  "alt.16": "2D-Vorschau des G-Code-Verfahrwegs mit der aktuellen Maschinenposition",
+  "alt.17": "Umwandlung eines Bildes in einen SVG-Vektorpfad mit Vorschau",
+  "alt.18": "Test-Matrix für Leistung und Geschwindigkeit zur Kalibrierung eines Materials",
+  "alt.19": "Maschinensteuerung: Jog, Homing und GRBL-Konfiguration"
+ },
+ "es": {
+  "meta.title": "Laser Studio Pro — Software gratuito de control de láser/CNC GRBL",
+  "meta.description": "Laser Studio Pro: software gratuito y de código abierto para controlar un láser o una CNC GRBL. Grabado de imágenes, corte vectorial, importación DXF, generador de cajas, anidado automático. Windows y Linux.",
+  "meta.og_title": "Laser Studio Pro — control de láser/CNC GRBL",
+  "meta.og_description": "Del archivo SVG/DXF o la imagen hasta el envío del G-Code, en un único programa gratuito.",
+  "nav.lang_aria": "Idioma",
+  "nav.01": "Novedades",
+  "nav.02": "Trabajos",
+  "nav.03": "Pruebas de grabado",
+  "nav.04": "Funciones",
+  "nav.05": "Capturas",
+  "nav.06": "Uso",
+  "nav.07": "Descargar",
+  "nav.08": "Ver en GitHub",
+  "hero.01": "<b>Versión {version}<\/b> — ver las novedades",
+  "hero.02": "SOFTWARE LIBRE — CONTROL DE LÁSER / CNC GRBL",
+  "hero.03": "Controla tu láser, desde el corte de un archivo SVG/DXF hasta el envío del G-Code.",
+  "hero.04": "Laser Studio Pro reúne en un solo programa gratuito todo lo necesario para preparar y enviar un trabajo a una máquina láser o CNC controlada por GRBL: anidado automático, orden de corte inteligente, nitidez de fotos, importación vectorial y conexión USB directa.",
+  "hero.05": "Descargar la última versión",
+  "hero.06": "Ver trabajos realizados",
+  "hero.07": "Para Windows y Linux, con interfaz en francés, inglés, alemán y español.",
+  "news.01": "Novedades de la versión {version}",
+  "news.02": "Publicada en octubre de 2026. Esta actualización incluye el anidado automático de piezas, el orden de corte optimizado y un filtro de nitidez para fotos.",
+  "news.03": "Nuevo",
+  "news.04": "Anidado automático (Nesting)",
+  "news.05": "Coloca automáticamente tus piezas, de la más grande a la más pequeña, sobre una lámina para desperdiciar el mínimo de material, con gestión de agujeros y rotaciones.",
+  "news.06": "Orden de corte seguro",
+  "news.07": "Los grabados se hacen antes que los cortes, y los contornos interiores (agujeros) se cortan antes que el exterior para evitar que la pieza se mueva o se vuelque.",
+  "news.08": "Nitidez en los ajustes de foto",
+  "news.09": "Realce de contornos ajustable antes del tramado (dithering) para una imagen aún más precisa y detallada.",
+  "news.10": "Precisión",
+  "news.11": "Importación DXF &amp; cajas con encajes",
+  "news.12": "Aprovecha las potentes herramientas de importación DXF en texto y el generador de cajas paramétricas incorporados recientemente.",
+  "news.13": "Mejorado",
+  "news.14": "Menú Configuración GRBL",
+  "news.15": "Ventana no modal accesible directamente desde la barra de menús para gestionar tus perfiles de máquina con total fluidez.",
+  "news.16": "Fiabilidad",
+  "news.17": "Pruebas robustas &amp; seguridad",
+  "news.18": "La batería de pruebas automatizadas crece hasta 294 pruebas para garantizar guardados atómicos y flujos sin sobresaltos.",
+  "news.19": "El detalle completo y las versiones anteriores están en el <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">registro de cambios<\/a>.",
+  "results.01": "Una foto en color sobre vidrio pintado de negro: el programa prepara la capa para grabar y la capa de color para imprimir, y la luz colocada detrás hace el resto.",
+  "results.02": "Paso 1",
+  "results.03": "Capa negra grabada",
+  "results.04": "La capa negra se graba sobre el vidrio pintado",
+  "results.05": "El láser retira la pintura donde debe pasar la luz. El grabado se hace en espejo: se lee del derecho a través del vidrio.",
+  "results.06": "Paso 2",
+  "results.07": "Capa de color impresa",
+  "results.08": "La capa de color se imprime a escala 1:1",
+  "results.09": "El programa exporta un PDF A4 a escala real, con marcas de esquina, para imprimir y colocar detrás del vidrio.",
+  "results.10": "Paso 3",
+  "results.11": "Retroiluminado",
+  "results.12": "Las dos capas juntas, con la luz detrás",
+  "results.13": "El negro grabado deja pasar la luz y la capa de color la tiñe: la foto aparece en color.",
+  "results.14": "Misma pieza",
+  "results.15": "Luz ambiente",
+  "results.16": "Sin luz detrás, un acabado más suave",
+  "results.17": "El resultado cambia con la iluminación: más pastel con luz de habitación y más saturado con retroiluminación.",
+  "results.18": "Estas piezas se preparan con la pestaña <a href=\"#gallery\">Separación Color / Vidrio<\/a> del programa.",
+  "tests.01": "Una misma imagen grabada varias veces con ajustes distintos, para comparar con la imagen original.",
+  "tests.02": "Imagen original",
+  "tests.03": "Archivo de origen",
+  "tests.04": "Prueba 1",
+  "tests.05": "Grabado",
+  "tests.06": "Prueba 2",
+  "tests.07": "Prueba 3",
+  "tests.08": "Prueba 4",
+  "tests.09": "Grabadora",
+  "tests.10": "Resolución",
+  "tests.11": "Dimensiones del grabado",
+  "tests.12": "Tramado",
+  "tests.13": "Velocidad",
+  "tests.14": "Potencia",
+  "features.01": "Todo el flujo de trabajo en un solo programa",
+  "features.02": "De la imagen o el dibujo vectorial hasta el grabado, sin tener que saltar entre varias herramientas.",
+  "features.03": "CONVERSIÓN",
+  "features.05": "Convierte una imagen en un trazado vectorial directamente en el programa, en blanco y negro o en color, con relleno o contorno.",
+  "features.06": "EDICIÓN",
+  "features.07": "Anidado &amp; Editor vectorial",
+  "features.08": "Anidado automático para optimizar el material, importación SVG/DXF, generador de cajas y capas reordenables.",
+  "features.09": "IMAGEN",
+  "features.10": "Procesado &amp; nitidez",
+  "features.11": "Brillo, contraste, gamma, filtro de nitidez de contornos, elección de material y asistentes de ganancia de punto.",
+  "features.12": "CALIBRADO",
+  "features.13": "Materiales &amp; matriz de prueba",
+  "features.14": "Una base de datos de materiales con sus ajustes y una cuadrícula de prueba para calibrar con precisión potencia y velocidad.",
+  "features.15": "CONTROL",
+  "features.16": "Control GRBL en directo",
+  "features.17": "Conexión USB, orden de corte seguro (primero los agujeros), movimientos manuales, homing y cola de trabajos.",
+  "features.18": "FIABILIDAD",
+  "features.19": "Proyectos &amp; importación de G-Code",
+  "features.20": "Guardado atómico de proyectos, recuperación automática tras un fallo e importación de un G-Code ya generado en otro programa.",
+  "gallery.01": "El programa en imágenes",
+  "gallery.02": "Las pantallas que importan, con lo esencial de cada una. Haz clic en una captura para ampliarla.",
+  "gallery.03": "Editor vectorial",
+  "gallery.04": "Nuevo: anidado automático",
+  "gallery.05": "Aprovecha al máximo tu material colocando tus piezas de corte de forma inteligente.",
+  "gallery.06": "<b>Colocación optimizada<\/b>: orden de la pieza más grande a la más pequeña, empezando por la esquina inferior izquierda de la lámina.",
+  "gallery.07": "<b>Gestión de formas complejas<\/b>: las piezas pequeñas se meten en los huecos y los agujeros/detalles permanecen unidos a su pieza.",
+  "gallery.08": "<b>Parámetros ajustables<\/b>: elección de rotaciones (0°, 90°, etc.), separación entre piezas y márgenes de borde.",
+  "gallery.09": "Configuración GRBL &amp; Imagen",
+  "gallery.10": "Nuevo: orden de corte &amp; nitidez",
+  "gallery.11": "Orden de corte seguro y nitidez de foto",
+  "gallery.12": "Garantiza la calidad física de tus piezas y la precisión de tus grabados.",
+  "gallery.13": "<b>Orden de corte inteligente<\/b>: los grabados se hacen primero y los contornos interiores (agujeros) se cortan antes que los exteriores.",
+  "gallery.14": "<b>Filtro de nitidez<\/b>: realce de contornos de la foto ajustable (0 a 100) antes del tramado.",
+  "gallery.15": "Importación DXF &amp; caja",
+  "gallery.16": "Importación DXF y generador de cajas",
+  "gallery.17": "Integra fácilmente planos técnicos y diseña objetos ensamblables.",
+  "gallery.18": "<b>Importación DXF en texto (ASCII)<\/b>: líneas, polilíneas, arcos, círculos y bloques con conversión automática a mm.",
+  "gallery.19": "<b>Generador de cajas con encajes<\/b>: dimensiones personalizables, gestión del kerf y tapa.",
+  "gallery.20": "Pestaña Imagen &amp; Filtros",
+  "gallery.21": "Material &amp; holgura (backlash)",
+  "gallery.22": "Grabado de imágenes, material y precisión",
+  "gallery.23": "Compara los resultados antes de lanzar el grabado y ajusta la mecánica del láser.",
+  "gallery.24": "<b>Selector de material<\/b>: fondo negro o claro con gestión automática del negativo.",
+  "gallery.25": "<b>Ajuste del desfase de ida y vuelta (backlash)<\/b> con prueba automática integrada.",
+  "gallery.26": "Pestaña Separación Color / Vidrio",
+  "gallery.27": "Prueba de ganancia de punto",
+  "gallery.28": "Separación color / vidrio",
+  "gallery.29": "Para grabar una foto en color sobre vidrio pintado de negro, con una capa de color impresa detrás.",
+  "gallery.30": "<b>Capa negra para grabar<\/b> y capa de color en PDF A4 a escala 1:1.",
+  "gallery.31": "<b>Asistente «Probar la ganancia de punto»<\/b> para calibrar a la perfección el resultado sobre vidrio.",
+  "gallery.32": "Pestaña Visualización 2D del G-Code",
+  "gallery.33": "Vista previa 2D y control",
+  "gallery.34": "Comprueba el recorrido antes del envío y sigue después la máquina en directo.",
+  "gallery.35": "<b>Vista previa 2D del G-Code<\/b>: grabado, corte y desplazamientos rápidos bien diferenciados.",
+  "gallery.36": "<b>Posición X/Y/Z y estado de GRBL en directo<\/b>, con un final de trabajo seguro que espera a que vuelva el estado Idle.",
+  "gallery.37": "<b>Cola de trabajos persistente<\/b> y comandos de seguridad siempre accesibles.",
+  "gallery.38": "Y además",
+  "gallery.39": "Pestaña PNG / JPEG → SVG",
+  "gallery.40": "De la imagen al trazado vectorial",
+  "gallery.41": "Umbral, simplificación y suavizado ajustables.",
+  "gallery.42": "Vista previa antes de insertar en el editor.",
+  "gallery.43": "Arrastrar y soltar, o pegar una captura (Ctrl+V).",
+  "gallery.44": "Matriz de prueba",
+  "gallery.45": "Calibrar un material",
+  "gallery.46": "Cuadrícula de potencia y velocidad en una sola pasada.",
+  "gallery.47": "Ajustes tomados de la pestaña Imagen / Filtros.",
+  "gallery.48": "Materiales guardados por perfil de máquina.",
+  "gallery.49": "Configuración y control GRBL",
+  "gallery.50": "Ventana no modal accesible directamente desde la barra de menús.",
+  "gallery.51": "Jog, homing y consola de comandos con historial.",
+  "gallery.52": "Ayuda para instalar los controladores USB (CH340, CP210x, FTDI).",
+  "howto.01": "En cuatro pasos",
+  "howto.02": "Importar",
+  "howto.03": "Una imagen, un archivo SVG/DXF o crea una caja a medida.",
+  "howto.04": "Ajustar",
+  "howto.05": "Dimensiones, material, anidado, potencia, velocidad y nitidez.",
+  "howto.06": "Generar",
+  "howto.07": "G-Code optimizado (orden de corte seguro), con una vista previa 2D del recorrido.",
+  "howto.08": "Grabar",
+  "howto.09": "Envío directo por USB con seguimiento en directo, o exportación del archivo.",
+  "get-it.01": "Gratuito y de código abierto",
+  "get-it.02": "El código fuente completo y los ejecutables para Windows / Linux están disponibles en GitHub.",
+  "get-it.03": "Desde el código fuente:",
+  "get-it.04": "En Linux, usa <code>requirements-linux.txt<\/code> en su lugar.",
+  "footer.01": "Laser Studio Pro es un proyecto independiente, desarrollado en mi tiempo libre. Si quieres apoyarlo: <a href=\"https://ko-fi.com/jb3dlaser\" target=\"_blank\" rel=\"noopener\">ko-fi.com/jb3dlaser<\/a> ☕",
+  "footer.02": "Versión {version} — <a href=\"https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md\" target=\"_blank\" rel=\"noopener\">registro de cambios<\/a>",
+  "lightbox.aria": "Captura ampliada",
+  "js.lightbox_open": "Ampliar captura",
+  "js.lightbox_close": " — haz clic o pulsa Esc para cerrar",
+  "alt.01": "Laser Studio Pro — logotipo y banner",
+  "alt.02": "Foto de figuritas grabada en escala de grises sobre vidrio pintado de negro",
+  "alt.03": "Capa de color impresa en papel: la misma foto con colores vivos",
+  "alt.04": "Vidrio grabado con la capa de color detrás, retroiluminado: la foto aparece en colores cálidos",
+  "alt.05": "El mismo conjunto con luz ambiente, con colores más pastel",
+  "alt.06": "Imagen original: una grieta en un desierto con proyecciones de rocas y lava",
+  "alt.07": "Prueba de grabado 1: imagen grabada sobre una placa, en escala de grises",
+  "alt.08": "Prueba de grabado 2: imagen grabada sobre una placa, en escala de grises",
+  "alt.09": "Prueba de grabado 3: imagen grabada sobre una placa, en escala de grises",
+  "alt.10": "Prueba de grabado 4: imagen grabada sobre una placa, en escala de grises",
+  "alt.11": "Herramienta de anidado automático de piezas sobre una lámina en el editor vectorial",
+  "alt.12": "Ajustes del orden de corte seguro y control deslizante de nitidez de foto",
+  "alt.13": "Importación de archivos DXF y generador de cajas con encajes en el editor vectorial",
+  "alt.14": "Pestaña Imagen y Filtros: ajustes de tramado y selector de material",
+  "alt.15": "Pestaña Separación de color y vidrio: capa negra y capa de color",
+  "alt.16": "Vista 2D del recorrido del G-Code con la posición de la máquina en directo",
+  "alt.17": "Conversión de una imagen en un trazado vectorial SVG con vista previa",
+  "alt.18": "Matriz de prueba de potencia y velocidad para calibrar un material",
+  "alt.19": "Control de la máquina: jog, homing y configuración GRBL"
+ }
+};
+  var FR_JS = { 'js.lightbox_open': 'Agrandir la capture', 'js.lightbox_close': ' — clique ou appuie sur Échap pour fermer' };
+  var ATTRS = [['alt', 'data-i18n-alt'], ['content', 'data-i18n-content'], ['aria-label', 'data-i18n-aria-label']];
+  var current = 'fr';
+
+  var htmlNodes = [].slice.call(document.querySelectorAll('[data-i18n]'));
+  htmlNodes.forEach(function (el) { el.__fr = el.tagName === 'TITLE' ? el.textContent : el.innerHTML; });
+  var attrNodes = [];
+  ATTRS.forEach(function (p) {
+    [].forEach.call(document.querySelectorAll('[' + p[1] + ']'), function (el) {
+      attrNodes.push({ el: el, attr: p[0], key: el.getAttribute(p[1]), fr: el.getAttribute(p[0]) });
+    });
+  });
+
+  var versionNode = document.querySelector('[data-i18n="hero.01"]');
+  var vm = versionNode && /\d+\.\d+\.\d+/.exec(versionNode.__fr);
+  var VERSION = vm ? vm[0] : '';
+
+  function pick(lang, key, fr) {
+    var s = lang !== 'fr' && T[lang] && T[lang][key];
+    return s ? s.split('{version}').join(VERSION) : fr;
+  }
+  window.lspT = function (key) { return pick(current, key, FR_JS[key]); };
+
+  function setLang(lang, persist) {
+    if (LANGS.indexOf(lang) < 0) lang = 'fr';
+    current = lang;
+    document.documentElement.lang = lang;
+    htmlNodes.forEach(function (el) {
+      var v = pick(lang, el.getAttribute('data-i18n'), el.__fr);
+      if (el.tagName === 'TITLE') el.textContent = v; else el.innerHTML = v;
+    });
+    attrNodes.forEach(function (n) { n.el.setAttribute(n.attr, pick(lang, n.key, n.fr)); });
+    [].forEach.call(document.querySelectorAll('.frame-img[role="button"]'), function (b) {
+      b.setAttribute('aria-label', window.lspT('js.lightbox_open'));
+    });
+    [].forEach.call(document.querySelectorAll('.lang button'), function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-lang') === lang ? 'true' : 'false');
+    });
+    if (persist) {
+      try { localStorage.setItem(STORE_KEY, lang); } catch (e) {}
+      try {
+        var u = new URL(location.href);
+        if (lang === 'fr') u.searchParams.delete('lang'); else u.searchParams.set('lang', lang);
+        history.replaceState(null, '', u.toString());
+      } catch (e) {}
+    }
+  }
+
+  // Langue de départ : ?lang=xx dans l'adresse, sinon le dernier choix du visiteur, sinon français.
+  var wanted = null;
+  try { wanted = new URLSearchParams(location.search).get('lang'); } catch (e) {}
+  if (!wanted) { try { wanted = localStorage.getItem(STORE_KEY); } catch (e) {} }
+  setLang(LANGS.indexOf(wanted) >= 0 ? wanted : 'fr', false);
+
+  [].forEach.call(document.querySelectorAll('.lang button'), function (b) {
+    b.addEventListener('click', function () { setLang(b.getAttribute('data-lang'), true); });
+  });
+})();
+</script>
 
 <script>
 (function () {
@@ -707,13 +1348,13 @@ python main.py</pre>
     if (!img) return;
     box.setAttribute('role', 'button');
     box.setAttribute('tabindex', '0');
-    box.setAttribute('aria-label', 'Agrandir la capture');
+    box.setAttribute('aria-label', window.lspT ? window.lspT('js.lightbox_open') : 'Agrandir la capture');
 
     function open() {
       if (box.closest('.frame').classList.contains('no-img')) return;
       big.src = img.currentSrc || img.src;
       big.alt = img.alt;
-      cap.textContent = img.alt + ' — clique ou appuie sur Échap pour fermer';
+      cap.textContent = img.alt + (window.lspT ? window.lspT('js.lightbox_close') : ' — clique ou appuie sur Échap pour fermer');
       dlg.showModal();
     }
     box.addEventListener('click', open);
