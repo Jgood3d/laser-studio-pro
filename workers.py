@@ -709,7 +709,8 @@ class AdvancedGCodeWorker(QThread):
             layer_gcode, layer_time, layer_power_samples = build_vector_layers_gcode(
                 self.vector_layers_data, base_offset_x, base_offset_y, h_mm,
                 laser_cmd, s_max, overscan_dist=vector_overscan_dist,
-                safe_cut_order=bool(self.params.get('safe_cut_order', True))
+                safe_cut_order=bool(self.params.get('safe_cut_order', True)),
+                scan_offset=float(self.params.get('scan_offset_mm', 0.0) or 0.0)
             )
             gcode.extend(layer_gcode)
             total_time_seconds += layer_time

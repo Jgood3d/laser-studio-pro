@@ -108,6 +108,7 @@ Interface en anglais et en allemand :
 - **Imbrication automatique** : range les pièces sur une feuille pour gaspiller le moins de matière possible (rotations, écart, marge, emboîtement dans les creux ; les trous et détails suivent leur pièce).
 - **Ordre de découpe sûr** : graver avant de découper, et couper l’intérieur avant l’extérieur, pour qu’une pièce ne bouge pas avant que ses détails soient faits.
 - **Netteté** dans les réglages photo : accentue les contours avant le tramage.
+- **Remplissage vectoriel corrigé** : plus de vides aux croisements de traits, et le décalage aller/retour s’applique aussi aux remplissages (contours moins en escalier).
 
 Précédemment, dans la version 2.3.0 :
 

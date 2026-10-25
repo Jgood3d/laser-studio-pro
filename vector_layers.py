@@ -1923,7 +1923,7 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_pat
     for layer in layer_manager.layers:
         if not layer.enabled:
             continue
-        layers_data[layer.id] = {"layer": layer.to_dict(), "polygons": []}
+        layers_data[layer.id] = {"layer": layer.to_dict(), "polygons": [], "polygon_groups": []}
 
     for obj in objects:
         if obj.layer_id not in layers_data:
@@ -1937,6 +1937,9 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_pat
                 poly_points.append(pts)
         if poly_points:
             layers_data[obj.layer_id]["polygons"].extend(poly_points)
+            # Un groupe par objet : le remplissage applique la règle pair-impair DANS un objet (trous),
+            # puis réunit les objets entre eux (voir _scanline_fill_union).
+            layers_data[obj.layer_id]["polygon_groups"].append(poly_points)
 
     if optimize_path:
         for layer_id, data in layers_data.items():
@@ -1947,6 +1950,26 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_pat
                 data["polygons"] = _optimize_polygon_order(polys)
 
     return layers_data
+
+
+def _scanline_fill_union(groups, y):
+    """Segments remplis à la hauteur y : règle pair-impair à l'intérieur de chaque objet (trous), puis UNION
+    des objets. Avant, tous les contours du calque étaient mélangés dans une seule règle pair-impair : deux
+    objets qui se chevauchent (traits qui se croisent, lettres rapprochées) s'annulaient là où ils se
+    recouvrent et laissaient un vide non gravé."""
+    segments = []
+    for group in groups:
+        segments.extend(_scanline_fill_segments(group, y))
+    if len(segments) < 2:
+        return segments
+    segments.sort()
+    merged = [list(segments[0])]
+    for a, b in segments[1:]:
+        if a <= merged[-1][1] + 1e-9:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    return [(a, b) for a, b in merged]
 
 
 def _scanline_fill_segments(polygons, y):
@@ -1973,7 +1996,7 @@ def _scanline_fill_segments(polygons, y):
 
 
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
-                               laser_cmd, s_max, overscan_dist=0.0, safe_cut_order=False):
+                               laser_cmd, s_max, overscan_dist=0.0, safe_cut_order=False, scan_offset=0.0):
     """Construit le G-Code (Phase "Calques Vectoriels") pour tous les calques actifs,
     à partir des données géométriques déjà extraites (voir extract_vector_layer_data).
     Les coordonnées des objets vectoriels sont déjà exprimées dans le repère
@@ -1988,7 +2011,11 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
 
     safe_cut_order : graver avant de découper (les calques de découpe passent après les autres) et, dans
     un calque de découpe, couper les contours intérieurs avant ceux qui les contiennent (voir
-    vector_order) : une pièce ne bouge plus avant que ses détails soient faits."""
+    vector_order) : une pièce ne bouge plus avant que ses détails soient faits.
+
+    scan_offset : décalage (mm) des lignes de remplissage parcourues en sens retour, pour compenser le jeu
+    mécanique et le délai d'allumage du laser (même réglage que pour les images ; sinon les contours des
+    remplissages sont en escalier et les petits traits se cassent)."""
     gcode = []
     total_time_seconds = 0.0
     power_samples = []
@@ -2022,11 +2049,12 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             step = max(layer["line_interval"], 0.02)
             y = y_min
             line_idx = 0
+            groups = data.get("polygon_groups") or [polygons]
             while y <= y_max:
-                segments = _scanline_fill_segments(polygons, y)
+                segments = _scanline_fill_union(groups, y)
                 if segments:
                     ordered = segments if line_idx % 2 == 0 else list(reversed(
-                        [(b, a) for a, b in segments]))
+                        [(b + scan_offset, a + scan_offset) for a, b in segments]))
                     for seg in ordered:
                         sx_mm, ex_mm = seg[0], seg[1]
                         direction = 1.0 if ex_mm >= sx_mm else -1.0
