@@ -87,7 +87,7 @@ python main.py
 
 <img width="1919" height="1035" alt="Apercu tramages" src="https://github.com/user-attachments/assets/320160f2-a7c1-47b1-9626-cc1c96f9ae1d" />
 
-<img width="3258" height="1830" alt="655698064-05eeca85-b211-4a80-817a-aea536a2c92c" src="https://github.com/user-attachments/assets/e6796d7b-6238-44d2-b888-1afc7ba696b0" />
+<img width="2000" height="1562" alt="gravure-test-4" src="https://github.com/user-attachments/assets/077c3e41-736d-414b-bb28-54e01048cbe3" />
 
 Conversion PNG → SVG :
 
