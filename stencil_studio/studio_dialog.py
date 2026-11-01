@@ -5,7 +5,7 @@ Branchement dans la fenêtre principale de LSP (une action de menu) :
     from stencil_studio.studio_dialog import open_stencil_studio
     action.triggered.connect(lambda: open_stencil_studio(self))
 
-Par défaut les couleurs viennent de la palette Qt de LSP. Pour imposer les vôtres :
+Par défaut les couleurs sont celles de LSP (LSP_THEME ci-dessous). Pour en imposer d'autres :
     open_stencil_studio(self, theme={"bg": "#1e1e1e", "panel": "#2b2b2b", "panel2": "#3a3a3a", "line": "#4a4a4a",
                                      "fg": "#e0e0e0", "mut": "#9a9a9a", "acc": "#4a90d9", "acc2": "#7ab4f0", "onacc": "#ffffff"}
 
@@ -30,6 +30,12 @@ try:
     HAVE_WEBENGINE = True
 except ImportError:  # pragma: no cover
     HAVE_WEBENGINE = False
+
+# Couleurs de Laser Studio Pro (relevées sur l'interface : fond #232323, panneaux #303030, boutons #3b3b3b,
+# champs #2e2e2e, bouton d'action bleu, curseurs / coches #6dbef9).
+LSP_THEME = {"bg": "#232323", "panel": "#303030", "panel2": "#3b3b3b", "line": "#4d4d4d",
+             "fg": "#f2f2f2", "mut": "#a8a8a8", "acc": "#3a5b89", "acc2": "#6dbef9", "onacc": "#ffffff"}
+
 
 def theme_from_palette(pal=None):
     """Couleurs de la page Studio déduites de la palette Qt de LSP (fenêtre, texte, accent...)."""
@@ -88,7 +94,7 @@ class StudioDialog(QDialog):
             return
         import json
         try:
-            t = self._theme if self._theme is not None else theme_from_palette()
+            t = self._theme if self._theme is not None else LSP_THEME
             self.view.page().runJavaScript(f"window.setTheme && window.setTheme({json.dumps(t)})")
         except Exception:
             pass

@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.10.61"  # doit être identique dans core.py et studio.html
+VERSION = "2026.10.66"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -97,11 +97,14 @@ class Params:
     box_lip_mm: float = 1.5       # fingers : débord de la façade et du fond autour de la paroi
     line_pitch_mm: float = 1.5    # lignes : écart entre deux lignes
     line_angle: float = 30.0      # lignes : angle (degrés)
-    lp_points: int = 150          # low poly : nombre approximatif de sommets du maillage
-    lp_beam_mm: float = 1.5       # low poly : largeur des arêtes (poutres) en mm
-    lp_style: str = "shade"       # low poly : wire (arêtes seules) | solid (facettes sombres pleines) | shade (trou de chaque facette selon le ton)
-    lp_fill_pct: float = 30.0     # low poly (solid) : % de triangles pleins (les plus sombres)
-    lp_focus: float = 0.7         # low poly : 0 = sommets uniformes, 1 = très serrés sur les détails
+    lp_points: int = 200          # low poly : nombre approximatif de sommets du maillage
+    lp_beam_mm: float = 1.4       # low poly : largeur des arêtes (poutres) en mm
+    lp_style: str = "solid"       # low poly : wire (arêtes seules) | solid (facettes sombres pleines) | shade (trou de chaque facette selon le ton)
+    lp_geo: bool = False          # low poly : style géométrique (silhouette en polygone, peu de sommets, taches sombres en facettes)
+    lp_simplify: float = 1.2      # low poly géométrique : simplification de la silhouette (% de la taille)
+    lp_auto: bool = True          # low poly : détecte le sujet tout seul si le fond est uni
+    lp_level: float = -35.0         # low poly (solid) : décalage du seuil clair/sombre (+ = plus de facettes pleines)
+    lp_focus: float = 0.35         # low poly : 0 = sommets uniformes, 1 = très serrés sur les détails
     lp_seed: int = 1              # low poly : variante du semis de sommets
     line_break_mm: float = 30.0   # lignes : longueur max d'une fente avant un pont (0 = fentes continues)
 
@@ -1233,6 +1236,79 @@ def _contour_points(dom, step):
     return pts
 
 
+def _geo_seeds(dom, gray, p, area):
+    """Sommets 'géométriques' : silhouette simplifiée en polygone + polygones des taches sombres (yeux, nez, oreilles)."""
+    eps = max(1.0, float(p.lp_simplify) * 0.01 * np.sqrt(area))
+    pts = []
+    cnts, _ = cv2.findContours(dom.astype(np.uint8), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    for c in cnts:
+        if len(c) >= 8 and cv2.contourArea(c) > 0.002 * area:
+            pts += [tuple(q) for q in cv2.approxPolyDP(c, eps, True).reshape(-1, 2).astype(float)]
+    gd = gray[dom]
+    if float(gd.std()) >= 14.0:
+        g = cv2.GaussianBlur(gray, (0, 0), max(1.0, 0.004 * np.sqrt(area)))
+        thr = otsu_value(gd.astype(np.uint8).ravel()) + float(p.lp_level) * 2.55
+        dark = ((g > thr) if p.invert else (g < thr)) & dom
+        dark = cv2.morphologyEx(dark.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8))
+        er = cv2.erode(dom.astype(np.uint8), np.ones((5, 5), np.uint8))
+        cs, _ = cv2.findContours(dark, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        for c in cs:
+            a = cv2.contourArea(c)
+            if a < 0.003 * area or a > 0.5 * area:
+                continue
+            for q in cv2.approxPolyDP(c, eps * 0.8, True).reshape(-1, 2):
+                if er[q[1], q[0]]:                     # déjà sur la silhouette : pas de doublon
+                    pts.append((float(q[0]), float(q[1])))
+    return pts
+
+
+def auto_subject(rgb, valid=None):
+    """Sujet sur fond uni : pixels éloignés de la couleur du bord de l'image, silhouette pleine (trous comblés).
+    Retourne un masque uint8 (1 = sujet) ou None si le fond n'est pas uni / le résultat n'est pas plausible."""
+    h, w = rgb.shape[:2]
+    k = 640.0 / max(h, w)
+    small = cv2.resize(rgb, (max(8, int(w * k)), max(8, int(h * k))), interpolation=cv2.INTER_AREA) if k < 1 else rgb
+    sh, sw = small.shape[:2]
+    lab = cv2.cvtColor(small, cv2.COLOR_RGB2LAB).astype(np.float32)
+    b = max(2, int(0.03 * min(sh, sw)))
+    bm = np.zeros((sh, sw), bool)
+    bm[:b, :] = bm[-b:, :] = True
+    bm[:, :b] = bm[:, -b:] = True
+    bg = np.median(lab[bm], axis=0)
+    dist = np.linalg.norm(lab - bg, axis=2)
+    if np.percentile(dist[bm], 90) > 18:
+        return None                                        # fond non uni
+    d8 = np.clip(dist * 2.5, 0, 255).astype(np.uint8)
+    thr = max(30.0, otsu_value(d8.ravel()) * 0.8)
+    m = (d8 > thr).astype(np.uint8)
+    kk = max(3, int(0.015 * min(sh, sw)) | 1)
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kk, kk)))
+    inv = (1 - m).astype(np.uint8)
+    ff = np.zeros((sh + 2, sw + 2), np.uint8)
+    seed = None
+    for y, x in ((0, 0), (0, sw - 1), (sh - 1, 0), (sh - 1, sw - 1)):
+        if inv[y, x]:
+            seed = (x, y)
+            break
+    if seed is not None:
+        cv2.floodFill(inv, ff, seed, 2)                     # fond relié au bord
+        m = (inv != 2).astype(np.uint8)                     # tout le reste = sujet (trous comblés)
+    n, lbl, st, _ = cv2.connectedComponentsWithStats(m, 8)
+    if n <= 1:
+        return None
+    big = st[1:, cv2.CC_STAT_AREA].max()
+    keep = [i + 1 for i in range(n - 1) if st[i + 1, cv2.CC_STAT_AREA] >= max(0.03 * big, 0.002 * sh * sw)]
+    m = np.isin(lbl, keep).astype(np.uint8)
+    cov = m.mean()
+    if cov < 0.03 or cov > 0.92:
+        return None
+    m = cv2.resize(m, (w, h), interpolation=cv2.INTER_LINEAR if k < 1 else cv2.INTER_NEAREST)
+    m = (cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.5) > 0.5).astype(np.uint8)
+    if valid is not None:
+        m = m & valid
+    return m
+
+
 def lowpoly_mask(rgb, p, domain, ppm):
     """Matière (1) d'un décor low poly : arêtes du maillage de Delaunay (poutres de lp_beam_mm) + une part
     lp_fill_pct des triangles pleins (les plus sombres). Les sommets suivent les contours de l'image.
@@ -1255,7 +1331,10 @@ def lowpoly_mask(rgb, p, domain, ppm):
     n = max(12, int(p.lp_points))
     s = np.sqrt(area / n)
     k = float(np.sqrt(0.696 * np.mean(1.0 / rad[dom] ** 2) * area / n))   # rayon moyen du semis
-    seeds = _contour_points(dom, 0.9 * k)
+    if p.lp_geo:
+        seeds = _geo_seeds(dom, gray, p, area)
+    else:
+        seeds = _contour_points(dom, 0.9 * k)
     rng = np.random.default_rng(int(p.lp_seed) * 7919 + 13)
     dom_xy = np.stack([xs, ys], 1)
     inner = _poisson_points(dom_xy, rad, k, seeds, rng, min(30000, 30 * n))
@@ -1281,18 +1360,23 @@ def lowpoly_mask(rgb, p, domain, ppm):
     mask = np.zeros((h, w), np.uint8)
     if len(tri) == 0:
         return mask, len(pts), 0
-    # facettes pleines : les plus sombres (ou les plus claires si « inverser »)
-    tone = np.zeros(len(tri), float)
-    gs = cv2.GaussianBlur(gray, (0, 0), max(1.0, 0.3 * ppm))
-    for pos in (cen, *(cen + (P[:, i] - cen) * 0.5 for i in range(3))):
-        pi = np.clip(np.round(pos).astype(int), 0, [w - 1, h - 1])
-        tone += gs[pi[:, 1], pi[:, 0]] / 4.0
+    # ton moyen de chaque facette (étiquettes raster + moyenne)
+    lab = np.zeros((h, w), np.int32)
+    for i in range(len(tri)):
+        cv2.fillConvexPoly(lab, np.round(P[i] * 16).astype(np.int32), i + 1, cv2.LINE_8, 4)
+    cnt = np.bincount(lab.ravel(), minlength=len(tri) + 1)[1:]
+    sm = np.bincount(lab.ravel(), weights=gray.ravel(), minlength=len(tri) + 1)[1:]
+    tone = np.where(cnt > 0, sm / np.maximum(cnt, 1), 255.0)
     style = p.lp_style if p.lp_style in ("wire", "solid", "shade") else "shade"
     th = max(1, int(round(max(p.lp_beam_mm, p.min_feature_mm + 0.2) * ppm)))
     if style == "solid":
-        nfill = int(round(len(tri) * float(np.clip(p.lp_fill_pct, 0, 100)) / 100.0))
-        order = np.argsort(-tone if p.invert else tone)
-        for i in order[:nfill]:
+        gd = gray[dom]
+        if float(gd.std()) < 14.0:                  # sujet d'un seul ton (silhouette) : maillage seul
+            sel = np.zeros(len(tri), bool)
+        else:
+            thr = otsu_value(gd.astype(np.uint8).ravel()) + float(p.lp_level) * 2.55
+            sel = (tone > thr) if p.invert else (tone < thr)
+        for i in np.nonzero(sel)[0]:
             cv2.fillPoly(mask, [np.round(P[i] * 16).astype(np.int32)], 1, shift=4)
     elif style == "shade":
         lo, hi = np.percentile(tone, [3, 97])
@@ -1328,7 +1412,7 @@ def lowpoly_mask(rgb, p, domain, ppm):
     return mask, len(pts), len(tri)
 
 
-def process(rgb, p, subject=None, valid=None):
+def process(rgb, p, subject=None, valid=None, manual=None):
     if p.output in ("halftone", "lines"):
         return halftone(rgb, p, subject, valid)
     if p.output == "engrave":
@@ -1344,6 +1428,11 @@ def process(rgb, p, subject=None, valid=None):
         roi = None
     lp_info = {}
     if p.output == "lowpoly":
+        if subject is None and p.lp_auto:
+            auto = auto_subject(fill_outside(rgb, valid), valid)
+            if auto is not None:
+                subject = auto
+                roi = auto if valid is None else (auto & valid)
         dom = np.ones((h, w), np.uint8) if roi is None else roi.astype(np.uint8)
         if p.shape != "none":
             dom = dom & shape_inside(p.shape, h, w)
@@ -1381,6 +1470,19 @@ def process(rgb, p, subject=None, valid=None):
         sheet = sheet | tab
     mat, bridges, linked, dropped = add_bridges(mat1, anchor, p.bridge_mm, ppm,
                                                 p.min_island_mm2, p.max_bridge_mm)
+    if manual:      # ponts posés à la main : segments (x1, y1, x2, y2) en fractions du résultat
+        mh, mw = mat.shape
+        th = max(2, int(round(p.bridge_mm * ppm)))
+        extra = np.zeros_like(mat)
+        for seg in manual[:400]:
+            try:
+                x1, y1, x2, y2 = (float(v) for v in seg)
+            except (TypeError, ValueError):
+                continue
+            cv2.line(extra, (int(round(x1 * (mw - 1))), int(round(y1 * (mh - 1)))),
+                     (int(round(x2 * (mw - 1))), int(round(y2 * (mh - 1)))), 1, th)
+        mat = mat | extra
+        bridges = bridges | extra
     k = ppm / 12.0
     polys = extract_contours(mat, p.smooth * k, p.simplify * k)
     polys_mm = [q / ppm for q in polys]

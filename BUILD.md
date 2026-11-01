@@ -99,7 +99,7 @@ pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.i
 
 Avec Stencil studio
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
 Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien

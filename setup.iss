@@ -6,15 +6,17 @@ DefaultDirName={autopf}\LaserStudioPro
 ; S'assure que la page de sélection du dossier s'affiche bien pendant l'installation
 DisableDirPage=no
 DefaultGroupName=Laser Studio Pro
-OutputDir=.
+
+; --- DOSSIER ET NOM DU FICHIER SETUP GÉNÉRÉ ---
+OutputDir=C:\Users\Bonnevie\Desktop\Log-gravure\laser-studio-pro-propre\Setup-LSP
 OutputBaseFilename=LaserStudioPro_Setup
+
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=laser_studio_pro.ico
 
-
 [Files]
-; On copie tout le contenu du dossier généré par PyInstaller vers le dossier de destination de l'utilisateur
+; Copie tout le contenu du dossier généré par PyInstaller vers le dossier de destination
 Source: "C:\Users\Bonnevie\Desktop\Log-gravure\laser-studio-pro-propre\dist\LaserStudioPro\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

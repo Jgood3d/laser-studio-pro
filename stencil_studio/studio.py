@@ -170,6 +170,19 @@ def parse_sbox(raw):
     return (round(x, 4), round(y, 4), round(w, 4), round(h, 4))
 
 
+def parse_manual(raw):
+    """Ponts manuels [[x1,y1,x2,y2], ...] (fractions 0..1 du résultat) -> liste valide."""
+    out = []
+    for seg in (raw or [])[:400]:
+        try:
+            v = [min(1.0, max(0.0, float(t))) for t in seg[:4]]
+        except (TypeError, ValueError):
+            continue
+        if len(v) == 4:
+            out.append([round(t, 4) for t in v])
+    return out
+
+
 def compute(req, work):
     p = core.Params.from_dict(req.get("params"))
     fr = req.get("frame", {})
@@ -182,8 +195,9 @@ def compute(req, work):
     rot = 0.0 if fr.get("full") else float(fr.get("rot", 0) or 0) % 360
     pd = {k: v for k, v in p.to_dict().items()
           if not k.startswith("box_")}   # le caisson ne change pas le résultat
+    mbr = parse_manual(req.get("mbr"))
     sig = json.dumps([STATE.img_id, box, rot, work, pd, isolate, round(margin, 3),
-                      STATE.hints_ver if isolate else 0, moving and isolate, sbox], sort_keys=True)
+                      STATE.hints_ver if isolate else 0, moving and isolate, sbox, mbr], sort_keys=True)
     if CACHE.sig == sig:
         return CACHE.result
     rgb = core.crop_resize(STATE.img, box, work, rot)
@@ -191,7 +205,7 @@ def compute(req, work):
     failed = False
     if subject is not None and subject.mean() < 0.01:
         subject, failed = None, True  # détection ratée (sujet quasi vide) : on n'applique pas le masque
-    res = core.process(rgb, p, subject, core.valid_mask(box, W, H, rgb.shape[:2], rot))
+    res = core.process(rgb, p, subject, core.valid_mask(box, W, H, rgb.shape[:2], rot), manual=mbr)
     if isolate:
         res.stats["subject_pct"] = None if subject is None else round(100.0 * float(subject.mean()), 1)
         res.stats["subject_failed"] = failed

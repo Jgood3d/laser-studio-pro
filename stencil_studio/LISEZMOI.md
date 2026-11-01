@@ -289,3 +289,30 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 
 ## v2026.10.61
 - Le style de départ « Décor mural low poly » n'active plus l'isolation du sujet : sur les dessins à aplats clairs, la détection automatique du sujet rejetait les zones claires (message « Le masque ne couvre que x % du cadre »). À activer à la main (avec un Rectangle sujet) si besoin.
+
+## v2026.10.61
+- Low poly : le rendu par défaut devient « Facettes sombres pleines (tons de l'image) » : chaque triangle est plein s'il est plus sombre que le seuil (Otsu automatique, réglable avec « Seuil sombre / clair »), ajouré sinon. L'image reste donc reconnaissable. Le « % de facettes pleines » est remplacé par ce seuil. Le mode « Maillage seul » reste disponible pour un décor sans image.
+- Valeurs par défaut : 400 sommets, arêtes de 1 mm, suivi des détails 0,9 ; le style « Décor mural low poly » active l'isolation du sujet (tracer un « Rectangle sujet »).
+- Astuce : plus la pièce est grande (taille finale), plus on peut mettre de sommets sans que les arêtes bouchent les triangles.
+
+
+## v2026.10.62 — Low poly : détection du sujet
+- Sur fond uni, le maillage est limité à la silhouette du sujet (option « Détecter le sujet automatiquement »).
+- Sujet d'un seul ton (silhouette) : maillage seul, sans facettes pleines.
+- Préréglage : 150 sommets, arêtes de 1,8 mm. Pour le rendu « art mural » : plaque ≥ 200 mm, peu de sommets, arêtes épaisses.
+- Les dessins au trait (type Père Noël) s'y prêtent mal.
+
+
+## v2026.10.66 — Low poly géométrique
+- Case « Style géométrique » : contour en polygone à angles vifs, taches sombres (yeux, nez, oreilles) en facettes pleines, peu de sommets (30 à 100). Réglage « Simplification du contour ».
+- C'est le préréglage Low poly par défaut (120 sommets, arêtes 1,8 mm). Idéal : un animal sur fond uni, plaque ≥ 200 mm.
+- v.64 : la détection du sujet fonctionne aussi quand le cadre est rond ; préréglage plus détaillé (yeux, casquette, short, chaussures en facettes pleines).
+
+
+## v2026.10.66 — Ponts manuels
+- Bouton « Pont manuel » (vue Résultat) : trace un trait en travers d'une découpe pour la maintenir ; un clic sur un pont manuel le supprime ; « Effacer les ponts manuels ».
+- Les ponts manuels sont inclus dans l'export SVG/DXF et suivent Annuler/Rétablir. Ils sont positionnés par rapport au résultat : place-les en dernier (si tu déplaces le cadre, ils ne suivent pas l'image).
+
+
+## v2026.10.66 — Couleurs de LSP
+- `studio_dialog.py` : `LSP_THEME` (fond #232323, panneaux #303030, boutons #3b3b3b, accent bleu #3a5b89, curseurs/coches #6dbef9). Modifiable à un seul endroit.
