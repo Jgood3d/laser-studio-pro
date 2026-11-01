@@ -19,7 +19,7 @@ L’historique détaillé des versions est dans [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Installation
 
-Python 3 est requis. Installez les dépendances selon votre système :
+Python 3.11 ou 3.12 est requis (voir [Python 3.12](#python-312) si votre distribution fournit une version plus récente). Installez les dépendances selon votre système :
 
 ```bash
 pip install -r requirements-windows.txt    # Windows
@@ -27,13 +27,80 @@ pip install -r requirements-linux.txt      # Linux
 ```
 
 `numba` est optionnel : il accélère le tramage, l’application fonctionne sans.
-Sous Linux, l’utilisateur doit appartenir au groupe `dialout` pour accéder au port série.
+Sous Linux, l’utilisateur doit appartenir au groupe `dialout` pour accéder au port série. Ajoutez-le au groupe :
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+Fermez puis rouvrez la session pour que l’appartenance au groupe soit prise en compte (vérifiez ensuite avec `groups`).
+
+### Python 3.12
+
+Les dépendances imposent `numpy<2.0.0` (compatibilité PyInstaller, pyqtgraph et numba). Or numpy 1.26, dernière version de cette branche, ne fonctionne pas au-delà de Python 3.12 : avec Python 3.13 ou 3.14, l’installation de numpy échoue. Les distributions récentes (Fedora 41+, Debian 13, Ubuntu 25.04+) fournissent par défaut une version trop récente ; installez donc Python 3.12 à côté de celle du système, sans la remplacer.
+
+Vérifiez d’abord la version disponible :
+
+```bash
+python3 --version
+python3.12 --version
+```
+
+**Fedora** — Python 3.12 est disponible dans les dépôts officiels :
+
+```bash
+sudo dnf install python3.12
+```
+
+**Ubuntu** — Ubuntu 24.04 fournit Python 3.12 par défaut, il suffit d’ajouter le module `venv` :
+
+```bash
+sudo apt install python3.12 python3.12-venv
+```
+
+Sur les autres versions LTS (22.04 par exemple), passez par le PPA deadsnakes :
+
+```bash
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+sudo apt install python3.12 python3.12-venv
+```
+
+**Debian** — aucune version de Debian ne fournit Python 3.12 dans ses dépôts (3.11 pour Debian 12, 3.13 pour Debian 13). Sous Debian 12, Python 3.11 convient :
+
+```bash
+sudo apt install python3 python3-venv
+```
+
+Sous Debian 13 (ou sur toute distribution sans paquet Python 3.12), utilisez [uv](https://docs.astral.sh/uv/), qui télécharge un Python 3.12 autonome dans le dossier de l’utilisateur :
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv python install 3.12
+```
+
+### Installation dans un environnement virtuel (recommandé)
+
+Un environnement virtuel isole les dépendances du projet de celles du système. Depuis le dossier du projet, créez-le avec Python 3.12, activez-le puis installez les dépendances :
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements-linux.txt
+```
+
+Sous Debian 12, remplacez `python3.12` par `python3` (Python 3.11). Avec uv, créez l’environnement par `uv venv --python 3.12 --seed .venv` (`--seed` y installe `pip`), puis activez-le et installez les dépendances de la même façon.
+
+> **Note** : créez l’environnement avec `python3.12` et non `python3`. Un environnement créé avec la version du système (3.13 ou 3.14) ne pourra pas installer numpy, et un environnement mélangeant deux versions provoque l’erreur `ModuleNotFoundError: No module named 'PyQt6'` alors que PyQt6 est installé. En cas de doute, supprimez `.venv` et recréez-le.
+
+L’environnement doit être activé (`source .venv/bin/activate`) dans chaque nouveau terminal avant de lancer l’application. Pour en sortir, utilisez `deactivate`.
 
 ## Lancer l’application
 
 Lancez `main.py` depuis le dossier du projet.
 
 ```bash
+source .venv/bin/activate
 python main.py
 ```
 
