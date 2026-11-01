@@ -1,5 +1,5 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
+from PyQt6.QtWidgets import (QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
 from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
 from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor
 import pyqtgraph as pg
@@ -311,34 +311,54 @@ class UiSetupMixin:
     def _build_menu_bar(self):
         menu_bar = self.menuBar()
 
+        # Icônes standard : celles du thème du système (freedesktop sous Linux), sinon celles du
+        # style Qt, présentes sur toutes les plateformes (aucune si le style n'a pas d'équivalent).
+        def std_icon(theme_icon, fallback=None):
+            return QIcon.fromTheme(theme_icon, self.style().standardIcon(fallback) if fallback else QIcon())
+
         menu_fichier = menu_bar.addMenu(tr("menu.file"))
-        action_save = menu_fichier.addAction(tr("menu.file.save_project"))
+        self.action_save_project = action_save = menu_fichier.addAction(
+            std_icon(QIcon.ThemeIcon.DocumentSave, QStyle.StandardPixmap.SP_DialogSaveButton),
+            tr("menu.file.save_project"))
+        action_save.setShortcut(QKeySequence.StandardKey.Save)
         action_save.triggered.connect(self.save_project)
-        action_load = menu_fichier.addAction(tr("menu.file.open_project"))
+        action_load = self.action_open_project = menu_fichier.addAction(
+            std_icon(QIcon.ThemeIcon.DocumentOpen, QStyle.StandardPixmap.SP_DialogOpenButton),
+            tr("menu.file.open_project"))
+        action_load.setShortcut(QKeySequence.StandardKey.Open)
         action_load.triggered.connect(self.load_project)
-        self.menu_recent_projects = menu_fichier.addMenu(tr("menu.file.recent_projects"))
+        self.menu_recent_projects = menu_fichier.addMenu(
+            std_icon(QIcon.ThemeIcon.DocumentOpenRecent, QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            tr("menu.file.recent_projects"))
         self._refresh_recent_projects_menu()
         menu_fichier.addSeparator()
-        action_quit = menu_fichier.addAction(tr("menu.file.quit"))
+        action_quit = menu_fichier.addAction(
+            std_icon(QIcon.ThemeIcon.ApplicationExit, QStyle.StandardPixmap.SP_DialogCloseButton),
+            tr("menu.file.quit"))
+        # StandardKey.Quit est vide sous Windows (Alt+F4 y est géré par le système) : Ctrl+Q en repli.
+        action_quit.setShortcuts(QKeySequence.keyBindings(QKeySequence.StandardKey.Quit)
+                                 or [QKeySequence("Ctrl+Q")])
         action_quit.triggered.connect(self.close)
 
-        # Réglages propres à la machine : fenêtres ouvertes en un clic depuis la barre de menus
-        # (ils occupaient deux onglets de la colonne de gauche).
-        self.action_machine_params_window = menu_bar.addAction(tr("tab.machine_params"))
+        # Menu Paramètres : réglages propres à la machine (fenêtres ouvertes depuis la barre de
+        # menus, ils occupaient des onglets de la colonne de gauche) et langue de l'interface.
+        menu_parametres = menu_bar.addMenu(tr("menu.settings"))
+        # Pas d'entrée QIcon.ThemeIcon pour ces réglages : noms d'icônes freedesktop.
+        self.action_machine_params_window = menu_parametres.addAction(
+            std_icon("preferences-system", QStyle.StandardPixmap.SP_ComputerIcon),
+            tr("tab.machine_params"))
         self.action_machine_params_window.triggered.connect(lambda: self.show_settings_window("machine_params"))
-        self.action_machine_window = menu_bar.addAction(tr("tab.machine_profiles"))
+        self.action_machine_window = menu_parametres.addAction(
+            std_icon("network-wired", QStyle.StandardPixmap.SP_DriveNetIcon),
+            tr("tab.machine_profiles"))
         self.action_machine_window.triggered.connect(lambda: self.show_settings_window("machine"))
-        self.action_grbl_window = menu_bar.addAction(tr("tab.grbl_config"))
+        self.action_grbl_window = menu_parametres.addAction(
+            std_icon("utilities-terminal", QStyle.StandardPixmap.SP_FileDialogContentsView),
+            tr("tab.grbl_config"))
         self.action_grbl_window.triggered.connect(lambda: self.show_settings_window("grbl"))
-        self.action_matrix_window = menu_bar.addAction(tr("tab.test_matrix"))
-        self.action_matrix_window.triggered.connect(lambda: self.show_settings_window("test_matrix"))
+        menu_parametres.addSeparator()
 
-        # --- BOUTON STENCIL DIRECT DANS LA BARRE DE MENUS ---
-        action_open_stencil = menu_bar.addAction("Stencil Studio")  # ou tr("menu.stencil") si géré via i18n
-        action_open_stencil.triggered.connect(lambda: open_stencil_studio(self))
-        # ---------------------------------------------------
-
-        menu_langue = menu_bar.addMenu(tr("menu.language"))
+        menu_langue = menu_parametres.addMenu(std_icon("preferences-desktop-locale"), tr("menu.language"))
         current_lang = get_current_language()
         self._lang_actions = {}
         for lang_code, lang_label in SUPPORTED_LANGUAGES.items():
@@ -348,16 +368,52 @@ class UiSetupMixin:
             action_lang.triggered.connect(lambda checked, code=lang_code: self._on_language_selected(code))
             self._lang_actions[lang_code] = action_lang
 
+        # Menu Outils : assistants ponctuels, hors du flux principal de préparation d'un job.
+        self.tools_menu = menu_bar.addMenu(tr("menu.tools"))
+        # Grille de carrés de test ; « -symbolic » : seule variante présente dans Adwaita.
+        self.action_matrix_window = self.tools_menu.addAction(
+            std_icon("view-grid-symbolic"), tr("tab.test_matrix"))
+        self.action_matrix_window.triggered.connect(lambda: self.show_settings_window("test_matrix"))
+        action_open_stencil = self.tools_menu.addAction(
+            std_icon("applications-graphics"), tr("menu.tools.stencil_studio"))
+        action_open_stencil.triggered.connect(lambda: open_stencil_studio(self))
+
         menu_aide = menu_bar.addMenu(tr("menu.help"))
-        action_version = menu_aide.addAction(f"{tr('menu.help.version')} {APP_VERSION}")
+        # Version : icône de l'application (définie dans main.py, reprise par la fenêtre).
+        action_version = menu_aide.addAction(self.windowIcon(), f"{tr('menu.help.version')} {APP_VERSION}")
         action_version.setEnabled(False)
         menu_aide.addSeparator()
-        action_about = menu_aide.addAction(tr("menu.help.about"))
+        action_about = menu_aide.addAction(
+            std_icon(QIcon.ThemeIcon.HelpAbout, QStyle.StandardPixmap.SP_MessageBoxInformation),
+            tr("menu.help.about"))
         action_about.triggered.connect(self.show_about_dialog)
-        action_support = menu_aide.addAction(tr("menu.help.support"))
+        # Support : contact par e-mail (voir ui.support_body).
+        action_support = menu_aide.addAction(std_icon(QIcon.ThemeIcon.MailMessageNew), tr("menu.help.support"))
         action_support.triggered.connect(self.show_support_dialog)
-        action_coffee = menu_aide.addAction(tr("menu.help.coffee"))
+        # Buy me a coffee : même logo que le bouton de soutien (_build_support_button).
+        coffee_path = find_resource("buy_me_a_coffee.png")
+        action_coffee = menu_aide.addAction(QIcon(coffee_path) if coffee_path else QIcon(), tr("menu.help.coffee"))
         action_coffee.triggered.connect(self.show_buy_me_a_coffee_dialog)
+
+    def _build_main_toolbar(self):
+        """Barre d'outils sous le menu : raccourcis vers les entrées des menus Fichier, Paramètres et
+        Outils. Elle réutilise les mêmes QAction (icône, libellé, raccourci et action identiques)."""
+        toolbar = QToolBar(tr("toolbar.main"), self)
+        toolbar.setObjectName("main_toolbar")
+        toolbar.setMovable(False)
+        # Icônes seules, libellé en infobulle (une entrée sans icône hors Linux affiche son libellé).
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        toolbar.addAction(self.action_save_project)
+        toolbar.addAction(self.action_open_project)
+        toolbar.addSeparator()
+        toolbar.addAction(self.action_machine_params_window)
+        toolbar.addAction(self.action_machine_window)
+        toolbar.addAction(self.action_grbl_window)
+        toolbar.addSeparator()
+        for action in self.tools_menu.actions():
+            toolbar.addAction(action)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
+        self.main_toolbar = toolbar
 
     def _on_language_selected(self, lang_code):
         set_language(lang_code)
@@ -451,6 +507,7 @@ class UiSetupMixin:
 
     def init_ui(self):
         self._build_menu_bar()
+        self._build_main_toolbar()
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)

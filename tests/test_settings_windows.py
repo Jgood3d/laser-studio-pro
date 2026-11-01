@@ -17,12 +17,29 @@ def read(name):
 
 
 class MenuStructureTests(unittest.TestCase):
-    def test_entries_sit_between_file_and_language_in_the_menu_bar(self):
+    def test_menu_bar_order_is_file_settings_tools(self):
         src = read("ui_setup_mixin.py")
         body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
-        order = [body.index(k) for k in ('tr("menu.file")', 'tr("tab.machine_params")', 'tr("tab.machine_profiles")',
-                                         'tr("tab.grbl_config")', 'tr("tab.test_matrix")', 'tr("menu.language")')]
+        order = [body.index(k) for k in ('tr("menu.file")', 'tr("menu.settings")', 'tr("tab.machine_params")',
+                                         'tr("tab.machine_profiles")', 'tr("tab.grbl_config")', 'tr("menu.language")',
+                                         'tr("menu.tools")', 'tr("tab.test_matrix")', 'tr("menu.tools.stencil_studio")')]
         self.assertEqual(order, sorted(order))
+
+    def test_settings_and_tools_entries_are_in_their_menu_not_the_bar(self):
+        src = read("ui_setup_mixin.py")
+        body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
+        def added_to(menu, method, key):
+            # Appel menu.method(...) dont le dernier argument est tr(key), icône éventuelle avant.
+            call = rf'{re.escape(menu)}\.{method}\((?:[^()]|\([^()]*(?:\([^()]*\))?[^()]*\))*tr\("{re.escape(key)}"\)\)'
+            self.assertRegex(body, call)
+
+        added_to("menu_parametres", "addAction", "tab.machine_params")
+        added_to("menu_parametres", "addAction", "tab.machine_profiles")
+        added_to("menu_parametres", "addAction", "tab.grbl_config")
+        added_to("menu_parametres", "addMenu", "menu.language")
+        added_to("self.tools_menu", "addAction", "tab.test_matrix")
+        added_to("self.tools_menu", "addAction", "menu.tools.stencil_studio")
+        self.assertNotIn("menu_bar.addAction(", body)
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
         src = read("ui_setup_mixin.py")
