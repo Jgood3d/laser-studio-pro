@@ -303,16 +303,21 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 - Les dessins au trait (type Père Noël) s'y prêtent mal.
 
 
-## v2026.10.66 — Low poly géométrique
+## v2026.10.68 — Low poly géométrique
 - Case « Style géométrique » : contour en polygone à angles vifs, taches sombres (yeux, nez, oreilles) en facettes pleines, peu de sommets (30 à 100). Réglage « Simplification du contour ».
 - C'est le préréglage Low poly par défaut (120 sommets, arêtes 1,8 mm). Idéal : un animal sur fond uni, plaque ≥ 200 mm.
 - v.64 : la détection du sujet fonctionne aussi quand le cadre est rond ; préréglage plus détaillé (yeux, casquette, short, chaussures en facettes pleines).
 
 
-## v2026.10.66 — Ponts manuels
+## v2026.10.68 — Ponts manuels
 - Bouton « Pont manuel » (vue Résultat) : trace un trait en travers d'une découpe pour la maintenir ; un clic sur un pont manuel le supprime ; « Effacer les ponts manuels ».
 - Les ponts manuels sont inclus dans l'export SVG/DXF et suivent Annuler/Rétablir. Ils sont positionnés par rapport au résultat : place-les en dernier (si tu déplaces le cadre, ils ne suivent pas l'image).
 
 
-## v2026.10.66 — Couleurs de LSP
+## v2026.10.68 — Couleurs de LSP
 - `studio_dialog.py` : `LSP_THEME` (fond #232323, panneaux #303030, boutons #3b3b3b, accent bleu #3a5b89, curseurs/coches #6dbef9). Modifiable à un seul endroit.
+- v.67 : les couleurs de LSP sont aussi le thème par défaut du Studio lancé seul (plus de flash orange au démarrage dans LSP).
+
+
+## v2026.10.68 — Trou central dans le fond
+- Réglage « Trou au centre du fond (mm) » (groupe Caisson) : trou rond au milieu du fond, diamètre au choix, 0 = aucun. Fonctionne pour les deux styles de caisson.

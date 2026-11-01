@@ -15,6 +15,15 @@ except ImportError:
     import core
 
 
+def _center_hole(body, ppm, p):
+    """Trou rond au centre du fond (centre de la boîte englobante de la forme), diamètre box_center_mm."""
+    d = float(getattr(p, "box_center_mm", 0.0))
+    if d <= 0.0 or not body.any():
+        return []
+    ys, xs = np.nonzero(body)
+    return [_circle((xs.min() + xs.max() + 1) / 2.0 / ppm, (ys.min() + ys.max() + 1) / 2.0 / ppm, d / 2.0)]
+
+
 def _circle(x, y, r, n=48):
     t = np.linspace(0, 2 * np.pi, n, endpoint=False)
     return np.stack([x + r * np.cos(t), y + r * np.sin(t)], 1)
@@ -182,7 +191,7 @@ def _make_box_stack(res, p):
     depth_total = (1 + (1 if p.box_diffuser else 0) + n_frames + 1) * thick
     key_holes, foot_parts, sup_notes = _support(body, ppm, p, depth_total, wall + 2.0, thick)
     notes += sup_notes
-    parts.append(dict(name="back", qty=1, polys=outer + hang + clear + cable + key_holes))
+    parts.append(dict(name="back", qty=1, polys=outer + hang + clear + cable + _center_hole(body, ppm, p) + key_holes))
     parts += foot_parts
     for pt in parts:
         lo, hi = _bbox(pt["polys"])
@@ -465,7 +474,7 @@ def _make_box_fingers(res, p):
     parts += walls
     key_holes, foot_parts, sup_notes = _support(body, ppm, p, float(p.box_depth_mm) + 2 * t, lip + t + 3.0, t)
     notes += sup_notes
-    parts.append(dict(name="back", qty=1, polys=outer + hang + [q.copy() for q in tab_slots] + cable + key_holes))
+    parts.append(dict(name="back", qty=1, polys=outer + hang + [q.copy() for q in tab_slots] + cable + _center_hole(body, ppm, p) + key_holes))
     parts += foot_parts
     return parts, notes
 

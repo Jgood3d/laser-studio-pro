@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.10.66"  # doit être identique dans core.py et studio.html
+VERSION = "2026.10.68"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -82,6 +82,7 @@ class Params:
     box_foot_h: float = 9.0       # profondeur de la rainure du pied (mm)
     box_key_head: float = 8.0     # diamètre de la tête de vis pour la fixation murale (mm)
     box_key_shank: float = 4.0    # diamètre de la tige de vis (mm)
+    box_center_mm: float = 0.0    # trou rond au centre du fond (diamètre, 0 = aucun)
     box_cable_mm: float = 8.0     # trou de câble dans le fond (0 = aucun)
     box_diffuser: bool = True     # plaque diffusante entre façade et cadres
     box_sheet_w: float = 400.0    # largeur de la plaque à découper (mise en page)

@@ -6,8 +6,8 @@
 <title>Laser Stencil Studio</title>
 <style>
   :root{
-    --bg:#14161a; --panel:#1b1e24; --panel2:#22262d; --line:#2e333c;
-    --fg:#e8eaee; --mut:#8e96a4; --acc:#ff7a1a; --acc2:#ffb066; --onacc:#1a0e02;
+    --bg:#232323; --panel:#303030; --panel2:#3b3b3b; --line:#4d4d4d;
+    --fg:#f2f2f2; --mut:#a8a8a8; --acc:#3a5b89; --acc2:#6dbef9; --onacc:#ffffff;
   }
   *{ box-sizing:border-box; }
   html,body{ margin:0; height:100%; background:var(--bg); color:var(--fg);
@@ -82,7 +82,7 @@
   .wrap{ flex:1; position:relative; min-height:0; background:
     repeating-conic-gradient(#191c21 0% 25%, #15171b 0% 50%) 50%/22px 22px; }
   canvas#src{ position:absolute; inset:0; touch-action:none; }
-  #btnMB.on{ background:#f08a3c; color:#111; border-color:#f08a3c; }
+  #btnMB.on{ background:var(--acc); color:var(--onacc); border-color:var(--acc2); }
   #res{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; display:none; }
   #resEmpty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--mut); padding:20px; text-align:center; }
@@ -181,11 +181,11 @@
 
 <script>
 "use strict";
-const UI_VERSION = "2026.10.66";  // doit être identique à core.py
+const UI_VERSION = "2026.10.68";  // doit être identique à core.py
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
-const accColor = () => (getComputedStyle(document.documentElement).getPropertyValue("--acc").trim() || "#ff7a1a");
+const accColor = () => (getComputedStyle(document.documentElement).getPropertyValue("--acc2").trim() || "#6dbef9");
 window.setTheme = function(t){
   const ok = ["bg", "panel", "panel2", "line", "fg", "mut", "acc", "acc2", "onacc"];
   try { Object.keys(t || {}).forEach(k => { if (ok.includes(k) && /^#[0-9a-fA-F]{3,8}$|^rgba?\(/.test(String(t[k]))) document.documentElement.style.setProperty("--" + k, t[k]); }); } catch(e){}
@@ -322,6 +322,7 @@ const SPEC = [
   {k:"box_foot_h", t:"range", label:"Stand: depth of the groove (mm)", min:4, max:30, step:1, def:9, fmt:mm, sf:1},
   {k:"box_key_head", t:"range", label:"Wall mount: screw head diameter (mm)", min:4, max:16, step:0.5, def:8, fmt:mm, sk:1},
   {k:"box_key_shank", t:"range", label:"Wall mount: screw shank diameter (mm)", min:2, max:8, step:0.5, def:4, fmt:mm, sk:1},
+  {k:"box_center_mm", t:"range", label:"Centre hole in the back (mm, 0 = none)", min:0, max:100, step:1, def:0, fmt:mm},
   {k:"box_cable_mm", t:"range", label:"Cable hole in the back (mm, 0 = none)", min:0, max:20, step:1, def:8, fmt:mm},
   {k:"box_diffuser", t:"check", label:"Diffuser sheet between front and frames", def:true},
   {k:"box_sheet_w", t:"range", label:"Cutting sheet width (mm)", min:100, max:900, step:10, def:400, fmt:mm},
@@ -460,6 +461,7 @@ const TIPS = {
  "box_foot_h": "How deep the groove of the stand goes into the box.",
  "box_key_head": "Diameter of the screw head the keyhole must pass.",
  "box_key_shank": "Diameter of the screw shank in the narrow part of the keyhole.",
+ "box_center_mm": "Round hole in the exact middle of the back panel (cable gland, lamp holder, ventilation). Diameter in mm. 0 = no hole.",
  "box_cable_mm": "Diameter of the cable hole in the back. 0 = no hole.",
  "box_diffuser": "Adds a diffuser sheet to the cut files, between the front and the frames.",
  "box_sheet_w": "Width of your cutting sheet. Parts are arranged inside it.",
