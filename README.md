@@ -76,7 +76,7 @@ python main.py
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
 - `box_dialog.py` — fenêtre du générateur de boîte
 - `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
-- `settings_window.py` — fenêtres « Machine & Profils » et « Configuration GRBL » ouvertes depuis la barre de menus
+- `settings_window.py` — fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
 
 ### Qualité
 - `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)

@@ -24,11 +24,11 @@ TRANSLATIONS = {
     # --- Menu Fichier ---
     "menu.file": {"fr": "Fichier", "en": "File", "de": "Datei", "es": "Archivo"},
     "menu.file.save_project": {
-        "fr": "Enregistrer Projet", "en": "Save Project",
+        "fr": "Enregistrer le projet", "en": "Save Project",
         "de": "Projekt speichern", "es": "Guardar proyecto",
     },
     "menu.file.open_project": {
-        "fr": "Ouvrir Projet", "en": "Open Project",
+        "fr": "Ouvrir un projet", "en": "Open Project",
         "de": "Projekt öffnen", "es": "Abrir proyecto",
     },
     "menu.file.recent_projects": {
@@ -36,6 +36,14 @@ TRANSLATIONS = {
         "de": "Zuletzt verwendete Projekte", "es": "Proyectos recientes",
     },
     "menu.file.quit": {"fr": "Quitter", "en": "Quit", "de": "Beenden", "es": "Salir"},
+
+    # --- Menus Paramètres et Outils ---
+    "menu.settings": {"fr": "Paramètres", "en": "Settings", "de": "Einstellungen", "es": "Ajustes"},
+    "menu.tools": {"fr": "Outils", "en": "Tools", "de": "Werkzeuge", "es": "Herramientas"},
+    "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
+                                  "de": "Stencil Studio", "es": "Stencil Studio"},
+
+    "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
 
     # --- Menu Langue ---
     "menu.language": {"fr": "Langue", "en": "Language", "de": "Sprache", "es": "Idioma"},
@@ -64,8 +72,8 @@ TRANSLATIONS = {
 
     # --- Onglets du panneau de réglages ---
     "tab.machine_params": {
-        "fr": "Paramètres Machine", "en": "Machine Settings",
-        "de": "Maschineneinstellungen", "es": "Ajustes de la máquina",
+        "fr": "Paramètres du graveur", "en": "Engraver Settings",
+        "de": "Gravierer-Einstellungen", "es": "Ajustes del grabador",
     },
     "tab.image_filters": {
         "fr": "Image & Filtres", "en": "Image & Filters",
@@ -76,8 +84,8 @@ TRANSLATIONS = {
         "de": "Abmessungen & Ursprung", "es": "Dimensiones y Origen",
     },
     "tab.machine_profiles": {
-        "fr": "Machine & Profils", "en": "Machine & Profiles",
-        "de": "Maschine & Profile", "es": "Máquina y Perfiles",
+        "fr": "Matériaux et connexion au graveur", "en": "Materials and Engraver Connection",
+        "de": "Materialien und Verbindung zum Gravierer", "es": "Materiales y conexión al grabador",
     },
     "tab.test_matrix": {
         "fr": "Matrice de Test", "en": "Test Matrix",
@@ -2015,16 +2023,16 @@ TRANSLATIONS = {
         "es": "Guardar focal de la máquina",
     },
     "image.save_focal_question": {
-        "fr": "Mettre à jour la focale du laser (Paramètres Machine) :\n"
+        "fr": "Mettre à jour la focale du laser (Paramètres du graveur) :\n"
               "{current:.3f} mm  →  {new:.3f} mm\n\n"
               "et sauvegarder ce réglage machine maintenant ?",
-        "en": "Update the laser focal length (Machine Settings):\n"
+        "en": "Update the laser focal length (Engraver Settings):\n"
               "{current:.3f} mm  →  {new:.3f} mm\n\n"
               "and save this machine setting now?",
-        "de": "Lasfokus aktualisieren (Maschineneinstellungen):\n"
+        "de": "Lasfokus aktualisieren (Gravierer-Einstellungen):\n"
               "{current:.3f} mm  →  {new:.3f} mm\n\n"
               "und diese Maschineneinstellung jetzt speichern?",
-        "es": "¿Actualizar la focal del láser (Parámetros de máquina):\n"
+        "es": "¿Actualizar la focal del láser (Ajustes del grabador):\n"
               "{current:.3f} mm  →  {new:.3f} mm\n\n"
               "y guardar ahora este ajuste?",
     },
