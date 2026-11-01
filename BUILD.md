@@ -48,6 +48,10 @@ Depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
 `laser_studio_pro_banner.png` et `laser_studio_pro_512.png` :
 ```powershell
 pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." main.py
+Avec Stencil Studio :
+
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" main.py
+
 ```
 Sous Windows, `--add-data` sépare source et destination par `;`. Le code
 (`app_utils.find_resource`) cherche ces images à la fois à côté de l'exécutable
@@ -92,6 +96,10 @@ pip install pyinstaller
 ### 4. Compiler
 ```bash
 pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." main.py
+
+Avec Stencil studio
+
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
 Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien

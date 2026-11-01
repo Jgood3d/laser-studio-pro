@@ -16,6 +16,7 @@ from app_utils import APP_VERSION
 from i18n import tr, SUPPORTED_LANGUAGES, get_current_language, set_language
 from settings_window import SettingsWindow
 from widgets_extra import HistoryLineEdit, AutoHideLabel
+from stencil_studio.studio_dialog import open_stencil_studio
 
 SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
 
@@ -299,6 +300,8 @@ class UiSetupMixin:
             page, title = {
                 "machine": (getattr(self, "tab_machine_profiles", None), tr("tab.machine_profiles")),
                 "grbl": (getattr(self, "tab_grbl_config", None), tr("tab.grbl_config")),
+                "machine_params": (getattr(self, "tab_machine_params", None), tr("tab.machine_params")),
+                "test_matrix": (getattr(self, "tab_matrix", None), tr("tab.test_matrix")),
             }[kind]
             if page is None:
                 return
@@ -321,10 +324,19 @@ class UiSetupMixin:
 
         # Réglages propres à la machine : fenêtres ouvertes en un clic depuis la barre de menus
         # (ils occupaient deux onglets de la colonne de gauche).
+        self.action_machine_params_window = menu_bar.addAction(tr("tab.machine_params"))
+        self.action_machine_params_window.triggered.connect(lambda: self.show_settings_window("machine_params"))
         self.action_machine_window = menu_bar.addAction(tr("tab.machine_profiles"))
         self.action_machine_window.triggered.connect(lambda: self.show_settings_window("machine"))
         self.action_grbl_window = menu_bar.addAction(tr("tab.grbl_config"))
         self.action_grbl_window.triggered.connect(lambda: self.show_settings_window("grbl"))
+        self.action_matrix_window = menu_bar.addAction(tr("tab.test_matrix"))
+        self.action_matrix_window.triggered.connect(lambda: self.show_settings_window("test_matrix"))
+
+        # --- BOUTON STENCIL DIRECT DANS LA BARRE DE MENUS ---
+        action_open_stencil = menu_bar.addAction("Stencil Studio")  # ou tr("menu.stencil") si géré via i18n
+        action_open_stencil.triggered.connect(lambda: open_stencil_studio(self))
+        # ---------------------------------------------------
 
         menu_langue = menu_bar.addMenu(tr("menu.language"))
         current_lang = get_current_language()
@@ -533,8 +545,7 @@ class UiSetupMixin:
         tab_machine_params.setWidget(tab_machine_params_content)
         tab_machine_params.setWidgetResizable(True)
         tab_machine_params.setFrameShape(QScrollArea.Shape.NoFrame)
-        self.tab_machine_params = tab_machine_params
-        tabs.addTab(tab_machine_params, tr("tab.machine_params"))
+        self.tab_machine_params = tab_machine_params     # affichée dans une fenêtre du menu (show_settings_window)
 
         tab_img = QWidget()
         layout_img = QFormLayout(tab_img)
@@ -846,7 +857,7 @@ class UiSetupMixin:
         self.form_matrix.addRow(tr("ui.mat_laser_cmd"), self.combo_mat_laser_cmd)
         self.form_matrix.addRow("", self.chk_mat_homing)
         self.form_matrix.addRow("", btn_gen_matrix)
-        tabs.addTab(tab_matrix, tr("tab.test_matrix"))
+        self.tab_matrix = tab_matrix                      # affichée dans une fenêtre du menu (show_settings_window)
 
         self.on_mat_mode_changed(0)
 
@@ -856,7 +867,7 @@ class UiSetupMixin:
         self.combo_laser_cmd = QComboBox()
         self.combo_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
         self.spin_smax = QSpinBox(); self.spin_smax.setRange(1, 10000); self.spin_smax.setValue(1000)
-        self.chk_homing = QCheckBox(tr("ui.grbl_homing")); self.chk_homing.setChecked(False)
+        self.chk_homing = QCheckBox(tr("ui.grbl_homing")); self.chk_homing.setChecked(True)   # homing automatique au démarrage du job : activé d'office
         self.chk_overscan = QCheckBox(tr("ui.overscan_enabled")); self.chk_overscan.setChecked(True)
 
         self.combo_overscan_mode = QComboBox()

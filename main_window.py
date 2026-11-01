@@ -60,6 +60,15 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, MachineProfilesMixin, ImageProc
         self.autosave_timer.start()
 
         self.init_ui()
+        # --- Ajout de l'accès au Stencil Studio dans le menu ---
+        from stencil_studio.studio_dialog import open_stencil_studio
+        from PyQt6.QtGui import QAction
+        
+        if hasattr(self, 'tools_menu'):
+            stencil_action = QAction("Stencil Studio", self)
+            stencil_action.triggered.connect(lambda: open_stencil_studio(self))
+            self.tools_menu.addAction(stencil_action)
+        # ------------------------------------------------------
         self.load_machine_settings()
         self.load_splitter_sizes()
         self.update_vector_work_area()

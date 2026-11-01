@@ -3,6 +3,7 @@
 
 PyQt6>=6.7
 PyQt6-sip>=13.6
+PyQt6-WebEngine>=6.7
 pyserial>=3.5
 pyqtgraph>=0.13
 # Bridé à <2.0.0 pour compatibilité PyInstaller et pyqtgraph / numba

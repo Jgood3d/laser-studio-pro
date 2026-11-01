@@ -36,3 +36,4 @@ Output/
 dist/ 
 build/ 
 *.exe 
+.aider*

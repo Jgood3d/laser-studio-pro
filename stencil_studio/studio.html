@@ -1,0 +1,1392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laser Stencil Studio</title>
+<style>
+  :root{
+    --bg:#14161a; --panel:#1b1e24; --panel2:#22262d; --line:#2e333c;
+    --fg:#e8eaee; --mut:#8e96a4; --acc:#ff7a1a; --acc2:#ffb066; --onacc:#1a0e02;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:var(--bg); color:var(--fg);
+    font:14px/1.4 system-ui,"Segoe UI",Roboto,sans-serif; }
+  header{ height:52px; display:flex; align-items:center; gap:8px; padding:0 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); }
+  header h1{ font-size:16px; margin:0 10px 0 0; letter-spacing:.3px; white-space:nowrap; }
+  header h1 b{ color:var(--acc); }
+  .sp{ flex:1; }
+  .dd{ position:relative; }
+  .dd > button::after{ content:" \25BE"; opacity:.7; }
+  .ddm{ position:absolute; top:100%; left:0; margin-top:4px; min-width:240px; background:var(--panel); border:1px solid var(--line);
+    border-radius:8px; padding:4px; z-index:60; box-shadow:0 8px 24px rgba(0,0,0,.45); display:flex; flex-direction:column; gap:1px; }
+  .ddm[hidden]{ display:none; }
+  .ddm button{ border:0; background:none; text-align:left; white-space:nowrap; border-radius:5px; }
+  .ddm button:hover{ background:var(--panel2); }
+  .ddm button[hidden]{ display:none; }
+  .ddm .dh{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; padding:6px 10px 2px; }
+  .ddm hr{ border:0; border-top:1px solid var(--line); margin:4px 0; }
+  .isoonly[hidden]{ display:none !important; }
+  button,select,input[type=number],input[type=text],input[type=search]{
+    background:var(--panel2); color:var(--fg); border:1px solid var(--line);
+    border-radius:6px; padding:6px 10px; font:inherit; }
+  button{ cursor:pointer; }
+  button:hover{ border-color:var(--acc); }
+  button.primary{ background:var(--acc); color:var(--onacc); border-color:var(--acc); font-weight:600; }
+  button.primary:hover{ background:var(--acc2); }
+  main{ display:grid; grid-template-columns:330px 1fr 1fr; height:calc(100% - 52px); }
+  aside{ overflow-y:auto; background:var(--panel); border-right:1px solid var(--line); padding:6px 0 30px; }
+  details{ border-bottom:1px solid var(--line); }
+  summary{ padding:10px 14px; cursor:pointer; font-weight:600; color:var(--acc2); user-select:none; }
+  .rows{ padding:2px 14px 12px; }
+  .row{ margin:8px 0; }
+  .row label{ display:flex; justify-content:space-between; gap:8px; color:var(--mut); font-size:13px; }
+  .row label output{ color:var(--fg); font-variant-numeric:tabular-nums; }
+  #expModal{ position:fixed; inset:0; background:rgba(0,0,0,.7); z-index:50; display:flex; align-items:center; justify-content:center; }
+  #expModal[hidden]{ display:none; }
+  .expbox{ background:var(--panel,#16181d); border:1px solid var(--line); border-radius:10px; width:min(92vw,1000px); max-height:92vh; display:flex; flex-direction:column; padding:14px; gap:10px; }
+  .expbody{ flex:1; min-height:200px; overflow:auto; background:#fff; border-radius:6px; text-align:center; }
+  .expbody img{ max-width:100%; max-height:62vh; background:#fff; }
+  #expInfo{ color:var(--mut); font-size:13px; white-space:pre-line; }
+  .expbtn{ display:flex; gap:10px; justify-content:flex-end; }
+  .numwrap{ display:inline-flex; align-items:center; gap:3px; }
+  .numin{ width:64px; padding:1px 4px; text-align:right; background:var(--bg2,#1d2026); color:var(--fg); border:1px solid var(--line); border-radius:4px; font:inherit; font-variant-numeric:tabular-nums; }
+  .numin::-webkit-inner-spin-button{ opacity:.5; }
+  .row input[type=range]{ width:100%; accent-color:var(--acc); }
+  .row select{ width:100%; margin-top:3px; }
+  .row.check label{ color:var(--fg); justify-content:flex-start; align-items:center; gap:8px; cursor:pointer; }
+  .tools{ padding:8px 14px 10px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:7px; }
+  .tools input[type=search], .tools select{ width:100%; }
+  .tools .trow{ display:flex; gap:5px; align-items:center; flex-wrap:wrap; }
+  .tools .trow select{ flex:1 1 100%; }
+  .tools .trow button{ flex:1 1 auto; padding:4px 6px; font-size:12px; white-space:nowrap; }
+  .tools label{ display:flex; align-items:center; gap:7px; font-size:13px; cursor:pointer; }
+  .row.advhide, .row.srchide{ display:none !important; }
+  .rst{ border:0; background:none; color:var(--acc); cursor:pointer; font-size:14px; line-height:1; padding:0 2px; visibility:hidden; }
+  .row.mod .rst{ visibility:visible; }
+  .row.mod > label > span:first-child, .row.mod > label > input + span{ color:var(--fg); }
+  .row.check .rst{ margin-left:auto; }
+  details.mod > summary::after{ content:" \2022"; color:var(--acc); }
+  .row.disabled{ opacity:.4; pointer-events:none; }
+  .row.hidden, details[hidden]{ display:none !important; }
+  section.pane{ display:flex; flex-direction:column; min-width:0; border-right:1px solid var(--line); }
+  .bar{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:8px 10px;
+    background:var(--panel); border-bottom:1px solid var(--line); min-height:46px; }
+  .seg{ display:inline-flex; flex-wrap:wrap; border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  .seg button{ border:0; border-radius:0; border-right:1px solid var(--line); white-space:nowrap; }
+  .seg button:last-child{ border-right:0; }
+  #btnLight.on{ background:#ffd479; color:#2a1c00; border-color:#ffd479; font-weight:600; }
+  .seg button.on{ background:var(--acc); color:var(--onacc); font-weight:600; }
+  .seg button.fg.on{ background:#2fd35a; } .seg button.bg.on{ background:#f0443b; color:#fff; }
+  .wrap{ flex:1; position:relative; min-height:0; background:
+    repeating-conic-gradient(#191c21 0% 25%, #15171b 0% 50%) 50%/22px 22px; }
+  canvas#src{ position:absolute; inset:0; touch-action:none; }
+  #res{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; display:none; }
+  #resEmpty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--mut); padding:20px; text-align:center; }
+  .foot{ padding:7px 12px; background:var(--panel); border-top:1px solid var(--line);
+    color:var(--mut); font-size:12.5px; min-height:34px; }
+  .foot b{ color:var(--fg); font-weight:600; }
+  .hint{ color:var(--mut); font-size:12.5px; padding:0 4px; }
+  .busy{ color:var(--acc2); }
+  @media (max-width:1100px){
+    main{ grid-template-columns:300px 1fr; grid-template-rows:1fr 1fr; }
+    aside{ grid-row:1 / span 2; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1><b>Laser</b> <span data-i18n="Stencil Studio">Stencil Studio</span></h1>
+  <button id="btnOpen" class="primary" data-i18n="Open image...">Open image...</button>
+  <div class="dd"><button id="mExport" data-i18n="Export">Export</button>
+    <div class="ddm" hidden>
+      <div class="dh" data-i18n="Plate">Plate</div>
+      <button id="btnSvg" data-i18n="Export SVG">Export SVG</button>
+      <button id="btnDxf" data-i18n="Export DXF">Export DXF</button>
+      <button id="btnPng" class="eg" hidden data-i18n="Export engraving (PNG)">Export engraving (PNG)</button>
+      <button id="btnSvgImg" class="eg" hidden data-i18n="Export SVG with image">Export SVG with image</button>
+      <hr><div class="dh" data-i18n="Lightbox">Lightbox</div>
+      <button id="btnBoxSvg" data-i18n="Export box (SVG)">Export box (SVG)</button>
+      <button id="btnBoxDxf" data-i18n="Export box (DXF)">Export box (DXF)</button>
+      <button id="btnDiffPdf" data-i18n="Diffuser (PDF, actual size)">Diffuser (PDF, actual size)</button>
+      <hr><div class="dh" data-i18n="Tools">Tools</div>
+      <button id="btnFlexSvg" data-i18n="Flexibility test (SVG)">Flexibility test (SVG)</button>
+      <button id="btnFlexDxf" data-i18n="Flexibility test (DXF)">Flexibility test (DXF)</button>
+    </div></div>
+  <div class="dd"><button id="mFile" data-i18n="File">File</button>
+    <div class="ddm" hidden>
+      <button id="btnSave" data-i18n="Save settings">Save settings</button>
+      <button id="btnLoad" data-i18n="Load settings">Load settings</button>
+      <hr>
+      <button id="btnReset" data-i18n="Reset">Reset</button>
+    </div></div>
+  <span class="sp"></span>
+  <select id="lang" title="Language"></select>
+  <input type="file" id="fileImg" accept="image/*" hidden>
+  <input type="file" id="fileCfg" accept=".json,application/json" hidden>
+</header>
+
+<main>
+  <aside id="controls"></aside>
+
+  <section class="pane">
+    <div class="bar">
+      <div class="seg" id="tools">
+        <button data-tool="move" class="on" data-i18n="Move frame">Move frame</button>
+        <button data-tool="box" data-i18n="Subject box">Subject box</button>
+        <button data-tool="fg" class="fg isoonly" data-i18n="Subject (green)">Subject (green)</button>
+        <button data-tool="bg" class="bg isoonly" data-i18n="Background (red)">Background (red)</button>
+        <button data-tool="erase" class="isoonly" data-i18n="Eraser">Eraser</button>
+      </div>
+      <button id="btnUndo" title="Undo (Ctrl+Z)" disabled>&#8630;</button><button id="btnRedo" title="Redo (Ctrl+Y)" disabled>&#8631;</button>
+      <div class="dd"><button id="mFrame" data-i18n="Framing">Framing</button>
+        <div class="ddm" hidden>
+          <button id="btnFit" data-i18n="Frame on subject">Frame on subject</button>
+          <button id="btnFace" data-i18n="Frame on face">Frame on face</button>
+          <button id="btnFitIn" data-i18n="Fit the image inside the frame">Fit the image inside the frame</button>
+        </div></div>
+      <button id="btnClear" class="isoonly" data-i18n="Clear marks">Clear marks</button>
+    </div>
+    <div class="wrap"><canvas id="src"></canvas></div>
+    <div class="foot" data-i18n="Drag to move the frame, mouse wheel to resize it, round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.">Drag to move the frame, mouse wheel to resize it, round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.</div>
+    <div class="foot" data-i18n="Shortcuts: Ctrl+Z undo, Ctrl+Y redo, Alt + wheel rotate the frame, Esc closes the export preview.">Shortcuts: Ctrl+Z undo, Ctrl+Y redo, Alt + wheel rotate the frame, Esc closes the export preview.</div>
+  </section>
+
+  <section class="pane">
+    <div class="bar">
+      <div class="seg" id="views">
+        <button data-view="result" class="on" data-i18n="Result">Result</button>
+        <button data-view="material" data-i18n="Material">Material</button>
+        <button data-view="original" data-i18n="Original">Original</button>
+        <button data-view="overlay" data-i18n="Overlay">Overlay</button>
+        <button data-view="render" data-i18n="Render">Render</button>
+        <button data-view="box" data-i18n="Box">Box</button>
+        <button data-view="assembled" data-i18n="Assembled">Assembled</button>
+      </div>
+      <button id="btnLight" title="Backlight on/off" data-i18n="Backlight">Backlight</button>
+      <span class="hint" id="legend" data-i18n="black = material kept, white = cut away, red = bridges">black = material kept, white = cut away, red = bridges</span>
+    </div>
+    <div class="wrap" id="resWrap">
+      <div id="resEmpty" data-i18n="Open an image to start (or drop it on this window).">Open an image to start (or drop it on this window).</div>
+      <img id="res" alt="">
+    </div>
+    <div class="foot" id="stats">&nbsp;</div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const UI_VERSION = "2026.10.61";  // doit être identique à core.py
+const $ = id => document.getElementById(id);
+/* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
+   t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
+const accColor = () => (getComputedStyle(document.documentElement).getPropertyValue("--acc").trim() || "#ff7a1a");
+window.setTheme = function(t){
+  const ok = ["bg", "panel", "panel2", "line", "fg", "mut", "acc", "acc2", "onacc"];
+  try { Object.keys(t || {}).forEach(k => { if (ok.includes(k) && /^#[0-9a-fA-F]{3,8}$|^rgba?\(/.test(String(t[k]))) document.documentElement.style.setProperty("--" + k, t[k]); }); } catch(e){}
+  try { if (typeof drawSource === "function") drawSource(); } catch(e){}
+};
+
+/* ------------------------------------------------------------------ i18n */
+let CATALOG = {}, LANG = "en";
+const T = (s, v) => {
+  let o = (CATALOG[s] !== undefined) ? CATALOG[s] : s;
+  if (v) for (const k in v) o = o.split("{" + k + "}").join(v[k]);
+  return o;
+};
+function updateLegend(){
+  const l = $("legend"); if (!l) return;
+  const key = view === "render" ? "Simulated look: colours of material and light are indicative"
+            : view === "box" ? "Cutting layout of the box parts (front, diffuser, frames, back)"
+            : view === "assembled" ? "Assembled box seen from the front-left (approximate drawing: check proportions, depth and stand)"
+            : (lastStats && lastStats.eng_px) ? "black = burned by the laser, grey = cut away, red line = cut"
+            : "black = material kept, white = cut away, red = bridges";
+  l.dataset.i18n = key; l.textContent = T(key);
+}
+function applyI18n(){
+  document.querySelectorAll("[data-i18n]").forEach(e => { e.textContent = T(e.dataset.i18n); });
+  document.querySelectorAll("[title]").forEach(e => { if (!e.dataset.t0) e.dataset.t0 = e.title; e.title = T(e.dataset.t0); });
+  document.querySelectorAll("[data-i18n-ph]").forEach(e => { e.placeholder = T(e.dataset.i18nPh); });
+  document.documentElement.lang = LANG;
+  document.title = T("Laser Stencil Studio");
+  updateLegend(); drawSource(); renderStats(); applyFilter(); refreshPresetList();
+}
+async function setLang(l){
+  LANG = l;
+  try { CATALOG = (l === "en") ? {} : await (await fetch("/api/catalog?lang=" + l)).json(); }
+  catch(e){ CATALOG = {}; }
+  $("lang").value = l;
+  applyI18n(); persist();
+}
+
+/* -------------------------------------------------------------- controls */
+const mm = v => v + " mm";
+const pct = v => Math.round(v * 100) + " %";
+const PRESETS = {
+  halftone:   {output:"halftone", tone_source:"luminance", dot_pitch_mm:1.4, min_web_mm:0.45, min_dot_mm:0.35,
+               dot_angle:45, dot_gamma:1.2, dot_contrast:0.8, dot_detail:1.5, contrast:true, invert:false, isolate:false},
+  lineart:    {output:"stencil", mode:"local", tone_source:"luminance", local_contrast:14, dark_offset:90, texture:0, blur:1,
+               min_feature_mm:0.8, keep_thin:true, grow_mm:0.3, outline_mm:1, bias:0, auto_threshold:true,
+               contrast:true, invert:false, isolate:false},
+  cartoon:    {output:"stencil", mode:"local", tone_source:"darkest", local_contrast:10, dark_offset:90, texture:1, blur:1.5,
+               min_feature_mm:0.8, keep_thin:true, outline_mm:1, bias:0, auto_threshold:true, contrast:true, invert:false, isolate:true},
+  portrait:   {output:"stencil", mode:"local", tone_source:"luminance", local_contrast:9, dark_offset:60, texture:1, blur:1.2,
+               min_feature_mm:0.5, keep_thin:true, outline_mm:1, bias:0, auto_threshold:true, contrast:true, invert:false, isolate:false},
+  lines:      {output:"lines", tone_source:"luminance", line_pitch_mm:1.5, line_angle:30, line_break_mm:30, min_web_mm:0.5, min_dot_mm:0.35,
+               dot_gamma:1.2, dot_contrast:0.8, dot_detail:1.5, contrast:true, invert:false, isolate:false},
+  lowpoly:    {output:"lowpoly", lp_style:"wire", lp_points:120, lp_beam_mm:1.5, lp_focus:0.7, invert:false, isolate:false},
+  engrave:    {output:"engrave", tone_source:"luminance", contrast:true, eng_dither:"stucki", eng_levels:2, eng_brightness:0, eng_contrast:0,
+               eng_gamma:1, eng_sharpen:1, eng_invert:false, eng_border_mm:1, isolate:false},
+  silhouette: {output:"stencil", mode:"global", tone_source:"luminance", texture:2, blur:2, min_feature_mm:1.2, keep_thin:true,
+               outline_mm:1.5, bias:0, auto_threshold:true, contrast:true, invert:false, isolate:true},
+};
+const SPEC = [
+ {g:"Style", items:[
+  {k:"output", t:"select", label:"Output type", def:"stencil",
+   opts:[["stencil","Stencil (shapes with bridges)"],["halftone","Halftone dots (photos)"],["lines","Lines (photo as slots of varying width)"],["engrave","Engraving (dithered photo + cut outline)"],["lowpoly","Low poly (triangulated mesh)"]]},
+  {k:"preset", t:"select", ui:1, label:"Start from a style", def:"",
+   opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["engrave","Photo for engraving (keychain, plaque)"]]},
+ ]},
+ {g:"Render preview", items:[
+  {k:"material", t:"select", ui:1, label:"Sheet material", def:"wood_dark",
+   opts:[["wood_light","Light wood"],["wood_dark","Dark wood"],["black","Black"],["gray","Gray"],["slate","Slate"],["white","White"]]},
+  {k:"backlight", t:"check", ui:1, label:"Backlight (LEDs behind a diffuser)", def:true},
+  {k:"lightcolor", t:"select", ui:1, label:"Light colour", def:"warm",
+   opts:[["warm","Warm white"],["cool","Cool white"],["white","Neutral white"],["red","Red"],["green","Green"],["blue","Blue"],["amber","Amber"]]},
+ ]},
+ {g:"Frame", items:[
+  {k:"shape", t:"select", label:"Shape", def:"circle",
+   opts:[["circle","Circle"],["oval","Oval"],["rect","Rectangle"],["rrect","Rounded rectangle"],["heart","Heart"],["star","Star"],["tree","Christmas tree"],["none","No outer frame"]]},
+  {k:"aspect", t:"select", ui:1, label:"Aspect ratio", def:"1",
+   opts:[["1","1:1"],["1.3333","4:3"],["0.75","3:4"],["1.5","3:2"],["0.6667","2:3"],["1.7778","16:9"],
+         ["full","Full image (original ratio)"],["custom","Custom (width x height)"]]},
+  {k:"custom_w", t:"number", ui:1, label:"Width (mm)", min:5, max:600, step:1, def:100},
+  {k:"custom_h", t:"number", ui:1, label:"Height (mm)", min:5, max:600, step:1, def:100},
+  {k:"free", t:"check", ui:1, label:"Free placement (empty margins around the image)", def:false},
+  {k:"rot", t:"range", ui:1, label:"Frame rotation (degrees)", min:-180, max:180, step:1, def:0, fmt:v => v + " °"},
+  {k:"img_mm", t:"range", ui:1, label:"Image width on the plate (mm)", min:10, max:1500, step:1, def:100, fmt:mm},
+  {k:"zoom", t:"range", ui:1, label:"Frame size", min:0.05, max:1, step:0.01, def:1, fmt:pct},
+  {k:"size_mm", t:"range", label:"Final size (mm, largest side)", min:20, max:400, step:1, def:100, fmt:mm},
+  {k:"ring_mm", t:"range", label:"Border width around the image (mm)", min:0, max:30, step:0.5, def:4, fmt:mm},
+ ]},
+ {g:"Hanging loop", items:[
+  {k:"hang", t:"select", label:"Hanging loop", def:"none",
+   opts:[["none","None"],["top","Top (ornament)"],["top_left","Top left corner"],["top_right","Top right corner"],["both","Left and right (two holes)"]]},
+  {k:"hang_style", t:"select", label:"Loop shape", def:"round", opts:[["round","Round"],["drop","Drop (wider base)"]]},
+  {k:"hang_hole_mm", t:"range", label:"Hole diameter (mm)", min:1.5, max:8, step:0.5, def:3, fmt:mm},
+  {k:"hang_tab_mm", t:"range", label:"Material around the hole (mm)", min:1.5, max:6, step:0.5, def:2.5, fmt:mm},
+ ]},
+ {g:"Text on the ring", items:[
+  {k:"text_top", t:"text", label:"Text on top", def:""},
+  {k:"text_bottom", t:"text", label:"Text on the bottom", def:""},
+  {k:"text_size_mm", t:"range", label:"Letter height (mm)", min:3, max:15, step:0.5, def:6, fmt:mm},
+  {k:"text_spacing", t:"range", label:"Letter spacing (%)", min:0, max:50, step:1, def:12},
+  {k:"text_bridge_mm", t:"range", label:"Bridge width inside letters (mm)", min:0.4, max:1.5, step:0.1, def:0.7, fmt:mm},
+ ]},
+ {g:"Engraving", items:[
+  {k:"eng_dpi", t:"range", label:"Machine resolution (DPI)", min:100, max:600, step:5, def:195, eg:1},
+  {k:"eng_dither", t:"select", label:"Dithering method", def:"stucki", eg:1,
+   opts:[["stucki","Stucki (smooth, recommended)"],["floyd","Floyd-Steinberg"],["atkinson","Atkinson (contrasted, clear highlights)"],["jarvis","Jarvis"],["burkes","Burkes"],["sierra","Sierra"],["bayer","Ordered (Bayer, regular pattern)"],["threshold","Threshold (black and white only)"]]},
+  {k:"eng_levels", t:"range", label:"Gray levels (2 = black and white)", min:2, max:8, step:1, def:2, eg:1},
+  {k:"eng_brightness", t:"range", label:"Brightness", min:-100, max:100, step:1, def:0, eg:1},
+  {k:"eng_contrast", t:"range", label:"Contrast", min:-90, max:90, step:1, def:0, eg:1},
+  {k:"eng_gamma", t:"range", label:"Midtones (higher = lighter)", min:0.4, max:2.5, step:0.05, def:1, eg:1},
+  {k:"eng_sharpen", t:"range", label:"Sharpness", min:0, max:3, step:0.1, def:1, eg:1},
+  {k:"eng_invert", t:"check", label:"Engrave the light areas (negative)", def:false, eg:1},
+  {k:"eng_border_mm", t:"range", label:"Unengraved margin at the edge (mm)", min:0, max:10, step:0.5, def:1, fmt:mm, eg:1},
+  {k:"eng_speed", t:"range", label:"Engraving speed (mm/min, for the time estimate)", min:1000, max:12000, step:100, def:5500, eg:1},
+ ]},
+ {g:"Lightbox", items:[
+  {k:"box_style", t:"select", label:"Box system", def:"stack",
+   opts:[["stack","Stacked frames (glued layers)"],["fingers","Walls with finger joints (flexible on curves)"]]},
+  {k:"box_depth_mm", t:"range", label:"Inside depth (mm)", min:10, max:80, step:1, def:25, fmt:mm},
+  {k:"box_thickness_mm", t:"range", label:"Material thickness (mm)", min:1, max:10, step:0.5, def:3, fmt:mm},
+  {k:"box_wall_mm", t:"range", label:"Wall width (mm)", min:4, max:30, step:1, def:10, fmt:mm, bs:1},
+  {k:"box_screws", t:"range", label:"Back screws (0 = glued)", min:0, max:8, step:1, def:4, bs:1},
+  {k:"box_screw_mm", t:"range", label:"Screw diameter (mm)", min:2, max:5, step:0.5, def:3, fmt:mm, bs:1},
+  {k:"box_rib_mm", t:"range", label:"Flexible wall: rib width (mm)", min:1.5, max:6, step:0.1, def:2.54, fmt:v=>v.toFixed(2)+" mm", bf:1},
+  {k:"box_fit_auto", t:"check", label:"Slot clearance adjusted to the curve", def:true, bf:1},
+  {k:"box_tab_solid", t:"check", label:"Solid tabs (not cut by the flexible slits)", def:false, bf:1},
+  {k:"box_end_mm", t:"range", label:"Flexible wall: end margin of the centre slits (mm)", min:1.5, max:8, step:0.1, def:2.7, fmt:mm, bf:1},
+  {k:"box_mid_mm", t:"range", label:"Flexible wall: middle bridge between cells (mm)", min:2, max:15, step:0.5, def:6, fmt:mm, bf:1},
+  {k:"box_wall_parts", t:"range", label:"Flexible wall: number of pieces", min:1, max:3, step:1, def:1, fmt:v=>String(v), bf:1},
+  {k:"box_lip_mm", t:"range", label:"Front and back overhang around the wall (mm)", min:0.5, max:6, step:0.5, def:1.5, fmt:mm, bf:1},
+  {k:"box_fit_mm", t:"range", label:"Slot clearance for glue (mm)", min:0, max:0.4, step:0.05, def:0.1, fmt:v => (+v).toFixed(2) + " mm", bf:1},
+  {k:"box_support", t:"select", label:"Support", def:"none",
+   opts:[["none","No support"],["foot","Stand (foot)"],["wall","Wall mount (keyholes in the back)"],["both","Stand and wall mount"]]},
+  {k:"box_foot_h", t:"range", label:"Stand: depth of the groove (mm)", min:4, max:30, step:1, def:9, fmt:mm, sf:1},
+  {k:"box_key_head", t:"range", label:"Wall mount: screw head diameter (mm)", min:4, max:16, step:0.5, def:8, fmt:mm, sk:1},
+  {k:"box_key_shank", t:"range", label:"Wall mount: screw shank diameter (mm)", min:2, max:8, step:0.5, def:4, fmt:mm, sk:1},
+  {k:"box_cable_mm", t:"range", label:"Cable hole in the back (mm, 0 = none)", min:0, max:20, step:1, def:8, fmt:mm},
+  {k:"box_diffuser", t:"check", label:"Diffuser sheet between front and frames", def:true},
+  {k:"box_sheet_w", t:"range", label:"Cutting sheet width (mm)", min:100, max:900, step:10, def:400, fmt:mm},
+  {k:"box_gap_mm", t:"range", label:"Space between parts (mm)", min:1, max:15, step:1, def:4, fmt:mm},
+ ]},
+ {g:"Subject", items:[
+  {k:"isolate", t:"check", ui:1, label:"Isolate the subject (remove background)", def:false},
+  {k:"margin", t:"range", ui:1, label:"Search margin around the frame", min:0, max:0.4, step:0.01, def:0.03, fmt:pct},
+  {k:"outline_mm", t:"range", label:"Subject outline (mm)", min:0, max:4, step:0.1, def:1, fmt:mm, st:1},
+  {k:"brush", t:"range", ui:1, label:"Brush size", min:4, max:120, step:1, def:30},
+ ]},
+ {g:"Low poly", items:[
+  {k:"lp_style", t:"select", label:"Facet rendering", def:"shade", lp:1,
+   opts:[["wire","Mesh only (open triangles)"],["shade","Hole size follows the tone"],["solid","Darkest facets solid"]]},
+  {k:"lp_points", t:"range", label:"Number of vertices", min:20, max:1500, step:10, def:150, lp:1},
+  {k:"lp_beam_mm", t:"range", label:"Edge width (mm)", min:0.8, max:8, step:0.1, def:1.5, fmt:mm, lp:1},
+  {k:"lp_focus", t:"range", label:"Follow the image details", min:0, max:1, step:0.05, def:0.7, lp:1},
+  {k:"lp_fill_pct", t:"range", label:"Solid facets (%)", min:0, max:100, step:5, def:30, fmt:v => v + " %", lp:1, lpsolid:1},
+  {k:"lp_seed", t:"range", label:"Variation", min:1, max:99, step:1, def:1, lp:1},
+ ]},
+ {g:"Halftone dots", items:[
+  {k:"dot_pitch_mm", t:"range", label:"Dot pitch (mm)", min:0.8, max:4, step:0.1, def:1.6, fmt:mm, dt:1},
+  {k:"min_web_mm", t:"range", label:"Minimum material between holes (mm)", min:0.3, max:1.2, step:0.05, def:0.5, fmt:mm, ht:1},
+  {k:"min_dot_mm", t:"range", label:"Smallest hole (mm)", min:0.2, max:1, step:0.05, def:0.4, fmt:mm, ht:1},
+  {k:"dot_angle", t:"range", label:"Grid angle (degrees)", min:0, max:90, step:5, def:45, dt:1},
+  {k:"dot_gamma", t:"range", label:"Tone curve (higher = more material)", min:0.5, max:2.5, step:0.1, def:1.2, ht:1},
+  {k:"dot_contrast", t:"range", label:"Contrast (0 = natural, 1 = maximum)", min:0, max:1, step:0.1, def:0.8, ht:1},
+  {k:"dot_detail", t:"range", label:"Local detail (0 = none)", min:0, max:3, step:0.1, def:1.5, ht:1},
+ ]},
+ {g:"Lines", items:[
+  {k:"line_pitch_mm", t:"range", label:"Line spacing (mm)", min:0.8, max:4, step:0.1, def:1.5, fmt:mm, ln:1},
+  {k:"line_angle", t:"range", label:"Line angle (degrees)", min:0, max:175, step:5, def:30, ln:1},
+  {k:"line_break_mm", t:"range", label:"Longest slot before a bridge (mm, 0 = continuous)", min:0, max:100, step:5, def:30, fmt:mm, ln:1},
+ ]},
+ {g:"Tones", items:[
+  {k:"mode", t:"select", label:"Tone mode", def:"local", st:1,
+   opts:[["local","Local (keeps facial details)"],["global","Global (single threshold)"]]},
+  {k:"tone_source", t:"select", label:"Tone source", def:"luminance",
+   opts:[["luminance","Luminance (natural)"],["darkest","Darkest channel (colours become dark)"],["mix","Mix of both"]]},
+  {k:"auto_threshold", t:"check", label:"Automatic threshold", def:true, st:1},
+  {k:"threshold", t:"range", label:"Threshold", min:0, max:255, step:1, def:128, st:1},
+  {k:"bias", t:"range", label:"Offset (+ = more black)", min:-60, max:60, step:1, def:0, st:1},
+  {k:"texture", t:"range", label:"Simplify textures (foliage, fabric...)", min:0, max:6, step:1, def:1, st:1},
+  {k:"blur", t:"range", label:"Blur", min:0, max:6, step:0.1, def:1.5, st:1},
+  {k:"contrast", t:"check", label:"Contrast equalization", def:true},
+  {k:"invert", t:"check", label:"Invert (keep light areas)", def:false, ni:1},
+  {k:"local_contrast", t:"range", label:"Detail threshold (low = more details)", min:2, max:30, step:0.5, def:10, local:1, st:1},
+  {k:"local_size", t:"range", label:"Local window size", min:0.04, max:0.3, step:0.01, def:0.125, fmt:pct, local:1, st:1},
+  {k:"dark_offset", t:"range", label:"Solid dark areas (low = more solid)", min:20, max:200, step:1, def:90, local:1, st:1},
+ ]},
+ {g:"Cleanup and bridges", items:[
+  {k:"min_feature_mm", t:"range", label:"Smallest cuttable detail (mm)", min:0.2, max:3, step:0.1, def:0.8, fmt:mm, st:1, sl:1},
+  {k:"grow_mm", t:"range", label:"Line weight (mm, + = thicker)", min:-1, max:2, step:0.1, def:0, fmt:v => (v > 0 ? "+" : "") + (+v).toFixed(1) + " mm", st:1, sl:1},
+  {k:"keep_thin", t:"check", label:"Thicken thin lines instead of removing them", def:true, st:1, sl:1},
+  {k:"min_island_mm2", t:"range", label:"Remove isolated pieces smaller than (mm2)", min:0, max:30, step:0.5, def:10, st:1, sl:1},
+  {k:"bridge_mm", t:"range", label:"Bridge width (mm)", min:0.6, max:4, step:0.1, def:1.5, fmt:mm, st:1, sl:1},
+  {k:"max_bridge_mm", t:"range", label:"Remove pieces farther than (mm)", min:1, max:30, step:0.5, def:8, fmt:mm, st:1, sl:1},
+ ]},
+ {g:"Contours", items:[
+  {k:"smooth", t:"range", label:"Smoothing", min:0, max:6, step:0.5, def:2},
+  {k:"simplify", t:"range", label:"Simplification", min:0.2, max:3, step:0.1, def:0.8},
+ ]},
+ {g:"Preview and export", items:[
+  {k:"export_frame", t:"check", label:"Add a framing rectangle (marking layer)", def:false},
+  {k:"exp_preview", t:"check", ui:1, label:"Preview before exporting", def:true},
+  {k:"previewRes", t:"select", ui:1, label:"Preview resolution (px)", def:"1200",
+   opts:[["640","640 (fast, approximate)"],["900","900"],["1200","1200 (same as export)"],["1600","1600 (slow)"]]},
+  {k:"exportRes", t:"select", ui:1, label:"Export resolution (px)", def:"1200",
+   opts:[["800","800"],["1200","1200"],["1600","1600"],["2400","2400"]]},
+ ]},
+];
+const ITEMS = SPEC.flatMap(g => g.items);
+const TIPS = {
+ "lp_style": "Mesh only: open triangles separated by edges. Hole size: each facet gets a hole as large as the image is light there (photo look). Darkest facets solid: dark facets stay full.",
+ "lp_points": "Number of mesh vertices. Fewer = big bold facets, more = finer mesh. Vertices follow the contours of the image.",
+ "lp_beam_mm": "Width of the edges (the material strips between facets). Thin edges are fragile.",
+ "lp_focus": "0 = evenly spread vertices; 1 = vertices packed tightly along the image details (eyes, outline).",
+ "lp_fill_pct": "Share of facets left solid, starting with the darkest ones.",
+ "lp_seed": "Another random layout of the vertices. Try a few values and keep the nicest.",
+ "export_frame": "Adds a rectangle around the piece in a separate FRAME layer (green), to use as the marking/framing layer in your laser software.",
+ "output": "What you want to produce: a cut stencil, a halftone dot plate, photo as lines, or an engraving.",
+ "preset": "Loads a ready-made set of settings for a typical image type. You can adjust everything afterwards.",
+ "material": "Only changes the colour of the preview. It has no effect on the exported files.",
+ "backlight": "Simulates LEDs behind the plate in the preview. Preview only.",
+ "lightcolor": "Colour of the simulated light. Preview only.",
+ "shape": "Outline of the plate or box front: circle, rectangle, star, tree...",
+ "aspect": "Width-to-height ratio of the plate. Choose 'custom' to type exact dimensions.",
+ "custom_w": "Exact width of the plate in millimetres.",
+ "custom_h": "Exact height of the plate in millimetres.",
+ "free": "Lets the frame go beyond the image or the image be smaller than the frame. Empty margins stay blank.",
+ "rot": "Rotates the frame on the subject. Use it to straighten a tilted head or composition.",
+ "img_mm": "Real width of the whole image once placed on the plate. Smaller than the frame leaves empty margins.",
+ "zoom": "Share of the image covered by the frame. Smaller = zoom in on the subject. Mouse wheel does the same.",
+ "size_mm": "Final size of the plate, measured on its largest side.",
+ "ring_mm": "Width of the solid border kept around the image. It holds the plate together.",
+ "hang": "Adds a tab with a hole for a ring, string or chain.",
+ "hang_style": "Shape of the hanging tab: round, or a drop with a wider base for more strength.",
+ "hang_hole_mm": "Diameter of the hanging hole.",
+ "hang_tab_mm": "Material left around the hole. Too thin and it breaks.",
+ "text_top": "Text engraved/cut along the top edge. Leave empty for none.",
+ "text_bottom": "Text cut along the bottom edge. Leave empty for none.",
+ "text_size_mm": "Height of the letters.",
+ "text_spacing": "Space between letters, in percent of the letter size.",
+ "text_bridge_mm": "Width of the small bridges that hold the insides of letters like O, A or B.",
+ "eng_dpi": "Resolution of your machine for engraving. Match it to your laser's line spacing.",
+ "eng_dither": "How grays are turned into dots. Stucki and Floyd-Steinberg give smooth photos, Bayer a regular pattern.",
+ "eng_levels": "Number of gray levels. 2 = pure black and white, higher = more power variations.",
+ "eng_brightness": "Makes the whole image lighter (+) or darker (-).",
+ "eng_contrast": "Increases (+) or decreases (-) the difference between light and dark.",
+ "eng_gamma": "Adjusts midtones without touching black and white. Higher = lighter.",
+ "eng_sharpen": "Reinforces edges. Useful for blurry photos, too much creates noise.",
+ "eng_invert": "Engraves the light areas instead of the dark ones (negative).",
+ "eng_border_mm": "Margin around the edge that is left unengraved.",
+ "eng_speed": "Only used to estimate the engraving time. Enter your machine's real speed.",
+ "box_style": "Stacked frames: layers glued together. Finger joints: walls that bend around the shape.",
+ "box_depth_mm": "Inside depth of the box, from the diffuser to the back.",
+ "box_thickness_mm": "Thickness of your sheet material. Measure it with calipers for a good fit.",
+ "box_wall_mm": "Width of the frames or wall pieces (stacked system).",
+ "box_screws": "Number of screws holding the back. 0 = the back is glued.",
+ "box_screw_mm": "Diameter of the back screws.",
+ "box_rib_mm": "Width of the strips between flexible slits. Narrower = more flexible but more fragile.",
+ "box_fit_auto": "Widens the tab slots depending on the curve so tabs always fit.",
+ "box_tab_solid": "Keeps tabs uncut by the flexible slits. Stronger, but the wall bends less near the tabs.",
+ "box_end_mm": "Distance kept between the end of the centre slits and the wall edge.",
+ "box_mid_mm": "Solid bridge left in the middle between two slit cells. Larger = stiffer.",
+ "box_wall_parts": "Splits the wall into several pieces, easier to cut and bend. Stars use 2 per branch.",
+ "box_lip_mm": "How far the front and back plates extend beyond the wall.",
+ "box_fit_mm": "Extra room in the slots for glue. 0.1 mm is a good start.",
+ "box_support": "Adds a stand (foot) and/or keyholes in the back for hanging on a wall.",
+ "box_foot_h": "How deep the groove of the stand goes into the box.",
+ "box_key_head": "Diameter of the screw head the keyhole must pass.",
+ "box_key_shank": "Diameter of the screw shank in the narrow part of the keyhole.",
+ "box_cable_mm": "Diameter of the cable hole in the back. 0 = no hole.",
+ "box_diffuser": "Adds a diffuser sheet to the cut files, between the front and the frames.",
+ "box_sheet_w": "Width of your cutting sheet. Parts are arranged inside it.",
+ "box_gap_mm": "Space left between parts on the cutting sheet.",
+ "isolate": "Detects the subject and removes the background. Refine it with the brush.",
+ "margin": "How far around the frame the subject search extends.",
+ "outline_mm": "Width of the outline added around the subject.",
+ "brush": "Size of the brush used to add or erase parts of the subject.",
+ "dot_pitch_mm": "Distance between dot centres. Smaller = finer detail but more fragile.",
+ "min_web_mm": "Minimum material kept between two holes. Raise it if the plate is fragile.",
+ "min_dot_mm": "Smallest hole your laser can cut cleanly. Smaller ones are removed.",
+ "dot_angle": "Angle of the dot grid. 45° hides the pattern best.",
+ "dot_gamma": "Tone curve. Higher = more material left (darker result).",
+ "dot_contrast": "0 keeps the photo natural, 1 pushes contrast to the maximum.",
+ "dot_detail": "Boosts local detail such as eyes and hair. 0 = none.",
+ "line_pitch_mm": "Distance between two lines. Smaller = finer image.",
+ "line_angle": "Direction of the lines.",
+ "line_break_mm": "Longest continuous slot before a bridge is added to keep the plate rigid. 0 = never.",
+ "mode": "Local keeps facial details in shadows and highlights; global uses a single threshold.",
+ "tone_source": "What the image is converted from: natural luminance, or the darkest colour channel.",
+ "auto_threshold": "Picks the black/white threshold automatically.",
+ "threshold": "Brightness limit between black and white. Lower = less black.",
+ "bias": "Shifts the result toward more black (+) or more white (-).",
+ "texture": "Smooths textures like foliage or fabric so they do not become noise.",
+ "blur": "Softens the image before conversion. More blur = simpler shapes.",
+ "contrast": "Evens out contrast so dark and bright parts are treated alike.",
+ "invert": "Swaps what is cut and what is kept.",
+ "local_contrast": "Lower values keep more fine detail, higher values simplify.",
+ "local_size": "Size of the area used to judge each pixel, as a share of the image.",
+ "dark_offset": "Below this level, areas become solid black. Lower = more solid areas.",
+ "min_feature_mm": "Details smaller than this are removed or thickened because they cannot be cut.",
+ "grow_mm": "Thickens (+) or thins (-) all black lines.",
+ "keep_thin": "Thickens thin lines to the minimum instead of deleting them.",
+ "min_island_mm2": "Removes tiny isolated pieces that would fall out.",
+ "bridge_mm": "Width of the bridges that attach floating pieces to the rest.",
+ "max_bridge_mm": "Pieces farther than this from the rest are removed rather than bridged.",
+ "smooth": "Smooths jagged edges. Too much rounds off small details.",
+ "simplify": "Reduces the number of points in the outlines. Higher = smaller files, less precise.",
+ "exp_preview": "Shows a preview of the files before downloading them.",
+ "previewRes": "Resolution of the on-screen preview. Lower = faster.",
+ "exportRes": "Resolution used to compute the exported outlines. Higher = smoother, slower."
+};
+const DEFAULTS = Object.fromEntries(ITEMS.map(i => [i.k, i.def]));
+let S = {...DEFAULTS};
+let tool = "move", view = "result";
+
+const NO_RESET = new Set(["preset", "img_mm", "zoom", "custom_w", "custom_h"]);
+function isMod(it){
+  const a = S[it.k], d = it.def;
+  return (typeof d === "number") ? Math.abs((+a) - d) > 1e-9 : a !== d;
+}
+function markModified(){
+  document.querySelectorAll("#controls details").forEach(d => {
+    let any = false;
+    d.querySelectorAll(".row").forEach(r => {
+      const it = ITEMS.find(i => "row_" + i.k === r.id);
+      const m = !!it && !NO_RESET.has(it.k) && isMod(it);
+      r.classList.toggle("mod", m); any = any || m;
+    });
+    d.classList.toggle("mod", any);
+  });
+  applyFilter();
+}
+/* ---- mode avancé, recherche, groupes repliables, réglages enregistrés */
+const ADV = new Set(["hang_style","hang_tab_mm","text_spacing","text_bridge_mm","eng_dither","eng_levels","eng_gamma","eng_sharpen","eng_border_mm","eng_speed",
+  "box_wall_mm","box_screw_mm","box_end_mm","box_mid_mm","box_lip_mm","box_fit_mm","box_foot_h","box_key_head","box_key_shank","box_sheet_w","box_gap_mm",
+  "margin","outline_mm","min_web_mm","min_dot_mm","dot_gamma","dot_contrast","dot_detail","dot_angle","line_angle","line_break_mm",
+  "tone_source","bias","texture","blur","local_contrast","local_size","dark_offset","min_island_mm2","bridge_mm","max_bridge_mm","smooth","simplify",
+  "previewRes","exportRes"]);
+const DEF_OPEN = null;   // null = tous les groupes ouverts par défaut
+let SRCH = "", ADV_ON = false, srchSaved = null;
+ADV_ON = true;   // par défaut : tous les réglages visibles
+try { if (localStorage.getItem("lss_adv") === "0") ADV_ON = false; } catch(e){}
+const norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function openStore(){ try { return JSON.parse(localStorage.getItem("lss_open") || "{}"); } catch(e){ return {}; } }
+function saveOpen(){
+  if (srchSaved) return;
+  const o = {}; document.querySelectorAll("#controls details").forEach(d => { o[d.dataset.g] = d.open; });
+  try { localStorage.setItem("lss_open", JSON.stringify(o)); } catch(e){}
+}
+function applyFilter(){
+  const q = norm(SRCH.trim());
+  if (q && !srchSaved){ srchSaved = {}; document.querySelectorAll("#controls details").forEach(d => { srchSaved[d.dataset.g] = d.open; }); }
+  const restore = !q && srchSaved; 
+  document.querySelectorAll("#controls details").forEach(d => {
+    const gname = norm(T(d.dataset.g));
+    let vis = 0, n = 0;
+    d.querySelectorAll(".row").forEach(r => {
+      const it = ITEMS.find(i => "row_" + i.k === r.id); if (!it) return;
+      n++;
+      const adv = ADV.has(it.k) && !ADV_ON && !r.classList.contains("mod");
+      const txt = norm(T(it.label) + " " + (TIPS[it.k] ? T(TIPS[it.k]) : "") + " " + gname);
+      r.classList.toggle("advhide", adv && !q);
+      r.classList.toggle("srchide", !!q && !txt.includes(q));
+      if (!r.classList.contains("hidden") && !r.classList.contains("advhide") && !r.classList.contains("srchide")) vis++;
+    });
+    if (n){ d.hidden = vis === 0; if (q && vis) d.open = true; }
+    if (restore && srchSaved[d.dataset.g] !== undefined) d.open = srchSaved[d.dataset.g];
+  });
+  if (restore) srchSaved = null;
+}
+/* réglages enregistrés (stockés dans presets.json à côté du programme, sinon dans le navigateur) */
+const PRESET_SKIP = new Set(["preset", "img_mm", "zoom", "rot", "free", "isolate", "margin", "brush"]);
+let USER_PRESETS = {};
+async function loadPresets(){
+  try { USER_PRESETS = await (await fetch("/api/presets")).json(); if (!USER_PRESETS || typeof USER_PRESETS !== "object") USER_PRESETS = {}; }
+  catch(e){ try { USER_PRESETS = JSON.parse(localStorage.getItem("lss_presets") || "{}"); } catch(_){ USER_PRESETS = {}; } }
+  refreshPresetList();
+}
+async function storePresets(){
+  try { localStorage.setItem("lss_presets", JSON.stringify(USER_PRESETS)); } catch(e){}
+  try { await fetch("/api/presets", {method:"POST", body:JSON.stringify(USER_PRESETS)}); } catch(e){}
+  refreshPresetList();
+}
+function refreshPresetList(){
+  const sel = $("presetSel"); if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const o0 = document.createElement("option"); o0.value = ""; o0.textContent = T("My saved settings..."); sel.appendChild(o0);
+  Object.keys(USER_PRESETS).sort().forEach(n => { const o = document.createElement("option"); o.value = n; o.textContent = n; sel.appendChild(o); });
+  if (cur && USER_PRESETS[cur]) sel.value = cur;
+}
+function applyUserPreset(name){
+  const p = USER_PRESETS[name]; if (!p) return;
+  ITEMS.forEach(it => { if (!PRESET_SKIP.has(it.k) && p[it.k] !== undefined) S[it.k] = p[it.k]; });
+  syncControls(); clampFrame(); drawSource(); persist(); schedule();
+}
+function buildTools(box){
+  const t = document.createElement("div"); t.className = "tools";
+  t.innerHTML =
+    '<input type="search" id="srch" data-i18n-ph="Search a setting...">' +
+    '<label><input type="checkbox" id="advOn"><span data-i18n="Show advanced settings">Show advanced settings</span></label>' +
+    '<div class="trow"><select id="presetSel"></select>' +
+    '<button type="button" id="pApply" data-i18n="Apply">Apply</button>' +
+    '<button type="button" id="pSave" data-i18n="Save as...">Save as...</button>' +
+    '<button type="button" id="pDel" data-i18n="Delete">Delete</button>' +
+    '<button type="button" id="pExp" data-i18n="Export">Export</button>' +
+    '<button type="button" id="pImp" data-i18n="Import">Import</button>' +
+    '<input type="file" id="pFile" accept=".json,application/json" hidden></div>' +
+    '<div class="trow"><button type="button" id="gOpen" data-i18n="Expand all">Expand all</button>' +
+    '<button type="button" id="gClose" data-i18n="Collapse all">Collapse all</button></div>';
+  box.appendChild(t);
+  $("advOn").checked = ADV_ON;
+  $("advOn").onchange = e => { ADV_ON = e.target.checked; try { localStorage.setItem("lss_adv", ADV_ON ? "1" : "0"); } catch(_){} applyFilter(); };
+  $("srch").oninput = e => { SRCH = e.target.value; applyFilter(); };
+  $("presetSel").onchange = e => { if (e.target.value) applyUserPreset(e.target.value); };
+  $("pApply").onclick = () => { const n = $("presetSel").value; if (n) applyUserPreset(n); };
+  $("pSave").onclick = () => {
+    const cur = $("presetSel").value;
+    let name = prompt(T("Name for these settings:"), cur || ""); if (name === null) return;
+    name = name.trim(); if (!name) return;
+    if (USER_PRESETS[name] && name !== cur && !confirm(T("Replace the existing settings named \"{n}\"?", {n:name}))) return;
+    const p = {}; ITEMS.forEach(it => { if (!PRESET_SKIP.has(it.k)) p[it.k] = S[it.k]; });
+    USER_PRESETS[name] = p; storePresets().then(() => { $("presetSel").value = name; });
+  };
+  $("pDel").onclick = () => {
+    const n = $("presetSel").value; if (!n) return;
+    if (!confirm(T("Delete the settings \"{n}\"?", {n}))) return;
+    delete USER_PRESETS[n]; storePresets();
+  };
+  $("pExp").onclick = () => download("laser_presets.json", JSON.stringify(USER_PRESETS, null, 2), "application/json");
+  $("pImp").onclick = () => $("pFile").click();
+  $("pFile").onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+    try { const o = JSON.parse(await f.text()); if (o && typeof o === "object") { Object.assign(USER_PRESETS, o); await storePresets(); } }
+    catch(err){ setStatus(esc(T("Error: {msg}", {msg:String(err)}))); }
+  };
+  const setAll = on => { document.querySelectorAll("#controls details").forEach(d => { if (!d.hidden) d.open = on; }); saveOpen(); };
+  $("gOpen").onclick = () => setAll(true);
+  $("gClose").onclick = () => setAll(false);
+  refreshPresetList();
+}
+function buildControls(){
+  const box = $("controls"); box.innerHTML = ""; buildTools(box);
+  const ostore = openStore();
+  SPEC.forEach((grp, gi) => {
+    const d = document.createElement("details"); d.dataset.g = grp.g; d.open = ostore[grp.g] !== undefined ? !!ostore[grp.g] : (DEF_OPEN ? DEF_OPEN.has(grp.g) : true);
+    const sm = document.createElement("summary"); sm.dataset.i18n = grp.g; sm.textContent = T(grp.g);
+    sm.addEventListener("click", () => setTimeout(saveOpen, 0));
+    d.appendChild(sm);
+    const rows = document.createElement("div"); rows.className = "rows"; d.appendChild(rows);
+    grp.items.forEach(it => {
+      const row = document.createElement("div"); row.className = "row" + (it.t === "check" ? " check" : "");
+      row.id = "row_" + it.k;
+      if (TIPS[it.k]){ row.dataset.t0 = TIPS[it.k]; row.title = T(TIPS[it.k]); }
+      const lab = document.createElement("label");
+      const span = document.createElement("span"); span.dataset.i18n = it.label; span.textContent = T(it.label);
+      let inp;
+      if (it.t === "range"){
+        // valeur saisissable au clavier : champ numérique + unité (le curseur reste utilisable)
+        const fac = (it.fmt && String(it.fmt(0.5)).includes("%")) ? 100 : 1;
+        const unit = it.fmt ? String(it.fmt(1)).replace(/^[\s\d.,+-]+/, "").trim() : "";
+        const wrap = document.createElement("span"); wrap.className = "numwrap";
+        const num = document.createElement("input"); num.type = "number"; num.className = "numin"; num.id = "num_" + it.k;
+        num.min = it.min * fac; num.step = +(it.step * fac).toPrecision(6);
+        const out = document.createElement("output"); out.id = "out_" + it.k; out.textContent = unit;
+        wrap.append(num, out); lab.append(span, wrap); row.appendChild(lab);
+        inp = document.createElement("input"); inp.type = "range";
+        inp.min = it.min; inp.max = it.max; inp.step = it.step;
+        inp.addEventListener("input", () => { S[it.k] = +inp.value; showOut(it); changed(it.k); });
+        const fromNum = final => {
+          let v = parseFloat(String(num.value).replace(",", "."));
+          if (!isFinite(v)){ if (final) showOut(it); return; }
+          v = Math.min(+inp.max, Math.max(+inp.min, v / fac));
+          if (final){ const st = it.step; v = Math.round(v / st) * st; v = +v.toFixed(4); }
+          if (v === S[it.k]) { if (final) showOut(it); return; }
+          S[it.k] = v; inp.value = v; if (final) showOut(it); changed(it.k);
+        };
+        num.addEventListener("input", () => fromNum(false));
+        num.addEventListener("change", () => fromNum(true));
+        num.addEventListener("keydown", e => { if (e.key === "Enter") num.blur(); });
+        row.appendChild(inp);
+        inp.dataset.fac = fac;
+      } else if (it.t === "select"){
+        lab.append(span); row.appendChild(lab);
+        inp = document.createElement("select");
+        it.opts.forEach(([v, l]) => { const o = document.createElement("option"); o.value = v; o.dataset.i18n = l; o.textContent = T(l); inp.appendChild(o); });
+        inp.addEventListener("change", () => { S[it.k] = inp.value; changed(it.k); });
+        row.appendChild(inp);
+      } else if (it.t === "text"){
+        lab.append(span); row.appendChild(lab);
+        inp = document.createElement("input"); inp.type = "text"; inp.maxLength = 40; inp.style.width = "100%";
+        inp.addEventListener("input", () => { S[it.k] = inp.value; changed(it.k); });
+        row.appendChild(inp);
+      } else if (it.t === "number"){
+        lab.append(span); row.appendChild(lab);
+        inp = document.createElement("input"); inp.type = "number";
+        inp.min = it.min; inp.max = it.max; inp.step = it.step; inp.style.width = "100%";
+        inp.addEventListener("input", () => { const v = +inp.value; if (v >= it.min && v <= it.max){ S[it.k] = v; changed(it.k); } });
+        row.appendChild(inp);
+      } else {
+        inp = document.createElement("input"); inp.type = "checkbox";
+        lab.append(inp, span); row.appendChild(lab);
+        inp.addEventListener("change", () => { S[it.k] = inp.checked; changed(it.k); });
+      }
+      inp.id = "c_" + it.k;
+      if (!NO_RESET.has(it.k)){
+        const rb = document.createElement("button"); rb.type = "button"; rb.className = "rst"; rb.textContent = "\u21BA";
+        rb.dataset.t0 = "Reset this setting"; rb.title = T("Reset this setting");
+        rb.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); setControl(it.k, it.def); changed(it.k); });
+        lab.appendChild(rb);
+      }
+      rows.appendChild(row);
+    });
+    box.appendChild(d);
+  });
+  syncControls();
+}
+function showOut(it){
+  const n = $("num_" + it.k); if (!n) return;
+  const fac = +($("c_" + it.k) && $("c_" + it.k).dataset.fac || 1);
+  if (document.activeElement !== n) n.value = +(+S[it.k] * fac).toFixed(3);
+}
+function setControl(k, v){
+  const it = ITEMS.find(i => i.k === k), el = $("c_" + k); if (!it || !el) return;
+  S[k] = v;
+  if (it.t === "check") el.checked = !!v; else el.value = v;
+  if (it.t === "range") showOut(it);
+}
+function syncControls(){ ITEMS.forEach(it => setControl(it.k, S[it.k])); refreshDisabled(); markModified(); }
+function closeDD(){ document.querySelectorAll(".ddm").forEach(m => { m.hidden = true; }); }
+function initDD(){
+  document.querySelectorAll(".dd").forEach(dd => {
+    const b = dd.querySelector(":scope > button"), m = dd.querySelector(".ddm");
+    b.addEventListener("click", e => { e.stopPropagation(); const op = m.hidden; closeDD(); m.hidden = !op; });
+    m.addEventListener("click", () => { m.hidden = true; });
+  });
+  document.addEventListener("click", closeDD);
+  document.addEventListener("keydown", e => { if (e.key === "Escape") closeDD(); });
+}
+function refreshDisabled(){
+  const dis = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("disabled", !!on);   // !! : toggle(x, undefined) inverserait l'état
+  const hid = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("hidden", !!on);
+  dis("threshold", S.auto_threshold);
+  dis("aspect", S.shape === "circle");
+  dis("custom_w", S.shape === "circle" || S.aspect !== "custom");
+  dis("custom_h", S.shape === "circle" || S.aspect !== "custom");
+  dis("margin", !S.isolate);
+  if ($("c_zoom")) $("c_zoom").max = (S.free || +S.rot) ? 10 : 1;
+  dis("rot", isFull());
+  dis("zoom", isFull()); dis("img_mm", isFull());
+  ["hang_style", "hang_hole_mm", "hang_tab_mm"].forEach(k => dis(k, S.hang === "none"));
+  const noText = !S.text_top && !S.text_bottom, textShape = ["circle", "oval", "rect", "rrect"].includes(S.shape);
+  ["text_top", "text_bottom"].forEach(k => dis(k, !textShape));
+  ["text_size_mm", "text_spacing", "text_bridge_mm"].forEach(k => dis(k, noText || !textShape));
+  dis("lightcolor", !S.backlight);
+  updateLightBtn();
+  dis("outline_mm", !S.isolate);
+  const o = S.output, stencil = o !== "halftone" && o !== "lines" && o !== "engrave" && o !== "lowpoly";
+  ITEMS.filter(i => i.local).forEach(i => { hid(i.k, !stencil || S.mode !== "local"); });
+  ITEMS.filter(i => i.st).forEach(i => { if (!i.local) hid(i.k, !stencil && !(o === "lowpoly" && i.sl)); });
+  ITEMS.filter(i => i.lp).forEach(i => hid(i.k, o !== "lowpoly" || (i.lpsolid && S.lp_style !== "solid")));
+  ITEMS.filter(i => i.ni).forEach(i => hid(i.k, o === "engrave"));
+  ITEMS.filter(i => i.ht).forEach(i => hid(i.k, o !== "halftone" && o !== "lines"));
+  ITEMS.filter(i => i.dt).forEach(i => hid(i.k, o !== "halftone"));
+  ITEMS.filter(i => i.ln).forEach(i => hid(i.k, o !== "lines"));
+  ITEMS.filter(i => i.eg).forEach(i => hid(i.k, o !== "engrave"));
+  ITEMS.filter(i => i.bs).forEach(i => hid(i.k, S.box_style === "fingers"));
+  ITEMS.filter(i => i.bf).forEach(i => hid(i.k, S.box_style !== "fingers"));
+  ITEMS.filter(i => i.sf).forEach(i => hid(i.k, S.box_support !== "foot" && S.box_support !== "both"));
+  ITEMS.filter(i => i.sk).forEach(i => hid(i.k, S.box_support !== "wall" && S.box_support !== "both"));
+  document.querySelectorAll("button.eg").forEach(b => { b.hidden = S.output !== "engrave"; });
+  document.querySelectorAll(".isoonly").forEach(b => { b.hidden = !S.isolate; });
+  if (!S.isolate && ["fg", "bg", "erase"].includes(tool)){ const mv = document.querySelector('#tools [data-tool="move"]'); if (mv) mv.click(); }
+  markModified();
+}
+function getParams(){
+  const p = {};
+  ITEMS.filter(i => !i.ui).forEach(i => { p[i.k] = S[i.k]; });
+  return p;
+}
+
+/* -------------------------------------------------------- frame + image */
+let img = null, iw = 0, ih = 0, hc = null, F = {cx:.5, cy:.5, w:1}, fileBase = "stencil";
+let lastRatio = 1;   // dernier ratio du cadre hors mode « Personnalisé » (sert à pré-remplir largeur et hauteur)
+const curAspect = () => {
+  if (S.shape === "circle") return 1;
+  if (S.aspect === "custom") return Math.max(0.1, Math.min(10, (+S.custom_w || 1) / (+S.custom_h || 1)));
+  const r = (S.aspect === "full") ? ((iw && ih) ? iw / ih : 1) : (+S.aspect || 1);
+  lastRatio = r;
+  return r;
+};
+function curAspectNumeric(){ return lastRatio; }
+const isFull = () => S.shape !== "circle" && S.aspect === "full";
+const freeOn = () => (!!S.free || +S.rot !== 0) && !isFull();   // un cadre tourné se place librement (il peut déborder)
+function frameDims(){
+  const a = curAspect(); let fw = F.w * iw, fh = fw / a;
+  if (freeOn()) return [fw, fh];            // placement libre : le cadre peut déborder de la photo
+  if (fh > ih){ fh = ih; fw = fh * a; }
+  if (fw > iw){ fw = iw; fh = fw / a; }
+  return [fw, fh];
+}
+function frameWidthMm(){ const a = curAspect(); return (+S.size_mm || 100) * Math.min(1, a); }
+function syncImgMm(){   // largeur de l'image sur la plaque (mm) = largeur du cadre / part de l'image couverte par le cadre
+  if (!iw || !F.w) return;
+  const v = Math.round(frameWidthMm() / F.w * 10) / 10;
+  S.img_mm = v; setControl("img_mm", v);
+}
+function clampFrame(){
+  if (!iw) return;
+  if (freeOn()){
+    F.w = Math.min(10, Math.max(0.05, F.w));
+    const [fw, fh] = frameDims();
+    F.cx = Math.min(Math.max(F.cx, 0), 1); F.cy = Math.min(Math.max(F.cy, 0), 1);
+    setControl("zoom", Math.round(F.w * 100) / 100); syncImgMm();
+    return;
+  }
+  const [fw, fh] = frameDims();
+  F.w = fw / iw;
+  F.cx = Math.min(Math.max(F.cx, fw / 2 / iw), 1 - fw / 2 / iw);
+  F.cy = Math.min(Math.max(F.cy, fh / 2 / ih), 1 - fh / 2 / ih);
+  setControl("zoom", Math.round(F.w * 100) / 100); syncImgMm();
+}
+const getFrame = () => ({cx:F.cx, cy:F.cy, w:F.w, aspect:curAspect(), full:isFull(), free:freeOn(), rot:isFull() ? 0 : +S.rot || 0});
+
+/* --------------------------------------------------------- source canvas */
+const cv = $("src"), ctx = cv.getContext("2d");
+let cssW = 0, cssH = 0, dpr = 1, V = {s:1, ox:0, oy:0};
+function layout(){
+  const r = cv.parentElement.getBoundingClientRect();
+  cssW = r.width; cssH = r.height; dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssH * dpr);
+  cv.style.width = cssW + "px"; cv.style.height = cssH + "px";
+  computeView(); drawSource();
+}
+function computeView(){
+  if (!iw) return;
+  if (!freeOn()){
+    V.s = Math.min(cssW / iw, cssH / ih);
+    V.ox = (cssW - iw * V.s) / 2; V.oy = (cssH - ih * V.s) / 2;
+    return;
+  }
+  // placement libre : la vue montre la photo ET le cadre (fixe pendant le glissement pour que rien ne saute)
+  const [fw, fh] = frameDims();
+  const ra = (+S.rot || 0) * Math.PI / 180, ex = Math.abs(Math.cos(ra)) * fw / 2 + Math.abs(Math.sin(ra)) * fh / 2,
+        ey = Math.abs(Math.sin(ra)) * fw / 2 + Math.abs(Math.cos(ra)) * fh / 2;
+  const x0 = Math.min(0, F.cx * iw - ex), x1 = Math.max(iw, F.cx * iw + ex);
+  const y0 = Math.min(0, F.cy * ih - ey), y1 = Math.max(ih, F.cy * ih + ey);
+  const pw = (x1 - x0) * 0.1, ph = (y1 - y0) * 0.1;
+  V.s = Math.min(cssW / (x1 - x0 + 2 * pw), cssH / (y1 - y0 + 2 * ph));
+  V.ox = (cssW - (x1 - x0) * V.s) / 2 - x0 * V.s; V.oy = (cssH - (y1 - y0) * V.s) / 2 - y0 * V.s;
+}
+function unitPoly(shape){      // mêmes formules que core.py
+  let pts = [];
+  if (shape === "tree"){
+    const half = [[0.5, 0], [0.70, 0.30], [0.60, 0.30], [0.82, 0.58], [0.70, 0.58], [0.96, 0.86], [0.58, 0.86], [0.58, 1.0]];
+    return half.concat(half.slice().reverse().map(p => [1 - p[0], p[1]]));
+  }
+  if (shape === "heart"){
+    for (let i = 0; i < 200; i++){ const t = i / 200 * 2 * Math.PI;
+      pts.push([16 * Math.sin(t) ** 3, -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t))]); }
+  } else {
+    for (let k = 0; k < 10; k++){ const a = -Math.PI / 2 + k * Math.PI / 5, r = k % 2 ? 0.42 : 1; pts.push([r * Math.cos(a), r * Math.sin(a)]); }
+  }
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  return pts.map(p => [(p[0] - x0) / (x1 - x0), (p[1] - y0) / (y1 - y0)]);
+}
+function framePath(c, fx, fy, w, h){
+  if (S.shape === "circle" || S.shape === "oval") c.ellipse(fx + w / 2, fy + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+  else if (S.shape === "heart" || S.shape === "star" || S.shape === "tree"){
+    unitPoly(S.shape).forEach((p, i) => { const x = fx + p[0] * w, y = fy + p[1] * h; i ? c.lineTo(x, y) : c.moveTo(x, y); });
+    c.closePath();
+  }
+  else if (S.shape === "rrect"){
+    const r = 0.18 * Math.min(w, h);
+    c.moveTo(fx + r, fy); c.arcTo(fx + w, fy, fx + w, fy + h, r); c.arcTo(fx + w, fy + h, fx, fy + h, r);
+    c.arcTo(fx, fy + h, fx, fy, r); c.arcTo(fx, fy, fx + w, fy, r); c.closePath();
+  }
+  else c.rect(fx, fy, w, h);
+}
+function drawSource(){
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  if (!img){
+    ctx.fillStyle = "#8e96a4"; ctx.font = "15px system-ui,sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(T("Open an image to start (or drop it on this window)."), cssW / 2, cssH / 2);
+    return;
+  }
+  ctx.drawImage(img, V.ox, V.oy, iw * V.s, ih * V.s);
+  if (freeOn()){ ctx.save(); ctx.strokeStyle = "rgba(255,255,255,.55)"; ctx.setLineDash([6, 4]); ctx.lineWidth = 1;
+    ctx.strokeRect(V.ox, V.oy, iw * V.s, ih * V.s); ctx.restore(); }   // bords de la photo
+  ctx.globalAlpha = 0.6; ctx.drawImage(hc, V.ox, V.oy, iw * V.s, ih * V.s); ctx.globalAlpha = 1;
+  const [fw, fh] = frameDims();
+  const ccx = V.ox + F.cx * iw * V.s, ccy = V.oy + F.cy * ih * V.s, rr = (+S.rot || 0) * Math.PI / 180;
+  ctx.save(); ctx.translate(ccx, ccy); ctx.rotate(rr);
+  ctx.beginPath(); ctx.rect(-1e5, -1e5, 2e5, 2e5); framePath(ctx, -fw * V.s / 2, -fh * V.s / 2, fw * V.s, fh * V.s);
+  ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fill("evenodd");
+  ctx.beginPath(); framePath(ctx, -fw * V.s / 2, -fh * V.s / 2, fw * V.s, fh * V.s);
+  ctx.strokeStyle = accColor(); ctx.lineWidth = 2; ctx.stroke();
+  if (!isFull()){      // poignée de rotation au-dessus du cadre
+    const hy = -fh * V.s / 2 - 22;
+    ctx.beginPath(); ctx.moveTo(0, -fh * V.s / 2); ctx.lineTo(0, hy); ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, hy, 6, 0, Math.PI * 2); ctx.fillStyle = accColor(); ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  ctx.restore();
+  if (B){
+    ctx.save(); ctx.setLineDash([7, 5]); ctx.strokeStyle = "#35d0ff"; ctx.lineWidth = 2;
+    ctx.strokeRect(V.ox + B.x * iw * V.s, V.oy + B.y * ih * V.s, B.w * iw * V.s, B.h * ih * V.s);
+    ctx.restore();
+  }
+}
+const toImg = e => { const r = cv.getBoundingClientRect(); return {x:(e.clientX - r.left - V.ox) / V.s, y:(e.clientY - r.top - V.oy) / V.s}; };
+function brushStyle(c){
+  if (tool === "erase"){ c.globalCompositeOperation = "destination-out"; c.strokeStyle = c.fillStyle = "#000"; }
+  else { c.globalCompositeOperation = "source-over"; c.strokeStyle = c.fillStyle = tool === "fg" ? "rgb(0,255,0)" : "rgb(255,0,0)"; }
+  c.lineWidth = S.brush / V.s; c.lineCap = c.lineJoin = "round";
+}
+function paintDot(p){ const c = hc.getContext("2d"); brushStyle(c); c.beginPath(); c.arc(p.x, p.y, c.lineWidth / 2, 0, Math.PI * 2); c.fill(); }
+function paintLine(a, b){ const c = hc.getContext("2d"); brushStyle(c); c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke(); }
+function uploadHints(){
+  hc.toBlob(async b => {
+    try { await fetch("/api/hints", {method:"POST", body:b}); } catch(e){}
+    if (S.isolate) schedule();
+  }, "image/png");
+}
+let drag = null, painting = false, last = null, B = null, boxStart = null, rotDrag = false;
+function rotHandle(){   // position écran (px CSS du canvas) de la poignée de rotation
+  const [fw, fh] = frameDims(), rr = (+S.rot || 0) * Math.PI / 180, d = fh * V.s / 2 + 22;
+  return {x:V.ox + F.cx * iw * V.s + Math.sin(rr) * d, y:V.oy + F.cy * ih * V.s - Math.cos(rr) * d};
+}
+cv.addEventListener("pointerdown", e => {
+  if (!img) return; cv.setPointerCapture(e.pointerId);
+  const p = toImg(e);
+  if (tool === "move" && !isFull()){
+    const r = cv.getBoundingClientRect(), hp = rotHandle();
+    if (Math.hypot(e.clientX - r.left - hp.x, e.clientY - r.top - hp.y) < 12){ rotDrag = true; return; }
+  }
+  if (tool === "move") drag = {x:p.x, y:p.y, cx:F.cx, cy:F.cy};
+  else if (tool === "box"){ boxStart = {x:Math.min(Math.max(p.x / iw, 0), 1), y:Math.min(Math.max(p.y / ih, 0), 1)}; B = null; }
+  else { painting = true; last = p; paintDot(p); drawSource(); }
+});
+cv.addEventListener("pointermove", e => {
+  if (!img) return;
+  const p = toImg(e);
+  if (boxStart){
+    const x = Math.min(Math.max(p.x / iw, 0), 1), y = Math.min(Math.max(p.y / ih, 0), 1);
+    B = {x:Math.min(boxStart.x, x), y:Math.min(boxStart.y, y), w:Math.abs(x - boxStart.x), h:Math.abs(y - boxStart.y)};
+    drawSource();
+  }
+  else if (rotDrag){
+    const cx = F.cx * iw, cy = F.cy * ih;
+    let ang = Math.atan2(p.x - cx, -(p.y - cy)) * 180 / Math.PI;       // 0 = poignée en haut, sens horaire
+    if (!e.shiftKey) ang = Math.round(ang);
+    else ang = Math.round(ang / 15) * 15;                               // Maj : crans de 15 degrés
+    ang = Math.max(-180, Math.min(180, ang));
+    S.rot = ang; setControl("rot", ang); clampFrame(); drawSource(); schedule();
+  }
+  else if (drag){ F.cx = drag.cx + (p.x - drag.x) / iw; F.cy = drag.cy + (p.y - drag.y) / ih; clampFrame(); drawSource(); schedule(); }
+  else if (painting){ paintLine(last, p); last = p; drawSource(); }
+});
+const endPtr = () => {
+  if (boxStart){
+    boxStart = null;
+    if (B && (B.w < 0.03 || B.h < 0.03)) B = null;
+    if (B && !S.isolate){ setControl("isolate", true); refreshDisabled(); persist(); }
+    if (B) fitFrameToBox();          // le cadre se règle tout seul sur le sujet
+    drawSource(); schedule(); return;
+  }
+  if (freeOn() && (drag || rotDrag)){ computeView(); drawSource(); }
+  if (rotDrag){ rotDrag = false; persist(); computeView(); drawSource(); schedule(); return; }
+  const was = !!drag; if (painting){ painting = false; uploadHints(); } drag = null; if (was && S.isolate) schedule(); };
+cv.addEventListener("pointerup", endPtr); cv.addEventListener("pointercancel", endPtr);
+cv.addEventListener("wheel", e => {
+  if (!img) return; e.preventDefault();
+  if (e.altKey && !isFull()){      // Alt + molette : rotation fine
+    const ang = Math.max(-180, Math.min(180, (+S.rot || 0) + (e.deltaY > 0 ? 1 : -1)));
+    S.rot = ang; setControl("rot", ang); clampFrame(); computeView(); drawSource(); schedule(); return;
+  }
+  F.w = Math.max(0.05, F.w * Math.exp(e.deltaY * 0.0015)); clampFrame(); computeView(); drawSource(); schedule();
+}, {passive:false});
+function fitFrameToBox(){
+  if (!img || !B){ setStatus(esc(T("Draw a subject box first."))); return; }
+  if (S.shape !== "circle"){   // cadre rectangulaire : on prend les proportions usuelles les plus proches du sujet
+    const target = (B.w * iw) / (B.h * ih);
+    const opts = ITEMS.find(i => i.k === "aspect").opts.map(o => +o[0]);
+    const best = opts.reduce((m, o) => Math.abs(Math.log(o / target)) < Math.abs(Math.log(m / target)) ? o : m, opts[0]);
+    const val = ITEMS.find(i => i.k === "aspect").opts.find(o => +o[0] === best)[0];
+    setControl("aspect", val); S.aspect = val;
+  }
+  const a = curAspect(), bw = B.w * iw * 1.08, bh = B.h * ih * 1.08;     // 8 % de marge autour du sujet
+  const fw = Math.max(bw, bh * a);
+  F.w = fw / iw; F.cx = B.x + B.w / 2; F.cy = B.y + B.h / 2;
+  clampFrame(); drawSource(); schedule();
+}
+function updateCursor(){ cv.style.cursor = tool === "move" ? "grab" : "crosshair"; }
+
+/* ------------------------------------------------------------- preview */
+let seq = 0, timer = null, dirty = false, lastStats = null, WARN = "";
+const payload = work => ({seq:++seq, params:getParams(), frame:getFrame(), isolate:!!S.isolate,
+                          margin:S.margin, view, work, moving:!!drag, box:B,
+                          style:{material:S.material, backlight:!!S.backlight, light:S.lightcolor, lang:LANG}});
+function schedule(){
+  histNote(); dirty = true; if (timer) return;
+  timer = setTimeout(() => { timer = null; if (dirty){ dirty = false; sendPreview(); } }, 140);
+}
+/* ---- annuler / rétablir (réglages + cadre) */
+let H_UNDO = [], H_REDO = [], H_CUR = null, H_TIMER = null;
+const histSnap = () => JSON.stringify({S, F});
+function histButtons(){ $("btnUndo").disabled = !H_UNDO.length; $("btnRedo").disabled = !H_REDO.length; }
+function histReset(){ clearTimeout(H_TIMER); H_TIMER = null; H_UNDO = []; H_REDO = []; H_CUR = img ? histSnap() : null; histButtons(); }
+function histNote(){
+  if (!img) return;
+  clearTimeout(H_TIMER); H_TIMER = setTimeout(histCommit, 450);
+}
+function histCommit(){
+  clearTimeout(H_TIMER); H_TIMER = null;
+  if (!img) return;
+  const s = histSnap();
+  if (H_CUR === null){ H_CUR = s; return; }
+  if (s === H_CUR) return;
+  H_UNDO.push(H_CUR); if (H_UNDO.length > 100) H_UNDO.shift();
+  H_REDO = []; H_CUR = s; histButtons();
+}
+function histRestore(js){
+  const o = JSON.parse(js);
+  S = {...S, ...o.S}; F = {...o.F};
+  syncControls(); clampFrame(); computeView(); drawSource(); persist(); schedule();
+  clearTimeout(H_TIMER); H_TIMER = null; H_CUR = histSnap(); histButtons();
+}
+function undo(){ histCommit(); if (!H_UNDO.length) return; H_REDO.push(H_CUR); histRestore(H_UNDO.pop()); }
+function redo(){ histCommit(); if (!H_REDO.length) return; H_UNDO.push(H_CUR); histRestore(H_REDO.pop()); }
+document.addEventListener("keydown", e => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const t = e.target, ty = (t && t.type) || "";
+  if (t && (t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && ["text", "number", "search"].includes(ty)))) return;
+  const k = e.key.toLowerCase();
+  if (k === "z" && !e.shiftKey){ e.preventDefault(); undo(); }
+  else if (k === "y" || (k === "z" && e.shiftKey)){ e.preventDefault(); redo(); }
+});
+function setStatus(html, busy){ $("stats").innerHTML = html; $("stats").classList.toggle("busy", !!busy); }
+async function sendPreview(){
+  if (!img) return;
+  const body = payload(+S.previewRes || 1200), my = body.seq;
+  setStatus(esc(T("Computing...")), true);
+  try {
+    const r = await fetch("/api/preview", {method:"POST", body:JSON.stringify(body)});
+    const j = await r.json();
+    if (j.stale || my !== seq) return;
+    if (j.error){ setStatus(esc(T("Error: {msg}", {msg:j.error}))); return; }
+    $("res").src = j.image; $("res").style.display = "block"; $("resEmpty").style.display = "none";
+    lastStats = j.stats; checkVersion(j); renderStats();
+  } catch(e){ if (my === seq) setStatus(esc(T("Error: {msg}", {msg:String(e)}))); }
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function checkVersion(j){
+  WARN = "";
+  if (j.version === undefined) WARN = T("WARNING: studio.py is an old version. Replace ALL the files.");
+  else if (j.version !== UI_VERSION) WARN = T("WARNING: core.py is version {a} but this page is {b}. Replace ALL the files.", {a:j.version, b:UI_VERSION});
+  else if (j.ignored && j.ignored.length) WARN = T("WARNING: these settings are ignored by core.py: {list}. Replace core.py.", {list:j.ignored.join(", ")});
+}
+const BOXMSG = {
+  key_no_room:"No room for the wall keyholes in the back: reduce the screw head size or widen the shape.",
+  foot_shape:"A stand needs a frame shape to hold the box.",
+  sharp_corners:"Sharp corners (not 90 degrees): the flexible wall may break there. Prefer the stacked box for this shape.",
+  radius_small:"Some curves are tighter than 15 mm radius: use thin flexible plywood or a larger pitch of slits.",
+  ring_thin:"The outer ring is too narrow for the wall slots: widen it (at least wall thickness + 2 mm)."};
+function renderStats(){
+  if (!lastStats) return;
+  updateLegend();
+  const extras = [];
+  const s = lastStats;
+  const infos = [];
+  if (s.eng_px) infos.push(T("Engraving: {w} x {h} px at {dpi} DPI, {c} % burned, about {m} min", {w:s.eng_px[0], h:s.eng_px[1], dpi:Math.round(s.eng_dpi), c:s.eng_cover, m:s.eng_minutes}));
+  if (s.box && s.box.style === "fingers") infos.push(T("Box with finger joints: {n} wall pieces, total depth {d} mm, cutting sheet {w} x {h} mm", {n:s.box.counts.wall || 0, d:s.box.depth_total, w:Math.round(s.box.sheet[0]), h:Math.round(s.box.sheet[1])}));
+  else if (s.box) infos.push(T("Box: {f} frames, stack {d} mm, cutting sheet {w} x {h} mm", {f:s.box.frames, d:s.box.depth_total, w:Math.round(s.box.sheet[0]), h:Math.round(s.box.sheet[1])}));
+  if (s.box && s.box.notes.includes("depth_low") && s.box.style !== "fingers") extras.push(T("Depth under 15 mm: the LEDs may show as bright spots through the front."));
+  if (s.box) ["sharp_corners", "radius_small", "ring_thin", "key_no_room", "foot_shape"].forEach(k => { if (s.box.notes.includes(k)) extras.push(T(BOXMSG[k])); });
+  if (s.box && s.box.notes.includes("wall_thin")) extras.push(T("The wall is too narrow for the screws: widen it or reduce the screw diameter."));
+  if (s.text_ignored) extras.push(T("The text is ignored: it works on circle, oval, rectangle and rounded rectangle shapes."));
+  if (s.text_scaled) extras.push(T("The text was too long for the ring: it was reduced."));
+  if (s.subject_failed) extras.push(T("WARNING: subject detection failed, mask ignored. Draw a Subject box or untick the isolation."));
+  else if (s.subject_pct != null && s.subject_pct < 35 && !B)
+    extras.push(T("The mask covers only {p} % of the frame: check the Original view (dark areas = rejected) or draw a Subject box.", {p:s.subject_pct}));
+  const parts = s.eng_px ? [
+    T("Cut length: {mm} mm", {mm:Math.round(s.length_mm)}),
+    T("Size: {w} x {h} mm", {w:s.w_mm.toFixed(1), h:s.h_mm.toFixed(1)}),
+    T("{s} s", {s:s.seconds}),
+  ] : s.holes !== undefined ? [
+    T("Holes: {n}", {n:s.holes}),
+    ...(s.dots_across ? [T("Grid: {n} dots across", {n:s.dots_across})] : []),
+    ...(s.lines_across ? [T("Lines: {n} across", {n:s.lines_across})] : []),
+    ...(s.subject_pct != null ? [T("Subject: {p} %", {p:s.subject_pct})] : []),
+    T("Cut length: {mm} mm", {mm:Math.round(s.length_mm)}),
+    T("Size: {w} x {h} mm", {w:s.w_mm.toFixed(1), h:s.h_mm.toFixed(1)}),
+  ] : [
+    T("Contours: {n}", {n:s.contours}),
+    T("Cut length: {mm} mm", {mm:Math.round(s.length_mm)}),
+    T("Bridges: {n}", {n:s.linked}),
+    T("Removed pieces: {n}", {n:s.dropped}),
+    T("Size: {w} x {h} mm", {w:s.w_mm.toFixed(1), h:s.h_mm.toFixed(1)}),
+    T("Threshold: {t}", {t:Math.round(s.threshold)}),
+    ...(s.subject_pct != null ? [T("Subject: {p} %", {p:s.subject_pct})] : []),
+    T("Computed at {px} px", {px:Math.max(s.px[0], s.px[1])}),
+    T("{s} s", {s:s.seconds}),
+  ];
+  parts.unshift(...infos);
+  parts.push("v" + UI_VERSION);
+  const warn = [WARN, ...extras].filter(Boolean).map(w => "<b style=\"color:#ff6b5e\">" + esc(w) + "</b><br>").join("");
+  setStatus(warn + parts.map(esc).join(" &middot; "));
+}
+function applyPreset(name){
+  const pr = PRESETS[name]; if (!pr) return;
+  Object.keys(pr).forEach(k => { S[k] = pr[k]; });
+  S.preset = ""; syncControls(); clampFrame(); drawSource(); persist(); schedule();
+}
+function changed(k){
+  if (k === "preset"){ applyPreset(S.preset); return; }
+  if (k === "box_style" && S.box_style === "fingers"){   // la bordure doit porter les fentes des parois : on l'élargit une fois
+    const need = Math.ceil(2 * (+S.box_lip_mm + +S.box_thickness_mm + 0.5)) / 2;
+    if (+S.ring_mm < need){ S.ring_mm = need; setControl("ring_mm", need); }
+  }
+  if ((k === "material" || k === "backlight" || k === "lightcolor") && view !== "render"){
+    refreshDisabled(); persist(); setView("render"); return;   // ces réglages ne se voient que dans l'onglet Rendu
+  }
+  const it = ITEMS.find(i => i.k === k);
+  if (k === "zoom"){ F.w = S.zoom; clampFrame(); computeView(); drawSource(); }
+  else if (k === "rot"){ refreshDisabled(); computeView(); clampFrame(); drawSource(); }
+  else if (k === "img_mm"){
+    if (!iw) return;
+    F.w = frameWidthMm() / Math.max(10, +S.img_mm);
+    if (F.w > 1 && !S.free){ S.free = true; setControl("free", true); }   // image plus petite que le cadre : marges vides
+    refreshDisabled(); computeView(); clampFrame(); drawSource();
+  }
+  else if (k === "free"){ refreshDisabled(); computeView(); clampFrame(); drawSource(); }
+  else if (k === "shape" || k === "aspect"){
+    if (S.aspect === "custom" && S.shape !== "circle" && k === "aspect"){   // pré-remplit avec les dimensions actuelles
+      const a = curAspectNumeric(), sz = +S.size_mm;
+      const cw = a >= 1 ? sz : sz * a, ch = a >= 1 ? sz / a : sz;
+      S.custom_w = Math.round(cw * 10) / 10; S.custom_h = Math.round(ch * 10) / 10;
+      setControl("custom_w", S.custom_w); setControl("custom_h", S.custom_h);
+    }
+    if (isFull()){ F.cx = .5; F.cy = .5; F.w = 1; }   // image complète : on reprend toute l'image
+    clampFrame(); computeView(); drawSource();
+  }
+  else if (k === "custom_w" || k === "custom_h"){
+    S.size_mm = Math.max(20, Math.min(400, Math.max(+S.custom_w, +S.custom_h))); setControl("size_mm", S.size_mm);
+    clampFrame(); drawSource();
+  }
+  else if (k === "size_mm" && S.aspect === "custom" && S.shape !== "circle"){   // l'échelle change, pas le ratio
+    const a = curAspect(), sz = +S.size_mm;
+    S.custom_w = Math.round((a >= 1 ? sz : sz * a) * 10) / 10; S.custom_h = Math.round((a >= 1 ? sz / a : sz) * 10) / 10;
+    setControl("custom_w", S.custom_w); setControl("custom_h", S.custom_h);
+  }
+  if (k === "size_mm" || k === "aspect" || k === "custom_w" || k === "custom_h") syncImgMm();
+  refreshDisabled(); markModified(); persist();
+  if (k === "brush" || k === "exportRes") return;
+  if (k === "isolate" && !S.isolate && !img) return;
+  schedule();
+}
+
+/* ------------------------------------------------------------ file ops */
+async function openFile(file){
+  if (!file) return;
+  setStatus(esc(T("Loading image...")), true);
+  try {
+    const r = await fetch("/api/upload", {method:"POST", headers:{"X-Filename":encodeURIComponent(file.name)}, body:file});
+    const j = await r.json();
+    if (j.error){ setStatus(esc(T("Error: {msg}", {msg:j.error}))); return; }
+    fileBase = file.name.replace(/\.[^.]+$/, "");
+    await loadDisplay(j.v);
+  } catch(e){ setStatus(esc(T("Error: {msg}", {msg:String(e)}))); }
+}
+function loadDisplay(v){
+  return new Promise(res => {
+    const im = new Image();
+    im.onload = () => {
+      img = im; iw = im.naturalWidth; ih = im.naturalHeight;
+      hc = document.createElement("canvas"); hc.width = iw; hc.height = ih;
+      F = {cx:.5, cy:.5, w:1}; B = null; lastStats = null;
+      computeView(); clampFrame(); drawSource(); histReset(); schedule(); res();
+    };
+    im.src = "/api/image?v=" + v;
+  });
+}
+function downloadB64(name, b64, type){
+  const bin = atob(b64), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([u], {type}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function download(name, text, type){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type}));
+  a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function deliver(job){
+  if (job.b64) downloadB64(job.name, job.b64, job.type); else download(job.name, job.text, job.type);
+  setStatus($("stats").innerHTML + " &middot; " + esc(T("Saved: {name}", {name:job.name})));
+}
+function showExportPreview(job){
+  $("expTitle").textContent = job.name;
+  $("expImg").src = job.prev;
+  $("expInfo").textContent = job.info || "";
+  $("expOk").onclick = () => { $("expModal").hidden = true; deliver(job); };
+  $("expModal").hidden = false;
+}
+async function doExport(fmt){
+  if (!img){ setStatus(esc(T("Open an image first."))); return; }
+  setStatus(esc(T("Exporting...")), true);
+  try {
+    const body = payload(+S.exportRes); if (fmt.startsWith("box")){ body.what = "box"; body.lang = LANG; }
+    if (fmt.startsWith("flex")) body.what = "flextest";
+    const r = await fetch("/api/export", {method:"POST", body:JSON.stringify(body)});
+    const j = await r.json();
+    if (j.error){ setStatus(esc(T("Error: {msg}", {msg:j.error}))); return; }
+    const base = j.name || fileBase;
+    const st = j.stats || {}, dim = (st.w_mm ? st.w_mm.toFixed(1) + " x " + st.h_mm.toFixed(1) + " mm" : "");
+    const svgUrl = s => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(s);
+    let job = null;
+    const cutInfo = [dim, st.contours != null ? T("{n} contours", {n:st.contours}) : "", st.length_mm ? T("Cut length: {mm} mm", {mm:Math.round(st.length_mm)}) : ""].filter(Boolean).join(" · ");
+    const boxInfo = () => {
+      const s = j.box_summary || {}, c = s.counts || {}, PN = {front:"Front", diffuser:"Diffuser", frame:"Frame", frame_pilot:"Frame (pilot holes)", back:"Back", wall:"Wall", foot_base:"Stand (base)", foot_slot:"Stand (slot layer)"},
+            parts = Object.keys(c).map(k => c[k] + " x " + T(PN[k] || k)).join(", ");
+      const notes = (s.notes || []).filter(k => BOXMSG[k]).map(k => "⚠ " + T(BOXMSG[k]));
+      return [T("Cutting sheet {w} x {h} mm", {w:Math.round((s.sheet || [0, 0])[0]), h:Math.round((s.sheet || [0, 0])[1])}), parts].filter(Boolean).join(" · ") + (notes.length ? "\n" + notes.join("\n") : "");
+    };
+    if (fmt === "svg") job = {name:base + "_cut.svg", text:j.svg, type:"image/svg+xml", prev:svgUrl(j.svg), info:cutInfo};
+    else if (fmt === "dxf") job = {name:base + "_cut.dxf", text:j.dxf, type:"application/dxf", prev:svgUrl(j.svg), info:cutInfo + " · DXF (R12, mm)"};
+    else if (fmt === "png") job = {name:base + "_engrave_" + Math.round(st.eng_dpi) + "dpi.png", b64:j.png_b64, type:"image/png", prev:"data:image/png;base64," + j.png_b64,
+        info:(st.eng_px ? st.eng_px[0] + " x " + st.eng_px[1] + " px, " + Math.round(st.eng_dpi) + " DPI" : "")};
+    else if (fmt === "svgimg") job = {name:base + "_engrave_cut.svg", text:j.svg_image, type:"image/svg+xml", prev:svgUrl(j.svg_image), info:cutInfo};
+    else if (fmt === "boxsvg") job = {name:base + "_box.svg", text:j.box_svg, type:"image/svg+xml", prev:svgUrl(j.box_svg), info:boxInfo()};
+    else if (fmt === "boxdxf") job = {name:base + "_box.dxf", text:j.box_dxf, type:"application/dxf", prev:svgUrl(j.box_svg), info:boxInfo()};
+    else if (fmt === "flexsvg") job = {name:base + "_flex_test.svg", text:j.flex_svg, type:"image/svg+xml", prev:svgUrl(j.flex_svg),
+        info:T("Flexibility test: {n} strips, sheet {w} x {h} mm. Rows: rib width; columns: middle bridge. Cut them in your real material and keep the best one.", {n:j.flex_info[2], w:Math.round(j.flex_info[0]), h:Math.round(j.flex_info[1])})};
+    else if (fmt === "flexdxf") job = {name:base + "_flex_test.dxf", text:j.flex_dxf, type:"application/dxf", prev:svgUrl(j.flex_svg),
+        info:T("Flexibility test: {n} strips, sheet {w} x {h} mm. Rows: rib width; columns: middle bridge. Cut them in your real material and keep the best one.", {n:j.flex_info[2], w:Math.round(j.flex_info[0]), h:Math.round(j.flex_info[1])})};
+    else if (fmt === "boxpdf"){
+      if (!j.diffuser_pdf_b64){ setStatus(esc(T("No diffuser in this box (enable the diffuser sheet)."))); return; }
+      job = {name:base + "_diffuser.pdf", b64:j.diffuser_pdf_b64, type:"application/pdf", prev:svgUrl(j.diffuser_svg), info:T("Diffuser at actual size: print at 100 % (no scaling)")};
+    }
+    lastStats = j.stats; renderStats();
+    if (S.exp_preview) { setStatus(esc(T("Check the preview, then confirm the export."))); showExportPreview(job); return; }
+    deliver(job);
+    const name = job.name;
+    setStatus($("stats").innerHTML + " &middot; " + esc(T("Saved: {name}", {name})));
+  } catch(e){ setStatus(esc(T("Error: {msg}", {msg:String(e)}))); }
+}
+function saveSettings(){
+  download(fileBase + "_settings.json", JSON.stringify({format:"laser-stencil-studio", S, F, B, lang:LANG}, null, 2), "application/json");
+}
+function applySettings(o){
+  if (!o || !o.S) return;
+  ITEMS.forEach(it => { if (o.S[it.k] !== undefined) S[it.k] = o.S[it.k]; });
+  if (o.F && img){ F = {cx:+o.F.cx || .5, cy:+o.F.cy || .5, w:+o.F.w || 1}; }
+  if (img && o.B !== undefined) B = o.B;
+  syncControls(); clampFrame(); drawSource(); persist(); schedule();
+}
+function persist(){ try { localStorage.setItem("lss5", JSON.stringify({S, lang:LANG})); } catch(e){} }
+
+/* ---------------------------------------------------------------- init */
+$("btnOpen").onclick = () => $("fileImg").click();
+$("fileImg").onchange = e => { openFile(e.target.files[0]); e.target.value = ""; };
+$("btnSvg").onclick = () => doExport("svg");
+$("btnDxf").onclick = () => doExport("dxf");
+$("btnPng").onclick = () => doExport("png");
+$("btnSvgImg").onclick = () => doExport("svgimg");
+$("btnBoxSvg").onclick = () => doExport("boxsvg");
+$("btnBoxDxf").onclick = () => doExport("boxdxf");
+$("btnDiffPdf").onclick = () => doExport("boxpdf");
+$("btnFlexSvg").onclick = () => doExport("flexsvg");
+$("btnFlexDxf").onclick = () => doExport("flexdxf");
+$("btnSave").onclick = saveSettings;
+$("btnLoad").onclick = () => $("fileCfg").click();
+$("fileCfg").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try { applySettings(JSON.parse(await f.text())); } catch(err){ setStatus(esc(T("Error: {msg}", {msg:String(err)}))); }
+};
+$("btnReset").onclick = () => { S = {...DEFAULTS}; syncControls(); clampFrame(); drawSource(); persist(); schedule(); };
+$("btnLight").onclick = () => { S.backlight = !S.backlight; setControl("backlight", S.backlight); changed("backlight"); };
+$("btnFit").onclick = fitFrameToBox;
+$("btnUndo").onclick = undo; $("btnRedo").onclick = redo;
+function inShapeUnit(u, v){
+  const s = S.shape;
+  if (s === "circle" || s === "oval") return (u - .5) ** 2 + (v - .5) ** 2 <= .25;
+  if (s === "heart" || s === "star" || s === "tree"){
+    const P = unitPoly(s); let ins = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++){
+      if (((P[i][1] > v) !== (P[j][1] > v)) && (u < (P[j][0] - P[i][0]) * (v - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0])) ins = !ins;
+    }
+    return ins;
+  }
+  return u >= 0 && u <= 1 && v >= 0 && v <= 1;
+}
+function fitImageInFrame(){
+  if (!img){ setStatus(esc(T("Open an image first."))); return; }
+  if (isFull()){ setStatus(esc(T("Choose another frame proportion: the full image already fits."))); return; }
+  // contenu à faire rentrer : le rectangle sujet s'il existe, sinon toute l'image ; on teste son contour
+  const r = B ? {x0:B.x * iw, y0:B.y * ih, x1:(B.x + B.w) * iw, y1:(B.y + B.h) * ih} : {x0:0, y0:0, x1:iw, y1:ih};
+  const cx = (r.x0 + r.x1) / 2, cy = (r.y0 + r.y1) / 2, a = curAspect(), ra = (+S.rot || 0) * Math.PI / 180;
+  const pts = [];
+  for (let i = 0; i <= 24; i++){
+    const f = i / 24, x = r.x0 + f * (r.x1 - r.x0), y = r.y0 + f * (r.y1 - r.y0);
+    pts.push([x, r.y0], [x, r.y1], [r.x0, y], [r.x1, y]);
+  }
+  const rel = pts.map(p => { const dx = p[0] - cx, dy = p[1] - cy;       // dans le repère du cadre (tourné)
+    return [dx * Math.cos(ra) + dy * Math.sin(ra), -dx * Math.sin(ra) + dy * Math.cos(ra)]; });
+  const rf = Math.min(0.2, (+S.ring_mm || 0) / Math.max(20, +S.size_mm || 100));    // la bordure ne doit pas manger l'image
+  const ok = (fw, oy) => { const fh = fw / a;
+    return rel.every(([dx, dy]) => { const u = 0.5 + dx / fw, v = 0.5 + (dy - oy * fh) / fh;
+      return inShapeUnit(0.5 + (u - 0.5) / Math.max(0.3, 1 - 2 * rf), 0.5 + (v - 0.5) / Math.max(0.3, 1 - 2 * rf)); }); };
+  let best = null;
+  for (let k = -10; k <= 10; k++){
+    const oy = k * 0.03; let lo = 0.05 * iw, hi = 6 * Math.max(iw, ih);
+    if (!ok(hi, oy)) continue;
+    for (let it = 0; it < 28; it++){ const mid = (lo + hi) / 2; ok(mid, oy) ? hi = mid : lo = mid; }
+    if (!best || hi < best.fw) best = {fw:hi, oy};
+  }
+  if (!best){ setStatus(esc(T("Could not fit the image in this shape."))); return; }
+  const fw = best.fw * 1.02, fh = fw / a;
+  F.w = fw / iw; F.cx = cx / iw; F.cy = (cy - best.oy * fh) / ih;
+  S.free = true; setControl("free", true);
+  clampFrame(); computeView(); drawSource(); schedule(); persist();
+  setStatus(esc(T("The frame now contains the whole image (empty margins around it).")));
+}
+$("btnFitIn").onclick = fitImageInFrame;
+$("btnFace").onclick = async () => {
+  if (!img){ setStatus(esc(T("Open an image first."))); return; }
+  setStatus(esc(T("Looking for a face...")), true);
+  try {
+    const j = await (await fetch("/api/face", {method:"POST", body:"{}"})).json();
+    if (!j.face){ setStatus(esc(T("No face found: frame manually or draw a Subject box."))); return; }
+    const [x, y, w, hh] = j.face;
+    // le cadre englobe le visage avec les cheveux : large de 2,3 fois la largeur du visage, décalé un peu vers le haut
+    const cx = x + w / 2, cy = y + hh * 0.42, a = curAspect();
+    const fw = Math.max(w * 2.3 * iw, hh * 2.3 * ih * a);
+    S.free = false; setControl("free", false);
+    F.w = fw / iw; F.cx = cx; F.cy = cy;
+    clampFrame(); drawSource(); schedule();
+    setStatus(esc(T("Frame set on the face.")));
+  } catch(e){ setStatus(esc(T("Error: {msg}", {msg:String(e)}))); }
+};
+$("btnClear").onclick = () => {
+  if (!hc) return; hc.getContext("2d").clearRect(0, 0, iw, ih); B = null; drawSource(); uploadHints(); schedule();
+};
+$("tools").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  tool = b.dataset.tool; [...$("tools").children].forEach(x => x.classList.toggle("on", x === b)); updateCursor();
+});
+function setView(v){
+  view = v;
+  [...$("views").children].forEach(x => x.classList.toggle("on", x.dataset.view === v));
+  $("res").style.background = (v === "render") ? "#16181c" : "#fff";   // pas de bandes blanches autour d'un rendu
+  $("resWrap").style.background = (v === "render") ? "#16181c" : "";
+  updateLegend(); updateLightBtn();
+  clearTimeout(timer); timer = null; dirty = false; sendPreview();      // pas d'attente : l'image se met à jour tout de suite
+}
+function updateLightBtn(){
+  const b = $("btnLight"); if (b) b.classList.toggle("on", !!S.backlight);
+}
+$("views").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  setView(b.dataset.view);
+});
+$("lang").onchange = e => setLang(e.target.value);
+window.addEventListener("resize", layout);
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith("image/")) openFile(f); });
+
+(async function init(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem("lss5") || "{}"); } catch(e){}
+  if (!saved.lang){
+    for (const old of ["lss4", "lss3", "lss2", "lss"]){ try { const l = JSON.parse(localStorage.getItem(old) || "{}").lang; if (l){ saved.lang = l; break; } } catch(e){} }
+  }
+  if (saved.S) ITEMS.forEach(it => { if (saved.S[it.k] !== undefined) S[it.k] = saved.S[it.k]; });
+  let langs = ["en"], def = "en";
+  try { const j = await (await fetch("/api/langs")).json(); langs = j.langs; def = j.default; } catch(e){}
+  const names = {fr:"Fran\u00e7ais", en:"English", de:"Deutsch", es:"Espa\u00f1ol"};
+  langs.forEach(l => { const o = document.createElement("option"); o.value = l; o.textContent = names[l] || l; $("lang").appendChild(o); });
+  const want = saved.lang || (langs.includes(def) ? def : "en");
+  initDD(); buildControls(); updateCursor(); layout(); loadPresets();
+  await setLang(langs.includes(want) ? want : "en");
+  clampFrame();
+})();
+</script>
+<div id="expModal" hidden>
+  <div class="expbox">
+    <div class="exphead"><b id="expTitle"></b></div>
+    <div class="expbody"><img id="expImg" alt=""></div>
+    <div id="expInfo"></div>
+    <div class="expbtn">
+      <button id="expOk" class="primary" data-i18n="Download">Download</button>
+      <button id="expCancel" data-i18n="Back to editing">Back to editing</button>
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById("expCancel").onclick = () => { document.getElementById("expModal").hidden = true; };
+document.getElementById("expModal").addEventListener("click", e => { if (e.target.id === "expModal") e.target.hidden = true; });
+document.addEventListener("keydown", e => { if (e.key === "Escape") document.getElementById("expModal").hidden = true; });
+</script>
+</body>
+</html>

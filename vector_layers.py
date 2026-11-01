@@ -30,6 +30,7 @@ de fluidité de l'interface.
 
 import math
 import re
+import time
 import uuid
 
 from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier, Arc
@@ -48,6 +49,7 @@ from PyQt6.QtWidgets import (
 
 from i18n import tr
 from vector_order import CUT_MODE, order_layers_for_cutting, order_polygons_inner_first
+from vector_nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 
 
 # ============================================================================
@@ -1383,7 +1385,33 @@ class VectorCanvasView(QGraphicsView):
             self.remove_selected()
             event.accept()
             return
+        arrows = {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0), Qt.Key.Key_Up: (0, 1), Qt.Key.Key_Down: (0, -1)}
+        if event.key() in arrows:
+            direction = arrows[event.key()]
+            if self.nudge_selection(direction[0], direction[1], event.modifiers()):
+                event.accept()
+                return
         super().keyPressEvent(event)
+
+    def nudge_selection(self, dir_x, dir_y, modifiers=None):
+        """Flèches du clavier : déplace la sélection de 1 mm (Maj : 10 mm ; Alt : 0,1 mm). Les pressions
+        rapprochées (touche maintenue) ne comptent que pour UN « Annuler ». Renvoie False si rien n'est
+        sélectionné : la vue défile alors normalement."""
+        items = [it for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)]
+        if not items:
+            return False
+        shift = bool(modifiers and (modifiers & Qt.KeyboardModifier.ShiftModifier))
+        alt = bool(modifiers and (modifiers & Qt.KeyboardModifier.AltModifier))
+        step = nudge_step(shift=shift, alt=alt)
+        now = time.monotonic()
+        if now - getattr(self, "_last_nudge_time", -1e9) > NUDGE_UNDO_WINDOW_S:
+            self.push_undo_snapshot()
+        self._last_nudge_time = now
+        for item in items:
+            item.obj.x_mm += dir_x * step
+            item.obj.y_mm += dir_y * step
+            item.refresh()
+        return True
 
     def copy_selected(self):
         """Ctrl+C : copie les objets sélectionnés dans un presse-papiers
