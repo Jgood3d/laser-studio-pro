@@ -4,7 +4,13 @@
 - **Imbrication automatique (nesting)** : le bouton « 🧩 Imbrication auto » de l'éditeur vectoriel range les pièces sélectionnées (ou tous les objets des calques actifs) sur une feuille aux dimensions voulues pour gaspiller le moins de matière possible. Les pièces sont placées de la plus grande à la plus petite, en bas à gauche d'abord, avec la forme réelle des contours (une petite pièce se glisse dans le creux d'un « L ») ; rotations au choix (aucune, 0°/90°, par quarts de tour, tous les 45°), écart entre pièces, marge au bord de la feuille et précision de la grille réglables. Un trou ou un détail gravé reste avec sa pièce et tourne avec elle (regroupement par inclusion). Les pièces qui n'ont pas trouvé de place restent où elles sont et sont comptées. Annulable avec Ctrl+Z. Mesuré : 40 pièces sur 400 x 400 mm en moins d'une seconde à la précision normale.
 - **Ordre de découpe sûr** (réglage « Configuration GRBL », activé par défaut, enregistré dans le projet) : les calques de gravure et de marquage passent avant les calques de découpe, et dans un calque de découpe les contours intérieurs (trous, détails) sont coupés avant ceux qui les contiennent. La pièce ne bouge ni ne bascule avant que ses détails soient faits. Décoché, le G-Code reste strictement identique à celui des versions précédentes.
 - **Netteté dans les réglages photo** (Image / Filtres, après le gamma) : accentuation des contours avant le tramage (0 à 100), proportionnelle à la résolution de gravure, prise en compte par l'annulation, le projet, la comparaison des algorithmes de tramage et l'onglet Séparation. À 0, le résultat est identique à avant.
-- **Tests** : ordre de découpe, imbrication (aucune collision, espacement et marges, rotations, emboîtement dans les creux, groupes rigides), netteté, et un contrôle qui détecte tout nom utilisé sans être importé. La suite compte 306 tests.
+- **Tests** : ordre de découpe, imbrication (aucune collision, espacement et marges, rotations, emboîtement dans les creux, groupes rigides), netteté, et un contrôle qui détecte tout nom utilisé sans être importé. La suite compte 329 tests.
+
+### Modifié
+- **Menus** : « Paramètres Machine », « Machine & Profils », « Configuration GRBL » et « Matrice de test » sont dans la barre de menus, dans cet ordre, entre « Fichier » et « Langue ». Chacun ouvre une fenêtre non modale dont la taille et la position sont mémorisées ; le bouton « Enregistrer comme focale machine » ouvre la fenêtre « Paramètres Machine ». La colonne de gauche ne garde que Image / Filtres, Dimensions & Origine et Calques.
+- **Homing automatique** : coché d'office dans « Configuration GRBL ».
+- **Image insérée à sa taille d'origine** (et non plus à 100 mm d'office) : d'après la résolution enregistrée dans le fichier (PNG, JPEG...), 96 DPI à défaut ; réduite, proportions conservées, si elle dépasse la zone de travail de la machine (un message l'indique dans la console).
+- **Éditeur vectoriel : flèches du clavier** pour déplacer la sélection de 1 mm (Maj : 10 mm ; Alt : 0,1 mm), objets groupés ensemble ; une touche maintenue ne compte que pour un « Annuler ». Sans sélection, les flèches font défiler la vue comme avant.
 
 ### Corrigé
 - **Gravure vectorielle en remplissage : zones non gravées aux croisements.** Tous les contours d'un calque étaient mélangés dans une seule règle « pair-impair » : deux objets qui se chevauchent (traits qui se croisent, lettres rapprochées, formes superposées) s'annulaient là où ils se recouvrent et laissaient un vide. Chaque objet garde maintenant sa propre règle (ses trous sont conservés), puis les objets sont réunis.
@@ -15,5 +21,5 @@
 
 Fichiers modifiés :
 app_utils.py, workers.py, image_processing_mixin.py, ui_setup_mixin.py, project_io_mixin.py, gcode_generation_mixin.py,
-vector_layers.py (remplissage), vector_editing_mixin.py, i18n.py — nouveaux modules : image_filters.py, vector_order.py, nesting.py,
+vector_layers.py (remplissage, flèches), vector_editing_mixin.py, settings_window.py, i18n.py — nouveaux modules : image_filters.py, image_size.py, vector_order.py, vector_nudge.py, nesting.py,
 nesting_apply.py, nesting_dialog.py — nouveaux tests : tests/

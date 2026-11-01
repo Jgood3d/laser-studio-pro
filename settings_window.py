@@ -17,9 +17,12 @@ class SettingsWindow(QDialog):
         self.setModal(False)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setWidget(page)
+        if isinstance(page, QScrollArea):
+            self.scroll = page                      # déjà défilante : pas de double ascenseur
+        else:
+            self.scroll = QScrollArea()
+            self.scroll.setWidgetResizable(True)
+            self.scroll.setWidget(page)
         layout.addWidget(self.scroll)
         self._apply_initial_size(default_width)
 

@@ -54,6 +54,8 @@ python main.py
 - `image_filters.py` — filtres d’image purs (netteté)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
 - `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
+- `image_size.py` — taille d’origine d’une image d’après sa résolution (sans Qt)
+- `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
 - `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
 - `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
@@ -108,6 +110,7 @@ Interface en anglais et en allemand :
 - **Imbrication automatique** : range les pièces sur une feuille pour gaspiller le moins de matière possible (rotations, écart, marge, emboîtement dans les creux ; les trous et détails suivent leur pièce).
 - **Ordre de découpe sûr** : graver avant de découper, et couper l’intérieur avant l’extérieur, pour qu’une pièce ne bouge pas avant que ses détails soient faits.
 - **Netteté** dans les réglages photo : accentue les contours avant le tramage.
+- **Menus de réglages** (Paramètres Machine, Machine & Profils, Configuration GRBL, Matrice de test), **image insérée à sa taille d’origine**, **flèches du clavier** dans l’éditeur vectoriel et homing automatique activé par défaut.
 - **Remplissage vectoriel corrigé** : plus de vides aux croisements de traits, et le décalage aller/retour s’applique aussi aux remplissages (contours moins en escalier).
 
 Précédemment, dans la version 2.3.0 :

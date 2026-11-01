@@ -1,0 +1,12 @@
+# À AJOUTER aux requirements-windows.txt et requirements-linux.txt de Laser Studio Pro
+# pour la fenêtre Stencil Studio intégrée (dossier stencil_studio/).
+# numpy (<2.0.0), Pillow, opencv-python et scikit-image y sont déjà.
+
+# Navigateur intégré à la fenêtre Qt (même version que PyQt6)
+PyQt6-WebEngine>=6.7
+
+# Requis par le Studio ; déjà installé avec scikit-image, indiqué ici pour être explicite
+scipy>=1.11
+
+# Linux : QtWebEngine demande aussi des bibliothèques système, par exemple (Debian/Ubuntu) :
+#   sudo apt install libnss3 libxkbcommon-x11-0 libxcb-cursor0

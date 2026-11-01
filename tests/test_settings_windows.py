@@ -20,7 +20,8 @@ class MenuStructureTests(unittest.TestCase):
     def test_entries_sit_between_file_and_language_in_the_menu_bar(self):
         src = read("ui_setup_mixin.py")
         body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
-        order = [body.index(k) for k in ('tr("menu.file")', 'tr("tab.machine_profiles")', 'tr("tab.grbl_config")', 'tr("menu.language")')]
+        order = [body.index(k) for k in ('tr("menu.file")', 'tr("tab.machine_params")', 'tr("tab.machine_profiles")',
+                                         'tr("tab.grbl_config")', 'tr("tab.test_matrix")', 'tr("menu.language")')]
         self.assertEqual(order, sorted(order))
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
@@ -30,9 +31,16 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.tab_machine_profiles = tab_mach", src)
         self.assertIn("self.tab_grbl_config = tab_gcode_cfg", src)
 
+    def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
+        src = read("ui_setup_mixin.py")
+        self.assertNotIn('tabs.addTab(tab_machine_params', src)
+        self.assertNotIn('tabs.addTab(tab_matrix', src)
+        self.assertIn("self.tab_machine_params = tab_machine_params", src)
+        self.assertIn("self.tab_matrix = tab_matrix", src)
+
     def test_other_tabs_are_still_there(self):
         src = read("ui_setup_mixin.py")
-        for key in ("tab.machine_params", "tab.image_filters", "tab.dimensions", "tab.test_matrix", "tab.layers"):
+        for key in ("tab.image_filters", "tab.dimensions", "tab.layers"):
             self.assertIn(f'tabs.addTab(', src)
             self.assertRegex(src, rf'tabs\.addTab\(\w+, tr\("{re.escape(key)}"\)\)')
 
@@ -77,6 +85,18 @@ class ShowWindowTests(unittest.TestCase):
         self.assertIs(machine.args[1], obj.tab_machine_profiles)
         self.assertIs(grbl.args[1], obj.tab_grbl_config)
         self.assertEqual((machine.args[2], grbl.args[2]), ("machine", "grbl"))
+
+    def test_all_four_menu_windows_are_wired_to_their_pages(self):
+        self.Recorder.created = []
+        obj = self.make()
+        obj.tab_machine_params, obj.tab_matrix = object(), object()
+        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+            for kind in ("machine_params", "machine", "grbl", "test_matrix"):
+                obj.show_settings_window(kind)
+        pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
+        self.assertEqual(sorted(pages), ["grbl", "machine", "machine_params", "test_matrix"])
+        self.assertIs(pages["machine_params"], obj.tab_machine_params)
+        self.assertIs(pages["test_matrix"], obj.tab_matrix)
 
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []
@@ -159,6 +179,11 @@ class SettingsWindowTests(unittest.TestCase):
         self.assertIn("setModal", w.calls)
         self.assertIn("setWindowTitle", w.calls)
         self.assertIn("resize", w.calls)            # repli sans écran : taille par défaut
+
+    def test_an_already_scrollable_page_is_not_wrapped_twice(self):
+        page = FakeQt.QScrollArea()
+        w = self.sw.SettingsWindow(None, "t", page, "machine_params")
+        self.assertIs(w.scroll, page)
 
     def test_geometry_is_saved_on_close_and_restored_next_time(self):
         w = self.sw.SettingsWindow(None, "t", object(), "grbl")

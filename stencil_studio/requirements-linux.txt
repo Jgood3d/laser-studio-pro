@@ -1,0 +1,7 @@
+# Laser Stencil Studio : utilisation seule — Linux
+# Installation : python3 -m pip install -r requirements-linux.txt
+# (opencv-python-headless évite la dépendance à libGL ; ne pas l'installer EN MÊME TEMPS que opencv-python)
+numpy>=1.26
+opencv-python-headless>=4.8
+Pillow>=10.0
+scipy>=1.11

@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
 from image_filters import sharpen_image
+from image_size import natural_size_mm, read_dpi
 from i18n import tr
 
 
@@ -206,8 +207,8 @@ class ImageProcessingMixin:
     def goto_laser_focal_settings(self):
         """Bascule vers l'onglet Paramètres Machine et met le focus sur le
         champ de focale, pour un accès rapide depuis Image & Filtres."""
-        if hasattr(self, "settings_tabs") and hasattr(self, "tab_machine_params"):
-            self.settings_tabs.setCurrentWidget(self.tab_machine_params)
+        if hasattr(self, "show_settings_window") and hasattr(self, "tab_machine_params"):
+            self.show_settings_window("machine_params")
         if hasattr(self, "spin_machine_focal"):
             self.spin_machine_focal.setFocus()
 
@@ -299,6 +300,7 @@ class ImageProcessingMixin:
             self.separation_release_image_settings()
         try:
             img = Image.open(path)
+            file_dpi = read_dpi(img.info)          # lu avant les conversions, qui perdent les métadonnées
             # Les PNG avec transparence (RGBA, LA, ou palette avec canal alpha)
             # doivent être aplatis sur un fond blanc avant la conversion en
             # niveaux de gris : sinon PIL garde les valeurs RGB brutes des
@@ -310,15 +312,26 @@ class ImageProcessingMixin:
                 img = Image.alpha_composite(background, img)
             self.raw_image = img.convert("L")
             w, h = self.raw_image.size
+            # Taille d'origine de l'image (d'après sa résolution enregistrée, 96 DPI à défaut), réduite
+            # si besoin pour tenir dans la zone de travail de la machine — et non plus 100 mm d'office.
+            bed_w = self.spin_machine_w.value() if hasattr(self, "spin_machine_w") else None
+            bed_h = self.spin_machine_h.value() if hasattr(self, "spin_machine_h") else None
+            w_mm, h_mm, used_dpi, shrunk = natural_size_mm(w, h, file_dpi, bed_w, bed_h)
             self.block_aspect_signal = True
-            self.spin_w.setValue(100.0)
-            self.spin_h.setValue(100.0 * (h / w))
+            self.spin_w.setValue(w_mm)
+            self.spin_h.setValue(h_mm)
             self.block_aspect_signal = False
             self.display_source_image()
             self.update_image_processing()
             self.txt_console.append(
     tr("image.loaded").format(path=path)
 )
+            if shrunk:
+                full_w, full_h, _, _ = natural_size_mm(w, h, file_dpi)
+                self.txt_console.append(tr("image.natural_size_fit").format(
+                    w=w_mm, h=h_mm, ow=full_w, oh=full_h, dpi=used_dpi))
+            else:
+                self.txt_console.append(tr("image.natural_size").format(w=w_mm, h=h_mm, dpi=used_dpi))
         except Exception as e:
             QMessageBox.critical(
     self,

@@ -1036,6 +1036,19 @@ TRANSLATIONS = {
         "de": "{count} Teil(e) haben keinen Platz gefunden und blieben, wo sie waren: Vergrößere das Blatt, verringere den Abstand oder erlaube mehr Drehungen.",
         "es": "{count} pieza(s) no encontraron sitio y se quedaron donde estaban: agranda la hoja, reduce la separación o permite más rotaciones.",
     },
+    # --- Taille d'origine de l'image ---
+    "image.natural_size": {
+        "fr": "Image insérée à sa taille d'origine : {w:.1f} x {h:.1f} mm ({dpi:.0f} DPI).",
+        "en": "Image inserted at its original size: {w:.1f} x {h:.1f} mm ({dpi:.0f} DPI).",
+        "de": "Bild in Originalgröße eingefügt: {w:.1f} x {h:.1f} mm ({dpi:.0f} DPI).",
+        "es": "Imagen insertada a su tamaño original: {w:.1f} x {h:.1f} mm ({dpi:.0f} DPI).",
+    },
+    "image.natural_size_fit": {
+        "fr": "Image réduite pour tenir dans la zone de travail : {w:.1f} x {h:.1f} mm (taille d'origine : {ow:.0f} x {oh:.0f} mm, {dpi:.0f} DPI).",
+        "en": "Image reduced to fit the work area: {w:.1f} x {h:.1f} mm (original size: {ow:.0f} x {oh:.0f} mm, {dpi:.0f} DPI).",
+        "de": "Bild verkleinert, um in den Arbeitsbereich zu passen: {w:.1f} x {h:.1f} mm (Originalgröße: {ow:.0f} x {oh:.0f} mm, {dpi:.0f} DPI).",
+        "es": "Imagen reducida para caber en la zona de trabajo: {w:.1f} x {h:.1f} mm (tamaño original: {ow:.0f} x {oh:.0f} mm, {dpi:.0f} DPI).",
+    },
     "img.reset": {
         "fr": "Réinitialiser Réglages Image", "en": "Reset Image Settings",
         "de": "Bildeinstellungen zurücksetzen", "es": "Restablecer ajustes de imagen",
@@ -3419,10 +3432,10 @@ TRANSLATIONS = {
         "es": "Dimensiones demasiado grandes",
     },
     "gen.too_big_body": {
-        "fr": "La zone de gravure configurée ({job_w:.1f} x {job_h:.1f} mm) dépasse la surface de travail de la machine ({bed_w:.1f} x {bed_h:.1f} mm, définie dans l'onglet '{tab_machine}').\n\nCe n'est pas possible avec ces réglages : réduis les dimensions du job (onglet '{tab_dims}') ou agrandis la zone machine avant de continuer.",
-        "en": "The configured engraving area ({job_w:.1f} x {job_h:.1f} mm) exceeds the machine's work area ({bed_w:.1f} x {bed_h:.1f} mm, set in the '{tab_machine}' tab).\n\nThis is not possible with these settings: reduce the job dimensions ('{tab_dims}' tab) or enlarge the machine area before continuing.",
-        "de": "Der eingestellte Gravurbereich ({job_w:.1f} x {job_h:.1f} mm) überschreitet die Arbeitsfläche der Maschine ({bed_w:.1f} x {bed_h:.1f} mm, festgelegt im Tab '{tab_machine}').\n\nMit diesen Einstellungen ist das nicht möglich: Verkleinere die Job-Abmessungen (Tab '{tab_dims}') oder vergrößere den Maschinenbereich, bevor du fortfährst.",
-        "es": "El área de grabado configurada ({job_w:.1f} x {job_h:.1f} mm) supera la superficie de trabajo de la máquina ({bed_w:.1f} x {bed_h:.1f} mm, definida en la pestaña '{tab_machine}').\n\nNo es posible con estos ajustes: reduce las dimensiones del trabajo (pestaña '{tab_dims}') o amplía el área de la máquina antes de continuar.",
+        "fr": "La zone de gravure configurée ({job_w:.1f} x {job_h:.1f} mm) dépasse la surface de travail de la machine ({bed_w:.1f} x {bed_h:.1f} mm, définie dans l'menu '{tab_machine}').\n\nCe n'est pas possible avec ces réglages : réduis les dimensions du job (onglet '{tab_dims}') ou agrandis la zone machine avant de continuer.",
+        "en": "The configured engraving area ({job_w:.1f} x {job_h:.1f} mm) exceeds the machine's work area ({bed_w:.1f} x {bed_h:.1f} mm, set in the '{tab_machine}' menu).\n\nThis is not possible with these settings: reduce the job dimensions ('{tab_dims}' tab) or enlarge the machine area before continuing.",
+        "de": "Der eingestellte Gravurbereich ({job_w:.1f} x {job_h:.1f} mm) überschreitet die Arbeitsfläche der Maschine ({bed_w:.1f} x {bed_h:.1f} mm, festgelegt im Menü '{tab_machine}').\n\nMit diesen Einstellungen ist das nicht möglich: Verkleinere die Job-Abmessungen (Tab '{tab_dims}') oder vergrößere den Maschinenbereich, bevor du fortfährst.",
+        "es": "El área de grabado configurada ({job_w:.1f} x {job_h:.1f} mm) supera la superficie de trabajo de la máquina ({bed_w:.1f} x {bed_h:.1f} mm, definida en la menú '{tab_machine}').\n\nNo es posible con estos ajustes: reduce las dimensiones del trabajo (pestaña '{tab_dims}') o amplía el área de la máquina antes de continuar.",
     },
     "gen.speed_limit_title": {
         "fr": "Vitesse au-delà des limites machine",
@@ -3431,10 +3444,10 @@ TRANSLATIONS = {
         "es": "Velocidad por encima de los límites de la máquina",
     },
     "gen.speed_limit_body": {
-        "fr": "La machine active a une vitesse max de {limit:.0f} mm/min (onglet '{tab_machine}'), mais ces réglages la dépassent :\n\n{details}\n\nContinuer quand même ?",
-        "en": "The active machine has a maximum speed of {limit:.0f} mm/min ('{tab_machine}' tab), but these settings exceed it:\n\n{details}\n\nContinue anyway?",
-        "de": "Die aktive Maschine hat eine Höchstgeschwindigkeit von {limit:.0f} mm/min (Tab '{tab_machine}'), aber diese Einstellungen überschreiten sie:\n\n{details}\n\nTrotzdem fortfahren?",
-        "es": "La máquina activa tiene una velocidad máxima de {limit:.0f} mm/min (pestaña '{tab_machine}'), pero estos ajustes la superan:\n\n{details}\n\n¿Continuar de todos modos?",
+        "fr": "La machine active a une vitesse max de {limit:.0f} mm/min (menu '{tab_machine}'), mais ces réglages la dépassent :\n\n{details}\n\nContinuer quand même ?",
+        "en": "The active machine has a maximum speed of {limit:.0f} mm/min ('{tab_machine}' menu), but these settings exceed it:\n\n{details}\n\nContinue anyway?",
+        "de": "Die aktive Maschine hat eine Höchstgeschwindigkeit von {limit:.0f} mm/min (Menü '{tab_machine}'), aber diese Einstellungen überschreiten sie:\n\n{details}\n\nTrotzdem fortfahren?",
+        "es": "La máquina activa tiene una velocidad máxima de {limit:.0f} mm/min (menú '{tab_machine}'), pero estos ajustes la superan:\n\n{details}\n\n¿Continuar de todos modos?",
     },
     "gen.speed_row_engrave": {
         "fr": "Vitesse Gravure",
