@@ -229,10 +229,16 @@ class UiSetupMixin:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.save_project()
+            # Enregistrement annulé ou en échec : on reste ouvert, rien n'est perdu.
+            if not self.save_project():
+                event.ignore()
+                return
             self._flush_background_writes()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
+            # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
+            # doit pas être proposée en récupération au prochain démarrage.
+            self._clear_autosave()
             self._flush_background_writes()
             event.accept()
         else:
