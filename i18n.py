@@ -1522,6 +1522,12 @@ TRANSLATIONS = {
         "es": ">>> No se puede comprobar el modo láser GRBL ($32): ajuste no "
               "encontrado en la respuesta de la máquina.",
     },
+    "laser.grbl_homing_disabled": {
+        "fr": ">>> Homing désactivé sur la machine ($22=0) : « Inclure $H » a été décoché.",
+        "en": ">>> Homing disabled on the machine ($22=0): \"Include $H\" has been unchecked.",
+        "de": ">>> Homing an der Maschine deaktiviert ($22=0): „$H einbeziehen“ wurde abgewählt.",
+        "es": ">>> Homing desactivado en la máquina ($22=0): se ha desmarcado «Incluir $H».",
+    },
     "laser.grbl_mode_status": {
         "fr": ">>> Mode laser GRBL ($32) : {value}",
         "en": ">>> GRBL laser mode ($32): {value}",
