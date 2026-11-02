@@ -1558,6 +1558,12 @@ TRANSLATIONS = {
         "de": ">>> NOT-AUS (KILL / RESET gesendet)",
         "es": ">>> PARADA DE EMERGENCIA (KILL / RESET enviado)",
     },
+    "laser.error_stop_log": {
+        "fr": ">>> Erreur GRBL : machine arrêtée (pause puis reset) pour ne pas exécuter la suite déjà envoyée.",
+        "en": ">>> GRBL error: machine stopped (hold then reset) so the lines already sent are not executed.",
+        "de": ">>> GRBL-Fehler: Maschine gestoppt (Halt, dann Reset), damit die bereits gesendeten Zeilen nicht ausgeführt werden.",
+        "es": ">>> Error de GRBL: máquina detenida (pausa y luego reset) para no ejecutar las líneas ya enviadas.",
+    },
     "laser.position_lost_log": {
         "fr": ">>> Reset en dehors de l'arrêt complet : position machine probablement perdue, un nouveau homing sera proposé avant le prochain job.",
         "en": ">>> Reset while not fully stopped: machine position probably lost, a new homing will be offered before the next job.",
