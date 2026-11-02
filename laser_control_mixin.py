@@ -5,11 +5,14 @@ from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
 from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread
 from i18n import tr
+from simulated_grbl import SIMULATED_PORT, simulation_enabled
 
 
 class LaserControlMixin:
     def refresh_com_ports(self):
         self.combo_ports.clear()
+        if simulation_enabled():
+            self.combo_ports.addItem(f"{SIMULATED_PORT} - {tr('usb.simulated_port')}")
         ports = serial.tools.list_ports.comports()
         for p in ports:
             self.combo_ports.addItem(f"{p.device} - {p.description}")
@@ -18,8 +21,7 @@ class LaserControlMixin:
         if self.usb.is_connected():
             self._stop_status_poll()
             self.usb.disconnect()
-            self.btn_connect.setText(tr("laser.connect"))
-            self.btn_connect.setStyleSheet("")
+            self.update_connection_widgets()
             self.txt_console.append(tr("laser.disconnected"))
             self._update_dro_display(None, None, None, None)
             self.has_homed_since_connect = False
@@ -34,8 +36,7 @@ class LaserControlMixin:
                 return
             port = selected.split(" - ")[0]
             if self.usb.connect(port):
-                self.btn_connect.setText(tr("laser.disconnect"))
-                self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
+                self.update_connection_widgets()
                 self.txt_console.append(
     tr("laser.connected").format(port=port)
 )
@@ -112,6 +113,9 @@ class LaserControlMixin:
             self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
             if hasattr(self, "btn_unlock_alarm"):
                 self.btn_unlock_alarm.setVisible(False)
+            # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
+            if hasattr(self, "gcode_position_marker"):
+                self.gcode_position_marker.setData([], [])
             return
         self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
         self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
@@ -341,7 +345,12 @@ class LaserControlMixin:
         self._last_sent_gcode = gcode_text
         if hasattr(self, "btn_repeat_last_job"):
             self.btn_repeat_last_job.setEnabled(True)
+        if hasattr(self, "txt_sent_gcode"):
+            self.txt_sent_gcode.clear()
+            self._append_sent_gcode([tr("queue.sent_log_direct")])
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
+        if hasattr(self, "_append_sent_gcode"):
+            self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
@@ -364,9 +373,8 @@ class LaserControlMixin:
         self._reconnect_thread.start()
 
     def _on_reconnect_result(self, success):
+        self.update_connection_widgets()
         if success:
-            self.btn_connect.setText(tr("laser.disconnect"))
-            self.btn_connect.setStyleSheet("background-color: #27ae60; color: white;")
             self.has_homed_since_connect = False
             self._start_status_poll()
             self.txt_console.append(tr("laser.reconnect_success"))
@@ -410,6 +418,8 @@ class LaserControlMixin:
         QTimer.singleShot(250, QApplication.beep)
 
     def on_stream_finished(self, clean_finish):
+        if hasattr(self, "_log_sent_gcode_end"):
+            self._log_sent_gcode_end(clean_finish)
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()

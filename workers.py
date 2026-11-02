@@ -235,6 +235,10 @@ class GCodeStreamerThread(QThread):
     # pendant un job actif, pour ne jamais se disputer l'accès au port série.
     status_updated = pyqtSignal(str, float, float, float)
     connection_lost = pyqtSignal()
+    # Lignes envoyées à GRBL, par paquets (au plus ~10 émissions par seconde, voir
+    # _flush_sent_lines) : un signal par ligne saturerait l'interface sur un long job.
+    lines_sent = pyqtSignal(list)
+    SENT_LINES_INTERVAL = 0.1
 
     def __init__(self, usb_controller, gcode_text):
         super().__init__()
@@ -242,12 +246,25 @@ class GCodeStreamerThread(QThread):
         self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
         self.is_running = True
         self._stopped_by_user = False
-        self._status_poll_interval = 0.4  # secondes entre deux requêtes '?' pendant le job
+        # Secondes entre deux requêtes '?' pendant le job : 5 par seconde (limite conseillée par GRBL),
+        # pour que le point rouge de l'aperçu 2D suive la tête sans à-coups.
+        self._status_poll_interval = 0.2
         # Fin de job : GRBL répond « ok » dès qu'il a ACCEPTÉ une ligne, pas
         # quand le mouvement est terminé. Après le dernier « ok », on attend
         # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
         self._idle_poll_interval = 0.2    # secondes entre deux requêtes '?' pendant l'attente
         self._idle_reply_timeout = 8.0    # aucun rapport de statut pendant ce délai : liaison considérée perdue
+        self._sent_batch = []
+        self._last_sent_emit = 0.0
+
+    def _flush_sent_lines(self, force=False):
+        """Émet les lignes envoyées depuis la dernière émission (toutes les SENT_LINES_INTERVAL s,
+        ou tout de suite si `force`)."""
+        now = time.time()
+        if self._sent_batch and (force or now - self._last_sent_emit >= self.SENT_LINES_INTERVAL):
+            self.lines_sent.emit(self._sent_batch)
+            self._sent_batch = []
+            self._last_sent_emit = now
 
     def stop(self):
         self.is_running = False
@@ -332,6 +349,7 @@ class GCodeStreamerThread(QThread):
                         ser.write(encoded_line)
                     
                     ring_buffer.append((line, line_len))
+                    self._sent_batch.append(line)
                     line_idx += 1
 
                 with self.usb._lock:
@@ -375,6 +393,7 @@ class GCodeStreamerThread(QThread):
                     break
 
                 self.progress.emit(line_idx, total)
+                self._flush_sent_lines()
                 time.sleep(0.001)
 
             while ring_buffer and self.is_running:
@@ -422,6 +441,7 @@ class GCodeStreamerThread(QThread):
         if self._stopped_by_user:
             clean_finish = False
 
+        self._flush_sent_lines(force=True)
         self.finished_signal.emit(clean_finish)
 
 
@@ -435,7 +455,7 @@ class StatusPollThread(QThread):
     status_updated = pyqtSignal(str, float, float, float)  # état, x, y, z
     connection_lost = pyqtSignal()
 
-    def __init__(self, usb_controller, interval_sec=0.4):
+    def __init__(self, usb_controller, interval_sec=0.2):
         super().__init__()
         self.usb = usb_controller
         self.interval_sec = interval_sec

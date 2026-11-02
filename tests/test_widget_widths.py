@@ -74,11 +74,13 @@ class SplitterTests(unittest.TestCase):
         self.assertLessEqual(int(m.group(1)), 600)
         self.assertGreaterEqual(int(m.group(1)), 200)
 
-    def test_left_column_has_no_maximum_width(self):
+    def test_there_is_no_left_column_any_more(self):
+        # La colonne de gauche a été supprimée : réglages de l'image dans « Graver une image »,
+        # position du job dans le panneau machine. Le centre occupe toute la largeur.
         src = self.source()
-        body = src[src.index("left_widget = "):src.index("splitter.addWidget(left_widget)")]
-        self.assertNotIn("setMaximumWidth", body)
-        self.assertNotIn("setFixedWidth", body)
+        self.assertNotRegex(src, r"\bleft_widget\b")
+        self.assertNotIn("self.left_v_splitter", src)
+        self.assertIn("main_layout.addWidget(center_widget)", src)
 
     def test_generate_button_padding(self):
         self.assertIn('btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 3px;")', self.source())

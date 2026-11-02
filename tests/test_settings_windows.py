@@ -39,6 +39,8 @@ class MenuStructureTests(unittest.TestCase):
         added_to("menu_parametres", "addMenu", "menu.language")
         added_to("self.tools_menu", "addAction", "tab.test_matrix")
         added_to("self.tools_menu", "addAction", "menu.tools.stencil_studio")
+        added_to("self.tools_menu", "addAction", "sep.tab_title")
+        added_to("self.tools_menu", "addAction", "png2svg.tab_title")
         self.assertNotIn("menu_bar.addAction(", body)
 
     def test_image_actions_are_in_the_toolbar_not_the_image_tab(self):
@@ -52,6 +54,106 @@ class MenuStructureTests(unittest.TestCase):
         for call in ("self.rotate_image_left", "self.rotate_image_right", "self.clear_image()"):
             self.assertEqual(src.count(call), 1, call)
         self.assertNotIn("chk_mirror", src)
+
+    def test_toolbar_order_undo_image_and_connection(self):
+        src = read("ui_setup_mixin.py")
+        toolbar = src[src.index("def _build_main_toolbar"):src.index("def _status_dot_icon")]
+        order = [toolbar.index(k) for k in (
+            "toolbar.addAction(self.action_quit)", "toolbar.addAction(self.action_save_project)",
+            "self.tools_menu.actions()", 'tr("ui.img_undo")', 'tr("ui.img_redo")', 'tr("img.delete")',
+            'tr("img.mirror_v")', 'tr("img.reset")', 'tr("gcode.estimate")', 'tr("gcode.generate")',
+            'tr("gcode.import")', "self.combo_ports_toolbar = QComboBox()",
+            'tr("usb.refresh_ports")', "self.action_connect = toolbar.addAction(")]
+        self.assertEqual(order, sorted(order))
+        # Annuler / refaire ont quitté l'onglet Image & Filtres (raccourcis conservés) ; réinitialiser
+        # et la connexion restent aussi sur leur page.
+        self.assertEqual(src.count('tr("ui.img_undo")'), 1)
+        self.assertEqual(src.count('tr("ui.img_redo")'), 1)
+        self.assertIn("shortcut_undo_img.activated.connect(self.undo_image_settings)", src)
+        self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
+        self.assertIn("self.combo_ports.setModel(self.combo_ports_toolbar.model())", src)
+        for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
+            self.assertEqual(src.count(f'tr("{key}")'), 1, key)
+
+    def test_separation_and_vectorization_tabs_are_hidden_at_startup(self):
+        src = read("ui_setup_mixin.py")
+        self.assertIn("for tab in (self.tab_separation, self.tab_png2svg):\n"
+                      "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
+
+    def test_tab_toolbars_share_one_builder(self):
+        src = read("ui_setup_mixin.py")
+        builder = src[src.index("def _build_tab_toolbar"):src.index("def _fullscreen_icon")]
+        order = [builder.index(k) for k in ("left_actions:", "QSizePolicy.Policy.Expanding",
+                                            "right_widgets:", 'tr("ui.vector_fullscreen")')]
+        self.assertEqual(order, sorted(order))             # actions à gauche, plein écran à droite
+        previews = src[src.index("compare_icon = QIcon.fromTheme"):src.index("outer_layout_previews.addWidget(toolbar_previews)")]
+        self.assertIn('tr("img.compare_algos_tip")', previews)
+        self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
+        uses = src.count("self._build_tab_toolbar(") + read("separation_mixin.py").count("self._build_tab_toolbar(") \
+            + read("png2svg_mixin.py").count("self._build_tab_toolbar(")
+        self.assertEqual(uses, 5)                          # Images, PNG→SVG, Séparation, 2D, Console
+
+    def test_every_fullscreen_mode_hides_then_restores_its_button(self):
+        for name, func in (("ui_setup_mixin.py", "def _toggle_fullscreen_tab"),
+                           ("png2svg_mixin.py", "def toggle_fullscreen_png2svg"),
+                           ("vector_editing_mixin.py", "def toggle_fullscreen_vector_editor")):
+            src = read(name)
+            body = src[src.index(func):]
+            body = body[:body.index("dialog.finished.connect(restore)")]
+            hide = body.index("_show_fullscreen_control(")
+            self.assertIn(", False)", body[hide:hide + 80], func)
+            restore = body[body.index("def restore"):]
+            self.assertIn("_show_fullscreen_control(", restore, func)
+            self.assertIn(", True)", restore, func)
+
+    def test_preview_options_are_in_the_2d_tab_toolbar(self):
+        src = read("ui_setup_mixin.py")
+        bar = src[src.index("toolbar_vector_2d = self._build_tab_toolbar("):]
+        bar = bar[:bar.index("right_widgets=")]
+        for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
+                     "chk_hide_rapid_moves", "chk_optimize_path"):
+            self.assertIn(f"self.{name}", bar, name)
+            self.assertEqual(src.count(f"self.{name} = QCheckBox("), 1, name)
+        self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
+
+    def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
+        src = read("gcode_generation_mixin.py")
+        start = src[:src.index("        self.worker.start()")]
+        self.assertTrue(start.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
+
+    def test_machine_panel_scrolls_instead_of_being_crushed(self):
+        src = read("ui_setup_mixin.py")
+        self.assertIn("center_bottom_scroll.setWidget(center_bottom_widget)", src)
+        self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
+        self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
+
+    def test_original_image_is_hidden_in_the_image_tab(self):
+        src = read("ui_setup_mixin.py")
+        self.assertIn("box_src.setVisible(False)", src)
+        self.assertIn("left_widgets=[self.chk_show_original]", src)      # case « Afficher l'originale »
+
+    def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
+        src = read("ui_setup_mixin.py")
+        block = src[src.index("queue_splitter = QSplitter("):src.index('self.main_tabs_view.addTab(tab_job_queue')]
+        self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
+                        block.index("queue_splitter.addWidget(sent_box)"))
+        self.assertIn("self.txt_sent_gcode.setReadOnly(True)", block)
+        for name in ("job_queue_mixin.py", "laser_control_mixin.py"):
+            self.assertIn("self.streamer.lines_sent.connect(self._append_sent_gcode)", read(name), name)
+
+    def test_load_button_and_keep_ratio_span_the_panel(self):
+        src = read("ui_setup_mixin.py")
+        self.assertIn("layout_img.addRow(btn_img)", src)
+        self.assertIn("layout_img.insertRow(3, self.chk_keep_ratio)", src)
+
+    def test_load_image_button_is_on_two_lines(self):
+        from i18n import TRANSLATIONS
+        for lang, text in TRANSLATIONS["img.load"].items():
+            self.assertEqual(text.count("\n"), 1, lang)
+
+    def test_resolution_stack_does_not_stretch(self):
+        src = read("ui_setup_mixin.py")
+        self.assertIn("self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)", src)
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
         src = read("ui_setup_mixin.py")
@@ -69,9 +171,19 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_other_tabs_are_still_there(self):
         src = read("ui_setup_mixin.py")
-        for key in ("tab.image_filters", "tab.dimensions", "tab.layers"):
-            self.assertIn(f'tabs.addTab(', src)
-            self.assertRegex(src, rf'tabs\.addTab\(\w+, tr\("{re.escape(key)}"\)\)')
+        # Image & Filtres et la taille de l'image : panneau de gauche de « Graver une image » ;
+        # ancrage et offset : cadre « Position du job » du panneau machine ; Calques : onglet central.
+        self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
+        self.assertIn("center_bottom_layout.addWidget(self.job_position_box)", src)
+        for widget in ("self.combo_origin", "self.spin_off_x", "self.spin_off_y"):
+            self.assertIn(f"job_position_layout.addWidget({widget})", src)
+        self.assertNotIn('tr("tab.dimensions")', src)
+        self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
+        self.assertNotIn('tr("tab.image_filters")', src)
+        order = [src.index(k) for k in ('self.main_tabs_view.addTab(tab_vector_editor',
+                                         'self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))',
+                                         'self.main_tabs_view.addTab(tab_vector_2d')]
+        self.assertEqual(order, sorted(order))
 
 
 class ShowWindowTests(unittest.TestCase):
@@ -172,6 +284,37 @@ class ShowWindowTests(unittest.TestCase):
         obj._on_toolbar_rotate_image(clockwise=True)
         obj.separation_rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
         obj.rotate_image_left.assert_not_called()
+
+    def test_connection_widgets_follow_the_port_state(self):
+        obj = self.make()
+        obj.btn_connect, obj.action_connect = mock.Mock(), mock.Mock()
+        obj._status_dot_icon = lambda color: color
+        for connected, label, color in ((False, "laser.connect", "#e74c3c"), (True, "laser.disconnect", "#27ae60")):
+            obj.usb = mock.Mock(is_connected=lambda c=connected: c)
+            obj.update_connection_widgets()
+            obj.btn_connect.setText.assert_called_with(self.mod.tr(label))
+            obj.action_connect.setText.assert_called_with(self.mod.tr(label))
+            obj.action_connect.setIcon.assert_called_with(color)
+
+    def test_show_fullscreen_control(self):
+        tab, control = mock.Mock(), mock.Mock()
+        tab._fullscreen_control = control
+        self.mod.UiSetupMixin._show_fullscreen_control(tab, False)
+        control.setVisible.assert_called_with(False)
+        self.mod.UiSetupMixin._show_fullscreen_control(object(), True)   # onglet sans bouton : ignoré
+
+    def test_show_main_tab_selects_or_raises_the_fullscreen_window(self):
+        obj = self.make()
+        obj.tab_separation = mock.Mock()
+        obj.main_tabs_view = mock.Mock()
+        obj.main_tabs_view.indexOf.return_value = 3
+        obj.show_main_tab("tab_separation")
+        obj.main_tabs_view.setTabVisible.assert_called_once_with(3, True)    # masqué au démarrage
+        obj.main_tabs_view.setCurrentWidget.assert_called_once_with(obj.tab_separation)
+        obj.main_tabs_view.indexOf.return_value = -1            # onglet ouvert en plein écran
+        obj.show_main_tab("tab_separation")
+        obj.tab_separation.window().raise_.assert_called_once()
+        obj.show_main_tab("tab_inconnu")                       # ignoré
 
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []

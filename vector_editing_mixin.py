@@ -349,8 +349,10 @@ class VectorEditingMixin:
 
         dlg_layout.addWidget(self.tab_vector_editor)
         self.tab_vector_editor.setVisible(True)
+        self._show_fullscreen_control(self.tab_vector_editor, False)
 
         def restore(_result=None):
+            self._show_fullscreen_control(self.tab_vector_editor, True)
             dlg_layout.removeWidget(self.tab_vector_editor)
             self.tab_vector_editor.setParent(None)
             self.main_tabs_view.insertTab(

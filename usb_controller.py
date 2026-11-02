@@ -4,6 +4,8 @@ import threading
 import re
 import serial
 
+from simulated_grbl import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
+
 # Rapport de statut GRBL temps réel, ex : "<Idle|MPos:0.000,0.000,0.000|FS:0,0>"
 # ou avec WPos (coordonnées travail) selon le firmware/réglage $10.
 _STATUS_RE = re.compile(r'<([A-Za-z]+)[^|>]*\|(?:MPos|WPos):(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)')
@@ -77,6 +79,15 @@ class LaserUSBController:
 
     def connect(self, port, baudrate=115200):
         try:
+            speed = simulation_speed()
+            if speed is not None and port == SIMULATED_PORT:
+                # Graveur simulé (variable LASER_STUDIO_SIMULATION) : pas d'attente du redémarrage de la carte.
+                self.ser = SimulatedGrblSerial(port, baudrate, timeout=1, speed=speed)
+                self.ser.write(b"\r\n\r\n")
+                self.ser.reset_input_buffer()
+                self.last_port = port
+                self.last_baudrate = baudrate
+                return True
             self.ser = serial.Serial(port, baudrate, timeout=1)
             time.sleep(2)
             self.ser.write(b"\r\n\r\n")

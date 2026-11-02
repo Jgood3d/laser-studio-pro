@@ -75,14 +75,6 @@ TRANSLATIONS = {
         "fr": "Paramètres du graveur", "en": "Engraver Settings",
         "de": "Gravierer-Einstellungen", "es": "Ajustes del grabador",
     },
-    "tab.image_filters": {
-        "fr": "Image & Filtres", "en": "Image & Filters",
-        "de": "Bild & Filter", "es": "Imagen y Filtros",
-    },
-    "tab.dimensions": {
-        "fr": "Dimensions & Origine", "en": "Dimensions & Origin",
-        "de": "Abmessungen & Ursprung", "es": "Dimensiones y Origen",
-    },
     "tab.machine_profiles": {
         "fr": "Matériaux et connexion au graveur", "en": "Materials and Engraver Connection",
         "de": "Materialien und Verbindung zum Gravierer", "es": "Materiales y conexión al grabador",
@@ -163,17 +155,17 @@ TRANSLATIONS = {
     },
     "mach.focal_help": {
         "fr": "Diamètre du point focal de ton laser (ex: 0.06 mm pour un module\n"
-              "type Phecda). Utilisé dans l'onglet 'Image & Filtres' pour proposer\n"
-              "un intervalle de lignes calé sur cette taille de spot.",
+              "type Phecda). Utilisé dans les réglages de l'onglet « Graver une image »\n"
+              "pour proposer un intervalle de lignes calé sur cette taille de spot.",
         "en": "Diameter of your laser's focal point (e.g. 0.06 mm for a Phecda-type\n"
-              "module). Used in the 'Image & Filters' tab to suggest a line spacing\n"
-              "matched to this spot size.",
-        "de": "Durchmesser des Fokuspunkts deines Lasers (z. B. 0,06 mm für ein\n"
-              "Modul vom Typ Phecda). Wird im Reiter 'Bild & Filter' verwendet, um\n"
-              "einen an diese Spotgröße angepassten Linienabstand vorzuschlagen.",
-        "es": "Diámetro del punto focal de tu láser (ej.: 0.06 mm para un módulo\n"
-              "tipo Phecda). Se usa en la pestaña 'Imagen y Filtros' para proponer\n"
-              "un intervalo de líneas ajustado a este tamaño de punto.",
+              "module). Used in the settings of the \"Engrave an Image\" tab to suggest\n"
+              "a line interval matched to this spot size.",
+        "de": "Durchmesser des Laser-Brennpunkts (z. B. 0,06 mm bei einem Phecda-Modul).\n"
+              "Wird in den Einstellungen des Tabs „Bild gravieren“ genutzt, um einen\n"
+              "zu dieser Spotgröße passenden Zeilenabstand vorzuschlagen.",
+        "es": "Diámetro del punto focal de tu láser (ej.: 0,06 mm para un módulo tipo\n"
+              "Phecda). Se usa en los ajustes de la pestaña «Grabar una imagen» para\n"
+              "proponer un intervalo de líneas ajustado a ese tamaño de punto.",
     },
     "mach.limits_box": {
         "fr": "Limites de la Machine (informatif)", "en": "Machine Limits (informational)",
@@ -204,8 +196,8 @@ TRANSLATIONS = {
 
     # --- Onglet Image & Filtres ---
     "img.load": {
-        "fr": "Charger Image (ou glisser-déposer)", "en": "Load Image (or drag & drop)",
-        "de": "Bild laden (oder per Drag & Drop)", "es": "Cargar imagen (o arrastrar y soltar)",
+        "fr": "Charger Image\n(ou glisser-déposer)", "en": "Load Image\n(or drag & drop)",
+        "de": "Bild laden\n(oder per Drag & Drop)", "es": "Cargar imagen\n(o arrastrar y soltar)",
     },
     "img.delete": {
         "fr": "Supprimer l'image", "en": "Delete Image",
@@ -1057,12 +1049,12 @@ TRANSLATIONS = {
         "de": "Bildeinstellungen zurücksetzen", "es": "Restablecer ajustes de imagen",
     },
     "ui.img_undo": {
-        "fr": "↶ Annuler (Ctrl+Z)", "en": "↶ Undo (Ctrl+Z)",
-        "de": "↶ Rückgängig (Ctrl+Z)", "es": "↶ Deshacer (Ctrl+Z)",
+        "fr": "Annuler un réglage image (Ctrl+Z)", "en": "Undo Image Setting (Ctrl+Z)",
+        "de": "Bildeinstellung rückgängig (Strg+Z)", "es": "Deshacer ajuste de imagen (Ctrl+Z)",
     },
     "ui.img_redo": {
-        "fr": "↷ Refaire (Ctrl+Y)", "en": "↷ Redo (Ctrl+Y)",
-        "de": "↷ Wiederholen (Ctrl+Y)", "es": "↷ Rehacer (Ctrl+Y)",
+        "fr": "Refaire un réglage image (Ctrl+Y)", "en": "Redo Image Setting (Ctrl+Y)",
+        "de": "Bildeinstellung wiederholen (Strg+Y)", "es": "Rehacer ajuste de imagen (Ctrl+Y)",
     },
     "img.brightness": {"fr": "Luminosité:", "en": "Brightness:", "de": "Helligkeit:", "es": "Brillo:"},
     "img.contrast": {"fr": "Contraste:", "en": "Contrast:", "de": "Kontrast:", "es": "Contraste:"},
@@ -1085,10 +1077,65 @@ TRANSLATIONS = {
         "de": "Laserfokus konfigurieren >", "es": "Configurar focal del láser >",
     },
     "img.compare_algos": {
-        "fr": "Comparer les algorithmes de tramage (vignettes)",
-        "en": "Compare dithering algorithms (thumbnails)",
-        "de": "Rasteralgorithmen vergleichen (Miniaturansichten)",
-        "es": "Comparar algoritmos de tramado (miniaturas)",
+        "fr": "Algorithme de tramage",
+        "en": "Dithering Algorithm",
+        "de": "Rasteralgorithmus",
+        "es": "Algoritmo de tramado",
+    },
+    "ui.job_position_box": {
+        "fr": "Position du job sur le plateau", "en": "Job Position on the Bed",
+        "de": "Position des Jobs auf der Arbeitsfläche", "es": "Posición del trabajo en la mesa",
+    },
+    "queue.sent_log_title": {
+        "fr": "G-Code envoyé", "en": "Sent G-Code", "de": "Gesendeter G-Code", "es": "G-Code enviado",
+    },
+    "queue.sent_log_placeholder": {
+        "fr": "Les lignes de G-Code s'afficheront ici au fur et à mesure de leur envoi au graveur.",
+        "en": "G-Code lines will appear here as they are sent to the engraver.",
+        "de": "Die G-Code-Zeilen erscheinen hier, sobald sie an den Gravierer gesendet werden.",
+        "es": "Las líneas de G-Code aparecerán aquí a medida que se envíen al grabador.",
+    },
+    "queue.sent_log_job": {
+        "fr": "; ===== Job {index}/{total} : {name} =====",
+        "en": "; ===== Job {index}/{total}: {name} =====",
+        "de": "; ===== Job {index}/{total}: {name} =====",
+        "es": "; ===== Trabajo {index}/{total}: {name} =====",
+    },
+    "queue.sent_log_direct": {
+        "fr": "; ===== Envoi au laser =====", "en": "; ===== Send to laser =====",
+        "de": "; ===== An den Laser senden =====", "es": "; ===== Envío al láser =====",
+    },
+    "queue.sent_log_done": {
+        "fr": "; ----- Terminé -----", "en": "; ----- Done -----",
+        "de": "; ----- Fertig -----", "es": "; ----- Terminado -----",
+    },
+    "queue.sent_log_stopped": {
+        "fr": "; ----- Interrompu -----", "en": "; ----- Stopped -----",
+        "de": "; ----- Abgebrochen -----", "es": "; ----- Interrumpido -----",
+    },
+    "img.show_original": {
+        "fr": "Afficher l'originale", "en": "Show Original",
+        "de": "Original anzeigen", "es": "Mostrar el original",
+    },
+    "img.show_original_tip": {
+        "fr": "Afficher l'image originale à côté du rendu tramé.",
+        "en": "Show the original image next to the dithered result.",
+        "de": "Das Originalbild neben dem gerasterten Ergebnis anzeigen.",
+        "es": "Mostrar la imagen original junto al resultado tramado.",
+    },
+    "img.compare_algos_tip": {
+        "fr": "Comparer les algorithmes de tramage : une vignette de l'image chargée par algorithme, "
+              "avec les réglages actuels (luminosité, contraste, gamma, netteté, négatif). "
+              "Cliquer sur une vignette choisit cet algorithme.",
+        "en": "Compare dithering algorithms: one thumbnail of the loaded image per algorithm, "
+              "with the current settings (brightness, contrast, gamma, sharpness, negative). "
+              "Click a thumbnail to select that algorithm.",
+        "de": "Rasteralgorithmen vergleichen: eine Miniatur des geladenen Bildes pro Algorithmus, "
+              "mit den aktuellen Einstellungen (Helligkeit, Kontrast, Gamma, Schärfe, Negativ). "
+              "Ein Klick auf eine Miniatur wählt diesen Algorithmus.",
+        "es": "Comparar algoritmos de tramado: una miniatura de la imagen cargada por algoritmo, "
+              "con los ajustes actuales (brillo, contraste, gamma, nitidez, negativo). "
+              "Hacer clic en una miniatura selecciona ese algoritmo.",
     },
         # --- Interface principale ---
     "dialog.about.title": {
@@ -1141,12 +1188,6 @@ TRANSLATIONS = {
               "<br>puedes invitarme a un café aquí:<br><br>",
     },
 
-    "dim.box_title": {
-        "fr": "Dimensions & Origine Machine",
-        "en": "Machine Dimensions & Origin",
-        "de": "Maschinenabmessungen & Ursprung",
-        "es": "Dimensiones y origen de la máquina",
-    },
     "dim.keep_ratio": {
         "fr": "Conserver le ratio",
         "en": "Keep aspect ratio",
@@ -1189,6 +1230,12 @@ TRANSLATIONS = {
         "en": "Laser USB Connection",
         "de": "USB-Laserverbindung",
         "es": "Conexión USB del láser",
+    },
+    "usb.simulated_port": {
+        "fr": "Graveur simulé (LASER_STUDIO_SIMULATION)",
+        "en": "Simulated engraver (LASER_STUDIO_SIMULATION)",
+        "de": "Simulierter Gravierer (LASER_STUDIO_SIMULATION)",
+        "es": "Grabador simulado (LASER_STUDIO_SIMULATION)",
     },
     "usb.refresh_ports": {
         "fr": "Rafraîchir les ports",
@@ -1253,10 +1300,10 @@ TRANSLATIONS = {
     },
 
     "gcode.estimate": {
-        "fr": "⏱ Estimer le temps de gravure (rapide, sans générer)",
-        "en": "⏱ Estimate engraving time (quick, without generating)",
-        "de": "⏱ Gravurzeit schätzen (schnell, ohne Generierung)",
-        "es": "⏱ Estimar el tiempo de grabado (rápido, sin generar)",
+        "fr": "Estimer le temps de gravure (rapide, sans générer)",
+        "en": "Estimate engraving time (quick, without generating)",
+        "de": "Gravurzeit schätzen (schnell, ohne Generierung)",
+        "es": "Estimar el tiempo de grabado (rápido, sin generar)",
     },
     "gcode.generate": {
         "fr": "GÉNÉRER LE G-CODE",
@@ -1271,28 +1318,47 @@ TRANSLATIONS = {
         "es": "Importar G-Code existente (.gcode/.nc/.txt)",
     },
     "preview.flip": {
-        "fr": "Inverser l'aperçu image (si l'image gravée apparaît retournée)",
-        "en": "Flip image preview (if the engraved image appears reversed)",
-        "de": "Bildvorschau spiegeln (wenn das Bild beim Gravieren falsch herum erscheint)",
-        "es": "Invertir vista previa (si la imagen grabada aparece invertida)",
+        "fr": "Inverser l'aperçu", "en": "Flip Preview",
+        "de": "Vorschau spiegeln", "es": "Invertir vista previa",
+    },
+    "preview.flip_tip": {
+        "fr": "Inverser l'aperçu de l'image (si l'image gravée apparaît retournée).",
+        "en": "Flip the image preview (if the engraved image appears reversed).",
+        "de": "Bildvorschau spiegeln (wenn das Bild beim Gravieren falsch herum erscheint).",
+        "es": "Invertir la vista previa de la imagen (si la imagen grabada aparece invertida).",
     },
     "preview.negative": {
-        "fr": "Aperçu en négatif (voir ce qui sera réellement gravé)",
-        "en": "Negative preview (see what will actually be engraved)",
-        "de": "Negative Vorschau (tatsächliches Gravurergebnis anzeigen)",
-        "es": "Vista previa negativa (ver lo que se grabará realmente)",
+        "fr": "Aperçu en négatif", "en": "Negative Preview",
+        "de": "Negative Vorschau", "es": "Vista previa negativa",
+    },
+    "preview.negative_tip": {
+        "fr": "Afficher l'aperçu en négatif, pour voir ce qui sera réellement gravé.",
+        "en": "Show the preview in negative, to see what will actually be engraved.",
+        "de": "Vorschau negativ anzeigen, um das tatsächliche Gravurergebnis zu sehen.",
+        "es": "Mostrar la vista previa en negativo, para ver lo que se grabará realmente.",
     },
     "preview.hide_rapid": {
-        "fr": "Masquer les déplacements rapides G0 dans l'aperçu",
-        "en": "Hide rapid G0 moves in preview",
-        "de": "Schnelle G0-Bewegungen in der Vorschau ausblenden",
-        "es": "Ocultar movimientos rápidos G0 en la vista previa",
+        "fr": "Masquer les déplacements rapides", "en": "Hide Rapid Moves",
+        "de": "Eilgänge ausblenden", "es": "Ocultar movimientos rápidos",
+    },
+    "preview.hide_rapid_tip": {
+        "fr": "Masquer les déplacements rapides G0 (laser éteint) dans l'aperçu.",
+        "en": "Hide rapid G0 moves (laser off) in the preview.",
+        "de": "Schnelle G0-Bewegungen (Laser aus) in der Vorschau ausblenden.",
+        "es": "Ocultar los movimientos rápidos G0 (láser apagado) en la vista previa.",
     },
     "ui.optimize_path": {
-        "fr": "🧭 Optimiser le chemin (réduire les déplacements G0)",
-        "en": "🧭 Optimize path (reduce G0 travel)",
-        "de": "🧭 Weg optimieren (G0-Fahrten reduzieren)",
-        "es": "🧭 Optimizar el recorrido (reducir desplazamientos G0)",
+        "fr": "Optimiser le chemin", "en": "Optimize Path",
+        "de": "Weg optimieren", "es": "Optimizar el recorrido",
+    },
+    "ui.optimize_path_tip": {
+        "fr": "Optimiser l'ordre du tracé pour réduire les déplacements G0. "
+              "S'applique à la prochaine génération du G-Code.",
+        "en": "Optimize the drawing order to reduce G0 travel. Applies to the next G-Code generation.",
+        "de": "Zeichenreihenfolge optimieren, um G0-Fahrten zu reduzieren. "
+              "Gilt für die nächste G-Code-Generierung.",
+        "es": "Optimizar el orden del trazado para reducir los desplazamientos G0. "
+              "Se aplica a la próxima generación del G-Code.",
     },
     # --- Contrôle laser / USB / GRBL ---
     "laser.connect": {
@@ -2151,10 +2217,10 @@ TRANSLATIONS = {
         "es": "Propiedades del elemento SVG (capa, tamaño)",
     },
     "vector.fullscreen_title": {
-        "fr": "Éditeur Vectoriel — Plein Écran",
-        "en": "Vector Editor — Full Screen",
-        "de": "Vektor-Editor — Vollbild",
-        "es": "Editor vectorial — Pantalla completa",
+        "fr": "Graver une image vectorielle — Plein écran",
+        "en": "Engrave a Vector Image — Full Screen",
+        "de": "Vektorbild gravieren — Vollbild",
+        "es": "Grabar una imagen vectorial — Pantalla completa",
     },
     "vector.close_fullscreen": {
         "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
@@ -2234,10 +2300,10 @@ TRANSLATIONS = {
         "es": "Archivo SVG cargado: {path}",
     },
     "tab.vector_editor": {
-        "fr": "Éditeur Vectoriel (Texte & Formes)",
-        "en": "Vector Editor (Text & Shapes)",
-        "de": "Vektor-Editor (Text & Formen)",
-        "es": "Editor vectorial (texto y formas)",
+        "fr": "Graver une image vectorielle",
+        "en": "Engrave a Vector Image",
+        "de": "Vektorbild gravieren",
+        "es": "Grabar una imagen vectorial",
     },
     # --- Génération et export G-Code ---
     "gcode.empty_title": {
@@ -2365,16 +2431,16 @@ TRANSLATIONS = {
         "es": "\n; --- Importado desde: {path} ---",
     },
     "ui.tab_image_tracing": {
-        "fr": "Images & Tramage",
-        "en": "Images & Dithering",
-        "de": "Bilder & Rasterung",
-        "es": "Imágenes y tramado",
+        "fr": "Graver une image",
+        "en": "Engrave an Image",
+        "de": "Bild gravieren",
+        "es": "Grabar una imagen",
     },
     "ui.tab_vector_editor": {
-        "fr": "Éditeur Vectoriel (Texte & Formes)",
-        "en": "Vector Editor (Text & Shapes)",
-        "de": "Vektor-Editor (Text & Formen)",
-        "es": "Editor vectorial (texto y formas)",
+        "fr": "Graver une image vectorielle",
+        "en": "Engrave a Vector Image",
+        "de": "Vektorbild gravieren",
+        "es": "Grabar una imagen vectorial",
     },
     "ui.tab_2d_preview": {
         "fr": "Visualisation 2D G-Code",
@@ -2497,10 +2563,10 @@ TRANSLATIONS = {
         "de": "🧲 Am Raster einrasten", "es": "🧲 Ajustar a la cuadrícula",
     },
     "ui.vector_fullscreen": {
-        "fr": "⛶ Plein Écran",
-        "en": "⛶ Full Screen",
-        "de": "⛶ Vollbild",
-        "es": "⛶ Pantalla completa",
+        "fr": "Plein écran",
+        "en": "Full Screen",
+        "de": "Vollbild",
+        "es": "Pantalla completa",
     },
     "ui.vector_x_mm": {
         "fr": "X (mm) :",
@@ -3131,10 +3197,10 @@ TRANSLATIONS = {
         ),
     },
 
-    # --- Onglet PNG/JPEG → SVG (convertisseur intégré) ---
+    # --- Onglet « Vectorisation d'image » (convertisseur PNG/JPEG → SVG intégré) ---
     "png2svg.tab_title": {
-        "fr": "PNG/JPEG → SVG", "en": "PNG/JPEG to SVG",
-        "de": "PNG/JPEG zu SVG", "es": "PNG/JPEG a SVG",
+        "fr": "Vectorisation d'image", "en": "Image Vectorization",
+        "de": "Bildvektorisierung", "es": "Vectorización de imagen",
     },
     "png2svg.open_image": {
         "fr": "Ouvrir une image…", "en": "Open image…",
@@ -3263,13 +3329,9 @@ TRANSLATIONS = {
     "png2svg.zoom_fit": {
         "fr": "Ajuster", "en": "Fit", "de": "Einpassen", "es": "Ajustar",
     },
-    "png2svg.fullscreen": {
-        "fr": "⛶ Plein Écran", "en": "⛶ Full Screen",
-        "de": "⛶ Vollbild", "es": "⛶ Pantalla completa",
-    },
     "png2svg.fullscreen_title": {
-        "fr": "PNG/JPEG → SVG — Plein Écran", "en": "PNG/JPEG to SVG — Full Screen",
-        "de": "PNG/JPEG zu SVG — Vollbild", "es": "PNG/JPEG a SVG — Pantalla completa",
+        "fr": "Vectorisation d'image — Plein écran", "en": "Image Vectorization — Full Screen",
+        "de": "Bildvektorisierung — Vollbild", "es": "Vectorización de imagen — Pantalla completa",
     },
     "png2svg.close_fullscreen": {
         "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
@@ -3513,10 +3575,10 @@ TRANSLATIONS = {
         "es": "Posición no válida (Sobrebarrido)",
     },
     "gen.overscan_body": {
-        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (onglet '{tab_dims}') ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
-        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset ('{tab_dims}' tab) or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
-        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhe den X-Versatz (Tab '{tab_dims}') oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
-        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (pestaña '{tab_dims}') o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
+        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (cadre « {tab_dims} » du panneau machine) ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
+        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset (\"{tab_dims}\" box of the machine panel) or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
+        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhe den X-Versatz (Rahmen „{tab_dims}“ im Maschinenbereich) oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
+        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (recuadro «{tab_dims}» del panel de la máquina) o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
     },
     "gen.overscan_vec_title": {
         "fr": "Position invalide (Surbalayage — calque vectoriel)",
@@ -3669,10 +3731,10 @@ TRANSLATIONS = {
         "es": "¿No aparece el puerto? Instala el driver USB de tu controlador (el más común: CH340): <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. En Linux no hace falta driver, pero tu usuario debe estar en el grupo «dialout».",
     },
     "ui.mat_lmm_auto_tooltip": {
-        "fr": "Repris automatiquement de l'onglet Image / Filtre",
-        "en": "Automatically taken from the Image / Filter tab",
-        "de": "Automatisch aus dem Tab Bild / Filter übernommen",
-        "es": "Tomado automáticamente de la pestaña Imagen / Filtro",
+        "fr": "Repris automatiquement des réglages de l'onglet « Graver une image »",
+        "en": "Automatically taken from the settings of the \"Engrave an Image\" tab",
+        "de": "Automatisch aus den Einstellungen des Tabs „Bild gravieren“ übernommen",
+        "es": "Tomado automáticamente de los ajustes de la pestaña «Grabar una imagen»",
     },
     "ui.support_button_tooltip": {
         "fr": "Soutenir le développement ☕",
@@ -3767,16 +3829,16 @@ TRANSLATIONS = {
     },
     # --- Séparation Couleur : clés ajoutées pour la version PyQt (à coller avant le "}" final de TRANSLATIONS) ---
     "sep.black_info": {
-        "fr": "Luminosité, contraste, gamma, tramage, négatif, miroir et résolution (spot laser) se règlent dans l'onglet Image & Filtres.",
-        "en": "Brightness, contrast, gamma, dithering, negative, mirror and resolution (laser spot) are set in the Image & Filters tab.",
-        "de": "Helligkeit, Kontrast, Gamma, Rasterung, Negativ, Spiegelung und Auflösung (Laser-Spot) werden im Tab Bild & Filter eingestellt.",
-        "es": "El brillo, contraste, gamma, tramado, negativo, espejo y resolución (punto láser) se ajustan en la pestaña Imagen y Filtros.",
+        "fr": "Luminosité, contraste, gamma, tramage, négatif, miroir et résolution (spot laser) se règlent à gauche de l'onglet « Graver une image ».",
+        "en": "Brightness, contrast, gamma, dithering, negative, mirror and resolution (laser spot) are set on the left of the \"Engrave an Image\" tab.",
+        "de": "Helligkeit, Kontrast, Gamma, Rasterung, Negativ, Spiegelung und Auflösung (Laser-Spot) werden links im Tab „Bild gravieren“ eingestellt.",
+        "es": "El brillo, contraste, gamma, tramado, negativo, espejo y resolución (punto láser) se ajustan a la izquierda de la pestaña «Grabar una imagen».",
     },
     "sep.engrave_dpi": {
-        "fr": "Résolution de gravure : {dpi} DPI (réglée dans Image & Filtres)",
-        "en": "Engraving resolution: {dpi} DPI (set in Image & Filters)",
-        "de": "Gravurauflösung: {dpi} DPI (in Bild & Filter eingestellt)",
-        "es": "Resolución de grabado: {dpi} DPI (ajustada en Imagen y Filtros)",
+        "fr": "Résolution de gravure : {dpi} DPI (réglée dans l'onglet « Graver une image »)",
+        "en": "Engraving resolution: {dpi} DPI (set in the \"Engrave an Image\" tab)",
+        "de": "Gravurauflösung: {dpi} DPI (im Tab „Bild gravieren“ eingestellt)",
+        "es": "Resolución de grabado: {dpi} DPI (ajustada en la pestaña «Grabar una imagen»)",
     },
     "sep.gain": {
         "fr": "Gain de point (%):", "en": "Dot gain (%):",
@@ -3795,10 +3857,10 @@ TRANSLATIONS = {
         "es": "Marca si la película se pega con la tinta hacia fuera del vidrio (imagen vista a través de la película).",
     },
     "sep.sync_note": {
-        "fr": "Les dimensions de la plaque sont reportées dans Image & Filtres : les calques noir et couleur ont ainsi exactement la même taille.",
-        "en": "The plate size is copied to Image & Filters, so the black and colour layers have exactly the same size.",
-        "de": "Die Plattengröße wird in Bild & Filter übernommen, damit schwarze und Farbebene exakt gleich groß sind.",
-        "es": "Las dimensiones de la placa se copian a Imagen y Filtros, así las capas negra y de color tienen exactamente el mismo tamaño.",
+        "fr": "Les dimensions de la plaque sont reportées dans la taille de l'image (onglet « Graver une image ») : les calques noir et couleur ont ainsi exactement la même taille.",
+        "en": "The plate size is copied to the image size (\"Engrave an Image\" tab), so the black and colour layers have exactly the same size.",
+        "de": "Die Plattengröße wird in die Bildgröße übernommen (Tab „Bild gravieren“), damit schwarze und Farbebene exakt gleich groß sind.",
+        "es": "Las dimensiones de la placa se copian al tamaño de la imagen (pestaña «Grabar una imagen»), así las capas negra y de color tienen exactamente el mismo tamaño.",
     },
     "sep.not_ready": {
         "fr": "Le calque noir est en cours de calcul, réessaie dans un instant.",
