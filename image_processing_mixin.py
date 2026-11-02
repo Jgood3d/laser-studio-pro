@@ -21,8 +21,8 @@ class ImageProcessingMixin:
         self.combo_material_bg.setCurrentIndex(self.combo_material_bg.findData("light"))
         self.combo_material_bg.blockSignals(False)
         self.chk_invert.setChecked(False)
-        self.chk_mirror_h.setChecked(False)
-        self.chk_mirror_v.setChecked(False)
+        self.action_mirror_h.setChecked(False)
+        self.action_mirror_v.setChecked(False)
 
     def get_material_bg(self):
         """Matière choisie : "dark" (fond noir) ou "light" (fond clair)."""
@@ -291,6 +291,7 @@ class ImageProcessingMixin:
         self.processed_array = None
         self.view_preview_src.clear_image()
         self.view_preview_dither.clear_image()
+        self.update_image_actions_state()
         self.txt_console.append(tr("image.deleted"))
 
     def load_image_from_path(self, path):
@@ -357,6 +358,8 @@ class ImageProcessingMixin:
             img = self.raw_image.copy()
             qimg = QImage(img.tobytes(), img.width, img.height, img.width, QImage.Format.Format_Grayscale8)
             self.view_preview_src.set_image(qimg)
+        # Chargement par fichier, projet ou onglet Séparation : tous passent par ici.
+        self.update_image_actions_state()
 
     def _capture_image_settings_snapshot(self):
         """État des réglages de tramage proprement dits (pas les dimensions
@@ -369,8 +372,8 @@ class ImageProcessingMixin:
             "sharp": self.slider_sharp.value(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
-            "mirror_h": self.chk_mirror_h.isChecked(),
-            "mirror_v": self.chk_mirror_v.isChecked(),
+            "mirror_h": self.action_mirror_h.isChecked(),
+            "mirror_v": self.action_mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
         }
 
@@ -387,8 +390,8 @@ class ImageProcessingMixin:
         self.set_material_bg(snap.get("material_bg", "light"))
         for chk, key in (
             (self.chk_invert, "invert"),
-            (self.chk_mirror_h, "mirror_h"),
-            (self.chk_mirror_v, "mirror_v"),
+            (self.action_mirror_h, "mirror_h"),
+            (self.action_mirror_v, "mirror_v"),
         ):
             chk.blockSignals(True)
             chk.setChecked(snap[key])
@@ -460,8 +463,8 @@ class ImageProcessingMixin:
             'w_mm': self.spin_w.value(),
             'h_mm': self.spin_h.value(),
             'lmm': self.spin_lmm.value(),
-            'mirror_h': self.chk_mirror_h.isChecked(),
-            'mirror_v': self.chk_mirror_v.isChecked(),
+            'mirror_h': self.action_mirror_h.isChecked(),
+            'mirror_v': self.action_mirror_v.isChecked(),
             'bright': self.slider_bright.value(),
             'contrast': self.slider_contrast.value(),
             'gamma': self.slider_gamma.value(),
