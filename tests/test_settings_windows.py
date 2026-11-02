@@ -41,6 +41,18 @@ class MenuStructureTests(unittest.TestCase):
         added_to("self.tools_menu", "addAction", "menu.tools.stencil_studio")
         self.assertNotIn("menu_bar.addAction(", body)
 
+    def test_image_actions_are_in_the_toolbar_not_the_image_tab(self):
+        src = read("ui_setup_mixin.py")
+        toolbar = src[src.index("def _build_main_toolbar"):src.index("def _on_language_selected")]
+        self.assertIn("self._on_toolbar_delete_image", toolbar)
+        self.assertEqual(toolbar.count("self._on_toolbar_rotate_image("), 2)
+        for name in ("action_mirror_h", "action_mirror_v"):
+            self.assertIn(f"self.{name} = toolbar.addAction(", toolbar)
+        # Plus aucun bouton dans l'onglet Image & Filtres : seul l'aiguillage les appelle.
+        for call in ("self.rotate_image_left", "self.rotate_image_right", "self.clear_image()"):
+            self.assertEqual(src.count(call), 1, call)
+        self.assertNotIn("chk_mirror", src)
+
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
         src = read("ui_setup_mixin.py")
         self.assertNotIn("tabs.addTab(tab_mach,", src)
@@ -114,6 +126,52 @@ class ShowWindowTests(unittest.TestCase):
         self.assertEqual(sorted(pages), ["grbl", "machine", "machine_params", "test_matrix"])
         self.assertIs(pages["machine_params"], obj.tab_machine_params)
         self.assertIs(pages["test_matrix"], obj.tab_matrix)
+
+    def image_tabs(self):
+        obj = self.make()
+        obj._image_actions = (mock.Mock(), mock.Mock(), mock.Mock())
+        obj._mirror_actions = (mock.Mock(), mock.Mock())
+        obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
+        obj.main_tabs_view = mock.Mock()
+        obj.raw_image = obj.sep_src = None
+        obj.png2svg_widget = mock.Mock(image_path=None)
+        return obj
+
+    def assert_enabled(self, obj, tab, image_actions, mirrors):
+        obj.main_tabs_view.currentWidget.return_value = tab
+        obj.update_image_actions_state()
+        for action in obj._image_actions:
+            action.setEnabled.assert_called_with(image_actions)
+        for action in obj._mirror_actions:
+            action.setEnabled.assert_called_with(mirrors)
+
+    def test_image_actions_need_an_image_on_the_current_tab(self):
+        obj = self.image_tabs()
+        for tab in (obj.tab_previews, obj.tab_png2svg, obj.tab_separation, object()):
+            self.assert_enabled(obj, tab, False, False)
+        obj.raw_image = "img"
+        self.assert_enabled(obj, obj.tab_previews, True, True)
+        self.assert_enabled(obj, obj.tab_separation, False, False)   # l'image d'un autre onglet ne compte pas
+        self.assert_enabled(obj, object(), False, False)
+        obj.sep_src = "img"
+        self.assert_enabled(obj, obj.tab_separation, True, True)
+        obj.png2svg_widget.image_path = "/tmp/a.png"
+        self.assert_enabled(obj, obj.tab_png2svg, True, False)       # pas de miroir de gravure en PNG ⇒ SVG
+
+    def test_toolbar_rotation_targets_the_current_tab(self):
+        obj = self.image_tabs()
+        obj.rotate_image_left, obj.rotate_image_right = mock.Mock(), mock.Mock()
+        obj.separation_rotate_image = mock.Mock()
+        obj.main_tabs_view.currentWidget.return_value = obj.tab_previews
+        obj._on_toolbar_rotate_image(clockwise=True)
+        obj.rotate_image_right.assert_called_once()
+        obj.main_tabs_view.currentWidget.return_value = obj.tab_png2svg
+        obj._on_toolbar_rotate_image(clockwise=True)
+        obj.png2svg_widget.rotate_image.assert_called_once_with(90)
+        obj.main_tabs_view.currentWidget.return_value = obj.tab_separation
+        obj._on_toolbar_rotate_image(clockwise=True)
+        obj.separation_rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
+        obj.rotate_image_left.assert_not_called()
 
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []

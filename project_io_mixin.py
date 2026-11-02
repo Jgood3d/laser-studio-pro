@@ -36,8 +36,8 @@ class ProjectIOMixin:
             "safe_cut_order": self.chk_safe_cut_order.isChecked(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
-            "mirror_h": self.chk_mirror_h.isChecked(),
-            "mirror_v": self.chk_mirror_v.isChecked(),
+            "mirror_h": self.action_mirror_h.isChecked(),
+            "mirror_v": self.action_mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.spin_speed_engrave.value(),
@@ -130,8 +130,8 @@ class ProjectIOMixin:
             # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
             self.set_material_bg(proj_data.get("material_bg", "dark" if proj_data.get("invert", False) else "light"))
             self.chk_invert.setChecked(proj_data.get("invert", False))
-            self.chk_mirror_h.setChecked(proj_data.get("mirror_h", False))
-            self.chk_mirror_v.setChecked(proj_data.get("mirror_v", False))
+            self.action_mirror_h.setChecked(proj_data.get("mirror_h", False))
+            self.action_mirror_v.setChecked(proj_data.get("mirror_v", False))
             self.combo_algo.setCurrentText(proj_data.get("algo", "Floyd-Steinberg"))
             self.spin_lmm.setValue(proj_data.get("lmm", 10.0))
 

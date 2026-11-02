@@ -208,29 +208,24 @@ TRANSLATIONS = {
         "de": "Bild laden (oder per Drag & Drop)", "es": "Cargar imagen (o arrastrar y soltar)",
     },
     "img.delete": {
-        "fr": "🗑 Supprimer l'image", "en": "🗑 Delete Image",
-        "de": "🗑 Bild löschen", "es": "🗑 Eliminar imagen",
+        "fr": "Supprimer l'image", "en": "Delete Image",
+        "de": "Bild löschen", "es": "Eliminar imagen",
     },
-    "img.rotation": {"fr": "Rotation:", "en": "Rotation:", "de": "Drehung:", "es": "Rotación:"},
     "img.rotate_left": {
-        "fr": "↶ Pivoter 90°", "en": "↶ Rotate 90°",
-        "de": "↶ Um 90° drehen", "es": "↶ Girar 90°",
+        "fr": "Pivoter l'image de 90° vers la gauche", "en": "Rotate Image 90° Left",
+        "de": "Bild um 90° nach links drehen", "es": "Girar la imagen 90° a la izquierda",
     },
     "img.rotate_right": {
-        "fr": "Pivoter 90° ↷", "en": "Rotate 90° ↷",
-        "de": "Um 90° drehen ↷", "es": "Girar 90° ↷",
+        "fr": "Pivoter l'image de 90° vers la droite", "en": "Rotate Image 90° Right",
+        "de": "Bild um 90° nach rechts drehen", "es": "Girar la imagen 90° a la derecha",
     },
     "img.mirror_h": {
-        "fr": "Miroir Horizontal", "en": "Horizontal Mirror",
+        "fr": "Miroir horizontal", "en": "Horizontal Mirror",
         "de": "Horizontal spiegeln", "es": "Espejo horizontal",
     },
     "img.mirror_v": {
-        "fr": "Miroir Vertical", "en": "Vertical Mirror",
+        "fr": "Miroir vertical", "en": "Vertical Mirror",
         "de": "Vertikal spiegeln", "es": "Espejo vertical",
-    },
-    "img.mirror_mode": {
-        "fr": "Mode Miroir:", "en": "Mirror Mode:",
-        "de": "Spiegelmodus:", "es": "Modo espejo:",
     },
     "img.invert": {
         "fr": "Inverser Couleurs (Négatif)", "en": "Invert Colors (Negative)",

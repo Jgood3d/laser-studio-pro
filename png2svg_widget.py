@@ -17,7 +17,7 @@ import os
 import tempfile
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QByteArray, QSettings, QRectF
-from PyQt6.QtGui import QPixmap, QPainter, QImage, QShortcut, QKeySequence
+from PyQt6.QtGui import QPixmap, QPainter, QImage, QShortcut, QKeySequence, QTransform
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QSlider,
     QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox, QVBoxLayout, QHBoxLayout,
@@ -64,6 +64,12 @@ class ZoomableSvgView(QGraphicsView):
         if was_empty:
             self.zoom_fit()
 
+    def clear(self):
+        """Vide l'aperçu (même nom que QLabel.clear, utilisé quand QtSvgWidgets manque)."""
+        self._renderer = QSvgRenderer()
+        self._svg_item.setSharedRenderer(self._renderer)
+        self._has_content = False
+
     def zoom_fit(self):
         if self._scene.sceneRect().isEmpty():
             return
@@ -88,6 +94,7 @@ class PngToSvgWidget(QWidget):
 
     svgGenerated = pyqtSignal(str)       # émis à chaque régénération réussie du SVG
     sendToVectorEditor = pyqtSignal(str)  # émis quand l'utilisateur clique "Envoyer vers l'Éditeur Vectoriel"
+    imageChanged = pyqtSignal()           # émis quand une image est chargée ou retirée
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -440,6 +447,26 @@ class PngToSvgWidget(QWidget):
         )
         self.btn_export.setEnabled(True)
         self._regenerate()
+        self.imageChanged.emit()
+
+    def rotate_image(self, angle):
+        """Pivote l'image chargée de `angle` degrés (positif = sens horaire) et relance la
+        conversion. L'image pivotée passe par un fichier temporaire, comme un collage."""
+        if not self.image_path:
+            return
+        self._load_image_from_qimage(QImage(self.image_path).transformed(QTransform().rotate(angle)))
+
+    def clear_image(self):
+        """Retire l'image chargée et l'aperçu SVG."""
+        self._debounce.stop()
+        self.image_path = None
+        self.last_result = None
+        self.original_view.clear()
+        self.svg_view.clear()
+        self.btn_export.setEnabled(False)
+        self.btn_send_vector.setEnabled(False)
+        self.status_label.setText(tr("png2svg.no_image"))
+        self.imageChanged.emit()
 
     def _load_image_from_qimage(self, qimage: QImage):
         """Reçoit une image déjà en mémoire (glisser-déposer d'une image
