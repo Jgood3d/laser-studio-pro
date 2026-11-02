@@ -8,8 +8,11 @@ import json
 import os
 from PyQt6.QtWidgets import QMessageBox, QListWidgetItem
 from workers import GCodeStreamerThread
+from debug_log import get_logger, log_gcode_summary
 from app_utils import get_autosave_dir, get_background_writer
 from i18n import tr
+
+log = get_logger()
 
 QUEUE_FILENAME = "laser_studio_pro_queue.json"
 
@@ -30,6 +33,7 @@ class JobQueueMixin:
             self.job_queue = []
         base_name = f"Job {len(self.job_queue) + 1} — {datetime.datetime.now().strftime('%H:%M:%S')}"
         name = self._unique_job_name(base_name)
+        log_gcode_summary(log, f"File : ajout de « {name} »", gcode_text)
         self.job_queue.append({"name": name, "gcode": gcode_text})
         self.list_job_queue.addItem(QListWidgetItem(name))
         self._update_queue_status()
@@ -138,7 +142,11 @@ class JobQueueMixin:
         qu'un job se termine proprement, le suivant démarre automatiquement.
         Une erreur/interruption sur un job arrête la file (pas d'envoi en
         aveugle du reste si quelque chose s'est mal passé)."""
+        log.info("File : clic sur « Lancer la file » (%d job(s), port ouvert=%s, homing fait=%s)",
+                 len(getattr(self, "job_queue", []) or []), self.usb.is_connected(),
+                 getattr(self, "has_homed_since_connect", False))
         if not getattr(self, "job_queue", None):
+            log.warning("File : vide, abandon")
             QMessageBox.warning(
     self,
     tr("queue.empty_title"),
@@ -146,6 +154,7 @@ class JobQueueMixin:
 )
             return
         if not self.usb.is_connected():
+            log.warning("File : graveur non connecté (ser=%r), abandon", self.usb.ser)
             QMessageBox.warning(
     self,
     tr("queue.usb_error"),
@@ -154,6 +163,7 @@ class JobQueueMixin:
             return
 
         if hasattr(self, "_confirm_homed_before_job") and not self._confirm_homed_before_job():
+            log.info("File : annulée à l'avertissement « pas de homing »")
             return
 
         reply = QMessageBox.question(
@@ -164,8 +174,10 @@ class JobQueueMixin:
     QMessageBox.StandardButton.No
 )
         if reply != QMessageBox.StandardButton.Yes:
+            log.info("File : annulée à la confirmation")
             return
 
+        log.info("File : démarrage, dernier état GRBL connu %s", self.usb.last_state)
         self._queue_running_index = 0
         self.btn_run_queue.setEnabled(False)
         if getattr(self, "status_poll_thread", None):
@@ -174,6 +186,7 @@ class JobQueueMixin:
 
     def _run_next_queued_job(self):
         if self._queue_running_index >= len(self.job_queue):
+            log.info("File : terminée, %d job(s) envoyés", len(self.job_queue))
             self.txt_console.append(tr("queue.finished_log"))
             if getattr(self, "status_poll_thread", None):
                 self.status_poll_thread.resume()
@@ -190,6 +203,8 @@ class JobQueueMixin:
 
         job = self.job_queue[self._queue_running_index]
         self.list_job_queue.setCurrentRow(self._queue_running_index)
+        log_gcode_summary(log, f"File : job {self._queue_running_index + 1}/{len(self.job_queue)} "
+                               f"« {job['name']} »", job["gcode"])
 
         self.txt_console.append(
             tr("queue.job_log").format(
@@ -219,6 +234,7 @@ class JobQueueMixin:
         self.streamer.start()
 
     def _on_queued_job_finished(self, clean_finish):
+        log.info("File : job %d terminé, fin propre=%s", self._queue_running_index + 1, clean_finish)
         if not clean_finish:
             self.btn_run_queue.setEnabled(True)
             if getattr(self, "status_poll_thread", None):

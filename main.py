@@ -6,10 +6,12 @@ from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import Qt
 
 from app_utils import find_resource
+from debug_log import setup_debug_logging
 from main_window import FullLaserStudio
 
 
 if __name__ == "__main__":
+    setup_debug_logging()
     app = QApplication(sys.argv)
 
     icon_path = (
