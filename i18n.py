@@ -1523,10 +1523,16 @@ TRANSLATIONS = {
               "encontrado en la respuesta de la máquina.",
     },
     "laser.grbl_homing_disabled": {
-        "fr": ">>> Homing désactivé sur la machine ($22=0) : « Inclure $H » a été décoché.",
-        "en": ">>> Homing disabled on the machine ($22=0): \"Include $H\" has been unchecked.",
-        "de": ">>> Homing an der Maschine deaktiviert ($22=0): „$H einbeziehen“ wurde abgewählt.",
-        "es": ">>> Homing desactivado en la máquina ($22=0): se ha desmarcado «Incluir $H».",
+        "fr": ">>> Homing désactivé sur la machine ($22=0) : « Inclure $H » a été décoché et grisé.",
+        "en": ">>> Homing disabled on the machine ($22=0): \"Include $H\" has been unchecked and disabled.",
+        "de": ">>> Homing an der Maschine deaktiviert ($22=0): „$H einbeziehen“ wurde abgewählt und gesperrt.",
+        "es": ">>> Homing desactivado en la máquina ($22=0): «Incluir $H» se ha desmarcado y desactivado.",
+    },
+    "ui.homing_unavailable_tip": {
+        "fr": "Le homing est désactivé sur la machine connectée ($22=0) : elle refuserait $H.",
+        "en": "Homing is disabled on the connected machine ($22=0): it would reject $H.",
+        "de": "Homing ist an der verbundenen Maschine deaktiviert ($22=0): sie würde $H ablehnen.",
+        "es": "El homing está desactivado en la máquina conectada ($22=0): rechazaría $H.",
     },
     "laser.grbl_mode_status": {
         "fr": ">>> Mode laser GRBL ($32) : {value}",

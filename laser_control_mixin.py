@@ -275,16 +275,24 @@ class LaserControlMixin:
 
     def _apply_grbl_homing_setting(self, grbl_settings):
         """Homing désactivé sur la machine ($22=0) : GRBL refuserait le « $H » en tête de job
-        (error:5), on décoche donc « Inclure $H » (et celui de la matrice de test). Avec $22=1
-        ou un réglage inconnu, rien ne change : la case reste cochée d'office."""
-        if grbl_settings.get("$22") != "0":
+        (error:5). « Inclure $H » et le homing de la matrice de test sont donc décochés ET
+        grisés, avec une infobulle qui explique pourquoi. Machine avec homing ($22 non nul) :
+        les cases redeviennent utilisables, sans être recochées. Réglage inconnu (pas de
+        réponse à « $$ ») : rien ne change, la case reste cochée d'office."""
+        value = grbl_settings.get("$22")
+        if value is None or not value.isdigit():
             return
+        homing_off = value == "0"
         unchecked = False
         for name in ("chk_homing", "chk_mat_homing"):
             checkbox = getattr(self, name, None)
-            if checkbox is not None and checkbox.isChecked():
+            if checkbox is None:
+                continue
+            if homing_off and checkbox.isChecked():
                 checkbox.setChecked(False)
                 unchecked = True
+            checkbox.setEnabled(not homing_off)
+            checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
         if unchecked:
             self.txt_console.append(tr("laser.grbl_homing_disabled"))
 
