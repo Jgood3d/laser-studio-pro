@@ -303,21 +303,37 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 - Les dessins au trait (type Père Noël) s'y prêtent mal.
 
 
-## v2026.10.68 — Low poly géométrique
+## v2026.10.70 — Low poly géométrique
 - Case « Style géométrique » : contour en polygone à angles vifs, taches sombres (yeux, nez, oreilles) en facettes pleines, peu de sommets (30 à 100). Réglage « Simplification du contour ».
 - C'est le préréglage Low poly par défaut (120 sommets, arêtes 1,8 mm). Idéal : un animal sur fond uni, plaque ≥ 200 mm.
 - v.64 : la détection du sujet fonctionne aussi quand le cadre est rond ; préréglage plus détaillé (yeux, casquette, short, chaussures en facettes pleines).
 
 
-## v2026.10.68 — Ponts manuels
+## v2026.10.70 — Ponts manuels
 - Bouton « Pont manuel » (vue Résultat) : trace un trait en travers d'une découpe pour la maintenir ; un clic sur un pont manuel le supprime ; « Effacer les ponts manuels ».
 - Les ponts manuels sont inclus dans l'export SVG/DXF et suivent Annuler/Rétablir. Ils sont positionnés par rapport au résultat : place-les en dernier (si tu déplaces le cadre, ils ne suivent pas l'image).
 
 
-## v2026.10.68 — Couleurs de LSP
+## v2026.10.70 — Couleurs de LSP
 - `studio_dialog.py` : `LSP_THEME` (fond #232323, panneaux #303030, boutons #3b3b3b, accent bleu #3a5b89, curseurs/coches #6dbef9). Modifiable à un seul endroit.
 - v.67 : les couleurs de LSP sont aussi le thème par défaut du Studio lancé seul (plus de flash orange au démarrage dans LSP).
 
 
-## v2026.10.68 — Trou central dans le fond
+## v2026.10.70 — Trou central dans le fond
 - Réglage « Trou au centre du fond (mm) » (groupe Caisson) : trou rond au milieu du fond, diamètre au choix, 0 = aucun. Fonctionne pour les deux styles de caisson.
+
+
+## v2026.10.70 — Détection IA du sujet + guides low poly
+- **Détection IA** (réglage « Détecter le sujet par IA », groupe Sujet) : petit réseau U2-Net (4,5 Mo) via `onnxruntime`. Le modèle est téléchargé une seule fois dans le dossier `models/` (accès à github.com nécessaire au premier usage ; sinon copie `u2netp.onnx` à la main dans `models/`). Sans onnxruntime ou sans réseau, la méthode classique est utilisée et un message l'indique. Installation : `pip install onnxruntime`. Un rectangle sujet ou des traits verts/rouges reviennent à la méthode classique (GrabCut).
+- **Guides low poly** (bouton « Guides low poly », affiché en mode Low poly) : clic = sommet imposé (yeux, nez, pointes d'oreilles) ; glisser = arête imposée ; clic sur un guide = le supprime. Utilisable dans les vues Résultat, Superposition et Original. Les guides sont placés par rapport à l'image du résultat : pose-les une fois le cadrage définitif.
+- Facettes pleines : seuil à deux niveaux (seules les vraies zones sombres sont remplies). Réglage « seuil sombre / clair » à 0 par défaut.
+- Low poly : les poutres ne dépassent jamais 30 % d'une facette (le maillage reste ajouré sur les petites plaques) ; le préréglage autorise un pont jusqu'à 30 mm pour relier le sujet à l'anneau. Conseil : ≥ 150 mm de plaque pour 120 sommets.
+
+
+## v2026.10.70 — Générateur de code QR
+- Type de sortie « Code QR » (ou bouton « Ou créer un code QR » sur l'écran vide, ou style « Plaque avec code QR ») : aucune photo nécessaire. Aucune dépendance en plus (encodeur QR d'OpenCV).
+- Contenu : lien / texte libre, ou réseau Wi-Fi (nom, mot de passe, sécurité).
+- **Gravure** : plaque découpée (forme, bordure, œillet, texte courbe comme d'habitude) + modules gravés en calque `ENGRAVE` (→ « Gravure Remplie » dans LSP avec l'export DXF).
+- **Découpe** : le code est ajouré dans la plaque ; marge claire de 2 modules ajourée, petits ponts (réglage « Largeur des ponts dans le code ») pour retenir les modules isolés et les carrés des repères.
+- Le Studio **relit** le code produit (comme un téléphone) et avertit s'il est illisible ou à l'envers, et si les modules sont trop petits (< 0,8 mm gravure, < 1,5 mm découpe). Niveau de correction L/M/Q/H ; « H » conseillé pour la découpe.
+- Polarité inversée : pour une matière claire devant un fond sombre.

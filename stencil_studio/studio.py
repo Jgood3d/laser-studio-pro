@@ -75,7 +75,7 @@ DISPLAY_MAX = 1600  # taille maxi de l'image affichée / des repères peints
 
 STATE = types.SimpleNamespace(img=None, name="image", disp_jpeg=b"", disp_size=(1, 1), disp_rgb=None,
                               hints=None, hints_ver=0, img_id=0)
-CACHE = types.SimpleNamespace(sig=None, result=None, subj_key=None, subject=None, subj_full=False)
+CACHE = types.SimpleNamespace(sig=None, result=None, subj_key=None, subject=None, subj_full=False, ai_used=False)
 GRAB_SIZE = 700  # résolution interne de GrabCut (px, grand côté)
 LOCK = threading.Lock()     # un seul calcul à la fois
 META = threading.Lock()
@@ -108,7 +108,7 @@ def set_hints(png_bytes):
     STATE.hints_ver += 1
 
 
-def subject_mask(box, margin, shape_hw, moving, sbox=None, rot=0.0):
+def subject_mask(box, margin, shape_hw, moving, sbox=None, rot=0.0, ai=False):
     """Masque du sujet (0/1) pour le cadre `box`.
     - avec repères peints et/ou rectangle du sujet : calculé UNE fois sur la photo entière
       (le cadre peut bouger sans recalcul) ;
@@ -121,10 +121,17 @@ def subject_mask(box, margin, shape_hw, moving, sbox=None, rot=0.0):
         key = (STATE.img_id, round(m, 3), STATE.hints_ver if has_hints else 0, sbox)
     else:
         key = (STATE.img_id, round(m, 3), box, rot)
+    key = key + (bool(ai) and not use_full,)
     if CACHE.subj_key != key:
         if moving and not use_full:
             return None  # pendant le glissement : pas de calcul lent
-        if use_full:
+        got = None
+        if ai and not use_full:          # IA : seulement quand l'utilisateur n'a rien dessiné
+            got = core.ai_mask(core.crop_resize(STATE.img, box, 500, rot))
+        CACHE.ai_used = got is not None
+        if got is not None:
+            CACHE.subject = got
+        elif use_full:
             CACHE.subject = core.remove_background(STATE.disp_rgb, rect, STATE.hints, size=GRAB_SIZE)
         else:
             small = core.crop_resize(STATE.img, box, 500, rot)
@@ -183,6 +190,24 @@ def parse_manual(raw):
     return out
 
 
+def parse_guides(raw):
+    """Guides low poly {pts:[[x,y]], edges:[[x1,y1,x2,y2]]} (fractions 0..1) -> dict valide ou None."""
+    if not isinstance(raw, dict):
+        return None
+    def clean(lst, n):
+        out = []
+        for q in (lst or [])[:300]:
+            try:
+                v = [round(min(1.0, max(0.0, float(t))), 4) for t in q[:n]]
+            except (TypeError, ValueError):
+                continue
+            if len(v) == n:
+                out.append(v)
+        return out
+    pts, edges = clean(raw.get("pts"), 2), clean(raw.get("edges"), 4)
+    return {"pts": pts, "edges": edges} if (pts or edges) else None
+
+
 def compute(req, work):
     p = core.Params.from_dict(req.get("params"))
     fr = req.get("frame", {})
@@ -196,19 +221,27 @@ def compute(req, work):
     pd = {k: v for k, v in p.to_dict().items()
           if not k.startswith("box_")}   # le caisson ne change pas le résultat
     mbr = parse_manual(req.get("mbr"))
+    lpg = parse_guides(req.get("lpg")) if p.output == "lowpoly" else None
     sig = json.dumps([STATE.img_id, box, rot, work, pd, isolate, round(margin, 3),
-                      STATE.hints_ver if isolate else 0, moving and isolate, sbox, mbr], sort_keys=True)
+                      STATE.hints_ver if isolate else 0, moving and isolate, sbox, mbr, lpg], sort_keys=True)
     if CACHE.sig == sig:
         return CACHE.result
     rgb = core.crop_resize(STATE.img, box, work, rot)
-    subject = subject_mask(box, margin, rgb.shape[:2], moving, sbox, rot) if isolate else None
+    subject = subject_mask(box, margin, rgb.shape[:2], moving, sbox, rot, bool(p.ai_subject)) if isolate else None
     failed = False
     if subject is not None and subject.mean() < 0.01:
         subject, failed = None, True  # détection ratée (sujet quasi vide) : on n'applique pas le masque
-    res = core.process(rgb, p, subject, core.valid_mask(box, W, H, rgb.shape[:2], rot), manual=mbr)
+    res = core.process(rgb, p, subject, core.valid_mask(box, W, H, rgb.shape[:2], rot), manual=mbr, guides=lpg)
     if isolate:
         res.stats["subject_pct"] = None if subject is None else round(100.0 * float(subject.mean()), 1)
         res.stats["subject_failed"] = failed
+        res.stats["ai_used"] = bool(CACHE.ai_used)
+        if p.ai_subject and not CACHE.ai_used and sbox is None and not (STATE.hints is not None and STATE.hints.any()):
+            try:
+                import subject_ai as _sa
+            except ImportError:
+                from . import subject_ai as _sa
+            res.stats["ai_missing"] = (_sa.last_error() or ("onnxruntime" if not _sa.has_runtime() else "")) or None
     CACHE.sig, CACHE.result = sig, res
     return res
 
@@ -259,8 +292,8 @@ def api_export(req):
     with LOCK:
         res = compute(req, int(req.get("work", 1200)))
         fr = core.polys_bbox(res.polys_mm) if core.Params.from_dict(req.get("params")).export_frame else None
-        out = {"svg": core.svg_string(res.polys_mm, res.w_mm, res.h_mm, fr),
-               "dxf": core.dxf_string(res.polys_mm, res.h_mm, frame=fr), "stats": res.stats,
+        out = {"svg": core.svg_string(res.polys_mm, res.w_mm, res.h_mm, fr, res.marks_polys),
+               "dxf": core.dxf_string(res.polys_mm, res.h_mm, frame=fr, marks=res.marks_polys), "stats": res.stats,
                "name": os.path.splitext(STATE.name)[0]}
         if res.engrave is not None:   # gravure : image tramée à la bonne résolution + SVG avec image
             out["png_b64"] = base64.b64encode(core.engrave_png_bytes(res)).decode()

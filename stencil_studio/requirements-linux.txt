@@ -5,3 +5,6 @@ numpy>=1.26
 opencv-python-headless>=4.8
 Pillow>=10.0
 scipy>=1.11
+
+# Optionnel : détection du sujet par IA (modèle de 4,5 Mo téléchargé au premier usage). Sans lui, méthode classique.
+onnxruntime>=1.17
