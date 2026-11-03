@@ -243,7 +243,9 @@ class GCodeStreamerThread(QThread):
         self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
         self.is_running = True
         self._stopped_by_user = False
-        self._status_poll_interval = 0.4  # secondes entre deux requêtes '?' pendant le job
+        # Secondes entre deux requêtes '?' pendant le job : 5 par seconde (limite conseillée par GRBL),
+        # pour que le point rouge de l'aperçu 2D suive la tête sans à-coups.
+        self._status_poll_interval = 0.2
         # Fin de job : GRBL répond « ok » dès qu'il a ACCEPTÉ une ligne, pas
         # quand le mouvement est terminé. Après le dernier « ok », on attend
         # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
@@ -488,7 +490,7 @@ class StatusPollThread(QThread):
     status_updated = pyqtSignal(str, float, float, float)  # état, x, y, z
     connection_lost = pyqtSignal()
 
-    def __init__(self, usb_controller, interval_sec=0.4):
+    def __init__(self, usb_controller, interval_sec=0.2):
         super().__init__()
         self.usb = usb_controller
         self.interval_sec = interval_sec

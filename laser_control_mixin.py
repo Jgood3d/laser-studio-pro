@@ -112,6 +112,9 @@ class LaserControlMixin:
             self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
             if hasattr(self, "btn_unlock_alarm"):
                 self.btn_unlock_alarm.setVisible(False)
+            # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
+            if hasattr(self, "gcode_position_marker"):
+                self.gcode_position_marker.setData([], [])
             return
         self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
         self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
