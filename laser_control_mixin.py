@@ -409,7 +409,17 @@ class LaserControlMixin:
         QTimer.singleShot(0, QApplication.beep)
         QTimer.singleShot(250, QApplication.beep)
 
+    def _check_position_after_stream(self):
+        """Après un job arrêté sur erreur GRBL (voir GCodeStreamerThread._stop_machine_after_error) :
+        si le reset a eu lieu machine encore en mouvement, la position n'est plus fiable, comme
+        pour un RESET manuel (_soft_reset) : on retire le statut « référencé »."""
+        streamer = getattr(self, "streamer", None)
+        if streamer is not None and getattr(streamer, "position_lost", False):
+            self.has_homed_since_connect = False
+            self.txt_console.append(tr("laser.position_lost_log"))
+
     def on_stream_finished(self, clean_finish):
+        self._check_position_after_stream()
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()

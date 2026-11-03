@@ -77,6 +77,15 @@ class SoftResetTests(unittest.TestCase):
         f.send_reset()
         self.assertTrue(f.has_homed_since_connect)
 
+    def test_error_stop_in_motion_loses_homed(self):
+        # Job arrêté sur erreur GRBL (GCodeStreamerThread._stop_machine_after_error).
+        for position_lost in (True, False):
+            f = self.make("Idle")
+            f.streamer.position_lost = position_lost
+            f._check_position_after_stream()
+            self.assertEqual(f.has_homed_since_connect, not position_lost)
+            self.assertEqual(len(f.txt_console.lines), 1 if position_lost else 0)
+
 
 if __name__ == "__main__":
     unittest.main()
