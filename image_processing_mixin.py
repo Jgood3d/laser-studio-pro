@@ -1,4 +1,5 @@
 """Chargement, transformations et traitement (tramage) de l'image source."""
+import os
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QGridLayout, QDialog)
 from PyQt6.QtGui import QPixmap, QImage
 import numpy as np
@@ -292,7 +293,7 @@ class ImageProcessingMixin:
         self.view_preview_src.clear_image()
         self.view_preview_dither.clear_image()
         self.update_image_actions_state()
-        self.txt_console.append(tr("image.deleted"))
+        self.show_status_message(tr("image.deleted"))
 
     def load_image_from_path(self, path):
         # Image classique (Images Tramage) : on rend les réglages miroir /
@@ -324,15 +325,16 @@ class ImageProcessingMixin:
             self.block_aspect_signal = False
             self.display_source_image()
             self.update_image_processing()
-            self.txt_console.append(
-    tr("image.loaded").format(path=path)
-)
             if shrunk:
                 full_w, full_h, _, _ = natural_size_mm(w, h, file_dpi)
-                self.txt_console.append(tr("image.natural_size_fit").format(
-                    w=w_mm, h=h_mm, ow=full_w, oh=full_h, dpi=used_dpi))
+                size_msg = tr("image.natural_size_fit").format(
+                    w=w_mm, h=h_mm, ow=full_w, oh=full_h, dpi=used_dpi)
             else:
-                self.txt_console.append(tr("image.natural_size").format(w=w_mm, h=h_mm, dpi=used_dpi))
+                size_msg = tr("image.natural_size").format(w=w_mm, h=h_mm, dpi=used_dpi)
+            # Barre d'état : nom du fichier seul ; chemin complet dans l'infobulle.
+            self.show_status_message(
+                f"{tr('image.loaded').format(path=os.path.basename(path))} — {size_msg}",
+                f"{tr('image.loaded').format(path=path)}\n{size_msg}")
         except Exception as e:
             QMessageBox.critical(
     self,

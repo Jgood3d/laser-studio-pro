@@ -2317,6 +2317,18 @@ TRANSLATIONS = {
         "de": "SVG-Datei geladen: {path}",
         "es": "Archivo SVG cargado: {path}",
     },
+    "vector.no_engrave_layer": {
+        "fr": "Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.",
+        "en": "No layer in Engrave mode: the image will use the settings of the selected layer.",
+        "de": "Keine Ebene im Gravurmodus: Das Bild verwendet die Einstellungen der ausgewählten Ebene.",
+        "es": "Ninguna capa en modo Grabado: la imagen usará los ajustes de la capa seleccionada.",
+    },
+    "vector.engrave_layer_auto": {
+        "fr": "Image : calque de gravure « {name} » sélectionné automatiquement.",
+        "en": "Image: engraving layer \"{name}\" selected automatically.",
+        "de": "Bild: Gravurebene „{name}“ automatisch ausgewählt.",
+        "es": "Imagen: capa de grabado «{name}» seleccionada automáticamente.",
+    },
     "tab.vector_editor": {
         "fr": "Graver une image vectorielle",
         "en": "Engrave a Vector Image",

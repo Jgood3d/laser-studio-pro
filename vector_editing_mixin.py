@@ -1,4 +1,5 @@
 """Édition des objets vectoriels (texte, formes, SVG) sur le canevas."""
+import os
 from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
 from vector_layers import (
@@ -75,13 +76,11 @@ class VectorEditingMixin:
             return
         idx = self._first_engrave_layer_index()
         if idx < 0:
-            self.txt_console.append(
-                ">>> Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.")
+            self.show_status_message(tr("vector.no_engrave_layer"))
             return
         self.combo_engrave_layer.setCurrentIndex(idx)  # déclenche _on_engrave_layer_selected
         self._on_engrave_layer_selected()
-        self.txt_console.append(
-            f">>> Image : calque de gravure « {self.combo_engrave_layer.currentText()} » sélectionné automatiquement.")
+        self.show_status_message(tr("vector.engrave_layer_auto").format(name=self.combo_engrave_layer.currentText()))
 
     def _on_engrave_layer_selected(self, *_args):
         """La gravure image utilise toujours la puissance/vitesse du calque
@@ -554,9 +553,8 @@ class VectorEditingMixin:
 )
         if path:
             self.loaded_svg_path = path
-            self.txt_console.append(
-    tr("vector.svg_loaded").format(path=path)
-)
+            self.show_status_message(tr("vector.svg_loaded").format(path=os.path.basename(path)),
+                                     tr("vector.svg_loaded").format(path=path))
 
     # ------------------------------------------------------------------
     # Alignement / distribution multi-objets

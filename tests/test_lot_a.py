@@ -91,6 +91,7 @@ class LoadImageTests(unittest.TestCase):
         f.block_aspect_signal = False
         f.console = []
         f.txt_console = types_ns(append=f.console.append)
+        f.show_status_message = lambda text, tooltip=None: f.console.append(text)   # barre d'état
         return f
 
     def load(self, image, bed=(400.0, 400.0), **save_kw):
