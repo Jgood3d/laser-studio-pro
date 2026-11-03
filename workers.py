@@ -57,6 +57,22 @@ if _HAS_NUMBA:
         return out
 
 
+# Marge de l'image à graver par rapport à l'origine du job (mm), comme à l'import d'un SVG/DXF
+# (vector_layers.extract_svg_objects) : sans elle, le surbalayage de la première colonne ferait
+# partir la tête en X négatif dès que le décalage du job vaut 0.
+IMAGE_MARGIN_MM = 10.0
+
+
+def image_origin(params):
+    """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
+    décalage du job désigne le centre de l'image, sans marge ; sinon, décalage + IMAGE_MARGIN_MM.
+    Les calques vectoriels ne sont pas concernés : leurs objets ont déjà leur marge à l'import."""
+    if params['origin_pos'] == "Centre":
+        return (params['offset_x'] - params['width_mm'] / 2.0,
+                params['offset_y'] - params['height_mm'] / 2.0)
+    return params['offset_x'] + IMAGE_MARGIN_MM, params['offset_y'] + IMAGE_MARGIN_MM
+
+
 def _diffuse_pure_python(arr_in, kernel):
     """Repli sans numba : la diffusion d'erreur reste intrinsèquement séquentielle
     (chaque pixel dépend du précédent), donc impossible à vectoriser avec numpy.
@@ -667,6 +683,8 @@ class AdvancedGCodeWorker(QThread):
         else:
             base_offset_x = self.params['offset_x']
             base_offset_y = self.params['offset_y']
+        # Image (phase 1) et découpe de son contour (phase 2) : avec la marge de l'image.
+        image_x, image_y = image_origin(self.params)
 
         curr_x, curr_y = 0.0, 0.0
 
@@ -715,11 +733,11 @@ class AdvancedGCodeWorker(QThread):
                     # par transition de puissance, sur potentiellement des
                     # centaines de milliers de pixels).
                     self.progress.emit(int((y / h) * 70))
-                actual_y = base_offset_y + (h - 1 - y) * step_y
+                actual_y = image_y + (h - 1 - y) * step_y
                 is_ltr = (y % 2 == 0)
                 # Origine X de CETTE ligne : décalée du réglage aller/retour
                 # pour les lignes retour (voir scan_offset plus haut).
-                row_x0 = base_offset_x if is_ltr else base_offset_x + scan_offset
+                row_x0 = image_x if is_ltr else image_x + scan_offset
 
                 margin_start_x = row_x0 - overscan_dist if is_ltr else row_x0 + w_mm + overscan_dist
                 margin_end_x = row_x0 + w_mm + overscan_dist if is_ltr else row_x0 - overscan_dist
@@ -818,8 +836,8 @@ class AdvancedGCodeWorker(QThread):
                     parsed = parse_path(path_str)
                     
                     start_pt = parsed.point(0)
-                    sx = base_offset_x + start_pt.real
-                    sy = base_offset_y + (h_mm - start_pt.imag)
+                    sx = image_x + start_pt.real
+                    sy = image_y + (h_mm - start_pt.imag)
                     
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
                     gcode.append(f"M3 S{p_cut_val}")
@@ -834,8 +852,8 @@ class AdvancedGCodeWorker(QThread):
 
                     for i in range(1, num_samples + 1):
                         pt = parsed.point(i / num_samples)
-                        nx = base_offset_x + pt.real
-                        ny = base_offset_y + (h_mm - pt.imag)
+                        nx = image_x + pt.real
+                        ny = image_y + (h_mm - pt.imag)
                         
                         dist = math.hypot(nx - curr_x, ny - curr_y)
                         total_time_seconds += (dist / max(speed_cut, 1)) * 60.0

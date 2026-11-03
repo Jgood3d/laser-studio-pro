@@ -9,7 +9,7 @@ from svg.path import parse_path
 from vector_layers import (
     extract_vector_layer_data
 )
-from workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode
+from workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
 from i18n import tr
 
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
@@ -502,10 +502,7 @@ class GcodeGenerationMixin:
             else:
                 overscan_check = params['overscan_dist']
 
-            if params['origin_pos'] == "Centre":
-                base_x_check = params['offset_x'] - (params['width_mm'] / 2.0)
-            else:
-                base_x_check = params['offset_x']
+            base_x_check = image_origin(params)[0]
 
             if base_x_check - overscan_check < 0:
                 QMessageBox.critical(

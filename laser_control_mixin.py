@@ -3,7 +3,7 @@ import serial
 import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
-from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread
+from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread, image_origin
 from i18n import tr
 from simulated_grbl import SIMULATED_PORT, simulation_enabled
 from debug_log import get_logger, log_gcode_summary
@@ -572,11 +572,9 @@ class LaserControlMixin:
 
         w = self.spin_w.value()
         h = self.spin_h.value()
-        ox = self.spin_off_x.value()
-        oy = self.spin_off_y.value()
-        if self.combo_origin.currentText() == "Centre":
-            ox -= w / 2.0
-            oy -= h / 2.0
+        ox, oy = image_origin({'origin_pos': self.combo_origin.currentText(),
+                               'offset_x': self.spin_off_x.value(), 'offset_y': self.spin_off_y.value(),
+                               'width_mm': w, 'height_mm': h})
 
         cmds = [
             f"G0 X{ox:.3f} Y{oy:.3f}",
