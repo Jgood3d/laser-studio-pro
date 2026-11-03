@@ -2634,11 +2634,17 @@ TRANSLATIONS = {
         "fr": "🔓 Déverrouiller ($X)", "en": "🔓 Unlock ($X)",
         "de": "🔓 Entsperren ($X)", "es": "🔓 Desbloquear ($X)",
     },
+    "ui.jog_speed_range": {
+        "fr": "Vitesse du jog : {min} à {max} mm/min (maximum : vitesse max du graveur)",
+        "en": "Jog speed: {min} to {max} mm/min (maximum: engraver max speed)",
+        "de": "Jog-Geschwindigkeit: {min} bis {max} mm/min (Maximum: Höchstgeschwindigkeit des Gravierers)",
+        "es": "Velocidad del jog: {min} a {max} mm/min (máximo: velocidad máx. del grabador)",
+    },
     "ui.jog_box": {
-        "fr": "Mouvements Manuel Laser (Jog) & Commandes",
-        "en": "Manual Laser Moves (Jog) & Commands",
-        "de": "Manuelle Laserbewegungen (Jog) & Befehle",
-        "es": "Movimientos manuales del láser (jog) y comandos",
+        "fr": "Mouvements manuels (jog) et commandes",
+        "en": "Manual Moves (Jog) and Commands",
+        "de": "Manuelle Bewegungen (Jog) und Befehle",
+        "es": "Movimientos manuales (jog) y comandos",
     },
     "ui.homing_cmd": {
         "fr": "HOMING ($H)",

@@ -89,6 +89,9 @@ class LaserControlMixin:
         self._stop_status_poll()
         self.status_poll_thread = StatusPollThread(self.usb)
         self.status_poll_thread.status_updated.connect(self._on_status_updated)
+        # Port perdu hors job (câble débranché...) : bouton de connexion et commandes à jour.
+        if hasattr(self, "update_connection_widgets"):
+            self.status_poll_thread.connection_lost.connect(self.update_connection_widgets)
         self.status_poll_thread.start()
 
     def _stop_status_poll(self):
@@ -336,9 +339,8 @@ class LaserControlMixin:
 )
             return
 
-        step_str = self.combo_step.currentText().replace(" mm", "")
-        step = float(step_str)
-        speed = self.spin_jog_speed.value()
+        step = self.JOG_STEPS_MM[self.slider_jog_step.value()]
+        speed = self.slider_jog_speed.value()
 
         move_x = dx * step
         move_y = dy * step

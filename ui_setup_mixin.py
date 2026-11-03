@@ -1,7 +1,7 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
-from PyQt6.QtWidgets import (QPlainTextEdit, QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
-from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
-from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor, QPainter, QPen
+from PyQt6.QtWidgets import (QToolButton, QPlainTextEdit, QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
+from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer, QPointF
+from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor, QPainter, QPen, QPolygonF
 import pyqtgraph as pg
 from PIL import Image
 import os
@@ -49,6 +49,83 @@ class UiSetupMixin:
         control = getattr(tab_widget, "_fullscreen_control", None)
         if control is not None:
             control.setVisible(visible)
+
+    JOG_STEPS_MM = (0.1, 1.0, 10.0, 100.0)    # valeurs du curseur « Pas » du panneau de pilotage
+    JOG_BUTTON_SIZE = 40
+
+    JOG_SPEED_MIN = 100                       # mm/min, bas du curseur « Vitesse »
+
+    def _apply_jog_speed_limit(self, max_speed):
+        """Le curseur de vitesse du jog s'arrête à la vitesse maximale de la machine. Si la valeur
+        choisie la dépasse (nouveau profil plus lent), elle est ramenée à ce maximum."""
+        top = max(int(max_speed), self.JOG_SPEED_MIN)
+        self.slider_jog_speed.setRange(self.JOG_SPEED_MIN, top)
+        self.slider_jog_speed.setToolTip(tr("ui.jog_speed_range").format(min=self.JOG_SPEED_MIN, max=top))
+
+    def _jog_tool_button(self, icon, tooltip, color=None):
+        """Bouton carré à icône du panneau de pilotage ; libellé en infobulle. `color` : fond (couleurs
+        historiques des boutons Pause, Reprise, Reset, Arrêt d'urgence et Envoyer)."""
+        button = QToolButton()
+        button.setIcon(icon)
+        button.setIconSize(QSize(24, 24))
+        button.setToolTip(tooltip)
+        button.setFixedSize(self.JOG_BUTTON_SIZE, self.JOG_BUTTON_SIZE)
+        button.setAutoRaise(color is None)
+        if color:
+            # Gris quand le bouton est désactivé (graveur non connecté) : sinon sa couleur le ferait
+            # paraître actif.
+            button.setStyleSheet(f"QToolButton {{ background-color: {color}; border-radius: 4px; }}"
+                                 "QToolButton:disabled { background-color: #b0b0b0; }")
+        return button
+
+    def _painted_icon(self, draw):
+        """Icône dessinée (32 px) dans la couleur du texte de l'interface (thème clair ou sombre)."""
+        pixmap = QPixmap(32, 32)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        color = self.palette().color(QPalette.ColorRole.WindowText)
+        draw(painter, color)
+        painter.end()
+        return QIcon(pixmap)
+
+    def _arrow_icon(self, angle):
+        """Flèche du jog, tournée de `angle` degrés (0 = vers le haut, sens horaire)."""
+        def draw(painter, color):
+            painter.translate(16, 16)
+            painter.rotate(angle)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawPolygon(QPolygonF([QPointF(0, -12), QPointF(10, 0), QPointF(4, 0), QPointF(4, 11),
+                                           QPointF(-4, 11), QPointF(-4, 0), QPointF(-10, 0)]))
+        return self._painted_icon(draw)
+
+    def _frame_icon(self):
+        """Cadrage : rectangle en pointillés avec ses quatre coins marqués."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2, Qt.PenStyle.DashLine))
+            painter.drawRect(6, 6, 20, 20)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            for x, y in ((3, 3), (23, 3), (3, 23), (23, 23)):
+                painter.drawRect(x, y, 6, 6)
+        return self._painted_icon(draw)
+
+    def _crosshair_icon(self, with_arrow=False):
+        """Origine de travail : viseur. `with_arrow` : petite flèche qui y va (« Go zéro »)."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            center = 20 if with_arrow else 16
+            painter.drawEllipse(QPointF(center, center), 7, 7)
+            painter.drawLine(QPointF(center - 11, center), QPointF(center + 11, center))
+            painter.drawLine(QPointF(center, center - 11), QPointF(center, center + 11))
+            if with_arrow:
+                painter.drawLine(QPointF(2, 2), QPointF(11, 11))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.setBrush(color)
+                painter.drawPolygon(QPolygonF([QPointF(13, 13), QPointF(5, 11), QPointF(11, 5)]))
+        return self._painted_icon(draw)
 
     @staticmethod
     def _side_settings_panel(content, width=360):
@@ -577,7 +654,7 @@ class UiSetupMixin:
     def update_connection_widgets(self):
         """Met le bouton de connexion (page et barre d'outils) en accord avec l'état du port :
         « Déconnecter » sur fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
-        rouge sinon."""
+        rouge sinon ; verrouille ou déverrouille les commandes de la machine."""
         connected = self.usb.is_connected()
         label = tr("laser.disconnect") if connected else tr("laser.connect")
         button = getattr(self, "btn_connect", None)
@@ -588,6 +665,12 @@ class UiSetupMixin:
         if action is not None:
             action.setText(label)
             action.setIcon(self._status_dot_icon("#27ae60" if connected else "#e74c3c"))
+        # Jog, commandes et console directe : verrouillés tant que le graveur n'est pas connecté.
+        # La position du job reste modifiable (elle sert aussi à générer le G-Code hors connexion).
+        for name in ("jog_box", "direct_console_box"):
+            box = getattr(self, name, None)
+            if box is not None:
+                box.setEnabled(connected)
 
     def _on_language_selected(self, lang_code):
         set_language(lang_code)
@@ -922,16 +1005,10 @@ class UiSetupMixin:
         # Position du job sur le plateau (image ET vecteurs, voir workers.AdvancedGCodeWorker) :
         # dans le panneau machine, avec le jog et le cadrage qui servent à la régler.
         self.job_position_box = QGroupBox(tr("ui.job_position_box"))
-        job_position_layout = QHBoxLayout(self.job_position_box)
-        job_position_layout.addWidget(QLabel(tr("dim.origin")))
-        job_position_layout.addWidget(self.combo_origin)
-        job_position_layout.addSpacing(12)
-        job_position_layout.addWidget(QLabel(tr("dim.offset_x")))
-        job_position_layout.addWidget(self.spin_off_x)
-        job_position_layout.addSpacing(12)
-        job_position_layout.addWidget(QLabel(tr("dim.offset_y")))
-        job_position_layout.addWidget(self.spin_off_y)
-        job_position_layout.addStretch()
+        job_position_layout = QFormLayout(self.job_position_box)
+        job_position_layout.addRow(tr("dim.origin"), self.combo_origin)
+        job_position_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
+        job_position_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
 
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
@@ -1491,7 +1568,7 @@ class UiSetupMixin:
         center_bottom_layout.setContentsMargins(0, 0, 0, 0)
 
         dro_box = QGroupBox(tr("ui.dro_box"))
-        dro_layout = QHBoxLayout()
+        dro_layout = QVBoxLayout()
         self.lbl_dro_state = QLabel(tr("ui.dro_state").format(value="—"))
         self.lbl_dro_x = QLabel(tr("ui.dro_x").format(value="—"))
         self.lbl_dro_y = QLabel(tr("ui.dro_y").format(value="—"))
@@ -1507,109 +1584,113 @@ class UiSetupMixin:
         self.btn_unlock_alarm.setVisible(False)
         dro_layout.addWidget(self.lbl_dro_state)
         dro_layout.addWidget(self.btn_unlock_alarm)
-        dro_layout.addStretch()
         dro_layout.addWidget(self.lbl_dro_x)
         dro_layout.addWidget(self.lbl_dro_y)
         dro_layout.addWidget(self.lbl_dro_z)
+        dro_layout.addStretch()
         dro_box.setLayout(dro_layout)
-        center_bottom_layout.addWidget(dro_box)
-        center_bottom_layout.addWidget(self.job_position_box)
 
+        # Panneau de pilotage compact : croix de déplacement (homing au centre), curseurs de pas et de
+        # vitesse, puis boutons à icône (libellé en infobulle), dans l'ordre d'utilisation.
         jog_box = QGroupBox(tr("ui.jog_box"))
-        jog_layout = QGridLayout()
+        jog_layout = QHBoxLayout(jog_box)
 
-        btn_up = QPushButton("▲ Y+")
-        btn_down = QPushButton("▼ Y-")
-        btn_left = QPushButton("◄ X-")
-        btn_right = QPushButton("► X+")
-        
-        btn_up_left = QPushButton("◤")
-        btn_up_right = QPushButton("◥")
-        btn_down_left = QPushButton("◣")
-        btn_down_right = QPushButton("◢")
-
-        btn_up.clicked.connect(lambda: self.jog_move(0, 1))
-        btn_down.clicked.connect(lambda: self.jog_move(0, -1))
-        btn_left.clicked.connect(lambda: self.jog_move(-1, 0))
-        btn_right.clicked.connect(lambda: self.jog_move(1, 0))
-
-        btn_up_left.clicked.connect(lambda: self.jog_move(-1, 1))
-        btn_up_right.clicked.connect(lambda: self.jog_move(1, 1))
-        btn_down_left.clicked.connect(lambda: self.jog_move(-1, -1))
-        btn_down_right.clicked.connect(lambda: self.jog_move(1, -1))
-
-        self.combo_step = QComboBox()
-        self.combo_step.addItems(["0.1 mm", "1 mm", "10 mm", "100 mm"])
-        self.combo_step.setCurrentIndex(2)
-
-        self.spin_jog_speed = QSpinBox()
-        self.spin_jog_speed.setRange(100, 10000)
-        self.spin_jog_speed.setValue(3000)
-
-        btn_homing_now = QPushButton(tr("ui.homing_cmd"))
+        arrows = QGridLayout()
+        arrows.setSpacing(4)
+        # (ligne, colonne, dx, dy, angle de la flèche en degrés, 0 = vers le haut)
+        for row, col, dx, dy, angle in ((0, 0, -1, 1, -45), (0, 1, 0, 1, 0), (0, 2, 1, 1, 45),
+                                        (1, 0, -1, 0, -90), (1, 2, 1, 0, 90),
+                                        (2, 0, -1, -1, -135), (2, 1, 0, -1, 180), (2, 2, 1, -1, 135)):
+            axes = " ".join(f"{axis}{'+' if d > 0 else '-'}" for axis, d in (("X", dx), ("Y", dy)) if d)
+            button = self._jog_tool_button(self._arrow_icon(angle), axes)
+            button.clicked.connect(lambda _checked=False, x=dx, y=dy: self.jog_move(x, y))
+            arrows.addWidget(button, row, col)
+        btn_homing_now = self._jog_tool_button(
+            QIcon.fromTheme(QIcon.ThemeIcon.GoHome, self.style().standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)),
+            tr("ui.homing_cmd"))
         btn_homing_now.clicked.connect(self.send_homing)
+        arrows.addWidget(btn_homing_now, 1, 1)
+        jog_layout.addLayout(arrows)
 
-        btn_zero_xy = QPushButton(tr("ui.zero_work"))
-        btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
+        # Curseurs verticaux : pas du déplacement (valeurs de JOG_STEPS_MM) et vitesse (mm/min).
+        self.slider_jog_step = QSlider(Qt.Orientation.Vertical)
+        self.slider_jog_step.setRange(0, len(self.JOG_STEPS_MM) - 1)
+        self.slider_jog_step.setPageStep(1)
+        self.slider_jog_step.setValue(self.JOG_STEPS_MM.index(10.0))
+        self.slider_jog_step.setTickPosition(QSlider.TickPosition.TicksRight)
+        self.slider_jog_speed = QSlider(Qt.Orientation.Vertical)
+        self.slider_jog_speed.setSingleStep(100)
+        self.slider_jog_speed.setPageStep(500)
+        # Jamais plus vite que la vitesse maximale de la machine (Paramètres du graveur, profil).
+        self._apply_jog_speed_limit(self.spin_machine_max_speed.value())
+        self.slider_jog_speed.setValue(min(3000, self.slider_jog_speed.maximum()))
+        self.spin_machine_max_speed.valueChanged.connect(self._apply_jog_speed_limit)
+        for slider, title_key, formatter in (
+                (self.slider_jog_step, "ui.jog_step_label", lambda v: f"{self.JOG_STEPS_MM[v]:g} mm"),
+                (self.slider_jog_speed, "ui.jog_speed_label", lambda v: f"{v}")):
+            column = QVBoxLayout()
+            title = QLabel(tr(title_key))
+            value = QLabel(formatter(slider.value()))
+            for label in (title, value):
+                label.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+            slider.valueChanged.connect(lambda v, lbl=value, fmt=formatter: lbl.setText(fmt(v)))
+            if not slider.toolTip():                   # la vitesse a déjà la sienne (plage autorisée)
+                slider.setToolTip(tr(title_key))
+            column.addWidget(title)
+            column.addWidget(slider, 1, Qt.AlignmentFlag.AlignHCenter)
+            column.addWidget(value)
+            jog_layout.addLayout(column)
+        jog_layout.addSpacing(12)
 
-        btn_go_zero = QPushButton(tr("ui.go_zero"))
-        btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
+        def themed(theme_icon, fallback):
+            return QIcon.fromTheme(theme_icon, self.style().standardIcon(fallback))
 
-        btn_pause = QPushButton(tr("ui.pause"))
-        btn_pause.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
+        btn_pause = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.MediaPlaybackPause, QStyle.StandardPixmap.SP_MediaPause), tr("ui.pause"), "#e67e22")
         btn_pause.clicked.connect(self.send_pause)
-
-        btn_resume = QPushButton(tr("ui.resume"))
-        btn_resume.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold;")
+        btn_resume = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.MediaPlaybackStart, QStyle.StandardPixmap.SP_MediaPlay), tr("ui.resume"), "#27ae60")
         btn_resume.clicked.connect(self.send_resume)
-
-        btn_reset = QPushButton(tr("ui.reset"))
-        btn_reset.setStyleSheet("background-color: #c0392b; color: white; font-weight: bold;")
+        btn_reset = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.SystemReboot, QStyle.StandardPixmap.SP_BrowserReload), tr("ui.reset"), "#c0392b")
         btn_reset.clicked.connect(self.send_reset)
-
-        btn_kill = QPushButton(tr("ui.kill"))
-        btn_kill.setStyleSheet("background-color: #ff0000; color: white; font-weight: bold;")
+        btn_kill = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.ProcessStop, QStyle.StandardPixmap.SP_BrowserStop), tr("ui.kill"), "#ff0000")
         btn_kill.clicked.connect(self.send_kill)
-
-        btn_frame = QPushButton(tr("ui.frame"))
+        btn_frame = self._jog_tool_button(self._frame_icon(), tr("ui.frame"))
         btn_frame.clicked.connect(self.run_frame)
-        
-        self.btn_send = QPushButton(tr("ui.send_to_laser"))
-        self.btn_send.setStyleSheet("background-color: #2980b9; color: white; font-weight: bold;")
+        btn_zero_xy = self._jog_tool_button(self._crosshair_icon(), tr("ui.zero_work"))
+        btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
+        btn_go_zero = self._jog_tool_button(self._crosshair_icon(with_arrow=True), tr("ui.go_zero"))
+        btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
+        self.btn_send = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.DocumentSend, QStyle.StandardPixmap.SP_ArrowForward), tr("ui.send_to_laser"),
+            "#2980b9")
         self.btn_send.clicked.connect(self.send_to_laser)
-
-        self.btn_repeat_last_job = QPushButton(tr("ui.repeat_last_job"))
+        self.btn_repeat_last_job = self._jog_tool_button(
+            themed(QIcon.ThemeIcon.MediaPlaylistRepeat, QStyle.StandardPixmap.SP_BrowserReload),
+            tr("ui.repeat_last_job"))
         self.btn_repeat_last_job.clicked.connect(self.repeat_last_job)
         self.btn_repeat_last_job.setEnabled(False)
 
-        jog_layout.addWidget(btn_up_left, 0, 0)
-        jog_layout.addWidget(btn_up, 0, 1)
-        jog_layout.addWidget(btn_up_right, 0, 2)
-        jog_layout.addWidget(btn_left, 1, 0)
-        jog_layout.addWidget(btn_homing_now, 1, 1)
-        jog_layout.addWidget(btn_right, 1, 2)
-        jog_layout.addWidget(btn_down_left, 2, 0)
-        jog_layout.addWidget(btn_down, 2, 1)
-        jog_layout.addWidget(btn_down_right, 2, 2)
+        commands = QGridLayout()
+        commands.setSpacing(4)
+        # Ligne 1 : commandes temps réel de la machine. Ligne 2 : position, puis envoi du job.
+        for col, button in enumerate((btn_pause, btn_resume, btn_reset, btn_kill)):
+            commands.addWidget(button, 0, col)
+        for col, button in enumerate((btn_frame, btn_zero_xy, btn_go_zero, self.btn_send, self.btn_repeat_last_job)):
+            commands.addWidget(button, 1, col)
+        commands.setRowStretch(2, 1)
+        jog_layout.addLayout(commands)
+        jog_layout.addStretch()
 
-        jog_layout.addWidget(QLabel(tr("ui.jog_step_label")), 0, 3)
-        jog_layout.addWidget(self.combo_step, 0, 4)
-        jog_layout.addWidget(QLabel(tr("ui.jog_speed_label")), 1, 3)
-        jog_layout.addWidget(self.spin_jog_speed, 1, 4)
-
-        jog_layout.addWidget(btn_zero_xy, 2, 3)
-        jog_layout.addWidget(btn_go_zero, 2, 4)
-
-        jog_layout.addWidget(btn_pause, 3, 0)
-        jog_layout.addWidget(btn_resume, 3, 1)
-        jog_layout.addWidget(btn_reset, 3, 2)
-        jog_layout.addWidget(btn_kill, 3, 3)
-        jog_layout.addWidget(btn_frame, 4, 0)
-        jog_layout.addWidget(self.btn_send, 4, 1, 1, 4)
-        jog_layout.addWidget(self.btn_repeat_last_job, 5, 1, 1, 4)
-
-        jog_box.setLayout(jog_layout)
-        center_bottom_layout.addWidget(jog_box)
+        # Trois parties côte à côte : position du job à gauche, jog au centre, DRO à droite.
+        machine_row = QHBoxLayout()
+        machine_row.addWidget(self.job_position_box)
+        machine_row.addWidget(jog_box, 1)
+        machine_row.addWidget(dro_box)
+        center_bottom_layout.addLayout(machine_row)
+        self.jog_box = jog_box
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -1628,6 +1709,8 @@ class UiSetupMixin:
         cmd_layout.addWidget(btn_send_cmd)
         cmd_box.setLayout(cmd_layout)
         center_bottom_layout.addWidget(cmd_box)
+        self.direct_console_box = cmd_box
+        self.update_connection_widgets()               # commandes verrouillées tant que non connecté
         center_bottom_layout.addStretch()              # place libre en bas, pas dans les cadres
 
         self.main_tabs_view.setMinimumHeight(150)
