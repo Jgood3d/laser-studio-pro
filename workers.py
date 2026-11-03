@@ -245,6 +245,19 @@ class ImageProcessingWorker(QThread):
         return np.where(arr_in > tiled, 255, 0).astype(np.uint8)
 
 
+# Début d'une ligne que GRBL sait lire : un mot G-Code (lettre suivie d'une valeur), une commande « $ »,
+# un commentaire « ( », « % » ou une commande temps réel.
+_GRBL_LINE_RE = re.compile(r'^(?:[A-Z]\s*[-+.\d]|\$|\(|%|[?!~])', re.IGNORECASE)
+
+
+def gcode_lines(gcode_text):
+    """Lignes de la console à envoyer à GRBL. La console mélange le G-Code et les messages de
+    l'application (« Connecté à … », « >>> Mode laser GRBL … ») : GRBL refuserait ceux-ci (error:1)
+    et l'envoi s'arrêterait, ils sont donc écartés comme les commentaires « ; »."""
+    lines = (line.strip() for line in gcode_text.split('\n'))
+    return [line for line in lines if line and not line.startswith(';') and _GRBL_LINE_RE.match(line)]
+
+
 class GCodeStreamerThread(QThread):
     """Thread d'envoi séquentiel du G-Code à GRBL (Streaming avec gestion du buffer RX)"""
     progress = pyqtSignal(int, int)
@@ -267,7 +280,7 @@ class GCodeStreamerThread(QThread):
     def __init__(self, usb_controller, gcode_text):
         super().__init__()
         self.usb = usb_controller
-        self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
+        self.lines = gcode_lines(gcode_text)
         self.is_running = True
         self._stopped_by_user = False
         # Secondes entre deux requêtes '?' pendant le job : 5 par seconde (limite conseillée par GRBL),
