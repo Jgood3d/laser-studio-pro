@@ -57,6 +57,22 @@ if _HAS_NUMBA:
         return out
 
 
+# Marge de l'image à graver par rapport à l'origine du job (mm), comme à l'import d'un SVG/DXF
+# (vector_layers.extract_svg_objects) : sans elle, le surbalayage de la première colonne ferait
+# partir la tête en X négatif dès que le décalage du job vaut 0.
+IMAGE_MARGIN_MM = 10.0
+
+
+def image_origin(params):
+    """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
+    décalage du job désigne le centre de l'image, sans marge ; sinon, décalage + IMAGE_MARGIN_MM.
+    Les calques vectoriels ne sont pas concernés : leurs objets ont déjà leur marge à l'import."""
+    if params['origin_pos'] == "Centre":
+        return (params['offset_x'] - params['width_mm'] / 2.0,
+                params['offset_y'] - params['height_mm'] / 2.0)
+    return params['offset_x'] + IMAGE_MARGIN_MM, params['offset_y'] + IMAGE_MARGIN_MM
+
+
 def _diffuse_pure_python(arr_in, kernel):
     """Repli sans numba : la diffusion d'erreur reste intrinsèquement séquentielle
     (chaque pixel dépend du précédent), donc impossible à vectoriser avec numpy.
@@ -229,6 +245,19 @@ class ImageProcessingWorker(QThread):
         return np.where(arr_in > tiled, 255, 0).astype(np.uint8)
 
 
+# Début d'une ligne que GRBL sait lire : un mot G-Code (lettre suivie d'une valeur), une commande « $ »,
+# un commentaire « ( », « % » ou une commande temps réel.
+_GRBL_LINE_RE = re.compile(r'^(?:[A-Z]\s*[-+.\d]|\$|\(|%|[?!~])', re.IGNORECASE)
+
+
+def gcode_lines(gcode_text):
+    """Lignes de la console à envoyer à GRBL. La console mélange le G-Code et les messages de
+    l'application (« Connecté à … », « >>> Mode laser GRBL … ») : GRBL refuserait ceux-ci (error:1)
+    et l'envoi s'arrêterait, ils sont donc écartés comme les commentaires « ; »."""
+    lines = (line.strip() for line in gcode_text.split('\n'))
+    return [line for line in lines if line and not line.startswith(';') and _GRBL_LINE_RE.match(line)]
+
+
 class GCodeStreamerThread(QThread):
     """Thread d'envoi séquentiel du G-Code à GRBL (Streaming avec gestion du buffer RX)"""
     progress = pyqtSignal(int, int)
@@ -243,12 +272,15 @@ class GCodeStreamerThread(QThread):
     # Lignes envoyées à GRBL, par paquets (au plus ~10 émissions par seconde, voir
     # _flush_sent_lines) : un signal par ligne saturerait l'interface sur un long job.
     lines_sent = pyqtSignal(list)
+    # Nombre de lignes acceptées par GRBL (« ok » reçus), au même rythme : sert à suivre la
+    # gravure en temps réel sur l'aperçu 2D (voir GCodeGenerationMixin.update_burn_overlay).
+    lines_acked = pyqtSignal(int)
     SENT_LINES_INTERVAL = 0.1
 
     def __init__(self, usb_controller, gcode_text):
         super().__init__()
         self.usb = usb_controller
-        self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
+        self.lines = gcode_lines(gcode_text)
         self.is_running = True
         self._stopped_by_user = False
         # Secondes entre deux requêtes '?' pendant le job : 5 par seconde (limite conseillée par GRBL),
@@ -265,15 +297,22 @@ class GCodeStreamerThread(QThread):
         self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
         self._sent_batch = []
         self._last_sent_emit = 0.0
+        self.acked = 0                    # « ok » reçus depuis le début du job
+        self._acked_emitted = 0
 
     def _flush_sent_lines(self, force=False):
-        """Émet les lignes envoyées depuis la dernière émission (toutes les SENT_LINES_INTERVAL s,
-        ou tout de suite si `force`)."""
+        """Émet les lignes envoyées et le nombre de « ok » reçus depuis la dernière émission
+        (toutes les SENT_LINES_INTERVAL s, ou tout de suite si `force`)."""
         now = time.time()
-        if self._sent_batch and (force or now - self._last_sent_emit >= self.SENT_LINES_INTERVAL):
+        if not force and now - self._last_sent_emit < self.SENT_LINES_INTERVAL:
+            return
+        if self._sent_batch:
             self.lines_sent.emit(self._sent_batch)
             self._sent_batch = []
-            self._last_sent_emit = now
+        if self.acked != self._acked_emitted:
+            self.lines_acked.emit(self.acked)
+            self._acked_emitted = self.acked
+        self._last_sent_emit = now
 
     def stop(self):
         log.info("Streamer : arrêt demandé par l'utilisateur")
@@ -455,6 +494,7 @@ class GCodeStreamerThread(QThread):
                             ok_count += 1
                             if ring_buffer:
                                 ring_buffer.pop(0)
+                                self.acked += 1
                             else:
                                 log.warning("Streamer : « ok » reçu alors qu'aucune ligne n'est en attente")
                         elif resp.startswith('error') or resp.startswith('ALARM') or resp.startswith('ERROR:'):
@@ -505,6 +545,7 @@ class GCodeStreamerThread(QThread):
                         if resp == 'ok':
                             ok_count += 1
                             ring_buffer.pop(0)
+                            self.acked += 1
                         elif resp.startswith('error') or resp.startswith('ALARM'):
                             log.error("Streamer : %s en réponse à la ligne %r", resp, ring_buffer[0][0])
                             self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
@@ -523,6 +564,7 @@ class GCodeStreamerThread(QThread):
                                         now - last_rx, len(ring_buffer), ring_buffer[0][0])
                             last_stall_log = now
                         time.sleep(0.01)
+                self._flush_sent_lines()
 
             # Erreur GRBL : arrêter la machine, qui exécuterait sinon la fin de son buffer.
             if grbl_error:
@@ -654,6 +696,8 @@ class AdvancedGCodeWorker(QThread):
         else:
             base_offset_x = self.params['offset_x']
             base_offset_y = self.params['offset_y']
+        # Image (phase 1) et découpe de son contour (phase 2) : avec la marge de l'image.
+        image_x, image_y = image_origin(self.params)
 
         curr_x, curr_y = 0.0, 0.0
 
@@ -695,6 +739,7 @@ class AdvancedGCodeWorker(QThread):
                     return power_engrave * (255.0 - float(val)) / 255.0
                 return power_engrave if val == 0 else 0.0
 
+            scanned_rows = 0    # lignes réellement balayées (sens aller/retour, voir is_ltr)
             for y in range(h):
                 if h > 0 and y % max(1, h // 50) == 0:
                     # Phase 1 (gravure image) occupe ~0-70% de la barre : c'est
@@ -702,15 +747,33 @@ class AdvancedGCodeWorker(QThread):
                     # par transition de puissance, sur potentiellement des
                     # centaines de milliers de pixels).
                     self.progress.emit(int((y / h) * 70))
-                actual_y = base_offset_y + (h - 1 - y) * step_y
-                is_ltr = (y % 2 == 0)
+                # Pixels à graver de la ligne (même calcul de puissance que la boucle plus bas, en
+                # une fois) : une ligne vide n'est pas parcourue, et une ligne n'est balayée (avec
+                # son surbalayage) que de son premier à son dernier pixel gravé.
+                row_vals = arr[y, :].astype(np.float64)
+                if algo == "Niveaux de Gris":
+                    row_pct = power_engrave * (255.0 - row_vals) / 255.0
+                else:
+                    row_pct = np.where(row_vals == 0, power_engrave, 0.0)
+                burned = np.flatnonzero(np.rint((row_pct / 100.0) * s_max) > 0)
+                if burned.size == 0:
+                    continue
+                first_px, last_px = int(burned[0]), int(burned[-1])
+
+                actual_y = image_y + (h - 1 - y) * step_y
+                # Aller/retour alterné sur les lignes balayées (et non sur y) : deux lignes
+                # séparées par des lignes vides ne partent pas du même bord.
+                is_ltr = (scanned_rows % 2 == 0)
+                scanned_rows += 1
                 # Origine X de CETTE ligne : décalée du réglage aller/retour
                 # pour les lignes retour (voir scan_offset plus haut).
-                row_x0 = base_offset_x if is_ltr else base_offset_x + scan_offset
+                row_x0 = image_x if is_ltr else image_x + scan_offset
+                seg_left = row_x0 + first_px * step_x
+                seg_right = row_x0 + (last_px + 1) * step_x
 
-                margin_start_x = row_x0 - overscan_dist if is_ltr else row_x0 + w_mm + overscan_dist
-                margin_end_x = row_x0 + w_mm + overscan_dist if is_ltr else row_x0 - overscan_dist
-                image_edge_x = row_x0 + w_mm if is_ltr else row_x0
+                margin_start_x = seg_left - overscan_dist if is_ltr else seg_right + overscan_dist
+                margin_end_x = seg_right + overscan_dist if is_ltr else seg_left - overscan_dist
+                image_edge_x = seg_right if is_ltr else seg_left
 
                 if overscan_dist > 0:
                     gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f} ; OVERSCAN_START")
@@ -725,7 +788,7 @@ class AdvancedGCodeWorker(QThread):
                     # 0 avant d'attaquer la ligne, sans renvoyer M4.
                     gcode.append("S0")
 
-                image_start_x = row_x0 if is_ltr else row_x0 + w_mm
+                image_start_x = seg_left if is_ltr else seg_right
 
                 if overscan_dist > 0:
                     # Traverse la zone de surbalayage à puissance nulle avant
@@ -736,14 +799,13 @@ class AdvancedGCodeWorker(QThread):
                     gcode.append(f"G1 X{image_start_x:.3f} F{speed_engrave} S0")
                     total_time_seconds += (abs(image_start_x - margin_start_x) / max(speed_engrave, 1)) * 60.0
 
-                row = arr[y, :] if is_ltr else arr[y, ::-1]
+                pixels = range(first_px, last_px + 1) if is_ltr else range(last_px, first_px - 1, -1)
 
                 cx = image_start_x
                 last_p_val = 0
 
-                for x_idx, val in enumerate(row):
-                    x_pixel = x_idx if is_ltr else (w - 1 - x_idx)
-                    actual_x = row_x0 + x_pixel * step_x
+                for x_pixel in pixels:
+                    val = arr[y, x_pixel]
 
                     p_percent = pixel_power_percent(val)
                     p_val = int(round((p_percent / 100.0) * s_max))
@@ -805,8 +867,8 @@ class AdvancedGCodeWorker(QThread):
                     parsed = parse_path(path_str)
                     
                     start_pt = parsed.point(0)
-                    sx = base_offset_x + start_pt.real
-                    sy = base_offset_y + (h_mm - start_pt.imag)
+                    sx = image_x + start_pt.real
+                    sy = image_y + (h_mm - start_pt.imag)
                     
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
                     gcode.append(f"M3 S{p_cut_val}")
@@ -821,8 +883,8 @@ class AdvancedGCodeWorker(QThread):
 
                     for i in range(1, num_samples + 1):
                         pt = parsed.point(i / num_samples)
-                        nx = base_offset_x + pt.real
-                        ny = base_offset_y + (h_mm - pt.imag)
+                        nx = image_x + pt.real
+                        ny = image_y + (h_mm - pt.imag)
                         
                         dist = math.hypot(nx - curr_x, ny - curr_y)
                         total_time_seconds += (dist / max(speed_cut, 1)) * 60.0

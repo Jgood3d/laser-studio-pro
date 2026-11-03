@@ -2317,6 +2317,18 @@ TRANSLATIONS = {
         "de": "SVG-Datei geladen: {path}",
         "es": "Archivo SVG cargado: {path}",
     },
+    "vector.no_engrave_layer": {
+        "fr": "Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.",
+        "en": "No layer in Engrave mode: the image will use the settings of the selected layer.",
+        "de": "Keine Ebene im Gravurmodus: Das Bild verwendet die Einstellungen der ausgewählten Ebene.",
+        "es": "Ninguna capa en modo Grabado: la imagen usará los ajustes de la capa seleccionada.",
+    },
+    "vector.engrave_layer_auto": {
+        "fr": "Image : calque de gravure « {name} » sélectionné automatiquement.",
+        "en": "Image: engraving layer \"{name}\" selected automatically.",
+        "de": "Bild: Gravurebene „{name}“ automatisch ausgewählt.",
+        "es": "Imagen: capa de grabado «{name}» seleccionada automáticamente.",
+    },
     "tab.vector_editor": {
         "fr": "Graver une image vectorielle",
         "en": "Engrave a Vector Image",
@@ -2634,11 +2646,17 @@ TRANSLATIONS = {
         "fr": "🔓 Déverrouiller ($X)", "en": "🔓 Unlock ($X)",
         "de": "🔓 Entsperren ($X)", "es": "🔓 Desbloquear ($X)",
     },
+    "ui.jog_speed_range": {
+        "fr": "Vitesse du jog : {min} à {max} mm/min (maximum : vitesse max du graveur)",
+        "en": "Jog speed: {min} to {max} mm/min (maximum: engraver max speed)",
+        "de": "Jog-Geschwindigkeit: {min} bis {max} mm/min (Maximum: Höchstgeschwindigkeit des Gravierers)",
+        "es": "Velocidad del jog: {min} a {max} mm/min (máximo: velocidad máx. del grabador)",
+    },
     "ui.jog_box": {
-        "fr": "Mouvements Manuel Laser (Jog) & Commandes",
-        "en": "Manual Laser Moves (Jog) & Commands",
-        "de": "Manuelle Laserbewegungen (Jog) & Befehle",
-        "es": "Movimientos manuales del láser (jog) y comandos",
+        "fr": "Mouvements manuels (jog) et commandes",
+        "en": "Manual Moves (Jog) and Commands",
+        "de": "Manuelle Bewegungen (Jog) und Befehle",
+        "es": "Movimientos manuales (jog) y comandos",
     },
     "ui.homing_cmd": {
         "fr": "HOMING ($H)",
@@ -3717,6 +3735,10 @@ TRANSLATIONS = {
         "en": "G0 Rapid ({n} segments)",
         "de": "G0 Eilgang ({n} Segmente)",
         "es": "G0 Rápido ({n} segmentos)",
+    },
+    "gen.legend_burned": {
+        "fr": "Déjà gravé (pendant l'envoi)", "en": "Already engraved (while sending)",
+        "de": "Bereits graviert (während des Sendens)", "es": "Ya grabado (durante el envío)",
     },
     "gen.legend_overscan": {
         "fr": "Overscan ({n} segments)",

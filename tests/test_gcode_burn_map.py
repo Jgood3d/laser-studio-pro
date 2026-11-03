@@ -39,9 +39,12 @@ class _Params(dict):
 
 def generate_gcode(arr, overscan=0.0, algo="Seuil Simple (Binaire)"):
     h, w = arr.shape
+    # Décalage opposé à la marge de l'image (workers.IMAGE_MARGIN_MM) : image à l'origine du
+    # plateau, comme le suppose power_map.
+    margin = workers.IMAGE_MARGIN_MM
     params = _Params(
         width_mm=float(w), height_mm=float(h), origin_pos="Bas-Gauche (0,0)",
-        offset_x=0.0, offset_y=0.0, power_engrave=100.0, speed_engrave=1000,
+        offset_x=-margin, offset_y=-margin, power_engrave=100.0, speed_engrave=1000,
         enable_overscan=overscan > 0, overscan_mode="mm", overscan_dist=overscan,
         laser_cmd="M4", s_max=S_MAX, algo=algo, enable_cut=False,
     )
