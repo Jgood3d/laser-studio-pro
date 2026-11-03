@@ -726,6 +726,7 @@ class AdvancedGCodeWorker(QThread):
                     return power_engrave * (255.0 - float(val)) / 255.0
                 return power_engrave if val == 0 else 0.0
 
+            scanned_rows = 0    # lignes réellement balayées (sens aller/retour, voir is_ltr)
             for y in range(h):
                 if h > 0 and y % max(1, h // 50) == 0:
                     # Phase 1 (gravure image) occupe ~0-70% de la barre : c'est
@@ -733,15 +734,33 @@ class AdvancedGCodeWorker(QThread):
                     # par transition de puissance, sur potentiellement des
                     # centaines de milliers de pixels).
                     self.progress.emit(int((y / h) * 70))
+                # Pixels à graver de la ligne (même calcul de puissance que la boucle plus bas, en
+                # une fois) : une ligne vide n'est pas parcourue, et une ligne n'est balayée (avec
+                # son surbalayage) que de son premier à son dernier pixel gravé.
+                row_vals = arr[y, :].astype(np.float64)
+                if algo == "Niveaux de Gris":
+                    row_pct = power_engrave * (255.0 - row_vals) / 255.0
+                else:
+                    row_pct = np.where(row_vals == 0, power_engrave, 0.0)
+                burned = np.flatnonzero(np.rint((row_pct / 100.0) * s_max) > 0)
+                if burned.size == 0:
+                    continue
+                first_px, last_px = int(burned[0]), int(burned[-1])
+
                 actual_y = image_y + (h - 1 - y) * step_y
-                is_ltr = (y % 2 == 0)
+                # Aller/retour alterné sur les lignes balayées (et non sur y) : deux lignes
+                # séparées par des lignes vides ne partent pas du même bord.
+                is_ltr = (scanned_rows % 2 == 0)
+                scanned_rows += 1
                 # Origine X de CETTE ligne : décalée du réglage aller/retour
                 # pour les lignes retour (voir scan_offset plus haut).
                 row_x0 = image_x if is_ltr else image_x + scan_offset
+                seg_left = row_x0 + first_px * step_x
+                seg_right = row_x0 + (last_px + 1) * step_x
 
-                margin_start_x = row_x0 - overscan_dist if is_ltr else row_x0 + w_mm + overscan_dist
-                margin_end_x = row_x0 + w_mm + overscan_dist if is_ltr else row_x0 - overscan_dist
-                image_edge_x = row_x0 + w_mm if is_ltr else row_x0
+                margin_start_x = seg_left - overscan_dist if is_ltr else seg_right + overscan_dist
+                margin_end_x = seg_right + overscan_dist if is_ltr else seg_left - overscan_dist
+                image_edge_x = seg_right if is_ltr else seg_left
 
                 if overscan_dist > 0:
                     gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f} ; OVERSCAN_START")
@@ -756,7 +775,7 @@ class AdvancedGCodeWorker(QThread):
                     # 0 avant d'attaquer la ligne, sans renvoyer M4.
                     gcode.append("S0")
 
-                image_start_x = row_x0 if is_ltr else row_x0 + w_mm
+                image_start_x = seg_left if is_ltr else seg_right
 
                 if overscan_dist > 0:
                     # Traverse la zone de surbalayage à puissance nulle avant
@@ -767,14 +786,13 @@ class AdvancedGCodeWorker(QThread):
                     gcode.append(f"G1 X{image_start_x:.3f} F{speed_engrave} S0")
                     total_time_seconds += (abs(image_start_x - margin_start_x) / max(speed_engrave, 1)) * 60.0
 
-                row = arr[y, :] if is_ltr else arr[y, ::-1]
+                pixels = range(first_px, last_px + 1) if is_ltr else range(last_px, first_px - 1, -1)
 
                 cx = image_start_x
                 last_p_val = 0
 
-                for x_idx, val in enumerate(row):
-                    x_pixel = x_idx if is_ltr else (w - 1 - x_idx)
-                    actual_x = row_x0 + x_pixel * step_x
+                for x_pixel in pixels:
+                    val = arr[y, x_pixel]
 
                     p_percent = pixel_power_percent(val)
                     p_val = int(round((p_percent / 100.0) * s_max))
