@@ -246,21 +246,55 @@ class LaserControlMixin:
             response = self.usb.send_command("$$")
         except Exception:
             return
-        for line in response.splitlines():
-            line = line.strip()
-            if line.startswith("$32="):
-                value = line.split("=", 1)[1].strip()
-                self.txt_console.append(
+        grbl_settings = self._parse_grbl_settings(response)
+        self._apply_grbl_homing_setting(grbl_settings)
+        value = grbl_settings.get("$32")
+        if value is None:
+            self.txt_console.append(tr("laser.grbl_mode_unknown"))
+            return
+        self.txt_console.append(
     tr("laser.grbl_mode_status").format(value=value)
 )
-                if value != "1":
-                    QMessageBox.warning(
+        if value != "1":
+            QMessageBox.warning(
     self,
     tr("laser.grbl_dynamic_off_title"),
     tr("laser.grbl_dynamic_off").format(value=value)
 )
-                return
-        self.txt_console.append(tr("laser.grbl_mode_unknown"))
+
+    @staticmethod
+    def _parse_grbl_settings(response):
+        """Réponse de « $$ » -> {"$32": "1", "$22": "0", ...} (commentaires « (...) » ignorés)."""
+        grbl_settings = {}
+        for line in response.splitlines():
+            line = line.strip()
+            if line.startswith("$") and "=" in line:
+                key, value = line.split("=", 1)
+                grbl_settings[key.strip()] = value.split("(", 1)[0].strip()
+        return grbl_settings
+
+    def _apply_grbl_homing_setting(self, grbl_settings):
+        """Homing désactivé sur la machine ($22=0) : GRBL refuserait le « $H » en tête de job
+        (error:5). « Inclure $H » et le homing de la matrice de test sont donc décochés ET
+        grisés, avec une infobulle qui explique pourquoi. Machine avec homing ($22 non nul) :
+        les cases redeviennent utilisables, sans être recochées. Réglage inconnu (pas de
+        réponse à « $$ ») : rien ne change, la case reste cochée d'office."""
+        value = grbl_settings.get("$22")
+        if value is None or not value.isdigit():
+            return
+        homing_off = value == "0"
+        unchecked = False
+        for name in ("chk_homing", "chk_mat_homing"):
+            checkbox = getattr(self, name, None)
+            if checkbox is None:
+                continue
+            if homing_off and checkbox.isChecked():
+                checkbox.setChecked(False)
+                unchecked = True
+            checkbox.setEnabled(not homing_off)
+            checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
+        if unchecked:
+            self.txt_console.append(tr("laser.grbl_homing_disabled"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
