@@ -12,6 +12,8 @@ from vector_layers import (
 from workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode
 from i18n import tr
 
+BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
+
 # Couleur du "matériau" simulé sous la gravure dans l'aperçu 2D normal (non négatif).
 PREVIEW_MATERIAL_RGB = (225, 225, 225)
 
@@ -726,6 +728,90 @@ class GcodeGenerationMixin:
             return
         self.gcode_position_marker.setData([x], [y])
 
+    # ------------------------------------------------------------------
+    # Gravure en temps réel sur l'aperçu 2D : les traits gravés passent en rouge
+    # ------------------------------------------------------------------
+    BURN_WINDOW = 200          # traits examinés au plus autour de la position de la tête
+    BURN_ON_PATH_MM = 0.5      # distance tête / trait en dessous de laquelle la tête est « sur » le trait
+    BURN_PLANNER_LEAD = 15     # mouvements que GRBL peut avoir acceptés (« ok ») sans les avoir faits
+
+    def _setup_burn_overlay(self, burn_line_idx, burn_segments):
+        """Prépare le calque rouge « déjà gravé » pour le G-Code qui vient d'être dessiné."""
+        self._burn_line_idx = np.asarray(burn_line_idx, dtype=np.int64)
+        self._burn_segs = np.asarray(burn_segments, dtype=float).reshape(-1, 4)
+        n = len(self._burn_segs)
+        # Données prêtes à tracer : x1, x2, NaN pour chaque trait (même format que l'aperçu).
+        self._burn_xs = np.column_stack([self._burn_segs[:, 0], self._burn_segs[:, 2], np.full(n, np.nan)]).ravel()
+        self._burn_ys = np.column_stack([self._burn_segs[:, 1], self._burn_segs[:, 3], np.full(n, np.nan)]).ravel()
+        self._burn_done = 0
+        self._stream_acked = 0
+        self.burn_overlay = pg.PlotDataItem(pen=pg.mkPen(color=BURN_COLOR, width=2.2), connect="finite")
+        self.burn_overlay.setZValue(900)               # au-dessus des tracés, sous le point rouge
+        self.plot_widget.addItem(self.burn_overlay, ignoreBounds=True)
+
+    def reset_burn_overlay(self):
+        """Nouveau job sur le même G-Code : plus rien n'est gravé."""
+        if getattr(self, "burn_overlay", None) is None:
+            return
+        self._burn_done = 0
+        self._stream_acked = 0
+        self.burn_overlay.setData([], [])
+
+    def on_lines_acked(self, acked):
+        """Reçu de GCodeStreamerThread.lines_acked : lignes acceptées par GRBL jusqu'ici."""
+        self._stream_acked = acked
+
+    def update_burn_overlay(self, x, y):
+        """Avance le calque rouge d'après la position de la tête (rapport d'état GRBL).
+
+        Les « ok » disent jusqu'à quelle ligne GRBL a pu aller : la tête est sur un des traits
+        acceptés et pas encore marqués gravés. On prend le plus proche d'elle (le premier en cas
+        d'égalité, pour les passes superposées) : les traits précédents sont gravés, et celui-ci
+        l'est jusqu'à la tête. Si la tête n'est sur aucun trait (déplacement à vide, surbalayage,
+        position décalée par G92), on avance au moins jusqu'aux traits que GRBL a forcément
+        terminés (les « ok » moins les mouvements qu'il peut garder en mémoire)."""
+        overlay = getattr(self, "burn_overlay", None)
+        segs = getattr(self, "_burn_segs", None)
+        if overlay is None or segs is None or not len(segs):
+            return
+        done = self._burn_done
+        accepted = int(np.searchsorted(self._burn_line_idx, self._stream_acked))  # traits acceptés par GRBL
+        partial = None
+        done = max(done, accepted - self.BURN_PLANNER_LEAD)
+        hi = min(accepted, done + self.BURN_WINDOW)
+        if hi > done:
+            window = segs[done:hi]
+            ax, ay, bx, by = window[:, 0], window[:, 1], window[:, 2], window[:, 3]
+            dx, dy = bx - ax, by - ay
+            length2 = dx * dx + dy * dy
+            t = np.where(length2 > 0, ((x - ax) * dx + (y - ay) * dy) / np.where(length2 > 0, length2, 1), 0.0)
+            t = np.clip(t, 0.0, 1.0)
+            px, py = ax + t * dx, ay + t * dy
+            dist = np.hypot(x - px, y - py)
+            best = float(dist.min())
+            if best <= self.BURN_ON_PATH_MM:
+                k = int(np.flatnonzero(dist <= best + 0.05)[0])
+                done += k
+                partial = (ax[k], ay[k], px[k], py[k])
+        self._burn_done = done
+        self._draw_burn_overlay(partial)
+
+    def finish_burn_overlay(self, clean_finish):
+        """Fin du job : tout est gravé si le job s'est terminé normalement, sinon le calque rouge
+        reste tel quel (il montre jusqu'où la gravure est allée)."""
+        if clean_finish and getattr(self, "_burn_segs", None) is not None:
+            self._burn_done = len(self._burn_segs)
+            self._draw_burn_overlay(None)
+
+    def _draw_burn_overlay(self, partial):
+        n = 3 * self._burn_done
+        xs, ys = self._burn_xs[:n], self._burn_ys[:n]
+        if partial is not None:
+            ax, ay, px, py = partial
+            xs = np.concatenate([xs, [ax, px, np.nan]])
+            ys = np.concatenate([ys, [ay, py, np.nan]])
+        self.burn_overlay.setData(xs, ys, connect="finite")
+
     def plot_gcode_preview(self, gcode_text):
         self._last_gcode_text = gcode_text
         try:
@@ -768,10 +854,20 @@ class GcodeGenerationMixin:
 
         token_re = re.compile(r'([A-Za-z])\s*(-?\d*\.?\d+)')
 
+        # Suivi de la gravure en temps réel : chaque trait gravé est relié au numéro de sa ligne
+        # dans l'envoi, numérotée comme GCodeStreamerThread (lignes non vides, hors commentaires).
+        burn_line_idx = []
+        burn_segments = []
+        stream_count = 0
+
         for line in gcode_text.split('\n'):
             raw_line = line.strip()
             if not raw_line:
                 continue
+            line_idx = None
+            if not line.startswith(';'):
+                line_idx = stream_count
+                stream_count += 1
 
             try:
                 if raw_line.startswith(';'):
@@ -856,6 +952,9 @@ class GcodeGenerationMixin:
                         xs.extend([cx, nx, float('nan')])
                         ys.extend([cy, ny, float('nan')])
                         raster_strokes_by_key.setdefault(key, []).append((cx, cy, nx, ny, last_modal_s))
+                        if line_idx is not None:
+                            burn_line_idx.append(line_idx)
+                            burn_segments.append((cx, cy, nx, ny))
                     else:
                         # G1 à puissance nulle (laser éteint / M5) : un vrai
                         # déplacement, jamais de la gravure. Affiché comme un
@@ -947,6 +1046,7 @@ class GcodeGenerationMixin:
         legend_rows = (
             f'<div><span style="color:#888888">■</span> {tr("gen.legend_g0").format(n=len(g0_x)//3)}</div>'
             f'<div><span style="color:#ff3355">■</span> {tr("gen.legend_overscan").format(n=len(ov_x)//3)}</div>'
+            f'<div><span style="color:{BURN_COLOR}">■</span> {tr("gen.legend_burned")}</div>'
         )
         if g1_travel_x:
             legend_rows += f'<div><span style="color:#888888">■</span> {tr("gen.legend_g1_travel").format(n=len(g1_travel_x)//3)}</div>'
@@ -980,6 +1080,7 @@ class GcodeGenerationMixin:
         # remet, sans qu'il compte dans le cadrage automatique de la vue (ignoreBounds).
         if hasattr(self, "gcode_position_marker"):
             self.plot_widget.addItem(self.gcode_position_marker, ignoreBounds=True)
+        self._setup_burn_overlay(burn_line_idx, burn_segments)
 
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():

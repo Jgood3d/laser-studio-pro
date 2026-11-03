@@ -3718,6 +3718,10 @@ TRANSLATIONS = {
         "de": "G0 Eilgang ({n} Segmente)",
         "es": "G0 Rápido ({n} segmentos)",
     },
+    "gen.legend_burned": {
+        "fr": "Déjà gravé (pendant l'envoi)", "en": "Already engraved (while sending)",
+        "de": "Bereits graviert (während des Sendens)", "es": "Ya grabado (durante el envío)",
+    },
     "gen.legend_overscan": {
         "fr": "Overscan ({n} segments)",
         "en": "Overscan ({n} segments)",

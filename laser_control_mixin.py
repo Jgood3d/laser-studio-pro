@@ -105,6 +105,23 @@ class LaserControlMixin:
         self._update_dro_display(state, x, y, z)
         if hasattr(self, "update_gcode_position_marker"):
             self.update_gcode_position_marker(x, y)
+        # Pendant un job : les traits déjà gravés passent en rouge sur l'aperçu 2D.
+        if hasattr(self, "update_burn_overlay") and self._job_in_progress():
+            self.update_burn_overlay(x, y)
+
+    def _prepare_burn_overlay(self, gcode_text):
+        """Au début d'un envoi : l'aperçu 2D doit montrer le G-Code envoyé (un job de la file n'est
+        pas forcément celui affiché) ; le calque « déjà gravé » repart de zéro."""
+        if not hasattr(self, "plot_gcode_preview"):
+            return
+        if gcode_text != getattr(self, "_last_gcode_text", None):
+            self.plot_gcode_preview(gcode_text)
+        else:
+            self.reset_burn_overlay()
+
+    def _connect_burn_overlay(self, streamer):
+        if hasattr(self, "on_lines_acked"):
+            streamer.lines_acked.connect(self.on_lines_acked)
 
     def _update_dro_display(self, state, x, y, z):
         if not hasattr(self, "lbl_dro_state"):
@@ -389,7 +406,9 @@ class LaserControlMixin:
         if hasattr(self, "txt_sent_gcode"):
             self.txt_sent_gcode.clear()
             self._append_sent_gcode([tr("queue.sent_log_direct")])
+        self._prepare_burn_overlay(gcode_text)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
+        self._connect_burn_overlay(self.streamer)
         if hasattr(self, "_append_sent_gcode"):
             self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
@@ -472,6 +491,8 @@ class LaserControlMixin:
             self._log_sent_gcode_end(clean_finish)
         log.info("Envoi : terminé, fin propre=%s", clean_finish)
         self._check_position_after_stream()
+        if hasattr(self, "finish_burn_overlay"):
+            self.finish_burn_overlay(clean_finish)
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()

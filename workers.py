@@ -243,6 +243,9 @@ class GCodeStreamerThread(QThread):
     # Lignes envoyées à GRBL, par paquets (au plus ~10 émissions par seconde, voir
     # _flush_sent_lines) : un signal par ligne saturerait l'interface sur un long job.
     lines_sent = pyqtSignal(list)
+    # Nombre de lignes acceptées par GRBL (« ok » reçus), au même rythme : sert à suivre la
+    # gravure en temps réel sur l'aperçu 2D (voir GCodeGenerationMixin.update_burn_overlay).
+    lines_acked = pyqtSignal(int)
     SENT_LINES_INTERVAL = 0.1
 
     def __init__(self, usb_controller, gcode_text):
@@ -265,15 +268,22 @@ class GCodeStreamerThread(QThread):
         self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
         self._sent_batch = []
         self._last_sent_emit = 0.0
+        self.acked = 0                    # « ok » reçus depuis le début du job
+        self._acked_emitted = 0
 
     def _flush_sent_lines(self, force=False):
-        """Émet les lignes envoyées depuis la dernière émission (toutes les SENT_LINES_INTERVAL s,
-        ou tout de suite si `force`)."""
+        """Émet les lignes envoyées et le nombre de « ok » reçus depuis la dernière émission
+        (toutes les SENT_LINES_INTERVAL s, ou tout de suite si `force`)."""
         now = time.time()
-        if self._sent_batch and (force or now - self._last_sent_emit >= self.SENT_LINES_INTERVAL):
+        if not force and now - self._last_sent_emit < self.SENT_LINES_INTERVAL:
+            return
+        if self._sent_batch:
             self.lines_sent.emit(self._sent_batch)
             self._sent_batch = []
-            self._last_sent_emit = now
+        if self.acked != self._acked_emitted:
+            self.lines_acked.emit(self.acked)
+            self._acked_emitted = self.acked
+        self._last_sent_emit = now
 
     def stop(self):
         log.info("Streamer : arrêt demandé par l'utilisateur")
@@ -455,6 +465,7 @@ class GCodeStreamerThread(QThread):
                             ok_count += 1
                             if ring_buffer:
                                 ring_buffer.pop(0)
+                                self.acked += 1
                             else:
                                 log.warning("Streamer : « ok » reçu alors qu'aucune ligne n'est en attente")
                         elif resp.startswith('error') or resp.startswith('ALARM') or resp.startswith('ERROR:'):
@@ -505,6 +516,7 @@ class GCodeStreamerThread(QThread):
                         if resp == 'ok':
                             ok_count += 1
                             ring_buffer.pop(0)
+                            self.acked += 1
                         elif resp.startswith('error') or resp.startswith('ALARM'):
                             log.error("Streamer : %s en réponse à la ligne %r", resp, ring_buffer[0][0])
                             self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
@@ -523,6 +535,7 @@ class GCodeStreamerThread(QThread):
                                         now - last_rx, len(ring_buffer), ring_buffer[0][0])
                             last_stall_log = now
                         time.sleep(0.01)
+                self._flush_sent_lines()
 
             # Erreur GRBL : arrêter la machine, qui exécuterait sinon la fin de son buffer.
             if grbl_error:
