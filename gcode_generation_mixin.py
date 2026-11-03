@@ -242,16 +242,6 @@ class GcodeGenerationMixin:
         if self.processed_array is not None:
             w_mm = self.spin_w.value()
             speed = self.spin_speed_engrave.value()
-            overscan_dist = getattr(self, "spin_overscan", None)
-            overscan = overscan_dist.value() if overscan_dist else 0.0
-            # Comme la génération (AdvancedGCodeWorker) : lignes vides sautées, chaque ligne
-            # balayée de son premier à son dernier pixel gravé, plus le surbalayage.
-            burned = np.asarray(self.processed_array) < 255
-            swept = burned.any(axis=1)
-            first = burned.argmax(axis=1)
-            last = burned.shape[1] - 1 - burned[:, ::-1].argmax(axis=1)
-            step_x = w_mm / max(burned.shape[1], 1)
-            distance = float(((last + 1 - first) * step_x + 2 * overscan)[swept].sum())
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
             if self.chk_overscan.isChecked():
@@ -261,8 +251,14 @@ class GcodeGenerationMixin:
                     overscan = self.spin_overscan_dist.value()
             else:
                 overscan = 0.0
-            rows = max(1, int(h_mm * lmm))
-            distance = rows * (w_mm + 2 * overscan)
+            # Comme la génération : lignes vides sautées, chaque ligne balayée de son premier à son
+            # dernier pixel gravé, plus le surbalayage.
+            burned = np.asarray(self.processed_array) < 255
+            swept = burned.any(axis=1)
+            first = burned.argmax(axis=1)
+            last = burned.shape[1] - 1 - burned[:, ::-1].argmax(axis=1)
+            step_x = w_mm / max(burned.shape[1], 1)
+            distance = float(((last + 1 - first) * step_x + 2 * overscan)[swept].sum())
             t = (distance / max(speed, 1)) * 60.0
             total_seconds += t
             details.append(tr("gcode.image_details").format(
