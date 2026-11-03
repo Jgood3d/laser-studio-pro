@@ -242,8 +242,15 @@ class GcodeGenerationMixin:
             w_mm = self.spin_w.value()
             lmm = self.spin_lmm.value()
             speed = self.spin_speed_engrave.value()
-            overscan_dist = getattr(self, "spin_overscan", None)
-            overscan = overscan_dist.value() if overscan_dist else 0.0
+            # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
+            # désactivé, distance fixe ou pourcentage de la largeur de l'image.
+            if self.chk_overscan.isChecked():
+                if self._overscan_mode_value() == "Pourcentage (%)":
+                    overscan = w_mm * self.spin_overscan_pct.value() / 100.0
+                else:
+                    overscan = self.spin_overscan_dist.value()
+            else:
+                overscan = 0.0
             rows = max(1, int(h_mm * lmm))
             distance = rows * (w_mm + 2 * overscan)
             t = (distance / max(speed, 1)) * 60.0
