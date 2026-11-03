@@ -115,6 +115,9 @@ class LaserControlMixin:
             self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
             if hasattr(self, "btn_unlock_alarm"):
                 self.btn_unlock_alarm.setVisible(False)
+            # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
+            if hasattr(self, "gcode_position_marker"):
+                self.gcode_position_marker.setData([], [])
             return
         self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
         self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
@@ -249,21 +252,55 @@ class LaserControlMixin:
             response = self.usb.send_command("$$")
         except Exception:
             return
-        for line in response.splitlines():
-            line = line.strip()
-            if line.startswith("$32="):
-                value = line.split("=", 1)[1].strip()
-                self.txt_console.append(
+        grbl_settings = self._parse_grbl_settings(response)
+        self._apply_grbl_homing_setting(grbl_settings)
+        value = grbl_settings.get("$32")
+        if value is None:
+            self.txt_console.append(tr("laser.grbl_mode_unknown"))
+            return
+        self.txt_console.append(
     tr("laser.grbl_mode_status").format(value=value)
 )
-                if value != "1":
-                    QMessageBox.warning(
+        if value != "1":
+            QMessageBox.warning(
     self,
     tr("laser.grbl_dynamic_off_title"),
     tr("laser.grbl_dynamic_off").format(value=value)
 )
-                return
-        self.txt_console.append(tr("laser.grbl_mode_unknown"))
+
+    @staticmethod
+    def _parse_grbl_settings(response):
+        """Réponse de « $$ » -> {"$32": "1", "$22": "0", ...} (commentaires « (...) » ignorés)."""
+        grbl_settings = {}
+        for line in response.splitlines():
+            line = line.strip()
+            if line.startswith("$") and "=" in line:
+                key, value = line.split("=", 1)
+                grbl_settings[key.strip()] = value.split("(", 1)[0].strip()
+        return grbl_settings
+
+    def _apply_grbl_homing_setting(self, grbl_settings):
+        """Homing désactivé sur la machine ($22=0) : GRBL refuserait le « $H » en tête de job
+        (error:5). « Inclure $H » et le homing de la matrice de test sont donc décochés ET
+        grisés, avec une infobulle qui explique pourquoi. Machine avec homing ($22 non nul) :
+        les cases redeviennent utilisables, sans être recochées. Réglage inconnu (pas de
+        réponse à « $$ ») : rien ne change, la case reste cochée d'office."""
+        value = grbl_settings.get("$22")
+        if value is None or not value.isdigit():
+            return
+        homing_off = value == "0"
+        unchecked = False
+        for name in ("chk_homing", "chk_mat_homing"):
+            checkbox = getattr(self, name, None)
+            if checkbox is None:
+                continue
+            if homing_off and checkbox.isChecked():
+                checkbox.setChecked(False)
+                unchecked = True
+            checkbox.setEnabled(not homing_off)
+            checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
+        if unchecked:
+            self.txt_console.append(tr("laser.grbl_homing_disabled"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
@@ -416,8 +453,18 @@ class LaserControlMixin:
         QTimer.singleShot(0, QApplication.beep)
         QTimer.singleShot(250, QApplication.beep)
 
+    def _check_position_after_stream(self):
+        """Après un job arrêté sur erreur GRBL (voir GCodeStreamerThread._stop_machine_after_error) :
+        si le reset a eu lieu machine encore en mouvement, la position n'est plus fiable, comme
+        pour un RESET manuel (_soft_reset) : on retire le statut « référencé »."""
+        streamer = getattr(self, "streamer", None)
+        if streamer is not None and getattr(streamer, "position_lost", False):
+            self.has_homed_since_connect = False
+            self.txt_console.append(tr("laser.position_lost_log"))
+
     def on_stream_finished(self, clean_finish):
         log.info("Envoi : terminé, fin propre=%s", clean_finish)
+        self._check_position_after_stream()
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()

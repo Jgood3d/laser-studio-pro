@@ -82,7 +82,7 @@
   .wrap{ flex:1; position:relative; min-height:0; background:
     repeating-conic-gradient(#191c21 0% 25%, #15171b 0% 50%) 50%/22px 22px; }
   canvas#src{ position:absolute; inset:0; touch-action:none; }
-  #btnMB.on{ background:var(--acc); color:var(--onacc); border-color:var(--acc2); }
+  #btnMB.on, #btnLG.on{ background:var(--acc); color:var(--onacc); border-color:var(--acc2); }
   #res{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#fff; display:none; }
   #resEmpty{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
     color:var(--mut); padding:20px; text-align:center; }
@@ -167,12 +167,14 @@
         <button data-view="assembled" data-i18n="Assembled">Assembled</button>
       </div>
       <button id="btnMB" title="Draw a short line across a cut-out to keep it attached. Click a manual bridge to remove it." data-i18n="Manual bridge">Manual bridge</button>
+      <button id="btnLG" style="display:none" title="Low poly: click to place a vertex (eyes, nose, ear tips), drag to place an edge. Click an existing guide to remove it." data-i18n="Low poly guides">Low poly guides</button>
+      <button id="btnLGclr" style="display:none" data-i18n="Clear guides">Clear guides</button>
       <button id="btnMBclr" data-i18n="Clear manual bridges" style="display:none">Clear manual bridges</button>
       <button id="btnLight" title="Backlight on/off" data-i18n="Backlight">Backlight</button>
       <span class="hint" id="legend" data-i18n="black = material kept, white = cut away, red = bridges">black = material kept, white = cut away, red = bridges</span>
     </div>
     <div class="wrap" id="resWrap">
-      <div id="resEmpty" data-i18n="Open an image to start (or drop it on this window).">Open an image to start (or drop it on this window).</div>
+      <div id="resEmpty"><div><div data-i18n="Open an image to start (or drop it on this window).">Open an image to start (or drop it on this window).</div><button id="btnQR" style="margin-top:14px" data-i18n="Or create a QR code">Or create a QR code</button></div></div>
       <img id="res" alt=""><canvas id="mbCv" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none"></canvas>
     </div>
     <div class="foot" id="stats">&nbsp;</div>
@@ -181,7 +183,7 @@
 
 <script>
 "use strict";
-const UI_VERSION = "2026.10.68";  // doit être identique à core.py
+const UI_VERSION = "2026.10.70";  // doit être identique à core.py
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -239,7 +241,8 @@ const PRESETS = {
                min_feature_mm:0.5, keep_thin:true, outline_mm:1, bias:0, auto_threshold:true, contrast:true, invert:false, isolate:false},
   lines:      {output:"lines", tone_source:"luminance", line_pitch_mm:1.5, line_angle:30, line_break_mm:30, min_web_mm:0.5, min_dot_mm:0.35,
                dot_gamma:1.2, dot_contrast:0.8, dot_detail:1.5, contrast:true, invert:false, isolate:false},
-  lowpoly:    {output:"lowpoly", lp_style:"solid", lp_points:120, lp_beam_mm:1.8, lp_focus:0.8, lp_level:-25, lp_geo:true, lp_simplify:0.9, lp_auto:true, invert:false, isolate:false},
+  qr:         {output:"qr", shape:"rrect", size_mm:80, ring_mm:4, qr_mode:"engrave", qr_side_mm:50, qr_ec:"Q", qr_invert:false, isolate:false},
+  lowpoly:    {output:"lowpoly", lp_style:"solid", lp_points:120, lp_beam_mm:1.8, lp_focus:0.8, lp_level:0, lp_geo:true, lp_simplify:0.9, lp_auto:true, max_bridge_mm:30, invert:false, isolate:false},
   engrave:    {output:"engrave", tone_source:"luminance", contrast:true, eng_dither:"stucki", eng_levels:2, eng_brightness:0, eng_contrast:0,
                eng_gamma:1, eng_sharpen:1, eng_invert:false, eng_border_mm:1, isolate:false},
   silhouette: {output:"stencil", mode:"global", tone_source:"luminance", texture:2, blur:2, min_feature_mm:1.2, keep_thin:true,
@@ -248,9 +251,9 @@ const PRESETS = {
 const SPEC = [
  {g:"Style", items:[
   {k:"output", t:"select", label:"Output type", def:"stencil",
-   opts:[["stencil","Stencil (shapes with bridges)"],["halftone","Halftone dots (photos)"],["lines","Lines (photo as slots of varying width)"],["engrave","Engraving (dithered photo + cut outline)"],["lowpoly","Low poly (triangulated mesh)"]]},
+   opts:[["stencil","Stencil (shapes with bridges)"],["halftone","Halftone dots (photos)"],["lines","Lines (photo as slots of varying width)"],["engrave","Engraving (dithered photo + cut outline)"],["lowpoly","Low poly (triangulated mesh)"],["qr","QR code (engraved or cut out)"]]},
   {k:"preset", t:"select", ui:1, label:"Start from a style", def:"",
-   opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["engrave","Photo for engraving (keychain, plaque)"]]},
+   opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["qr","QR code plate"],["engrave","Photo for engraving (keychain, plaque)"]]},
  ]},
  {g:"Render preview", items:[
   {k:"material", t:"select", ui:1, label:"Sheet material", def:"wood_dark",
@@ -330,9 +333,22 @@ const SPEC = [
  ]},
  {g:"Subject", items:[
   {k:"isolate", t:"check", ui:1, label:"Isolate the subject (remove background)", def:false},
+  {k:"ai_subject", t:"check", label:"Detect the subject with AI (when available)", def:true},
   {k:"margin", t:"range", ui:1, label:"Search margin around the frame", min:0, max:0.4, step:0.01, def:0.03, fmt:pct},
   {k:"outline_mm", t:"range", label:"Subject outline (mm)", min:0, max:4, step:0.1, def:1, fmt:mm, st:1},
   {k:"brush", t:"range", ui:1, label:"Brush size", min:4, max:120, step:1, def:30},
+ ]},
+ {g:"QR code", items:[
+  {k:"qr_kind", t:"select", label:"Content", def:"text", qr:1, opts:[["text","Link or text"],["wifi","Wi-Fi network"]]},
+  {k:"qr_text", t:"text", label:"Link or text", def:"https://exemple.fr", qr:1, qrk:"text", maxlen:300},
+  {k:"qr_ssid", t:"text", label:"Wi-Fi name", def:"", qr:1, qrk:"wifi", maxlen:60},
+  {k:"qr_pass", t:"text", label:"Wi-Fi password", def:"", qr:1, qrk:"wifi", maxlen:80},
+  {k:"qr_sec", t:"select", label:"Wi-Fi security", def:"WPA", qr:1, qrk:"wifi", opts:[["WPA","WPA / WPA2 / WPA3"],["WEP","WEP"],["nopass","None"]]},
+  {k:"qr_mode", t:"select", label:"Make the code by", def:"engrave", qr:1, opts:[["engrave","Engraving on the plate"],["cut","Cutting it out (with bridges)"]]},
+  {k:"qr_side_mm", t:"range", label:"Code size (mm)", min:15, max:200, step:1, def:40, fmt:mm, qr:1},
+  {k:"qr_ec", t:"select", label:"Error correction", def:"Q", qr:1, opts:[["L","L (7 %, smallest code)"],["M","M (15 %)"],["Q","Q (25 %)"],["H","H (30 %, safest for cut-out)"]]},
+  {k:"qr_invert", t:"check", label:"Inverted polarity (light plate material)", def:false, qr:1},
+  {k:"qr_bridge_mm", t:"range", label:"Bridge width in the code (mm)", min:0.3, max:1.5, step:0.05, def:0.5, fmt:mm, qr:1, qrcut:1},
  ]},
  {g:"Low poly", items:[
   {k:"lp_style", t:"select", label:"Facet rendering", def:"solid", lp:1,
@@ -343,7 +359,7 @@ const SPEC = [
   {k:"lp_simplify", t:"range", label:"Outline simplification (%)", min:0.3, max:5, step:0.1, def:1.2, lp:1},
   {k:"lp_auto", t:"check", label:"Detect the subject automatically (plain background)", def:true, lp:1},
   {k:"lp_focus", t:"range", label:"Follow the image details", min:0, max:1, step:0.05, def:0.35, lp:1},
-  {k:"lp_level", t:"range", label:"Dark / light threshold", min:-50, max:50, step:1, def:-35, fmt:v => (v > 0 ? "+" : "") + v, lp:1, lpsolid:1},
+  {k:"lp_level", t:"range", label:"Dark / light threshold", min:-50, max:50, step:1, def:0, fmt:v => (v > 0 ? "+" : "") + v, lp:1, lpsolid:1},
   {k:"lp_seed", t:"range", label:"Variation", min:1, max:99, step:1, def:1, lp:1},
  ]},
  {g:"Halftone dots", items:[
@@ -402,6 +418,16 @@ const TIPS = {
  "lp_style": "Dark facets solid: dark triangles stay full, light ones are open (best for images). Hole size: each facet gets a hole as large as the image is light there. Mesh only: all triangles open (silhouette / decor).",
  "lp_points": "Number of mesh vertices. Fewer = big bold facets, more = finer mesh. Vertices follow the contours of the image.",
  "lp_beam_mm": "Width of the edges (the material strips between facets). Thin edges are fragile.",
+ "ai_subject": "Uses a small neural network (U2-Net, 4.5 MB, downloaded once) to find the subject on any background. Needs the onnxruntime package; otherwise the classic method is used. Drawing a Subject box or green/red strokes switches back to the classic method.",
+ "qr_kind": "What the code contains. A link or free text, or a Wi-Fi network (phones offer to join it when scanned).",
+ "qr_text": "The link or text stored in the code. Short links make a smaller code with bigger, easier-to-cut modules.",
+ "qr_ssid": "Exact name of the Wi-Fi network (case matters).",
+ "qr_pass": "Wi-Fi password. It is stored in clear in the code: anyone can read it.",
+ "qr_mode": "Engraving: the dark modules are burned on the plate (layer ENGRAVE) and the plate outline is cut. Cutting: the code is cut through the plate and small bridges hold the loose parts.",
+ "qr_side_mm": "Side of the code without its margin. Each module should stay above 0.8 mm to engrave and 1.5 mm to cut.",
+ "qr_ec": "Higher correction reads even if some modules are damaged or hidden by bridges, but makes a bigger code.",
+ "qr_invert": "Swaps dark and light modules. Use it when the plate material is light and the background behind it is dark (the code is then read the other way round).",
+ "qr_bridge_mm": "Width of the little bridges that keep the loose parts of the code attached. Thin bridges read better.",
  "lp_geo": "Animal-art look: the outline becomes a polygon with sharp angles, and dark patches (eyes, nose, ears) become solid facets. Use a low number of vertices (30 to 100).",
  "lp_simplify": "Higher = fewer, longer outline segments (more angular). Only for the geometric style.",
  "lp_auto": "On a plain background, the mesh is limited to the detected silhouette of the subject. Turn off to mesh the whole image (or use the selection box).",
@@ -683,7 +709,7 @@ function buildControls(){
         row.appendChild(inp);
       } else if (it.t === "text"){
         lab.append(span); row.appendChild(lab);
-        inp = document.createElement("input"); inp.type = "text"; inp.maxLength = 40; inp.style.width = "100%";
+        inp = document.createElement("input"); inp.type = "text"; inp.maxLength = it.maxlen || 40; inp.style.width = "100%";
         inp.addEventListener("input", () => { S[it.k] = inp.value; changed(it.k); });
         row.appendChild(inp);
       } else if (it.t === "number"){
@@ -733,6 +759,7 @@ function initDD(){
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeDD(); });
 }
 function refreshDisabled(){
+  try { mbSyncUI(); } catch(e){}
   const dis = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("disabled", !!on);   // !! : toggle(x, undefined) inverserait l'état
   const hid = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("hidden", !!on);
   dis("threshold", S.auto_threshold);
@@ -753,6 +780,7 @@ function refreshDisabled(){
   const o = S.output, stencil = o !== "halftone" && o !== "lines" && o !== "engrave" && o !== "lowpoly";
   ITEMS.filter(i => i.local).forEach(i => { hid(i.k, !stencil || S.mode !== "local"); });
   ITEMS.filter(i => i.st).forEach(i => { if (!i.local) hid(i.k, !stencil && !(o === "lowpoly" && i.sl)); });
+  ITEMS.filter(i => i.qr).forEach(i => hid(i.k, o !== "qr" || (i.qrk && i.qrk !== S.qr_kind) || (i.qrcut && S.qr_mode !== "cut")));
   ITEMS.filter(i => i.lp).forEach(i => hid(i.k, o !== "lowpoly" || (i.lpsolid && S.lp_style !== "solid")));
   ITEMS.filter(i => i.ni).forEach(i => hid(i.k, o === "engrave"));
   ITEMS.filter(i => i.ht).forEach(i => hid(i.k, o !== "halftone" && o !== "lines"));
@@ -993,7 +1021,7 @@ function updateCursor(){ cv.style.cursor = tool === "move" ? "grab" : "crosshair
 /* ------------------------------------------------------------- preview */
 let seq = 0, timer = null, dirty = false, lastStats = null, WARN = "";
 const payload = work => ({seq:++seq, params:getParams(), frame:getFrame(), isolate:!!S.isolate,
-                          margin:S.margin, mbr:MB, view, work, moving:!!drag, box:B,
+                          margin:S.margin, mbr:MB, lpg:GV, view, work, moving:!!drag, box:B,
                           style:{material:S.material, backlight:!!S.backlight, light:S.lightcolor, lang:LANG}});
 function schedule(){
   histNote(); dirty = true; if (timer) return;
@@ -1001,7 +1029,7 @@ function schedule(){
 }
 /* ---- annuler / rétablir (réglages + cadre) */
 let H_UNDO = [], H_REDO = [], H_CUR = null, H_TIMER = null;
-const histSnap = () => JSON.stringify({S, F, MB});
+const histSnap = () => JSON.stringify({S, F, MB, GV});
 function histButtons(){ $("btnUndo").disabled = !H_UNDO.length; $("btnRedo").disabled = !H_REDO.length; }
 function histReset(){ clearTimeout(H_TIMER); H_TIMER = null; H_UNDO = []; H_REDO = []; H_CUR = img ? histSnap() : null; histButtons(); }
 function histNote(){
@@ -1019,7 +1047,7 @@ function histCommit(){
 }
 function histRestore(js){
   const o = JSON.parse(js);
-  S = {...S, ...o.S}; F = {...o.F}; MB = o.MB || [];
+  S = {...S, ...o.S}; F = {...o.F}; MB = o.MB || []; GV = o.GV || {pts:[], edges:[]}; mbSyncUI();
   syncControls(); clampFrame(); computeView(); drawSource(); persist(); schedule();
   clearTimeout(H_TIMER); H_TIMER = null; H_CUR = histSnap(); histButtons();
 }
@@ -1033,8 +1061,10 @@ document.addEventListener("keydown", e => {
   if (k === "z" && !e.shiftKey){ e.preventDefault(); undo(); }
   else if (k === "y" || (k === "z" && e.shiftKey)){ e.preventDefault(); redo(); }
 });
-/* ---- ponts manuels : traits tracés sur le résultat (fractions 0..1 de l'image du résultat) */
-let MB = [], mbOn = false, mbDrag = null;
+/* ---- ponts manuels et guides low poly : traits / points posés sur l'image du résultat (fractions 0..1) */
+let MB = [], GV = {pts:[], edges:[]}, mbMode = null, mbDrag = null;
+const GUIDE_VIEWS = ["result", "overlay", "original"];
+function modeOK(){ return mbMode === "bridge" ? view === "result" : mbMode === "guide" ? GUIDE_VIEWS.includes(view) : false; }
 function resRect(){
   const im = $("res"), r = im.getBoundingClientRect(), nw = im.naturalWidth, nh = im.naturalHeight;
   if (!nw || !nh) return null;
@@ -1046,21 +1076,32 @@ function mbPt(e){
   return {x:Math.min(1, Math.max(0, (e.clientX - r.x) / r.w)), y:Math.min(1, Math.max(0, (e.clientY - r.y) / r.h)), r};
 }
 function mbSyncUI(){
-  const on = mbOn && view === "result";
-  $("btnMB").classList.toggle("on", mbOn);
+  const lp = S.output === "lowpoly";
+  if (!lp && mbMode === "guide") mbMode = null;
+  $("btnMB").classList.toggle("on", mbMode === "bridge");
+  $("btnLG").style.display = lp ? "" : "none"; $("btnLG").classList.toggle("on", mbMode === "guide");
   $("btnMBclr").style.display = MB.length ? "" : "none";
-  $("resWrap").style.cursor = on ? "crosshair" : "";
-  $("mbCv").style.pointerEvents = on ? "auto" : "none";
+  $("btnLGclr").style.display = (lp && (GV.pts.length || GV.edges.length)) ? "" : "none";
+  $("resWrap").style.cursor = modeOK() ? "crosshair" : "";
+  $("mbCv").style.pointerEvents = modeOK() ? "auto" : "none";
+  mbDraw();
 }
 function mbDraw(){
   const cvs = $("mbCv"), w = cvs.clientWidth, hh = cvs.clientHeight;
   if (cvs.width !== w) cvs.width = w; if (cvs.height !== hh) cvs.height = hh;
   const c = cvs.getContext("2d"); c.clearRect(0, 0, w, hh);
-  if (!mbDrag) return;
   const r = resRect(), wr = cvs.getBoundingClientRect(); if (!r) return;
-  c.strokeStyle = "#d83a3a"; c.lineWidth = 4; c.lineCap = "round"; c.beginPath();
-  c.moveTo(r.x - wr.left + mbDrag.a.x * r.w, r.y - wr.top + mbDrag.a.y * r.h);
-  c.lineTo(r.x - wr.left + mbDrag.b.x * r.w, r.y - wr.top + mbDrag.b.y * r.h); c.stroke();
+  const X = x => r.x - wr.left + x * r.w, Y = y => r.y - wr.top + y * r.h;
+  c.lineCap = "round";
+  if (S.output === "lowpoly" && GUIDE_VIEWS.includes(view)){
+    c.strokeStyle = "#35d0ff"; c.lineWidth = 2.5;
+    GV.edges.forEach(s => { c.beginPath(); c.moveTo(X(s[0]), Y(s[1])); c.lineTo(X(s[2]), Y(s[3])); c.stroke(); });
+    GV.pts.forEach(q => { c.beginPath(); c.arc(X(q[0]), Y(q[1]), 5, 0, 7); c.fillStyle = "#35d0ff"; c.fill(); c.strokeStyle = "#fff"; c.lineWidth = 1.5; c.stroke(); });
+  }
+  if (mbDrag){
+    c.strokeStyle = mbMode === "guide" ? "#35d0ff" : "#d83a3a"; c.lineWidth = mbMode === "guide" ? 2.5 : 4; c.setLineDash(mbMode === "guide" ? [6, 4] : []);
+    c.beginPath(); c.moveTo(X(mbDrag.a.x), Y(mbDrag.a.y)); c.lineTo(X(mbDrag.b.x), Y(mbDrag.b.y)); c.stroke(); c.setLineDash([]);
+  }
 }
 function segDist(p, s, r){
   const ax = s[0] * r.w, ay = s[1] * r.h, bx = s[2] * r.w, by = s[3] * r.h, px = p.x * r.w, py = p.y * r.h;
@@ -1068,26 +1109,45 @@ function segDist(p, s, r){
   const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L));
   return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
 }
-$("btnMB").onclick = () => {
-  mbOn = !mbOn; mbSyncUI();
-  if (mbOn && view !== "result") setView("result");
-  if (mbOn) setStatus(esc(T("Manual bridge: drag a short line across the cut-out to keep. Click an existing bridge to remove it.")));
-};
+function setMode(m){
+  mbMode = (mbMode === m) ? null : m;
+  if (mbMode === "bridge" && view !== "result") setView("result");
+  if (mbMode === "guide" && !GUIDE_VIEWS.includes(view)) setView("overlay");
+  mbSyncUI();
+  if (mbMode === "bridge") setStatus(esc(T("Manual bridge: drag a short line across the cut-out to keep. Click an existing bridge to remove it.")));
+  if (mbMode === "guide") setStatus(esc(T("Guides: click to place a vertex (eye, nose, ear tip), drag to place an edge. Click an existing guide to remove it.")));
+}
+$("btnQR").onclick = () => applyPreset("qr");
+$("btnMB").onclick = () => setMode("bridge");
+$("btnLG").onclick = () => setMode("guide");
 $("btnMBclr").onclick = () => { MB = []; mbSyncUI(); histNote(); schedule(); };
+$("btnLGclr").onclick = () => { GV = {pts:[], edges:[]}; mbSyncUI(); histNote(); schedule(); };
 $("mbCv").addEventListener("pointerdown", e => {
   const p = mbPt(e); if (!p) return; $("mbCv").setPointerCapture(e.pointerId); mbDrag = {a:p, b:p};
 });
 $("mbCv").addEventListener("pointermove", e => { if (!mbDrag) return; const p = mbPt(e); if (p){ mbDrag.b = p; mbDraw(); } });
 $("mbCv").addEventListener("pointerup", e => {
-  if (!mbDrag) return; const d = mbDrag, r = d.a.r; mbDrag = null; mbDraw();
-  const len = Math.hypot((d.b.x - d.a.x) * r.w, (d.b.y - d.a.y) * r.h);
-  if (len < 6){      // simple clic : supprime le pont manuel le plus proche
-    let best = -1, bd = 12;
-    MB.forEach((s, i) => { const dd = segDist(d.a, s, r); if (dd < bd){ bd = dd; best = i; } });
-    if (best >= 0) MB.splice(best, 1); else return;
-  } else MB.push([+d.a.x.toFixed(4), +d.a.y.toFixed(4), +d.b.x.toFixed(4), +d.b.y.toFixed(4)]);
+  if (!mbDrag) return; const d = mbDrag, r = d.a.r; mbDrag = null;
+  const len = Math.hypot((d.b.x - d.a.x) * r.w, (d.b.y - d.a.y) * r.h), f = v => +v.toFixed(4);
+  if (mbMode === "bridge"){
+    if (len < 6){      // simple clic : supprime le pont manuel le plus proche
+      let best = -1, bd = 12;
+      MB.forEach((s, i) => { const dd = segDist(d.a, s, r); if (dd < bd){ bd = dd; best = i; } });
+      if (best >= 0) MB.splice(best, 1); else { mbDraw(); return; }
+    } else MB.push([f(d.a.x), f(d.a.y), f(d.b.x), f(d.b.y)]);
+  } else if (mbMode === "guide"){
+    if (len < 6){
+      const pi = GV.pts.findIndex(q => Math.hypot((q[0] - d.a.x) * r.w, (q[1] - d.a.y) * r.h) < 10);
+      if (pi >= 0) GV.pts.splice(pi, 1);
+      else {
+        const ei = GV.edges.findIndex(s => segDist(d.a, s, r) < 8);
+        if (ei >= 0) GV.edges.splice(ei, 1); else GV.pts.push([f(d.a.x), f(d.a.y)]);
+      }
+    } else GV.edges.push([f(d.a.x), f(d.a.y), f(d.b.x), f(d.b.y)]);
+  }
   mbSyncUI(); schedule();
 });
+window.addEventListener("resize", () => mbDraw());
 function setStatus(html, busy){ $("stats").innerHTML = html; $("stats").classList.toggle("busy", !!busy); }
 async function sendPreview(){
   if (!img) return;
@@ -1098,7 +1158,7 @@ async function sendPreview(){
     const j = await r.json();
     if (j.stale || my !== seq) return;
     if (j.error){ setStatus(esc(T("Error: {msg}", {msg:j.error}))); return; }
-    $("res").src = j.image; $("res").style.display = "block"; $("resEmpty").style.display = "none";
+    $("res").src = j.image; $("res").style.display = "block"; $("res").onload = () => mbDraw(); $("resEmpty").style.display = "none";
     lastStats = j.stats; checkVersion(j); renderStats();
   } catch(e){ if (my === seq) setStatus(esc(T("Error: {msg}", {msg:String(e)}))); }
 }
@@ -1129,6 +1189,12 @@ function renderStats(){
   if (s.box && s.box.notes.includes("wall_thin")) extras.push(T("The wall is too narrow for the screws: widen it or reduce the screw diameter."));
   if (s.text_ignored) extras.push(T("The text is ignored: it works on circle, oval, rectangle and rounded rectangle shapes."));
   if (s.text_scaled) extras.push(T("The text was too long for the ring: it was reduced."));
+  if (s.qr_error) extras.push(T("QR code error: {e}", {e:s.qr_error}));
+  else if (s.qr_scan === "fail") extras.push(T("WARNING: the generated QR code could not be read back. Enlarge it, raise the error correction or shorten the text."));
+  else if (s.qr_scan === "inverted") extras.push(T("The QR code reads inverted (light on dark): most phones read it anyway."));
+  if (s.qr_small) extras.push(T("WARNING: modules are only {m} mm: too small to {a} reliably. Enlarge the code or shorten the text.", {m:s.qr_module_mm, a:S.qr_mode === "cut" ? T("cut") : T("engrave")}));
+  if (s.qr_clamped) extras.push(T("The code was reduced to fit the plate."));
+  if (s.ai_missing) extras.push(T("AI detection unavailable ({e}): classic method used. Install it with: pip install onnxruntime", {e:String(s.ai_missing).slice(0, 80)}));
   if (s.subject_failed) extras.push(T("WARNING: subject detection failed, mask ignored. Draw a Subject box or untick the isolation."));
   else if (s.subject_pct != null && s.subject_pct < 35 && !B)
     extras.push(T("The mask covers only {p} % of the frame: check the Original view (dark areas = rejected) or draw a Subject box.", {p:s.subject_pct}));
@@ -1163,8 +1229,11 @@ function applyPreset(name){
   const pr = PRESETS[name]; if (!pr) return;
   Object.keys(pr).forEach(k => { S[k] = pr[k]; });
   S.preset = ""; syncControls(); clampFrame(); drawSource(); persist(); schedule();
+  if (S.output === "qr" && !img) makeBlankImage();
 }
 function changed(k){
+  if (k === "output" || k === "preset") setTimeout(mbSyncUI, 0);
+  if (k === "output" && S.output === "qr" && !img) makeBlankImage();
   if (k === "preset"){ applyPreset(S.preset); return; }
   if (k === "box_style" && S.box_style === "fingers"){   // la bordure doit porter les fentes des parois : on l'élargit une fois
     const need = Math.ceil(2 * (+S.box_lip_mm + +S.box_thickness_mm + 0.5)) / 2;
@@ -1210,6 +1279,12 @@ function changed(k){
 }
 
 /* ------------------------------------------------------------ file ops */
+async function makeBlankImage(){      // le QR code n'a pas besoin de photo : on charge une page blanche
+  const c = document.createElement("canvas"); c.width = c.height = 1000;
+  const x = c.getContext("2d"); x.fillStyle = "#fff"; x.fillRect(0, 0, 1000, 1000);
+  const blob = await new Promise(r => c.toBlob(r, "image/png"));
+  await openFile(new File([blob], "qr.png", {type:"image/png"}));
+}
 async function openFile(file){
   if (!file) return;
   setStatus(esc(T("Loading image...")), true);
@@ -1227,7 +1302,7 @@ function loadDisplay(v){
     im.onload = () => {
       img = im; iw = im.naturalWidth; ih = im.naturalHeight;
       hc = document.createElement("canvas"); hc.width = iw; hc.height = ih;
-      F = {cx:.5, cy:.5, w:1}; B = null; lastStats = null; MB = [];
+      F = {cx:.5, cy:.5, w:1}; B = null; lastStats = null; MB = []; GV = {pts:[], edges:[]}; mbSyncUI();
       computeView(); clampFrame(); drawSource(); histReset(); schedule(); res();
     };
     im.src = "/api/image?v=" + v;

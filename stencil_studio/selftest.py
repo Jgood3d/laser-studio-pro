@@ -83,6 +83,9 @@ EXPECTED = {
     'lignes : fentes': 45.0,
     'lignes : pixels de matiere': 60920.0,
     'low poly : maillage plausible': 1.0,
+    'qr : gravé relu': 1.0,
+    'qr : ajouré relu': 1.0,
+    'qr : calque ENGRAVE exporté': 1.0,
 }
 TOL = {"default": 3.0, "grabcut": 12.0}
 
@@ -191,6 +194,14 @@ def measure():
     pq = core.Params(size_mm=100, output="lowpoly", shape="circle", lp_points=100, lp_style="wire", lp_beam_mm=1.5)
     rq = core.process(gradient3 := np.stack([gradient] * 3, -1), pq)
     m["low poly : maillage plausible"] = float(100 <= rq.stats.get("lp_triangles", 0) <= 400 and rq.stats["contours"] > 20)
+    blank = np.full((800, 800, 3), 255, np.uint8)
+    pe = core.Params(size_mm=100, output="qr", shape="rrect", qr_mode="engrave", qr_side_mm=50, qr_text="https://exemple.fr/menu")
+    re_ = core.process(blank, pe)
+    m["qr : gravé relu"] = float(re_.stats.get("qr_scan") == "ok")
+    m["qr : ajouré relu"] = float(core.process(blank, core.Params(size_mm=100, output="qr", shape="rrect", qr_mode="cut",
+                                  qr_side_mm=50, qr_text="https://exemple.fr/menu")).stats.get("qr_scan") == "ok")
+    m["qr : calque ENGRAVE exporté"] = float("ENGRAVE" in core.dxf_string(re_.polys_mm, re_.h_mm, marks=re_.marks_polys)
+                                            and 'id="ENGRAVE"' in core.svg_string(re_.polys_mm, re_.w_mm, re_.h_mm, None, re_.marks_polys))
     return m
 
 

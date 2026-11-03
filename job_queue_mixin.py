@@ -235,6 +235,8 @@ class JobQueueMixin:
 
     def _on_queued_job_finished(self, clean_finish):
         log.info("File : job %d terminé, fin propre=%s", self._queue_running_index + 1, clean_finish)
+        if hasattr(self, "_check_position_after_stream"):
+            self._check_position_after_stream()
         if not clean_finish:
             self.btn_run_queue.setEnabled(True)
             if getattr(self, "status_poll_thread", None):

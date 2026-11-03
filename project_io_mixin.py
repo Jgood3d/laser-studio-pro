@@ -36,8 +36,8 @@ class ProjectIOMixin:
             "safe_cut_order": self.chk_safe_cut_order.isChecked(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
-            "mirror_h": self.chk_mirror_h.isChecked(),
-            "mirror_v": self.chk_mirror_v.isChecked(),
+            "mirror_h": self.action_mirror_h.isChecked(),
+            "mirror_v": self.action_mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.spin_speed_engrave.value(),
@@ -63,6 +63,7 @@ class ProjectIOMixin:
         return base64.b64encode(buffer.getvalue()).decode('utf-8')
 
     def save_project(self):
+        """Renvoie True si le projet a été enregistré (False : annulé ou erreur)."""
         path, _ = QFileDialog.getSaveFileName(
     self,
     tr("project.save_title"),
@@ -70,7 +71,7 @@ class ProjectIOMixin:
     tr("project.file_filter")
 )
         if not path:
-            return
+            return False
         try:
             proj_data = self._get_project_data()
             atomic_write_json(path, proj_data, indent=4)
@@ -81,12 +82,14 @@ class ProjectIOMixin:
     tr("project.save_success_title"),
     tr("project.save_success")
 )
+            return True
         except Exception as e:
             QMessageBox.critical(
     self,
     tr("laser.error"),
     tr("project.save_error").format(error=e)
 )
+            return False
 
     def load_project(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -130,8 +133,8 @@ class ProjectIOMixin:
             # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
             self.set_material_bg(proj_data.get("material_bg", "dark" if proj_data.get("invert", False) else "light"))
             self.chk_invert.setChecked(proj_data.get("invert", False))
-            self.chk_mirror_h.setChecked(proj_data.get("mirror_h", False))
-            self.chk_mirror_v.setChecked(proj_data.get("mirror_v", False))
+            self.action_mirror_h.setChecked(proj_data.get("mirror_h", False))
+            self.action_mirror_v.setChecked(proj_data.get("mirror_v", False))
             self.combo_algo.setCurrentText(proj_data.get("algo", "Floyd-Steinberg"))
             self.spin_lmm.setValue(proj_data.get("lmm", 10.0))
 

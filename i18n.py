@@ -208,29 +208,24 @@ TRANSLATIONS = {
         "de": "Bild laden (oder per Drag & Drop)", "es": "Cargar imagen (o arrastrar y soltar)",
     },
     "img.delete": {
-        "fr": "🗑 Supprimer l'image", "en": "🗑 Delete Image",
-        "de": "🗑 Bild löschen", "es": "🗑 Eliminar imagen",
+        "fr": "Supprimer l'image", "en": "Delete Image",
+        "de": "Bild löschen", "es": "Eliminar imagen",
     },
-    "img.rotation": {"fr": "Rotation:", "en": "Rotation:", "de": "Drehung:", "es": "Rotación:"},
     "img.rotate_left": {
-        "fr": "↶ Pivoter 90°", "en": "↶ Rotate 90°",
-        "de": "↶ Um 90° drehen", "es": "↶ Girar 90°",
+        "fr": "Pivoter l'image de 90° vers la gauche", "en": "Rotate Image 90° Left",
+        "de": "Bild um 90° nach links drehen", "es": "Girar la imagen 90° a la izquierda",
     },
     "img.rotate_right": {
-        "fr": "Pivoter 90° ↷", "en": "Rotate 90° ↷",
-        "de": "Um 90° drehen ↷", "es": "Girar 90° ↷",
+        "fr": "Pivoter l'image de 90° vers la droite", "en": "Rotate Image 90° Right",
+        "de": "Bild um 90° nach rechts drehen", "es": "Girar la imagen 90° a la derecha",
     },
     "img.mirror_h": {
-        "fr": "Miroir Horizontal", "en": "Horizontal Mirror",
+        "fr": "Miroir horizontal", "en": "Horizontal Mirror",
         "de": "Horizontal spiegeln", "es": "Espejo horizontal",
     },
     "img.mirror_v": {
-        "fr": "Miroir Vertical", "en": "Vertical Mirror",
+        "fr": "Miroir vertical", "en": "Vertical Mirror",
         "de": "Vertikal spiegeln", "es": "Espejo vertical",
-    },
-    "img.mirror_mode": {
-        "fr": "Mode Miroir:", "en": "Mirror Mode:",
-        "de": "Spiegelmodus:", "es": "Modo espejo:",
     },
     "img.invert": {
         "fr": "Inverser Couleurs (Négatif)", "en": "Invert Colors (Negative)",
@@ -1527,6 +1522,18 @@ TRANSLATIONS = {
         "es": ">>> No se puede comprobar el modo láser GRBL ($32): ajuste no "
               "encontrado en la respuesta de la máquina.",
     },
+    "laser.grbl_homing_disabled": {
+        "fr": ">>> Homing désactivé sur la machine ($22=0) : « Inclure $H » a été décoché et grisé.",
+        "en": ">>> Homing disabled on the machine ($22=0): \"Include $H\" has been unchecked and disabled.",
+        "de": ">>> Homing an der Maschine deaktiviert ($22=0): „$H einbeziehen“ wurde abgewählt und gesperrt.",
+        "es": ">>> Homing desactivado en la máquina ($22=0): «Incluir $H» se ha desmarcado y desactivado.",
+    },
+    "ui.homing_unavailable_tip": {
+        "fr": "Le homing est désactivé sur la machine connectée ($22=0) : elle refuserait $H.",
+        "en": "Homing is disabled on the connected machine ($22=0): it would reject $H.",
+        "de": "Homing ist an der verbundenen Maschine deaktiviert ($22=0): sie würde $H ablehnen.",
+        "es": "El homing está desactivado en la máquina conectada ($22=0): rechazaría $H.",
+    },
     "laser.grbl_mode_status": {
         "fr": ">>> Mode laser GRBL ($32) : {value}",
         "en": ">>> GRBL laser mode ($32): {value}",
@@ -1562,6 +1569,12 @@ TRANSLATIONS = {
         "en": ">>> EMERGENCY STOP (KILL / RESET sent)",
         "de": ">>> NOT-AUS (KILL / RESET gesendet)",
         "es": ">>> PARADA DE EMERGENCIA (KILL / RESET enviado)",
+    },
+    "laser.error_stop_log": {
+        "fr": ">>> Erreur GRBL : machine arrêtée (pause puis reset) pour ne pas exécuter la suite déjà envoyée.",
+        "en": ">>> GRBL error: machine stopped (hold then reset) so the lines already sent are not executed.",
+        "de": ">>> GRBL-Fehler: Maschine gestoppt (Halt, dann Reset), damit die bereits gesendeten Zeilen nicht ausgeführt werden.",
+        "es": ">>> Error de GRBL: máquina detenida (pausa y luego reset) para no ejecutar las líneas ya enviadas.",
     },
     "laser.position_lost_log": {
         "fr": ">>> Reset en dehors de l'arrêt complet : position machine probablement perdue, un nouveau homing sera proposé avant le prochain job.",

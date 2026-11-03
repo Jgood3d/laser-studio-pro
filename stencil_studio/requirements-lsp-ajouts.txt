@@ -10,3 +10,6 @@ scipy>=1.11
 
 # Linux : QtWebEngine demande aussi des bibliothèques système, par exemple (Debian/Ubuntu) :
 #   sudo apt install libnss3 libxkbcommon-x11-0 libxcb-cursor0
+
+# Optionnel : détection du sujet par IA (modèle de 4,5 Mo téléchargé au premier usage). Sans lui, méthode classique.
+onnxruntime>=1.17

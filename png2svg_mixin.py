@@ -32,6 +32,7 @@ class Png2SvgMixin:
 
         self.png2svg_widget = PngToSvgWidget()
         self.png2svg_widget.sendToVectorEditor.connect(self._on_png2svg_send_to_vector)
+        self.png2svg_widget.imageChanged.connect(self.update_image_actions_state)
         layout.addWidget(self.png2svg_widget)
 
         return self.tab_png2svg

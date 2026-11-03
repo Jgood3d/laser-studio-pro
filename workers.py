@@ -26,6 +26,7 @@ from vector_font import VectorFont
 from vector_layers import build_vector_layers_gcode
 import separation_engine
 from image_filters import sharpen_image
+from i18n import tr
 
 
 def _round_half_up(value):
@@ -246,17 +247,64 @@ class GCodeStreamerThread(QThread):
         self.lines = [line.strip() for line in gcode_text.split('\n') if line.strip() and not line.startswith(';')]
         self.is_running = True
         self._stopped_by_user = False
-        self._status_poll_interval = 0.4  # secondes entre deux requêtes '?' pendant le job
+        # Secondes entre deux requêtes '?' pendant le job : 5 par seconde (limite conseillée par GRBL),
+        # pour que le point rouge de l'aperçu 2D suive la tête sans à-coups.
+        self._status_poll_interval = 0.2
         # Fin de job : GRBL répond « ok » dès qu'il a ACCEPTÉ une ligne, pas
         # quand le mouvement est terminé. Après le dernier « ok », on attend
         # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
         self._idle_poll_interval = 0.2    # secondes entre deux requêtes '?' pendant l'attente
         self._idle_reply_timeout = 8.0    # aucun rapport de statut pendant ce délai : liaison considérée perdue
+        # Arrêt de la machine sur erreur GRBL (voir _stop_machine_after_error).
+        self._hold_timeout = 3.0          # délai maxi pour que le feed hold soit complet (Hold:0)
+        self.stopped_on_error = False     # True si la machine a été arrêtée suite à une erreur GRBL
+        self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
 
     def stop(self):
         log.info("Streamer : arrêt demandé par l'utilisateur")
         self.is_running = False
         self._stopped_by_user = True
+
+    def _stop_machine_after_error(self, ser):
+        """GRBL vient de refuser une ligne (error:N) : il continue pourtant d'exécuter les lignes
+        déjà acceptées dans son buffer (jusqu'à 127 caractères : déplacements, laser allumé...).
+        On arrête donc la machine :
+        1. feed hold (« ! ») : décélération sans perte de pas, laser coupé en mode laser ($32=1) ;
+        2. attente de l'arrêt complet (Hold:0, ou Idle s'il n'y avait plus rien à exécuter) ;
+        3. reset logiciel (0x18) : vide le buffer de GRBL et coupe le laser.
+        Si l'arrêt complet n'est pas confirmé à temps (ou en cas d'ALARM), le reset a lieu quand
+        même et la position est considérée perdue (position_lost) : un homing sera reproposé.
+        Doit être appelée HORS du verrou du port série (elle le prend elle-même)."""
+        self.stopped_on_error = True
+        stopped = False
+        try:
+            with self.usb._lock:
+                ser.write(b'!')
+            deadline = time.time() + self._hold_timeout
+            last_poll = 0.0
+            while not stopped and time.time() < deadline:
+                with self.usb._lock:
+                    now = time.time()
+                    if now - last_poll >= self._idle_poll_interval:
+                        ser.write(b'?')
+                        last_poll = now
+                    while ser.in_waiting > 0:
+                        resp = ser.readline().decode('utf-8', errors='ignore').strip()
+                        if resp.startswith('<'):
+                            parsed = self.usb.update_last_status(resp)
+                            if parsed:
+                                self.status_updated.emit(*parsed)
+                            if resp.startswith('<Hold:0') or resp.startswith('<Idle'):
+                                stopped = True
+                        if resp.startswith('ALARM') or resp.startswith('<Alarm'):
+                            deadline = 0      # GRBL s'est déjà arrêté seul, position non garantie
+                time.sleep(0.02)
+            with self.usb._lock:
+                ser.write(b'\x18')
+        except Exception:
+            stopped = False
+        self.position_lost = not stopped
+        self.log_signal.emit(tr("laser.error_stop_log"))
 
     def _wait_until_idle(self, ser):
         """Attend que GRBL passe à l'état Idle (planificateur vide, plus aucun
@@ -341,6 +389,7 @@ class GCodeStreamerThread(QThread):
         last_rx = time.time()
         last_stall_log = 0.0
         STALL_WARNING_S = 5.0
+        grbl_error = False
         try:
             while line_idx < total and self.is_running:
                 while line_idx < total and self.is_running:
@@ -398,6 +447,7 @@ class GCodeStreamerThread(QThread):
                                       ok_count + 1, ok_count)
                             self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
                             clean_finish = False
+                            grbl_error = True
                             self.is_running = False
                             break
                         elif resp.startswith('<'):
@@ -442,6 +492,7 @@ class GCodeStreamerThread(QThread):
                             log.error("Streamer : %s en réponse à la ligne %r", resp, ring_buffer[0][0])
                             self.log_signal.emit(f"!!! ERREUR GRBL : {resp}")
                             clean_finish = False
+                            grbl_error = True
                             break
                         elif resp.startswith('<'):
                             parsed = self.usb.update_last_status(resp)
@@ -455,6 +506,10 @@ class GCodeStreamerThread(QThread):
                                         now - last_rx, len(ring_buffer), ring_buffer[0][0])
                             last_stall_log = now
                         time.sleep(0.01)
+
+            # Erreur GRBL : arrêter la machine, qui exécuterait sinon la fin de son buffer.
+            if grbl_error:
+                self._stop_machine_after_error(ser)
 
             # Tous les « ok » sont reçus : la machine peut encore bouger.
             # On n'annonce la fin qu'une fois GRBL revenu à l'état Idle.
@@ -496,7 +551,7 @@ class StatusPollThread(QThread):
     status_updated = pyqtSignal(str, float, float, float)  # état, x, y, z
     connection_lost = pyqtSignal()
 
-    def __init__(self, usb_controller, interval_sec=0.4):
+    def __init__(self, usb_controller, interval_sec=0.2):
         super().__init__()
         self.usb = usb_controller
         self.interval_sec = interval_sec

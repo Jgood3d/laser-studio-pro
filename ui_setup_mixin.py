@@ -81,6 +81,65 @@ class UiSetupMixin:
                 self._bottom_panel_sizes = sizes
             panel.setVisible(False)
 
+    def _image_tab_kind(self):
+        """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
+        "png2svg", "separation", ou None pour les autres onglets."""
+        tabs = getattr(self, "main_tabs_view", None)
+        current = tabs.currentWidget() if tabs is not None else None
+        for kind in ("previews", "png2svg", "separation"):
+            if current is not None and current is getattr(self, f"tab_{kind}", None):
+                return kind
+        return None
+
+    def _image_tab_has_image(self, kind):
+        if kind == "previews":
+            return self.raw_image is not None
+        if kind == "png2svg":
+            return bool(self.png2svg_widget.image_path)
+        if kind == "separation":
+            return self.sep_src is not None
+        return False
+
+    def update_image_actions_state(self, *_args):
+        """Active les actions de la barre d'outils sur l'image seulement si l'onglet courant
+        affiche une image chargée. Les miroirs (miroir de gravure) restent grisés dans PNG ⇒ SVG,
+        dont la conversion ne les utilise pas. Appelée au changement d'onglet, au chargement et à
+        la suppression d'une image."""
+        if not getattr(self, "_image_actions", ()):
+            return
+        kind = self._image_tab_kind()
+        enabled = self._image_tab_has_image(kind)
+        for action in self._image_actions:
+            action.setEnabled(enabled)
+        for action in self._mirror_actions:
+            action.setEnabled(enabled and kind != "png2svg")
+
+    def _on_toolbar_rotate_image(self, clockwise):
+        kind = self._image_tab_kind()
+        if kind == "previews":
+            (self.rotate_image_right if clockwise else self.rotate_image_left)()
+        elif kind == "png2svg":
+            self.png2svg_widget.rotate_image(90 if clockwise else -90)
+        elif kind == "separation":
+            self.separation_rotate_image(-90 if clockwise else 90)
+
+    def _on_toolbar_delete_image(self):
+        kind = self._image_tab_kind()
+        if kind == "previews":
+            self.clear_image()           # demande elle-même confirmation
+            return
+        if kind not in ("png2svg", "separation"):
+            return
+        reply = QMessageBox.question(
+            self, tr("image.delete_title"), tr("image.delete_question"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if kind == "png2svg":
+            self.png2svg_widget.clear_image()
+        else:
+            self.separation_clear_image()
+
     def save_splitter_sizes(self, *_args):
         settings = QSettings("LaserStudioPro", "UIConfig")
         settings.setValue("main_splitter_sizes", self.main_splitter.sizes())
@@ -229,10 +288,16 @@ class UiSetupMixin:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.save_project()
+            # Enregistrement annulé ou en échec : on reste ouvert, rien n'est perdu.
+            if not self.save_project():
+                event.ignore()
+                return
             self._flush_background_writes()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
+            # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
+            # doit pas être proposée en récupération au prochain démarrage.
+            self._clear_autosave()
             self._flush_background_writes()
             event.accept()
         else:
@@ -397,7 +462,8 @@ class UiSetupMixin:
 
     def _build_main_toolbar(self):
         """Barre d'outils sous le menu : raccourcis vers les entrées des menus Fichier, Paramètres et
-        Outils. Elle réutilise les mêmes QAction (icône, libellé, raccourci et action identiques)."""
+        Outils (mêmes QAction : icône, libellé, raccourci et action identiques), puis les actions
+        sur l'image chargée."""
         toolbar = QToolBar(tr("toolbar.main"), self)
         toolbar.setObjectName("main_toolbar")
         toolbar.setMovable(False)
@@ -412,6 +478,33 @@ class UiSetupMixin:
         toolbar.addSeparator()
         for action in self.tools_menu.actions():
             toolbar.addAction(action)
+        toolbar.addSeparator()
+        # Image chargée (anciens boutons et cases de l'onglet Image & Filtres) : suppression,
+        # rotation, puis miroirs. Les miroirs sont des actions cochables qui gardent l'état.
+        # Suppression et rotation agissent sur l'image de l'onglet affiché (_image_tab_kind).
+        action_delete = toolbar.addAction(
+            QIcon.fromTheme(QIcon.ThemeIcon.EditDelete,
+                            self.style().standardIcon(QStyle.StandardPixmap.SP_TrashIcon)),
+            tr("img.delete"), self._on_toolbar_delete_image)
+        action_rotate_left = toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ObjectRotateLeft),
+                                               tr("img.rotate_left"),
+                                               lambda: self._on_toolbar_rotate_image(clockwise=False))
+        action_rotate_right = toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ObjectRotateRight),
+                                                tr("img.rotate_right"),
+                                                lambda: self._on_toolbar_rotate_image(clockwise=True))
+        # Pas d'équivalent QIcon.ThemeIcon pour les miroirs : nom d'icône freedesktop.
+        flip_h_icon = QIcon.fromTheme("object-flip-horizontal")
+        flip_v_icon = QIcon.fromTheme("object-flip-vertical")
+        self.action_mirror_h = toolbar.addAction(flip_h_icon, tr("img.mirror_h"))
+        self.action_mirror_v = toolbar.addAction(flip_v_icon, tr("img.mirror_v"))
+        for action in (self.action_mirror_h, self.action_mirror_v):
+            action.setCheckable(True)
+            action.toggled.connect(self.update_image_processing)
+        # Activées seulement avec une image chargée, sur un onglet qui l'affiche (update_image_actions_state).
+        self._image_actions = (action_delete, action_rotate_left, action_rotate_right)
+        self._mirror_actions = (self.action_mirror_h, self.action_mirror_v)
+        for action in self._image_actions + self._mirror_actions:
+            action.setEnabled(False)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.main_toolbar = toolbar
 
@@ -611,27 +704,6 @@ class UiSetupMixin:
         btn_img.clicked.connect(self.load_image)
         layout_img.addRow("", btn_img)
 
-        btn_clear_img = QPushButton(tr("img.delete"))
-        btn_clear_img.clicked.connect(self.clear_image)
-        layout_img.addRow("", btn_clear_img)
-
-        rot_layout = QHBoxLayout()
-        btn_rot_left = QPushButton(tr("img.rotate_left"))
-        btn_rot_left.clicked.connect(self.rotate_image_left)
-        btn_rot_right = QPushButton(tr("img.rotate_right"))
-        btn_rot_right.clicked.connect(self.rotate_image_right)
-        rot_layout.addWidget(btn_rot_left)
-        rot_layout.addWidget(btn_rot_right)
-        layout_img.addRow(tr("img.rotation"), rot_layout)
-
-        mirror_layout = QHBoxLayout()
-        self.chk_mirror_h = QCheckBox(tr("img.mirror_h"))
-        self.chk_mirror_h.stateChanged.connect(self.update_image_processing)
-        self.chk_mirror_v = QCheckBox(tr("img.mirror_v"))
-        self.chk_mirror_v.stateChanged.connect(self.update_image_processing)
-        mirror_layout.addWidget(self.chk_mirror_h)
-        mirror_layout.addWidget(self.chk_mirror_v)
-        layout_img.addRow(tr("img.mirror_mode"), mirror_layout)
 
         self.slider_bright = QSlider(Qt.Orientation.Horizontal); self.slider_bright.setRange(-100, 100); self.slider_bright.setValue(0)
         self.slider_bright.valueChanged.connect(self.update_image_processing)
@@ -1605,7 +1677,9 @@ class UiSetupMixin:
         self.center_bottom_widget = center_bottom_widget
         self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
+        self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
         self._update_bottom_panel_visibility()
+        self.update_image_actions_state()
 
         splitter.addWidget(left_widget)
         splitter.addWidget(center_widget)

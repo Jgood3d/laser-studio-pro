@@ -974,6 +974,10 @@ class GcodeGenerationMixin:
             anchor=(0, 0)
         )
         self.plot_widget.addItem(self.info_text_item)
+        # Le clear() ci-dessus a aussi retiré le point rouge de position de la tête (DRO) : on le
+        # remet, sans qu'il compte dans le cadrage automatique de la vue (ignoreBounds).
+        if hasattr(self, "gcode_position_marker"):
+            self.plot_widget.addItem(self.gcode_position_marker, ignoreBounds=True)
 
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():
