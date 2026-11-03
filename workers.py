@@ -259,6 +259,10 @@ class GCodeStreamerThread(QThread):
         # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
         self._idle_poll_interval = 0.2    # secondes entre deux requêtes '?' pendant l'attente
         self._idle_reply_timeout = 8.0    # aucun rapport de statut pendant ce délai : liaison considérée perdue
+        # Arrêt de la machine sur erreur GRBL (voir _stop_machine_after_error).
+        self._hold_timeout = 3.0          # délai maxi pour que le feed hold soit complet (Hold:0)
+        self.stopped_on_error = False     # True si la machine a été arrêtée suite à une erreur GRBL
+        self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
         self._sent_batch = []
         self._last_sent_emit = 0.0
 
@@ -270,10 +274,6 @@ class GCodeStreamerThread(QThread):
             self.lines_sent.emit(self._sent_batch)
             self._sent_batch = []
             self._last_sent_emit = now
-        # Arrêt de la machine sur erreur GRBL (voir _stop_machine_after_error).
-        self._hold_timeout = 3.0          # délai maxi pour que le feed hold soit complet (Hold:0)
-        self.stopped_on_error = False     # True si la machine a été arrêtée suite à une erreur GRBL
-        self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
 
     def stop(self):
         log.info("Streamer : arrêt demandé par l'utilisateur")
