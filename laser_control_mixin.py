@@ -5,6 +5,9 @@ from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
 from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread
 from i18n import tr
+from debug_log import get_logger, log_gcode_summary
+
+log = get_logger()
 
 
 class LaserControlMixin:
@@ -337,6 +340,10 @@ class LaserControlMixin:
 
     def send_to_laser(self):
         gcode_text = self.txt_console.toPlainText()
+        log.info("Envoi : clic sur « Envoyer au laser » (port ouvert=%s, homing fait=%s, état %s)",
+                 self.usb.is_connected(), getattr(self, "has_homed_since_connect", False),
+                 self.usb.last_state)
+        log_gcode_summary(log, "Envoi : G-Code de la console", gcode_text)
         if not gcode_text.strip():
             QMessageBox.warning(
     self,
@@ -456,6 +463,7 @@ class LaserControlMixin:
             self.txt_console.append(tr("laser.position_lost_log"))
 
     def on_stream_finished(self, clean_finish):
+        log.info("Envoi : terminé, fin propre=%s", clean_finish)
         self._check_position_after_stream()
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
