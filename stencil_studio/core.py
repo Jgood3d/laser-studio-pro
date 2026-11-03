@@ -4,14 +4,14 @@ Aucune dépendance à une interface : tout est en fonctions pures sur des tablea
 """
 import os
 import time
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, fields, replace
 
 import cv2
 import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.10.68"  # doit être identique dans core.py et studio.html
+VERSION = "2026.10.70"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -103,8 +103,19 @@ class Params:
     lp_style: str = "solid"       # low poly : wire (arêtes seules) | solid (facettes sombres pleines) | shade (trou de chaque facette selon le ton)
     lp_geo: bool = False          # low poly : style géométrique (silhouette en polygone, peu de sommets, taches sombres en facettes)
     lp_simplify: float = 1.2      # low poly géométrique : simplification de la silhouette (% de la taille)
+    qr_kind: str = "text"         # qr : text (lien, texte...) | wifi
+    qr_text: str = "https://exemple.fr"
+    qr_ssid: str = ""
+    qr_pass: str = ""
+    qr_sec: str = "WPA"           # WPA | WEP | nopass
+    qr_ec: str = "Q"              # correction d'erreur : L | M | Q | H
+    qr_mode: str = "engrave"      # engrave (modules gravés sur la plaque) | cut (modules ajourés, avec ponts)
+    qr_side_mm: float = 40.0      # côté du code (sans la marge)
+    qr_invert: bool = False       # polarité inversée (graver les modules clairs / ajourer les modules sombres)
+    qr_bridge_mm: float = 0.5     # largeur des ponts du mode ajouré
+    ai_subject: bool = True       # détecte le sujet par réseau de neurones si onnxruntime est installé (sinon méthode classique)
     lp_auto: bool = True          # low poly : détecte le sujet tout seul si le fond est uni
-    lp_level: float = -35.0         # low poly (solid) : décalage du seuil clair/sombre (+ = plus de facettes pleines)
+    lp_level: float = 0.0         # low poly (solid) : décalage du seuil clair/sombre (+ = plus de facettes pleines)
     lp_focus: float = 0.35         # low poly : 0 = sommets uniformes, 1 = très serrés sur les détails
     lp_seed: int = 1              # low poly : variante du semis de sommets
     line_break_mm: float = 30.0   # lignes : longueur max d'une fente avant un pont (0 = fentes continues)
@@ -146,6 +157,8 @@ class Result:
     tab: object = None      # zone de l'œillet (masque, repère agrandi)
     hang_holes: object = None  # trous d'accroche [(x_mm, y_mm, r_mm)]
     base_sheet: object = None  # masque de la forme sans la languette d'accroche
+    marks: object = None       # qr : masque des zones gravées (modules)
+    marks_polys: object = None  # qr : contours (mm) des zones gravées, pour le calque ENGRAVE
 
 
 # --------------------------------------------------------------------------
@@ -1263,6 +1276,18 @@ def _geo_seeds(dom, gray, p, area):
     return pts
 
 
+def ai_mask(rgb, valid=None):
+    """Masque du sujet par IA (subject_ai), ou None si indisponible."""
+    try:
+        try:
+            from . import subject_ai
+        except ImportError:
+            import subject_ai
+        return subject_ai.mask(rgb, valid)
+    except Exception:
+        return None
+
+
 def auto_subject(rgb, valid=None):
     """Sujet sur fond uni : pixels éloignés de la couleur du bord de l'image, silhouette pleine (trous comblés).
     Retourne un masque uint8 (1 = sujet) ou None si le fond n'est pas uni / le résultat n'est pas plausible."""
@@ -1310,7 +1335,18 @@ def auto_subject(rgb, valid=None):
     return m
 
 
-def lowpoly_mask(rgb, p, domain, ppm):
+def _dark_threshold(gd, invert=False):
+    """Seuil des facettes pleines : Otsu à deux niveaux (la classe la plus sombre, ou la plus claire si invert),
+    pour ne remplir que les vraies zones sombres (yeux, cheveux, ombres) et pas tous les tons moyens."""
+    g8 = gd.astype(np.uint8).ravel()
+    t1 = otsu_value(g8)
+    part = g8[g8 > t1] if invert else g8[g8 < t1]
+    if len(part) < 0.03 * len(g8):
+        return float(t1)
+    return float(otsu_value(part))
+
+
+def lowpoly_mask(rgb, p, domain, ppm, guides=None):
     """Matière (1) d'un décor low poly : arêtes du maillage de Delaunay (poutres de lp_beam_mm) + une part
     lp_fill_pct des triangles pleins (les plus sombres). Les sommets suivent les contours de l'image.
     Retourne (masque, nb_sommets, nb_triangles)."""
@@ -1336,6 +1372,18 @@ def lowpoly_mask(rgb, p, domain, ppm):
         seeds = _geo_seeds(dom, gray, p, area)
     else:
         seeds = _contour_points(dom, 0.9 * k)
+    g_edges = []
+    if guides:         # sommets et arêtes posés à la main (fractions de l'image)
+        for q in (guides.get("pts") or [])[:300]:
+            seeds.append((float(q[0]) * (w - 1), float(q[1]) * (h - 1)))
+        for s4 in (guides.get("edges") or [])[:300]:
+            a = np.array([float(s4[0]) * (w - 1), float(s4[1]) * (h - 1)])
+            b = np.array([float(s4[2]) * (w - 1), float(s4[3]) * (h - 1)])
+            g_edges.append((a, b))
+            L = float(np.hypot(*(b - a)))
+            for j in range(0, max(1, int(L // (0.9 * k))) + 1):    # sommets le long de l'arête : le maillage la suit
+                seeds.append(tuple(a + (b - a) * min(1.0, j * 0.9 * k / max(L, 1e-6))))
+            seeds.append(tuple(b))
     rng = np.random.default_rng(int(p.lp_seed) * 7919 + 13)
     dom_xy = np.stack([xs, ys], 1)
     inner = _poisson_points(dom_xy, rad, k, seeds, rng, min(30000, 30 * n))
@@ -1370,12 +1418,13 @@ def lowpoly_mask(rgb, p, domain, ppm):
     tone = np.where(cnt > 0, sm / np.maximum(cnt, 1), 255.0)
     style = p.lp_style if p.lp_style in ("wire", "solid", "shade") else "shade"
     th = max(1, int(round(max(p.lp_beam_mm, p.min_feature_mm + 0.2) * ppm)))
+    th = max(max(1, int(round((p.min_feature_mm + 0.2) * ppm))), min(th, int(round(0.3 * s))))   # poutres jamais plus larges que 30 % d'une facette : le maillage reste ajouré
     if style == "solid":
         gd = gray[dom]
         if float(gd.std()) < 14.0:                  # sujet d'un seul ton (silhouette) : maillage seul
             sel = np.zeros(len(tri), bool)
         else:
-            thr = otsu_value(gd.astype(np.uint8).ravel()) + float(p.lp_level) * 2.55
+            thr = _dark_threshold(gd, p.invert) + float(p.lp_level) * 2.55
             sel = (tone > thr) if p.invert else (tone < thr)
         for i in np.nonzero(sel)[0]:
             cv2.fillPoly(mask, [np.round(P[i] * 16).astype(np.int32)], 1, shift=4)
@@ -1408,12 +1457,105 @@ def lowpoly_mask(rgb, p, domain, ppm):
     for a, b in edges:
         cv2.line(mask, tuple(np.round(pts[a] * 16).astype(int)), tuple(np.round(pts[b] * 16).astype(int)),
                  1, th, cv2.LINE_8, 4)
+    for a, b in g_edges:       # arêtes guidées : toujours dessinées en poutre pleine, même si le maillage les coupe
+        cv2.line(mask, tuple(np.round(a * 16).astype(int)), tuple(np.round(b * 16).astype(int)), 1, th, cv2.LINE_8, 4)
     for x, y in pts[np.unique(tri)]:
         cv2.circle(mask, (int(round(x * 16)), int(round(y * 16))), int(round(th * 16 / 2)), 1, -1, cv2.LINE_8, 4)
     return mask, len(pts), len(tri)
 
 
-def process(rgb, p, subject=None, valid=None, manual=None):
+def qr_payload(p):
+    """Texte encodé dans le QR code (lien / texte libre, ou Wi-Fi au format standard)."""
+    if p.qr_kind == "wifi":
+        esc = lambda s: "".join("\\" + ch if ch in '\\;,:"' else ch for ch in str(s or ""))
+        sec = p.qr_sec if p.qr_sec in ("WPA", "WEP", "nopass") else "WPA"
+        pw = "" if sec == "nopass" else f"P:{esc(p.qr_pass)};"
+        return f"WIFI:T:{sec};S:{esc(p.qr_ssid)};{pw};"
+    return str(p.qr_text or "")
+
+
+def qr_matrix(text, ec="Q"):
+    """Matrice booléenne (True = module sombre) sans marge, via l'encodeur QR d'OpenCV. Lève ValueError."""
+    if not text:
+        raise ValueError("empty")
+    if not hasattr(cv2, "QRCodeEncoder"):
+        raise ValueError("OpenCV too old (QRCodeEncoder)")
+    lv = {"L": "CORRECT_LEVEL_L", "M": "CORRECT_LEVEL_M", "Q": "CORRECT_LEVEL_Q", "H": "CORRECT_LEVEL_H"}[ec if ec in "LMQH" else "Q"]
+    prm = cv2.QRCodeEncoder_Params()
+    prm.correction_level = getattr(cv2, "QRCodeEncoder_" + lv)
+    try:
+        im = cv2.QRCodeEncoder.create(prm).encode(text)
+    except cv2.error as e:
+        raise ValueError("text too long for a QR code") from e
+    if im is None or im.ndim != 2 or im.shape[0] < 25:
+        raise ValueError("encoding failed")
+    ys, xs = np.nonzero(im == 0)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    return im[y0:y1, x0:x1] == 0
+
+
+def qr_masks(h, w, p, ppm):
+    """Masques d'un QR code centré dans l'image : (raw = matière à découper, marks = zones gravées, info, geo).
+    engrave : plaque pleine + modules gravés ; cut : modules ajourés (matière = modules sombres, marge claire ajourée)."""
+    info = {}
+    M = qr_matrix(qr_payload(p), p.qr_ec)
+    n = M.shape[0]
+    side = float(p.qr_side_mm) * ppm
+    qzm = 2.0                                           # marge ajourée du mode « cut » (en modules)
+    need = side * (n + 2 * qzm) / n
+    lim = 0.96 * min(h, w)
+    if need > lim:
+        side *= lim / need
+        info["qr_clamped"] = True
+    S = max(n, int(round(side)))
+    cell = S / n
+    x0, y0 = (w - S) // 2, (h - S) // 2
+    big = cv2.resize(M.astype(np.uint8), (S, S), interpolation=cv2.INTER_NEAREST)
+    Dm = np.zeros((h, w), np.uint8)
+    Dm[y0:y0 + S, x0:x0 + S] = big
+    R = np.zeros((h, w), np.uint8)
+    R[y0:y0 + S, x0:x0 + S] = 1
+    q = int(round(qzm * cell))
+    Q = np.zeros((h, w), np.uint8)
+    Q[max(0, y0 - q):y0 + S + q, max(0, x0 - q):x0 + S + q] = 1
+    inv = bool(p.qr_invert)
+    if p.qr_mode == "cut":
+        holes = Dm if inv else (Q & (1 - Dm))
+        raw, marks = (1 - holes).astype(np.uint8), None
+    else:
+        marks = (R & (1 - Dm)) if inv else Dm
+        raw = np.ones((h, w), np.uint8)
+    mod_mm = cell / ppm
+    info.update(qr_modules=int(n), qr_module_mm=round(mod_mm, 2))
+    lo = 1.5 if p.qr_mode == "cut" else 0.8
+    if mod_mm < lo:
+        info["qr_small"] = True
+    return raw, marks, info, dict(x0=x0, y0=y0, S=S, q=q, n=n, text=qr_payload(p))
+
+
+def qr_scan_check(img_black, geo):
+    """Relit le QR rendu (img_black : 1 = noir) comme un téléphone. Retourne 'ok' | 'inverted' | 'fail'."""
+    h, w = img_black.shape
+    x0, y0, S, n = geo["x0"], geo["y0"], geo["S"], geo["n"]
+    cell = S / n
+    crop = img_black[y0:y0 + S, x0:x0 + S]           # seulement les modules : les ponts de la marge ne comptent pas
+    f = max(1, int(np.ceil(10.0 / max(cell, 1e-6))))
+    pic = np.where(crop > 0, 0, 255).astype(np.uint8)
+    pic = cv2.copyMakeBorder(pic, int(4 * cell), int(4 * cell), int(4 * cell), int(4 * cell), cv2.BORDER_CONSTANT, value=255)
+    if f > 1:
+        pic = cv2.resize(pic, None, fx=f, fy=f, interpolation=cv2.INTER_NEAREST)
+    det = cv2.QRCodeDetector()
+    try:
+        if det.detectAndDecode(pic)[0] == geo["text"]:
+            return "ok"
+        if det.detectAndDecode(255 - pic)[0] == geo["text"]:
+            return "inverted"
+    except cv2.error:
+        pass
+    return "fail"
+
+
+def process(rgb, p, subject=None, valid=None, manual=None, guides=None):
     if p.output in ("halftone", "lines"):
         return halftone(rgb, p, subject, valid)
     if p.output == "engrave":
@@ -1428,16 +1570,32 @@ def process(rgb, p, subject=None, valid=None, manual=None):
     if roi is not None and not roi.any():
         roi = None
     lp_info = {}
-    if p.output == "lowpoly":
+    marks = None
+    qr_geo = None
+    if p.output == "qr":
+        p = replace(p, min_feature_mm=min(p.min_feature_mm, 0.3), min_island_mm2=0.0, keep_thin=True, outline_mm=0.0,
+                    grow_mm=0.0, smooth=0.0, simplify=min(p.simplify, 0.3), bridge_mm=p.qr_bridge_mm,
+                    max_bridge_mm=max(p.max_bridge_mm, 20.0))
+        subject = roi = None
+        try:
+            raw, marks, lp_info, qr_geo = qr_masks(h, w, p, ppm)
+        except ValueError as e:
+            raw, marks, qr_geo = np.ones((h, w), np.uint8), None, None
+            lp_info = {"qr_error": str(e)}
+        thr = 0.0
+    elif p.output == "lowpoly":
         if subject is None and p.lp_auto:
-            auto = auto_subject(fill_outside(rgb, valid), valid)
+            filled = fill_outside(rgb, valid)
+            auto = ai_mask(filled, valid) if p.ai_subject else None
+            if auto is None:
+                auto = auto_subject(filled, valid)
             if auto is not None:
                 subject = auto
                 roi = auto if valid is None else (auto & valid)
         dom = np.ones((h, w), np.uint8) if roi is None else roi.astype(np.uint8)
         if p.shape != "none":
             dom = dom & shape_inside(p.shape, h, w)
-        raw, npt, ntri = lowpoly_mask(fill_outside(rgb, valid), p, dom, ppm)
+        raw, npt, ntri = lowpoly_mask(fill_outside(rgb, valid), p, dom, ppm, guides)
         thr = 0.0
         lp_info = {"lp_vertices": npt, "lp_triangles": ntri}
     else:
@@ -1462,6 +1620,10 @@ def process(rgb, p, subject=None, valid=None, manual=None):
     if any(pad):  # l'œillet dépasse du cadre : tout est agrandi de la même marge
         rgb, gray = _pad_img(rgb, pad, (255, 255, 255)), _pad_img(gray, pad, 255)
         mat0, sheet = _pad_img(mat0, pad), _pad_img(sheet, pad)
+        if marks is not None:
+            marks = _pad_img(marks, pad)
+        if qr_geo is not None:
+            qr_geo = dict(qr_geo, x0=qr_geo["x0"] + pad[0], y0=qr_geo["y0"] + pad[1])
         if subject is not None:
             subject = _pad_img(subject, pad)
         if anchor is not None:
@@ -1489,12 +1651,24 @@ def process(rgb, p, subject=None, valid=None, manual=None):
     polys_mm = [q / ppm for q in polys]
     length = sum(float(np.sum(np.hypot(*np.diff(np.vstack([q, q[:1]]), axis=0).T))) for q in polys_mm)
     H2, W2 = mat.shape
+    marks_polys = None
+    if marks is not None:
+        marks_polys = [q / ppm for q in extract_contours(marks, 0.0, 0.3 * k)]
+    if qr_geo is not None:
+        try:
+            if p.qr_mode == "cut":      # noir = ce qui paraît sombre : matière (ou trous si polarité inversée)
+                dark = (1 - mat) if p.qr_invert else mat
+            else:                       # gravure : zones gravées sombres (ou la plaque non gravée si inversé)
+                dark = (1 - marks) if p.qr_invert else marks
+            lp_info["qr_scan"] = qr_scan_check(dark, qr_geo)
+        except Exception:
+            lp_info["qr_scan"] = "fail"
     holes = [(x / ppm, y / ppm, r / ppm) for x, y, r in dinfo.pop("hang_holes", [])]
     stats = dict(threshold=thr, contours=len(polys_mm), length_mm=length, linked=linked,
                  dropped=dropped, w_mm=W2 / ppm, h_mm=H2 / ppm, px=[W2, H2],
                  seconds=round(time.time() - t0, 2), **dinfo, **lp_info)
     return Result(rgb, gray, subject, mat0, mat, bridges, polys_mm, W2 / ppm, H2 / ppm, stats, sheet,
-                  tab=tab, hang_holes=holes, base_sheet=base_sheet)
+                  tab=tab, hang_holes=holes, base_sheet=base_sheet, marks=marks, marks_polys=marks_polys)
 
 
 def _sheet_mask(shape, h, w):
@@ -1572,6 +1746,19 @@ def render_view(res, view, style=None):
             import lightbox
         st = style or {}
         return lightbox.render_assembled(res, st.get("params") or Params(), st)
+    if res.marks is not None and view in ("result", "material", "overlay", "render"):   # QR gravé : plaque + modules gravés
+        st = style or {}
+        if view == "render":
+            out = render_realistic(res, st.get("material", "wood_light"), bool(st.get("backlight")), st.get("light", "warm"))
+            if out.shape[:2] == res.marks.shape:
+                out[res.marks > 0] = (out[res.marks > 0] * 0.22).astype(np.uint8)
+            return out
+        out = np.full(res.mat.shape + (3,), 255, np.uint8)
+        out[res.mat > 0] = (205, 205, 205)
+        out[res.marks > 0] = 0
+        if view == "overlay":
+            out = (0.45 * res.rgb + 0.55 * out).astype(np.uint8)
+        return out
     if res.engrave is not None and view in ("result", "material", "overlay", "render"):
         st = style or {}
         if view == "render":
@@ -1612,7 +1799,7 @@ def polys_bbox(polys):
     return (float(a[:, 0].min()), float(a[:, 1].min()), float(a[:, 0].max()), float(a[:, 1].max()))
 
 
-def svg_string(polys_mm, w_mm, h_mm, frame=None):
+def svg_string(polys_mm, w_mm, h_mm, frame=None, marks=None):
     parts = []
     for q in polys_mm:
         d = "M" + " L".join(f"{x:.3f},{y:.3f}" for x, y in q) + " Z"
@@ -1621,7 +1808,16 @@ def svg_string(polys_mm, w_mm, h_mm, frame=None):
             f'viewBox="0 0 {w_mm:.3f} {h_mm:.3f}">\n'
             f'<g id="CUT" fill="none" stroke="#ff0000" stroke-width="0.1">\n'
             + "\n".join(parts) + "\n</g>\n"
+            + _marks_svg(marks)
             + (frame_svg(frame) if frame else "") + "</svg>\n")
+
+
+def _marks_svg(marks):
+    """Calque ENGRAVE (zones gravées pleines) : QR code gravé."""
+    if not marks:
+        return ""
+    d = " ".join("M" + " L".join(f"{x:.3f},{y:.3f}" for x, y in q) + " Z" for q in marks)
+    return f'<g id="ENGRAVE" fill="#000000" stroke="none" fill-rule="evenodd"><path d="{d}"/></g>\n'
 
 
 def frame_svg(frame):
@@ -1639,7 +1835,7 @@ def frame_dxf_lines(frame, h_mm):
     return L + ["0", "SEQEND", "8", "FRAME"]
 
 
-def dxf_string(polys_mm, h_mm, layer="CUT", frame=None):
+def dxf_string(polys_mm, h_mm, layer="CUT", frame=None, marks=None):
     """DXF R12 minimal (POLYLINE fermées), axe Y vers le haut, en mm."""
     L = ["0", "SECTION", "2", "ENTITIES"]
     for q in polys_mm:
@@ -1647,6 +1843,11 @@ def dxf_string(polys_mm, h_mm, layer="CUT", frame=None):
         for x, y in q:
             L += ["0", "VERTEX", "8", layer, "10", f"{x:.4f}", "20", f"{h_mm - y:.4f}"]
         L += ["0", "SEQEND", "8", layer]
+    for q in (marks or []):
+        L += ["0", "POLYLINE", "8", "ENGRAVE", "66", "1", "70", "1"]
+        for x, y in q:
+            L += ["0", "VERTEX", "8", "ENGRAVE", "10", f"{x:.4f}", "20", f"{h_mm - y:.4f}"]
+        L += ["0", "SEQEND", "8", "ENGRAVE"]
     if frame:
         L += frame_dxf_lines(frame, h_mm)
     L += ["0", "ENDSEC", "0", "EOF"]

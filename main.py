@@ -6,6 +6,7 @@ from PyQt6.QtGui import QIcon, QPixmap
 from PyQt6.QtCore import Qt, QLoggingCategory, qInstallMessageHandler
 
 from app_utils import find_resource
+from debug_log import setup_debug_logging
 from main_window import FullLaserStudio
 
 # Avertissements de Qt sans conséquence, écartés de la console (voir qt_message_handler).
@@ -31,6 +32,7 @@ if __name__ == "__main__":
     # quand le focus clavier change à la fermeture d'une fenêtre : avertissement interne à Qt, sans
     # conséquence. On masque cette seule catégorie (QT_LOGGING_RULES permet de la réactiver).
     QLoggingCategory.setFilterRules("qt.qpa.wayland.textinput=false")
+    setup_debug_logging()
     app = QApplication(sys.argv)
 
     icon_path = (

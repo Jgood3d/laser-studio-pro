@@ -5,6 +5,9 @@ import re
 import serial
 
 from simulated_grbl import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
+from debug_log import get_logger
+
+log = get_logger()
 
 # Rapport de statut GRBL temps réel, ex : "<Idle|MPos:0.000,0.000,0.000|FS:0,0>"
 # ou avec WPos (coordonnées travail) selon le firmware/réglage $10.
@@ -49,6 +52,8 @@ class LaserUSBController:
         est valide. Renvoie le tuple parsé (ou None)."""
         parsed = self.parse_status_line(line)
         if parsed:
+            if parsed[0] != self.last_state:
+                log.info("GRBL : état %s -> %s (%r)", self.last_state, parsed[0], line.strip())
             self.last_state, self.last_x, self.last_y, self.last_z = parsed
         return parsed
 
@@ -88,20 +93,27 @@ class LaserUSBController:
                 self.last_port = port
                 self.last_baudrate = baudrate
                 return True
+            log.info("USB : connexion à %s (%d baud)", port, baudrate)
             self.ser = serial.Serial(port, baudrate, timeout=1)
             time.sleep(2)
             self.ser.write(b"\r\n\r\n")
             time.sleep(0.5)
+            if self.ser.in_waiting:
+                # Message d'accueil de GRBL (« Grbl 1.1h ['$' for help] ») : identifie le firmware.
+                log.info("USB : message à la connexion %r", self.ser.read(self.ser.in_waiting))
             self.ser.reset_input_buffer()
+            log.info("USB : connecté à %s", port)
             self.last_port = port
             self.last_baudrate = baudrate
             return True
         except Exception as e:
+            log.exception("USB : échec de connexion à %s", port)
             print(f"Erreur connexion : {e}")
             self.ser = None
             return False
 
     def disconnect(self):
+        log.info("USB : déconnexion")
         with self._lock:
             if self.ser and self.ser.is_open:
                 try:
@@ -141,9 +153,12 @@ class LaserUSBController:
                         if line == 'ok' or line.startswith('error') or line.startswith('ALARM'):
                             break
                     if time.time() - start_time > timeout:
+                        log.warning("USB : commande %r sans réponse finale après %.1f s", cmd.strip(), timeout)
                         break
+                log.info("USB : commande %r -> %r", cmd.strip(), response_lines)
                 return "\n".join(response_lines) if response_lines else "Pas de réponse"
             except Exception as e:
+                log.exception("USB : commande %r, connexion perdue", cmd.strip())
                 try:
                     self.ser.close()
                 except Exception:
@@ -155,6 +170,7 @@ class LaserUSBController:
         with self._lock:
             if self.ser and self.ser.is_open:
                 try:
+                    log.info("USB : commande temps réel %r", raw_bytes)
                     self.ser.write(raw_bytes)
                     self.ser.flush()
                 except Exception as e:

@@ -1588,6 +1588,18 @@ TRANSLATIONS = {
         "es": ">>> No se puede comprobar el modo láser GRBL ($32): ajuste no "
               "encontrado en la respuesta de la máquina.",
     },
+    "laser.grbl_homing_disabled": {
+        "fr": ">>> Homing désactivé sur la machine ($22=0) : « Inclure $H » a été décoché et grisé.",
+        "en": ">>> Homing disabled on the machine ($22=0): \"Include $H\" has been unchecked and disabled.",
+        "de": ">>> Homing an der Maschine deaktiviert ($22=0): „$H einbeziehen“ wurde abgewählt und gesperrt.",
+        "es": ">>> Homing desactivado en la máquina ($22=0): «Incluir $H» se ha desmarcado y desactivado.",
+    },
+    "ui.homing_unavailable_tip": {
+        "fr": "Le homing est désactivé sur la machine connectée ($22=0) : elle refuserait $H.",
+        "en": "Homing is disabled on the connected machine ($22=0): it would reject $H.",
+        "de": "Homing ist an der verbundenen Maschine deaktiviert ($22=0): sie würde $H ablehnen.",
+        "es": "El homing está desactivado en la máquina conectada ($22=0): rechazaría $H.",
+    },
     "laser.grbl_mode_status": {
         "fr": ">>> Mode laser GRBL ($32) : {value}",
         "en": ">>> GRBL laser mode ($32): {value}",
@@ -1623,6 +1635,12 @@ TRANSLATIONS = {
         "en": ">>> EMERGENCY STOP (KILL / RESET sent)",
         "de": ">>> NOT-AUS (KILL / RESET gesendet)",
         "es": ">>> PARADA DE EMERGENCIA (KILL / RESET enviado)",
+    },
+    "laser.error_stop_log": {
+        "fr": ">>> Erreur GRBL : machine arrêtée (pause puis reset) pour ne pas exécuter la suite déjà envoyée.",
+        "en": ">>> GRBL error: machine stopped (hold then reset) so the lines already sent are not executed.",
+        "de": ">>> GRBL-Fehler: Maschine gestoppt (Halt, dann Reset), damit die bereits gesendeten Zeilen nicht ausgeführt werden.",
+        "es": ">>> Error de GRBL: máquina detenida (pausa y luego reset) para no ejecutar las líneas ya enviadas.",
     },
     "laser.position_lost_log": {
         "fr": ">>> Reset en dehors de l'arrêt complet : position machine probablement perdue, un nouveau homing sera proposé avant le prochain job.",
