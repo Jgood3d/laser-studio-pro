@@ -1,7 +1,7 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
-from PyQt6.QtWidgets import (QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
+from PyQt6.QtWidgets import (QPlainTextEdit, QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
 from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
-from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor
+from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor, QPainter, QPen
 import pyqtgraph as pg
 from PIL import Image
 import os
@@ -22,6 +22,53 @@ SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
 
 
 class UiSetupMixin:
+    def _build_tab_toolbar(self, parent, on_fullscreen, left_actions=(), left_widgets=(), right_widgets=()):
+        """Barre d'outils en tête d'un onglet : `left_actions` (icône, libellé, infobulle, slot) et
+        `left_widgets` à gauche, puis, alignés à droite, `right_widgets` et le bouton « Plein écran »."""
+        toolbar = QToolBar(parent)
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        for icon, label, tooltip, slot in left_actions:
+            action = toolbar.addAction(icon, label, slot)
+            if tooltip:
+                action.setToolTip(tooltip)
+        for widget in left_widgets:
+            toolbar.addWidget(widget)
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        toolbar.addWidget(spacer)
+        for widget in right_widgets:
+            toolbar.addWidget(widget)
+        parent._fullscreen_control = toolbar.addAction(self._fullscreen_icon(), tr("ui.vector_fullscreen"),
+                                                       on_fullscreen)
+        return toolbar
+
+    @staticmethod
+    def _show_fullscreen_control(tab_widget, visible):
+        """Masque le bouton « Plein écran » d'un onglet pendant qu'il est affiché en plein écran,
+        et le réaffiche quand il revient dans les onglets (voir les fonctions *fullscreen*)."""
+        control = getattr(tab_widget, "_fullscreen_control", None)
+        if control is not None:
+            control.setVisible(visible)
+
+    @staticmethod
+    def _side_settings_panel(content, width=360):
+        """Panneau de réglages sur le côté d'un onglet central (« Graver une image ») : largeur fixe,
+        comme le panneau de l'onglet Séparation, et défilement vertical si la hauteur manque. La
+        largeur s'élargit au besoin pour que le contenu tienne sans défilement horizontal."""
+        scroll = QScrollArea()
+        scroll.setWidget(content)
+        scroll.setWidgetResizable(True)
+        needed = (content.minimumSizeHint().width() + scroll.verticalScrollBar().sizeHint().width()
+                  + 2 * scroll.frameWidth())
+        scroll.setFixedWidth(max(width, needed))
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        return scroll
+
+    def _fullscreen_icon(self):
+        """Icône « plein écran » standard du thème (repli : bouton d'agrandissement de Qt)."""
+        return QIcon.fromTheme(QIcon.ThemeIcon.ViewFullscreen,
+                               self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
+
     def _build_support_button(self, icon_size=40, button_size=44):
         btn = QPushButton()
         btn.setFlat(True)
@@ -142,9 +189,6 @@ class UiSetupMixin:
 
     def save_splitter_sizes(self, *_args):
         settings = QSettings("LaserStudioPro", "UIConfig")
-        settings.setValue("main_splitter_sizes", self.main_splitter.sizes())
-        if hasattr(self, "left_v_splitter"):
-            settings.setValue("left_v_splitter_sizes", self.left_v_splitter.sizes())
         if hasattr(self, "center_v_splitter"):
             panel = getattr(self, "center_bottom_widget", None)
             if panel is not None and panel.isHidden():
@@ -156,18 +200,9 @@ class UiSetupMixin:
 
     def load_splitter_sizes(self):
         settings = QSettings("LaserStudioPro", "UIConfig")
-        sizes = settings.value("main_splitter_sizes", None)
-        if sizes:
-            try:
-                self.main_splitter.setSizes([int(s) for s in sizes])
-            except (TypeError, ValueError):
-                pass
-        left_v_sizes = settings.value("left_v_splitter_sizes", None)
-        if left_v_sizes and hasattr(self, "left_v_splitter"):
-            try:
-                self.left_v_splitter.setSizes([int(s) for s in left_v_sizes])
-            except (TypeError, ValueError):
-                pass
+        # Tailles de l'ancienne colonne de gauche, supprimée : plus utilisées.
+        settings.remove("main_splitter_sizes")
+        settings.remove("left_v_splitter_sizes")
         center_v_sizes = settings.value("center_v_splitter_sizes", None)
         if center_v_sizes and hasattr(self, "center_v_splitter"):
             try:
@@ -179,61 +214,9 @@ class UiSetupMixin:
                 pass
 
     def _toggle_fullscreen_image_tab(self):
-        preview_idx = self.main_tabs_view.indexOf(self.tab_previews)
-        if preview_idx == -1:
-            return
-        settings_idx = self.settings_tabs_widget.indexOf(self.tab_img)
-        prev_settings_widget = self.settings_tabs_widget.currentWidget()
-
-        dialog = QDialog(self)
-        dialog.setWindowFlags(Qt.WindowType.Window)
-        dialog.setWindowTitle(tr("ui.tab_image_tracing"))
-
-        outer_layout = QVBoxLayout(dialog)
-        outer_layout.setContentsMargins(4, 4, 4, 4)
-
-        btn_close_fullscreen = QPushButton(tr("vector.close_fullscreen"))
-        btn_close_fullscreen.setStyleSheet(
-            "background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;"
-        )
-        btn_close_fullscreen.clicked.connect(dialog.close)
-        outer_layout.addWidget(btn_close_fullscreen)
-
-        content_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        settings_scroll = QScrollArea()
-        settings_scroll.setWidget(self.tab_img)
-        settings_scroll.setWidgetResizable(True)
-        settings_scroll.setMinimumWidth(320)
-        settings_scroll.setMaximumWidth(480)
-
-        content_splitter.addWidget(settings_scroll)
-        content_splitter.addWidget(self.tab_previews)
-        content_splitter.setStretchFactor(0, 0)
-        content_splitter.setStretchFactor(1, 1)
-        content_splitter.setSizes([360, 1200])
-        outer_layout.addWidget(content_splitter)
-
-        self.tab_img.setVisible(True)
-        self.tab_previews.setVisible(True)
-
-        def restore(_result=None):
-            settings_scroll.takeWidget()
-            self.tab_previews.setParent(None)
-            self.settings_tabs_widget.insertTab(settings_idx, self.tab_img, tr("tab.image_filters"))
-            self.main_tabs_view.insertTab(preview_idx, self.tab_previews, tr("ui.tab_image_tracing"))
-            self.main_tabs_view.setCurrentWidget(self.tab_previews)
-            self.settings_tabs_widget.setCurrentWidget(prev_settings_widget)
-            self.tab_img.updateGeometry()
-            self.tab_previews.updateGeometry()
-            self.settings_tabs_widget.update()
-            self.main_tabs_view.update()
-            self.update()
-            self.repaint()
-
-        dialog.finished.connect(restore)
-        dialog.show()
-        dialog.setWindowState(Qt.WindowState.WindowMaximized)
+        """Plein écran de « Graver une image ». Ses réglages (ancien onglet Image & Filtres) sont
+        maintenant dans l'onglet lui-même : le plein écran commun suffit."""
+        self._toggle_fullscreen_tab("tab_previews", "ui.tab_image_tracing")
 
     def _toggle_fullscreen_tab(self, tab_attr, title_key):
         tab_widget = getattr(self, tab_attr, None)
@@ -259,8 +242,10 @@ class UiSetupMixin:
 
         dlg_layout.addWidget(tab_widget)
         tab_widget.setVisible(True)
+        self._show_fullscreen_control(tab_widget, False)
 
         def restore(_result=None):
+            self._show_fullscreen_control(tab_widget, True)
             dlg_layout.removeWidget(tab_widget)
             tab_widget.setParent(None)
             self.main_tabs_view.insertTab(idx, tab_widget, tr(title_key))
@@ -397,7 +382,7 @@ class UiSetupMixin:
             tr("menu.file.recent_projects"))
         self._refresh_recent_projects_menu()
         menu_fichier.addSeparator()
-        action_quit = menu_fichier.addAction(
+        self.action_quit = action_quit = menu_fichier.addAction(
             std_icon(QIcon.ThemeIcon.ApplicationExit, QStyle.StandardPixmap.SP_DialogCloseButton),
             tr("menu.file.quit"))
         # StandardKey.Quit est vide sous Windows (Alt+F4 y est géré par le système) : Ctrl+Q en repli.
@@ -442,6 +427,13 @@ class UiSetupMixin:
         action_open_stencil = self.tools_menu.addAction(
             std_icon("applications-graphics"), tr("menu.tools.stencil_studio"))
         action_open_stencil.triggered.connect(lambda: open_stencil_studio(self))
+        # Raccourcis vers deux onglets centraux (voir show_main_tab).
+        separation_icon = QIcon.fromTheme("color-management", QIcon.fromTheme("preferences-color-symbolic"))
+        vectorize_icon = QIcon.fromTheme("draw-bezier-curves", QIcon.fromTheme("image-x-generic"))
+        action_separation = self.tools_menu.addAction(separation_icon, tr("sep.tab_title"))
+        action_separation.triggered.connect(lambda: self.show_main_tab("tab_separation"))
+        action_png2svg = self.tools_menu.addAction(vectorize_icon, tr("png2svg.tab_title"))
+        action_png2svg.triggered.connect(lambda: self.show_main_tab("tab_png2svg"))
 
         menu_aide = menu_bar.addMenu(tr("menu.help"))
         # Version : icône de l'application (définie dans main.py, reprise par la fenêtre).
@@ -460,15 +452,31 @@ class UiSetupMixin:
         action_coffee = menu_aide.addAction(QIcon(coffee_path) if coffee_path else QIcon(), tr("menu.help.coffee"))
         action_coffee.triggered.connect(self.show_buy_me_a_coffee_dialog)
 
+    def show_main_tab(self, tab_attr):
+        """Affiche l'onglet central `tab_attr` (ex. "tab_separation"), en le rendant visible s'il était
+        masqué. S'il est ouvert en plein écran (sorti des onglets), sa fenêtre est ramenée au premier plan."""
+        tab = getattr(self, tab_attr, None)
+        if tab is None:
+            return
+        index = self.main_tabs_view.indexOf(tab)
+        if index != -1:
+            self.main_tabs_view.setTabVisible(index, True)
+            self.main_tabs_view.setCurrentWidget(tab)
+        else:
+            tab.window().raise_()
+            tab.window().activateWindow()
+
     def _build_main_toolbar(self):
         """Barre d'outils sous le menu : raccourcis vers les entrées des menus Fichier, Paramètres et
-        Outils (mêmes QAction : icône, libellé, raccourci et action identiques), puis les actions
-        sur l'image chargée."""
+        Outils (mêmes QAction : icône, libellé, raccourci et action identiques), annuler/refaire des
+        réglages image, actions sur l'image chargée, puis connexion au graveur."""
         toolbar = QToolBar(tr("toolbar.main"), self)
         toolbar.setObjectName("main_toolbar")
         toolbar.setMovable(False)
         # Icônes seules, libellé en infobulle (une entrée sans icône hors Linux affiche son libellé).
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
+        toolbar.addAction(self.action_quit)          # même action que Fichier > Quitter (Ctrl+Q)
+        toolbar.addSeparator()
         toolbar.addAction(self.action_save_project)
         toolbar.addAction(self.action_open_project)
         toolbar.addSeparator()
@@ -478,6 +486,16 @@ class UiSetupMixin:
         toolbar.addSeparator()
         for action in self.tools_menu.actions():
             toolbar.addAction(action)
+        toolbar.addSeparator()
+        # Annuler / refaire des réglages image (anciens boutons de l'onglet Image & Filtres). Les
+        # raccourcis Ctrl+Z / Ctrl+Y restent ceux de l'onglet (QShortcut limité à l'onglet), pour ne
+        # pas entrer en conflit avec l'annulation de l'Éditeur vectoriel.
+        toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.EditUndo,
+                                          self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack)),
+                          tr("ui.img_undo"), self.undo_image_settings)
+        toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.EditRedo,
+                                          self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward)),
+                          tr("ui.img_redo"), self.redo_image_settings)
         toolbar.addSeparator()
         # Image chargée (anciens boutons et cases de l'onglet Image & Filtres) : suppression,
         # rotation, puis miroirs. Les miroirs sont des actions cochables qui gardent l'état.
@@ -500,13 +518,76 @@ class UiSetupMixin:
         for action in (self.action_mirror_h, self.action_mirror_v):
             action.setCheckable(True)
             action.toggled.connect(self.update_image_processing)
+        # Même action que le bouton de l'onglet Image & Filtres, toujours disponible.
+        toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.DocumentRevert,
+                                          self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)),
+                          tr("img.reset"), self.reset_image_settings)
         # Activées seulement avec une image chargée, sur un onglet qui l'affiche (update_image_actions_state).
         self._image_actions = (action_delete, action_rotate_left, action_rotate_right)
         self._mirror_actions = (self.action_mirror_h, self.action_mirror_v)
         for action in self._image_actions + self._mirror_actions:
             action.setEnabled(False)
+        toolbar.addSeparator()
+        # G-Code (anciens boutons du bas de la colonne de gauche) : estimer, générer (bouton bleu
+        # conservé tel quel, avec son libellé), importer un G-Code existant.
+        estimate_icon = QIcon.fromTheme("chronometer", QIcon.fromTheme("preferences-system-time",
+                                                                         QIcon.fromTheme("alarm")))
+        toolbar.addAction(estimate_icon, tr("gcode.estimate"), self.estimate_job_time)
+        btn_generate = QPushButton(tr("gcode.generate"))
+        btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 3px;")
+        btn_generate.clicked.connect(self.generate_job)
+        toolbar.addWidget(btn_generate)
+        import_icon = QIcon.fromTheme("document-import",
+                                      self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
+        toolbar.addAction(import_icon, tr("gcode.import"), self.import_gcode_file)
+        toolbar.addSeparator()
+        # Connexion au graveur : mêmes réglages que la page « Matériaux et connexion au graveur ».
+        # La liste des ports partage son modèle avec celle de la page (voir combo_ports).
+        self.combo_ports_toolbar = QComboBox()
+        self.combo_ports_toolbar.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_ports_toolbar.setMinimumContentsLength(16)
+        self.combo_ports_toolbar.setToolTip(tr("usb.port"))
+        self.combo_ports_toolbar.currentTextChanged.connect(
+            lambda text: self.combo_ports_toolbar.setToolTip(text or tr("usb.port")))
+        toolbar.addWidget(self.combo_ports_toolbar)
+        toolbar.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ViewRefresh,
+                                          self.style().standardIcon(QStyle.StandardPixmap.SP_BrowserReload)),
+                          tr("usb.refresh_ports"), self.refresh_com_ports)
+        self.action_connect = toolbar.addAction(tr("laser.connect"), self.toggle_usb)
+        # Seul bouton avec son libellé : l'état de la connexion doit se lire d'un coup d'œil.
+        toolbar.widgetForAction(self.action_connect).setToolButtonStyle(
+            Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.update_connection_widgets()
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, toolbar)
         self.main_toolbar = toolbar
+
+    @staticmethod
+    def _status_dot_icon(color):
+        """Pastille ronde de la couleur donnée (état de la connexion)."""
+        pixmap = QPixmap(16, 16)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(color).darker(140), 1))
+        painter.setBrush(QColor(color))
+        painter.drawEllipse(2, 2, 12, 12)
+        painter.end()
+        return QIcon(pixmap)
+
+    def update_connection_widgets(self):
+        """Met le bouton de connexion (page et barre d'outils) en accord avec l'état du port :
+        « Déconnecter » sur fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
+        rouge sinon."""
+        connected = self.usb.is_connected()
+        label = tr("laser.disconnect") if connected else tr("laser.connect")
+        button = getattr(self, "btn_connect", None)
+        if button is not None:
+            button.setText(label)
+            button.setStyleSheet("background-color: #27ae60; color: white;" if connected else "")
+        action = getattr(self, "action_connect", None)
+        if action is not None:
+            action.setText(label)
+            action.setIcon(self._status_dot_icon("#27ae60" if connected else "#e74c3c"))
 
     def _on_language_selected(self, lang_code):
         set_language(lang_code)
@@ -606,15 +687,9 @@ class UiSetupMixin:
         self.setCentralWidget(main_widget)
         main_layout = QHBoxLayout(main_widget)
 
-        splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        left_widget = QWidget()
-        left_panel = QVBoxLayout(left_widget)
-        left_panel.setContentsMargins(0, 0, 0, 0)
-
-        tabs = QTabWidget()
-        tabs.setMovable(True)
-        self.settings_tabs = tabs
+        # Plus de colonne de gauche : les pages de réglages s'ouvrent dans des fenêtres (menu
+        # Paramètres), les réglages de l'image sont dans « Graver une image », la position du job
+        # dans le panneau machine. Le centre occupe toute la largeur.
         tab_machine_params_content = QWidget()
         layout_machine_params = QVBoxLayout(tab_machine_params_content)
 
@@ -702,7 +777,7 @@ class UiSetupMixin:
 
         btn_img = QPushButton(tr("img.load"))
         btn_img.clicked.connect(self.load_image)
-        layout_img.addRow("", btn_img)
+        layout_img.addRow(btn_img)                 # toute la largeur du panneau
 
 
         self.slider_bright = QSlider(Qt.Orientation.Horizontal); self.slider_bright.setRange(-100, 100); self.slider_bright.setValue(0)
@@ -739,13 +814,6 @@ class UiSetupMixin:
         _popup = self.combo_material_bg.view()
         _popup.setMinimumWidth(_popup.sizeHintForColumn(0) + 24)
         self.combo_material_bg.currentIndexChanged.connect(self._on_material_bg_changed)
-
-        btn_reset_img = QPushButton(tr("img.reset"))
-        btn_reset_img.clicked.connect(self.reset_image_settings)
-        btn_undo_img = QPushButton(tr("ui.img_undo"))
-        btn_undo_img.clicked.connect(self.undo_image_settings)
-        btn_redo_img = QPushButton(tr("ui.img_redo"))
-        btn_redo_img.clicked.connect(self.redo_image_settings)
 
         shortcut_undo_img = QShortcut(QKeySequence.StandardKey.Undo, tab_img)
         shortcut_undo_img.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
@@ -784,6 +852,9 @@ class UiSetupMixin:
         btn_configure_focal.clicked.connect(self.goto_laser_focal_settings)
 
         self.stack_lmm_input = QStackedWidget()
+        # Hauteur de son contenu, sans s'étirer : sinon la place libre de l'onglet allait dans la pile
+        # et écartait la liste « Résolution », le champ DPI et « Enregistrer comme focale ».
+        self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
 
         btn_save_focal_lmm = QPushButton(tr("img.save_as_focal"))
         btn_save_focal_lmm.clicked.connect(self.save_current_lmm_as_focal)
@@ -821,11 +892,6 @@ class UiSetupMixin:
         layout_img.addRow(tr("img.sharpness"), self.create_slider_with_buttons(self.slider_sharp, step=5))
         layout_img.addRow(tr("img.material_bg"), self.combo_material_bg)
         layout_img.addRow("", self.chk_invert)
-        undo_redo_img_row = QHBoxLayout()
-        undo_redo_img_row.addWidget(btn_undo_img)
-        undo_redo_img_row.addWidget(btn_redo_img)
-        layout_img.addRow("", undo_redo_img_row)
-        layout_img.addRow("", btn_reset_img)
         layout_img.addRow(tr("img.algorithm"), self.combo_algo)
         layout_img.addRow(tr("img.resolution"), self.combo_lmm_mode)
         layout_img.addRow("", self.stack_lmm_input)
@@ -834,19 +900,9 @@ class UiSetupMixin:
         self.combo_lmm_mode.setCurrentIndex(2)
         self.on_lmm_mode_changed(2)
 
-        btn_compare_algos = QPushButton(tr("img.compare_algos"))
-        btn_compare_algos.clicked.connect(self.compare_dither_algorithms)
-        layout_img.addRow("", btn_compare_algos)
-
-        tabs.addTab(tab_img, tr("tab.image_filters"))
+        # Réglages de l'image : panneau de gauche de l'onglet central « Graver une image ».
         self.tab_img = tab_img
-        self.settings_tabs_widget = tabs
 
-        tab_dim = QWidget()
-        layout_dim = QVBoxLayout(tab_dim)
-
-        dim_box = QGroupBox(tr("dim.box_title"))
-        dim_layout = QFormLayout()
         self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(0.1, 2000.0); self.spin_w.setValue(100.0)
         self.spin_w.valueChanged.connect(lambda v: self.on_dimension_changed('w', v))
         self.spin_h = QDoubleSpinBox(); self.spin_h.setRange(0.1, 2000.0); self.spin_h.setValue(100.0)
@@ -858,16 +914,24 @@ class UiSetupMixin:
         self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
         self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
 
-        dim_layout.addRow(tr("dim.width"), self.spin_w)
-        dim_layout.addRow(tr("dim.height"), self.spin_h)
-        dim_layout.addRow("", self.chk_keep_ratio)
-        dim_layout.addRow(tr("dim.origin"), self.combo_origin)
-        dim_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
-        dim_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
-        dim_box.setLayout(dim_layout)
-        layout_dim.addWidget(dim_box)
-        layout_dim.addStretch()
-        tabs.addTab(tab_dim, tr("tab.dimensions"))
+        # Taille de l'image : en haut des réglages de « Graver une image », sous « Charger Image ».
+        layout_img.insertRow(1, tr("dim.width"), self.spin_w)
+        layout_img.insertRow(2, tr("dim.height"), self.spin_h)
+        layout_img.insertRow(3, self.chk_keep_ratio)          # toute la largeur du panneau
+
+        # Position du job sur le plateau (image ET vecteurs, voir workers.AdvancedGCodeWorker) :
+        # dans le panneau machine, avec le jog et le cadrage qui servent à la régler.
+        self.job_position_box = QGroupBox(tr("ui.job_position_box"))
+        job_position_layout = QHBoxLayout(self.job_position_box)
+        job_position_layout.addWidget(QLabel(tr("dim.origin")))
+        job_position_layout.addWidget(self.combo_origin)
+        job_position_layout.addSpacing(12)
+        job_position_layout.addWidget(QLabel(tr("dim.offset_x")))
+        job_position_layout.addWidget(self.spin_off_x)
+        job_position_layout.addSpacing(12)
+        job_position_layout.addWidget(QLabel(tr("dim.offset_y")))
+        job_position_layout.addWidget(self.spin_off_y)
+        job_position_layout.addStretch()
 
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
@@ -875,6 +939,10 @@ class UiSetupMixin:
         usb_box = QGroupBox(tr("usb.box_title"))
         usb_layout = QFormLayout()
         self.combo_ports = QComboBox()
+        # Même liste que le sélecteur de la barre d'outils (modèle partagé) et même port choisi.
+        self.combo_ports.setModel(self.combo_ports_toolbar.model())
+        self.combo_ports.currentIndexChanged.connect(self.combo_ports_toolbar.setCurrentIndex)
+        self.combo_ports_toolbar.currentIndexChanged.connect(self.combo_ports.setCurrentIndex)
         btn_refresh = QPushButton(tr("usb.refresh_ports"))
         btn_refresh.clicked.connect(self.refresh_com_ports)
         self.btn_connect = QPushButton(tr("usb.connect"))
@@ -1101,7 +1169,8 @@ class UiSetupMixin:
         # Mémorise les réglages des calques dans le profil de la machine active.
         self.layer_widget.layers_changed.connect(self._schedule_layer_persist)
         layout_layers.addWidget(self.layer_widget)
-        tabs.addTab(tab_layers, tr("tab.layers"))
+        # Onglet central, entre « Graver une image vectorielle » et la visualisation du G-Code.
+        self.tab_layers = tab_layers
 
         laser_box = QGroupBox(tr("ui.laser_exec_box"))
         laser_layout = QFormLayout()
@@ -1144,64 +1213,24 @@ class UiSetupMixin:
         legacy_svg_layout.addRow(tr("ui.cut_passes"), self.spin_passes_cut)
         legacy_svg_box.setLayout(legacy_svg_layout)
 
-        left_bottom_widget = QWidget()
-        left_bottom_layout = QVBoxLayout(left_bottom_widget)
-        left_bottom_layout.setContentsMargins(0, 0, 0, 0)
-
-        left_bottom_layout.addWidget(legacy_svg_box)
+        # Ancien mode SVG, conservé pour compatibilité mais jamais affiché : gardé en vie ici (ses
+        # champs sont encore lus par la génération).
         legacy_svg_box.setVisible(False)
+        self.legacy_svg_box = legacy_svg_box
 
-        btn_estimate = QPushButton(tr("gcode.estimate"))
-        btn_estimate.clicked.connect(self.estimate_job_time)
-        left_bottom_layout.addWidget(btn_estimate)
-
-        btn_generate = QPushButton(tr("gcode.generate"))
-        btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 3px;")
-        btn_generate.clicked.connect(self.generate_job)
-        left_bottom_layout.addWidget(btn_generate)
-
-        gen_progress_row_main = QHBoxLayout()
         self.lbl_gen_progress_main = AutoHideLabel("")
         self.gen_progress_bar_main = QProgressBar()
         self.gen_progress_bar_main.setRange(0, 100)
         self.gen_progress_bar_main.setValue(0)
         self.gen_progress_bar_main.setVisible(False)
         self.gen_progress_bar_main.setMaximumHeight(16)
-        gen_progress_row_main.addWidget(self.lbl_gen_progress_main)
-        gen_progress_row_main.addWidget(self.gen_progress_bar_main)
-        left_bottom_layout.addLayout(gen_progress_row_main)
+        # Progression de la génération : dans la barre d'état, en bas de la fenêtre.
+        self.statusBar().addWidget(self.lbl_gen_progress_main)
+        self.statusBar().addWidget(self.gen_progress_bar_main, 1)
 
-        btn_import_gcode = QPushButton(tr("gcode.import"))
-        btn_import_gcode.clicked.connect(self.import_gcode_file)
-        left_bottom_layout.addWidget(btn_import_gcode)
 
-        self.chk_flip_raster_preview = QCheckBox(tr("preview.flip"))
-        self.chk_flip_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
-        left_bottom_layout.addWidget(self.chk_flip_raster_preview)
-
-        self.chk_negative_raster_preview = QCheckBox(tr("preview.negative"))
-        self.chk_negative_raster_preview.setChecked(True)
-        self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
-        left_bottom_layout.addWidget(self.chk_negative_raster_preview)
-        self.chk_hide_rapid_moves = QCheckBox(tr("preview.hide_rapid"))
-        self.chk_hide_rapid_moves.setChecked(True)
-        self.chk_hide_rapid_moves.stateChanged.connect(
-            self.on_flip_raster_preview_changed
-        )
-        left_bottom_layout.addWidget(self.chk_hide_rapid_moves)
-
-        self.chk_optimize_path = QCheckBox(tr("ui.optimize_path"))
-        self.chk_optimize_path.setChecked(True)
-        left_bottom_layout.addWidget(self.chk_optimize_path)
-        
         self._last_gcode_text = None
 
-        tabs.setMinimumHeight(120)
-        left_bottom_widget.setMinimumHeight(80)
-        self.left_v_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.left_v_splitter.addWidget(tabs)
-        self.left_v_splitter.addWidget(left_bottom_widget)
-        left_panel.addWidget(self.left_v_splitter)
 
         center_widget = QWidget()
         center_panel = QVBoxLayout(center_widget)
@@ -1213,15 +1242,26 @@ class UiSetupMixin:
         outer_layout_previews = QVBoxLayout(tab_previews)
         outer_layout_previews.setContentsMargins(4, 4, 4, 4)
 
-        toolbar_previews = QHBoxLayout()
-        toolbar_previews.addStretch()
-        btn_fullscreen_previews = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fullscreen_previews.clicked.connect(self._toggle_fullscreen_image_tab)
-        toolbar_previews.addWidget(btn_fullscreen_previews)
-        outer_layout_previews.addLayout(toolbar_previews)
+        # Barre d'outils de l'onglet : comparaison des algorithmes à gauche (ancien bouton de l'onglet
+        # Image & Filtres : n'agit que sur l'image de cet onglet), plein écran aligné à droite.
+        compare_icon = QIcon.fromTheme("view-app-grid", QIcon.fromTheme(
+            "view-list-icons", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)))
+        # Affiche ou masque l'image originale (masquée par défaut, voir box_source_image).
+        self.chk_show_original = QCheckBox(tr("img.show_original"))
+        self.chk_show_original.setToolTip(tr("img.show_original_tip"))
+        self.chk_show_original.toggled.connect(lambda checked: self.box_source_image.setVisible(checked))
+        toolbar_previews = self._build_tab_toolbar(
+            tab_previews, self._toggle_fullscreen_image_tab,
+            left_actions=[(compare_icon, tr("img.compare_algos"), tr("img.compare_algos_tip"),
+                           self.compare_dither_algorithms)],
+            left_widgets=[self.chk_show_original])
+        outer_layout_previews.addWidget(toolbar_previews)
 
         layout_previews = QHBoxLayout()
-        
+        # Réglages de l'image à gauche, comme dans Séparation.
+        img_settings_scroll = self._side_settings_panel(self.tab_img)
+        layout_previews.addWidget(img_settings_scroll)
+
         box_src = QGroupBox(tr("ui.source_image_box"))
         layout_src = QVBoxLayout()
         self.view_preview_src = ZoomableGraphicsView()
@@ -1235,6 +1275,10 @@ class UiSetupMixin:
         box_dither.setLayout(layout_dither)
 
         layout_previews.addWidget(box_src)
+        # Image originale masquée par défaut : le rendu tramé prend toute la place. Elle reste tenue
+        # à jour (display_source_image) ; la case « Afficher l'originale » la réaffiche.
+        box_src.setVisible(False)
+        self.box_source_image = box_src
         layout_previews.addWidget(box_dither)
         outer_layout_previews.addLayout(layout_previews)
         self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
@@ -1276,7 +1320,9 @@ class UiSetupMixin:
         btn_redo_vector = QPushButton(tr("ui.vector_redo"))
         btn_redo_vector.clicked.connect(lambda: self.vector_canvas.redo())
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
+        btn_fullscreen_vector.setIcon(self._fullscreen_icon())
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
+        tab_vector_editor._fullscreen_control = btn_fullscreen_vector   # voir _show_fullscreen_control
         # Deux lignes : en une seule, les 11 boutons demandaient ~1 500 px et leurs libellés étaient
         # tronqués dès que la fenêtre était un peu étroite. Ligne 1 : créer / importer ; ligne 2 : modifier.
         toolbar_vector.addWidget(btn_add_text)
@@ -1390,20 +1436,33 @@ class UiSetupMixin:
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
+        self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))
 
         tab_vector_2d = QWidget()
         layout_vector_2d = QVBoxLayout(tab_vector_2d)
 
-        toolbar_vector_2d = QHBoxLayout()
-        toolbar_vector_2d.addStretch()
-        toolbar_vector_2d.addWidget(self._build_support_button())
-        toolbar_vector_2d.addSpacing(6)
-        btn_fullscreen_vector_2d = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fullscreen_vector_2d.clicked.connect(
-            lambda: self._toggle_fullscreen_tab("tab_vector_2d", "ui.tab_2d_preview")
-        )
-        toolbar_vector_2d.addWidget(btn_fullscreen_vector_2d)
-        layout_vector_2d.addLayout(toolbar_vector_2d)
+        # Options de l'aperçu (anciennes cases du bas de la colonne de gauche). « Optimiser le
+        # chemin », elle, s'applique à la prochaine génération du G-Code.
+        self.chk_flip_raster_preview = QCheckBox(tr("preview.flip"))
+        self.chk_flip_raster_preview.setToolTip(tr("preview.flip_tip"))
+        self.chk_flip_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
+        self.chk_negative_raster_preview = QCheckBox(tr("preview.negative"))
+        self.chk_negative_raster_preview.setToolTip(tr("preview.negative_tip"))
+        self.chk_negative_raster_preview.setChecked(True)
+        self.chk_negative_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
+        self.chk_hide_rapid_moves = QCheckBox(tr("preview.hide_rapid"))
+        self.chk_hide_rapid_moves.setToolTip(tr("preview.hide_rapid_tip"))
+        self.chk_hide_rapid_moves.setChecked(True)
+        self.chk_hide_rapid_moves.stateChanged.connect(self.on_flip_raster_preview_changed)
+        self.chk_optimize_path = QCheckBox(tr("ui.optimize_path"))
+        self.chk_optimize_path.setToolTip(tr("ui.optimize_path_tip"))
+        self.chk_optimize_path.setChecked(True)
+        toolbar_vector_2d = self._build_tab_toolbar(
+            tab_vector_2d, lambda: self._toggle_fullscreen_tab("tab_vector_2d", "ui.tab_2d_preview"),
+            left_widgets=[self.chk_flip_raster_preview, self.chk_negative_raster_preview,
+                          self.chk_hide_rapid_moves, self.chk_optimize_path],
+            right_widgets=[self._build_support_button()])
+        layout_vector_2d.addWidget(toolbar_vector_2d)
         
         self.plot_widget = pg.PlotWidget(title=tr("ui.plot_title"))
         self.plot_widget.setBackground('#111111')
@@ -1454,6 +1513,7 @@ class UiSetupMixin:
         dro_layout.addWidget(self.lbl_dro_z)
         dro_box.setLayout(dro_layout)
         center_bottom_layout.addWidget(dro_box)
+        center_bottom_layout.addWidget(self.job_position_box)
 
         jog_box = QGroupBox(tr("ui.jog_box"))
         jog_layout = QGridLayout()
@@ -1568,12 +1628,19 @@ class UiSetupMixin:
         cmd_layout.addWidget(btn_send_cmd)
         cmd_box.setLayout(cmd_layout)
         center_bottom_layout.addWidget(cmd_box)
+        center_bottom_layout.addStretch()              # place libre en bas, pas dans les cadres
 
         self.main_tabs_view.setMinimumHeight(150)
-        center_bottom_widget.setMinimumHeight(100)
+        # Le panneau machine (DRO, jog, console directe) demande ~400 px. Réduit plus bas avec le
+        # séparateur, il défile au lieu d'écraser ses cadres jusqu'à n'en laisser que les titres.
+        center_bottom_scroll = QScrollArea()
+        center_bottom_scroll.setWidget(center_bottom_widget)
+        center_bottom_scroll.setWidgetResizable(True)
+        center_bottom_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        center_bottom_scroll.setMinimumHeight(100)
         self.center_v_splitter = QSplitter(Qt.Orientation.Vertical)
         self.center_v_splitter.addWidget(self.main_tabs_view)
-        self.center_v_splitter.addWidget(center_bottom_widget)
+        self.center_v_splitter.addWidget(center_bottom_scroll)
         self.center_v_splitter.setStretchFactor(0, 3)
         self.center_v_splitter.setStretchFactor(1, 1)
         center_panel.addWidget(self.center_v_splitter)
@@ -1582,14 +1649,9 @@ class UiSetupMixin:
         layout_console_gcode = QVBoxLayout(tab_console_gcode)
         layout_console_gcode.setContentsMargins(6, 6, 6, 6)
 
-        toolbar_console_gcode = QHBoxLayout()
-        toolbar_console_gcode.addStretch()
-        btn_fullscreen_console_gcode = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fullscreen_console_gcode.clicked.connect(
-            lambda: self._toggle_fullscreen_tab("tab_console_gcode", "ui.tab_console_gcode")
-        )
-        toolbar_console_gcode.addWidget(btn_fullscreen_console_gcode)
-        layout_console_gcode.addLayout(toolbar_console_gcode)
+        toolbar_console_gcode = self._build_tab_toolbar(
+            tab_console_gcode, lambda: self._toggle_fullscreen_tab("tab_console_gcode", "ui.tab_console_gcode"))
+        layout_console_gcode.addWidget(toolbar_console_gcode)
 
         stats_box = QGroupBox(tr("ui.job_stats_box"))
         stats_layout = QVBoxLayout()
@@ -1643,8 +1705,15 @@ class UiSetupMixin:
         self.tab_console_gcode = tab_console_gcode
 
         tab_job_queue = QWidget()
-        layout_job_queue = QVBoxLayout(tab_job_queue)
-        layout_job_queue.setContentsMargins(6, 6, 6, 6)
+        layout_tab_job_queue = QVBoxLayout(tab_job_queue)
+        layout_tab_job_queue.setContentsMargins(6, 6, 6, 6)
+        # Deux moitiés réglables : la file à gauche, le G-Code envoyé à droite.
+        queue_splitter = QSplitter(Qt.Orientation.Horizontal)
+        layout_tab_job_queue.addWidget(queue_splitter)
+        queue_left = QWidget()
+        layout_job_queue = QVBoxLayout(queue_left)
+        layout_job_queue.setContentsMargins(0, 0, 0, 0)
+        queue_splitter.addWidget(queue_left)
 
         self.list_job_queue = QListWidget()
         self.list_job_queue.setDragDropMode(QListWidget.DragDropMode.InternalMove)
@@ -1671,34 +1740,45 @@ class UiSetupMixin:
         self.lbl_queue_status = QLabel(tr("ui.queue_empty"))
         layout_job_queue.addWidget(self.lbl_queue_status)
 
+        # Suivi de l'envoi : chaque ligne de G-Code s'ajoute ici au moment où elle part vers la
+        # machine (GCodeStreamerThread.lines_sent), pour la file comme pour « Envoyer au laser ».
+        sent_box = QGroupBox(tr("queue.sent_log_title"))
+        sent_layout = QVBoxLayout(sent_box)
+        self.txt_sent_gcode = QPlainTextEdit()
+        self.txt_sent_gcode.setReadOnly(True)
+        self.txt_sent_gcode.setMaximumBlockCount(20000)     # garde les 20 000 dernières lignes
+        self.txt_sent_gcode.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.txt_sent_gcode.setStyleSheet("font-family: monospace;")
+        self.txt_sent_gcode.setPlaceholderText(tr("queue.sent_log_placeholder"))
+        sent_layout.addWidget(self.txt_sent_gcode)
+        queue_splitter.addWidget(sent_box)
+        # Moitié / moitié au départ, puis à chaque redimensionnement de la fenêtre. Des tailles
+        # égales et grandes : Qt les ramène à la largeur réelle en gardant la proportion.
+        queue_splitter.setStretchFactor(0, 1)
+        queue_splitter.setStretchFactor(1, 1)
+        queue_splitter.setSizes([100000, 100000])
+
         self.main_tabs_view.addTab(tab_job_queue, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab_job_queue
 
-        self.center_bottom_widget = center_bottom_widget
+        self.center_bottom_widget = center_bottom_scroll     # masqué / affiché selon l'onglet
         self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
         self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
+        for tab in (self.tab_separation, self.tab_png2svg):
+            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
 
-        splitter.addWidget(left_widget)
-        splitter.addWidget(center_widget)
-
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 3)
-        left_widget.setMinimumWidth(280)
-        # Largeur minimale EXPLICITE du centre. Sans elle, le séparateur prend la largeur minimale
-        # calculée d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px)
-        # et la rangée d'alignement imposaient environ 1500 px au centre, et la colonne de gauche ne
-        # pouvait plus être élargie au-delà de ce qui restait. Trop étroit, le centre se contente de
-        # serrer ses boutons : on peut toujours réduire à nouveau la colonne de gauche.
+        # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
+        # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
+        # rangée d'alignement imposeraient environ 1500 px à la fenêtre. Trop étroit, le centre se
+        # contente de serrer ses boutons.
         center_widget.setMinimumWidth(480)
-        self.main_splitter = splitter
-        splitter.splitterMoved.connect(self.save_splitter_sizes)
-        self.left_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
         self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
 
-        main_layout.addWidget(splitter)
+        main_layout.addWidget(center_widget)
 
     def _on_main_tab_changed(self, idx):
       if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:

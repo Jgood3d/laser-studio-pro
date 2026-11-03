@@ -231,6 +231,37 @@ Contrôler les traductions (rapport détaillé) :
 python tools/check_translations.py
 ```
 
+### Variables d’environnement
+
+| Variable | Effet |
+| --- | --- |
+| `LASER_STUDIO_SIMULATION` | Simule un graveur GRBL 1.1, pour tester l’application sans machine. La valeur est le facteur de vitesse : `1` en temps réel, `20` vingt fois plus vite. |
+| `LASER_STUDIO_DEBUG` | Journalise la gravure (file d’attente, envoi du G-Code, port série) : étapes et erreurs dans le terminal, détail ligne par ligne dans `gravure_debug.log`. |
+
+Les deux variables sont désactivées si elles sont absentes, vides ou à `0`.
+
+**Simulation.** Lancez l’application avec la variable :
+
+```bash
+LASER_STUDIO_SIMULATION=20 python main.py
+```
+
+Un port « SIMULATION - Graveur simulé » apparaît en tête de la liste des ports. Connectez-vous dessus comme à une vraie machine : le graveur simulé répond aux réglages (`$$`, modifiables avec `$N=valeur`), au homing (`$H`), au déverrouillage (`$X`) et au jog, exécute le G-Code en respectant les vitesses, et réagit à la pause (`!`), à la reprise (`~`) et au reset (Ctrl+X, avec `ALARM:3` si la machine bougeait). Pour simuler une machine sans homing, envoyez `$22=0` depuis la console.
+
+**Journal de débogage.** Lancez l’application avec la variable :
+
+```bash
+LASER_STUDIO_DEBUG=1 python main.py
+```
+
+Le fichier `gravure_debug.log` est réécrit à chaque lancement, dans le dossier de données de l’application : `~/.local/share/LaserStudioPro/` sous Linux, `%APPDATA%\LaserStudioPro\` sous Windows, `~/Library/Application Support/LaserStudioPro/` sous macOS.
+
+Les deux variables se combinent, par exemple pour suivre en détail un job envoyé au graveur simulé :
+
+```bash
+LASER_STUDIO_SIMULATION=20 LASER_STUDIO_DEBUG=1 python main.py
+```
+
 ## Remerciements
 
 Merci à toutes les personnes qui contribuent au projet, testent les fonctionnalités et signalent les bugs.

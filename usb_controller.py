@@ -4,6 +4,7 @@ import threading
 import re
 import serial
 
+from simulated_grbl import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
 from debug_log import get_logger
 
 log = get_logger()
@@ -83,6 +84,15 @@ class LaserUSBController:
 
     def connect(self, port, baudrate=115200):
         try:
+            speed = simulation_speed()
+            if speed is not None and port == SIMULATED_PORT:
+                # Graveur simulé (variable LASER_STUDIO_SIMULATION) : pas d'attente du redémarrage de la carte.
+                self.ser = SimulatedGrblSerial(port, baudrate, timeout=1, speed=speed)
+                self.ser.write(b"\r\n\r\n")
+                self.ser.reset_input_buffer()
+                self.last_port = port
+                self.last_baudrate = baudrate
+                return True
             log.info("USB : connexion à %s (%d baud)", port, baudrate)
             self.ser = serial.Serial(port, baudrate, timeout=1)
             time.sleep(2)

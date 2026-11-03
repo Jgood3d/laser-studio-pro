@@ -179,6 +179,8 @@ class JobQueueMixin:
 
         log.info("File : démarrage, dernier état GRBL connu %s", self.usb.last_state)
         self._queue_running_index = 0
+        if hasattr(self, "txt_sent_gcode"):
+            self.txt_sent_gcode.clear()
         self.btn_run_queue.setEnabled(False)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.pause()
@@ -223,7 +225,10 @@ class JobQueueMixin:
         )
 
         self.progress_bar.setValue(0)
+        self._append_sent_gcode([tr("queue.sent_log_job").format(
+            index=self._queue_running_index + 1, total=len(self.job_queue), name=job["name"])])
         self.streamer = GCodeStreamerThread(self.usb, job["gcode"])
+        self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(
             lambda current, total: self.progress_bar.setValue(int((current / total) * 100) if total else 0))
         self.streamer.log_signal.connect(self.txt_console.append)
@@ -233,7 +238,17 @@ class JobQueueMixin:
             self.streamer.connection_lost.connect(self._on_job_connection_lost)
         self.streamer.start()
 
+    def _append_sent_gcode(self, lines):
+        """Ajoute des lignes au suivi d'envoi de l'onglet File d'attente (voir txt_sent_gcode)."""
+        view = getattr(self, "txt_sent_gcode", None)
+        if view is not None and lines:
+            view.appendPlainText("\n".join(lines))
+
+    def _log_sent_gcode_end(self, clean_finish):
+        self._append_sent_gcode([tr("queue.sent_log_done" if clean_finish else "queue.sent_log_stopped")])
+
     def _on_queued_job_finished(self, clean_finish):
+        self._log_sent_gcode_end(clean_finish)
         log.info("File : job %d terminé, fin propre=%s", self._queue_running_index + 1, clean_finish)
         if hasattr(self, "_check_position_after_stream"):
             self._check_position_after_stream()
