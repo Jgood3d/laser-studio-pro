@@ -252,6 +252,17 @@ class GcodeGenerationMixin:
             last = burned.shape[1] - 1 - burned[:, ::-1].argmax(axis=1)
             step_x = w_mm / max(burned.shape[1], 1)
             distance = float(((last + 1 - first) * step_x + 2 * overscan)[swept].sum())
+            # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
+            # désactivé, distance fixe ou pourcentage de la largeur de l'image.
+            if self.chk_overscan.isChecked():
+                if self._overscan_mode_value() == "Pourcentage (%)":
+                    overscan = w_mm * self.spin_overscan_pct.value() / 100.0
+                else:
+                    overscan = self.spin_overscan_dist.value()
+            else:
+                overscan = 0.0
+            rows = max(1, int(h_mm * lmm))
+            distance = rows * (w_mm + 2 * overscan)
             t = (distance / max(speed, 1)) * 60.0
             total_seconds += t
             details.append(tr("gcode.image_details").format(
