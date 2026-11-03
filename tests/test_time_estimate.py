@@ -31,11 +31,11 @@ class _Widget:
 
 @unittest.skipIf(ggm is None, "gcode_generation_mixin non importable ici")
 class TimeEstimateOverscanTests(unittest.TestCase):
-    def estimate(self, enabled, mode_index=0, dist=2.5, pct=5.0):
+    def estimate(self, enabled, mode_index=0, dist=2.5, pct=5.0, array=None):
         class App(ggm.GcodeGenerationMixin):
             pass
         app = App()
-        app.processed_array = np.zeros((10, 100), np.uint8)
+        app.processed_array = np.zeros((10, 100), np.uint8) if array is None else array
         # 10 lignes de 100 mm à 600 mm/min : 100 s sans surbalayage.
         app.spin_w, app.spin_h, app.spin_lmm = _Widget(100.0), _Widget(10.0), _Widget(1.0)
         app.spin_speed_engrave = _Widget(600)
@@ -58,6 +58,12 @@ class TimeEstimateOverscanTests(unittest.TestCase):
     def test_percentage_overscan_is_counted(self):
         app, msg = self.estimate(True, 1, pct=10.0)              # 10 % de 100 mm de chaque côté : 120 s
         self.assertIn(app._format_duration(120.0), msg)
+
+    def test_overscan_is_added_to_trimmed_rows_only(self):
+        arr = np.full((10, 100), 255, np.uint8)
+        arr[[2, 7], 20:50] = 0                                     # 2 lignes de 30 mm, 8 lignes vides
+        app, msg = self.estimate(True, 0, dist=5.0, array=arr)    # 2 x (30 + 2 x 5) mm = 8 s
+        self.assertIn(app._format_duration(8.0), msg)
 
 
 if __name__ == "__main__":
