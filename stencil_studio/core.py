@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.10.70"  # doit être identique dans core.py et studio.html
+VERSION = "2026.10.84"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -103,6 +103,22 @@ class Params:
     lp_style: str = "solid"       # low poly : wire (arêtes seules) | solid (facettes sombres pleines) | shade (trou de chaque facette selon le ton)
     lp_geo: bool = False          # low poly : style géométrique (silhouette en polygone, peu de sommets, taches sombres en facettes)
     lp_simplify: float = 1.2      # low poly géométrique : simplification de la silhouette (% de la taille)
+    ml_layers: int = 4            # multicouche : nombre de plaques empilées (la 1re = fond plein)
+    ml_invert: bool = False       # multicouche : les zones claires sont les plus profondes (au lieu des sombres)
+    ml_sep: str = "tone"          # multicouche : tone (par luminosité) | color (une plaque par couleur dominante)
+    ml_order: str = ""            # multicouche couleur : ordre des couleurs de l'arrière vers l'avant (indices séparés par des virgules)
+    ml_bg: str = "front"          # multicouche : fond de l'image = couleur de la plaque de devant (front) | plaque de fond à part (own)
+    ml_bg_color: str = "#e8dcc8"  # multicouche : couleur de la plaque de fond à part (aperçu et export)
+    ml_engrave: bool = False      # multicouche : graver les détails (visages...) sur la plaque de devant (calque ENGRAVE)
+    ml_eng_level: float = 50.0    # multicouche : sensibilité de la gravure des détails (0 à 100)
+    ml_pins: bool = True          # multicouche : 3 trous de repérage identiques dans la bordure de chaque couche
+    ml_pin_mm: float = 3.0        # diamètre des trous de repérage (tourillons / vis)
+    ml_picks: str = ""            # multicouche couleur : couleurs choisies à la pipette (#rrggbb séparés par des virgules ; ≥ 2 = remplace le k-means)
+    ml_color_auto: bool = True    # multicouche couleur : nombre de couleurs détecté automatiquement (ml_layers = maximum)
+    ml_pieces: bool = False       # multicouche : plaques de dessus = pièces libres à coller (aucun pont)
+    keep_islands: bool = False    # interne : les îlots non reliés sont gardés comme pièces libres (au lieu d'être supprimés)
+    loose: bool = False           # interne : pas de ponts (pièces libres)
+    ml_gap_mm: float = 6.0        # espace entre couches sur la planche de découpe
     qr_kind: str = "text"         # qr : text (lien, texte...) | wifi
     qr_text: str = "https://exemple.fr"
     qr_ssid: str = ""
@@ -159,6 +175,10 @@ class Result:
     base_sheet: object = None  # masque de la forme sans la languette d'accroche
     marks: object = None       # qr : masque des zones gravées (modules)
     marks_polys: object = None  # qr : contours (mm) des zones gravées, pour le calque ENGRAVE
+    layers: object = None       # multicouche : matière (masque) de chaque couche, taille d'une tuile
+    layer_colors: object = None  # multicouche couleur : (r, g, b) de chaque plaque
+    layer_boxes: object = None   # multicouche : (x0, y0, w, h) de chaque tuile sur la planche
+    layer_polys: object = None  # multicouche : [(nom, contours mm)] sur la planche de découpe
 
 
 # --------------------------------------------------------------------------
@@ -1555,7 +1575,355 @@ def qr_scan_check(img_black, geo):
     return "fail"
 
 
-def process(rgb, p, subject=None, valid=None, manual=None, guides=None):
+LAYER_COLORS = ["#ff3b30", "#34c759", "#0a84ff", "#ff9f0a", "#bf5af2", "#64d2ff", "#ffd60a", "#ff375f"]   # couleurs des calques de LSP
+
+
+def _layer_domain(rgb, p, subject, valid):
+    """Zone du sujet pour le multicouche : celle donnée, sinon IA / fond uni, sinon tout le cadre."""
+    if subject is not None:
+        return subject.astype(np.uint8)
+    filled = fill_outside(rgb, valid)
+    dom = ai_mask(filled, valid) if p.ai_subject else None
+    if dom is None:
+        dom = auto_subject(filled, valid)
+    if dom is None:
+        dom = np.ones(rgb.shape[:2], np.uint8) if valid is None else valid.astype(np.uint8)
+    return dom
+
+
+def parse_picks(txt):
+    """'#rrggbb,#rrggbb' -> liste de tuples RGB (2 à 8 couleurs), sinon []."""
+    out = []
+    for t in str(txt or "").split(","):
+        t = t.strip().lstrip("#")
+        if len(t) == 6:
+            try:
+                out.append(tuple(int(t[i:i + 2], 16) for i in (0, 2, 4)))
+            except ValueError:
+                pass
+    return out[:8] if len(out) >= 2 else []
+
+
+def is_flat_image(rgb, valid=None, top=6, share=0.85):
+    """Vrai pour un logo / aplat : quelques couleurs seulement couvrent presque toute l'image."""
+    small = cv2.resize(rgb, None, fx=min(1.0, 300.0 / max(rgb.shape[:2])), fy=min(1.0, 300.0 / max(rgb.shape[:2])),
+                       interpolation=cv2.INTER_AREA)
+    q = (small >> 4).astype(np.int32)
+    code = (q[:, :, 0] << 8) | (q[:, :, 1] << 4) | q[:, :, 2]
+    if valid is not None:
+        vm = cv2.resize(valid.astype(np.uint8), (small.shape[1], small.shape[0]), interpolation=cv2.INTER_NEAREST) > 0
+        if vm.any():
+            code = code[vm]
+    cnt = np.sort(np.bincount(code.ravel()))[::-1]
+    return float(cnt[:top].sum()) / max(1, code.size) >= share
+
+
+def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
+    """Classe chaque pixel du sujet parmi au plus n couleurs dominantes (k-means en Lab).
+    Avec auto : les couleurs proches (ΔE < 14) sont fusionnées et les classes négligeables (< 1,5 %) supprimées ;
+    une image « plate » (logo) est classée au plus proche, bords nets. Retourne (labels triés du plus sombre au plus
+    clair, centres RGB triés)."""
+    h, w = rgb.shape[:2]
+    lab = cv2.cvtColor(cv2.GaussianBlur(rgb, (0, 0), max(1.0, 0.003 * max(h, w))), cv2.COLOR_RGB2LAB).astype(np.float32)
+    lab0 = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)        # non floutée : les aplats gardent leur vraie couleur
+    if picks:       # couleurs choisies à la pipette : pas de k-means
+        order_p = sorted(picks, key=lambda c: cv2.cvtColor(np.array([[c]], np.uint8), cv2.COLOR_RGB2LAB)[0, 0, 0])
+        n = len(order_p)
+        cen = cv2.cvtColor(np.array([order_p], np.uint8), cv2.COLOR_RGB2LAB).reshape(n, 3).astype(np.float32)
+        d = ((lab[:, :, None, :] - cen[None, None, :, :]) ** 2).sum(-1)
+        if is_flat_image(rgb):
+            labels = np.argmin(d, -1).astype(np.uint8)
+            labels = cv2.medianBlur(labels, 5 if max(h, w) > 600 else 3).astype(np.int32)
+        else:
+            prob = np.exp(-d / 400.0)
+            sig = max(1.0, 0.004 * max(h, w))
+            sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig) for k in range(n)], -1)
+            labels = np.argmax(sm, -1).astype(np.int32)
+        return labels, [tuple(int(v) for v in c) for c in order_p]
+    src = lab0 if auto else lab
+    pts = src[dom > 0]
+    if len(pts) < n * 10:
+        pts = src.reshape(-1, 3)
+    if len(pts) > 40000:
+        pts = pts[np.random.default_rng(3).choice(len(pts), 40000, replace=False)]
+    crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
+    _, _, cen = cv2.kmeans(pts, n, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+    cen = cen[np.argsort(cen[:, 0])]
+    flat = False
+    if auto:
+        for _ in range(n):
+            k = len(cen)
+            d = np.sqrt(((pts[:, None, :] - cen[None, :, :]) ** 2).sum(-1))
+            frac = np.bincount(d.argmin(1), minlength=k) / max(1, len(pts))
+            changed = False
+            small = [i for i in range(k) if frac[i] < 0.015]
+            mix = []
+            for c in range(k):
+                for a in range(k):
+                    for b in range(a + 1, k):
+                        if c in (a, b):
+                            continue
+                        dab = float(np.linalg.norm(cen[a] - cen[b]))
+                        if dab > 20 and float(np.linalg.norm(cen[a] - cen[c]) + np.linalg.norm(cen[c] - cen[b])) < 1.06 * dab \
+                                and frac[c] < 0.12:
+                            mix.append(c)
+            if mix and k > 2:
+                cen = np.delete(cen, min(mix, key=lambda i: frac[i]), 0)
+                changed = True
+            elif small and k > 2:
+                cen = np.delete(cen, min(small, key=lambda i: frac[i]), 0)
+                changed = True
+            elif k > 2:
+                best, bd = None, 14.0
+                for i in range(k):
+                    for j in range(i + 1, k):
+                        dd = float(np.linalg.norm(cen[i] - cen[j]))
+                        if dd < bd:
+                            best, bd = (i, j), dd
+                if best:
+                    i, j = best
+                    cen[i] = (cen[i] * frac[i] + cen[j] * frac[j]) / max(1e-6, frac[i] + frac[j])
+                    cen = np.delete(cen, j, 0)
+                    changed = True
+            if not changed:
+                break
+        n = len(cen)
+        pl = lab0[dom > 0]
+        if len(pl) > 40000:
+            pl = pl[np.random.default_rng(5).choice(len(pl), 40000, replace=False)]
+        dmin = np.sqrt(((pl[:, None, :] - cen[None, :, :]) ** 2).sum(-1)).min(1)
+        flat = float((dmin < 12.0).mean()) >= 0.85
+    d = ((lab[:, :, None, :] - cen[None, None, :, :]) ** 2).sum(-1)
+    if flat:
+        labels = np.argmin(d, -1).astype(np.uint8)
+        labels = cv2.medianBlur(labels, 5 if max(h, w) > 600 else 3).astype(np.int32)
+    else:
+        prob = np.exp(-d / 400.0)
+        sig = max(1.0, 0.006 * max(h, w))
+        sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig) for k in range(n)], -1)
+        labels = np.argmax(sm, -1).astype(np.int32)
+    rgb_c = cv2.cvtColor(np.clip(cen, 0, 255).reshape(1, n, 3).astype(np.uint8), cv2.COLOR_LAB2RGB).reshape(n, 3)
+    return labels, [tuple(int(v) for v in q) for q in rgb_c]
+
+
+def layers_masks_color(rgb, p, subject, valid, dom=None):
+    h, w = rgb.shape[:2]
+    dom = _layer_domain(rgb, p, subject, valid) if dom is None else dom
+    n = int(min(8, max(2, p.ml_layers)))
+    labels, cols = color_classes(fill_outside(rgb, valid), dom, n, auto=p.ml_color_auto, picks=parse_picks(p.ml_picks))
+    n = len(cols)
+    try:
+        order = [int(t) for t in str(p.ml_order).split(",") if t.strip() != ""]
+    except ValueError:
+        order = []
+    if sorted(order) != list(range(n)):
+        order = list(range(n))                              # du plus sombre (fond) au plus clair (devant)
+        if p.ml_invert:
+            order = order[::-1]
+    rank = np.zeros(n, np.int32)
+    for pos, cid in enumerate(order):
+        rank[cid] = pos
+    pr = rank[labels]
+    masks = []
+    for i in range(n):                                     # plaque i : pleine là où la couleur est au même niveau ou devant
+        solid = (pr >= i) | (dom == 0)
+        masks.append(solid.astype(np.uint8))
+    colors = [cols[cid] for cid in order]
+    return masks, colors, order
+
+
+def layers_masks(rgb, p, subject, valid, dom=None):
+    """Une plaque par couche (1 = matière), de l'arrière vers l'avant. La couche 1 est pleine ; chaque couche suivante est
+    percée là où l'image est assez sombre (ou claire si ml_invert) : plus on avance vers l'avant, plus les ouvertures
+    sont grandes, donc les zones sombres sont les plus profondes (effet de relief avec ombres)."""
+    h, w = rgb.shape[:2]
+    gray = tone_gray(fill_outside(rgb, valid), p.tone_source)
+    g = cv2.GaussianBlur(gray, (0, 0), max(1.0, 0.004 * max(h, w))).astype(np.float32)
+    dom = _layer_domain(rgb, p, subject, valid) if dom is None else dom
+    sample = g[dom > 0] if dom.any() else g.ravel()
+    n = int(min(8, max(2, p.ml_layers)))
+    masks = [np.ones((h, w), np.uint8)]
+    for i in range(2, n + 1):
+        q = 100.0 * (i - 1) / n
+        reg = (g >= np.percentile(sample, 100.0 - q)) if p.ml_invert else (g <= np.percentile(sample, q))
+        masks.append((1 - (reg & (dom > 0))).astype(np.uint8))
+    return masks
+
+
+def _pin_points(base_sheet, ring_px, ppm, pin_mm):
+    """3 points bien écartés au milieu de la bordure (présente et pleine dans toutes les couches)."""
+    sh = (base_sheet > 0).astype(np.uint8)
+    pad = cv2.copyMakeBorder(sh, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0)
+    dist = cv2.distanceTransform(pad, cv2.DIST_L2, 5)[1:-1, 1:-1]
+    band = np.abs(dist - ring_px / 2.0) <= 1.5
+    ys, xs = np.nonzero(band & (sh > 0))
+    if len(xs) < 20:
+        return []
+    pts = np.stack([xs, ys], 1).astype(np.float32)
+    p1 = pts[np.lexsort((pts[:, 0], pts[:, 1]))[0]]
+    d1 = np.hypot(*(pts - p1).T)
+    p2 = pts[int(np.argmax(d1))]
+    d2 = np.hypot(*(pts - p2).T)
+    p3 = pts[int(np.argmax(np.minimum(d1, d2)))]
+    return [tuple(map(float, q)) for q in (p1, p2, p3)]
+
+
+def _layer_engraving(gray, region, p, ppm):
+    """Détails sombres à graver (traits du visage, yeux...) : contraste local, limités à la zone pleine de la plaque de devant."""
+    h, w = gray.shape
+    g = cv2.GaussianBlur(gray, (0, 0), max(1.0, 0.0015 * max(h, w)))
+    block = (int(0.04 * max(h, w)) | 1)
+    Cv = max(2.0, 16.0 - 0.14 * float(p.ml_eng_level))
+    det = cv2.adaptiveThreshold(g, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, max(5, block), Cv) > 0
+    inner = cv2.erode((region > 0).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    det = (det & inner).astype(np.uint8)
+    det = cv2.morphologyEx(det, cv2.MORPH_OPEN, np.ones((2, 2), np.uint8))
+    n, lbl, st, _ = cv2.connectedComponentsWithStats(det, 8)
+    keep = np.zeros(n, np.uint8)
+    keep[1:] = st[1:, cv2.CC_STAT_AREA] >= max(6, int((0.6 * ppm) ** 2))     # on ignore les points de moins de ~0,6 mm
+    return keep[lbl]
+
+
+def layers_result(rgb, p, subject=None, valid=None):
+    t0 = time.time()
+    h, w = rgb.shape[:2]
+    colors, corder = None, None
+    dom = _layer_domain(rgb, p, subject, valid)
+    if (p.ml_sep == "color" and subject is None and p.ml_bg == "front"
+            and (parse_picks(p.ml_picks) or is_flat_image(fill_outside(rgb, valid), valid))):
+        dom = np.ones((h, w), np.uint8) if valid is None else valid.astype(np.uint8)   # logo : pas de fond à retirer
+    if p.ml_sep == "color":
+        masks, colors, corder = layers_masks_color(rgb, p, subject, valid, dom)
+    else:
+        masks = layers_masks(rgb, p, subject, valid, dom)
+    front = masks[-1].copy()
+    own_bg = p.ml_bg in ("own", "image")
+    if own_bg:       # plaque de fond à part, pleine ; toutes les autres sont percées hors du sujet
+        masks = [np.ones((h, w), np.uint8)] + [(m & (dom > 0)).astype(np.uint8) for m in masks]
+        try:
+            bgc = tuple(int(str(p.ml_bg_color).lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+        except ValueError:
+            bgc = (232, 220, 200)
+        if p.ml_bg == "image":      # couleur réelle du fond de l'image (médiane hors sujet)
+            out = fill_outside(rgb, valid)[dom == 0]
+            if len(out) > 50:
+                bgc = tuple(int(v) for v in np.median(out, axis=0))
+        if colors is not None:
+            colors = [bgc] + list(colors)
+        else:
+            colors = None
+    pl = replace(p, output="stencil", keep_islands=(p.ml_sep == "color"))
+    outs = [process(rgb, pl if (i == 0 or not p.ml_pieces) else replace(pl, loose=True), None, valid, raw_override=m)
+            for i, m in enumerate(masks)]
+    n = len(outs)
+    H2, W2 = outs[0].mat.shape
+    gray_eng = tone_gray(fill_outside(rgb, valid), p.tone_source) if p.ml_engrave else None
+    ppm = W2 / max(outs[0].w_mm, 1e-6)
+    info = {}
+    if p.ml_pins:
+        ring_px = effective_ring(p) * ppm
+        if p.shape != "none" and ring_px >= (p.ml_pin_mm + 2.0) * ppm:
+            pins = _pin_points(outs[0].base_sheet, ring_px, ppm, p.ml_pin_mm)
+            rr = max(2, int(round(p.ml_pin_mm * ppm / 2)))
+            k = ppm / 12.0
+            for r in outs:
+                for x, y in pins:
+                    cv2.circle(r.mat, (int(round(x)), int(round(y))), rr, 0, -1)
+                r.polys_mm = [q / ppm for q in extract_contours(r.mat, p.smooth * k, p.simplify * k)]
+            info["ml_pins"] = len(pins)
+        else:
+            info["ml_pin_skip"] = True
+    nl = sum(int(r.stats.get("loose_pieces", 0)) for r in outs)
+    if nl:
+        info["ml_loose"] = nl
+    if colors is not None:
+        info["ml_palette"] = ["#%02x%02x%02x" % q for q in (colors[1:] if own_bg else colors)]
+        info["ml_order_ids"] = [int(v) for v in corder]
+    cols = 1 if n == 1 else (2 if n <= 4 else 3)
+    rows = int(np.ceil(n / cols))
+    gap = max(2, int(round(p.ml_gap_mm * ppm)))
+    TW, TH = cols * W2 + (cols - 1) * gap, rows * H2 + (rows - 1) * gap
+    def mosaic(get, dtype=np.uint8, ch=None, fill=0):
+        shp = (TH, TW) if ch is None else (TH, TW, ch)
+        out = np.full(shp, fill, dtype)
+        for i, r in enumerate(outs):
+            a = get(r)
+            y0, x0 = (i // cols) * (H2 + gap), (i % cols) * (W2 + gap)
+            out[y0:y0 + H2, x0:x0 + W2] = a
+        return out
+    mat = mosaic(lambda r: r.mat)
+    boxes = [((i % cols) * (W2 + gap), (i // cols) * (H2 + gap), W2, H2) for i in range(n)]
+    layer_polys, allp = [], []
+    for i, r in enumerate(outs):
+        ox, oy = (i % cols) * (W2 + gap) / ppm, (i // cols) * (H2 + gap) / ppm
+        pp = [q + np.array([ox, oy]) for q in r.polys_mm]
+        layer_polys.append((f"LAYER_{i + 1}", pp))
+        allp += pp
+    length = sum(float(np.sum(np.hypot(*np.diff(np.vstack([q, q[:1]]), axis=0).T))) for q in allp)
+    stats = dict(threshold=0.0, contours=len(allp), length_mm=length, linked=sum(r.stats.get("linked", 0) for r in outs),
+                 dropped=sum(r.stats.get("dropped", 0) for r in outs), w_mm=TW / ppm, h_mm=TH / ppm, px=[TW, TH],
+                 seconds=round(time.time() - t0, 2), ml_layers=n, ml_cols=cols, **info)
+    for key in ("holes", "hang", "text_scaled", "text_ignored"):
+        if key in outs[0].stats:
+            stats[key] = outs[0].stats[key]
+    marks = marks_polys = None
+    if p.ml_engrave:
+        em = _layer_engraving(gray_eng, front & (dom > 0), p, ppm)
+        if em is not None and em.any():
+            fb = boxes[-1]
+            emp = np.zeros((H2, W2), np.uint8)
+            hh_, ww_ = em.shape
+            pad_l, pad_t = (W2 - ww_) // 2 if W2 > ww_ else 0, (H2 - hh_) // 2 if H2 > hh_ else 0
+            emp[:hh_, :ww_] = em[:H2, :W2]
+            if outs[-1].mat.shape != em.shape:      # languette d'œillet : tout est décalé de la marge ajoutée
+                dy, dx = H2 - hh_, W2 - ww_
+                emp = np.zeros((H2, W2), np.uint8)
+                emp[dy:, dx:] = em if (dy >= 0 and dx >= 0) else emp[dy:, dx:]
+            emp &= (outs[-1].mat > 0).astype(np.uint8)       # seulement sur la matière réellement présente de la plaque de devant
+            marks = np.zeros((TH, TW), np.uint8)
+            marks[fb[1]:fb[1] + H2, fb[0]:fb[0] + W2] = emp
+            kk = ppm / 12.0
+            marks_polys = [q / ppm for q in extract_contours(marks, 0.0, 0.3 * kk)]
+            info["ml_engraved"] = len(marks_polys)
+    res = Result(mosaic(lambda r: r.rgb, np.uint8, 3, 255), mosaic(lambda r: r.gray, np.uint8, None, 255), None,
+                 mosaic(lambda r: r.mat0), mat, mosaic(lambda r: r.bridges), allp, TW / ppm, TH / ppm, stats,
+                 mosaic(lambda r: r.sheet), base_sheet=mosaic(lambda r: r.base_sheet),
+                 layers=[r.mat for r in outs], layer_polys=layer_polys, layer_colors=colors, layer_boxes=boxes,
+                 marks=marks, marks_polys=marks_polys)
+    res.stats.update({k: v for k, v in info.items() if k == "ml_engraved"})
+    return res
+
+
+def render_layer_stack(res, material="wood_light"):
+    """Aperçu des couches empilées (la 1re derrière) avec ombres portées : donne une idée du relief."""
+    mats = res.layers
+    n = len(mats)
+    H, W = mats[0].shape
+    base = np.array(MATERIALS.get(material, MATERIALS["wood_light"])[0], np.float32)
+    out = np.full((H, W, 3), (226, 226, 230), np.float32)
+    cols = res.layer_colors
+    s = max(2, int(0.006 * max(H, W)))
+    for i, m in enumerate(mats):
+        mf = m.astype(np.float32)
+        sh = cv2.GaussianBlur(np.roll(np.roll(mf, s, 0), s, 1), (0, 0), max(1.0, 0.004 * max(H, W)))
+        out *= (1.0 - 0.5 * sh)[..., None]
+        if cols:
+            col = np.array(cols[i], np.float32)
+        else:
+            col = np.clip(base * (0.6 + 0.4 * (i / max(1, n - 1))), 0, 255)
+        out[m > 0] = col
+        edge = (m > 0) & (cv2.erode(m, np.ones((3, 3), np.uint8)) == 0)
+        out[edge] = np.clip(col * 1.25 + 8, 0, 255)
+        if i == n - 1 and res.marks is not None and res.layer_boxes:
+            x0, y0, tw, th = res.layer_boxes[-1]
+            mk = res.marks[y0:y0 + th, x0:x0 + tw] > 0
+            out[mk] = out[mk] * 0.28
+    return out.astype(np.uint8)
+
+
+def process(rgb, p, subject=None, valid=None, manual=None, guides=None, raw_override=None):
+    if p.output == "layers" and raw_override is None:
+        return layers_result(rgb, p, subject, valid)
     if p.output in ("halftone", "lines"):
         return halftone(rgb, p, subject, valid)
     if p.output == "engrave":
@@ -1583,6 +1951,8 @@ def process(rgb, p, subject=None, valid=None, manual=None, guides=None):
             raw, marks, qr_geo = np.ones((h, w), np.uint8), None, None
             lp_info = {"qr_error": str(e)}
         thr = 0.0
+    elif raw_override is not None:
+        raw, thr = raw_override.astype(np.uint8), 0.0
     elif p.output == "lowpoly":
         if subject is None and p.lp_auto:
             filled = fill_outside(rgb, valid)
@@ -1631,8 +2001,24 @@ def process(rgb, p, subject=None, valid=None, manual=None, guides=None):
     base_sheet = sheet.copy()      # forme seule, sans la languette de l'œillet (pour le caisson)
     if tab is not None:
         sheet = sheet | tab
-    mat, bridges, linked, dropped = add_bridges(mat1, anchor, p.bridge_mm, ppm,
-                                                p.min_island_mm2, p.max_bridge_mm)
+    if p.loose:
+        mat, bridges, linked, dropped = mat1.copy(), np.zeros_like(mat1), 0, 0
+    else:
+        mat, bridges, linked, dropped = add_bridges(mat1.copy(), anchor, p.bridge_mm, ppm,
+                                                    p.min_island_mm2, p.max_bridge_mm)
+        if p.keep_islands:
+            ncomp, lab_i, st_i, _ = cv2.connectedComponentsWithStats((mat1 > 0).astype(np.uint8), connectivity=8)
+            miss = np.zeros(mat.shape, np.uint8)
+            nloose = 0
+            for ci in range(1, ncomp):
+                if st_i[ci, cv2.CC_STAT_AREA] >= 0.5 * ppm * ppm:
+                    comp = lab_i == ci
+                    if not (mat[comp] > 0).any():
+                        miss[comp] = 1
+                        nloose += 1
+            mat = mat | miss
+            lp_info["loose_pieces"] = nloose
+            dropped = 0
     if manual:      # ponts posés à la main : segments (x1, y1, x2, y2) en fractions du résultat
         mh, mw = mat.shape
         th = max(2, int(round(p.bridge_mm * ppm)))
@@ -1732,6 +2118,26 @@ def render_realistic(res, material="wood_light", backlight=False, light="warm"):
 
 def render_view(res, view, style=None):
     """Image RGB (uint8) à afficher : result | material | original | overlay | render (aperçu réaliste)."""
+    if res.layers is not None and view == "assembled":
+        return render_layer_stack(res, (style or {}).get("material", "wood_light"))
+    if res.layers is not None and view == "box":
+        view = "result"
+    if res.layers is not None and view == "result" and not res.layer_colors:
+        out = np.full(res.mat.shape + (3,), 255, np.uint8)
+        out[res.mat > 0] = 0
+        out[res.bridges > 0] = (230, 40, 40)
+        if res.marks is not None:
+            out[res.marks > 0] = (255, 255, 255)
+        return out
+    if res.layers is not None and res.layer_colors and view == "result":
+        out = np.full(res.mat.shape + (3,), 255, np.uint8)
+        for (x0, y0, tw, th), col, m in zip(res.layer_boxes, res.layer_colors, res.layers):
+            t = out[y0:y0 + th, x0:x0 + tw]
+            t[m > 0] = col
+        out[res.bridges > 0] = (230, 40, 40)
+        if res.marks is not None:
+            out[res.marks > 0] = (45, 30, 25)
+        return out
     if view == "box":
         try:
             from . import lightbox
@@ -1746,7 +2152,7 @@ def render_view(res, view, style=None):
             import lightbox
         st = style or {}
         return lightbox.render_assembled(res, st.get("params") or Params(), st)
-    if res.marks is not None and view in ("result", "material", "overlay", "render"):   # QR gravé : plaque + modules gravés
+    if res.marks is not None and res.layers is None and view in ("result", "material", "overlay", "render"):   # QR gravé : plaque + modules gravés
         st = style or {}
         if view == "render":
             out = render_realistic(res, st.get("material", "wood_light"), bool(st.get("backlight")), st.get("light", "warm"))
@@ -1799,7 +2205,9 @@ def polys_bbox(polys):
     return (float(a[:, 0].min()), float(a[:, 1].min()), float(a[:, 0].max()), float(a[:, 1].max()))
 
 
-def svg_string(polys_mm, w_mm, h_mm, frame=None, marks=None):
+def svg_string(polys_mm, w_mm, h_mm, frame=None, marks=None, layers=None, colors=None):
+    if layers:       # multicouche : une couleur par couche (LSP crée un calque par couleur)
+        return _layers_svg(layers, w_mm, h_mm, frame, colors, marks)
     parts = []
     for q in polys_mm:
         d = "M" + " L".join(f"{x:.3f},{y:.3f}" for x, y in q) + " Z"
@@ -1810,6 +2218,15 @@ def svg_string(polys_mm, w_mm, h_mm, frame=None, marks=None):
             + "\n".join(parts) + "\n</g>\n"
             + _marks_svg(marks)
             + (frame_svg(frame) if frame else "") + "</svg>\n")
+
+
+def _layers_svg(layers, w_mm, h_mm, frame=None, colors=None, marks=None):
+    gs = []
+    for i, (name, polys) in enumerate(layers):
+        d = " ".join("M" + " L".join(f"{x:.3f},{y:.3f}" for x, y in q) + " Z" for q in polys)
+        gs.append(f'<g id="{name}" fill="none" stroke="{("#%02x%02x%02x" % tuple(colors[i])) if colors else LAYER_COLORS[i % len(LAYER_COLORS)]}" stroke-width="0.1"><path d="{d}"/></g>')
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w_mm:.3f}mm" height="{h_mm:.3f}mm" '
+            f'viewBox="0 0 {w_mm:.3f} {h_mm:.3f}">\n' + "\n".join(gs) + "\n" + _marks_svg(marks) + (frame_svg(frame) if frame else "") + "</svg>\n")
 
 
 def _marks_svg(marks):
@@ -1835,9 +2252,17 @@ def frame_dxf_lines(frame, h_mm):
     return L + ["0", "SEQEND", "8", "FRAME"]
 
 
-def dxf_string(polys_mm, h_mm, layer="CUT", frame=None, marks=None):
-    """DXF R12 minimal (POLYLINE fermées), axe Y vers le haut, en mm."""
+def dxf_string(polys_mm, h_mm, layer="CUT", frame=None, marks=None, layers=None):
+    """DXF R12 minimal (POLYLINE fermées), axe Y vers le haut, en mm. layers : [(nom, contours)] pour le multicouche."""
     L = ["0", "SECTION", "2", "ENTITIES"]
+    if layers:
+        for name, polys in layers:
+            for q in polys:
+                L += ["0", "POLYLINE", "8", name, "66", "1", "70", "1"]
+                for x, y in q:
+                    L += ["0", "VERTEX", "8", name, "10", f"{x:.4f}", "20", f"{h_mm - y:.4f}"]
+                L += ["0", "SEQEND", "8", name]
+        polys_mm = []
     for q in polys_mm:
         L += ["0", "POLYLINE", "8", layer, "66", "1", "70", "1"]
         for x, y in q:

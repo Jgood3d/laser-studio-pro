@@ -1,9 +1,14 @@
 """Point d'entrée de Laser Studio Pro."""
 import sys
+import sys
+if "--stencil-studio" in sys.argv:
+    from stencil_studio.studio_window import main as _stencil_main
+    sys.exit(_stencil_main())
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon, QPixmap, QPalette, QColor
 from PyQt6.QtCore import Qt, QSettings
+from PyQt6 import QtWebEngineWidgets
 
 from app_utils import find_resource
 from debug_log import setup_debug_logging

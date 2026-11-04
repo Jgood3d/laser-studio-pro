@@ -15,6 +15,7 @@ Les exports SVG / DXF sont interceptés et importés directement dans l'éditeur
 Découpe / Cadrage rangés automatiquement) ; les autres fichiers (PDF, PNG...) ouvrent « Enregistrer sous ».
 """
 import os
+import sys
 import tempfile
 import webbrowser
 
@@ -28,8 +29,10 @@ try:
     from PyQt6.QtWebEngineWidgets import QWebEngineView
     from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage, QWebEngineDownloadRequest
     HAVE_WEBENGINE = True
-except ImportError:  # pragma: no cover
+    WEBENGINE_ERROR = ""
+except Exception as _e:  # pragma: no cover  (ImportError, mais aussi erreurs de DLL / de version)
     HAVE_WEBENGINE = False
+    WEBENGINE_ERROR = f"{type(_e).__name__}: {_e}"
 
 # Couleurs de Laser Studio Pro (relevées sur l'interface : fond #232323, panneaux #303030, boutons #3b3b3b,
 # champs #2e2e2e, bouton d'action bleu, curseurs / coches #6dbef9).
@@ -134,16 +137,80 @@ class StudioDialog(QDialog):
             pass
 
 
+def _diagnostic():
+    import sys as _s
+    try:
+        from . import core as _c
+        ver = _c.VERSION
+    except Exception:
+        ver = "?"
+    main = getattr(_s.modules.get("__main__"), "__file__", "?")
+    return (f"Studio {ver} | compilé : {bool(getattr(_s, 'frozen', False))} | Python {_s.version.split()[0]}\n"
+            f"programme principal : {main}\n"
+            f"QtWebEngineWidgets déjà importé : {'PyQt6.QtWebEngineWidgets' in _s.modules} | "
+            f"QtWebEngineCore : {'PyQt6.QtWebEngineCore' in _s.modules}\n"
+            f"dossier du Studio : {os.path.dirname(os.path.abspath(__file__))}")
+
+
+def _open_external(window):
+    """Repli : le Studio dans son propre processus (sa propre fenêtre Qt) ; les exports reviennent dans LSP."""
+    from PyQt6.QtCore import QProcess
+    pkg_dir = os.path.dirname(os.path.abspath(__file__))
+    proc = QProcess(window)
+    proc.setWorkingDirectory(os.path.dirname(pkg_dir))
+    proc.setProgram(sys.executable)
+    if getattr(sys, "frozen", False):      # LSP compilé : on relance l'exécutable avec un argument (voir main.py)
+        proc.setArguments(["--stencil-studio"])
+    else:
+        proc.setArguments(["-m", f"{os.path.basename(pkg_dir)}.studio_window"])
+    state = {"buf": b"", "got": False}
+
+    def _read():
+        state["buf"] += bytes(proc.readAllStandardOutput())
+        while b"\n" in state["buf"]:
+            line, state["buf"] = state["buf"].split(b"\n", 1)
+            line = line.decode("utf-8", "replace").strip()
+            if line.startswith("STENCIL_EXPORT:"):
+                state["got"] = True
+                import_exported_file(window, line.split(":", 1)[1])
+
+    def _done(code, _status):
+        if code != 0 and not state["got"]:
+            err = bytes(proc.readAllStandardError()).decode("utf-8", "replace")[-600:]
+            QMessageBox.warning(window, "Stencil Studio", "La fenêtre séparée du Studio n'a pas pu démarrer.\n\n" + err)
+    proc.readyReadStandardOutput.connect(_read)
+    proc.finished.connect(_done)
+    proc.start()
+    window._stencil_studio_proc = proc
+    return proc.waitForStarted(5000)
+
+
 def open_stencil_studio(window, theme=None):
     """À appeler depuis un menu de LSP. Crée la fenêtre au premier appel, puis la réaffiche."""
     if not HAVE_WEBENGINE:
+        prev = getattr(window, "_stencil_studio_proc", None)
+        if prev is not None and prev.state() != prev.ProcessState.NotRunning:
+            return None            # déjà ouvert
+        if "ShareOpenGLContexts" in WEBENGINE_ERROR or "QtWebEngineWidgets must be imported" in WEBENGINE_ERROR:
+            if _open_external(window):
+                return None
         srv, port = _studio.start_server(PREFERRED_PORT)
         webbrowser.open(f"http://127.0.0.1:{port}/")
+        import sys as _sys
+        err = WEBENGINE_ERROR or "?"
+        if "ShareOpenGLContexts" in err or "QtWebEngineWidgets must be imported" in err:
+            hint = ("PyQt6-WebEngine est bien installé, mais Qt l'exige AVANT la création de la fenêtre de LSP.\n"
+                    "Dans le fichier principal de LSP, tout en haut (avant QApplication), ajoute :\n"
+                    "    from PyQt6 import QtWebEngineWidgets  # noqa")
+        else:
+            hint = ("Installe-le avec CE Python (celui qui lance LSP) :\n"
+                    f"    \"{_sys.executable}\" -m pip install -U PyQt6 PyQt6-WebEngine\n"
+                    "(les versions de PyQt6, PyQt6-Qt6, PyQt6-WebEngine et PyQt6-WebEngine-Qt6 doivent être les mêmes)")
         QMessageBox.information(
             window, "Stencil Studio",
-            "PyQt6-WebEngine n'est pas installé : le Studio s'ouvre dans le navigateur.\n"
+            "Le moteur web de Qt n'a pas pu être chargé : le Studio s'ouvre dans le navigateur.\n"
             "Les fichiers exportés iront dans le dossier Téléchargements (à importer dans LSP).\n\n"
-            "Pour l'intégration complète : pip install PyQt6-WebEngine")
+            f"Raison : {err}\n\n{hint}\n\n--- Diagnostic (à me transmettre) ---\n{_diagnostic()}")
         return None
     dlg = getattr(window, "_stencil_studio_dialog", None)
     if dlg is None:
