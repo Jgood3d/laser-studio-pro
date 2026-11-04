@@ -151,7 +151,7 @@
       <button id="btnClear" class="isoonly" data-i18n="Clear marks">Clear marks</button>
     </div>
     <div class="wrap"><canvas id="src"></canvas></div>
-    <div class="foot" data-i18n="Drag to move the frame, mouse wheel to resize it, round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.">Drag to move the frame, mouse wheel to resize it, round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.</div>
+    <div class="foot" data-i18n="Drag to move the frame, mouse wheel to resize it (with a custom ratio: drag its edges and corners, double-click to cover the whole image), round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.">Drag to move the frame, mouse wheel to resize it (with a custom ratio: drag its edges and corners, double-click to cover the whole image), round handle (or Alt + wheel) to rotate it. To isolate the subject, draw a box around it (Subject box), then refine with green and red strokes.</div>
     <div class="foot" data-i18n="Shortcuts: Ctrl+Z undo, Ctrl+Y redo, Alt + wheel rotate the frame, Esc closes the export preview.">Shortcuts: Ctrl+Z undo, Ctrl+Y redo, Alt + wheel rotate the frame, Esc closes the export preview.</div>
   </section>
 
@@ -183,7 +183,7 @@
 
 <script>
 "use strict";
-const UI_VERSION = "2026.10.70";  // doit être identique à core.py
+const UI_VERSION = "2026.10.84";  // doit être identique à core.py
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -205,6 +205,7 @@ function updateLegend(){
   const l = $("legend"); if (!l) return;
   const key = view === "render" ? "Simulated look: colours of material and light are indicative"
             : view === "box" ? "Cutting layout of the box parts (front, diffuser, frames, back)"
+            : (view === "assembled" && S.output === "layers") ? "Stacked plates seen from the front (shadows suggest the depth; first plate at the back)"
             : view === "assembled" ? "Assembled box seen from the front-left (approximate drawing: check proportions, depth and stand)"
             : (lastStats && lastStats.eng_px) ? "black = burned by the laser, grey = cut away, red line = cut"
             : "black = material kept, white = cut away, red = bridges";
@@ -242,6 +243,7 @@ const PRESETS = {
   lines:      {output:"lines", tone_source:"luminance", line_pitch_mm:1.5, line_angle:30, line_break_mm:30, min_web_mm:0.5, min_dot_mm:0.35,
                dot_gamma:1.2, dot_contrast:0.8, dot_detail:1.5, contrast:true, invert:false, isolate:false},
   qr:         {output:"qr", shape:"rrect", size_mm:80, ring_mm:4, qr_mode:"engrave", qr_side_mm:50, qr_ec:"Q", qr_invert:false, isolate:false},
+  layers:     {output:"layers", shape:"circle", size_mm:120, ring_mm:6, ml_layers:4, ml_invert:false, ml_pins:true, isolate:false},
   lowpoly:    {output:"lowpoly", lp_style:"solid", lp_points:120, lp_beam_mm:1.8, lp_focus:0.8, lp_level:0, lp_geo:true, lp_simplify:0.9, lp_auto:true, max_bridge_mm:30, invert:false, isolate:false},
   engrave:    {output:"engrave", tone_source:"luminance", contrast:true, eng_dither:"stucki", eng_levels:2, eng_brightness:0, eng_contrast:0,
                eng_gamma:1, eng_sharpen:1, eng_invert:false, eng_border_mm:1, isolate:false},
@@ -251,9 +253,9 @@ const PRESETS = {
 const SPEC = [
  {g:"Style", items:[
   {k:"output", t:"select", label:"Output type", def:"stencil",
-   opts:[["stencil","Stencil (shapes with bridges)"],["halftone","Halftone dots (photos)"],["lines","Lines (photo as slots of varying width)"],["engrave","Engraving (dithered photo + cut outline)"],["lowpoly","Low poly (triangulated mesh)"],["qr","QR code (engraved or cut out)"]]},
+   opts:[["stencil","Stencil (shapes with bridges)"],["halftone","Halftone dots (photos)"],["lines","Lines (photo as slots of varying width)"],["engrave","Engraving (dithered photo + cut outline)"],["lowpoly","Low poly (triangulated mesh)"],["qr","QR code (engraved or cut out)"],["layers","Layered relief (stacked plates)"]]},
   {k:"preset", t:"select", ui:1, label:"Start from a style", def:"",
-   opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["qr","QR code plate"],["engrave","Photo for engraving (keychain, plaque)"]]},
+   opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["qr","QR code plate"],["layers","Layered relief (stacked plates)"],["engrave","Photo for engraving (keychain, plaque)"]]},
  ]},
  {g:"Render preview", items:[
   {k:"material", t:"select", ui:1, label:"Sheet material", def:"wood_dark",
@@ -272,7 +274,7 @@ const SPEC = [
   {k:"custom_h", t:"number", ui:1, label:"Height (mm)", min:5, max:600, step:1, def:100},
   {k:"free", t:"check", ui:1, label:"Free placement (empty margins around the image)", def:false},
   {k:"rot", t:"range", ui:1, label:"Frame rotation (degrees)", min:-180, max:180, step:1, def:0, fmt:v => v + " °"},
-  {k:"img_mm", t:"range", ui:1, label:"Image width on the plate (mm)", min:10, max:1500, step:1, def:100, fmt:mm},
+  {k:"img_mm", t:"range", ui:1, label:"Image width on the plate (mm)", min:10, max:4000, step:1, def:100, fmt:mm},
   {k:"zoom", t:"range", ui:1, label:"Frame size", min:0.05, max:1, step:0.01, def:1, fmt:pct},
   {k:"size_mm", t:"range", label:"Final size (mm, largest side)", min:20, max:400, step:1, def:100, fmt:mm},
   {k:"ring_mm", t:"range", label:"Border width around the image (mm)", min:0, max:30, step:0.5, def:4, fmt:mm},
@@ -337,6 +339,22 @@ const SPEC = [
   {k:"margin", t:"range", ui:1, label:"Search margin around the frame", min:0, max:0.4, step:0.01, def:0.03, fmt:pct},
   {k:"outline_mm", t:"range", label:"Subject outline (mm)", min:0, max:4, step:0.1, def:1, fmt:mm, st:1},
   {k:"brush", t:"range", ui:1, label:"Brush size", min:4, max:120, step:1, def:30},
+ ]},
+ {g:"Layers", items:[
+  {k:"ml_sep", t:"select", label:"Separate the plates by", def:"tone", ml:1, opts:[["tone","Tone (brightness)"],["color","Dominant colours"]]},
+  {k:"ml_color_auto", t:"check", label:"Detect the number of colours automatically", def:true, ml:1, mlcol:1},
+  {k:"ml_picks", t:"text", label:"Picked colours", def:"", ml:1, mlorder:1, maxlen:80},
+  {k:"ml_order", t:"text", label:"Colour order", def:"", ml:1, mlorder:1, maxlen:40},
+  {k:"ml_pieces", t:"check", label:"Loose pieces to glue (no bridges)", def:false, ml:1},
+  {k:"ml_bg", t:"select", label:"Background", def:"front", ml:1, opts:[["front","Colour of the front plate"],["own","Own plate (colour of your choice)"],["image","Own plate (colour of the picture's background)"]]},
+  {k:"ml_bg_color", t:"color", label:"Background plate colour", def:"#e8dcc8", ml:1, mlbg:1},
+  {k:"ml_engrave", t:"check", label:"Engrave the details on the front plate", def:false, ml:1},
+  {k:"ml_eng_level", t:"range", label:"Engraving detail", min:0, max:100, step:1, def:50, ml:1, mleng:1},
+  {k:"ml_layers", t:"range", label:"Number of plates", min:2, max:8, step:1, def:4, ml:1},
+  {k:"ml_invert", t:"check", label:"Light areas are the deepest", def:false, ml:1},
+  {k:"ml_pins", t:"check", label:"Alignment holes in the border", def:true, ml:1},
+  {k:"ml_pin_mm", t:"range", label:"Alignment hole diameter (mm)", min:1.5, max:8, step:0.5, def:3, fmt:mm, ml:1, mlpin:1},
+  {k:"ml_gap_mm", t:"range", label:"Space between plates on the sheet (mm)", min:2, max:30, step:1, def:6, fmt:mm, ml:1},
  ]},
  {g:"QR code", items:[
   {k:"qr_kind", t:"select", label:"Content", def:"text", qr:1, opts:[["text","Link or text"],["wifi","Wi-Fi network"]]},
@@ -419,6 +437,18 @@ const TIPS = {
  "lp_points": "Number of mesh vertices. Fewer = big bold facets, more = finer mesh. Vertices follow the contours of the image.",
  "lp_beam_mm": "Width of the edges (the material strips between facets). Thin edges are fragile.",
  "ai_subject": "Uses a small neural network (U2-Net, 4.5 MB, downloaded once) to find the subject on any background. Needs the onnxruntime package; otherwise the classic method is used. Drawing a Subject box or green/red strokes switches back to the classic method.",
+ "ml_sep": "Tone: the plates follow the brightness of the picture (one material, depth from shadows). Dominant colours: one plate per main colour of the picture, so you can cut each from a different coloured material.",
+ "ml_color_auto": "Finds how many colours the picture really has (the Number of plates setting becomes a maximum) and ignores the blended edge pixels. Ideal for logos and flat illustrations; untick to force exactly that number of plates.",
+ "ml_pieces": "The plates in front are cut as separate pieces that you glue onto the plate behind, instead of holding them with small bridges. Letters and small shapes then keep a clean outline.",
+ "ml_bg": "What the background of the picture becomes. Front plate colour: it simply takes the colour of the plate in front. Own plate: an extra solid plate at the very back, in the colour you choose (or the real colour of the picture's background, e.g. white), seen through the openings around the subject.",
+ "ml_bg_color": "Colour of the extra background plate (used for the preview and the export colour).",
+ "ml_engrave": "Burns the dark details of the picture (eyes, nose, mouth, shoe laces...) onto the front plate, in the ENGRAVE layer. The plate outline stays a cut.",
+ "ml_eng_level": "Higher = more details engraved (and more noise). Lower = only the strongest lines.",
+ "ml_layers": "Number of stacked plates. The first (back) plate is solid; each plate in front has bigger openings where the picture is darker, so dark areas end up deepest. Cut all plates, then glue them in order on spacers (or directly) using the alignment holes.",
+ "ml_invert": "Reverses the depth: light areas become the deepest instead of dark ones.",
+ "ml_pins": "Three identical small holes in the border of every plate, so you can line them up with dowels or screws.",
+ "ml_pin_mm": "Diameter of the alignment holes. The border must be at least this wide + 2 mm.",
+ "ml_gap_mm": "Space left between plates on the cutting sheet. The Assembled view shows the stack with shadows.",
  "qr_kind": "What the code contains. A link or free text, or a Wi-Fi network (phones offer to join it when scanned).",
  "qr_text": "The link or text stored in the code. Short links make a smaller code with bigger, easier-to-cut modules.",
  "qr_ssid": "Exact name of the Wi-Fi network (case matters).",
@@ -712,6 +742,11 @@ function buildControls(){
         inp = document.createElement("input"); inp.type = "text"; inp.maxLength = it.maxlen || 40; inp.style.width = "100%";
         inp.addEventListener("input", () => { S[it.k] = inp.value; changed(it.k); });
         row.appendChild(inp);
+      } else if (it.t === "color"){
+        lab.append(span); row.appendChild(lab);
+        inp = document.createElement("input"); inp.type = "color"; inp.style.cssText = "width:60px;height:30px;padding:0;border:1px solid var(--line);background:none";
+        inp.addEventListener("input", () => { S[it.k] = inp.value; changed(it.k); });
+        row.appendChild(inp);
       } else if (it.t === "number"){
         lab.append(span); row.appendChild(lab);
         inp = document.createElement("input"); inp.type = "number";
@@ -760,10 +795,12 @@ function initDD(){
 }
 function refreshDisabled(){
   try { mbSyncUI(); } catch(e){}
+  try { renderPick(); } catch(e){}
   const dis = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("disabled", !!on);   // !! : toggle(x, undefined) inverserait l'état
   const hid = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("hidden", !!on);
   dis("threshold", S.auto_threshold);
   dis("aspect", S.shape === "circle");
+  { const pk = S.output === "layers" && S.ml_sep === "color" && picksList().length >= 2; dis("ml_layers", pk); dis("ml_color_auto", pk); }
   dis("custom_w", S.shape === "circle" || S.aspect !== "custom");
   dis("custom_h", S.shape === "circle" || S.aspect !== "custom");
   dis("margin", !S.isolate);
@@ -780,6 +817,8 @@ function refreshDisabled(){
   const o = S.output, stencil = o !== "halftone" && o !== "lines" && o !== "engrave" && o !== "lowpoly";
   ITEMS.filter(i => i.local).forEach(i => { hid(i.k, !stencil || S.mode !== "local"); });
   ITEMS.filter(i => i.st).forEach(i => { if (!i.local) hid(i.k, !stencil && !(o === "lowpoly" && i.sl)); });
+  ITEMS.filter(i => i.ml).forEach(i => hid(i.k, o !== "layers" || (i.mlcol && S.ml_sep !== "color") || i.mlorder || (i.mlpin && !S.ml_pins) || (i.mlbg && S.ml_bg !== "own") || (i.mleng && !S.ml_engrave)));
+  try { renderPalette(); } catch(e){}
   ITEMS.filter(i => i.qr).forEach(i => hid(i.k, o !== "qr" || (i.qrk && i.qrk !== S.qr_kind) || (i.qrcut && S.qr_mode !== "cut")));
   ITEMS.filter(i => i.lp).forEach(i => hid(i.k, o !== "lowpoly" || (i.lpsolid && S.lp_style !== "solid")));
   ITEMS.filter(i => i.ni).forEach(i => hid(i.k, o === "engrave"));
@@ -920,6 +959,11 @@ function drawSource(){
   ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fill("evenodd");
   ctx.beginPath(); framePath(ctx, -fw * V.s / 2, -fh * V.s / 2, fw * V.s, fh * V.s);
   ctx.strokeStyle = accColor(); ctx.lineWidth = 2; ctx.stroke();
+  if (resizable()){    // poignées de redimensionnement (ratio personnalisé) : 4 coins + 4 côtés
+    ctx.fillStyle = accColor(); ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5;
+    HANDLES.forEach(h => { const x = h[0] * fw * V.s / 2, y = h[1] * fh * V.s / 2;
+      ctx.beginPath(); ctx.rect(x - 5, y - 5, 10, 10); ctx.fill(); ctx.stroke(); });
+  }
   if (!isFull()){      // poignée de rotation au-dessus du cadre
     const hy = -fh * V.s / 2 - 22;
     ctx.beginPath(); ctx.moveTo(0, -fh * V.s / 2); ctx.lineTo(0, hy); ctx.lineWidth = 1.5; ctx.stroke();
@@ -947,17 +991,60 @@ function uploadHints(){
     if (S.isolate) schedule();
   }, "image/png");
 }
+let pickMode = false, pickCv = null, pickImg = null;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && pickMode){ pickMode = false; updateCursor(); try { renderPick(); } catch(_){} } });
+function pickAt(p){       // moyenne 5x5 autour du point, sur l'image d'origine
+  if (!img) return null;
+  if (pickImg !== img){ pickCv = document.createElement("canvas"); pickCv.width = iw; pickCv.height = ih;
+    pickCv.getContext("2d", {willReadFrequently:true}).drawImage(img, 0, 0); pickImg = img; }
+  const x = Math.round(p.x), y = Math.round(p.y);
+  if (x < 0 || y < 0 || x >= iw || y >= ih) return null;
+  const x0 = Math.max(0, x - 2), y0 = Math.max(0, y - 2), w = Math.min(iw, x + 3) - x0, hh = Math.min(ih, y + 3) - y0;
+  const d = pickCv.getContext("2d").getImageData(x0, y0, w, hh).data; let r = 0, g = 0, b = 0, n = 0;
+  for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
+  const hx = v => Math.round(v / n).toString(16).padStart(2, "0");
+  return "#" + hx(r) + hx(g) + hx(b);
+}
+const picksList = () => String(S.ml_picks || "").split(",").map(t => t.trim()).filter(t => /^#[0-9a-fA-F]{6}$/.test(t));
+function setPicks(list){
+  S.ml_picks = list.slice(0, 8).join(","); setControl("ml_picks", S.ml_picks);
+  S.ml_order = ""; setControl("ml_order", ""); persist();
+  try { renderPick(); } catch(e){}
+  refreshDisabled(); schedule();
+}
 let drag = null, painting = false, last = null, B = null, boxStart = null, rotDrag = false;
+const HANDLES = [[-1,-1],[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0]];
+const resizable = () => S.aspect === "custom" && S.shape !== "circle" && !isFull();
+let rsDrag = null;
+function frameHit(e){   // poignée de cadre touchée (coin / côté) -> [sx, sy] ou null
+  const r = cv.getBoundingClientRect(), [fw, fh] = frameDims(), rr = (+S.rot || 0) * Math.PI / 180;
+  const dx = e.clientX - r.left - (V.ox + F.cx * iw * V.s), dy = e.clientY - r.top - (V.oy + F.cy * ih * V.s);
+  const lx = dx * Math.cos(rr) + dy * Math.sin(rr), ly = -dx * Math.sin(rr) + dy * Math.cos(rr);   // repère du cadre
+  let best = null, bd = 11;
+  HANDLES.forEach(h => { const d = Math.hypot(lx - h[0] * fw * V.s / 2, ly - h[1] * fh * V.s / 2); if (d < bd){ bd = d; best = h; } });
+  return best;
+}
 function rotHandle(){   // position écran (px CSS du canvas) de la poignée de rotation
   const [fw, fh] = frameDims(), rr = (+S.rot || 0) * Math.PI / 180, d = fh * V.s / 2 + 22;
   return {x:V.ox + F.cx * iw * V.s + Math.sin(rr) * d, y:V.oy + F.cy * ih * V.s - Math.cos(rr) * d};
 }
 cv.addEventListener("pointerdown", e => {
-  if (!img) return; cv.setPointerCapture(e.pointerId);
+  if (!img) return;
+  if (pickMode){
+    const c = pickAt(toImg(e));
+    if (c){ const l = picksList(); if (l.length < 8 && !l.includes(c)) setPicks(l.concat([c])); }
+    return;
+  }
+  cv.setPointerCapture(e.pointerId);
   const p = toImg(e);
   if (tool === "move" && !isFull()){
     const r = cv.getBoundingClientRect(), hp = rotHandle();
     if (Math.hypot(e.clientX - r.left - hp.x, e.clientY - r.top - hp.y) < 12){ rotDrag = true; return; }
+  }
+  if (tool === "move" && resizable()){
+    const h = frameHit(e);
+    if (h){ const [fw, fh] = frameDims();
+      rsDrag = {h, fw, fh, cx:F.cx * iw, cy:F.cy * ih, mm:(frameWidthMm() / Math.max(1, fw)), sw:+S.custom_w, sh:+S.custom_h}; return; }
   }
   if (tool === "move") drag = {x:p.x, y:p.y, cx:F.cx, cy:F.cy};
   else if (tool === "box"){ boxStart = {x:Math.min(Math.max(p.x / iw, 0), 1), y:Math.min(Math.max(p.y / ih, 0), 1)}; B = null; }
@@ -966,10 +1053,31 @@ cv.addEventListener("pointerdown", e => {
 cv.addEventListener("pointermove", e => {
   if (!img) return;
   const p = toImg(e);
+  if (tool === "move" && !pickMode && !drag && !rsDrag && !rotDrag && resizable()){
+    const h = frameHit(e); cv.style.cursor = h ? (h[0] && h[1] ? (h[0] * h[1] > 0 ? "nwse-resize" : "nesw-resize") : (h[0] ? "ew-resize" : "ns-resize")) : "grab";
+  }
   if (boxStart){
     const x = Math.min(Math.max(p.x / iw, 0), 1), y = Math.min(Math.max(p.y / ih, 0), 1);
     B = {x:Math.min(boxStart.x, x), y:Math.min(boxStart.y, y), w:Math.abs(x - boxStart.x), h:Math.abs(y - boxStart.y)};
     drawSource();
+  }
+  else if (rsDrag){
+    const d = rsDrag, rr = (+S.rot || 0) * Math.PI / 180, mm = d.mm;
+    const dx = p.x - d.cx, dy = p.y - d.cy;
+    const qx = dx * Math.cos(rr) + dy * Math.sin(rr), qy = -dx * Math.sin(rr) + dy * Math.cos(rr);
+    let fw = d.fw, fh = d.fh, lcx = 0, lcy = 0;
+    const lim = 400 / mm, mn = 20 / mm;       // 20 à 400 mm pour le plus grand côté
+    if (d.h[0]){ var fixed = -d.h[0] * d.fw / 2; fw = Math.max(mn * 0.25, (qx - fixed) * d.h[0]); lcx = (qx + fixed) / 2; }
+    if (d.h[1]){ var fy = -d.h[1] * d.fh / 2; fh = Math.max(mn * 0.25, (qy - fy) * d.h[1]); lcy = (qy + fy) / 2; }
+    if (e.shiftKey && d.h[0] && d.h[1]){ const k = Math.max(fw / d.fw, fh / d.fh); fw = d.fw * k; fh = d.fh * k;
+      lcx = -d.h[0] * d.fw / 2 + d.h[0] * fw / 2; lcy = -d.h[1] * d.fh / 2 + d.h[1] * fh / 2; }
+    const wmm = Math.round(fw * mm * 10) / 10, hmm = Math.round(fh * mm * 10) / 10;
+    if (Math.max(wmm, hmm) <= 400 && Math.min(wmm, hmm) >= 5){
+      S.custom_w = wmm; S.custom_h = hmm; setControl("custom_w", wmm); setControl("custom_h", hmm);
+      S.size_mm = Math.max(20, Math.max(wmm, hmm)); setControl("size_mm", S.size_mm);
+      F.cx = (d.cx + lcx * Math.cos(rr) - lcy * Math.sin(rr)) / iw; F.cy = (d.cy + lcx * Math.sin(rr) + lcy * Math.cos(rr)) / ih;
+      F.w = fw / iw; clampFrame(); drawSource(); schedule();
+    }
   }
   else if (rotDrag){
     const cx = F.cx * iw, cy = F.cy * ih;
@@ -990,10 +1098,19 @@ const endPtr = () => {
     if (B) fitFrameToBox();          // le cadre se règle tout seul sur le sujet
     drawSource(); schedule(); return;
   }
+  if (rsDrag){ rsDrag = null; persist(); if (freeOn()){ computeView(); drawSource(); } if (S.isolate) schedule(); return; }
   if (freeOn() && (drag || rotDrag)){ computeView(); drawSource(); }
   if (rotDrag){ rotDrag = false; persist(); computeView(); drawSource(); schedule(); return; }
   const was = !!drag; if (painting){ painting = false; uploadHints(); } drag = null; if (was && S.isolate) schedule(); };
 cv.addEventListener("pointerup", endPtr); cv.addEventListener("pointercancel", endPtr);
+cv.addEventListener("dblclick", e => {      // double-clic (ratio personnalisé) : le cadre prend toute l'image à l'échelle actuelle
+  if (!img || tool !== "move" || !resizable()) return;
+  const mm = +S.img_mm / iw, wmm = Math.round(iw * mm * 10) / 10, hmm = Math.round(ih * mm * 10) / 10;
+  if (Math.max(wmm, hmm) > 400 || Math.min(wmm, hmm) < 5){ setStatus(esc(T("The whole image is larger than 400 mm at this scale: reduce the image width first."))); return; }
+  S.custom_w = wmm; S.custom_h = hmm; setControl("custom_w", wmm); setControl("custom_h", hmm);
+  S.size_mm = Math.max(20, wmm, hmm); setControl("size_mm", S.size_mm);
+  F.cx = .5; F.cy = .5; F.w = 1; clampFrame(); computeView(); drawSource(); persist(); schedule();
+});
 cv.addEventListener("wheel", e => {
   if (!img) return; e.preventDefault();
   if (e.altKey && !isFull()){      // Alt + molette : rotation fine
@@ -1016,7 +1133,7 @@ function fitFrameToBox(){
   F.w = fw / iw; F.cx = B.x + B.w / 2; F.cy = B.y + B.h / 2;
   clampFrame(); drawSource(); schedule();
 }
-function updateCursor(){ cv.style.cursor = tool === "move" ? "grab" : "crosshair"; }
+function updateCursor(){ cv.style.cursor = (pickMode || tool !== "move") ? "crosshair" : "grab"; }
 
 /* ------------------------------------------------------------- preview */
 let seq = 0, timer = null, dirty = false, lastStats = null, WARN = "";
@@ -1175,6 +1292,67 @@ const BOXMSG = {
   sharp_corners:"Sharp corners (not 90 degrees): the flexible wall may break there. Prefer the stacked box for this shape.",
   radius_small:"Some curves are tighter than 15 mm radius: use thin flexible plywood or a larger pitch of slits.",
   ring_thin:"The outer ring is too narrow for the wall slots: widen it (at least wall thickness + 2 mm)."};
+function renderPick(){
+  let box = $("mlPick");
+  const on = S.output === "layers" && S.ml_sep === "color";
+  if (!box){
+    const anchor = $("row_ml_sep"); if (!anchor) return;
+    box = document.createElement("div"); box.id = "mlPick"; box.style.cssText = "padding:2px 12px 8px";
+    const pal = $("mlPal"); (pal || anchor).parentNode.insertBefore(box, (pal || anchor).nextSibling);
+  }
+  box.style.display = on ? "" : "none"; if (!on){ pickMode = false; updateCursor(); return; }
+  const list = picksList();
+  box.innerHTML = "";
+  const top = document.createElement("div"); top.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap";
+  const bt = document.createElement("button"); bt.type = "button"; bt.textContent = (pickMode ? "\u25CF " : "") + T("Colour picker");
+  bt.title = T("Click colours on the picture (up to 8). Each picked colour becomes one plate.");
+  if (pickMode) bt.classList.add("on");
+  bt.onclick = () => { pickMode = !pickMode; updateCursor(); renderPick(); };
+  top.appendChild(bt);
+  if (list.length){ const cl = document.createElement("button"); cl.type = "button"; cl.textContent = T("Clear picked colours"); cl.onclick = () => setPicks([]); top.appendChild(cl); }
+  box.appendChild(top);
+  const cap = document.createElement("div"); cap.style.cssText = "font-size:12px;color:var(--mut);margin:4px 0";
+  cap.textContent = list.length >= 2 ? T("{n} picked colours = {n} plates", {n:list.length}) : (list.length === 1 ? T("Pick at least one more colour.") : T("No pick: the colours are found automatically."));
+  box.appendChild(cap);
+  const row = document.createElement("div"); row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+  list.forEach((hex, i) => {
+    const sw = document.createElement("div"); sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:1px solid var(--line);cursor:pointer;position:relative;background:" + hex;
+    sw.title = hex + " — " + T("click to remove");
+    sw.onclick = () => setPicks(list.filter((_, j) => j !== i));
+    const x = document.createElement("span"); x.textContent = "\u00D7"; x.style.cssText = "position:absolute;right:2px;top:-3px;font-size:13px;color:#fff;text-shadow:0 0 3px #000";
+    sw.appendChild(x); row.appendChild(sw);
+  });
+  box.appendChild(row);
+}
+function renderPalette(){
+  try { renderPick(); } catch(e){}
+  let pal = $("mlPal");
+  const on = S.output === "layers" && S.ml_sep === "color" && lastStats && lastStats.ml_palette;
+  if (!pal){
+    const anchor = $("row_ml_sep"); if (!anchor) return;
+    pal = document.createElement("div"); pal.id = "mlPal"; pal.style.cssText = "padding:4px 12px 10px";
+    anchor.parentNode.insertBefore(pal, anchor.nextSibling);
+  }
+  pal.style.display = on ? "" : "none"; if (!on) return;
+  const cols = lastStats.ml_palette, ids = lastStats.ml_order_ids.slice();
+  pal.innerHTML = "";
+  const cap = document.createElement("div"); cap.style.cssText = "font-size:12px;color:var(--mut);margin-bottom:4px"; cap.textContent = T("Plates from back to front (use the arrows to reorder)");
+  pal.appendChild(cap);
+  const row = document.createElement("div"); row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+  cols.forEach((hex, i) => {
+    const b = document.createElement("div"); b.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px";
+    const sw = document.createElement("div"); sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:1px solid var(--line);background:" + hex; sw.title = hex + " — " + T("plate") + " " + (i + 1);
+    const ar = document.createElement("div"); ar.style.cssText = "display:flex;gap:2px";
+    const mk = (txt, d) => {
+      const x = document.createElement("button"); x.type = "button"; x.textContent = txt; x.style.cssText = "padding:0 5px;font-size:11px;line-height:16px";
+      x.disabled = (i + d < 0 || i + d >= ids.length);
+      x.onclick = () => { const t = ids.slice(); [t[i], t[i + d]] = [t[i + d], t[i]]; S.ml_order = t.join(","); setControl("ml_order", S.ml_order); persist(); schedule(); };
+      return x;
+    };
+    ar.append(mk("\u25C0", -1), mk("\u25B6", 1)); b.append(sw, ar); row.appendChild(b);
+  });
+  pal.appendChild(row);
+}
 function renderStats(){
   if (!lastStats) return;
   updateLegend();
@@ -1189,6 +1367,8 @@ function renderStats(){
   if (s.box && s.box.notes.includes("wall_thin")) extras.push(T("The wall is too narrow for the screws: widen it or reduce the screw diameter."));
   if (s.text_ignored) extras.push(T("The text is ignored: it works on circle, oval, rectangle and rounded rectangle shapes."));
   if (s.text_scaled) extras.push(T("The text was too long for the ring: it was reduced."));
+  try { renderPalette(); } catch(e){}
+  if (s.ml_pin_skip) extras.push(T("The border is too narrow for alignment holes: widen it (diameter + 2 mm) or untick them."));
   if (s.qr_error) extras.push(T("QR code error: {e}", {e:s.qr_error}));
   else if (s.qr_scan === "fail") extras.push(T("WARNING: the generated QR code could not be read back. Enlarge it, raise the error correction or shorten the text."));
   else if (s.qr_scan === "inverted") extras.push(T("The QR code reads inverted (light on dark): most phones read it anyway."));
@@ -1263,8 +1443,13 @@ function changed(k){
     clampFrame(); computeView(); drawSource();
   }
   else if (k === "custom_w" || k === "custom_h"){
+    const keepMm = +S.img_mm;       // l'échelle de l'image ne bouge pas : seule la fenêtre de découpe change
     S.size_mm = Math.max(20, Math.min(400, Math.max(+S.custom_w, +S.custom_h))); setControl("size_mm", S.size_mm);
-    clampFrame(); drawSource();
+    if (iw && keepMm > 0){
+      F.w = frameWidthMm() / Math.max(10, keepMm);
+      if (F.w > 1 && !S.free){ S.free = true; setControl("free", true); }
+    }
+    refreshDisabled(); computeView(); clampFrame(); drawSource();
   }
   else if (k === "size_mm" && S.aspect === "custom" && S.shape !== "circle"){   // l'échelle change, pas le ratio
     const a = curAspect(), sz = +S.size_mm;

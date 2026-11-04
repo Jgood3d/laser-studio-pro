@@ -268,7 +268,7 @@ def api_preview(req):
         view = req.get("view", "result")
         style = dict(req.get("style") or {})
         stats = dict(res.stats)
-        if view in ("box", "assembled"):
+        if view in ("box", "assembled") and res.layers is None:
             try:
                 from . import lightbox
             except ImportError:
@@ -292,8 +292,8 @@ def api_export(req):
     with LOCK:
         res = compute(req, int(req.get("work", 1200)))
         fr = core.polys_bbox(res.polys_mm) if core.Params.from_dict(req.get("params")).export_frame else None
-        out = {"svg": core.svg_string(res.polys_mm, res.w_mm, res.h_mm, fr, res.marks_polys),
-               "dxf": core.dxf_string(res.polys_mm, res.h_mm, frame=fr, marks=res.marks_polys), "stats": res.stats,
+        out = {"svg": core.svg_string(res.polys_mm, res.w_mm, res.h_mm, fr, res.marks_polys, res.layer_polys, res.layer_colors),
+               "dxf": core.dxf_string(res.polys_mm, res.h_mm, frame=fr, marks=res.marks_polys, layers=res.layer_polys), "stats": res.stats,
                "name": os.path.splitext(STATE.name)[0]}
         if res.engrave is not None:   # gravure : image tramée à la bonne résolution + SVG avec image
             out["png_b64"] = base64.b64encode(core.engrave_png_bytes(res)).decode()
@@ -322,7 +322,21 @@ def api_export(req):
         return out
 
 
-PRESETS_FILE = os.path.join(HERE, "presets.json")
+def data_dir():
+    """Dossier des données modifiables (réglages mémorisés). Dans le dossier du Studio si on peut y écrire ; sinon (LSP compilé
+    avec PyInstaller, installation dans Program Files...) dans le profil de l'utilisateur."""
+    if not getattr(sys, "frozen", False) and os.access(HERE, os.W_OK):
+        return HERE
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+    d = os.path.join(base, "StencilStudio")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except OSError:
+        return HERE
+    return d
+
+
+PRESETS_FILE = os.path.join(data_dir(), "presets.json")
 
 
 def load_presets_file():

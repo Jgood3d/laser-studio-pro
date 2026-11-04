@@ -86,6 +86,13 @@ EXPECTED = {
     'qr : gravé relu': 1.0,
     'qr : ajouré relu': 1.0,
     'qr : calque ENGRAVE exporté': 1.0,
+    'multicouche : 4 plaques + repères': 1.0,
+    'multicouche couleur : palette': 1.0,
+    'couleur auto : logo 2 plaques': 1.0,
+    'couleur : pipette 3 couleurs': 1.0,
+    'couleur : îlots gardés (pièces libres)': 1.0,
+    'couleur : logo plein cadre (fond = couleur dominante)': 1.0,
+    'multicouche : fond à part + gravure': 1.0,
 }
 TOL = {"default": 3.0, "grabcut": 12.0}
 
@@ -202,6 +209,35 @@ def measure():
                                   qr_side_mm=50, qr_text="https://exemple.fr/menu")).stats.get("qr_scan") == "ok")
     m["qr : calque ENGRAVE exporté"] = float("ENGRAVE" in core.dxf_string(re_.polys_mm, re_.h_mm, marks=re_.marks_polys)
                                             and 'id="ENGRAVE"' in core.svg_string(re_.polys_mm, re_.w_mm, re_.h_mm, None, re_.marks_polys))
+    ml = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
+                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=4))
+    m["multicouche : 4 plaques + repères"] = float(len(ml.layers) == 4 and ml.stats.get("ml_pins") == 3
+                                                  and len(ml.layer_polys) == 4 and ml.stats["contours"] > 8)
+    mc = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
+                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3, ml_sep="color"))
+    m["multicouche couleur : palette"] = float(len(mc.stats.get("ml_palette", [])) == 3 and len(mc.layer_colors) == 3
+                                              and sorted(mc.stats.get("ml_order_ids", [])) == [0, 1, 2])
+    mg = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
+                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3, ml_sep="color",
+                                  ml_bg="own", ml_engrave=True))
+    _lg = np.zeros((120, 200, 3), np.uint8); _lg[:] = 255; _lg[30:90, 40:160] = (178, 58, 50)
+    _lg = cv2.GaussianBlur(_lg, (0, 0), 1.2)
+    _lr = core.layers_result(_lg, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4))
+    m["couleur auto : logo 2 plaques"] = float(len(_lr.layers) == 2)
+    _lb = np.zeros((160, 160, 3), np.uint8); _lb[:] = (64, 108, 176); _lb[60:100, 30:130] = 255
+    _lb = cv2.GaussianBlur(_lb, (0, 0), 1.0)
+    _lq = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4))
+    m["couleur : logo plein cadre (fond = couleur dominante)"] = float(
+        len(_lq.layers) == 2 and _lq.stats.get("ml_palette", [""])[0].startswith("#3"))
+    _li = np.zeros((200, 300, 3), np.uint8); _li[:] = (64, 108, 176); _li[90:110, 20:60] = 255; _li[90:110, 240:280] = 255
+    _li = cv2.GaussianBlur(_li, (0, 0), 1.0)
+    _lj = core.layers_result(_li, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4, shape="none", size_mm=300, max_bridge_mm=2))
+    m["couleur : îlots gardés (pièces libres)"] = float(len(_lj.layers) >= 2 and _lj.stats.get("ml_loose", 0) >= 1)
+    _lp = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=8,
+                                               ml_picks="#4070b0,#ffffff,#ff0000"))
+    m["couleur : pipette 3 couleurs"] = float(len(_lp.layers) == 3 and len(_lp.stats.get("ml_palette", [])) == 3)
+    m["multicouche : fond à part + gravure"] = float(len(mg.layers) == 4 and len(mg.layer_colors) == 4
+                                                    and mg.layer_colors[0] == (232, 220, 200))
     return m
 
 
@@ -230,7 +266,7 @@ def main():
             continue
         tol = TOL["grabcut"] if "grabcut" in k else TOL["default"]
         diff = abs(v - e) / (abs(e) + 1e-9) * 100 if abs(e) > 1e-9 else abs(v - e)
-        ok = diff <= tol or abs(v - e) <= 2
+        ok = (v == e) if e in (0.0, 1.0) else (diff <= tol or abs(v - e) <= 2)
         bad += 0 if ok else 1
         print(f"{k:42s} {v:12.2f} {e:12.2f}  {'OK' if ok else 'DIFF  <<<<'}")
     print("\n" + ("Tout est conforme." if bad == 0 else f"{bad} difference(s) : envoyer cette sortie complete."))
