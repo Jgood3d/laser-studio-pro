@@ -12,7 +12,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 try:
     from PyQt6.QtWidgets import QApplication, QWidget
     from PyQt6.QtGui import QPixmap
-    from splash_screen import StartupSplash
+    from ui_splash_screen import StartupSplash
 except ImportError:  # PyQt6 manquant
     StartupSplash = None
 

@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt, QSettings
 from app_utils import find_resource
 from debug_log import setup_debug_logging
 from qt_messages import install_qt_message_filters
-from splash_screen import StartupSplash
+from ui_splash_screen import StartupSplash
 from widgets_extra import scaled_to_width_hidpi
 
 # Durée minimale d'affichage de l'écran de démarrage, en secondes.
