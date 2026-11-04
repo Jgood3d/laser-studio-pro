@@ -13,7 +13,16 @@ import cv2
 import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MODEL_DIR = os.path.join(HERE, "models")
+def _model_dir():
+    """Modèle téléchargé à côté du module, ou dans le profil de l'utilisateur si on ne peut pas y écrire (appli compilée)."""
+    import sys
+    if not getattr(sys, "frozen", False) and os.access(HERE, os.W_OK):
+        return os.path.join(HERE, "models")
+    base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
+    return os.path.join(base, "StencilStudio", "models")
+
+
+MODEL_DIR = _model_dir()
 MODEL_FILE = os.path.join(MODEL_DIR, "u2netp.onnx")
 MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
 _LOCK = threading.Lock()

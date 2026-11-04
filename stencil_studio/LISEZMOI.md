@@ -378,3 +378,33 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 
 ## v2026.10.78 — Relief en couches : fond de la couleur de l'image
 - Nouveau choix de fond : « Plaque à part (couleur du fond de l'image) » : la plaque du fond prend la couleur réelle du fond de la photo (médiane hors sujet, p. ex. blanc). Avec « Couleur de la plaque de devant », le fond prend la couleur de la plaque la plus claire (ex. beige de la peau), c'est voulu : c'est la même matière.
+
+
+## v2026.10.79 — Intégration LSP : message d'erreur QtWebEngine précis
+- Le message « PyQt6-WebEngine n'est pas installé » masquait la vraie cause. Il affiche maintenant la **raison exacte** de l'échec et la solution adaptée : soit installer avec le Python qui lance LSP (chemin affiché), soit — cas fréquent même quand le paquet est installé — ajouter tout en haut du fichier principal de LSP, **avant** la création de QApplication : `from PyQt6 import QtWebEngineWidgets  # noqa`.
+
+
+## v2026.10.80 — Intégration LSP : repli en fenêtre séparée
+- Si Qt refuse QtWebEngine dans LSP (« QtWebEngineWidgets must be imported… before a QCoreApplication »), le Studio s'ouvre désormais dans **sa propre fenêtre** (nouveau fichier `studio_window.py`, processus séparé avec son propre Qt). Les exports SVG / DXF reviennent dans LSP comme d'habitude (la fenêtre se ferme après l'export). Aucune modification du fichier principal de LSP n'est nécessaire.
+- Cette fenêtre ne partage pas les réglages mémorisés de la fenêtre intégrée ; ils sont conservés entre deux ouvertures dans le dossier de données de l'application.
+
+
+## v2026.10.81 — Version compilée (PyInstaller)
+- Les réglages mémorisés (`presets.json`) et le modèle IA (`models`) sont écrits dans `%LOCALAPPDATA%\StencilStudio` quand LSP est compilé (ou quand le dossier du Studio n'est pas modifiable), au lieu du dossier de l'application.
+- Le repli « fenêtre séparée » est désactivé dans une version compilée (le programme à relancer serait LSP lui-même).
+- `build.bat` fourni : ajoute les `--hidden-import` nécessaires (modules du Studio, QtWebEngine, scipy) à la commande PyInstaller.
+
+
+## v2026.10.82 — Diagnostic QtWebEngine
+- Le message d'erreur QtWebEngine ajoute un bloc « Diagnostic » : version du Studio, version compilée ou non, fichier principal réellement exécuté, et si QtWebEngineWidgets était déjà importé au moment où le Studio s'ouvre.
+
+
+## v2026.10.83 — Fenêtre séparée aussi pour LSP compilé
+- Si QtWebEngine ne peut pas être chargé dans LSP, le Studio se relance dans sa propre fenêtre, **y compris pour la version compilée** (`LaserStudioPro.exe --stencil-studio`). Il faut pour cela ces 4 lignes **tout en haut de `main.py`** (avant les imports PyQt6) :
+
+```python
+import sys
+if "--stencil-studio" in sys.argv:
+    from stencil_studio.studio_window import main as _stencil_main
+    sys.exit(_stencil_main())
+```
