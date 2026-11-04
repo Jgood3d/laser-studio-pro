@@ -9,6 +9,7 @@ sys.path.insert(0, ROOT)
 
 try:
     from laser_control_mixin import LaserControlMixin
+    from ui_jog import JogMixin
     from ui_setup_mixin import UiSetupMixin
 except ImportError:  # PyQt6, pyserial... manquants
     LaserControlMixin = None
@@ -31,7 +32,7 @@ class _USB:
 class JogPanelTests(unittest.TestCase):
     def make(self, step_index, speed):
         class Fake(LaserControlMixin):
-            JOG_STEPS_MM = UiSetupMixin.JOG_STEPS_MM
+            JOG_STEPS_MM = JogMixin.JOG_STEPS_MM
         f = Fake.__new__(Fake)
         f.usb = _USB()
         f.slider_jog_step = _Slider(step_index)
@@ -41,7 +42,7 @@ class JogPanelTests(unittest.TestCase):
         return f
 
     def test_sliders_set_the_step_and_the_speed(self):
-        f = self.make(UiSetupMixin.JOG_STEPS_MM.index(1.0), 6000)
+        f = self.make(JogMixin.JOG_STEPS_MM.index(1.0), 6000)
         f.jog_move(1, 0)
         f.jog_move(-1, 1)
         self.assertEqual(f.sent, ["$J=G91 G21 X1.000 Y0.000 F6000", "$J=G91 G21 X-1.000 Y1.000 F6000"])
@@ -52,9 +53,9 @@ class JogPanelTests(unittest.TestCase):
         self.assertEqual(f.sent, ["$J=G91 G21 X0.000 Y-0.100 F300"])
 
     def test_every_command_keeps_its_label_as_a_tooltip(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as fh:
+        with open(os.path.join(ROOT, "ui_jog.py"), encoding="utf-8") as fh:
             src = fh.read()
-        panel = src[src.index('jog_box = QGroupBox(tr("ui.jog_box"))'):src.index("machine_row = QHBoxLayout()")]
+        panel = src[src.index('jog_box = QGroupBox(tr("ui.jog_box"))'):src.index("return jog_box")]
         for key in ("ui.pause", "ui.resume", "ui.reset", "ui.kill", "ui.frame", "ui.zero_work",
                     "ui.go_zero", "ui.send_to_laser", "ui.repeat_last_job", "ui.homing_cmd"):
             self.assertRegex(panel, rf'_jog_tool_button\((?:.|\n)*?tr\("{re.escape(key)}"\)', key)

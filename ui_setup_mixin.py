@@ -1,5 +1,5 @@
 """Construction de l'interface graphique : layout principal, onglets, menu, boîtes de dialogue « À propos »."""
-from PyQt6.QtWidgets import (QPlainTextEdit, QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QGridLayout, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea, QApplication)
+from PyQt6.QtWidgets import (QApplication, QPlainTextEdit, QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QTextEdit, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QSlider, QTabWidget, QLineEdit, QProgressBar, QStackedWidget, QSplitter, QDialog, QDialogButtonBox, QListWidget, QScrollArea)
 from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
 from PyQt6.QtGui import QPixmap, QDragEnterEvent, QDropEvent, QShortcut, QKeySequence, QIcon, QDesktopServices, QPalette, QColor, QPainter, QPen
 import pyqtgraph as pg
@@ -15,7 +15,8 @@ from app_utils import find_resource
 from app_utils import APP_VERSION
 from i18n import tr, SUPPORTED_LANGUAGES, get_current_language, set_language
 from settings_window import SettingsWindow
-from widgets_extra import HistoryLineEdit, AutoHideLabel
+from widgets_extra import (
+    HistoryLineEdit, AutoHideLabel, scaled_to_width_hidpi)
 from stencil_studio.studio_dialog import open_stencil_studio
 
 SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
@@ -200,6 +201,7 @@ class UiSetupMixin:
 
     def load_splitter_sizes(self):
         settings = QSettings("LaserStudioPro", "UIConfig")
+        # Tailles de l'ancienne colonne de gauche, supprimée : plus utilisées.
         settings.remove("main_splitter_sizes")
         settings.remove("left_v_splitter_sizes")
         center_v_sizes = settings.value("center_v_splitter_sizes", None)
@@ -213,6 +215,8 @@ class UiSetupMixin:
                 pass
 
     def _toggle_fullscreen_image_tab(self):
+        """Plein écran de « Graver une image ». Ses réglages (ancien onglet Image & Filtres) sont
+        maintenant dans l'onglet lui-même : le plein écran commun suffit."""
         self._toggle_fullscreen_tab("tab_previews", "ui.tab_image_tracing")
 
     def _toggle_fullscreen_tab(self, tab_attr, title_key):
@@ -256,6 +260,16 @@ class UiSetupMixin:
         dialog.show()
         dialog.setWindowState(Qt.WindowState.WindowMaximized)
 
+    STATUS_MESSAGE_MS = 8000   # durée d'affichage d'un message de la barre d'état
+
+    def show_status_message(self, text, tooltip=None):
+        """Affiche `text` dans la barre d'état pendant STATUS_MESSAGE_MS ; l'infobulle donne
+        `tooltip` (texte complet, ex. avec le chemin du fichier) ou, à défaut, `text`."""
+        self.lbl_status_message.setText(text)
+        self.lbl_status_message.setToolTip(tooltip or text)
+        if text:
+            self._status_message_timer.start(self.STATUS_MESSAGE_MS)
+
     def closeEvent(self, event):
         if hasattr(self, "_stop_status_poll"):
             self._stop_status_poll()
@@ -270,12 +284,15 @@ class UiSetupMixin:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
+            # Enregistrement annulé ou en échec : on reste ouvert, rien n'est perdu.
             if not self.save_project():
                 event.ignore()
                 return
             self._flush_background_writes()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
+            # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
+            # doit pas être proposée en récupération au prochain démarrage.
             self._clear_autosave()
             self._flush_background_writes()
             event.accept()
@@ -283,6 +300,9 @@ class UiSetupMixin:
             event.ignore()
 
     def _flush_background_writes(self):
+        """Attend (au plus quelques secondes) la fin des sauvegardes en
+        arrière-plan — file d'attente, sauvegarde automatique — avant que le
+        processus ne s'arrête, sinon une écriture en cours serait perdue."""
         try:
             from app_utils import get_background_writer
             get_background_writer().wait_idle(10)
@@ -334,6 +354,8 @@ class UiSetupMixin:
         return row_layout
 
     def show_settings_window(self, kind):
+        """Ouvre (ou ramène au premier plan) la fenêtre « Machine & Profils » (kind="machine") ou
+        « Configuration GRBL » (kind="grbl"). Créée à la première demande, puis réutilisée."""
         windows = self.__dict__.setdefault("_settings_windows", {})
         if kind not in windows:
             page, title = {
@@ -380,6 +402,8 @@ class UiSetupMixin:
     def _build_menu_bar(self):
         menu_bar = self.menuBar()
 
+        # Icônes standard : celles du thème du système (freedesktop sous Linux), sinon celles du
+        # style Qt, présentes sur toutes les plateformes (aucune si le style n'a pas d'équivalent).
         def std_icon(theme_icon, fallback=QStyle.StandardPixmap.SP_FileIcon):
             icon = QIcon.fromTheme(theme_icon)
             return icon if not icon.isNull() else self.style().standardIcon(fallback)
@@ -403,12 +427,15 @@ class UiSetupMixin:
         self.action_quit = action_quit = menu_fichier.addAction(
             std_icon(QIcon.ThemeIcon.ApplicationExit, QStyle.StandardPixmap.SP_DialogCloseButton),
             tr("menu.file.quit"))
+        # StandardKey.Quit est vide sous Windows (Alt+F4 y est géré par le système) : Ctrl+Q en repli.
         action_quit.setShortcuts(QKeySequence.keyBindings(QKeySequence.StandardKey.Quit)
                                  or [QKeySequence("Ctrl+Q")])
         action_quit.triggered.connect(self.close)
 
-        # Menu Paramètres
+        # Menu Paramètres : réglages propres à la machine (fenêtres ouvertes depuis la barre de
+        # menus, ils occupaient des onglets de la colonne de gauche) et langue de l'interface.
         menu_parametres = menu_bar.addMenu(tr("menu.settings"))
+        # Pas d'entrée QIcon.ThemeIcon pour ces réglages : noms d'icônes freedesktop.
         self.action_machine_params_window = menu_parametres.addAction(
             std_icon("preferences-system", QStyle.StandardPixmap.SP_ComputerIcon),
             tr("tab.machine_params"))
@@ -423,7 +450,6 @@ class UiSetupMixin:
         self.action_grbl_window.triggered.connect(lambda: self.show_settings_window("grbl"))
         menu_parametres.addSeparator()
 
-        # Sous-menu Langue
         menu_langue = menu_parametres.addMenu(
             std_icon("preferences-desktop-locale", QStyle.StandardPixmap.SP_DirIcon),
             tr("menu.language"))
@@ -453,15 +479,16 @@ class UiSetupMixin:
 
         menu_parametres.addSeparator()
 
-        # Menu Outils
+        # Menu Outils : assistants ponctuels, hors du flux principal de préparation d'un job.
         self.tools_menu = menu_bar.addMenu(tr("menu.tools"))
+        # Grille de carrés de test ; « -symbolic » : seule variante présente dans Adwaita.
         self.action_matrix_window = self.tools_menu.addAction(
             std_icon("view-grid-symbolic", QStyle.StandardPixmap.SP_FileDialogListView), tr("tab.test_matrix"))
         self.action_matrix_window.triggered.connect(lambda: self.show_settings_window("test_matrix"))
         action_open_stencil = self.tools_menu.addAction(
             std_icon("applications-graphics", QStyle.StandardPixmap.SP_DesktopIcon), tr("menu.tools.stencil_studio"))
         action_open_stencil.triggered.connect(lambda: open_stencil_studio(self))
-        
+        # Raccourcis vers deux onglets centraux (voir show_main_tab).
         separation_icon = std_icon("color-management", QStyle.StandardPixmap.SP_DriveNetIcon)
         vectorize_icon = std_icon("draw-bezier-curves", QStyle.StandardPixmap.SP_FileIcon)
         action_separation = self.tools_menu.addAction(separation_icon, tr("sep.tab_title"))
@@ -470,6 +497,7 @@ class UiSetupMixin:
         action_png2svg.triggered.connect(lambda: self.show_main_tab("tab_png2svg"))
 
         menu_aide = menu_bar.addMenu(tr("menu.help"))
+        # Version : icône de l'application (définie dans main.py, reprise par la fenêtre).
         action_version = menu_aide.addAction(self.windowIcon(), f"{tr('menu.help.version')} {APP_VERSION}")
         action_version.setEnabled(False)
         menu_aide.addSeparator()
@@ -477,13 +505,17 @@ class UiSetupMixin:
             std_icon(QIcon.ThemeIcon.HelpAbout, QStyle.StandardPixmap.SP_MessageBoxInformation),
             tr("menu.help.about"))
         action_about.triggered.connect(self.show_about_dialog)
+        # Support : contact par e-mail (voir ui.support_body).
         action_support = menu_aide.addAction(std_icon(QIcon.ThemeIcon.MailMessageNew), tr("menu.help.support"))
         action_support.triggered.connect(self.show_support_dialog)
+        # Buy me a coffee : même logo que le bouton de soutien (_build_support_button).
         coffee_path = find_resource("buy_me_a_coffee.png")
         action_coffee = menu_aide.addAction(QIcon(coffee_path) if coffee_path else QIcon(), tr("menu.help.coffee"))
         action_coffee.triggered.connect(self.show_buy_me_a_coffee_dialog)
 
     def show_main_tab(self, tab_attr):
+        """Affiche l'onglet central `tab_attr` (ex. "tab_separation"), en le rendant visible s'il était
+        masqué. S'il est ouvert en plein écran (sorti des onglets), sa fenêtre est ramenée au premier plan."""
         tab = getattr(self, tab_attr, None)
         if tab is None:
             return
@@ -496,11 +528,15 @@ class UiSetupMixin:
             tab.window().activateWindow()
 
     def _build_main_toolbar(self):
+        """Barre d'outils sous le menu : raccourcis vers les entrées des menus Fichier, Paramètres et
+        Outils (mêmes QAction : icône, libellé, raccourci et action identiques), annuler/refaire des
+        réglages image, actions sur l'image chargée, puis connexion au graveur."""
         toolbar = QToolBar(tr("toolbar.main"), self)
         toolbar.setObjectName("main_toolbar")
         toolbar.setMovable(False)
+        # Icônes seules, libellé en infobulle (une entrée sans icône hors Linux affiche son libellé).
         toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        toolbar.addAction(self.action_quit)
+        toolbar.addAction(self.action_quit)          # même action que Fichier > Quitter (Ctrl+Q)
         toolbar.addSeparator()
         toolbar.addAction(self.action_save_project)
         toolbar.addAction(self.action_open_project)
@@ -512,19 +548,24 @@ class UiSetupMixin:
         for action in self.tools_menu.actions():
             toolbar.addAction(action)
         toolbar.addSeparator()
-        
+
         def std_icon(theme_icon, fallback=QStyle.StandardPixmap.SP_FileIcon):
             icon = QIcon.fromTheme(theme_icon) if isinstance(theme_icon, str) else QIcon.fromTheme(theme_icon)
             if icon.isNull():
                 icon = self.style().standardIcon(fallback)
             return icon
 
+        # Annuler / refaire des réglages image (anciens boutons de l'onglet Image & Filtres). Les
+        # raccourcis Ctrl+Z / Ctrl+Y restent ceux de l'onglet (QShortcut limité à l'onglet), pour ne
+        # pas entrer en conflit avec l'annulation de l'Éditeur vectoriel.
         toolbar.addAction(std_icon(QIcon.ThemeIcon.EditUndo, QStyle.StandardPixmap.SP_ArrowBack),
                           tr("ui.img_undo"), self.undo_image_settings)
         toolbar.addAction(std_icon(QIcon.ThemeIcon.EditRedo, QStyle.StandardPixmap.SP_ArrowForward),
                           tr("ui.img_redo"), self.redo_image_settings)
         toolbar.addSeparator()
-        
+        # Image chargée (anciens boutons et cases de l'onglet Image & Filtres) : suppression,
+        # rotation, puis miroirs. Les miroirs sont des actions cochables qui gardent l'état.
+        # Suppression et rotation agissent sur l'image de l'onglet affiché (_image_tab_kind).
         action_delete = toolbar.addAction(
             std_icon(QIcon.ThemeIcon.EditDelete, QStyle.StandardPixmap.SP_TrashIcon),
             tr("img.delete"), self._on_toolbar_delete_image)
@@ -536,7 +577,7 @@ class UiSetupMixin:
             std_icon(QIcon.ThemeIcon.ObjectRotateRight, QStyle.StandardPixmap.SP_ArrowForward),
             tr("img.rotate_right"),
             lambda: self._on_toolbar_rotate_image(clockwise=True))
-        
+        # Pas d'équivalent QIcon.ThemeIcon pour les miroirs : nom d'icône freedesktop.
         flip_h_icon = std_icon("object-flip-horizontal", QStyle.StandardPixmap.SP_ArrowLeft)
         flip_v_icon = std_icon("object-flip-vertical", QStyle.StandardPixmap.SP_ArrowUp)
         self.action_mirror_h = toolbar.addAction(flip_h_icon, tr("img.mirror_h"))
@@ -544,16 +585,18 @@ class UiSetupMixin:
         for action in (self.action_mirror_h, self.action_mirror_v):
             action.setCheckable(True)
             action.toggled.connect(self.update_image_processing)
-        
+        # Même action que le bouton de l'onglet Image & Filtres, toujours disponible.
         toolbar.addAction(std_icon(QIcon.ThemeIcon.DocumentRevert,
                                    QStyle.StandardPixmap.SP_BrowserReload),
                           tr("img.reset"), self.reset_image_settings)
+        # Activées seulement avec une image chargée, sur un onglet qui l'affiche (update_image_actions_state).
         self._image_actions = (action_delete, action_rotate_left, action_rotate_right)
         self._mirror_actions = (self.action_mirror_h, self.action_mirror_v)
         for action in self._image_actions + self._mirror_actions:
             action.setEnabled(False)
         toolbar.addSeparator()
-        
+        # G-Code (anciens boutons du bas de la colonne de gauche) : estimer, générer (bouton bleu
+        # conservé tel quel, avec son libellé), importer un G-Code existant.
         estimate_icon = std_icon("chronometer", QStyle.StandardPixmap.SP_FileDialogInfoView)
         toolbar.addAction(estimate_icon, tr("gcode.estimate"), self.estimate_job_time)
         btn_generate = QPushButton(tr("gcode.generate"))
@@ -563,7 +606,8 @@ class UiSetupMixin:
         import_icon = std_icon("document-import", QStyle.StandardPixmap.SP_FileIcon)
         toolbar.addAction(import_icon, tr("gcode.import"), self.import_gcode_file)
         toolbar.addSeparator()
-        
+        # Connexion au graveur : mêmes réglages que la page « Matériaux et connexion au graveur ».
+        # La liste des ports partage son modèle avec celle de la page (voir combo_ports).
         self.combo_ports_toolbar = QComboBox()
         self.combo_ports_toolbar.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.combo_ports_toolbar.setMinimumContentsLength(16)
@@ -575,6 +619,7 @@ class UiSetupMixin:
                                    QStyle.StandardPixmap.SP_BrowserReload),
                           tr("usb.refresh_ports"), self.refresh_com_ports)
         self.action_connect = toolbar.addAction(tr("laser.connect"), self.toggle_usb)
+        # Seul bouton avec son libellé : l'état de la connexion doit se lire d'un coup d'œil.
         toolbar.widgetForAction(self.action_connect).setToolButtonStyle(
             Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
         self.update_connection_widgets()
@@ -583,6 +628,7 @@ class UiSetupMixin:
 
     @staticmethod
     def _status_dot_icon(color):
+        """Pastille ronde de la couleur donnée (état de la connexion)."""
         pixmap = QPixmap(16, 16)
         pixmap.fill(Qt.GlobalColor.transparent)
         painter = QPainter(pixmap)
@@ -594,6 +640,9 @@ class UiSetupMixin:
         return QIcon(pixmap)
 
     def update_connection_widgets(self):
+        """Met le bouton de connexion (page et barre d'outils) en accord avec l'état du port :
+        « Déconnecter » sur fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
+        rouge sinon ; verrouille ou déverrouille les commandes de la machine."""
         connected = self.usb.is_connected()
         label = tr("laser.disconnect") if connected else tr("laser.connect")
         button = getattr(self, "btn_connect", None)
@@ -604,6 +653,12 @@ class UiSetupMixin:
         if action is not None:
             action.setText(label)
             action.setIcon(self._status_dot_icon("#27ae60" if connected else "#e74c3c"))
+        # Jog, commandes et console directe : verrouillés tant que le graveur n'est pas connecté.
+        # La position du job reste modifiable (elle sert aussi à générer le G-Code hors connexion).
+        for name in ("jog_box", "direct_console_box"):
+            box = getattr(self, name, None)
+            if box is not None:
+                box.setEnabled(connected)
 
     def _on_language_selected(self, lang_code):
         set_language(lang_code)
@@ -623,7 +678,8 @@ class UiSetupMixin:
             pixmap = QPixmap(banner_path)
             if not pixmap.isNull():
                 lbl_banner = QLabel()
-                lbl_banner.setPixmap(pixmap.scaledToWidth(420, Qt.TransformationMode.SmoothTransformation))
+                lbl_banner.setPixmap(scaled_to_width_hidpi(
+                    pixmap, 420, self.devicePixelRatioF()))
                 lbl_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(lbl_banner)
             else:
@@ -703,6 +759,9 @@ class UiSetupMixin:
         self.setCentralWidget(main_widget)
         main_layout = QHBoxLayout(main_widget)
 
+        # Plus de colonne de gauche : les pages de réglages s'ouvrent dans des fenêtres (menu
+        # Paramètres), les réglages de l'image sont dans « Graver une image », la position du job
+        # dans le panneau machine. Le centre occupe toute la largeur.
         tab_machine_params_content = QWidget()
         layout_machine_params = QVBoxLayout(tab_machine_params_content)
 
@@ -783,14 +842,15 @@ class UiSetupMixin:
         tab_machine_params.setWidget(tab_machine_params_content)
         tab_machine_params.setWidgetResizable(True)
         tab_machine_params.setFrameShape(QScrollArea.Shape.NoFrame)
-        self.tab_machine_params = tab_machine_params
+        self.tab_machine_params = tab_machine_params     # affichée dans une fenêtre du menu (show_settings_window)
 
         tab_img = QWidget()
         layout_img = QFormLayout(tab_img)
 
         btn_img = QPushButton(tr("img.load"))
         btn_img.clicked.connect(self.load_image)
-        layout_img.addRow(btn_img)
+        layout_img.addRow(btn_img)                 # toute la largeur du panneau
+
 
         self.slider_bright = QSlider(Qt.Orientation.Horizontal); self.slider_bright.setRange(-100, 100); self.slider_bright.setValue(0)
         self.slider_bright.valueChanged.connect(self.update_image_processing)
@@ -807,11 +867,18 @@ class UiSetupMixin:
         self.chk_invert = QCheckBox(tr("img.invert"))
         self.chk_invert.stateChanged.connect(self.update_image_processing)
 
+        # Sélecteur de matière : se contente de cocher/décocher « Inverser
+        # Couleurs » (la case reste modifiable à la main). Le miroir reste
+        # indépendant.
         self.combo_material_bg = QComboBox()
         self.combo_material_bg.addItem(tr("img.bg_dark"), "dark")
         self.combo_material_bg.addItem(tr("img.bg_light"), "light")
-        self.combo_material_bg.setCurrentIndex(1)
+        self.combo_material_bg.setCurrentIndex(1)  # fond clair = négatif désactivé (comportement historique)
         self.combo_material_bg.setToolTip(tr("img.material_bg_tooltip"))
+        # Les libellés sont longs (exemples de matières : 62 caractères en français, 85 en allemand).
+        # Par défaut, une liste déroulante prend la largeur de son élément le PLUS LONG comme largeur
+        # minimale : la colonne de gauche ne pouvait plus être rétrécie avec le séparateur. On fixe donc
+        # une largeur minimale courte ; la liste ouverte, elle, reste assez large pour tout lire.
         self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.combo_material_bg.setMinimumContentsLength(12)
         for i in range(self.combo_material_bg.count()):
@@ -857,6 +924,8 @@ class UiSetupMixin:
         btn_configure_focal.clicked.connect(self.goto_laser_focal_settings)
 
         self.stack_lmm_input = QStackedWidget()
+        # Hauteur de son contenu, sans s'étirer : sinon la place libre de l'onglet allait dans la pile
+        # et écartait la liste « Résolution », le champ DPI et « Enregistrer comme focale ».
         self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
 
         btn_save_focal_lmm = QPushButton(tr("img.save_as_focal"))
@@ -903,6 +972,7 @@ class UiSetupMixin:
         self.combo_lmm_mode.setCurrentIndex(2)
         self.on_lmm_mode_changed(2)
 
+        # Réglages de l'image : panneau de gauche de l'onglet central « Graver une image ».
         self.tab_img = tab_img
 
         self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(0.1, 2000.0); self.spin_w.setValue(100.0)
@@ -916,21 +986,18 @@ class UiSetupMixin:
         self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
         self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
 
+        # Taille de l'image : en haut des réglages de « Graver une image », sous « Charger Image ».
         layout_img.insertRow(1, tr("dim.width"), self.spin_w)
         layout_img.insertRow(2, tr("dim.height"), self.spin_h)
-        layout_img.insertRow(3, self.chk_keep_ratio)
+        layout_img.insertRow(3, self.chk_keep_ratio)          # toute la largeur du panneau
 
+        # Position du job sur le plateau (image ET vecteurs, voir workers.AdvancedGCodeWorker) :
+        # dans le panneau machine, avec le jog et le cadrage qui servent à la régler.
         self.job_position_box = QGroupBox(tr("ui.job_position_box"))
-        job_position_layout = QHBoxLayout(self.job_position_box)
-        job_position_layout.addWidget(QLabel(tr("dim.origin")))
-        job_position_layout.addWidget(self.combo_origin)
-        job_position_layout.addSpacing(12)
-        job_position_layout.addWidget(QLabel(tr("dim.offset_x")))
-        job_position_layout.addWidget(self.spin_off_x)
-        job_position_layout.addSpacing(12)
-        job_position_layout.addWidget(QLabel(tr("dim.offset_y")))
-        job_position_layout.addWidget(self.spin_off_y)
-        job_position_layout.addStretch()
+        job_position_layout = QFormLayout(self.job_position_box)
+        job_position_layout.addRow(tr("dim.origin"), self.combo_origin)
+        job_position_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
+        job_position_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
 
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
@@ -938,6 +1005,7 @@ class UiSetupMixin:
         usb_box = QGroupBox(tr("usb.box_title"))
         usb_layout = QFormLayout()
         self.combo_ports = QComboBox()
+        # Même liste que le sélecteur de la barre d'outils (modèle partagé) et même port choisi.
         self.combo_ports.setModel(self.combo_ports_toolbar.model())
         self.combo_ports.currentIndexChanged.connect(self.combo_ports_toolbar.setCurrentIndex)
         self.combo_ports_toolbar.currentIndexChanged.connect(self.combo_ports.setCurrentIndex)
@@ -987,6 +1055,7 @@ class UiSetupMixin:
         mat_box.setLayout(mat_layout)
         layout_mach.addWidget(mat_box)
         layout_mach.addStretch()
+        # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
         self.tab_machine_profiles = tab_mach
 
         tab_matrix = QWidget()
@@ -1051,7 +1120,7 @@ class UiSetupMixin:
         self.form_matrix.addRow(tr("ui.mat_laser_cmd"), self.combo_mat_laser_cmd)
         self.form_matrix.addRow("", self.chk_mat_homing)
         self.form_matrix.addRow("", btn_gen_matrix)
-        self.tab_matrix = tab_matrix
+        self.tab_matrix = tab_matrix                      # affichée dans une fenêtre du menu (show_settings_window)
 
         self.on_mat_mode_changed(0)
 
@@ -1061,7 +1130,7 @@ class UiSetupMixin:
         self.combo_laser_cmd = QComboBox()
         self.combo_laser_cmd.addItems(["M4 (Dynamic Power)", "M3 (Constant Power)"])
         self.spin_smax = QSpinBox(); self.spin_smax.setRange(1, 10000); self.spin_smax.setValue(1000)
-        self.chk_homing = QCheckBox(tr("ui.grbl_homing")); self.chk_homing.setChecked(True)
+        self.chk_homing = QCheckBox(tr("ui.grbl_homing")); self.chk_homing.setChecked(True)   # homing automatique au démarrage du job : activé d'office
         self.chk_overscan = QCheckBox(tr("ui.overscan_enabled")); self.chk_overscan.setChecked(True)
 
         self.combo_overscan_mode = QComboBox()
@@ -1106,6 +1175,8 @@ class UiSetupMixin:
         layout_gcode_cfg.addRow(tr("ui.overscan_mode_label"), self.combo_overscan_mode)
         layout_gcode_cfg.addRow(tr("ui.overscan_value_label"), self.overscan_stacked)
 
+        # Décalage aller/retour : compense le jeu mécanique et le délai d'allumage du laser
+        # entre les lignes gravées dans un sens et dans l'autre (propre à la machine).
         self.spin_scan_offset = QDoubleSpinBox()
         self.spin_scan_offset.setRange(-2.0, 2.0)
         self.spin_scan_offset.setSingleStep(0.01)
@@ -1116,7 +1187,7 @@ class UiSetupMixin:
         btn_bidir_test = QPushButton(tr("ui.bidir_test_btn"))
         btn_bidir_test.setToolTip(tr("ui.scan_offset_tip"))
         btn_bidir_test.clicked.connect(self.generate_bidir_test)
-        self.spin_scan_offset.valueChanged.connect(self._schedule_layer_persist)
+        self.spin_scan_offset.valueChanged.connect(self._schedule_layer_persist)   # mémorisé dans le profil de la machine
         layout_gcode_cfg.addRow(tr("ui.scan_offset_label"), self.spin_scan_offset)
         layout_gcode_cfg.addRow("", btn_bidir_test)
         layout_gcode_cfg.addRow(tr("ui.gcode_start"), self.txt_start_gcode)
@@ -1151,6 +1222,7 @@ class UiSetupMixin:
         grbl_settings_box.setLayout(grbl_settings_layout)
         layout_gcode_cfg.addRow(grbl_settings_box)
 
+        # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
         self.tab_grbl_config = tab_gcode_cfg
 
         tab_layers = QWidget()
@@ -1160,8 +1232,10 @@ class UiSetupMixin:
             focal_getter=lambda: self.spin_machine_focal.value(),
         )
         self.layer_widget.layers_changed.connect(self.on_layers_changed)
+        # Mémorise les réglages des calques dans le profil de la machine active.
         self.layer_widget.layers_changed.connect(self._schedule_layer_persist)
         layout_layers.addWidget(self.layer_widget)
+        # Onglet central, entre « Graver une image vectorielle » et la visualisation du G-Code.
         self.tab_layers = tab_layers
 
         laser_box = QGroupBox(tr("ui.laser_exec_box"))
@@ -1205,6 +1279,8 @@ class UiSetupMixin:
         legacy_svg_layout.addRow(tr("ui.cut_passes"), self.spin_passes_cut)
         legacy_svg_box.setLayout(legacy_svg_layout)
 
+        # Ancien mode SVG, conservé pour compatibilité mais jamais affiché : gardé en vie ici (ses
+        # champs sont encore lus par la génération).
         legacy_svg_box.setVisible(False)
         self.legacy_svg_box = legacy_svg_box
 
@@ -1214,10 +1290,22 @@ class UiSetupMixin:
         self.gen_progress_bar_main.setValue(0)
         self.gen_progress_bar_main.setVisible(False)
         self.gen_progress_bar_main.setMaximumHeight(16)
+        # Messages d'information (image chargée, SVG chargé…) : dans la barre d'état, effacés au bout
+        # de STATUS_MESSAGE_MS (voir show_status_message) ; la console reste réservée au graveur.
+        # Libellé à part plutôt que statusBar().showMessage(), qui masquerait la progression.
+        self.lbl_status_message = AutoHideLabel("")
+        self.lbl_status_message.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self._status_message_timer = QTimer(self)
+        self._status_message_timer.setSingleShot(True)
+        self._status_message_timer.timeout.connect(lambda: self.show_status_message(""))
+        self.statusBar().addWidget(self.lbl_status_message, 1)
+        # Progression de la génération : dans la barre d'état, en bas de la fenêtre.
         self.statusBar().addWidget(self.lbl_gen_progress_main)
         self.statusBar().addWidget(self.gen_progress_bar_main, 1)
 
+
         self._last_gcode_text = None
+
 
         center_widget = QWidget()
         center_panel = QVBoxLayout(center_widget)
@@ -1229,8 +1317,11 @@ class UiSetupMixin:
         outer_layout_previews = QVBoxLayout(tab_previews)
         outer_layout_previews.setContentsMargins(4, 4, 4, 4)
 
+        # Barre d'outils de l'onglet : comparaison des algorithmes à gauche (ancien bouton de l'onglet
+        # Image & Filtres : n'agit que sur l'image de cet onglet), plein écran aligné à droite.
         compare_icon = QIcon.fromTheme("view-app-grid", QIcon.fromTheme(
             "view-list-icons", self.style().standardIcon(QStyle.StandardPixmap.SP_FileDialogListView)))
+        # Affiche ou masque l'image originale (masquée par défaut, voir box_source_image).
         self.chk_show_original = QCheckBox(tr("img.show_original"))
         self.chk_show_original.setToolTip(tr("img.show_original_tip"))
         self.chk_show_original.toggled.connect(lambda checked: self.box_source_image.setVisible(checked))
@@ -1242,6 +1333,7 @@ class UiSetupMixin:
         outer_layout_previews.addWidget(toolbar_previews)
 
         layout_previews = QHBoxLayout()
+        # Réglages de l'image à gauche, comme dans Séparation.
         img_settings_scroll = self._side_settings_panel(self.tab_img)
         layout_previews.addWidget(img_settings_scroll)
 
@@ -1258,6 +1350,8 @@ class UiSetupMixin:
         box_dither.setLayout(layout_dither)
 
         layout_previews.addWidget(box_src)
+        # Image originale masquée par défaut : le rendu tramé prend toute la place. Elle reste tenue
+        # à jour (display_source_image) ; la case « Afficher l'originale » la réaffiche.
         box_src.setVisible(False)
         self.box_source_image = box_src
         layout_previews.addWidget(box_dither)
@@ -1268,6 +1362,7 @@ class UiSetupMixin:
         tab_png2svg = self._init_png2svg_tab()
         self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
 
+        # --- ONGLET SÉPARATION COULEUR ---
         self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
 
         tab_vector_editor = QWidget()
@@ -1302,8 +1397,9 @@ class UiSetupMixin:
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector.setIcon(self._fullscreen_icon())
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
-        tab_vector_editor._fullscreen_control = btn_fullscreen_vector
-        
+        tab_vector_editor._fullscreen_control = btn_fullscreen_vector   # voir _show_fullscreen_control
+        # Deux lignes : en une seule, les 11 boutons demandaient ~1 500 px et leurs libellés étaient
+        # tronqués dès que la fenêtre était un peu étroite. Ligne 1 : créer / importer ; ligne 2 : modifier.
         toolbar_vector.addWidget(btn_add_text)
         toolbar_vector.addWidget(btn_add_shape)
         toolbar_vector.addWidget(btn_import_svg_vector)
@@ -1420,6 +1516,8 @@ class UiSetupMixin:
         tab_vector_2d = QWidget()
         layout_vector_2d = QVBoxLayout(tab_vector_2d)
 
+        # Options de l'aperçu (anciennes cases du bas de la colonne de gauche). « Optimiser le
+        # chemin », elle, s'applique à la prochaine génération du G-Code.
         self.chk_flip_raster_preview = QCheckBox(tr("preview.flip"))
         self.chk_flip_raster_preview.setToolTip(tr("preview.flip_tip"))
         self.chk_flip_raster_preview.stateChanged.connect(self.on_flip_raster_preview_changed)
@@ -1468,7 +1566,7 @@ class UiSetupMixin:
         center_bottom_layout.setContentsMargins(0, 0, 0, 0)
 
         dro_box = QGroupBox(tr("ui.dro_box"))
-        dro_layout = QHBoxLayout()
+        dro_layout = QVBoxLayout()
         self.lbl_dro_state = QLabel(tr("ui.dro_state").format(value="—"))
         self.lbl_dro_x = QLabel(tr("ui.dro_x").format(value="—"))
         self.lbl_dro_y = QLabel(tr("ui.dro_y").format(value="—"))
@@ -1484,109 +1582,21 @@ class UiSetupMixin:
         self.btn_unlock_alarm.setVisible(False)
         dro_layout.addWidget(self.lbl_dro_state)
         dro_layout.addWidget(self.btn_unlock_alarm)
-        dro_layout.addStretch()
         dro_layout.addWidget(self.lbl_dro_x)
         dro_layout.addWidget(self.lbl_dro_y)
         dro_layout.addWidget(self.lbl_dro_z)
+        dro_layout.addStretch()
         dro_box.setLayout(dro_layout)
-        center_bottom_layout.addWidget(dro_box)
-        center_bottom_layout.addWidget(self.job_position_box)
 
-        jog_box = QGroupBox(tr("ui.jog_box"))
-        jog_layout = QGridLayout()
+        jog_box = self._build_jog_box()
 
-        btn_up = QPushButton("▲ Y+")
-        btn_down = QPushButton("▼ Y-")
-        btn_left = QPushButton("◄ X-")
-        btn_right = QPushButton("► X+")
-        
-        btn_up_left = QPushButton("◤")
-        btn_up_right = QPushButton("◥")
-        btn_down_left = QPushButton("◣")
-        btn_down_right = QPushButton("◢")
-
-        btn_up.clicked.connect(lambda: self.jog_move(0, 1))
-        btn_down.clicked.connect(lambda: self.jog_move(0, -1))
-        btn_left.clicked.connect(lambda: self.jog_move(-1, 0))
-        btn_right.clicked.connect(lambda: self.jog_move(1, 0))
-
-        btn_up_left.clicked.connect(lambda: self.jog_move(-1, 1))
-        btn_up_right.clicked.connect(lambda: self.jog_move(1, 1))
-        btn_down_left.clicked.connect(lambda: self.jog_move(-1, -1))
-        btn_down_right.clicked.connect(lambda: self.jog_move(1, -1))
-
-        self.combo_step = QComboBox()
-        self.combo_step.addItems(["0.1 mm", "1 mm", "10 mm", "100 mm"])
-        self.combo_step.setCurrentIndex(2)
-
-        self.spin_jog_speed = QSpinBox()
-        self.spin_jog_speed.setRange(100, 10000)
-        self.spin_jog_speed.setValue(3000)
-
-        btn_homing_now = QPushButton(tr("ui.homing_cmd"))
-        btn_homing_now.clicked.connect(self.send_homing)
-
-        btn_zero_xy = QPushButton(tr("ui.zero_work"))
-        btn_zero_xy.clicked.connect(lambda: self.send_manual_direct_cmd("G92 X0 Y0"))
-
-        btn_go_zero = QPushButton(tr("ui.go_zero"))
-        btn_go_zero.clicked.connect(lambda: self.send_manual_direct_cmd("G0 X0 Y0"))
-
-        btn_pause = QPushButton(tr("ui.pause"))
-        btn_pause.setStyleSheet("background-color: #e67e22; color: white; font-weight: bold;")
-        btn_pause.clicked.connect(self.send_pause)
-
-        btn_resume = QPushButton(tr("ui.resume"))
-        btn_resume.setStyleSheet("background-color: #27ae60; color: white; font-weight: bold;")
-        btn_resume.clicked.connect(self.send_resume)
-
-        btn_reset = QPushButton(tr("ui.reset"))
-        btn_reset.setStyleSheet("background-color: #c0392b; color: white; font-weight: bold;")
-        btn_reset.clicked.connect(self.send_reset)
-
-        btn_kill = QPushButton(tr("ui.kill"))
-        btn_kill.setStyleSheet("background-color: #ff0000; color: white; font-weight: bold;")
-        btn_kill.clicked.connect(self.send_kill)
-
-        btn_frame = QPushButton(tr("ui.frame"))
-        btn_frame.clicked.connect(self.run_frame)
-        
-        self.btn_send = QPushButton(tr("ui.send_to_laser"))
-        self.btn_send.setStyleSheet("background-color: #2980b9; color: white; font-weight: bold;")
-        self.btn_send.clicked.connect(self.send_to_laser)
-
-        self.btn_repeat_last_job = QPushButton(tr("ui.repeat_last_job"))
-        self.btn_repeat_last_job.clicked.connect(self.repeat_last_job)
-        self.btn_repeat_last_job.setEnabled(False)
-
-        jog_layout.addWidget(btn_up_left, 0, 0)
-        jog_layout.addWidget(btn_up, 0, 1)
-        jog_layout.addWidget(btn_up_right, 0, 2)
-        jog_layout.addWidget(btn_left, 1, 0)
-        jog_layout.addWidget(btn_homing_now, 1, 1)
-        jog_layout.addWidget(btn_right, 1, 2)
-        jog_layout.addWidget(btn_down_left, 2, 0)
-        jog_layout.addWidget(btn_down, 2, 1)
-        jog_layout.addWidget(btn_down_right, 2, 2)
-
-        jog_layout.addWidget(QLabel(tr("ui.jog_step_label")), 0, 3)
-        jog_layout.addWidget(self.combo_step, 0, 4)
-        jog_layout.addWidget(QLabel(tr("ui.jog_speed_label")), 1, 3)
-        jog_layout.addWidget(self.spin_jog_speed, 1, 4)
-
-        jog_layout.addWidget(btn_zero_xy, 2, 3)
-        jog_layout.addWidget(btn_go_zero, 2, 4)
-
-        jog_layout.addWidget(btn_pause, 3, 0)
-        jog_layout.addWidget(btn_resume, 3, 1)
-        jog_layout.addWidget(btn_reset, 3, 2)
-        jog_layout.addWidget(btn_kill, 3, 3)
-        jog_layout.addWidget(btn_frame, 4, 0)
-        jog_layout.addWidget(self.btn_send, 4, 1, 1, 4)
-        jog_layout.addWidget(self.btn_repeat_last_job, 5, 1, 1, 4)
-
-        jog_box.setLayout(jog_layout)
-        center_bottom_layout.addWidget(jog_box)
+        # Trois parties côte à côte : position du job à gauche, jog au centre, DRO à droite.
+        machine_row = QHBoxLayout()
+        machine_row.addWidget(self.job_position_box)
+        machine_row.addWidget(jog_box, 1)
+        machine_row.addWidget(dro_box)
+        center_bottom_layout.addLayout(machine_row)
+        self.jog_box = jog_box
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
@@ -1605,9 +1615,13 @@ class UiSetupMixin:
         cmd_layout.addWidget(btn_send_cmd)
         cmd_box.setLayout(cmd_layout)
         center_bottom_layout.addWidget(cmd_box)
-        center_bottom_layout.addStretch()
+        self.direct_console_box = cmd_box
+        self.update_connection_widgets()               # commandes verrouillées tant que non connecté
+        center_bottom_layout.addStretch()              # place libre en bas, pas dans les cadres
 
         self.main_tabs_view.setMinimumHeight(150)
+        # Le panneau machine (DRO, jog, console directe) demande ~400 px. Réduit plus bas avec le
+        # séparateur, il défile au lieu d'écraser ses cadres jusqu'à n'en laisser que les titres.
         center_bottom_scroll = QScrollArea()
         center_bottom_scroll.setWidget(center_bottom_widget)
         center_bottom_scroll.setWidgetResizable(True)
@@ -1682,6 +1696,7 @@ class UiSetupMixin:
         tab_job_queue = QWidget()
         layout_tab_job_queue = QVBoxLayout(tab_job_queue)
         layout_tab_job_queue.setContentsMargins(6, 6, 6, 6)
+        # Deux moitiés réglables : la file à gauche, le G-Code envoyé à droite.
         queue_splitter = QSplitter(Qt.Orientation.Horizontal)
         layout_tab_job_queue.addWidget(queue_splitter)
         queue_left = QWidget()
@@ -1714,16 +1729,20 @@ class UiSetupMixin:
         self.lbl_queue_status = QLabel(tr("ui.queue_empty"))
         layout_job_queue.addWidget(self.lbl_queue_status)
 
+        # Suivi de l'envoi : chaque ligne de G-Code s'ajoute ici au moment où elle part vers la
+        # machine (GCodeStreamerThread.lines_sent), pour la file comme pour « Envoyer au laser ».
         sent_box = QGroupBox(tr("queue.sent_log_title"))
         sent_layout = QVBoxLayout(sent_box)
         self.txt_sent_gcode = QPlainTextEdit()
         self.txt_sent_gcode.setReadOnly(True)
-        self.txt_sent_gcode.setMaximumBlockCount(20000)
+        self.txt_sent_gcode.setMaximumBlockCount(20000)     # garde les 20 000 dernières lignes
         self.txt_sent_gcode.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.txt_sent_gcode.setStyleSheet("font-family: monospace;")
         self.txt_sent_gcode.setPlaceholderText(tr("queue.sent_log_placeholder"))
         sent_layout.addWidget(self.txt_sent_gcode)
         queue_splitter.addWidget(sent_box)
+        # Moitié / moitié au départ, puis à chaque redimensionnement de la fenêtre. Des tailles
+        # égales et grandes : Qt les ramène à la largeur réelle en gardant la proportion.
         queue_splitter.setStretchFactor(0, 1)
         queue_splitter.setStretchFactor(1, 1)
         queue_splitter.setSizes([100000, 100000])
@@ -1731,15 +1750,20 @@ class UiSetupMixin:
         self.main_tabs_view.addTab(tab_job_queue, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab_job_queue
 
-        self.center_bottom_widget = center_bottom_scroll
+        self.center_bottom_widget = center_bottom_scroll     # masqué / affiché selon l'onglet
         self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
         self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
         for tab in (self.tab_separation, self.tab_png2svg):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
 
+        # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
+        # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
+        # rangée d'alignement imposeraient environ 1500 px à la fenêtre. Trop étroit, le centre se
+        # contente de serrer ses boutons.
         center_widget.setMinimumWidth(480)
         self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
 
