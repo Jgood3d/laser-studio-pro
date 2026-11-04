@@ -117,6 +117,7 @@ python main.py
 - `usb_controller.py` — `LaserUSBController`
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
+- `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)
 - `ui_splash_screen.py` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
@@ -134,6 +135,7 @@ python main.py
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — assemblage de la fenêtre principale
 - `ui_setup_mixin.py` — interface utilisateur, menus, onglets, dialogues
+- `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
