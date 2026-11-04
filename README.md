@@ -117,6 +117,8 @@ python main.py
 - `usb_controller.py` — `LaserUSBController`
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
+- `splash_screen.py` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
+- `qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
 - `image_filters.py` — filtres d’image purs (netteté)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)

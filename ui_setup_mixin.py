@@ -15,7 +15,8 @@ from app_utils import find_resource
 from app_utils import APP_VERSION
 from i18n import tr, SUPPORTED_LANGUAGES, get_current_language, set_language
 from settings_window import SettingsWindow
-from widgets_extra import HistoryLineEdit, AutoHideLabel
+from widgets_extra import (
+    HistoryLineEdit, AutoHideLabel, scaled_to_width_hidpi)
 from stencil_studio.studio_dialog import open_stencil_studio
 
 SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
@@ -700,7 +701,8 @@ class UiSetupMixin:
             pixmap = QPixmap(banner_path)
             if not pixmap.isNull():
                 lbl_banner = QLabel()
-                lbl_banner.setPixmap(pixmap.scaledToWidth(420, Qt.TransformationMode.SmoothTransformation))
+                lbl_banner.setPixmap(scaled_to_width_hidpi(
+                    pixmap, 420, self.devicePixelRatioF()))
                 lbl_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
                 layout.addWidget(lbl_banner)
             else:
