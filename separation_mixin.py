@@ -88,12 +88,8 @@ class SeparationMixin:
         outer = QVBoxLayout(root)
         outer.setContentsMargins(4, 4, 4, 4)
 
-        bar = QHBoxLayout()
-        bar.addStretch()
-        btn_fs = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fs.clicked.connect(lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
-        bar.addWidget(btn_fs)
-        outer.addLayout(bar)
+        outer.addWidget(self._build_tab_toolbar(
+            root, lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title")))
 
         body = QHBoxLayout()
         outer.addLayout(body, 1)

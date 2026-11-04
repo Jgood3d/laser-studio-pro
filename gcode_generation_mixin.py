@@ -441,7 +441,7 @@ class GcodeGenerationMixin:
                 self, tr("gen.too_big_title"),
                 tr("gen.too_big_body").format(
                     job_w=job_w, job_h=job_h, bed_w=bed_w, bed_h=bed_h,
-                    tab_machine=tr("tab.machine_params"), tab_dims=tr("tab.dimensions"),
+                    tab_machine=tr("tab.machine_params"), tab_dims=tr("ui.tab_image_tracing"),
                 )
             )
             return
@@ -511,7 +511,7 @@ class GcodeGenerationMixin:
                     tr("gen.overscan_body").format(
                         overscan=overscan_check, offset=params['offset_x'],
                         start=base_x_check - overscan_check,
-                        tab_dims=tr("tab.dimensions"), tab_grbl=tr("tab.grbl_config"),
+                        tab_dims=tr("ui.job_position_box"), tab_grbl=tr("tab.grbl_config"),
                     )
                 )
                 return
@@ -580,6 +580,8 @@ class GcodeGenerationMixin:
         self.gen_progress_bar_main.setValue(0)
         self.gen_progress_bar_main.setVisible(True)
         self.lbl_gen_progress_main.setText(tr("gen.in_progress"))
+        # On montre l'aperçu dès le lancement (il se remplit à la fin, voir on_gcode_generated).
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.worker.start()
 
     def on_gcode_generation_error(self, error_text):
@@ -974,6 +976,10 @@ class GcodeGenerationMixin:
             anchor=(0, 0)
         )
         self.plot_widget.addItem(self.info_text_item)
+        # Le clear() ci-dessus a aussi retiré le point rouge de position de la tête (DRO) : on le
+        # remet, sans qu'il compte dans le cadrage automatique de la vue (ignoreBounds).
+        if hasattr(self, "gcode_position_marker"):
+            self.plot_widget.addItem(self.gcode_position_marker, ignoreBounds=True)
 
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():

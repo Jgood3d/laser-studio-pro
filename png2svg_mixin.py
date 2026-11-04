@@ -6,7 +6,7 @@ import os
 import tempfile
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QPushButton, QWidget
 
 from png2svg_widget import PngToSvgWidget
 from vector_layers import extract_svg_objects
@@ -23,12 +23,7 @@ class Png2SvgMixin:
         layout = QVBoxLayout(self.tab_png2svg)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        toolbar = QHBoxLayout()
-        toolbar.addStretch()
-        btn_fullscreen_png2svg = QPushButton(tr("png2svg.fullscreen"))
-        btn_fullscreen_png2svg.clicked.connect(self.toggle_fullscreen_png2svg)
-        toolbar.addWidget(btn_fullscreen_png2svg)
-        layout.addLayout(toolbar)
+        layout.addWidget(self._build_tab_toolbar(self.tab_png2svg, self.toggle_fullscreen_png2svg))
 
         self.png2svg_widget = PngToSvgWidget()
         self.png2svg_widget.sendToVectorEditor.connect(self._on_png2svg_send_to_vector)
@@ -62,8 +57,10 @@ class Png2SvgMixin:
 
         dlg_layout.addWidget(self.tab_png2svg)
         self.tab_png2svg.setVisible(True)
+        self._show_fullscreen_control(self.tab_png2svg, False)
 
         def restore(_result=None):
+            self._show_fullscreen_control(self.tab_png2svg, True)
             dlg_layout.removeWidget(self.tab_png2svg)
             self.tab_png2svg.setParent(None)
             self.main_tabs_view.insertTab(idx, self.tab_png2svg, tr("png2svg.tab_title"))

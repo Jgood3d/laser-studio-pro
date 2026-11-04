@@ -153,6 +153,37 @@ class MachineProfilesMixin:
             profiles[idx]["layers"] = self.layer_manager.to_list()
             if hasattr(self, "spin_scan_offset"):
                 profiles[idx]["scan_offset_mm"] = self.spin_scan_offset.value()
+            profiles[idx].update(self._capture_overscan_fields())
+
+    def _capture_overscan_fields(self):
+        """Réglages du surbalayage (Configuration GRBL). Propres à la machine : la marge nécessaire
+        dépend de son accélération. Le mode est enregistré par son index (0 = distance fixe,
+        1 = pourcentage), les libellés de la liste étant traduits."""
+        if not hasattr(self, "chk_overscan"):
+            return {}
+        return {
+            "overscan_enabled": self.chk_overscan.isChecked(),
+            "overscan_mode": self.combo_overscan_mode.currentIndex(),
+            "overscan_dist_mm": self.spin_overscan_dist.value(),
+            "overscan_pct": self.spin_overscan_pct.value(),
+        }
+
+    def _apply_overscan_fields(self, p):
+        """Applique les réglages de surbalayage d'un profil. Un profil enregistré avant leur ajout
+        n'en contient pas : les valeurs affichées restent alors inchangées."""
+        if not hasattr(self, "chk_overscan"):
+            return
+        try:
+            if "overscan_enabled" in p:
+                self.chk_overscan.setChecked(bool(p["overscan_enabled"]))
+            if p.get("overscan_mode") in (0, 1):
+                self.combo_overscan_mode.setCurrentIndex(p["overscan_mode"])
+            if "overscan_dist_mm" in p:
+                self.spin_overscan_dist.setValue(float(p["overscan_dist_mm"]))
+            if "overscan_pct" in p:
+                self.spin_overscan_pct.setValue(float(p["overscan_pct"]))
+        except (TypeError, ValueError):
+            pass                       # valeur illisible dans le profil : on garde l'affichage actuel
 
     def _apply_profile_layers(self, saved_layers, full=False):
         """Applique les calques mémorisés dans un profil machine.
@@ -270,6 +301,8 @@ class MachineProfilesMixin:
             "layers": self.layer_manager.to_list() if hasattr(self, "layer_manager") else [],
             # Décalage des lignes retour de la gravure d'image (mm) : mécanique, donc propre à la machine.
             "scan_offset_mm": self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            # Surbalayage : voir _capture_overscan_fields.
+            **self._capture_overscan_fields(),
         }
 
     def _apply_machine_profile_fields(self, p, restore_layers_fully=False):
@@ -328,6 +361,7 @@ class MachineProfilesMixin:
                 self.spin_scan_offset.setValue(float(p.get("scan_offset_mm", 0.0)))
             except (TypeError, ValueError):
                 self.spin_scan_offset.setValue(0.0)
+        self._apply_overscan_fields(p)
 
     def _on_machine_profile_selected(self, idx):
         if idx < 0 or idx >= len(self.machine_profiles):
