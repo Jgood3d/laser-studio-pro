@@ -47,10 +47,10 @@ Depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
 être présents), avec les fichiers `laser_studio_pro.ico`,
 `laser_studio_pro_banner.png` et `laser_studio_pro_512.png` :
 ```powershell
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "icons;icons" main.py
 Avec Stencil Studio :
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "icons;icons" --add-data "stencil_studio;stencil_studio" main.py
 
 ```
 Sous Windows, `--add-data` sépare source et destination par `;`. Le code
@@ -95,11 +95,11 @@ pip install pyinstaller
 
 ### 4. Compiler
 ```bash
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "icons:icons" main.py
 
 Avec Stencil studio
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "icons:icons" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
 Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien
