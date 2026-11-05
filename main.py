@@ -125,10 +125,45 @@ def apply_app_theme(app: QApplication, theme_name: str):
         app.setPalette(light_palette)
 
 
+def install_breeze_icon_theme():
+    """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
+
+    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
+    Le pack minimal vit dans icons/breeze/ à côté de main.py (ou dans le bundle
+    PyInstaller via --add-data \"icons;icons\").
+    """
+    from pathlib import Path
+    from PyQt6.QtGui import QIcon
+
+    # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
+    current = QIcon.themeName()
+    if current and current not in ("", "hicolor"):
+        return False
+
+    candidates = []
+    here = Path(__file__).resolve().parent
+    candidates.append(here / "icons")
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "icons")
+        candidates.append(Path(sys.executable).resolve().parent / "icons")
+
+    for base in candidates:
+        index = base / "breeze" / "index.theme"
+        if index.is_file():
+            paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
+            QIcon.setThemeSearchPaths(paths)
+            QIcon.setThemeName("breeze")
+            return True
+    return False
+
+
 if __name__ == "__main__":
     install_qt_message_filters()
     setup_debug_logging()
     app = QApplication(sys.argv)
+    install_breeze_icon_theme()
 
     # Charger le thème mémorisé (par défaut "dark")
     settings = QSettings("LaserStudioPro", "UIConfig")

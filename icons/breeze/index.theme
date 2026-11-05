@@ -1,0 +1,35 @@
+[Icon Theme]
+Name=Breeze
+Comment=Breeze icon theme (subset for Laser Studio Pro)
+Inherits=hicolor
+Directories=16x16/actions,22x22/actions,22x22/devices,22x22/apps,22x22/categories,22x22/preferences
+
+[16x16/actions]
+Size=16
+Context=Actions
+Type=Fixed
+
+[22x22/actions]
+Size=22
+Context=Actions
+Type=Fixed
+
+[22x22/devices]
+Size=22
+Context=Devices
+Type=Fixed
+
+[22x22/apps]
+Size=22
+Context=Applications
+Type=Fixed
+
+[22x22/categories]
+Size=22
+Context=Categories
+Type=Fixed
+
+[22x22/preferences]
+Size=22
+Context=Applications
+Type=Fixed
