@@ -1028,6 +1028,11 @@ class VectorCanvasView(QGraphicsView):
         # d'outils de l'Éditeur Vectoriel (case + pas en mm).
         self.snap_enabled = False
         self.snap_step_mm = 5.0
+        # Outil de dessin à la souris : None = sélection, sinon "line" / "rect" / "ellipse".
+        self._draw_tool = None
+        self._draw_start_scene = None
+        self._draw_preview_item = None
+        self._draw_layer_id = None
         # Recentrage différé de la vue (voir request_recenter) : attend la
         # fin des redimensionnements (plein écran, changement d'onglet)
         # avant de centrer, sinon la taille du viewport est encore fausse.
@@ -1218,10 +1223,67 @@ class VectorCanvasView(QGraphicsView):
         factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
         self.scale(factor, factor)
 
+    def scene_to_mm(self, scene_pos):
+        """Point scène Qt (Y bas) -> millimètres machine (origine bas-gauche, Y haut)."""
+        s = self.px_per_mm
+        work_h_px = self.work_h_mm * s
+        return scene_pos.x() / s, (work_h_px - scene_pos.y()) / s
+
+    def set_draw_tool(self, tool, layer_id=None):
+        """Active un outil de dessin : None/'select', 'line', 'rect', 'ellipse'."""
+        self._cancel_draw_preview()
+        if tool in (None, "", "select"):
+            self._draw_tool = None
+            self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        else:
+            self._draw_tool = tool
+            self._draw_layer_id = layer_id
+            self.setDragMode(QGraphicsView.DragMode.NoDrag)
+            self.setCursor(Qt.CursorShape.CrossCursor)
+            self.scene_obj.clearSelection()
+
+    def _cancel_draw_preview(self):
+        if self._draw_preview_item is not None:
+            self.scene_obj.removeItem(self._draw_preview_item)
+            self._draw_preview_item = None
+        self._draw_start_scene = None
+
+    def _default_draw_layer_id(self):
+        if self._draw_layer_id:
+            return self._draw_layer_id
+        layer = self.layer_manager.default_svg_layer()
+        return layer.id if layer else (self.layer_manager.layers[0].id if self.layer_manager.layers else None)
+
+    def _preview_pen(self):
+        layer = self.layer_manager.get(self._default_draw_layer_id())
+        color = QColor(layer.color) if layer else QColor("#00aaff")
+        pen = QPen(color, 1.5, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        return pen
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_last_pos = event.position().toPoint()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+
+        # Clic droit en mode dessin : annule l'outil et revient à la sélection.
+        if event.button() == Qt.MouseButton.RightButton and self._draw_tool:
+            self.set_draw_tool(None)
+            event.accept()
+            return
+
+        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool:
+            if not self.layer_manager.layers:
+                event.accept()
+                return
+            self._draw_start_scene = self.mapToScene(event.position().toPoint())
+            self._cancel_draw_preview()
+            self._draw_start_scene = self.mapToScene(event.position().toPoint())
+            self._draw_preview_item = self.scene_obj.addPath(QPainterPath(), self._preview_pen())
+            self._draw_preview_item.setZValue(1000)
             event.accept()
             return
 
@@ -1277,6 +1339,29 @@ class VectorCanvasView(QGraphicsView):
             self.verticalScrollBar().setValue(
                 self.verticalScrollBar().value() - delta.y()
             )
+            event.accept()
+            return
+
+        # Aperçu de l'outil de dessin (ligne / rectangle / ellipse)
+        if (
+            self._draw_tool
+            and self._draw_start_scene is not None
+            and event.buttons() & Qt.MouseButton.LeftButton
+            and self._draw_preview_item is not None
+        ):
+            end = self.mapToScene(event.position().toPoint())
+            path = QPainterPath()
+            if self._draw_tool == "line":
+                path.moveTo(self._draw_start_scene)
+                path.lineTo(end)
+            else:
+                rect = QRectF(self._draw_start_scene, end).normalized()
+                if self._draw_tool == "ellipse":
+                    path.addEllipse(rect)
+                else:
+                    path.addRect(rect)
+            self._draw_preview_item.setPath(path)
+            self._draw_preview_item.setPen(self._preview_pen())
             event.accept()
             return
 
@@ -1481,7 +1566,27 @@ class VectorCanvasView(QGraphicsView):
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_last_pos = None
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+            self.setCursor(
+                Qt.CursorShape.CrossCursor if self._draw_tool else Qt.CursorShape.ArrowCursor
+            )
+            event.accept()
+            return
+
+        # Finalise le dessin à la souris
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._draw_tool
+            and self._draw_start_scene is not None
+        ):
+            end = self.mapToScene(event.position().toPoint())
+            start = self._draw_start_scene
+            self._cancel_draw_preview()
+            obj = self._create_drawn_object(start, end)
+            if obj is not None:
+                self.push_undo_snapshot()
+                item = self.add_object(obj)
+                self.scene_obj.clearSelection()
+                item.setSelected(True)
             event.accept()
             return
 
@@ -1500,7 +1605,53 @@ class VectorCanvasView(QGraphicsView):
 
         super().mouseReleaseEvent(event)
 
+    def _create_drawn_object(self, start_scene, end_scene):
+        """Crée un ShapeObject (ligne / rect / ellipse) à partir de deux points scène."""
+        x1, y1 = self.scene_to_mm(start_scene)
+        x2, y2 = self.scene_to_mm(end_scene)
+        layer_id = self._default_draw_layer_id()
+        if not layer_id:
+            return None
+
+        if self._draw_tool == "line":
+            dx, dy = x2 - x1, y2 - y1
+            length = math.hypot(dx, dy)
+            if length < 0.05:
+                return None
+            angle = math.degrees(math.atan2(dy, dx))
+            return ShapeObject(
+                shape_type="Ligne",
+                width_mm=length,
+                height_mm=0.1,
+                layer_id=layer_id,
+                x_mm=x1,
+                y_mm=y1,
+                rotation_deg=angle,
+            )
+
+        # Rectangle / ellipse : coin bas-gauche + largeur / hauteur positives
+        left, right = (x1, x2) if x1 <= x2 else (x2, x1)
+        bottom, top = (y1, y2) if y1 <= y2 else (y2, y1)
+        w, h = right - left, top - bottom
+        if w < 0.05 and h < 0.05:
+            return None
+        w = max(w, 0.05)
+        h = max(h, 0.05)
+        shape_type = "Ellipse" if self._draw_tool == "ellipse" else "Rectangle"
+        return ShapeObject(
+            shape_type=shape_type,
+            width_mm=w,
+            height_mm=h,
+            layer_id=layer_id,
+            x_mm=left,
+            y_mm=bottom,
+        )
+
     def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Escape and self._draw_tool:
+            self.set_draw_tool(None)
+            event.accept()
+            return
         if event.matches(QKeySequence.StandardKey.SelectAll):
             for item in self.scene_obj.items():
                 if isinstance(item, VectorGraphicsItem):

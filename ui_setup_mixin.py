@@ -370,32 +370,14 @@ class UiSetupMixin:
         windows[kind].bring_to_front()
 
     def change_theme(self, theme_name):
-        """Bascule entre le thème sombre et clair à la volée."""
+        """Bascule entre le thème sombre et clair à la volée (même logique que le démarrage)."""
+        from app_theme import apply_app_theme
+
         app = QApplication.instance()
         settings = QSettings("LaserStudioPro", "UIConfig")
         settings.setValue("app_theme", theme_name)
-        
-        if theme_name == "dark":
-            app.setStyle("Fusion")
-            dark_palette = QPalette()
-            dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
-            dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
-            dark_palette.setColor(QPalette.ColorRole.Base, QColor(18, 18, 18))
-            dark_palette.setColor(QPalette.ColorRole.AlternateBase, QColor(45, 45, 45))
-            dark_palette.setColor(QPalette.ColorRole.ToolTipBase, QColor(255, 255, 255))
-            dark_palette.setColor(QPalette.ColorRole.ToolTipText, QColor(255, 255, 255))
-            dark_palette.setColor(QPalette.ColorRole.Text, QColor(220, 220, 220))
-            dark_palette.setColor(QPalette.ColorRole.Button, QColor(45, 45, 45))
-            dark_palette.setColor(QPalette.ColorRole.ButtonText, QColor(220, 220, 220))
-            dark_palette.setColor(QPalette.ColorRole.BrightText, QColor(255, 0, 0))
-            dark_palette.setColor(QPalette.ColorRole.Link, QColor(90, 169, 255))
-            dark_palette.setColor(QPalette.ColorRole.Highlight, QColor(43, 92, 143))
-            dark_palette.setColor(QPalette.ColorRole.HighlightedText, QColor(255, 255, 255))
-            app.setPalette(dark_palette)
-        else:
-            app.setStyle("Fusion")
-            app.setPalette(app.style().standardPalette())
-            
+        apply_app_theme(app, theme_name)
+
         for code, act in getattr(self, "_theme_actions", {}).items():
             act.setChecked(code == theme_name)
 
@@ -1398,6 +1380,31 @@ class UiSetupMixin:
         btn_fullscreen_vector.setIcon(self._fullscreen_icon())
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
         tab_vector_editor._fullscreen_control = btn_fullscreen_vector   # voir _show_fullscreen_control
+        # Outils de dessin à la souris (ligne / rectangle / ellipse) + sélection
+        self._vector_draw_buttons = {}
+        btn_draw_select = QPushButton(tr("ui.vector_tool_select"))
+        btn_draw_select.setCheckable(True)
+        btn_draw_select.setChecked(True)
+        btn_draw_select.setToolTip(tr("ui.vector_tool_select_tip"))
+        btn_draw_select.clicked.connect(lambda: self.set_vector_draw_tool(None))
+        btn_draw_line = QPushButton(tr("ui.vector_tool_line"))
+        btn_draw_line.setCheckable(True)
+        btn_draw_line.setToolTip(tr("ui.vector_tool_line_tip"))
+        btn_draw_line.clicked.connect(lambda: self.set_vector_draw_tool("line"))
+        btn_draw_rect = QPushButton(tr("ui.vector_tool_rect"))
+        btn_draw_rect.setCheckable(True)
+        btn_draw_rect.setToolTip(tr("ui.vector_tool_rect_tip"))
+        btn_draw_rect.clicked.connect(lambda: self.set_vector_draw_tool("rect"))
+        btn_draw_ellipse = QPushButton(tr("ui.vector_tool_ellipse"))
+        btn_draw_ellipse.setCheckable(True)
+        btn_draw_ellipse.setToolTip(tr("ui.vector_tool_ellipse_tip"))
+        btn_draw_ellipse.clicked.connect(lambda: self.set_vector_draw_tool("ellipse"))
+        self._vector_draw_buttons = {
+            None: btn_draw_select,
+            "line": btn_draw_line,
+            "rect": btn_draw_rect,
+            "ellipse": btn_draw_ellipse,
+        }
         # Deux lignes : en une seule, les 11 boutons demandaient ~1 500 px et leurs libellés étaient
         # tronqués dès que la fenêtre était un peu étroite. Ligne 1 : créer / importer ; ligne 2 : modifier.
         toolbar_vector.addWidget(btn_add_text)
@@ -1407,6 +1414,13 @@ class UiSetupMixin:
         toolbar_vector.addWidget(btn_nesting)
         toolbar_vector.addStretch()
         layout_vector_editor.addLayout(toolbar_vector)
+        toolbar_vector_draw = QHBoxLayout()
+        toolbar_vector_draw.addWidget(btn_draw_select)
+        toolbar_vector_draw.addWidget(btn_draw_line)
+        toolbar_vector_draw.addWidget(btn_draw_rect)
+        toolbar_vector_draw.addWidget(btn_draw_ellipse)
+        toolbar_vector_draw.addStretch()
+        layout_vector_editor.addLayout(toolbar_vector_draw)
         toolbar_vector_edit = QHBoxLayout()
         toolbar_vector_edit.addWidget(btn_edit_selected)
         toolbar_vector_edit.addWidget(btn_rotate_selected)
