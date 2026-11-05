@@ -117,6 +117,26 @@ class VectorEditingMixin:
             self.vector_canvas.push_undo_snapshot()
             self.vector_canvas.add_object(obj)
 
+    def set_vector_draw_tool(self, tool):
+        """Active un outil de dessin à la souris sur le canevas vectoriel.
+
+        tool: None/'select', 'line', 'rect', 'ellipse'.
+        Clic-glisser crée la forme ; Échap ou clic droit annule l'outil.
+        """
+        if not hasattr(self, "vector_canvas"):
+            return
+        if tool and tool not in (None, "select") and not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            tool = None
+        layer = self.layer_manager.default_svg_layer() if self.layer_manager.layers else None
+        layer_id = layer.id if layer else None
+        resolved = None if tool in (None, "select") else tool
+        self.vector_canvas.set_draw_tool(resolved, layer_id=layer_id)
+        for key, btn in getattr(self, "_vector_draw_buttons", {}).items():
+            btn.blockSignals(True)
+            btn.setChecked(key == resolved)
+            btn.blockSignals(False)
+
     def edit_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()
         if obj is None:
