@@ -28,9 +28,19 @@ def _path_object(points, closed, tag, layer_id, shift_x, shift_y):
                          x_mm=min_x + shift_x, y_mm=min_y + shift_y)
 
 
-def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
-    """Objets indépendants (un par tracé du DXF). Le coin inférieur gauche de l'ensemble du dessin est
-    ancré à (offset_x_mm, offset_y_mm), positions relatives conservées, comme pour un import SVG."""
+def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungroup=False):
+    """Convertit un DXF en objets vectoriels.
+
+    Par défaut (`ungroup=False`), les tracés sont regroupés **par calque DXF**
+    (un SvgPathObject par couche) : l'ensemble d'une couche se manipule d'un
+    bloc, et le routage Stencil Studio (CUT / FRAME / ENGRAVE) reste possible.
+    Avec `ungroup=True`, un objet par tracé (ancien comportement).
+
+    Le coin inférieur gauche de l'ensemble du dessin est ancré à
+    (offset_x_mm, offset_y_mm), positions relatives conservées.
+    """
+    from vector_layers import _merge_path_objects
+
     bounds = drawing.bounds()
     if bounds is None:
         return []
@@ -40,7 +50,22 @@ def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
         obj = _path_object(path.points, path.closed, f"dxf:{path.layer}", layer_id, shift_x, shift_y)
         if obj is not None:
             objects.append(obj)
-    return objects
+
+    if ungroup or len(objects) <= 1:
+        return objects
+
+    # Regroupe par calque DXF (source_tag = "dxf:<nom>").
+    by_layer = {}
+    for obj in objects:
+        by_layer.setdefault(obj.source_tag, []).append(obj)
+    grouped = []
+    for tag, objs in by_layer.items():
+        if len(objs) == 1:
+            grouped.append(objs[0])
+        else:
+            merged = _merge_path_objects(objs, source_tag=tag)
+            grouped.append(merged if merged is not None else objs[0])
+    return grouped
 
 
 def box_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
@@ -85,7 +110,7 @@ def center_group(objects, cx, cy, width_mm=0.0):
 
 
 def decor_to_objects(decor, panel, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y_mm=10.0):
-    """Objets de décor (texte ou SVG dégroupé) centrés sur la face `panel` de la boîte."""
+    """Objets de décor (texte ou SVG, groupé par défaut) centrés sur la face `panel` de la boîte."""
     fx, fy = panel.face_center()
     cx, cy = fx + offset_x_mm + decor.dx, fy + offset_y_mm + decor.dy
     if decor.kind == "svg":

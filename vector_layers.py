@@ -660,10 +660,7 @@ class SvgPathObject(VectorObject):
 def _svg_path_element_to_subpaths(d):
     """Convertit le 'd' d'un <path> SVG en une liste de QPainterPath
     INDÉPENDANTS, un par sous-tracé (une commande M/m démarre un nouveau
-    sous-tracé). Nécessaire pour pouvoir « dégrouper » un <path> combiné —
-    très courant pour un texte vectorisé ou un logo exporté depuis
-    Illustrator/Inkscape, où plusieurs formes visuellement séparées sont
-    en réalité un seul élément <path> avec plusieurs M/Z internes.
+    sous-tracé). Utilisé par le dégroupage manuel (clic droit).
 
     Les courbes de Bézier sont converties EXACTEMENT (cubicTo/quadTo, pas
     d'échantillonnage) ; seuls les arcs (rares en pratique) sont échantillonnés
@@ -704,21 +701,104 @@ def _svg_path_element_to_subpaths(d):
     return paths
 
 
-def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y_mm=10.0):
-    """Importe un fichier SVG comme objets vectoriels INDÉPENDANTS — un objet
-    par tracé/forme du fichier (« dégroupé ») — assignables individuellement à
-    des calques différents (ex : certaines parties en découpe, d'autres en
-    gravure remplie), avec aperçu visuel immédiat dans l'éditeur vectoriel.
+def _svg_path_element_to_single(d):
+    """Comme _svg_path_element_to_subpaths, mais renvoie UN seul QPainterPath
+    contenant tous les sous-tracés (import groupé par défaut)."""
+    combined = QPainterPath()
+    for qp in _svg_path_element_to_subpaths(d):
+        combined.addPath(qp)
+    return combined
 
-    Convention : 1 unité SVG = 1 mm (même convention que l'ancien mode de
-    découpe SVG global de cette application). Les positions relatives entre
-    les tracés sont conservées (le dessin reste visuellement intact juste
-    après import) ; l'ensemble du dessin est ensuite translaté en bloc pour
-    que son coin inférieur gauche se retrouve à (offset_x_mm, offset_y_mm) —
-    10, 10 mm par défaut — plutôt qu'à l'ancrage brut issu des coordonnées
-    SVG d'origine (qui pouvait toucher le bord de la zone de travail).
-    Utilisé aussi bien par l'import SVG classique de l'Éditeur Vectoriel que
-    par l'envoi depuis l'onglet PNG -> SVG.
+
+def _qpainterpath_to_subpaths(path):
+    """Découpe un QPainterPath en sous-tracés indépendants (un par MoveTo).
+    Préserve lignes et cubiques ; les autres types sont ramenés en lineTo."""
+    paths = []
+    current = None
+    i = 0
+    n = path.elementCount()
+    while i < n:
+        el = path.elementAt(i)
+        et = el.type
+        if et == QPainterPath.ElementType.MoveToElement:
+            if current is not None and current.elementCount() > 0:
+                paths.append(current)
+            current = QPainterPath()
+            current.moveTo(el.x, el.y)
+            i += 1
+        elif et == QPainterPath.ElementType.LineToElement:
+            if current is None:
+                current = QPainterPath()
+                current.moveTo(el.x, el.y)
+            else:
+                current.lineTo(el.x, el.y)
+            i += 1
+        elif et == QPainterPath.ElementType.CurveToElement:
+            # CurveTo + CurveToData + CurveToData
+            if current is None:
+                current = QPainterPath()
+                current.moveTo(el.x, el.y)
+                i += 1
+                continue
+            c1x, c1y = el.x, el.y
+            if i + 2 < n:
+                c2 = path.elementAt(i + 1)
+                end = path.elementAt(i + 2)
+                current.cubicTo(c1x, c1y, c2.x, c2.y, end.x, end.y)
+                i += 3
+            else:
+                current.lineTo(c1x, c1y)
+                i += 1
+        else:
+            if current is None:
+                current = QPainterPath()
+                current.moveTo(el.x, el.y)
+            else:
+                current.lineTo(el.x, el.y)
+            i += 1
+    if current is not None and current.elementCount() > 0:
+        paths.append(current)
+    return paths
+
+
+def _merge_path_objects(objects, source_tag="group"):
+    """Fusionne plusieurs SvgPathObject en un seul (même logique que group_selected).
+    Les objets d'entrée doivent déjà être dans le repère monde cohérent."""
+    if not objects:
+        return None
+    if len(objects) == 1:
+        return objects[0]
+    combined = QPainterPath()
+    for obj in objects:
+        combined.addPath(obj.world_path())
+    bbox = combined.boundingRect()
+    if bbox.isNull() or (bbox.width() <= 0 and bbox.height() <= 0):
+        return objects[0]
+    x0, y0 = bbox.left(), bbox.top()
+    to_local = QTransform(1, 0, 0, -1, -x0, y0)
+    local = to_local.map(combined)
+    return SvgPathObject(
+        local_path_data=local, source_tag=source_tag,
+        layer_id=objects[0].layer_id, x_mm=x0, y_mm=y0,
+    )
+
+
+def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y_mm=10.0,
+                        ungroup=False):
+    """Importe un fichier SVG dans l'éditeur vectoriel.
+
+    Par défaut (`ungroup=False`), tout le dessin est importé comme **un seul**
+    objet groupé : on le déplace / redimensionne / assigne à un calque d'un bloc.
+    Le dégroupage (séparation en tracés indépendants) se fait ensuite à la
+    demande via le menu contextuel (clic droit → Dégrouper).
+
+    Avec `ungroup=True`, chaque tracé/sous-tracé devient un objet indépendant
+    (ancien comportement).
+
+    Convention : 1 unité SVG = 1 mm. Les positions relatives sont conservées ;
+    l'ensemble est translaté pour ancrer son coin inférieur gauche à
+    (offset_x_mm, offset_y_mm). Utilisé par l'import SVG, PNG→SVG, décor de
+    boîte et Stencil Studio.
     """
     import xml.etree.ElementTree as ET
 
@@ -737,12 +817,17 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                 d = elem.attrib.get('d')
                 if not d:
                     continue
-                # Un seul <path> peut contenir plusieurs sous-tracés (M/m
-                # multiples) — on les sépare pour permettre de les
-                # sélectionner/assigner à des calques indépendamment
-                # (« dégroupement »).
-                for qp in _svg_path_element_to_subpaths(d):
-                    raw.append((qp, tag))
+                if ungroup:
+                    # Sépare chaque sous-tracé (M/m) en objet indépendant.
+                    for qp in _svg_path_element_to_subpaths(d):
+                        raw.append((qp, tag))
+                else:
+                    # Garde le <path> entier (éventuellement multi-sous-tracés)
+                    # comme une seule géométrie ; le fusion globale plus bas
+                    # regroupera aussi les autres éléments du fichier.
+                    qp = _svg_path_element_to_single(d)
+                    if qp.elementCount() > 0:
+                        raw.append((qp, tag))
             elif tag == 'rect':
                 x = float(elem.attrib.get('x', 0)); y = float(elem.attrib.get('y', 0))
                 w = float(elem.attrib.get('width', 0)); h = float(elem.attrib.get('height', 0))
@@ -811,6 +896,12 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
         for obj in objects:
             obj.x_mm += delta_x
             obj.y_mm += delta_y
+
+        # Import groupé : un seul objet pour tout le fichier.
+        if not ungroup and len(objects) > 1:
+            merged = _merge_path_objects(objects, source_tag="svg_group")
+            if merged is not None:
+                objects = [merged]
 
     return objects
 
@@ -1306,6 +1397,65 @@ class VectorCanvasView(QGraphicsView):
         new_item.setSelected(True)
         return new_item
 
+    def _can_ungroup_item(self, item):
+        """True si l'item est un SvgPathObject avec au moins 2 sous-tracés."""
+        obj = getattr(item, "obj", None)
+        if not isinstance(obj, SvgPathObject):
+            return False
+        subs = _qpainterpath_to_subpaths(obj.local_path())
+        return len(subs) >= 2
+
+    def ungroup_selected(self):
+        """Dégroupe les SvgPathObject sélectionnés : chaque sous-tracé devient
+        un objet indépendant (sélectionnable, assignable à un autre calque).
+        Inverse de group_selected / de l'import groupé. Annulable (Ctrl+Z).
+        Renvoie la liste des nouveaux items créés."""
+        items = self.selected_items_vector()
+        expandable = [it for it in items if self._can_ungroup_item(it)]
+        if not expandable:
+            return []
+
+        self.push_undo_snapshot()
+        new_items = []
+        for it in expandable:
+            obj = it.obj
+            subs = _qpainterpath_to_subpaths(obj.local_path())
+            # Transforme chaque sous-tracé local en objet monde indépendant.
+            # world_transform mappe le repère local de l'objet parent.
+            wt = obj.world_transform()
+            children = []
+            for sub in subs:
+                if sub.elementCount() == 0:
+                    continue
+                world_sub = wt.map(sub)
+                bbox = world_sub.boundingRect()
+                if bbox.width() <= 0 and bbox.height() <= 0:
+                    continue
+                x0, y0 = bbox.left(), bbox.top()
+                to_local = QTransform(1, 0, 0, -1, -x0, y0)
+                local = to_local.map(world_sub)
+                child = SvgPathObject(
+                    local_path_data=local,
+                    source_tag=getattr(obj, "source_tag", "path") or "path",
+                    layer_id=obj.layer_id,
+                    x_mm=x0,
+                    y_mm=y0,
+                )
+                children.append(child)
+
+            if len(children) < 2:
+                # Rien d'utile à séparer : on laisse l'objet tel quel.
+                continue
+
+            self.objects.remove(obj)
+            self.scene_obj.removeItem(it)
+            for child in children:
+                new_items.append(self.add_object(child))
+
+        for it in new_items:
+            it.setSelected(True)
+        return new_items
+
     def refresh_all(self):
         for item in self.scene_obj.items():
             if isinstance(item, VectorGraphicsItem):
@@ -1520,6 +1670,11 @@ class VectorCanvasView(QGraphicsView):
         if n >= 2:
             group_action = menu.addAction(tr("vector.group_objects").format(n=n))
             group_action.triggered.connect(self.group_selected)
+
+        ungroupable = [it for it in selected if self._can_ungroup_item(it)]
+        if ungroupable:
+            ungroup_action = menu.addAction(tr("vector.ungroup_objects"))
+            ungroup_action.triggered.connect(self.ungroup_selected)
 
         menu.addSeparator()
         rotate_action = menu.addAction(tr("ui.vector_rotate_90"))

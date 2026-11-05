@@ -370,9 +370,11 @@ class VectorEditingMixin:
         self.vector_canvas.request_recenter()
 
     def import_svg_to_vector_editor(self):
-        """Importe un SVG ou un DXF dans l'éditeur vectoriel : chaque tracé/forme
-        devient un objet indépendant (« dégroupé »), assignable à un calque différent
-        (découpe, gravure remplie...), avec aperçu visuel immédiat."""
+        """Importe un SVG ou un DXF dans l'éditeur vectoriel.
+
+        Par défaut le dessin arrive **groupé** (un objet, ou un par calque DXF) :
+        on le manipule d'un bloc. Pour séparer les tracés, clic droit → Dégrouper.
+        """
         if not self.layer_manager.layers:
             QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
@@ -428,7 +430,7 @@ class VectorEditingMixin:
         )
 
     def _import_dxf_file(self, path, default_layer):
-        """Import d'un DXF (texte ASCII) : un objet par tracé, tous sur le calque par défaut."""
+        """Import d'un DXF (texte ASCII) : tracés regroupés par calque DXF, calque LSP par défaut."""
         try:
             drawing = dxf_import.read_dxf(path)
         except dxf_import.DxfError as e:
