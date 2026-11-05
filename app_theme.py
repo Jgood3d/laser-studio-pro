@@ -267,11 +267,74 @@ _LIGHT_STYLESHEET = """
 """
 
 
+# Feuille de style thème sombre : force les boutons / groupbox (sinon Fusion
+# sous Windows les laisse clairs après un passage par le thème clair).
+_DARK_STYLESHEET = """
+    QPushButton {
+        background-color: #3a3a3a;
+        color: #e0e0e0;
+        border: 1px solid #555555;
+        border-radius: 4px;
+        padding: 4px 8px;
+        min-width: 1.2em;
+    }
+    QPushButton:hover {
+        background-color: #4a4a4a;
+        border: 1px solid #6a9fdb;
+        color: #ffffff;
+    }
+    QPushButton:pressed {
+        background-color: #2b5c8f;
+        color: #ffffff;
+    }
+    QPushButton:disabled {
+        background-color: #2a2a2a;
+        color: #777777;
+        border: 1px solid #3a3a3a;
+    }
+    QPushButton:checked {
+        background-color: #2b5c8f;
+        border: 1px solid #4a8ad4;
+        color: #ffffff;
+    }
+    QGroupBox {
+        background-color: #2a2a2a;
+        border: 1px solid #444444;
+        border-radius: 6px;
+        margin-top: 10px;
+        padding-top: 14px;
+        font-weight: 600;
+        color: #e0e0e0;
+    }
+    QGroupBox::title {
+        subcontrol-origin: margin;
+        left: 12px;
+        padding: 0 4px;
+        color: #cccccc;
+        background-color: #2a2a2a;
+    }
+    QToolBar QToolButton {
+        background-color: transparent;
+        color: #e0e0e0;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        padding: 4px;
+    }
+    QToolBar QToolButton:hover {
+        background-color: #3a3a3a;
+        border: 1px solid #555555;
+    }
+    QToolBar QToolButton:pressed, QToolBar QToolButton:checked {
+        background-color: #2b5c8f;
+        border: 1px solid #4a8ad4;
+    }
+"""
+
+
 def apply_app_theme(app: QApplication, theme_name: str):
     """Applique le thème sombre ou clair à toute l'application (palette + feuille de style)."""
     app.setStyle("Fusion")
     if theme_name == "dark":
-        app.setStyleSheet("")  # le sombre repose sur la palette Fusion
         dark_palette = QPalette()
         dark_palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
         dark_palette.setColor(QPalette.ColorRole.WindowText, QColor(220, 220, 220))
@@ -291,6 +354,9 @@ def apply_app_theme(app: QApplication, theme_name: str):
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(120, 120, 120))
         dark_palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(120, 120, 120))
         app.setPalette(dark_palette)
+        # Stylesheet sombre pour les boutons (alignement vectoriel, etc.) :
+        # la seule palette ne suffit pas sous Windows après un thème clair.
+        app.setStyleSheet(_DARK_STYLESHEET)
     else:
         # Thème clair Windows : palette complète + stylesheet pour forcer les zones
         # qui restent sombres sous Fusion (surtout barres d'outils / onglets).
