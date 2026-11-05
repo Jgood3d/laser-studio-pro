@@ -501,10 +501,10 @@ TRANSLATIONS = {
         "es": "Elementos no compatibles que se ignoraron: {skipped}.\nConsejo: convierte los textos en curvas en tu programa de CAD antes de exportar.",
     },
     "vector.dxf_success": {
-        "fr": "{count} tracé(s) importé(s) dans l'éditeur vectoriel (unité du fichier : {unit}), tous assignés par défaut au calque « {layer} ».",
-        "en": "{count} path(s) imported into the vector editor (file unit: {unit}), all assigned by default to the \"{layer}\" layer.",
-        "de": "{count} Pfad(e) in den Vektoreditor importiert (Einheit der Datei: {unit}), alle standardmäßig der Ebene „{layer}“ zugewiesen.",
-        "es": "{count} trazado(s) importado(s) en el editor vectorial (unidad del archivo: {unit}), todos asignados por defecto a la capa «{layer}».",
+        "fr": "{count} objet(s) importé(s) (groupés par calque DXF) dans l'éditeur vectoriel (unité : {unit}), assigné(s) au calque « {layer} ».\nPour séparer les tracés : clic droit → Dégrouper.",
+        "en": "{count} object(s) imported (grouped by DXF layer) into the vector editor (unit: {unit}), assigned to layer \"{layer}\".\nTo split paths: right-click → Ungroup.",
+        "de": "{count} Objekt(e) importiert (nach DXF-Ebene gruppiert) in den Vektoreditor (Einheit: {unit}), Ebene „{layer}“.\nZum Trennen: Rechtsklick → Gruppierung aufheben.",
+        "es": "{count} objeto(s) importado(s) (agrupados por capa DXF) en el editor vectorial (unidad: {unit}), asignado(s) a la capa «{layer}».\nPara separar: clic derecho → Desagrupar.",
     },
     "box.title": {
         "fr": "Générateur de boîte à encoches",
@@ -2289,21 +2289,22 @@ TRANSLATIONS = {
         "es": "Importación SVG correcta",
     },
     "vector.svg_success": {
-        "fr": "{count} élément(s) importé(s) dans l'éditeur vectoriel, tous assignés "
-              "par défaut au calque « {layer} ».\n\n"
-              "Sélectionne un élément puis double-clique dessus (ou 'Modifier Sélection') "
-              "pour lui assigner un autre calque.",
-        "en": "{count} element(s) imported into the vector editor, all assigned by "
-              "default to layer “{layer}”.\n\n"
-              "Select an element and double-click it (or use 'Edit Selection') "
-              "to assign it to another layer.",
-        "de": "{count} Element(e) in den Vektor-Editor importiert und standardmäßig "
+        "fr": "{count} objet(s) importé(s) dans l'éditeur vectoriel (groupé), "
+              "assigné(s) au calque « {layer} ».\n\n"
+              "Pour séparer les tracés : clic droit → Dégrouper, puis assigne "
+              "chaque partie au calque souhaité.",
+        "en": "{count} object(s) imported into the vector editor (grouped), "
+              "assigned to layer “{layer}”.\n\n"
+              "To split the paths: right-click → Ungroup, then assign each "
+              "part to the desired layer.",
+        "de": "{count} Objekt(e) in den Vektor-Editor importiert (gruppiert) und "
               "der Ebene „{layer}“ zugewiesen.\n\n"
-              "Wähle ein Element aus und doppelklicke darauf, um eine andere Ebene "
-              "zuzuweisen.",
-        "es": "{count} elemento(s) importado(s) en el editor vectorial y asignado(s) "
-              "por defecto a la capa «{layer}».\n\n"
-              "Selecciona un elemento y haz doble clic para asignarlo a otra capa.",
+              "Zum Trennen der Pfade: Rechtsklick → Gruppierung aufheben, dann "
+              "jede Teilform einer Ebene zuweisen.",
+        "es": "{count} objeto(s) importado(s) en el editor vectorial (agrupado) y "
+              "asignado(s) a la capa «{layer}».\n\n"
+              "Para separar los trazos: clic derecho → Desagrupar, luego asigna "
+              "cada parte a la capa deseada.",
     },
     "vector.open_svg_title": {
         "fr": "Ouvrir SVG Découpe",
@@ -3489,6 +3490,12 @@ TRANSLATIONS = {
         "en": "Group into one object ({n} objects)",
         "de": "Zu einem Objekt gruppieren ({n} Objekte)",
         "es": "Agrupar en un solo objeto ({n} objetos)",
+    },
+    "vector.ungroup_objects": {
+        "fr": "Dégrouper",
+        "en": "Ungroup",
+        "de": "Gruppierung aufheben",
+        "es": "Desagrupar",
     },
     "layers.mode.fill": {
         "fr": "Gravure Remplie",
