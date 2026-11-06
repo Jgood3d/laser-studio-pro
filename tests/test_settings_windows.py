@@ -181,9 +181,11 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn('tr("tab.dimensions")', src)
         self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
-        order = [src.index(k) for k in ('self.main_tabs_view.addTab(tab_vector_editor',
+        self.assertIn("self.main_tabs_view.addTab(tab_vector_editor", src)
+        self.assertIn("self.main_tabs_view.addTab(tab_vector_2d", src)
+        order = [src.index(k) for k in ("self._build_vector_editor_tab()",
                                          'self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))',
-                                         'self.main_tabs_view.addTab(tab_vector_2d')]
+                                         "self._build_2d_preview_tab()")]
         self.assertEqual(order, sorted(order))
 
 

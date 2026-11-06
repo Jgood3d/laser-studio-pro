@@ -375,6 +375,62 @@ class UiSetupMixin:
         # Plus de colonne de gauche : les pages de réglages s'ouvrent dans des fenêtres (menu
         # Paramètres), les réglages de l'image sont dans « Graver une image », la position du job
         # dans le panneau machine. Le centre occupe toute la largeur.
+        layout_machine_params = self._build_machine_params_page()
+        self._build_image_settings()
+        self._build_machine_profiles_page()
+        self._build_test_matrix_page()
+        self._build_grbl_config_page()
+        self._build_layers_tab(layout_machine_params)
+        self._build_legacy_svg_box()
+        self._build_status_bar()
+
+        self._last_gcode_text = None
+
+        center_widget = QWidget()
+        center_panel = QVBoxLayout(center_widget)
+        center_panel.setContentsMargins(0, 0, 0, 0)
+        self.main_tabs_view = QTabWidget()
+        self.main_tabs_view.setMovable(True)
+
+        self._build_image_tab()
+
+        tab_png2svg = self._init_png2svg_tab()
+        self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
+
+        # --- ONGLET SÉPARATION COULEUR ---
+        self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
+
+        self._build_vector_editor_tab()
+        self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))
+
+        self._build_2d_preview_tab()
+        center_bottom_scroll = self._build_machine_panel()
+        center_panel.addWidget(self.center_v_splitter)
+
+        self._build_console_tab()
+        self._build_job_queue_tab()
+
+        self.center_bottom_widget = center_bottom_scroll     # masqué / affiché selon l'onglet
+        self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
+        self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
+        self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
+        for tab in (self.tab_separation, self.tab_png2svg):
+            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
+        self._update_bottom_panel_visibility()
+        self.update_image_actions_state()
+
+        # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
+        # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
+        # rangée d'alignement imposeraient environ 1500 px à la fenêtre. Trop étroit, le centre se
+        # contente de serrer ses boutons.
+        center_widget.setMinimumWidth(480)
+        self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
+
+        main_layout.addWidget(center_widget)
+
+    def _build_machine_params_page(self):
+        """Page « Paramètres du graveur », ouverte depuis le menu Paramètres."""
         tab_machine_params_content = QWidget()
         layout_machine_params = QVBoxLayout(tab_machine_params_content)
 
@@ -456,7 +512,10 @@ class UiSetupMixin:
         tab_machine_params.setWidgetResizable(True)
         tab_machine_params.setFrameShape(QScrollArea.Shape.NoFrame)
         self.tab_machine_params = tab_machine_params     # affichée dans une fenêtre du menu (show_settings_window)
+        return layout_machine_params
 
+    def _build_image_settings(self):
+        """Réglages de l'image (panneau de « Graver une image ») et position du job."""
         tab_img = QWidget()
         layout_img = QFormLayout(tab_img)
 
@@ -612,6 +671,8 @@ class UiSetupMixin:
         job_position_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
         job_position_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
 
+    def _build_machine_profiles_page(self):
+        """Page « Matériaux et connexion au graveur »."""
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
 
@@ -671,6 +732,8 @@ class UiSetupMixin:
         # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
         self.tab_machine_profiles = tab_mach
 
+    def _build_test_matrix_page(self):
+        """Page « Matrice de test », ouverte depuis le menu Outils."""
         tab_matrix = QWidget()
         self.form_matrix = QFormLayout(tab_matrix)
 
@@ -737,6 +800,8 @@ class UiSetupMixin:
 
         self.on_mat_mode_changed(0)
 
+    def _build_grbl_config_page(self):
+        """Page « Configuration GRBL », ouverte depuis le menu Paramètres."""
         tab_gcode_cfg = QWidget()
         layout_gcode_cfg = QFormLayout(tab_gcode_cfg)
 
@@ -838,6 +903,8 @@ class UiSetupMixin:
         # Page affichée dans une fenêtre du menu (voir show_settings_window), plus dans un onglet.
         self.tab_grbl_config = tab_gcode_cfg
 
+    def _build_layers_tab(self, layout_machine_params):
+        """Onglet des calques ; le cadre laser va dans `layout_machine_params`."""
         tab_layers = QWidget()
         layout_layers = QVBoxLayout(tab_layers)
         self.layer_widget = LayerManagerWidget(
@@ -863,6 +930,8 @@ class UiSetupMixin:
         layout_machine_params.insertWidget(layout_machine_params.count() - 1, laser_box)
         laser_box.setVisible(False)
 
+    def _build_legacy_svg_box(self):
+        """Ancien mode SVG : jamais affiché, ses champs restent lus par la génération."""
         legacy_svg_box = QGroupBox(tr("ui.svg_legacy_title"))
         legacy_svg_layout = QFormLayout()
         lbl_legacy_info = QLabel(
@@ -897,6 +966,8 @@ class UiSetupMixin:
         legacy_svg_box.setVisible(False)
         self.legacy_svg_box = legacy_svg_box
 
+    def _build_status_bar(self):
+        """Barre d'état : messages d'information et progression de la génération."""
         self.lbl_gen_progress_main = AutoHideLabel("")
         self.gen_progress_bar_main = QProgressBar()
         self.gen_progress_bar_main.setRange(0, 100)
@@ -916,16 +987,8 @@ class UiSetupMixin:
         self.statusBar().addWidget(self.lbl_gen_progress_main)
         self.statusBar().addWidget(self.gen_progress_bar_main, 1)
 
-
-        self._last_gcode_text = None
-
-
-        center_widget = QWidget()
-        center_panel = QVBoxLayout(center_widget)
-        center_panel.setContentsMargins(0, 0, 0, 0)
-        self.main_tabs_view = QTabWidget()
-        self.main_tabs_view.setMovable(True)
-
+    def _build_image_tab(self):
+        """Onglet « Graver une image » : réglages, aperçus et comparaison."""
         tab_previews = QWidget()
         outer_layout_previews = QVBoxLayout(tab_previews)
         outer_layout_previews.setContentsMargins(4, 4, 4, 4)
@@ -972,12 +1035,8 @@ class UiSetupMixin:
         self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
         self.tab_previews = tab_previews
 
-        tab_png2svg = self._init_png2svg_tab()
-        self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
-
-        # --- ONGLET SÉPARATION COULEUR ---
-        self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
-
+    def _build_vector_editor_tab(self):
+        """Onglet « Éditeur vectoriel »."""
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 
@@ -1156,8 +1215,9 @@ class UiSetupMixin:
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
-        self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))
 
+    def _build_2d_preview_tab(self):
+        """Onglet d'aperçu 2D du G-Code."""
         tab_vector_2d = QWidget()
         layout_vector_2d = QVBoxLayout(tab_vector_2d)
 
@@ -1206,6 +1266,9 @@ class UiSetupMixin:
 
         self.main_tabs_view.addTab(tab_vector_2d, tr("ui.tab_2d_preview"))
         self.tab_vector_2d = tab_vector_2d
+
+    def _build_machine_panel(self):
+        """Panneau machine sous les onglets (DRO, jog, console directe)."""
         center_bottom_widget = QWidget()
         center_bottom_layout = QVBoxLayout(center_bottom_widget)
         center_bottom_layout.setContentsMargins(0, 0, 0, 0)
@@ -1277,8 +1340,10 @@ class UiSetupMixin:
         self.center_v_splitter.addWidget(center_bottom_scroll)
         self.center_v_splitter.setStretchFactor(0, 3)
         self.center_v_splitter.setStretchFactor(1, 1)
-        center_panel.addWidget(self.center_v_splitter)
+        return center_bottom_scroll
 
+    def _build_console_tab(self):
+        """Onglet « Console G-Code »."""
         tab_console_gcode = QWidget()
         layout_console_gcode = QVBoxLayout(tab_console_gcode)
         layout_console_gcode.setContentsMargins(6, 6, 6, 6)
@@ -1338,6 +1403,8 @@ class UiSetupMixin:
         self.main_tabs_view.addTab(tab_console_gcode, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab_console_gcode
 
+    def _build_job_queue_tab(self):
+        """Onglet « File d'attente », avec le suivi du G-Code envoyé."""
         tab_job_queue = QWidget()
         layout_tab_job_queue = QVBoxLayout(tab_job_queue)
         layout_tab_job_queue.setContentsMargins(6, 6, 6, 6)
@@ -1394,25 +1461,6 @@ class UiSetupMixin:
 
         self.main_tabs_view.addTab(tab_job_queue, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab_job_queue
-
-        self.center_bottom_widget = center_bottom_scroll     # masqué / affiché selon l'onglet
-        self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
-        self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
-        self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
-        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
-        for tab in (self.tab_separation, self.tab_png2svg):
-            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
-        self._update_bottom_panel_visibility()
-        self.update_image_actions_state()
-
-        # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
-        # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
-        # rangée d'alignement imposeraient environ 1500 px à la fenêtre. Trop étroit, le centre se
-        # contente de serrer ses boutons.
-        center_widget.setMinimumWidth(480)
-        self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
-
-        main_layout.addWidget(center_widget)
 
     def _on_main_tab_changed(self, idx):
       if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:
