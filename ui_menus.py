@@ -41,6 +41,14 @@ class MenusMixin:
         for code, act in getattr(self, "_theme_actions", {}).items():
             act.setChecked(code == theme_name)
 
+        # Stencil Studio ouvert : même thème clair / sombre que LSP
+        dlg = getattr(self, "_stencil_studio_dialog", None)
+        if dlg is not None:
+            try:
+                dlg.sync_theme_from_lsp(theme_name)
+            except Exception:
+                pass
+
     def _build_menu_bar(self):
         menu_bar = self.menuBar()
 
@@ -151,7 +159,9 @@ class MenusMixin:
             )
             self._lang_actions[lang_code] = action_lang
 
-        # Sous-menu Thème (Sombre / Clair)
+        # Sous-menu Thème (Sombre / Clair / Dusk / Warm)
+        from app_theme import available_themes
+
         settings = QSettings("LaserStudioPro", "UIConfig")
         current_theme = settings.value("app_theme", "dark")
         menu_theme = menu_parametres.addMenu(
@@ -159,11 +169,11 @@ class MenusMixin:
                 "preferences-desktop-theme",
                 QStyle.StandardPixmap.SP_DesktopIcon,
             ),
-            "Thème de l'interface",
+            tr("menu.theme"),
         )
         self._theme_actions = {}
-        for t_code, t_label in [("dark", "Sombre"), ("light", "Clair")]:
-            act = menu_theme.addAction(t_label)
+        for t_code, t_label_key in available_themes():
+            act = menu_theme.addAction(tr(t_label_key))
             act.setCheckable(True)
             act.setChecked(t_code == current_theme)
             act.triggered.connect(
