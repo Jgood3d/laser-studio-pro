@@ -134,7 +134,9 @@ python main.py
 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — assemblage de la fenêtre principale
-- `ui_setup_mixin.py` — interface utilisateur, menus, onglets, dialogues
+- `ui_setup_mixin.py` — interface utilisateur : mise en page et onglets
+- `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
+- `ui_about_dialog.py`, `ui_support_dialog.py`, `ui_buy_me_a_coffee_dialog.py` — boîtes de dialogue du menu Aide
 - `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière

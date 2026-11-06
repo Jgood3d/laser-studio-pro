@@ -10,6 +10,7 @@ sys.path.insert(0, ROOT)
 try:
     from laser_control_mixin import LaserControlMixin
     from ui_jog import JogMixin
+    from ui_menus import MenusMixin
     from ui_setup_mixin import UiSetupMixin
 except ImportError:  # PyQt6, pyserial... manquants
     LaserControlMixin = None
@@ -73,7 +74,7 @@ class _Box:
 @unittest.skipIf(LaserControlMixin is None, "ui_setup_mixin non importable ici")
 class CommandsLockTests(unittest.TestCase):
     def make(self, connected):
-        class Fake(UiSetupMixin):
+        class Fake(MenusMixin):
             pass
         f = Fake.__new__(Fake)
         f.usb = type("U", (), {"is_connected": lambda self: connected})()

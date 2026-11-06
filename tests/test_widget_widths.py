@@ -17,7 +17,7 @@ except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = ("ui_setup_mixin.py", "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
+UI_FILES = ("ui_setup_mixin.py", "ui_menus.py", "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
 
 
 def long_combos():
@@ -83,7 +83,10 @@ class SplitterTests(unittest.TestCase):
         self.assertIn("main_layout.addWidget(center_widget)", src)
 
     def test_generate_button_padding(self):
-        self.assertIn('btn_generate.setStyleSheet("background-color: #2b5c8f; color: white; font-weight: bold; padding: 3px;")', self.source())
+        with open(os.path.join(ROOT, "ui_menus.py"), encoding="utf-8") as f:
+            menus = f.read()
+        self.assertRegex(menus, r'btn_generate\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
+                                r'"font-weight: bold; padding: 3px;"')
 
 
 @unittest.skipIf(i18n is None, "i18n non importable ici")
