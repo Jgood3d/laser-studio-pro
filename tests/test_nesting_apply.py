@@ -9,6 +9,8 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 sys.path.insert(0, HERE)
 
 import nesting as ng
@@ -194,7 +196,7 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_button_method_undo_and_active_layers(self):
-        ui = self.src("ui_setup_mixin.py")
+        ui = ui_source()
         self.assertIn("btn_nesting.clicked.connect(self.open_nesting)", ui)
         self.assertIn("toolbar_vector.addWidget(btn_nesting)", ui)
         src = self.src("vector_editing_mixin.py")

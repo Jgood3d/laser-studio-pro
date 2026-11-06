@@ -12,6 +12,8 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 
 import image_size as isz
 import vector_nudge as vn
@@ -24,8 +26,8 @@ def read(name):
 
 class HomingTests(unittest.TestCase):
     def test_auto_homing_is_checked_by_default(self):
-        self.assertIn("self.chk_homing.setChecked(True)", read("ui_setup_mixin.py"))
-        self.assertNotIn("self.chk_homing.setChecked(False)", read("ui_setup_mixin.py"))
+        self.assertIn("self.chk_homing.setChecked(True)", ui_source())
+        self.assertNotIn("self.chk_homing.setChecked(False)", ui_source())
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
         for name in ("machine_profiles_mixin.py", "project_io_mixin.py"):

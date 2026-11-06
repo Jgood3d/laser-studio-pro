@@ -9,6 +9,8 @@ from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 
 
 def read(name):
@@ -44,7 +46,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("menu_bar.addAction(", body)
 
     def test_image_actions_are_in_the_toolbar_not_the_image_tab(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         menus = read("ui_menus.py")
         toolbar = menus[menus.index("def _build_main_toolbar"):menus.index("def _on_language_selected")]
         self.assertIn("self._on_toolbar_delete_image", toolbar)
@@ -57,7 +59,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("chk_mirror", src)
 
     def test_toolbar_order_undo_image_and_connection(self):
-        src = read("ui_setup_mixin.py") + read("ui_menus.py")
+        src = ui_source()
         toolbar = src[src.index("def _build_main_toolbar"):src.index("def _status_dot_icon")]
         order = [toolbar.index(k) for k in (
             "toolbar.addAction(self.action_quit)", "toolbar.addAction(self.action_save_project)",
@@ -77,12 +79,12 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
     def test_separation_and_vectorization_tabs_are_hidden_at_startup(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertIn("for tab in (self.tab_separation, self.tab_png2svg):\n"
                       "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
 
     def test_tab_toolbars_share_one_builder(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         builder = src[src.index("def _build_tab_toolbar"):src.index("def _fullscreen_icon")]
         order = [builder.index(k) for k in ("left_actions:", "QSizePolicy.Policy.Expanding",
                                             "right_widgets:", 'tr("ui.vector_fullscreen")')]
@@ -108,7 +110,7 @@ class MenuStructureTests(unittest.TestCase):
             self.assertIn(", True)", restore, func)
 
     def test_preview_options_are_in_the_2d_tab_toolbar(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         bar = src[src.index("toolbar_vector_2d = self._build_tab_toolbar("):]
         bar = bar[:bar.index("right_widgets=")]
         for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
@@ -123,18 +125,18 @@ class MenuStructureTests(unittest.TestCase):
         self.assertTrue(start.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertIn("center_bottom_scroll.setWidget(center_bottom_widget)", src)
         self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
         self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
 
     def test_original_image_is_hidden_in_the_image_tab(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertIn("box_src.setVisible(False)", src)
         self.assertIn("left_widgets=[self.chk_show_original]", src)      # case « Afficher l'originale »
 
     def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         block = src[src.index("queue_splitter = QSplitter("):src.index('self.main_tabs_view.addTab(tab_job_queue')]
         self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
                         block.index("queue_splitter.addWidget(sent_box)"))
@@ -143,7 +145,7 @@ class MenuStructureTests(unittest.TestCase):
             self.assertIn("self.streamer.lines_sent.connect(self._append_sent_gcode)", read(name), name)
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertIn("layout_img.addRow(btn_img)", src)
         self.assertIn("layout_img.insertRow(3, self.chk_keep_ratio)", src)
 
@@ -153,25 +155,25 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(text.count("\n"), 1, lang)
 
     def test_resolution_stack_does_not_stretch(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertIn("self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)", src)
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
         self.assertIn("self.tab_machine_profiles = tab_mach", src)
         self.assertIn("self.tab_grbl_config = tab_gcode_cfg", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
         self.assertIn("self.tab_machine_params = tab_machine_params", src)
         self.assertIn("self.tab_matrix = tab_matrix", src)
 
     def test_other_tabs_are_still_there(self):
-        src = read("ui_setup_mixin.py")
+        src = ui_source()
         # Image & Filtres et la taille de l'image : panneau de gauche de « Graver une image » ;
         # ancrage et offset : cadre « Position du job » du panneau machine ; Calques : onglet central.
         self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
