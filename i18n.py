@@ -43,6 +43,38 @@ TRANSLATIONS = {
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
 
+    "menu.theme": {
+        "fr": "Thème de l'interface",
+        "en": "Interface theme",
+        "de": "Oberflächenthema",
+        "es": "Tema de la interfaz",
+    },
+    "theme.dark": {
+        "fr": "Sombre",
+        "en": "Dark",
+        "de": "Dunkel",
+        "es": "Oscuro",
+    },
+    "theme.light": {
+        "fr": "Clair",
+        "en": "Light",
+        "de": "Hell",
+        "es": "Claro",
+    },
+    "theme.dusk": {
+        "fr": "Dusk (gris-bleu doux)",
+        "en": "Dusk (soft blue-gray)",
+        "de": "Dusk (weiches Blaugrau)",
+        "es": "Dusk (gris azulado suave)",
+    },
+    "theme.warm": {
+        "fr": "Warm dim (gris chaud)",
+        "en": "Warm dim (warm gray)",
+        "de": "Warm dim (warmes Grau)",
+        "es": "Warm dim (gris cálido)",
+    },
+
+
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
 
     # --- Menu Langue ---

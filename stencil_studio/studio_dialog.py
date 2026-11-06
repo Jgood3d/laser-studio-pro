@@ -34,32 +34,87 @@ except Exception as _e:  # pragma: no cover  (ImportError, mais aussi erreurs de
     HAVE_WEBENGINE = False
     WEBENGINE_ERROR = f"{type(_e).__name__}: {_e}"
 
-# Couleurs de Laser Studio Pro (relevées sur l'interface : fond #232323, panneaux #303030, boutons #3b3b3b,
-# champs #2e2e2e, bouton d'action bleu, curseurs / coches #6dbef9).
-LSP_THEME = {"bg": "#232323", "panel": "#303030", "panel2": "#3b3b3b", "line": "#4d4d4d",
-             "fg": "#f2f2f2", "mut": "#a8a8a8", "acc": "#3a5b89", "acc2": "#6dbef9", "onacc": "#ffffff"}
+# Thèmes Stencil Studio alignés sur ceux de Laser Studio Pro (app_theme.py).
+LSP_THEME_DARK = {
+    "bg": "#232323", "panel": "#303030", "panel2": "#3b3b3b", "line": "#4d4d4d",
+    "fg": "#f2f2f2", "mut": "#a8a8a8", "acc": "#3a5b89", "acc2": "#6dbef9", "onacc": "#ffffff",
+}
+LSP_THEME_LIGHT = {
+    "bg": "#f3f3f3", "panel": "#ffffff", "panel2": "#f0f0f0", "line": "#d0d0d0",
+    "fg": "#1a1a1a", "mut": "#666666", "acc": "#0078d4", "acc2": "#4aa3e8", "onacc": "#ffffff",
+}
+# Dusk — gris-bleu doux
+LSP_THEME_DUSK = {
+    "bg": "#232831", "panel": "#2b303b", "panel2": "#353b4a", "line": "#4f5666",
+    "fg": "#d8dee9", "mut": "#9aa3b5", "acc": "#88c0d0", "acc2": "#8fbcbb", "onacc": "#2b303b",
+}
+# Warm dim — gris chaud ambré
+LSP_THEME_WARM = {
+    "bg": "#241f1c", "panel": "#2c2825", "panel2": "#3a3530", "line": "#5a524a",
+    "fg": "#e8e0d5", "mut": "#a89c8e", "acc": "#d4a574", "acc2": "#e0b88a", "onacc": "#2c2825",
+}
+# Alias rétrocompat : l'ancien LSP_THEME était toujours sombre.
+LSP_THEME = LSP_THEME_DARK
+
+_STUDIO_THEMES = {
+    "dark": LSP_THEME_DARK,
+    "sombre": LSP_THEME_DARK,
+    "light": LSP_THEME_LIGHT,
+    "clair": LSP_THEME_LIGHT,
+    "dusk": LSP_THEME_DUSK,
+    "warm": LSP_THEME_WARM,
+}
 
 
 def theme_from_palette(pal=None):
     """Couleurs de la page Studio déduites de la palette Qt de LSP (fenêtre, texte, accent...)."""
     from PyQt6.QtGui import QPalette, QColor
-    pal = pal or QApplication.instance().palette()
+    app = QApplication.instance()
+    pal = pal or (app.palette() if app else None)
+    if pal is None:
+        return dict(LSP_THEME_DARK)
     R = QPalette.ColorRole
 
     def hx(c):
         return c.name()
 
     def mix(a, b, t):
-        return QColor(int(a.red() * (1 - t) + b.red() * t), int(a.green() * (1 - t) + b.green() * t),
-                      int(a.blue() * (1 - t) + b.blue() * t))
+        return QColor(
+            int(a.red() * (1 - t) + b.red() * t),
+            int(a.green() * (1 - t) + b.green() * t),
+            int(a.blue() * (1 - t) + b.blue() * t),
+        )
+
     win, base, btn = pal.color(R.Window), pal.color(R.Base), pal.color(R.Button)
     fg, acc = pal.color(R.WindowText), pal.color(R.Highlight)
+    if win.lightness() > 140:
+        return dict(LSP_THEME_LIGHT)
     lum = 0.299 * acc.red() + 0.587 * acc.green() + 0.114 * acc.blue()
-    return {"bg": hx(base if base.lightness() <= win.lightness() else win.darker(115)),
-            "panel": hx(win), "panel2": hx(btn), "line": hx(mix(win, fg, 0.18)),
-            "fg": hx(fg), "mut": hx(mix(win, fg, 0.58)),
-            "acc": hx(acc), "acc2": hx(acc.lighter(130)),
-            "onacc": "#111111" if lum > 140 else "#ffffff"}
+    return {
+        "bg": hx(base if base.lightness() <= win.lightness() else win.darker(115)),
+        "panel": hx(win),
+        "panel2": hx(btn),
+        "line": hx(mix(win, fg, 0.18)),
+        "fg": hx(fg),
+        "mut": hx(mix(win, fg, 0.58)),
+        "acc": hx(acc),
+        "acc2": hx(acc.lighter(130)),
+        "onacc": "#111111" if lum > 140 else "#ffffff",
+    }
+
+
+def theme_for_lsp(theme_name=None):
+    """Thème Studio correspondant au réglage LSP (dark / light / dusk / warm)."""
+    if theme_name is None:
+        try:
+            from PyQt6.QtCore import QSettings
+            theme_name = QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark")
+        except Exception:
+            theme_name = "dark"
+    key = str(theme_name).lower()
+    if key in _STUDIO_THEMES:
+        return dict(_STUDIO_THEMES[key])
+    return theme_from_palette()
 
 
 PREFERRED_PORT = 8765   # port fixe si libre : garde les réglages du navigateur intégré d'une session à l'autre
@@ -93,14 +148,19 @@ class StudioDialog(QDialog):
 
     def _apply_theme(self, ok=True):
         """Reprend les couleurs de LSP (palette Qt, ou dictionnaire `theme` passé à open_stencil_studio)."""
-        if not ok:
+        if ok is False:
             return
         import json
         try:
-            t = self._theme if self._theme is not None else LSP_THEME
+            t = self._theme if self._theme is not None else theme_for_lsp()
             self.view.page().runJavaScript(f"window.setTheme && window.setTheme({json.dumps(t)})")
         except Exception:
             pass
+
+    def sync_theme_from_lsp(self, theme_name=None):
+        """Met à jour le thème Studio quand LSP change de thème (clair / sombre)."""
+        self._theme = theme_for_lsp(theme_name)
+        self._apply_theme(True)
 
     # -- téléchargements de la page -> import dans LSP
     def _on_download(self, req):
@@ -186,7 +246,12 @@ def _open_external(window):
 
 
 def open_stencil_studio(window, theme=None):
-    """À appeler depuis un menu de LSP. Crée la fenêtre au premier appel, puis la réaffiche."""
+    """À appeler depuis un menu de LSP. Crée la fenêtre au premier appel, puis la réaffiche.
+
+    Si `theme` est None, le thème suit le réglage clair/sombre de Laser Studio Pro.
+    """
+    if theme is None:
+        theme = theme_for_lsp()
     if not HAVE_WEBENGINE:
         prev = getattr(window, "_stencil_studio_proc", None)
         if prev is not None and prev.state() != prev.ProcessState.NotRunning:
