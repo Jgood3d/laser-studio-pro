@@ -6,6 +6,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 
 try:
     from laser_control_mixin import LaserControlMixin
@@ -88,13 +90,12 @@ class CommandsLockTests(unittest.TestCase):
             self.assertEqual((f.jog_box.enabled, f.direct_console_box.enabled), (connected, connected))
 
     def test_layout_position_left_jog_center_dro_right(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as fh:
-            src = fh.read()
+        src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("center_bottom_layout.addLayout(machine_row)")]
         order = [row.index(k) for k in ("addWidget(self.job_position_box)", "addWidget(jog_box, 1)",
                                         "addWidget(dro_box)")]
         self.assertEqual(order, sorted(order))
-        self.assertIn("self.update_connection_widgets()               # commandes verrouillées", src)
+        self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 
 
 @unittest.skipIf(LaserControlMixin is None, "PyQt6 non importable ici")

@@ -7,6 +7,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 import vector_order as vo
 
 try:
@@ -126,7 +128,7 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
-        self.assertIn("self.chk_safe_cut_order = QCheckBox", self.src("ui_setup_mixin.py"))
+        self.assertIn("self.chk_safe_cut_order = QCheckBox", ui_source())
         self.assertIn("'safe_cut_order':", self.src("gcode_generation_mixin.py"))
         self.assertIn("safe_cut_order=bool(self.params.get('safe_cut_order', True))", self.src("workers.py"))
         self.assertIn("safe_cut_order=False", self.src("vector_layers.py"))

@@ -8,6 +8,16 @@ from vector_layers import LayerManager
 from ui_setup_mixin import UiSetupMixin
 from ui_jog import JogMixin
 from ui_menus import MenusMixin
+from ui_machine_params_page import MachineParamsPageMixin
+from ui_machine_profiles_page import MachineProfilesPageMixin
+from ui_test_matrix_page import TestMatrixPageMixin
+from ui_grbl_config_page import GrblConfigPageMixin
+from ui_image_tab import ImageTabMixin
+from ui_preview_2d_tab import Preview2DTabMixin
+from ui_job_tabs import JobTabsMixin
+from ui_machine_panel import MachinePanelMixin
+from ui_status_bar import StatusBarMixin
+from ui_legacy_svg_box import LegacySvgBoxMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
@@ -20,7 +30,10 @@ from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
-class FullLaserStudio(QMainWindow, UiSetupMixin, MenusMixin, JogMixin, MachineProfilesMixin, ImageProcessingMixin,
+class FullLaserStudio(QMainWindow, UiSetupMixin, MenusMixin, MachineParamsPageMixin, MachineProfilesPageMixin,
+                       TestMatrixPageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
+                       MachinePanelMixin, StatusBarMixin, LegacySvgBoxMixin, JogMixin, MachineProfilesMixin,
+                       ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
                        JobQueueMixin, Png2SvgMixin, SeparationMixin):
     def __init__(self):

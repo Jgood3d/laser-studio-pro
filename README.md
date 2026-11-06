@@ -134,7 +134,17 @@ python main.py
 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — assemblage de la fenêtre principale
-- `ui_setup_mixin.py` — interface utilisateur : mise en page et onglets
+- `ui_setup_mixin.py` — assemblage de l’interface (`init_ui`), outils communs aux onglets, fermeture de la fenêtre
+- `ui_machine_params_page.py` — page « Paramètres du graveur »
+- `ui_machine_profiles_page.py` — page « Matériaux et connexion au graveur »
+- `ui_test_matrix_page.py` — page « Matrice de test »
+- `ui_grbl_config_page.py` — page « Configuration GRBL »
+- `ui_image_tab.py` — onglet « Graver une image » et position du job
+- `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
+- `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
+- `ui_machine_panel.py` — panneau machine sous les onglets (DRO, jog, console directe)
+- `ui_status_bar.py` — barre d’état
+- `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
 - `ui_about_dialog.py`, `ui_support_dialog.py`, `ui_buy_me_a_coffee_dialog.py` — boîtes de dialogue du menu Aide
 - `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande

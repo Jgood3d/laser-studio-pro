@@ -8,6 +8,8 @@ from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 
 import image_filters as imf
 
@@ -111,7 +113,7 @@ class IntegrationSourceTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_slider_is_created_and_shown_after_gamma(self):
-        ui = self.src("ui_setup_mixin.py")
+        ui = ui_source()
         self.assertIn("self.slider_sharp = QSlider", ui)
         self.assertLess(ui.index('layout_img.addRow(tr("img.gamma")'), ui.index('layout_img.addRow(tr("img.sharpness")'))
 

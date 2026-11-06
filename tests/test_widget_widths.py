@@ -10,6 +10,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_files, ui_source  # noqa: E402
 
 try:
     import i18n
@@ -17,7 +19,7 @@ except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = ("ui_setup_mixin.py", "ui_menus.py", "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
+UI_FILES = (*ui_files(), "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
 
 
 def long_combos():
@@ -52,11 +54,10 @@ class WidgetWidthTests(unittest.TestCase):
 
     def test_the_material_selector_is_covered(self):
         names = {(f, c) for f, c, _, _ in long_combos()}
-        self.assertIn(("ui_setup_mixin.py", "self.combo_material_bg"), names)
+        self.assertIn(("ui_image_tab.py", "self.combo_material_bg"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as f:
-            src = f.read()
+        src = ui_source()
         self.assertIn("self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)", src)
         self.assertRegex(src, r"self\.combo_material_bg\.setMinimumContentsLength\(\d{1,2}\)")
 
@@ -65,8 +66,7 @@ class SplitterTests(unittest.TestCase):
     """Le séparateur principal doit pouvoir élargir la colonne de gauche."""
 
     def source(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as f:
-            return f.read()
+        return ui_source()
 
     def test_center_has_an_explicit_small_minimum_width(self):
         m = re.search(r"center_widget\.setMinimumWidth\((\d+)\)", self.source())
