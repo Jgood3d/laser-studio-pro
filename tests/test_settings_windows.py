@@ -18,7 +18,7 @@ def read(name):
 
 class MenuStructureTests(unittest.TestCase):
     def test_menu_bar_order_is_file_settings_tools(self):
-        src = read("ui_setup_mixin.py")
+        src = read("ui_menus.py")
         body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
         order = [body.index(k) for k in ('tr("menu.file")', 'tr("menu.settings")', 'tr("tab.machine_params")',
                                          'tr("tab.machine_profiles")', 'tr("tab.grbl_config")', 'tr("menu.language")',
@@ -26,11 +26,11 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
     def test_settings_and_tools_entries_are_in_their_menu_not_the_bar(self):
-        src = read("ui_setup_mixin.py")
+        src = read("ui_menus.py")
         body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
         def added_to(menu, method, key):
             # Appel menu.method(...) dont le dernier argument est tr(key), icône éventuelle avant.
-            call = rf'{re.escape(menu)}\.{method}\((?:[^()]|\([^()]*(?:\([^()]*\))?[^()]*\))*tr\("{re.escape(key)}"\)\)'
+            call = rf'{re.escape(menu)}\.{method}\((?:[^()]|\([^()]*(?:\([^()]*\))?[^()]*\))*tr\("{re.escape(key)}"\),?\s*\)'
             self.assertRegex(body, call)
 
         added_to("menu_parametres", "addAction", "tab.machine_params")
@@ -45,7 +45,8 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_image_actions_are_in_the_toolbar_not_the_image_tab(self):
         src = read("ui_setup_mixin.py")
-        toolbar = src[src.index("def _build_main_toolbar"):src.index("def _on_language_selected")]
+        menus = read("ui_menus.py")
+        toolbar = menus[menus.index("def _build_main_toolbar"):menus.index("def _on_language_selected")]
         self.assertIn("self._on_toolbar_delete_image", toolbar)
         self.assertEqual(toolbar.count("self._on_toolbar_rotate_image("), 2)
         for name in ("action_mirror_h", "action_mirror_v"):
@@ -56,7 +57,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("chk_mirror", src)
 
     def test_toolbar_order_undo_image_and_connection(self):
-        src = read("ui_setup_mixin.py")
+        src = read("ui_setup_mixin.py") + read("ui_menus.py")
         toolbar = src[src.index("def _build_main_toolbar"):src.index("def _status_dot_icon")]
         order = [toolbar.index(k) for k in (
             "toolbar.addAction(self.action_quit)", "toolbar.addAction(self.action_save_project)",
@@ -195,6 +196,7 @@ class ShowWindowTests(unittest.TestCase):
 
     def make(self, with_pages=True):
         cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
+        cls = type("Window", (cls, importlib.import_module("ui_menus").MenusMixin), {})
         obj = cls.__new__(cls)
         if with_pages:
             obj.tab_machine_profiles = object()

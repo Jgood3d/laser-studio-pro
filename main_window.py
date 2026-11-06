@@ -7,6 +7,7 @@ from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
 from ui_jog import JogMixin
+from ui_menus import MenusMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
@@ -19,7 +20,7 @@ from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
-class FullLaserStudio(QMainWindow, UiSetupMixin, JogMixin, MachineProfilesMixin, ImageProcessingMixin,
+class FullLaserStudio(QMainWindow, UiSetupMixin, MenusMixin, JogMixin, MachineProfilesMixin, ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
                        JobQueueMixin, Png2SvgMixin, SeparationMixin):
     def __init__(self):
