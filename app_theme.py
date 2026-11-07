@@ -114,6 +114,60 @@ THEMES = {
         "scroll": "#5a524a",
         "disabled": "#7a6e62",
     },
+    # Neon laser — fun, cyber, accents cyan + magenta
+    "neon": {
+        "label_key": "theme.neon",
+        "window": "#0d0b14",
+        "base": "#120f1c",
+        "alt": "#1a1628",
+        "button": "#1f1a30",
+        "button_hover": "#2a2340",
+        "border": "#3d3560",
+        "text": "#e8e6f2",
+        "muted": "#9b93b8",
+        "accent": "#00e5c3",
+        "accent_hover": "#5dffe0",
+        "on_accent": "#0d0b14",
+        "tooltip_bg": "#1a1628",
+        "tooltip_fg": "#e8e6f2",
+        "link": "#ff4ecd",
+        "group_bg": "#1a1628",
+        "input_bg": "#120f1c",
+        "toolbar_bg": "#14101f",
+        "tab_bg": "#1a1628",
+        "tab_selected": "#0d0b14",
+        "menu_bg": "#1a1628",
+        "menu_sel": "#2a2340",
+        "scroll": "#3d3560",
+        "disabled": "#6a6288",
+    },
+    # Rétro années 80 — synthwave / vaporwave
+    "retro80": {
+        "label_key": "theme.retro80",
+        "window": "#1a0a2e",
+        "base": "#12061f",
+        "alt": "#2a1450",
+        "button": "#2d1b4e",
+        "button_hover": "#3d2868",
+        "border": "#7b2cbf",
+        "text": "#f0e6ff",
+        "muted": "#b8a0d0",
+        "accent": "#ff2a6d",
+        "accent_hover": "#ff6b9d",
+        "on_accent": "#1a0a2e",
+        "tooltip_bg": "#2a1450",
+        "tooltip_fg": "#f0e6ff",
+        "link": "#05d9e8",
+        "group_bg": "#2a1450",
+        "input_bg": "#12061f",
+        "toolbar_bg": "#1f0f38",
+        "tab_bg": "#2a1450",
+        "tab_selected": "#1a0a2e",
+        "menu_bg": "#2a1450",
+        "menu_sel": "#3d2868",
+        "scroll": "#7b2cbf",
+        "disabled": "#6a5080",
+    },
 }
 
 
@@ -475,6 +529,12 @@ def normalize_theme_name(theme_name) -> str:
         "warm": "warm",
         "warm dim": "warm",
         "warm_dim": "warm",
+        "neon": "neon",
+        "laser": "neon",
+        "retro80": "retro80",
+        "retro": "retro80",
+        "synthwave": "retro80",
+        "80s": "retro80",
     }
     name = aliases.get(name, name)
     if name not in THEMES:
@@ -483,7 +543,7 @@ def normalize_theme_name(theme_name) -> str:
 
 
 def apply_app_theme(app: QApplication, theme_name: str):
-    """Applique un thème nommé (`dark`, `light`, `dusk`, `warm`) à toute l'application."""
+    """Applique un thème nommé à toute l'application."""
     app.setStyle("Fusion")
     name = normalize_theme_name(theme_name)
     colors = THEMES[name]
@@ -497,5 +557,5 @@ def apply_app_theme(app: QApplication, theme_name: str):
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("dark", "light", "dusk", "warm")
+    order = ("dark", "light", "dusk", "warm", "neon", "retro80")
     return [(code, THEMES[code]["label_key"]) for code in order]

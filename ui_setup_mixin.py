@@ -214,6 +214,27 @@ class UiSetupMixin:
             except (TypeError, ValueError):
                 pass
 
+    def _on_show_original_toggled(self, checked: bool):
+        """Affiche/masque l'image originale et égalise les deux cadres quand les deux sont visibles."""
+        if hasattr(self, "box_source_image"):
+            self.box_source_image.setVisible(bool(checked))
+        if checked:
+            # Après le relayout Qt, forcer 50/50 originale | tramé
+            QTimer.singleShot(0, self._equalize_preview_image_panes)
+
+    def _equalize_preview_image_panes(self):
+        """Donne la même largeur aux cadres originale et tramé."""
+        splitter = getattr(self, "preview_image_splitter", None)
+        if splitter is None or not hasattr(self, "box_source_image"):
+            return
+        if not self.box_source_image.isVisible():
+            return
+        total = sum(splitter.sizes())
+        if total <= 0:
+            total = max(splitter.width(), 200)
+        half = total // 2
+        splitter.setSizes([half, total - half])
+
     def _toggle_fullscreen_image_tab(self):
         """Plein écran de « Graver une image ». Ses réglages (ancien onglet Image & Filtres) sont
         maintenant dans l'onglet lui-même : le plein écran commun suffit."""
@@ -979,18 +1000,22 @@ class UiSetupMixin:
         self.spin_off_x = QDoubleSpinBox(); self.spin_off_x.setRange(-1000.0, 1000.0); self.spin_off_x.setValue(0.0)
         self.spin_off_y = QDoubleSpinBox(); self.spin_off_y.setRange(-1000.0, 1000.0); self.spin_off_y.setValue(0.0)
 
-        # Taille de l'image : en haut des réglages de « Graver une image », sous « Charger Image ».
+        # Taille + offset de l'image : en haut des réglages de « Graver une image ».
         layout_img.insertRow(1, tr("dim.width"), self.spin_w)
         layout_img.insertRow(2, tr("dim.height"), self.spin_h)
         layout_img.insertRow(3, self.chk_keep_ratio)          # toute la largeur du panneau
+        # Offset X/Y du job sur le plateau (workers.AdvancedGCodeWorker / G-code)
+        layout_img.insertRow(4, tr("dim.offset_x"), self.spin_off_x)
+        layout_img.insertRow(5, tr("dim.offset_y"), self.spin_off_y)
 
-        # Position du job sur le plateau (image ET vecteurs, voir workers.AdvancedGCodeWorker) :
-        # dans le panneau machine, avec le jog et le cadrage qui servent à la régler.
+        # Origine du repère (bas-gauche / centre) : panneau machine, avec jog / cadrage.
         self.job_position_box = QGroupBox(tr("ui.job_position_box"))
         job_position_layout = QFormLayout(self.job_position_box)
         job_position_layout.addRow(tr("dim.origin"), self.combo_origin)
-        job_position_layout.addRow(tr("dim.offset_x"), self.spin_off_x)
-        job_position_layout.addRow(tr("dim.offset_y"), self.spin_off_y)
+        lbl_off_hint = QLabel(tr("ui.job_offset_in_image_tab"))
+        lbl_off_hint.setWordWrap(True)
+        lbl_off_hint.setStyleSheet("color: #888888;")
+        job_position_layout.addRow(lbl_off_hint)
 
         tab_mach = QWidget()
         layout_mach = QVBoxLayout(tab_mach)
@@ -1317,7 +1342,7 @@ class UiSetupMixin:
         # Affiche ou masque l'image originale (masquée par défaut, voir box_source_image).
         self.chk_show_original = QCheckBox(tr("img.show_original"))
         self.chk_show_original.setToolTip(tr("img.show_original_tip"))
-        self.chk_show_original.toggled.connect(lambda checked: self.box_source_image.setVisible(checked))
+        self.chk_show_original.toggled.connect(self._on_show_original_toggled)
         toolbar_previews = self._build_tab_toolbar(
             tab_previews, self._toggle_fullscreen_image_tab,
             left_actions=[(compare_icon, tr("img.compare_algos"), tr("img.compare_algos_tip"),
@@ -1332,22 +1357,31 @@ class UiSetupMixin:
 
         box_src = QGroupBox(tr("ui.source_image_box"))
         layout_src = QVBoxLayout()
+        layout_src.setContentsMargins(4, 4, 4, 4)
         self.view_preview_src = ZoomableGraphicsView()
         layout_src.addWidget(self.view_preview_src)
         box_src.setLayout(layout_src)
+        box_src.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
         box_dither = QGroupBox(tr("ui.final_raster_box"))
         layout_dither = QVBoxLayout()
+        layout_dither.setContentsMargins(4, 4, 4, 4)
         self.view_preview_dither = ZoomableGraphicsView()
         layout_dither.addWidget(self.view_preview_dither)
         box_dither.setLayout(layout_dither)
+        box_dither.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-        layout_previews.addWidget(box_src)
-        # Image originale masquée par défaut : le rendu tramé prend toute la place. Elle reste tenue
-        # à jour (display_source_image) ; la case « Afficher l'originale » la réaffiche.
+        # Splitter : dès que l'originale est visible, les deux cadres ont la même largeur
+        self.preview_image_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.preview_image_splitter.addWidget(box_src)
+        self.preview_image_splitter.addWidget(box_dither)
+        self.preview_image_splitter.setStretchFactor(0, 1)
+        self.preview_image_splitter.setStretchFactor(1, 1)
+        self.preview_image_splitter.setChildrenCollapsible(False)
+        # Image originale masquée par défaut : le rendu tramé prend toute la place.
         box_src.setVisible(False)
         self.box_source_image = box_src
-        layout_previews.addWidget(box_dither)
+        layout_previews.addWidget(self.preview_image_splitter, 1)
         outer_layout_previews.addLayout(layout_previews)
         self.main_tabs_view.addTab(tab_previews, tr("ui.tab_image_tracing"))
         self.tab_previews = tab_previews

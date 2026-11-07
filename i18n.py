@@ -74,6 +74,22 @@ TRANSLATIONS = {
         "es": "Warm dim (gris cálido)",
     },
 
+    "theme.neon": {
+        "fr": "Neon laser",
+        "en": "Neon laser",
+        "de": "Neon-Laser",
+        "es": "Neón láser",
+    },
+
+    "theme.retro80": {
+        "fr": "Rétro 80s",
+        "en": "Retro 80s",
+        "de": "Retro 80er",
+        "es": "Retro 80s",
+    },
+
+
+
 
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
 
@@ -1118,6 +1134,14 @@ TRANSLATIONS = {
         "fr": "Position du job sur le plateau", "en": "Job Position on the Bed",
         "de": "Position des Jobs auf der Arbeitsfläche", "es": "Posición del trabajo en la mesa",
     },
+
+    "ui.job_offset_in_image_tab": {
+        "fr": "Offset X/Y : onglet « Graver une image » (réglages à gauche).",
+        "en": "X/Y offset: set in the “Engrave image” tab (left panel).",
+        "de": "X/Y-Offset: im Reiter „Bild gravieren“ (linkes Panel).",
+        "es": "Offset X/Y: pestaña «Grabar imagen» (panel izquierdo).",
+    },
+
     "queue.sent_log_title": {
         "fr": "G-Code envoyé", "en": "Sent G-Code", "de": "Gesendeter G-Code", "es": "G-Code enviado",
     },
