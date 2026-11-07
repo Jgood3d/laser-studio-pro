@@ -341,15 +341,51 @@ def _build_stylesheet(c: dict) -> str:
         color: {c["text"]};
         border: 1px solid {c["border"]};
         border-radius: 3px;
-        padding: 2px 4px;
+        padding: 2px 18px 2px 4px;
+        min-height: 18px;
     }}
     QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
         background-color: {c["button"]};
         border-left: 1px solid {c["border"]};
         width: 16px;
+        subcontrol-origin: border;
+    }}
+    QAbstractSpinBox::up-button {{
+        subcontrol-position: top right;
+        border-top-right-radius: 2px;
+    }}
+    QAbstractSpinBox::down-button {{
+        subcontrol-position: bottom right;
+        border-bottom-right-radius: 2px;
     }}
     QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{
         background-color: {c["button_hover"]};
+    }}
+    QAbstractSpinBox::up-button:pressed, QAbstractSpinBox::down-button:pressed {{
+        background-color: {c["accent"]};
+    }}
+    /* Flèches visibles sur tous les thèmes (Fusion/Windows les masque souvent) */
+    QAbstractSpinBox::up-arrow {{
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 5px solid {c["text"]};
+        background: transparent;
+        margin: 1px;
+    }}
+    QAbstractSpinBox::down-arrow {{
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid {c["text"]};
+        background: transparent;
+        margin: 1px;
+    }}
+    QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::down-arrow:disabled {{
+        border-bottom-color: {c["disabled"]};
+        border-top-color: {c["disabled"]};
     }}
     QSlider::groove:horizontal {{
         height: 4px;
@@ -421,15 +457,42 @@ def _build_stylesheet(c: dict) -> str:
 """
 
 
+def normalize_theme_name(theme_name) -> str:
+    """Normalise la valeur lue dans QSettings / le menu vers un code THEMES.
+
+    Sous Windows, QSettings peut renvoyer des types ou libellés inattendus ;
+    on accepte aussi les alias FR/EN.
+    """
+    if theme_name is None:
+        return "dark"
+    name = str(theme_name).strip().lower()
+    aliases = {
+        "sombre": "dark",
+        "dark": "dark",
+        "clair": "light",
+        "light": "light",
+        "dusk": "dusk",
+        "warm": "warm",
+        "warm dim": "warm",
+        "warm_dim": "warm",
+    }
+    name = aliases.get(name, name)
+    if name not in THEMES:
+        return "dark"
+    return name
+
+
 def apply_app_theme(app: QApplication, theme_name: str):
     """Applique un thème nommé (`dark`, `light`, `dusk`, `warm`) à toute l'application."""
     app.setStyle("Fusion")
-    name = (theme_name or "dark").lower()
-    if name not in THEMES:
-        name = "dark"
+    name = normalize_theme_name(theme_name)
     colors = THEMES[name]
+    # Réinitialise d'abord pour éviter qu'un ancien stylesheet « clair »
+    # reste partiellement actif après redémarrage.
+    app.setStyleSheet("")
     app.setPalette(_build_palette(colors))
     app.setStyleSheet(_build_stylesheet(colors))
+    return name
 
 
 def available_themes():

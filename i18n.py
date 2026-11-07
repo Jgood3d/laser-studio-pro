@@ -2566,10 +2566,10 @@ TRANSLATIONS = {
         "es": "Línea",
     },
     "ui.vector_tool_line_tip": {
-        "fr": "Tracer une ligne : clic-glisser sur le canevas (Échap pour annuler)",
-        "en": "Draw a line: click-drag on the canvas (Esc to cancel)",
-        "de": "Linie zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
-        "es": "Dibujar una línea: clic y arrastrar (Esc para cancelar)",
+        "fr": "Ligne : 1er clic = départ, 2e clic = fin. Ou tapez la longueur (ex: 25) puis Entrée. Accroche aux extrémités.",
+        "en": "Line: 1st click = start, 2nd = end. Or type length (e.g. 25) then Enter. Snaps to endpoints.",
+        "de": "Linie: 1. Klick Start, 2. Ende. Oder Länge tippen (z.B. 25) + Enter. Endpunkte.",
+        "es": "Línea: 1er clic inicio, 2º fin. O escriba longitud (ej. 25) y Entrar. Extremos.",
     },
     "ui.vector_tool_rect": {
         "fr": "Rectangle",
@@ -2578,7 +2578,7 @@ TRANSLATIONS = {
         "es": "Rectángulo",
     },
     "ui.vector_tool_rect_tip": {
-        "fr": "Tracer un rectangle : clic-glisser sur le canevas (Échap pour annuler)",
+        "fr": "Rectangle : 1) un clic sur nœud A  2) un clic sur nœud B  3) seulement ensuite maintenir et tirer pour la profondeur, puis relâcher (ou 5 + Entrée).",
         "en": "Draw a rectangle: click-drag on the canvas (Esc to cancel)",
         "de": "Rechteck zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
         "es": "Dibujar un rectángulo: clic y arrastrar (Esc para cancelar)",
@@ -2590,11 +2590,25 @@ TRANSLATIONS = {
         "es": "Elipse",
     },
     "ui.vector_tool_ellipse_tip": {
-        "fr": "Tracer une ellipse : clic-glisser sur le canevas (Échap pour annuler)",
+        "fr": "Ellipse : 1er clic = coin, 2e = opposé. Ou tapez LxH (ex: 40x25) puis Entrée.",
         "en": "Draw an ellipse: click-drag on the canvas (Esc to cancel)",
         "de": "Ellipse zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
         "es": "Dibujar una elipse: clic y arrastrar (Esc para cancelar)",
     },
+
+    "ui.vector_tool_measure": {
+        "fr": "Mesure",
+        "en": "Measure",
+        "de": "Messen",
+        "es": "Medir",
+    },
+    "ui.vector_tool_measure_tip": {
+        "fr": "Mesurer une distance : deux clics (accroche aux extrémités). Échap annule.",
+        "en": "Measure a distance: two clicks (snaps to endpoints). Esc cancels.",
+        "de": "Abstand messen: zwei Klicks (Endpunkte). Esc bricht ab.",
+        "es": "Medir una distancia: dos clics (extremos). Esc cancela.",
+    },
+
     "ui.vector_import_svg": {
         "fr": "📥 Importer SVG / DXF (multi-calques)",
         "en": "📥 Import SVG / DXF (multi-layer)",
@@ -2697,6 +2711,76 @@ TRANSLATIONS = {
         "de": "Drehung (°):",
         "es": "Rotación (°):",
     },
+
+    "ui.vector_width_mm": {
+        "fr": "Largeur",
+        "en": "Width",
+        "de": "Breite",
+        "es": "Ancho",
+    },
+    "ui.vector_height_mm": {
+        "fr": "Hauteur",
+        "en": "Height",
+        "de": "Höhe",
+        "es": "Alto",
+    },
+
+    "ui.vector_anchor_lock": {
+        "fr": "Verrouiller l'ancrage",
+        "en": "Lock anchor",
+        "de": "Anker sperren",
+        "es": "Bloquear anclaje",
+    },
+    "ui.vector_anchor_lock_tip": {
+        "fr": "Si coché, le coin choisi reste fixe quand vous changez largeur ou hauteur.",
+        "en": "When checked, the chosen corner stays fixed while changing width or height.",
+        "de": "Wenn aktiv, bleibt die gewählte Ecke beim Ändern von Breite/Höhe fest.",
+        "es": "Si está marcado, la esquina elegida no se mueve al cambiar ancho o alto.",
+    },
+    "ui.vector_anchor": {
+        "fr": "Coin fixe",
+        "en": "Fixed corner",
+        "de": "Feste Ecke",
+        "es": "Esquina fija",
+    },
+    "ui.vector_anchor_tip": {
+        "fr": "Coin de la forme qui reste accroché (utile pour une encoche liée à un nœud).",
+        "en": "Shape corner that stays locked (useful for a notch tied to a node).",
+        "de": "Ecke der Form, die fixiert bleibt (nützlich für Kerben an einem Knoten).",
+        "es": "Esquina de la forma que permanece fija (útil para una muesca unida a un nodo).",
+    },
+    "ui.vector_anchor_origin": {
+        "fr": "1er point (origine)",
+        "en": "1st point (origin)",
+        "de": "1. Punkt (Ursprung)",
+        "es": "1er punto (origen)",
+    },
+    "ui.vector_anchor_bl": {
+        "fr": "Bas-gauche",
+        "en": "Bottom-left",
+        "de": "Unten links",
+        "es": "Inferior izquierda",
+    },
+    "ui.vector_anchor_br": {
+        "fr": "Bas-droit",
+        "en": "Bottom-right",
+        "de": "Unten rechts",
+        "es": "Inferior derecha",
+    },
+    "ui.vector_anchor_tl": {
+        "fr": "Haut-gauche",
+        "en": "Top-left",
+        "de": "Oben links",
+        "es": "Superior izquierda",
+    },
+    "ui.vector_anchor_tr": {
+        "fr": "Haut-droit",
+        "en": "Top-right",
+        "de": "Oben rechts",
+        "es": "Superior derecha",
+    },
+
+
     "ui.vector_layer": {
         "fr": "Calque :",
         "en": "Layer:",
@@ -3577,6 +3661,32 @@ TRANSLATIONS = {
         "de": "Gruppierung aufheben",
         "es": "Desagrupar",
     },
+
+    "vector.explode_path": {
+        "fr": "Exploser en segments",
+        "en": "Explode into segments",
+        "de": "In Segmente zerlegen",
+        "es": "Explotar en segmentos",
+    },
+    "vector.edit_nodes": {
+        "fr": "Éditer les nœuds",
+        "en": "Edit nodes",
+        "de": "Knoten bearbeiten",
+        "es": "Editar nodos",
+    },
+    "vector.exit_nodes": {
+        "fr": "Quitter l'édition de nœuds",
+        "en": "Exit node editing",
+        "de": "Knotenbearbeitung beenden",
+        "es": "Salir de edición de nodos",
+    },
+    "vector.delete_node": {
+        "fr": "Supprimer le nœud",
+        "en": "Delete node",
+        "de": "Knoten löschen",
+        "es": "Eliminar nodo",
+    },
+
     "layers.mode.fill": {
         "fr": "Gravure Remplie",
         "en": "Fill Engraving",

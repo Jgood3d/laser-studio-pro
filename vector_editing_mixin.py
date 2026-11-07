@@ -210,6 +210,9 @@ class VectorEditingMixin:
         if not items:
             self.lbl_vector_selection.setText(tr("ui.no_selection_label"))
             self.pos_box_vector.setEnabled(False)
+            self.pos_box_vector.setVisible(False)
+            if hasattr(self, "pos_size_anchor_widget"):
+                self.pos_size_anchor_widget.setVisible(False)
             return
 
         objects = [item.obj for item in items]
@@ -251,22 +254,39 @@ class VectorEditingMixin:
 
         self.lbl_vector_selection.setText(desc)
         self.pos_box_vector.setEnabled(True)
+        self.pos_box_vector.setVisible(True)
 
         self.spin_vec_x.blockSignals(True)
         self.spin_vec_y.blockSignals(True)
         self.spin_vec_rot.blockSignals(True)
+        if hasattr(self, "spin_vec_w"):
+            self.spin_vec_w.blockSignals(True)
+            self.spin_vec_h.blockSignals(True)
 
-        # X/Y représentent maintenant le coin inférieur gauche du groupe.
+        # X/Y : coin inférieur gauche du groupe
         self.spin_vec_x.setValue(group_left)
         self.spin_vec_y.setValue(group_bottom)
-
-        # La rotation de groupe n'est pas encore calculée.
-        # On affiche la rotation du premier objet.
         self.spin_vec_rot.setValue(objects[0].rotation_deg)
+
+        # Largeur / hauteur / ancrage : uniquement pour une forme (pas SVG ni texte)
+        can_size = (
+            len(objects) == 1
+            and hasattr(objects[0], "width_mm")
+            and hasattr(objects[0], "height_mm")
+            and getattr(objects[0], "kind", None) == "shape"
+        )
+        if hasattr(self, "pos_size_anchor_widget"):
+            self.pos_size_anchor_widget.setVisible(can_size)
+        if hasattr(self, "spin_vec_w") and can_size:
+            self.spin_vec_w.setValue(float(objects[0].width_mm))
+            self.spin_vec_h.setValue(float(objects[0].height_mm))
 
         self.spin_vec_x.blockSignals(False)
         self.spin_vec_y.blockSignals(False)
         self.spin_vec_rot.blockSignals(False)
+        if hasattr(self, "spin_vec_w"):
+            self.spin_vec_w.blockSignals(False)
+            self.spin_vec_h.blockSignals(False)
 
         self.combo_vec_layer.blockSignals(True)
         self.combo_vec_layer.clear()
@@ -338,7 +358,85 @@ class VectorEditingMixin:
             item.obj.rotation_deg = self.spin_vec_rot.value()
             item.refresh()
 
-        self.on_vector_selection_changed(items[0].obj)
+    def _shape_world_corners(self, obj):
+        """4 coins de la forme en coordonnées machine (après local_path + world_transform)."""
+        from PyQt6.QtCore import QPointF
+        path = obj.local_path()
+        br = path.boundingRect()
+        locals_pts = [
+            QPointF(br.left(), br.top()),
+            QPointF(br.right(), br.top()),
+            QPointF(br.left(), br.bottom()),
+            QPointF(br.right(), br.bottom()),
+        ]
+        wt = obj.world_transform()
+        return [wt.map(p) for p in locals_pts]
+
+    def _shape_world_anchor(self, obj, anchor_id):
+        """Coin d'ancrage en mm machine (Y vers le haut).
+
+        - origin : point de placement (x_mm, y_mm) = 1er point lors d'un tracé A→B
+        - bl/br/tl/tr : coins du bounding box monde
+        """
+        from PyQt6.QtCore import QPointF
+        if anchor_id == "origin":
+            return QPointF(float(obj.x_mm), float(obj.y_mm))
+        corners = self._shape_world_corners(obj)
+        # Machine : Y haut → « bas » = plus petite ordonnée
+        if anchor_id == "bl":
+            return min(corners, key=lambda p: (p.y(), p.x()))
+        if anchor_id == "br":
+            return min(corners, key=lambda p: (p.y(), -p.x()))
+        if anchor_id == "tl":
+            return max(corners, key=lambda p: (p.y(), -p.x()))
+        if anchor_id == "tr":
+            return max(corners, key=lambda p: (p.y(), p.x()))
+        return QPointF(float(obj.x_mm), float(obj.y_mm))
+
+    def on_vector_size_spin_changed(self, _value):
+        """Modifie largeur / hauteur d'une forme. Si l'ancrage est verrouillé,
+        le coin (ou l'origine = 1er point) reste fixe dans le plan machine."""
+        items = self._selected_vector_items()
+        if len(items) != 1:
+            return
+        item = items[0]
+        obj = item.obj
+        if getattr(obj, "kind", None) != "shape":
+            return
+        if not hasattr(obj, "width_mm") or not hasattr(obj, "height_mm"):
+            return
+        new_w = self.spin_vec_w.value()
+        new_h = self.spin_vec_h.value()
+        if abs(new_w - obj.width_mm) < 1e-9 and abs(new_h - obj.height_mm) < 1e-9:
+            return
+
+        lock = bool(getattr(self, "chk_vec_anchor_lock", None) and self.chk_vec_anchor_lock.isChecked())
+        anchor_id = "origin"
+        if hasattr(self, "combo_vec_anchor") and self.combo_vec_anchor.currentData():
+            anchor_id = self.combo_vec_anchor.currentData()
+
+        self.vector_canvas.push_undo_snapshot()
+
+        if lock:
+            before = self._shape_world_anchor(obj, anchor_id)
+            obj.width_mm = new_w
+            obj.height_mm = new_h
+            # Recalcule le coin après changement de taille
+            after = self._shape_world_anchor(obj, anchor_id)
+            obj.x_mm += before.x() - after.x()
+            obj.y_mm += before.y() - after.y()
+        else:
+            obj.width_mm = new_w
+            obj.height_mm = new_h
+
+        item.refresh()
+        # Rafraîchir X/Y affichés sans reboucler sur les spins de taille
+        self.spin_vec_x.blockSignals(True)
+        self.spin_vec_y.blockSignals(True)
+        self.spin_vec_x.setValue(obj.x_mm)
+        self.spin_vec_y.setValue(obj.y_mm)
+        self.spin_vec_x.blockSignals(False)
+        self.spin_vec_y.blockSignals(False)
 
     def toggle_fullscreen_vector_editor(self):
         """Ouvre l'éditeur vectoriel (texte/formes/SVG) dans une fenêtre à
