@@ -13,6 +13,10 @@ BANNER_FILENAME = "laser_studio_pro_banner.png"
 # Écran de démarrage : largeur de la bannière, en pixels.
 SPLASH_SCREEN_WIDTH = 600
 
+# Barre d'état : durée d'affichage d'un message d'information, en
+# millisecondes.
+STATUS_BAR_MESSAGE_DURATION = 8000
+
 # Écran de démarrage : durée minimale d'affichage, en secondes.
 SPLASH_SCREEN_DURATION = 2.0
 

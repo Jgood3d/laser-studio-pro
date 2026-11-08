@@ -36,22 +36,25 @@ class StatusMessagesTests(unittest.TestCase):
         Image.new("L", (945, 945), 128).save(path, dpi=(300, 300))
         console_before = self.win.txt_console.toPlainText()
         self.win.load_image_from_path(path)
-        label = self.win.lbl_status_message
+        status_bar = self.win.statusBar()
+        label = status_bar.message_label
         self.assertIn("medaille.png", label.text())
         self.assertNotIn(self.tmp.name, label.text())           # nom du fichier seul…
         self.assertIn(path, label.toolTip())                      # … chemin complet dans l'infobulle
         self.assertIn("80.0 x 80.0", label.text())
-        self.assertTrue(self.win._status_message_timer.isActive())
+        self.assertTrue(status_bar.message_timer.isActive())
         self.assertEqual(self.win.txt_console.toPlainText(), console_before)   # console du graveur intacte
 
-        self.win._status_message_timer.timeout.emit()             # délai écoulé : message effacé
+        status_bar.message_timer.timeout.emit()             # délai écoulé : message effacé
         self.assertEqual(label.text(), "")
 
     def test_message_does_not_hide_the_generation_progress(self):
-        self.win.gen_progress_bar_main.setVisible(True)
+        status_bar = self.win.statusBar()
+        status_bar.show_progress(40, "Génération en cours… 40%")
         self.win.show_status_message("Image supprimée.")
-        self.assertFalse(self.win.gen_progress_bar_main.isHidden())
-        self.win.gen_progress_bar_main.setVisible(False)
+        self.assertFalse(status_bar.progress_bar.isHidden())
+        status_bar.hide_progress()
+        self.assertTrue(status_bar.progress_bar.isHidden())
 
 
 if __name__ == "__main__":

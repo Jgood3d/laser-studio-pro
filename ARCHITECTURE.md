@@ -34,7 +34,7 @@ main.py
         ├─ MenusMixin            (ui_menus.py)          menus, barre d'outils, thème
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
-        │  StatusBarMixin, LegacySvgBoxMixin           (ui_*.py, un par bloc)
+        │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
         ├─ JogMixin              (ui_jog.py)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
@@ -86,12 +86,13 @@ laser-studio-pro/
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
 ├── ui_setup_mixin.py / ui_jog.py
-├── ui_menus.py / ui_status_bar.py / ui_machine_panel.py / ui_legacy_svg_box.py
+├── ui_menus.py / ui_machine_panel.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes)
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
+├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
