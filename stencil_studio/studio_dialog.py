@@ -19,7 +19,8 @@ import sys
 import tempfile
 import webbrowser
 
-from PyQt6.QtCore import QUrl, Qt, QStandardPaths
+from PyQt6.QtCore import QUrl, Qt, QStandardPaths, QTimer
+from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QDialog, QVBoxLayout, QMessageBox, QFileDialog, QApplication
 
 from . import studio as _studio
@@ -175,20 +176,59 @@ class StudioDialog(QDialog):
         self.view = QWebEngineView(self)
         self.view.setPage(QWebEnginePage(self.profile, self.view))
         lay.addWidget(self.view)
-        self.view.loadFinished.connect(self._apply_theme)
+        # Évite le « flash » du thème d'origine du Studio : la fenêtre et le fond de la page
+        # prennent tout de suite la couleur du thème LSP, et la page reste masquée jusqu'à ce
+        # que le thème lui ait été appliqué (voir _apply_theme / _reveal_view).
+        self._loaded = False
+        self._paint_background()
+        self.view.hide()
+        QTimer.singleShot(4000, self._reveal_view)   # filet de sécurité si le thème ne répond pas
+        self.view.loadFinished.connect(self._on_load_finished)
         self.view.load(QUrl(f"http://127.0.0.1:{self._port}/"))
         QApplication.instance().aboutToQuit.connect(self.shutdown)
 
-    def _apply_theme(self, ok=True):
+    def _current_theme(self):
+        return self._theme if self._theme is not None else theme_for_lsp()
+
+    def _paint_background(self):
+        """Fond de la fenêtre et de la page aux couleurs du thème LSP (avant tout rendu de la page)."""
+        try:
+            bg = self._current_theme().get("bg", "#232323")
+            self.setStyleSheet(f"QDialog {{ background-color: {bg}; }}")
+            self.view.page().setBackgroundColor(QColor(bg))
+        except Exception:
+            pass
+
+    def _reveal_view(self):
+        if not self.view.isVisible():
+            self.view.show()
+
+    def _on_load_finished(self, ok=True):
+        """Page chargée : on applique le thème LSP, puis on la rend visible."""
+        if ok is False:
+            self._reveal_view()
+            return
+        self._loaded = True
+        self._apply_theme(True, reveal=True)
+
+    def _apply_theme(self, ok=True, reveal=False):
         """Reprend les couleurs de LSP (palette Qt, ou dictionnaire `theme` passé à open_stencil_studio)."""
         if ok is False:
             return
         import json
         try:
-            t = self._theme if self._theme is not None else theme_for_lsp()
-            self.view.page().runJavaScript(f"window.setTheme && window.setTheme({json.dumps(t)})")
+            self._paint_background()
+            if not self._loaded:
+                return                      # page pas encore chargée : appliqué par _on_load_finished
+            t = self._current_theme()
+            js = f"window.setTheme && window.setTheme({json.dumps(t)})"
+            if reveal:
+                # Page affichée seulement une fois le thème appliqué (petit délai pour laisser le repaint).
+                self.view.page().runJavaScript(js, lambda _r: QTimer.singleShot(80, self._reveal_view))
+            else:
+                self.view.page().runJavaScript(js)
         except Exception:
-            pass
+            self._reveal_view()
 
     def sync_theme_from_lsp(self, theme_name=None):
         """Met à jour le thème Studio quand LSP change de thème (clair / sombre)."""
@@ -311,13 +351,17 @@ def open_stencil_studio(window, theme=None):
             f"Raison : {err}\n\n{hint}\n\n--- Diagnostic (à me transmettre) ---\n{_diagnostic()}")
         return None
     dlg = getattr(window, "_stencil_studio_dialog", None)
-    if dlg is None:
+    first_open = dlg is None
+    if first_open:
         dlg = StudioDialog(window, theme)
         window._stencil_studio_dialog = dlg
     if theme is not None:
         dlg._theme = theme
         dlg._apply_theme()
-    dlg.show()
+    if first_open:
+        dlg.showMaximized()      # première ouverture : plein écran (fenêtre maximisée)
+    else:
+        dlg.show()               # réouvertures : on garde l'état choisi par l'utilisateur
     dlg.raise_()
     dlg.activateWindow()
     return dlg
