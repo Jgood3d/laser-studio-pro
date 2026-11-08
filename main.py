@@ -6,90 +6,38 @@ if "--stencil-studio" in sys.argv:
     sys.exit(_stencil_main())
 
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QIcon, QPixmap, QPalette, QColor
-from PyQt6.QtCore import Qt, QSettings
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QElapsedTimer, QTimer
 from PyQt6 import QtWebEngineWidgets
 
+from app_constants import SPLASH_SCREEN_DURATION
 from app_utils import find_resource
 from debug_log import setup_debug_logging
+from i18n import tr
 from qt_messages import install_qt_message_filters
-from ui_splash_screen import StartupSplash
-from widgets_extra import scaled_to_width_hidpi
-
-# Durée minimale d'affichage de l'écran de démarrage, en secondes.
-SPLASH_MIN_DURATION_S = 2.0
-
-
-from app_theme import apply_app_theme
-
-
-def install_breeze_icon_theme():
-    """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
-
-    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
-    Le pack minimal vit dans icons/breeze/ à côté de main.py (ou dans le bundle
-    PyInstaller via --add-data \"icons;icons\").
-    """
-    from pathlib import Path
-    from PyQt6.QtGui import QIcon
-
-    # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
-    current = QIcon.themeName()
-    if current and current not in ("", "hicolor"):
-        return False
-
-    candidates = []
-    here = Path(__file__).resolve().parent
-    candidates.append(here / "icons")
-    if getattr(sys, "frozen", False):
-        meipass = getattr(sys, "_MEIPASS", None)
-        if meipass:
-            candidates.append(Path(meipass) / "icons")
-        candidates.append(Path(sys.executable).resolve().parent / "icons")
-
-    for base in candidates:
-        index = base / "breeze" / "index.theme"
-        if index.is_file():
-            paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
-            QIcon.setThemeSearchPaths(paths)
-            QIcon.setThemeName("breeze")
-            return True
-    return False
+from ui.splashscreen import StartupSplash
+from app_theme import apply_saved_theme, install_breeze_icon_theme
 
 
 if __name__ == "__main__":
+    # Chronomètre du démarrage : la fenêtre principale ne s'ouvre pas avant
+    # SPLASH_SCREEN_DURATION secondes, pour laisser le splash visible.
+    startup_timer = QElapsedTimer()
+    startup_timer.start()
+
     install_qt_message_filters()
     setup_debug_logging()
     app = QApplication(sys.argv)
+
+    # 1. Afficher l'écran de démarrage le plus tôt possible (il charge
+    # lui-même la bannière)
+    splash = StartupSplash()
+    splash.show_and_wait()
+
+    # Icônes et thème : après le splash, qui n'en a pas besoin, mais avant
+    # la fenêtre principale, qui les utilise dès sa construction.
     install_breeze_icon_theme()
-
-    # Charger le thème mémorisé (par défaut "dark") et l'appliquer tout de suite
-    from app_theme import normalize_theme_name
-    settings = QSettings("LaserStudioPro", "UIConfig")
-    current_theme = normalize_theme_name(settings.value("app_theme", "dark"))
-    # Réécrit une valeur propre (évite les anciens libellés / types Windows)
-    settings.setValue("app_theme", current_theme)
-    apply_app_theme(app, current_theme)
-
-    # 1. Charger et redimensionner l'image pour éviter qu'elle ne prenne
-    # tout l'écran
-    banner_path = find_resource("laser_studio_pro_banner.png")
-    if banner_path:
-        pixmap = QPixmap(banner_path)
-        if not pixmap.isNull():
-            # Redimensionne à 600px de large en conservant les proportions,
-            # net sur un écran haute résolution (échelle la plus forte des
-            # écrans, le splash pouvant s'ouvrir sur l'un ou l'autre)
-            ratio = max(screen.devicePixelRatio() for screen in app.screens())
-            pixmap = scaled_to_width_hidpi(pixmap, 600, ratio)
-    else:
-        pixmap = QPixmap(500, 250)
-        pixmap.fill(Qt.GlobalColor.darkGray)
-
-    # 2. Afficher l'écran de démarrage
-    splash = StartupSplash(pixmap, SPLASH_MIN_DURATION_S)
-    splash.show_now()
-    splash.set_status("Initialisation de Laser Studio Pro...")
+    apply_saved_theme(app)
 
     # Après l'affichage du splash, pour qu'il apparaisse le plus tôt possible.
     icon_path = (
@@ -106,7 +54,7 @@ if __name__ == "__main__":
     # est ainsi déjà affiché.
     from main_window import FullLaserStudio
 
-    # 3. Charger la fenêtre principale avec gestion des erreurs
+    # 2. Charger la fenêtre principale avec gestion des erreurs
     try:
         window = FullLaserStudio()
         if icon_path:
@@ -115,17 +63,20 @@ if __name__ == "__main__":
         # Réapplique le thème après construction de l'UI : certains widgets
         # (surtout sous Windows) naissent avec la palette système claire et
         # ignoraient le stylesheet posé trop tôt.
-        saved = normalize_theme_name(
-            QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark")
-        )
-        apply_app_theme(app, saved)
+        apply_saved_theme(app)
 
-        splash.set_status("Prêt !")
+        splash.show_progress(tr("splash.ready"))
 
-        # Afficher la fenêtre maximisée et fermer le splash screen
-        # proprement, une fois l'écran de démarrage resté
-        # SPLASH_MIN_DURATION_S à l'écran.
-        splash.finish_with(window)
+        # La fenêtre principale remplace le splash une fois écoulées
+        # SPLASH_SCREEN_DURATION secondes depuis le début du démarrage.
+        # L'attente passe par un QTimer : l'application continue de tourner
+        # et le splash d'être affiché pendant ce temps.
+        def show_main_window():
+            window.showMaximized()
+            splash.finish(window)
+
+        remaining_ms = round(SPLASH_SCREEN_DURATION * 1000) - startup_timer.elapsed()
+        QTimer.singleShot(max(0, remaining_ms), show_main_window)
 
     except Exception as e:
         splash.finish(None)

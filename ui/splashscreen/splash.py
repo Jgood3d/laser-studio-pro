@@ -1,73 +1,90 @@
 """Écran de démarrage de Laser Studio Pro."""
+
 import time
 
+from PyQt6.QtCore import QEvent, Qt
+from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QSplashScreen, QWidget
-from PyQt6.QtCore import Qt, QEvent, QTimer
+
+from app_constants import (
+    BANNER_FILENAME,
+    SPLASH_SCREEN_SLEEP_INTERVAL,
+    SPLASH_SCREEN_WIDTH,
+)
+from app_utils import find_resource
+from i18n import tr
+from widgets_extra import scaled_to_width_hidpi
 
 
 class StartupSplash(QSplashScreen):
-    """Écran de démarrage : réellement affiché avant de poursuivre le
-    chargement (Wayland), messages d'avancement, et fenêtre principale
-    montrée après une durée minimale."""
+    """Écran de démarrage : bannière et message d'avancement.
 
-    def __init__(self, pixmap, min_duration_s=0.0):
+    Par défaut, il affiche la bannière de l'application et le message
+    « Initialisation de Laser Studio Pro... ». La durée d'affichage est
+    gérée par main.py. Utilisation :
+
+        splash = StartupSplash()
+        splash.show_and_wait()
+        splash.show_progress("Prêt !")      # facultatif
+        splash.finish(window)               # fermé à l'ouverture de window
+    """
+
+    def __init__(self, pixmap=None):
+        if pixmap is None:
+            pixmap = self.banner()
         super().__init__(pixmap, Qt.WindowType.WindowStaysOnTopHint)
-        self.min_duration_s = min_duration_s
-        self._shown_at = None
+        self.show_progress(tr("splash.initializing"))
+
+    @staticmethod
+    def banner():
+        """Bannière de l'application, large de SPLASH_SCREEN_WIDTH pixels.
+
+        Elle reste nette sur un écran haute résolution : l'échelle retenue
+        est la plus forte des écrans, le splash pouvant s'ouvrir sur l'un ou
+        l'autre. Sans bannière lisible, un rectangle gris la remplace.
+        """
+        path = find_resource(BANNER_FILENAME)
+        pixmap = QPixmap(path) if path else QPixmap()
+        if pixmap.isNull():
+            pixmap = QPixmap(500, 250)
+            pixmap.fill(Qt.GlobalColor.darkGray)
+            return pixmap
+        ratio = max(
+            screen.devicePixelRatio() for screen in QApplication.screens()
+        )
+        return scaled_to_width_hidpi(pixmap, SPLASH_SCREEN_WIDTH, ratio)
 
     def event(self, event):
-        # À l'événement Show, QSplashScreen attend que la fenêtre soit
-        # exposée (1 s au plus), mais avant que show() l'ait remise au
-        # compositeur : sous Wayland, l'attente échoue donc toujours et
-        # show() bloque 1 s pour rien. Elle est remplacée par celle de
-        # show_now().
+        # Quand il est affiché, QSplashScreen attend jusqu'à 1 s qu'il soit
+        # à l'écran. Sous Wayland, cette attente échoue toujours et bloque
+        # pour rien : on la saute, show_and_wait() fait la sienne.
         if event.type() == QEvent.Type.Show:
             return QWidget.event(self, event)
         return super().event(event)
 
-    def show_now(self, timeout_s=1.0):
-        """Affiche le splash et attend qu'il soit réellement à l'écran
-        (timeout_s au plus).
+    def show_and_wait(self, timeout_s=1.0):
+        """Affiche le splash et attend qu'il soit vraiment à l'écran.
 
         Sous Wayland, la fenêtre n'apparaît qu'après quelques échanges avec
-        le compositeur : un seul processEvents() ne suffit pas, et la
-        construction de la fenêtre principale bloque ensuite la boucle
-        d'événements jusqu'à la fermeture du splash, qui ne serait jamais
-        vu."""
+        le compositeur. Sans cette attente, le chargement de la fenêtre
+        principale bloquerait l'application avant que le splash soit vu.
+        L'attente dure `timeout_s` secondes au plus.
+        """
         self.show()
-        self._shown_at = time.monotonic()
-        deadline = self._shown_at + timeout_s
-        while (not self.windowHandle().isExposed()
-               and time.monotonic() < deadline):
+        start = time.monotonic()
+        while (
+            not self.windowHandle().isExposed()
+            and time.monotonic() - start < timeout_s
+        ):
             QApplication.processEvents()
-            time.sleep(0.005)
+            time.sleep(SPLASH_SCREEN_SLEEP_INTERVAL)
         QApplication.processEvents()
 
-    def set_status(self, message):
-        """Message d'avancement en bas du splash."""
+    def show_progress(self, message):
+        """Affiche un message d'avancement en bas du splash."""
         self.showMessage(
             message,
             Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignHCenter,
-            Qt.GlobalColor.white
+            Qt.GlobalColor.white,
         )
         QApplication.processEvents()
-
-    def remaining_s(self):
-        """Temps restant avant la fin de la durée minimale d'affichage
-        (0 si elle est écoulée)."""
-        if self._shown_at is None:
-            return 0.0
-        elapsed_s = time.monotonic() - self._shown_at
-        return max(0.0, self.min_duration_s - elapsed_s)
-
-    def finish_with(self, window):
-        """Montre `window` maximisée et ferme le splash, une fois la durée
-        minimale écoulée.
-
-        Le délai passe par un QTimer et non une pause : la boucle
-        d'événements continue de tourner et le splash d'être redessiné."""
-        def show_window():
-            window.showMaximized()
-            self.finish(window)
-
-        QTimer.singleShot(int(self.remaining_s() * 1000), show_window)

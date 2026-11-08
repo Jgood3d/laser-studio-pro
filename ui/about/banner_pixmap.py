@@ -4,6 +4,7 @@ import os
 
 from PyQt6.QtGui import QPixmap
 
+from app_constants import BANNER_FILENAME
 from app_utils import find_resource, get_app_dir, get_bundle_dir
 from i18n import tr
 from widgets_extra import scaled_to_width_hidpi
@@ -17,7 +18,7 @@ class AboutBannerPixmap(QPixmap):
     pour qu'elle reste nette en haute résolution.
     """
 
-    FILENAME = "laser_studio_pro_banner.png"
+    FILENAME = BANNER_FILENAME
 
     def __init__(self, width, ratio):
         path = find_resource(self.FILENAME)
