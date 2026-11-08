@@ -183,7 +183,11 @@
 
 <script>
 "use strict";
+<<<<<<< HEAD
 const UI_VERSION = "2026.10.84";  // doit être identique à core.py
+=======
+const UI_VERSION = "2026.10.78";  // doit être identique à core.py
+>>>>>>> aed42af (feat: description de vos modifications)
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -343,7 +347,10 @@ const SPEC = [
  {g:"Layers", items:[
   {k:"ml_sep", t:"select", label:"Separate the plates by", def:"tone", ml:1, opts:[["tone","Tone (brightness)"],["color","Dominant colours"]]},
   {k:"ml_color_auto", t:"check", label:"Detect the number of colours automatically", def:true, ml:1, mlcol:1},
+<<<<<<< HEAD
   {k:"ml_picks", t:"text", label:"Picked colours", def:"", ml:1, mlorder:1, maxlen:80},
+=======
+>>>>>>> aed42af (feat: description de vos modifications)
   {k:"ml_order", t:"text", label:"Colour order", def:"", ml:1, mlorder:1, maxlen:40},
   {k:"ml_pieces", t:"check", label:"Loose pieces to glue (no bridges)", def:false, ml:1},
   {k:"ml_bg", t:"select", label:"Background", def:"front", ml:1, opts:[["front","Colour of the front plate"],["own","Own plate (colour of your choice)"],["image","Own plate (colour of the picture's background)"]]},
@@ -1053,7 +1060,11 @@ cv.addEventListener("pointerdown", e => {
 cv.addEventListener("pointermove", e => {
   if (!img) return;
   const p = toImg(e);
+<<<<<<< HEAD
   if (tool === "move" && !pickMode && !drag && !rsDrag && !rotDrag && resizable()){
+=======
+  if (tool === "move" && !drag && !rsDrag && !rotDrag && resizable()){
+>>>>>>> aed42af (feat: description de vos modifications)
     const h = frameHit(e); cv.style.cursor = h ? (h[0] && h[1] ? (h[0] * h[1] > 0 ? "nwse-resize" : "nesw-resize") : (h[0] ? "ew-resize" : "ns-resize")) : "grab";
   }
   if (boxStart){
@@ -1292,6 +1303,7 @@ const BOXMSG = {
   sharp_corners:"Sharp corners (not 90 degrees): the flexible wall may break there. Prefer the stacked box for this shape.",
   radius_small:"Some curves are tighter than 15 mm radius: use thin flexible plywood or a larger pitch of slits.",
   ring_thin:"The outer ring is too narrow for the wall slots: widen it (at least wall thickness + 2 mm)."};
+<<<<<<< HEAD
 function renderPick(){
   let box = $("mlPick");
   const on = S.output === "layers" && S.ml_sep === "color";
@@ -1326,6 +1338,9 @@ function renderPick(){
 }
 function renderPalette(){
   try { renderPick(); } catch(e){}
+=======
+function renderPalette(){
+>>>>>>> aed42af (feat: description de vos modifications)
   let pal = $("mlPal");
   const on = S.output === "layers" && S.ml_sep === "color" && lastStats && lastStats.ml_palette;
   if (!pal){

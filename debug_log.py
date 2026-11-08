@@ -73,5 +73,9 @@ def log_gcode_summary(logger, label, text):
     logger.info("%s : %d lignes à envoyer (%d caractères)", label, info["lines"], info["chars"])
     logger.debug("%s : premières lignes %r", label, info["first"])
     if info["suspect_count"]:
+<<<<<<< HEAD
         logger.warning("%s : %d ligne(s) qui ne ressemblent pas à du G-Code, non envoyées "
+=======
+        logger.warning("%s : %d ligne(s) qui ne ressemblent pas à du G-Code, envoyées telles quelles "
+>>>>>>> aed42af (feat: description de vos modifications)
                        "à GRBL (n° de ligne, texte) : %r", label, info["suspect_count"], info["suspects"])

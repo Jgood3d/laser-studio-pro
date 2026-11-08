@@ -65,7 +65,7 @@ class GcodeGenerationMixin:
                     tr("gcode.export_error").format(error=e)
                 )
 
-    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None):
+    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
         couleur du calque, si fournie) à partir des segments de gravure
         raster (position + puissance S), façon LaserGRBL, affichée sous les
@@ -85,6 +85,10 @@ class GcodeGenerationMixin:
         titre que les lignes de balayage très serrées à l'intérieur d'un
         motif, ce qui écrase et fait se chevaucher visuellement des zones
         qui sont en réalité bien séparées sur la pièce.
+
+        `gamma` < 1 relève les faibles puissances (aperçu seulement, l'ordre des
+        niveaux est conservé) : utile pour une matrice de test, où les cases peu
+        puissantes seraient sinon presque invisibles.
 
         Note honnête : je n'ai pas pu exécuter PyQt6 dans cet environnement
         pour vérifier visuellement l'orientation (haut/bas) du résultat une
@@ -148,6 +152,9 @@ class GcodeGenerationMixin:
                     col_a = max(0, min(img_w - 1, int(round((xa - min_x) * px_per_mm_x))))
                     col_b = max(col_a + 1, min(img_w, int(round((xb - min_x) * px_per_mm_x)) + 1))
                     np.maximum(power_arr[row_idx, col_a:col_b], power, out=power_arr[row_idx, col_a:col_b])
+
+            if gamma != 1.0:
+                power_arr = np.power(power_arr, gamma, dtype=np.float32)
 
             negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
                                      and self.chk_negative_raster_preview.isChecked())
@@ -857,6 +864,7 @@ class GcodeGenerationMixin:
         DEFAULT_SVG_COLOR = "#ff00ff"
         DEFAULT_LAYER_COLOR = "#00ff88"
         RASTER_LABEL = tr("gen.legend_raster")
+        MATRIX_LABEL = tr("gen.legend_test_matrix")
         UNKNOWN_LABEL = tr("gen.legend_unknown")
 
         current_label = UNKNOWN_LABEL
@@ -1003,7 +1011,8 @@ class GcodeGenerationMixin:
         # - Calque "Gravure Remplie"    -> raster
         # - G-Code importé non identifié -> heuristique raster
         # - SVG en découpe              -> vectoriel
-        # - Matrice de test             -> vectoriel
+        # - Matrice de test (Gravure)   -> raster, comme la gravure image
+        # - Matrice de test (Découpe)   -> vectoriel
         # - Découpe / Marquage contour  -> vectoriel
         raster_groups = {}
         raster_keys_rendered_as_image = set()
@@ -1016,9 +1025,13 @@ class GcodeGenerationMixin:
                 # Image générée par l'application.
                 is_raster = True
 
-            elif label == tr("gen.legend_test_matrix"):
-                # Une matrice de test doit rester affichée en vectoriel.
-                is_raster = False
+            elif label == MATRIX_LABEL:
+                # Matrice de test en mode Gravure : rendu tramé en niveaux de gris, comme
+                # une gravure image (chaque case, y compris celles avec une partie d'image,
+                # reste lisible). En mode Découpe (ou matrice d'origine inconnue, ex. G-Code
+                # rechargé), on garde l'affichage vectoriel.
+                matrix_params = getattr(self, "last_test_matrix_params", None) or {}
+                is_raster = matrix_params.get("mode") == "Gravure"
 
             elif label == tr("gen.legend_svg_cut"):
                 # Un SVG de découpe doit rester affiché comme des contours.
@@ -1089,7 +1102,7 @@ class GcodeGenerationMixin:
             xs, ys = g1_segments[(label, color)]
             n_segs = len(xs) // 3
             if (label, color) in raster_keys_rendered_as_image:
-                swatch = raster_swatch if label == RASTER_LABEL else f'<span style="color:{color}">■</span>'
+                swatch = raster_swatch if label in (RASTER_LABEL, MATRIX_LABEL) else f'<span style="color:{color}">■</span>'
                 legend_rows += f'<div>{swatch} {tr("gen.legend_layer_raster_note").format(label=label, n=n_segs)}</div>'
             else:
                 legend_rows += f'<div><span style="color:{color}">■</span> {tr("gen.legend_layer_segments").format(label=label, n=n_segs)}</div>'
@@ -1108,8 +1121,12 @@ class GcodeGenerationMixin:
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():
             label, color = key
-            tint = None if label == RASTER_LABEL else color
-            self._plot_raster_reconstruction(strokes, tint_color=tint)
+            # Image et matrice de test : jamais teintées (gris sur matériau clair, ou négatif).
+            tint = None if label in (RASTER_LABEL, MATRIX_LABEL) else color
+            # Matrice de test : les niveaux de puissance sont relevés (gamma 0,5) pour que
+            # l'image de chaque case reste visible, y compris celles à faible puissance.
+            gamma = 0.5 if label == MATRIX_LABEL else 1.0
+            self._plot_raster_reconstruction(strokes, tint_color=tint, gamma=gamma)
 
         hide_rapid_moves = getattr(self, "chk_hide_rapid_moves", None)
         hide_rapid = bool(
@@ -1145,14 +1162,19 @@ class GcodeGenerationMixin:
             )
 
         if ov_x:
+            # Sur une matrice de test tramée, des centaines de lignes de surbalayage se
+            # superposent en barres rouges pleines qui cachent les bords des cases :
+            # on les affiche plus fines et translucides pour garder l'image lisible.
+            matrix_as_image = any(k[0] == MATRIX_LABEL for k in raster_keys_rendered_as_image)
+            ov_pen = (
+                pg.mkPen(color=(255, 51, 85, 80), width=1, style=Qt.PenStyle.DashLine)
+                if matrix_as_image
+                else pg.mkPen(color="#ff3355", width=2, style=Qt.PenStyle.DashLine)
+            )
             self.plot_widget.plot(
                 ov_x,
                 ov_y,
-                pen=pg.mkPen(
-                    color="#ff3355",
-                    width=2,
-                    style=Qt.PenStyle.DashLine
-                ),
+                pen=ov_pen,
                 connect="finite"
             )
 

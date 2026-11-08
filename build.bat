@@ -13,6 +13,7 @@ if exist dist rmdir /s /q dist
 echo ==========================================
 echo Compilation de Laser Studio Pro (Mode Onedir)...
 echo ==========================================
+<<<<<<< HEAD
 rem  Stencil Studio : le dossier est copie en donnees (studio.html, locales, polices...) ET ses modules sont
 rem  declares en hidden-import pour que PyInstaller embarque aussi cv2 / numpy / scipy / Pillow qu'ils utilisent.
 rem  QtWebEngine est embarque automatiquement (main.py l'importe en tete).
@@ -29,6 +30,9 @@ pyinstaller --onedir --windowed --name LaserStudioPro --icon=laser_studio_pro.ic
  --hidden-import=scipy.spatial --hidden-import=scipy.ndimage ^
  main.py
 
+=======
+pyinstaller --onedir --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" --collect-all PyQt6.QtSvg --collect-all serial --hidden-import=serial --hidden-import=serial.tools.list_ports main.py
+>>>>>>> aed42af (feat: description de vos modifications)
 echo ==========================================
 echo Copie du fichier icone dans le dossier dist...
 echo ==========================================
