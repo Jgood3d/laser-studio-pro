@@ -13,18 +13,19 @@ Ce rapport est INFORMATIF (code de sortie 0) : certains résultats sont voulus
 """
 import ast
 import collections
-import glob
 import os
 import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from project_files import display_name, python_files  # noqa: E402
 import i18n  # noqa: E402
 
 T = i18n.TRANSLATIONS
 LANGS = list(i18n.SUPPORTED_LANGUAGES)
-FILES = sorted(f for f in glob.glob(os.path.join(ROOT, "*.py")) if os.path.basename(f) != "i18n.py")
+FILES = [f for f in python_files(ROOT) if os.path.basename(f) != "i18n.py"]
 
 
 def parse(path):
@@ -87,7 +88,7 @@ def section_b():
                 for c in ast.walk(a):
                     if (isinstance(c, ast.Constant) and isinstance(c.value, str) and _texty(c.value)
                             and not inside_tr(c) and not re.fullmatch(r"[a-z_]+", c.value)):
-                        found[os.path.basename(path)].add((c.lineno, name, c.value.replace("\n", "\\n")[:80]))
+                        found[display_name(path)].add((c.lineno, name, c.value.replace("\n", "\\n")[:80]))
     total = sum(len(v) for v in found.values())
     print(f"\n== B. Textes d'interface probablement en dur : {total} ==")
     for f, items in found.items():

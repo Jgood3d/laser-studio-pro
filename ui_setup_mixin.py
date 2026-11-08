@@ -8,11 +8,11 @@ from vector_layers import (
 )
 from app_utils import find_resource
 from i18n import tr
+from app_constants import KOFI_URL
 from settings_window import SettingsWindow
 from widgets_extra import (
     AutoHideLabel)
 
-SUPPORT_LINK_URL = "https://ko-fi.com/jb3dlaser"
 
 class UiSetupMixin:
     def _build_tab_toolbar(self, parent, on_fullscreen, left_actions=(), left_widgets=(), right_widgets=()):
@@ -65,7 +65,7 @@ class UiSetupMixin:
             btn.setIconSize(QSize(icon_size, icon_size))
         else:
             btn.setText("☕")
-        btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(SUPPORT_LINK_URL)))
+        btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(KOFI_URL)))
         return btn
 
     def dragEnterEvent(self, event: QDragEnterEvent):

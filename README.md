@@ -109,6 +109,7 @@ python main.py
 ### Point d’entrée
 - `main.py` — lance l’application
 - `app_utils.py` — version de l’application, chemins de ressources, écriture atomique des fichiers de données
+- `app_constants.py` — valeurs fixes de l’application (liens, adresses)
 
 ### Composants autonomes
 - `graphics_view.py` — `ZoomableGraphicsView`
@@ -118,7 +119,7 @@ python main.py
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
 - `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)
-- `ui_splash_screen.py` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
+- `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
 - `image_filters.py` — filtres d’image purs (netteté)
@@ -146,7 +147,9 @@ python main.py
 - `ui_status_bar.py` — barre d’état
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
-- `ui_about_dialog.py`, `ui_support_dialog.py`, `ui_buy_me_a_coffee_dialog.py` — boîtes de dialogue du menu Aide
+- `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
+- `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
+- `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`)
 - `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière

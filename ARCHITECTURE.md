@@ -85,12 +85,13 @@ laser-studio-pro/
 ├── debug_log.py / qt_messages.py
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
-├── ui_splash_screen.py / ui_setup_mixin.py / ui_jog.py
+├── ui_setup_mixin.py / ui_jog.py
 ├── ui_menus.py / ui_status_bar.py / ui_machine_panel.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
-├── ui_support_dialog.py / ui_buy_me_a_coffee_dialog.py / ui_about_dialog.py
+├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes)
+├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -118,7 +119,7 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `app_theme`, `main_window.FullLaserStudio`, `app_utils`, `ui_splash_screen` |
+| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `app_theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
 | **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui_setup_mixin.change_theme` |
 | **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |

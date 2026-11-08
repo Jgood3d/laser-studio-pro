@@ -1,6 +1,10 @@
 """Thèmes clair / sombre / Dusk / Warm dim de Laser Studio Pro (palette + feuille de style)."""
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtGui import QIcon, QPalette, QColor
 
 
 # ---------------------------------------------------------------------------
@@ -559,3 +563,46 @@ def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
     order = ("dark", "light", "dusk", "warm", "neon", "retro80")
     return [(code, THEMES[code]["label_key"]) for code in order]
+
+
+def apply_saved_theme(app: QApplication):
+    """Applique le thème enregistré dans les préférences (« dark » par défaut).
+
+    La valeur est normalisée puis réécrite proprement, pour remplacer les
+    anciens libellés ou les types inattendus renvoyés sous Windows.
+    """
+    settings = QSettings("LaserStudioPro", "UIConfig")
+    name = normalize_theme_name(settings.value("app_theme", "dark"))
+    settings.setValue("app_theme", name)
+    return apply_app_theme(app, name)
+
+
+def install_breeze_icon_theme():
+    """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
+
+    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
+    Le pack minimal vit dans icons/breeze/ à côté de main.py (ou dans le bundle
+    PyInstaller via --add-data \"icons;icons\").
+    """
+    # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
+    current = QIcon.themeName()
+    if current and current not in ("", "hicolor"):
+        return False
+
+    candidates = []
+    here = Path(__file__).resolve().parent
+    candidates.append(here / "icons")
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "icons")
+        candidates.append(Path(sys.executable).resolve().parent / "icons")
+
+    for base in candidates:
+        index = base / "breeze" / "index.theme"
+        if index.is_file():
+            paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
+            QIcon.setThemeSearchPaths(paths)
+            QIcon.setThemeName("breeze")
+            return True
+    return False
