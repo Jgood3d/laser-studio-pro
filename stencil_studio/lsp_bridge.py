@@ -57,21 +57,84 @@ def pick_layer(layers, kind):
     return cands[0] if cands else None
 
 
-def ensure_multi_layer(layer_manager, index, color=None):
-    """Calque LSP pour une plaque multicouche Studio (LAYER_n). Créé si absent."""
+def _get_machine_focal(window):
+    """Taille du spot laser (mm) depuis Paramètres Machine, ou None."""
+    if window is None:
+        return None
+    try:
+        spin = getattr(window, "spin_machine_focal", None)
+        if spin is not None:
+            v = float(spin.value())
+            if v > 0:
+                return v
+    except Exception:
+        pass
+    # Via le focal_getter du widget calques (même source que « + Calque »)
+    try:
+        w = getattr(window, "layer_widget", None)
+        if w is not None and getattr(w, "focal_getter", None):
+            v = float(w.focal_getter())
+            if v > 0:
+                return v
+    except Exception:
+        pass
+    return None
+
+
+def ensure_multi_layer(layer_manager, index, color=None, window=None):
+    """Calque LSP pour une plaque multicouche Studio (LAYER_n). Créé si absent.
+
+    Réglages laser :
+      - puissance / vitesse / passes : repris du premier calque « Découpe »
+        existant, sinon valeurs typiques découpe ;
+      - pas de remplissage : repris de la focale machine (comme « + Calque »),
+        avec lien focale activé. Sinon copie d'un calque existant lié, sinon 0,10.
+    """
     name = f"LAYER_{index}"
     for l in layer_manager.layers:
         if _norm(getattr(l, "name", "")) == _norm(name):
             return l
     from vector_layers import LaserLayer, DEFAULT_LAYER_COLORS
     col = color or DEFAULT_LAYER_COLORS[(index - 1) % len(DEFAULT_LAYER_COLORS)]
+
+    # --- puissance / vitesse / passes ---
+    ref = pick_layer(layer_manager.layers, "cut")
+    if ref is not None:
+        power = getattr(ref, "power", 90)
+        speed = getattr(ref, "speed", 250)
+        passes = getattr(ref, "passes", 1)
+    else:
+        # Pas de calque Découpe : valeurs par défaut « découpe » de LayerManager
+        power, speed, passes = 90.0, 250, 1
+
+    # --- pas de remplissage (focale machine, comme le bouton + Calque) ---
+    focal = _get_machine_focal(window)
+    if focal is not None:
+        line_interval = focal
+        line_interval_linked = True
+    else:
+        # Reprendre d'un calque déjà lié à la focale
+        linked_src = next(
+            (l for l in layer_manager.layers
+             if getattr(l, "line_interval_linked", False)
+             and getattr(l, "line_interval", 0) > 0),
+            None,
+        )
+        if linked_src is not None:
+            line_interval = linked_src.line_interval
+            line_interval_linked = True
+        else:
+            line_interval, line_interval_linked = 0.10, False
+
     layer = LaserLayer(
         name=name,
         color=col,
         mode=MODE_CUT,
-        power=90,
-        speed=250,
-        passes=1,
+        power=power,
+        speed=speed,
+        passes=passes,
+        line_interval=line_interval,
+        line_interval_linked=line_interval_linked,
     )
     layer_manager.layers.append(layer)
     return layer
@@ -87,7 +150,7 @@ def _layer_key_from_source_tag(tag):
     return tag.strip()
 
 
-def route_objects(objects, layer_manager, default_id):
+def route_objects(objects, layer_manager, default_id, window=None):
     """Affecte obj.layer_id selon source_tag.
 
     Retourne un dict de stats : counts, missing_modes, multi_created
@@ -106,7 +169,7 @@ def route_objects(objects, layer_manager, default_id):
             cache_key = ("multi", detail)
             if cache_key not in cache:
                 before = {l.id for l in layer_manager.layers}
-                layer = ensure_multi_layer(layer_manager, detail or 1)
+                layer = ensure_multi_layer(layer_manager, detail or 1, window=window)
                 cache[cache_key] = layer
                 if layer.id not in before:
                     multi_created.append(layer.name)
@@ -229,7 +292,7 @@ def _import_dxf_routed(window, path):
     objects = dxf_to_objects(drawing, default_layer.id)
     if not objects:
         raise RuntimeError("DXF vide")
-    stats = route_objects(objects, window.layer_manager, default_layer.id)
+    stats = route_objects(objects, window.layer_manager, default_layer.id, window=window)
     canvas = window.vector_canvas
     canvas.push_undo_snapshot()
     items = [canvas.add_object(o) for o in objects]
@@ -256,7 +319,7 @@ def _import_svg_routed(window, path):
     )
     if not objects:
         raise RuntimeError("SVG vide")
-    stats = route_objects(objects, window.layer_manager, default_layer.id)
+    stats = route_objects(objects, window.layer_manager, default_layer.id, window=window)
     canvas = window.vector_canvas
     canvas.push_undo_snapshot()
     items = [canvas.add_object(o) for o in objects]
@@ -267,11 +330,26 @@ def _import_svg_routed(window, path):
 
 
 def _refresh_layers_ui(window):
+    """Rafraîchit le panneau des calques après création de LAYER_n (import Stencil Studio).
+
+    Le widget s'appelle ``layer_widget`` dans FullLaserStudio / UiSetupMixin
+    (pas ``layer_manager_widget``). On émet aussi ``layers_changed`` pour
+    déclencher la persistance et les mises à jour liées (aperçu G-Code, etc.).
+    """
     try:
-        w = getattr(window, "layer_manager_widget", None)
-        if w is not None and hasattr(w, "rebuild"):
-            w.rebuild()
-        elif w is not None and hasattr(w, "refresh"):
+        w = getattr(window, "layer_widget", None)
+        if w is None:
+            w = getattr(window, "layer_manager_widget", None)  # rétrocompat
+        if w is None:
+            return
+        if hasattr(w, "refresh"):
             w.refresh()
+        elif hasattr(w, "rebuild"):
+            w.rebuild()
+        if hasattr(w, "layers_changed"):
+            try:
+                w.layers_changed.emit()
+            except Exception:
+                pass
     except Exception:
         pass
