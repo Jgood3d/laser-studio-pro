@@ -808,7 +808,32 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
     def local_tag(elem):
         return elem.tag.split('}')[-1]
 
-    raw = []  # (QPainterPath en coordonnées SVG brutes Y-bas, tag)
+    # Parent map pour retrouver le <g id="CUT|FRAME|ENGRAVE|LAYER_n"> englobant
+    parent_map = {c: p for p in root.iter() for c in list(p)}
+
+    def ancestor_group_id(elem):
+        cur = elem
+        while cur is not None:
+            if local_tag(cur) == "g":
+                gid = cur.attrib.get("id") or cur.attrib.get("label")
+                if not gid:
+                    # inkscape:label éventuel
+                    for k, v in cur.attrib.items():
+                        if k.endswith("label") and v:
+                            gid = v
+                            break
+                if gid:
+                    return str(gid).strip()
+            cur = parent_map.get(cur)
+        return None
+
+    def source_tag_for(elem, geom_tag):
+        gid = ancestor_group_id(elem)
+        if gid:
+            return f"svg:{gid}"
+        return geom_tag
+
+    raw = []  # (QPainterPath en coordonnées SVG brutes Y-bas, source_tag)
 
     for elem in root.iter():
         tag = local_tag(elem)
@@ -817,38 +842,39 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                 d = elem.attrib.get('d')
                 if not d:
                     continue
+                st = source_tag_for(elem, tag)
                 if ungroup:
                     # Sépare chaque sous-tracé (M/m) en objet indépendant.
                     for qp in _svg_path_element_to_subpaths(d):
-                        raw.append((qp, tag))
+                        raw.append((qp, st))
                 else:
                     # Garde le <path> entier (éventuellement multi-sous-tracés)
                     # comme une seule géométrie ; le fusion globale plus bas
                     # regroupera aussi les autres éléments du fichier.
                     qp = _svg_path_element_to_single(d)
                     if qp.elementCount() > 0:
-                        raw.append((qp, tag))
+                        raw.append((qp, st))
             elif tag == 'rect':
                 x = float(elem.attrib.get('x', 0)); y = float(elem.attrib.get('y', 0))
                 w = float(elem.attrib.get('width', 0)); h = float(elem.attrib.get('height', 0))
                 if w > 0 and h > 0:
                     qp = QPainterPath()
                     qp.addRect(x, y, w, h)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'circle':
                 cx = float(elem.attrib.get('cx', 0)); cy = float(elem.attrib.get('cy', 0))
                 r = float(elem.attrib.get('r', 0))
                 if r > 0:
                     qp = QPainterPath()
                     qp.addEllipse(cx - r, cy - r, 2 * r, 2 * r)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'ellipse':
                 cx = float(elem.attrib.get('cx', 0)); cy = float(elem.attrib.get('cy', 0))
                 rx = float(elem.attrib.get('rx', 0)); ry = float(elem.attrib.get('ry', 0))
                 if rx > 0 and ry > 0:
                     qp = QPainterPath()
                     qp.addEllipse(cx - rx, cy - ry, 2 * rx, 2 * ry)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag in ('polygon', 'polyline'):
                 pts_str = elem.attrib.get('points', '')
                 coords = [float(v) for v in re.split(r'[\s,]+', pts_str.strip()) if v]
@@ -858,14 +884,14 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                     qp.addPolygon(poly)
                     if tag == 'polygon':
                         qp.closeSubpath()
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'line':
                 x1 = float(elem.attrib.get('x1', 0)); y1 = float(elem.attrib.get('y1', 0))
                 x2 = float(elem.attrib.get('x2', 0)); y2 = float(elem.attrib.get('y2', 0))
                 qp = QPainterPath()
                 qp.moveTo(x1, y1)
                 qp.lineTo(x2, y2)
-                raw.append((qp, tag))
+                raw.append((qp, source_tag_for(elem, tag)))
         except Exception:
             continue
 
