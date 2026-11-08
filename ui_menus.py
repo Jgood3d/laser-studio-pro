@@ -20,8 +20,8 @@ from PyQt6.QtGui import (
 from app_utils import APP_VERSION, find_resource
 from i18n import SUPPORTED_LANGUAGES, get_current_language, set_language, tr
 from stencil_studio.studio_dialog import open_stencil_studio
-from ui_buy_me_a_coffee_dialog import show_buy_me_a_coffee_dialog
 from ui.about import AboutDialog
+from ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from ui.support import SupportDialog
 
 
@@ -260,7 +260,7 @@ class MenusMixin:
             tr("menu.help.coffee"),
         )
         action_coffee.triggered.connect(
-            lambda: show_buy_me_a_coffee_dialog(self)
+            lambda: BuyMeACoffeeDialog(self).exec()
         )
 
     def show_main_tab(self, tab_attr):
