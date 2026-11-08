@@ -177,7 +177,7 @@ class MenuStructureTests(unittest.TestCase):
         # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
         # ancrage : cadre « Position du job » du panneau machine ; Calques : onglet central.
         self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
-        self.assertIn("machine_row.addWidget(self.job_position_box)", src)
+        self.assertIn("machine_row.addWidget(self.job_position_box", src)
         self.assertRegex(src, r"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), self\.combo_origin\)")
         for widget in ("self.spin_off_x", "self.spin_off_y"):
             self.assertRegex(src, rf"layout_img\.insertRow\(\d, tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
