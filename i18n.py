@@ -2060,18 +2060,6 @@ TRANSLATIONS = {
         "de": "Möchtest du das Projekt vor dem Schließen speichern?",
         "es": "¿Quieres guardar el proyecto antes de cerrar?",
     },
-    "splash.initializing": {
-        "fr": "Initialisation de Laser Studio Pro...",
-        "en": "Starting Laser Studio Pro...",
-        "de": "Laser Studio Pro wird gestartet...",
-        "es": "Iniciando Laser Studio Pro...",
-    },
-    "splash.ready": {
-        "fr": "Prêt !",
-        "en": "Ready!",
-        "de": "Bereit!",
-        "es": "¡Listo!",
-    },
     "ui.about_title": {
         "fr": "À propos de Laser Studio Pro",
         "en": "About Laser Studio Pro",

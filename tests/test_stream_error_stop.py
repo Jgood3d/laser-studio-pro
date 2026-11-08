@@ -64,11 +64,7 @@ class FakeUSB:
 
 @unittest.skipIf(GCodeStreamerThread is None, "workers non importable ici")
 class StreamErrorStopTests(unittest.TestCase):
-<<<<<<< HEAD
     GCODE = "G21\nG90\nG999\nG1 X10 F1000\nM5\n"
-=======
-    GCODE = "G21\nG90\nBAD LINE\nG1 X10 F1000\nM5\n"
->>>>>>> aed42af (feat: description de vos modifications)
 
     def run_stream(self, ser, gcode=None):
         streamer = GCodeStreamerThread(FakeUSB(ser), gcode or self.GCODE)
@@ -80,11 +76,7 @@ class StreamErrorStopTests(unittest.TestCase):
         return streamer, logs, results
 
     def test_error_sends_feed_hold_then_reset(self):
-<<<<<<< HEAD
         ser = FakeGrbl(errors={"G999": "error:1"})
-=======
-        ser = FakeGrbl(errors={"BAD LINE": "error:1"})
->>>>>>> aed42af (feat: description de vos modifications)
         streamer, logs, results = self.run_stream(ser)
         self.assertEqual(ser.realtime(), [b"!", b"\x18"])
         self.assertTrue(streamer.stopped_on_error)
@@ -93,11 +85,7 @@ class StreamErrorStopTests(unittest.TestCase):
         self.assertTrue(any("error:1" in line for line in logs))
 
     def test_reset_without_confirmed_stop_marks_position_lost(self):
-<<<<<<< HEAD
         ser = FakeGrbl(errors={"G999": "error:1"}, hold_state="Hold:1")   # jamais à l'arrêt complet
-=======
-        ser = FakeGrbl(errors={"BAD LINE": "error:1"}, hold_state="Hold:1")   # jamais à l'arrêt complet
->>>>>>> aed42af (feat: description de vos modifications)
         streamer, _logs, results = self.run_stream(ser)
         self.assertEqual(ser.realtime(), [b"!", b"\x18"])
         self.assertTrue(streamer.position_lost)
