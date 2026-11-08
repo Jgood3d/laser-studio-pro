@@ -27,21 +27,23 @@ from ui_support_dialog import show_support_dialog
 
 class MenusMixin:
     def change_theme(self, theme_name):
-        """Bascule entre le thème sombre et clair à la volée.
+        """Bascule de thème à la volée et mémorise le code.
 
-        Même logique que le démarrage.
+        Codes possibles : dark, light, dusk, warm.
         """
-        from app_theme import apply_app_theme
+        from app_theme import apply_app_theme, normalize_theme_name
 
+        theme_name = normalize_theme_name(theme_name)
         app = QApplication.instance()
         settings = QSettings("LaserStudioPro", "UIConfig")
         settings.setValue("app_theme", theme_name)
+        settings.sync()  # écriture immédiate sous Windows
         apply_app_theme(app, theme_name)
 
         for code, act in getattr(self, "_theme_actions", {}).items():
             act.setChecked(code == theme_name)
 
-        # Stencil Studio ouvert : même thème clair / sombre que LSP
+        # Stencil Studio ouvert : même thème que LSP
         dlg = getattr(self, "_stencil_studio_dialog", None)
         if dlg is not None:
             try:
@@ -160,10 +162,12 @@ class MenusMixin:
             self._lang_actions[lang_code] = action_lang
 
         # Sous-menu Thème (Sombre / Clair / Dusk / Warm)
-        from app_theme import available_themes
+        from app_theme import available_themes, normalize_theme_name
 
         settings = QSettings("LaserStudioPro", "UIConfig")
-        current_theme = settings.value("app_theme", "dark")
+        current_theme = normalize_theme_name(
+            settings.value("app_theme", "dark")
+        )
         menu_theme = menu_parametres.addMenu(
             std_icon(
                 "preferences-desktop-theme",

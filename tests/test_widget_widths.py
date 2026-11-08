@@ -96,22 +96,25 @@ class VectorToolbarTests(unittest.TestCase):
     def rows(self):
         with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as f:
             src = f.read().replace("\r\n", "\n")
-        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_edit)")]
+        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_tools)")]
         keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', block))
         rows = {}
         for layout, button in re.findall(r"(toolbar_vector\w*)\.addWidget\((btn_\w+)\)", block):
             rows.setdefault(layout, []).append(keys[button])
+        # Boutons ajoutés par une boucle : for w in (btn_a, btn_b): toolbar.addWidget(w)
+        for names, layout in re.findall(r"for w in \(([^)]*)\):\s*\n\s*(toolbar_vector\w*)\.addWidget\(w\)", block):
+            rows.setdefault(layout, []).extend(keys[n.strip()] for n in names.split(",") if n.strip())
         return rows
 
     def estimated_width(self, keys):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
-    def test_two_rows_with_all_twelve_buttons(self):
+    def test_two_rows_with_all_nineteen_buttons(self):
         rows = self.rows()
-        self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_edit"])
-        self.assertEqual(sum(len(v) for v in rows.values()), 12)
-        self.assertEqual(len(set(k for v in rows.values() for k in v)), 12)
+        self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_tools"])
+        self.assertEqual(sum(len(v) for v in rows.values()), 19)
+        self.assertEqual(len(set(k for v in rows.values() for k in v)), 19)
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():

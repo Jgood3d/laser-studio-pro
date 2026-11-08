@@ -174,12 +174,13 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_other_tabs_are_still_there(self):
         src = ui_source()
-        # Image & Filtres et la taille de l'image : panneau de gauche de « Graver une image » ;
-        # ancrage et offset : cadre « Position du job » du panneau machine ; Calques : onglet central.
+        # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
+        # ancrage : cadre « Position du job » du panneau machine ; Calques : onglet central.
         self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
         self.assertIn("machine_row.addWidget(self.job_position_box)", src)
-        for widget in ("self.combo_origin", "self.spin_off_x", "self.spin_off_y"):
-            self.assertRegex(src, rf"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
+        self.assertRegex(src, r"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), self\.combo_origin\)")
+        for widget in ("self.spin_off_x", "self.spin_off_y"):
+            self.assertRegex(src, rf"layout_img\.insertRow\(\d, tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
         self.assertNotIn('tr("tab.dimensions")', src)
         self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
         self.assertNotIn('tr("tab.image_filters")', src)

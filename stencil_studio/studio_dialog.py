@@ -53,6 +53,16 @@ LSP_THEME_WARM = {
     "bg": "#241f1c", "panel": "#2c2825", "panel2": "#3a3530", "line": "#5a524a",
     "fg": "#e8e0d5", "mut": "#a89c8e", "acc": "#d4a574", "acc2": "#e0b88a", "onacc": "#2c2825",
 }
+# Neon laser — cyan + magenta
+LSP_THEME_NEON = {
+    "bg": "#120f1c", "panel": "#0d0b14", "panel2": "#1a1628", "line": "#3d3560",
+    "fg": "#e8e6f2", "mut": "#9b93b8", "acc": "#00e5c3", "acc2": "#ff4ecd", "onacc": "#0d0b14",
+}
+# Rétro 80s — synthwave
+LSP_THEME_RETRO80 = {
+    "bg": "#12061f", "panel": "#1a0a2e", "panel2": "#2a1450", "line": "#7b2cbf",
+    "fg": "#f0e6ff", "mut": "#b8a0d0", "acc": "#ff2a6d", "acc2": "#05d9e8", "onacc": "#1a0a2e",
+}
 # Alias rétrocompat : l'ancien LSP_THEME était toujours sombre.
 LSP_THEME = LSP_THEME_DARK
 
@@ -63,6 +73,12 @@ _STUDIO_THEMES = {
     "clair": LSP_THEME_LIGHT,
     "dusk": LSP_THEME_DUSK,
     "warm": LSP_THEME_WARM,
+    "neon": LSP_THEME_NEON,
+    "laser": LSP_THEME_NEON,
+    "retro80": LSP_THEME_RETRO80,
+    "retro": LSP_THEME_RETRO80,
+    "synthwave": LSP_THEME_RETRO80,
+    "80s": LSP_THEME_RETRO80,
 }
 
 
