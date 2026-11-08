@@ -65,7 +65,7 @@ class GcodeGenerationMixin:
                     tr("gcode.export_error").format(error=e)
                 )
 
-    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None):
+    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
         couleur du calque, si fournie) à partir des segments de gravure
         raster (position + puissance S), façon LaserGRBL, affichée sous les
@@ -85,6 +85,10 @@ class GcodeGenerationMixin:
         titre que les lignes de balayage très serrées à l'intérieur d'un
         motif, ce qui écrase et fait se chevaucher visuellement des zones
         qui sont en réalité bien séparées sur la pièce.
+
+        `gamma` < 1 relève les faibles puissances (aperçu seulement, l'ordre des
+        niveaux est conservé) : utile pour une matrice de test, où les cases peu
+        puissantes seraient sinon presque invisibles.
 
         Note honnête : je n'ai pas pu exécuter PyQt6 dans cet environnement
         pour vérifier visuellement l'orientation (haut/bas) du résultat une
@@ -148,6 +152,9 @@ class GcodeGenerationMixin:
                     col_a = max(0, min(img_w - 1, int(round((xa - min_x) * px_per_mm_x))))
                     col_b = max(col_a + 1, min(img_w, int(round((xb - min_x) * px_per_mm_x)) + 1))
                     np.maximum(power_arr[row_idx, col_a:col_b], power, out=power_arr[row_idx, col_a:col_b])
+
+            if gamma != 1.0:
+                power_arr = np.power(power_arr, gamma, dtype=np.float32)
 
             negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
                                      and self.chk_negative_raster_preview.isChecked())
@@ -521,7 +528,7 @@ class GcodeGenerationMixin:
                     tr("gen.overscan_body").format(
                         overscan=overscan_check, offset=params['offset_x'],
                         start=base_x_check - overscan_check,
-                        tab_dims=tr("ui.job_position_box"), tab_grbl=tr("tab.grbl_config"),
+                        tab_dims=tr("ui.tab_image_tracing"), tab_grbl=tr("tab.grbl_config"),
                     )
                 )
                 return
@@ -615,6 +622,9 @@ class GcodeGenerationMixin:
     def generate_test_matrix(self):
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
         self._sync_matrix_lmm_from_image()
+        # Mode indépendant de la langue : currentText() est traduit (« Engraving », « Gravur »…),
+        # alors que le générateur et _on_plot_clicked comparent à « Gravure ».
+        engraving = self.combo_mat_mode.currentIndex() == 0
         params = {
             'min_power': self.spin_mat_min_p.value(),
             'max_power': self.spin_mat_max_p.value(),
@@ -628,7 +638,7 @@ class GcodeGenerationMixin:
             'steps_speed': self.spin_mat_steps_s.value(),
             'size_square': self.spin_mat_size.value(),
             'gap': self.spin_mat_gap.value(),
-            'mode': self.combo_mat_mode.currentText(),
+            'mode': "Gravure" if engraving else "Découpe",
             'lines_mm': self.spin_mat_lmm.value(),
             'matrix_offset_x': self.spin_mat_off_x.value(),
             'matrix_offset_y': self.spin_mat_off_y.value(),
@@ -639,7 +649,17 @@ class GcodeGenerationMixin:
             'overscan_mode': self._overscan_mode_value(),
             'overscan_dist': self.spin_overscan_dist.value(),
             'overscan_pct': self.spin_overscan_pct.value(),
+            # Décalage des lignes retour (réglage machine), comme pour une gravure d'image.
+            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
         }
+        # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
+        if engraving and self.matrix_image_enabled():
+            tile = self.build_matrix_image_tile(params['lines_mm'])
+            if tile is None:
+                return
+            params['image_tile'] = tile
+            params['cell_w'] = tile['w_mm']
+            params['cell_h'] = tile['h_mm']
         # Mémorisé pour permettre le clic sur une case de l'aperçu 2D
         # (voir _on_plot_clicked) afin d'appliquer directement sa
         # puissance/vitesse aux réglages de gravure/découpe courants.
@@ -668,7 +688,9 @@ class GcodeGenerationMixin:
             mat_off_y = params.get('matrix_offset_y', 0.0)
             start_x = mat_off_x + offset_labels_x
             start_y = mat_off_y + offset_labels_y
-            sq_size = params['size_square']
+            # Case : carré, ou zone d'image (largeur x hauteur) pour un test à partir d'une image.
+            cell_w = float(params.get('cell_w') or params['size_square'])
+            cell_h = float(params.get('cell_h') or params['size_square'])
             gap = params['gap']
 
             min_s, max_s, steps_s = params['min_speed'], params['max_speed'], int(params['steps_speed'])
@@ -682,13 +704,13 @@ class GcodeGenerationMixin:
                 min_pa, max_pa, steps_pa = params['min_passes'], params['max_passes'], int(params['steps_passes'])
                 col_values = np.unique(np.round(np.linspace(min_pa, max_pa, steps_pa))).astype(int)
 
-            col = int((x_mm - start_x) // (sq_size + gap))
-            row = int((y_mm - start_y) // (sq_size + gap))
+            col = int((x_mm - start_x) // (cell_w + gap))
+            row = int((y_mm - start_y) // (cell_h + gap))
             if not (0 <= col < len(col_values) and 0 <= row < len(speeds)):
                 return
-            cell_x0 = start_x + col * (sq_size + gap)
-            cell_y0 = start_y + row * (sq_size + gap)
-            if not (cell_x0 <= x_mm <= cell_x0 + sq_size and cell_y0 <= y_mm <= cell_y0 + sq_size):
+            cell_x0 = start_x + col * (cell_w + gap)
+            cell_y0 = start_y + row * (cell_h + gap)
+            if not (cell_x0 <= x_mm <= cell_x0 + cell_w and cell_y0 <= y_mm <= cell_y0 + cell_h):
                 return  # clic dans l'espace entre les cases, pas dans une case
 
             speed_val = round(float(speeds[row]))
@@ -842,6 +864,7 @@ class GcodeGenerationMixin:
         DEFAULT_SVG_COLOR = "#ff00ff"
         DEFAULT_LAYER_COLOR = "#00ff88"
         RASTER_LABEL = tr("gen.legend_raster")
+        MATRIX_LABEL = tr("gen.legend_test_matrix")
         UNKNOWN_LABEL = tr("gen.legend_unknown")
 
         current_label = UNKNOWN_LABEL
@@ -988,7 +1011,8 @@ class GcodeGenerationMixin:
         # - Calque "Gravure Remplie"    -> raster
         # - G-Code importé non identifié -> heuristique raster
         # - SVG en découpe              -> vectoriel
-        # - Matrice de test             -> vectoriel
+        # - Matrice de test (Gravure)   -> raster, comme la gravure image
+        # - Matrice de test (Découpe)   -> vectoriel
         # - Découpe / Marquage contour  -> vectoriel
         raster_groups = {}
         raster_keys_rendered_as_image = set()
@@ -1001,9 +1025,13 @@ class GcodeGenerationMixin:
                 # Image générée par l'application.
                 is_raster = True
 
-            elif label == tr("gen.legend_test_matrix"):
-                # Une matrice de test doit rester affichée en vectoriel.
-                is_raster = False
+            elif label == MATRIX_LABEL:
+                # Matrice de test en mode Gravure : rendu tramé en niveaux de gris, comme
+                # une gravure image (chaque case, y compris celles avec une partie d'image,
+                # reste lisible). En mode Découpe (ou matrice d'origine inconnue, ex. G-Code
+                # rechargé), on garde l'affichage vectoriel.
+                matrix_params = getattr(self, "last_test_matrix_params", None) or {}
+                is_raster = matrix_params.get("mode") == "Gravure"
 
             elif label == tr("gen.legend_svg_cut"):
                 # Un SVG de découpe doit rester affiché comme des contours.
@@ -1074,7 +1102,7 @@ class GcodeGenerationMixin:
             xs, ys = g1_segments[(label, color)]
             n_segs = len(xs) // 3
             if (label, color) in raster_keys_rendered_as_image:
-                swatch = raster_swatch if label == RASTER_LABEL else f'<span style="color:{color}">■</span>'
+                swatch = raster_swatch if label in (RASTER_LABEL, MATRIX_LABEL) else f'<span style="color:{color}">■</span>'
                 legend_rows += f'<div>{swatch} {tr("gen.legend_layer_raster_note").format(label=label, n=n_segs)}</div>'
             else:
                 legend_rows += f'<div><span style="color:{color}">■</span> {tr("gen.legend_layer_segments").format(label=label, n=n_segs)}</div>'
@@ -1093,8 +1121,12 @@ class GcodeGenerationMixin:
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():
             label, color = key
-            tint = None if label == RASTER_LABEL else color
-            self._plot_raster_reconstruction(strokes, tint_color=tint)
+            # Image et matrice de test : jamais teintées (gris sur matériau clair, ou négatif).
+            tint = None if label in (RASTER_LABEL, MATRIX_LABEL) else color
+            # Matrice de test : les niveaux de puissance sont relevés (gamma 0,5) pour que
+            # l'image de chaque case reste visible, y compris celles à faible puissance.
+            gamma = 0.5 if label == MATRIX_LABEL else 1.0
+            self._plot_raster_reconstruction(strokes, tint_color=tint, gamma=gamma)
 
         hide_rapid_moves = getattr(self, "chk_hide_rapid_moves", None)
         hide_rapid = bool(
@@ -1130,14 +1162,19 @@ class GcodeGenerationMixin:
             )
 
         if ov_x:
+            # Sur une matrice de test tramée, des centaines de lignes de surbalayage se
+            # superposent en barres rouges pleines qui cachent les bords des cases :
+            # on les affiche plus fines et translucides pour garder l'image lisible.
+            matrix_as_image = any(k[0] == MATRIX_LABEL for k in raster_keys_rendered_as_image)
+            ov_pen = (
+                pg.mkPen(color=(255, 51, 85, 80), width=1, style=Qt.PenStyle.DashLine)
+                if matrix_as_image
+                else pg.mkPen(color="#ff3355", width=2, style=Qt.PenStyle.DashLine)
+            )
             self.plot_widget.plot(
                 ov_x,
                 ov_y,
-                pen=pg.mkPen(
-                    color="#ff3355",
-                    width=2,
-                    style=Qt.PenStyle.DashLine
-                ),
+                pen=ov_pen,
                 connect="finite"
             )
 

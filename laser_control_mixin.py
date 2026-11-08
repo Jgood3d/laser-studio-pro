@@ -408,9 +408,13 @@ class LaserControlMixin:
         if hasattr(self, "txt_sent_gcode"):
             self.txt_sent_gcode.clear()
             self._append_sent_gcode([tr("queue.sent_log_direct")])
+<<<<<<< HEAD
         self._prepare_burn_overlay(gcode_text)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self._connect_burn_overlay(self.streamer)
+=======
+        self.streamer = GCodeStreamerThread(self.usb, gcode_text)
+>>>>>>> aed42af (feat: description de vos modifications)
         if hasattr(self, "_append_sent_gcode"):
             self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
@@ -493,8 +497,11 @@ class LaserControlMixin:
             self._log_sent_gcode_end(clean_finish)
         log.info("Envoi : terminé, fin propre=%s", clean_finish)
         self._check_position_after_stream()
+<<<<<<< HEAD
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
+=======
+>>>>>>> aed42af (feat: description de vos modifications)
         self.btn_send.setEnabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()
