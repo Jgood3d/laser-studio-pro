@@ -12,11 +12,25 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QFont, QFontMetrics
 from i18n import tr
 from widgets_extra import HistoryLineEdit
 
 
 class MachinePanelMixin:
+    @staticmethod
+    def _fit_box_width(box, content_px=0):
+        """Largeur minimale d'un cadre : son titre en entier, plus `content_px` pour le contenu.
+
+        Le thème met les titres de cadre en gras et les décale (marge gauche + marges
+        internes), ce que Qt ne compte pas dans la taille minimale du cadre : sans cette
+        largeur, un cadre étroit (le DRO) voit son titre coupé à droite.
+        """
+        font = QFont(box.font())
+        font.setBold(True)
+        title_px = QFontMetrics(font).horizontalAdvance(box.title()) + 44
+        box.setMinimumWidth(max(box.minimumSizeHint().width(), title_px, content_px))
+
     def _build_machine_panel(self):
         """Panneau machine sous les onglets (DRO, jog, console directe)."""
         center_bottom_widget = QWidget()
@@ -51,15 +65,26 @@ class MachinePanelMixin:
         dro_layout.addWidget(self.lbl_dro_z)
         dro_layout.addStretch()
         dro_box.setLayout(dro_layout)
+        # Largeur du DRO : son titre et la plus longue valeur (ex. « X : -1000.000 mm »).
+        mono = QFont("monospace")
+        mono.setStyleHint(QFont.StyleHint.Monospace)
+        mono.setPixelSize(13)
+        value_px = QFontMetrics(mono).horizontalAdvance(
+            tr("ui.dro_x").format(value="-1000.000")) + 40
+        self._fit_box_width(dro_box, value_px)
 
         jog_box = self._build_jog_box()
 
         # Trois parties côte à côte : position du job à gauche, jog au centre,
-        # DRO à droite.
+        # DRO à droite. Le jog garde sa taille naturelle (ses boutons ne grandissent pas) ;
+        # la place libre est partagée entre la position du job et le DRO. Avant, elle allait
+        # toute au jog (vide à droite de ses boutons) et le DRO, sans extension, était coupé.
+        self._fit_box_width(self.job_position_box)
+        self._fit_box_width(jog_box)
         machine_row = QHBoxLayout()
-        machine_row.addWidget(self.job_position_box)
-        machine_row.addWidget(jog_box, 1)
-        machine_row.addWidget(dro_box)
+        machine_row.addWidget(self.job_position_box, 1)
+        machine_row.addWidget(jog_box, 0)
+        machine_row.addWidget(dro_box, 1)
         center_bottom_layout.addLayout(machine_row)
         self.jog_box = jog_box
 
