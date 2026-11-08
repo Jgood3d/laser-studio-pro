@@ -20,9 +20,9 @@ from PyQt6.QtGui import (
 from app_utils import APP_VERSION, find_resource
 from i18n import SUPPORTED_LANGUAGES, get_current_language, set_language, tr
 from stencil_studio.studio_dialog import open_stencil_studio
-from ui_about_dialog import show_about_dialog
 from ui_buy_me_a_coffee_dialog import show_buy_me_a_coffee_dialog
 from ui_support_dialog import show_support_dialog
+from ui.about import AboutDialog
 
 
 class MenusMixin:
@@ -246,7 +246,7 @@ class MenusMixin:
             ),
             tr("menu.help.about"),
         )
-        action_about.triggered.connect(lambda: show_about_dialog(self))
+        action_about.triggered.connect(lambda: AboutDialog(self).exec())
         # Support : contact par e-mail (voir ui.support_body).
         action_support = menu_aide.addAction(
             std_icon(QIcon.ThemeIcon.MailMessageNew), tr("menu.help.support")

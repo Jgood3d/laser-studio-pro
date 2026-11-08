@@ -146,7 +146,8 @@ python main.py
 - `ui_status_bar.py` — barre d’état
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
-- `ui_about_dialog.py`, `ui_support_dialog.py`, `ui_buy_me_a_coffee_dialog.py` — boîtes de dialogue du menu Aide
+- `ui_support_dialog.py`, `ui_buy_me_a_coffee_dialog.py` — boîtes de dialogue du menu Aide
+- `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
