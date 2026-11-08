@@ -15,7 +15,6 @@ Lancer :  python -m unittest discover tests -v
 """
 import ast
 import collections
-import glob
 import os
 import string
 import sys
@@ -23,6 +22,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from project_files import display_name, python_files  # noqa: E402
 
 try:
     import i18n
@@ -37,7 +38,8 @@ def placeholders(text):
 
 
 def project_files():
-    return [f for f in glob.glob(os.path.join(ROOT, "*.py"))
+    """Racine du projet et paquet ui/ (voir tools/project_files.py)."""
+    return [f for f in python_files(ROOT)
             if os.path.basename(f) not in ("i18n.py",)]
 
 
@@ -52,7 +54,7 @@ def tr_calls():
                     and node.func.id == "tr" and node.args:
                 a = node.args[0]
                 key = a.value if isinstance(a, ast.Constant) and isinstance(a.value, str) else None
-                calls.append((os.path.basename(path), node.lineno, key))
+                calls.append((display_name(path), node.lineno, key))
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
                     and node.func.attr == "format" and isinstance(node.func.value, ast.Call)
                     and isinstance(node.func.value.func, ast.Name) and node.func.value.func.id == "tr"
@@ -60,7 +62,7 @@ def tr_calls():
                 kws = {k.arg for k in node.keywords if k.arg}
                 star = any(k.arg is None for k in node.keywords) or any(
                     isinstance(a, ast.Starred) for a in node.args)
-                formats.append((os.path.basename(path), node.lineno,
+                formats.append((display_name(path), node.lineno,
                                 node.func.value.args[0].value, kws, star))
     return calls, formats
 

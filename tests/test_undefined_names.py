@@ -2,11 +2,13 @@
 au moment où la ligne est atteinte : un import oublié dans un code d'interface plante le programme)."""
 import ast
 import builtins
-import glob
 import os
+import sys
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(ROOT, "tools"))
+from project_files import display_name, python_files  # noqa: E402
 _BUILTINS = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "__class__"}
 
 
@@ -50,9 +52,9 @@ def undefined_in(path):
 class UndefinedNamesTests(unittest.TestCase):
     def test_no_project_file_uses_an_undefined_name(self):
         problems = []
-        for path in sorted(glob.glob(os.path.join(ROOT, "*.py"))):
+        for path in python_files(ROOT):
             for name, line in undefined_in(path):
-                problems.append(f"{os.path.basename(path)}:{line} {name}")
+                problems.append(f"{display_name(path)}:{line} {name}")
         self.assertEqual(problems, [], "Noms utilisés mais jamais définis ni importés :\n" + "\n".join(problems))
 
     def test_the_checker_detects_a_missing_import(self):
