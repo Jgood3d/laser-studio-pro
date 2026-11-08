@@ -120,13 +120,30 @@ def theme_from_palette(pal=None):
 
 
 def theme_for_lsp(theme_name=None):
-    """Thème Studio correspondant au réglage LSP (dark / light / dusk / warm)."""
+    """Thème Studio aligné sur LSP (source privilégiée : app_theme.THEMES)."""
     if theme_name is None:
         try:
             from PyQt6.QtCore import QSettings
             theme_name = QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark")
         except Exception:
             theme_name = "dark"
+    try:
+        from app_theme import THEMES, normalize_theme_name
+        key = normalize_theme_name(theme_name)
+        c = THEMES[key]
+        return {
+            "bg": c["base"],
+            "panel": c["window"],
+            "panel2": c["alt"],
+            "line": c["border"],
+            "fg": c["text"],
+            "mut": c["muted"],
+            "acc": c["accent"],
+            "acc2": c["accent_hover"],
+            "onacc": c["on_accent"],
+        }
+    except Exception:
+        pass
     key = str(theme_name).lower()
     if key in _STUDIO_THEMES:
         return dict(_STUDIO_THEMES[key])
