@@ -26,6 +26,7 @@ from vector_font import VectorFont
 from vector_layers import build_vector_layers_gcode
 import separation_engine
 from image_filters import sharpen_image
+from matrix_image import tile_raster_gcode
 from i18n import tr
 
 
@@ -272,12 +273,9 @@ class GCodeStreamerThread(QThread):
     # Lignes envoyées à GRBL, par paquets (au plus ~10 émissions par seconde, voir
     # _flush_sent_lines) : un signal par ligne saturerait l'interface sur un long job.
     lines_sent = pyqtSignal(list)
-<<<<<<< HEAD
     # Nombre de lignes acceptées par GRBL (« ok » reçus), au même rythme : sert à suivre la
     # gravure en temps réel sur l'aperçu 2D (voir GCodeGenerationMixin.update_burn_overlay).
     lines_acked = pyqtSignal(int)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
     SENT_LINES_INTERVAL = 0.1
 
     def __init__(self, usb_controller, gcode_text):
@@ -294,25 +292,10 @@ class GCodeStreamerThread(QThread):
         # donc que la machine repasse à l'état Idle avant d'annoncer la fin.
         self._idle_poll_interval = 0.2    # secondes entre deux requêtes '?' pendant l'attente
         self._idle_reply_timeout = 8.0    # aucun rapport de statut pendant ce délai : liaison considérée perdue
-<<<<<<< HEAD
-=======
-        self._sent_batch = []
-        self._last_sent_emit = 0.0
-
-    def _flush_sent_lines(self, force=False):
-        """Émet les lignes envoyées depuis la dernière émission (toutes les SENT_LINES_INTERVAL s,
-        ou tout de suite si `force`)."""
-        now = time.time()
-        if self._sent_batch and (force or now - self._last_sent_emit >= self.SENT_LINES_INTERVAL):
-            self.lines_sent.emit(self._sent_batch)
-            self._sent_batch = []
-            self._last_sent_emit = now
->>>>>>> aed42af (feat: description de vos modifications)
         # Arrêt de la machine sur erreur GRBL (voir _stop_machine_after_error).
         self._hold_timeout = 3.0          # délai maxi pour que le feed hold soit complet (Hold:0)
         self.stopped_on_error = False     # True si la machine a été arrêtée suite à une erreur GRBL
         self.position_lost = False        # True si ce reset a eu lieu machine encore en mouvement
-<<<<<<< HEAD
         self._sent_batch = []
         self._last_sent_emit = 0.0
         self.acked = 0                    # « ok » reçus depuis le début du job
@@ -331,8 +314,6 @@ class GCodeStreamerThread(QThread):
             self.lines_acked.emit(self.acked)
             self._acked_emitted = self.acked
         self._last_sent_emit = now
-=======
->>>>>>> aed42af (feat: description de vos modifications)
 
     def stop(self):
         log.info("Streamer : arrêt demandé par l'utilisateur")
@@ -514,10 +495,7 @@ class GCodeStreamerThread(QThread):
                             ok_count += 1
                             if ring_buffer:
                                 ring_buffer.pop(0)
-<<<<<<< HEAD
                                 self.acked += 1
-=======
->>>>>>> aed42af (feat: description de vos modifications)
                             else:
                                 log.warning("Streamer : « ok » reçu alors qu'aucune ligne n'est en attente")
                         elif resp.startswith('error') or resp.startswith('ALARM') or resp.startswith('ERROR:'):
@@ -588,10 +566,6 @@ class GCodeStreamerThread(QThread):
                             last_stall_log = now
                         time.sleep(0.01)
                 self._flush_sent_lines()
-
-            # Erreur GRBL : arrêter la machine, qui exécuterait sinon la fin de son buffer.
-            if grbl_error:
-                self._stop_machine_after_error(ser)
 
             # Erreur GRBL : arrêter la machine, qui exécuterait sinon la fin de son buffer.
             if grbl_error:
@@ -1000,12 +974,17 @@ class TestMatrixWorker(QThread):
         min_s, max_s, steps_s = self.params['min_speed'], self.params['max_speed'], self.params['steps_speed']
         sq_size = self.params['size_square']
         gap = self.params['gap']
-        
+        # Case de la matrice : carré de `sq_size`, ou, pour un test à partir d'une image
+        # (params['image_tile']), la zone d'image gravée (largeur x hauteur en mm).
+        cell_w = float(self.params.get('cell_w') or sq_size)
+        cell_h = float(self.params.get('cell_h') or sq_size)
+        tile = self.params.get('image_tile')
+
         enable_overscan = self.params.get('enable_overscan', False)
         if enable_overscan and mode == "Gravure":
             if self.params.get('overscan_mode') == "Pourcentage (%)":
                 pct = self.params.get('overscan_pct', 5.0)
-                overscan_dist = sq_size * (pct / 100.0)
+                overscan_dist = cell_w * (pct / 100.0)
             else:
                 overscan_dist = self.params.get('overscan_dist', 2.5)
         else:
@@ -1033,7 +1012,7 @@ class TestMatrixWorker(QThread):
             powers = np.linspace(min_p, max_p, steps_p)
 
             for j, p in enumerate(powers):
-                lbl_x = start_x + j * (sq_size + gap) + (sq_size / 2.0) - 4.0
+                lbl_x = start_x + j * (cell_w + gap) + (cell_w / 2.0) - 4.0
                 lbl_y = start_y - 8.0
                 p_text = f"{_round_half_up(p)}%"
                 gcode.extend(VectorFont.generate_text_gcode(
@@ -1041,7 +1020,7 @@ class TestMatrixWorker(QThread):
                     char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
                 ))
 
-            matrix_total_w = (steps_p * sq_size) + ((steps_p - 1) * gap)
+            matrix_total_w = (steps_p * cell_w) + ((steps_p - 1) * gap)
             title_pow_x = start_x + (matrix_total_w / 2.0) - 25.0
             title_pow_y = start_y - offset_labels_y
             gcode.extend(VectorFont.generate_text_gcode(
@@ -1055,14 +1034,14 @@ class TestMatrixWorker(QThread):
                 # "VITESSE" (tracé verticalement, ~2.3 mm de large) à sa gauche.
                 label_zone_x = max(0.0, mat_off_x)
                 lbl_x = label_zone_x + 5.0
-                lbl_y = start_y + i * (sq_size + gap) + (sq_size / 3.0)
+                lbl_y = start_y + i * (cell_h + gap) + (cell_h / 3.0)
                 s_text = f"{_round_half_up(s)}"
                 gcode.extend(VectorFont.generate_text_gcode(
                     text=s_text, start_x=lbl_x, start_y=lbl_y, 
                     char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
                 ))
 
-            matrix_total_h = (steps_s * sq_size) + ((steps_s - 1) * gap)
+            matrix_total_h = (steps_s * cell_h) + ((steps_s - 1) * gap)
             title_spd_x = max(0.0, mat_off_x)
             title_spd_y = start_y + (matrix_total_h / 2.0) + 18.0
             gcode.extend(VectorFont.generate_text_gcode(
@@ -1072,23 +1051,33 @@ class TestMatrixWorker(QThread):
 
             for i, s in enumerate(speeds):
                 for j, p in enumerate(powers):
-                    x0 = start_x + j * (sq_size + gap)
-                    y0 = start_y + i * (sq_size + gap)
+                    x0 = start_x + j * (cell_w + gap)
+                    y0 = start_y + i * (cell_h + gap)
                     
                     p_val = int((p / 100.0) * s_max)
                     power_samples.append(p)
                     
                     gcode.append(f"\n; --- Carré Speed={int(s)} mm/min | Power={p:.1f}% (Gravure) ---")
-                    
-                    lines = max(1, int(sq_size * lmm))
-                    step_y = sq_size / lines
+
+                    if tile is not None:
+                        # Test à partir d'une image : la zone tramée remplace le carré plein.
+                        tile_lines, tile_sec, _tile_samples = tile_raster_gcode(
+                            tile['arr'], x0, y0, cell_w, cell_h, s, p, s_max, laser_cmd,
+                            overscan_dist=overscan_dist, grayscale=bool(tile.get('grayscale')),
+                            scan_offset=float(self.params.get('scan_offset_mm', 0.0) or 0.0))
+                        gcode.extend(tile_lines)
+                        total_time_sec += tile_sec
+                        continue
+
+                    lines = max(1, int(cell_h * lmm))
+                    step_y = cell_h / lines
                     
                     for l in range(lines):
                         ly = y0 + l * step_y
                         
                         if l % 2 == 0:
                             margin_start_x = x0 - overscan_dist
-                            margin_end_x = x0 + sq_size + overscan_dist
+                            margin_end_x = x0 + cell_w + overscan_dist
                             
                             if overscan_dist > 0:
                                 gcode.append(f"G0 X{margin_start_x:.3f} Y{ly:.3f} ; OVERSCAN_START")
@@ -1098,20 +1087,20 @@ class TestMatrixWorker(QThread):
                                 gcode.append(f"G0 X{x0:.3f} Y{ly:.3f}")
                                 gcode.append(f"{laser_cmd} S0")
                                 
-                            gcode.append(f"G1 X{x0 + sq_size:.3f} F{int(s)} S{p_val}")
+                            gcode.append(f"G1 X{x0 + cell_w:.3f} F{int(s)} S{p_val}")
                             
                             if overscan_dist > 0:
                                 gcode.append(f"G1 X{margin_end_x:.3f} F{int(s)} S0 ; OVERSCAN_END")
                         else:
-                            margin_start_x = x0 + sq_size + overscan_dist
+                            margin_start_x = x0 + cell_w + overscan_dist
                             margin_end_x = x0 - overscan_dist
                             
                             if overscan_dist > 0:
                                 gcode.append(f"G0 X{margin_start_x:.3f} Y{ly:.3f} ; OVERSCAN_START")
                                 gcode.append(f"{laser_cmd} S0")
-                                gcode.append(f"G1 X{x0 + sq_size:.3f} F{int(s)} S0")
+                                gcode.append(f"G1 X{x0 + cell_w:.3f} F{int(s)} S0")
                             else:
-                                gcode.append(f"G0 X{x0 + sq_size:.3f} Y{ly:.3f}")
+                                gcode.append(f"G0 X{x0 + cell_w:.3f} Y{ly:.3f}")
                                 gcode.append(f"{laser_cmd} S0")
                                 
                             gcode.append(f"G1 X{x0:.3f} F{int(s)} S{p_val}")
@@ -1120,7 +1109,7 @@ class TestMatrixWorker(QThread):
                                 gcode.append(f"G1 X{margin_end_x:.3f} F{int(s)} S0 ; OVERSCAN_END")
                                 
                         gcode.append("M5")
-                        total_time_sec += ((sq_size + (2 * overscan_dist)) / max(s, 1)) * 60.0
+                        total_time_sec += ((cell_w + (2 * overscan_dist)) / max(s, 1)) * 60.0
         else:
             single_p = self.params['single_power']
             min_passes = self.params['min_passes']

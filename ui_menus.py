@@ -20,28 +20,30 @@ from PyQt6.QtGui import (
 from app_utils import APP_VERSION, find_resource
 from i18n import SUPPORTED_LANGUAGES, get_current_language, set_language, tr
 from stencil_studio.studio_dialog import open_stencil_studio
-from ui_about_dialog import show_about_dialog
-from ui_buy_me_a_coffee_dialog import show_buy_me_a_coffee_dialog
-from ui_support_dialog import show_support_dialog
+from ui.about import AboutDialog
+from ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from ui.support import SupportDialog
 
 
 class MenusMixin:
     def change_theme(self, theme_name):
-        """Bascule entre le thème sombre et clair à la volée.
+        """Bascule de thème à la volée et mémorise le code.
 
-        Même logique que le démarrage.
+        Codes possibles : dark, light, dusk, warm.
         """
-        from app_theme import apply_app_theme
+        from app_theme import apply_app_theme, normalize_theme_name
 
+        theme_name = normalize_theme_name(theme_name)
         app = QApplication.instance()
         settings = QSettings("LaserStudioPro", "UIConfig")
         settings.setValue("app_theme", theme_name)
+        settings.sync()  # écriture immédiate sous Windows
         apply_app_theme(app, theme_name)
 
         for code, act in getattr(self, "_theme_actions", {}).items():
             act.setChecked(code == theme_name)
 
-        # Stencil Studio ouvert : même thème clair / sombre que LSP
+        # Stencil Studio ouvert : même thème que LSP
         dlg = getattr(self, "_stencil_studio_dialog", None)
         if dlg is not None:
             try:
@@ -160,10 +162,12 @@ class MenusMixin:
             self._lang_actions[lang_code] = action_lang
 
         # Sous-menu Thème (Sombre / Clair / Dusk / Warm)
-        from app_theme import available_themes
+        from app_theme import available_themes, normalize_theme_name
 
         settings = QSettings("LaserStudioPro", "UIConfig")
-        current_theme = settings.value("app_theme", "dark")
+        current_theme = normalize_theme_name(
+            settings.value("app_theme", "dark")
+        )
         menu_theme = menu_parametres.addMenu(
             std_icon(
                 "preferences-desktop-theme",
@@ -242,12 +246,12 @@ class MenusMixin:
             ),
             tr("menu.help.about"),
         )
-        action_about.triggered.connect(lambda: show_about_dialog(self))
+        action_about.triggered.connect(lambda: AboutDialog(self).exec())
         # Support : contact par e-mail (voir ui.support_body).
         action_support = menu_aide.addAction(
             std_icon(QIcon.ThemeIcon.MailMessageNew), tr("menu.help.support")
         )
-        action_support.triggered.connect(lambda: show_support_dialog(self))
+        action_support.triggered.connect(lambda: SupportDialog(self).exec())
         # Buy me a coffee : même logo que le bouton de soutien
         # (_build_support_button).
         coffee_path = find_resource("buy_me_a_coffee.png")
@@ -256,7 +260,7 @@ class MenusMixin:
             tr("menu.help.coffee"),
         )
         action_coffee.triggered.connect(
-            lambda: show_buy_me_a_coffee_dialog(self)
+            lambda: BuyMeACoffeeDialog(self).exec()
         )
 
     def show_main_tab(self, tab_attr):

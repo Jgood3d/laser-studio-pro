@@ -59,11 +59,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("chk_mirror", src)
 
     def test_toolbar_order_undo_image_and_connection(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         toolbar = src[src.index("def _build_main_toolbar"):src.index("def _status_dot_icon")]
         order = [toolbar.index(k) for k in (
             "toolbar.addAction(self.action_quit)", "toolbar.addAction(self.action_save_project)",
@@ -83,20 +79,12 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
     def test_separation_and_vectorization_tabs_are_hidden_at_startup(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertIn("for tab in (self.tab_separation, self.tab_png2svg):\n"
                       "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
 
     def test_tab_toolbars_share_one_builder(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         builder = src[src.index("def _build_tab_toolbar"):src.index("def _fullscreen_icon")]
         order = [builder.index(k) for k in ("left_actions:", "QSizePolicy.Policy.Expanding",
                                             "right_widgets:", 'tr("ui.vector_fullscreen")')]
@@ -122,11 +110,7 @@ class MenuStructureTests(unittest.TestCase):
             self.assertIn(", True)", restore, func)
 
     def test_preview_options_are_in_the_2d_tab_toolbar(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         bar = src[src.index("toolbar_vector_2d = self._build_tab_toolbar("):]
         bar = bar[:bar.index("right_widgets=")]
         for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
@@ -141,30 +125,18 @@ class MenuStructureTests(unittest.TestCase):
         self.assertTrue(start.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertIn("center_bottom_scroll.setWidget(center_bottom_widget)", src)
         self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
         self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
 
     def test_original_image_is_hidden_in_the_image_tab(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertIn("box_src.setVisible(False)", src)
         self.assertIn("left_widgets=[self.chk_show_original]", src)      # case « Afficher l'originale »
 
     def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         block = src[src.index("queue_splitter = QSplitter("):src.index('self.main_tabs_view.addTab(tab_job_queue')]
         self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
                         block.index("queue_splitter.addWidget(sent_box)"))
@@ -173,11 +145,7 @@ class MenuStructureTests(unittest.TestCase):
             self.assertIn("self.streamer.lines_sent.connect(self._append_sent_gcode)", read(name), name)
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertIn("layout_img.addRow(btn_img)", src)
         self.assertIn("layout_img.insertRow(3, self.chk_keep_ratio)", src)
 
@@ -187,11 +155,7 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(text.count("\n"), 1, lang)
 
     def test_resolution_stack_does_not_stretch(self):
-<<<<<<< HEAD
         src = ui_source()
-=======
-        src = read("ui_setup_mixin.py")
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertIn("self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)", src)
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
@@ -209,14 +173,14 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.tab_matrix = tab_matrix", src)
 
     def test_other_tabs_are_still_there(self):
-<<<<<<< HEAD
         src = ui_source()
-        # Image & Filtres et la taille de l'image : panneau de gauche de « Graver une image » ;
-        # ancrage et offset : cadre « Position du job » du panneau machine ; Calques : onglet central.
+        # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
+        # ancrage : cadre « Position du job » du panneau machine ; Calques : onglet central.
         self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
-        self.assertIn("machine_row.addWidget(self.job_position_box)", src)
-        for widget in ("self.combo_origin", "self.spin_off_x", "self.spin_off_y"):
-            self.assertRegex(src, rf"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
+        self.assertIn("machine_row.addWidget(self.job_position_box", src)
+        self.assertRegex(src, r"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), self\.combo_origin\)")
+        for widget in ("self.spin_off_x", "self.spin_off_y"):
+            self.assertRegex(src, rf"layout_img\.insertRow\(\d, tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
         self.assertNotIn('tr("tab.dimensions")', src)
         self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
@@ -225,21 +189,6 @@ class MenuStructureTests(unittest.TestCase):
         order = [src.index(k) for k in ("self._build_vector_editor_tab()",
                                          'self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))',
                                          "self._build_2d_preview_tab()")]
-=======
-        src = read("ui_setup_mixin.py")
-        # Image & Filtres et la taille de l'image : panneau de gauche de « Graver une image » ;
-        # ancrage et offset : cadre « Position du job » du panneau machine ; Calques : onglet central.
-        self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
-        self.assertIn("center_bottom_layout.addWidget(self.job_position_box)", src)
-        for widget in ("self.combo_origin", "self.spin_off_x", "self.spin_off_y"):
-            self.assertIn(f"job_position_layout.addWidget({widget})", src)
-        self.assertNotIn('tr("tab.dimensions")', src)
-        self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
-        self.assertNotIn('tr("tab.image_filters")', src)
-        order = [src.index(k) for k in ('self.main_tabs_view.addTab(tab_vector_editor',
-                                         'self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))',
-                                         'self.main_tabs_view.addTab(tab_vector_2d')]
->>>>>>> aed42af (feat: description de vos modifications)
         self.assertEqual(order, sorted(order))
 
 

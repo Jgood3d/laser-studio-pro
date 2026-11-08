@@ -1,6 +1,10 @@
 """Thèmes clair / sombre / Dusk / Warm dim de Laser Studio Pro (palette + feuille de style)."""
+import sys
+from pathlib import Path
+
+from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication
-from PyQt6.QtGui import QPalette, QColor
+from PyQt6.QtGui import QIcon, QPalette, QColor
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +117,60 @@ THEMES = {
         "menu_sel": "#4a433c",
         "scroll": "#5a524a",
         "disabled": "#7a6e62",
+    },
+    # Neon laser — fun, cyber, accents cyan + magenta
+    "neon": {
+        "label_key": "theme.neon",
+        "window": "#0d0b14",
+        "base": "#120f1c",
+        "alt": "#1a1628",
+        "button": "#1f1a30",
+        "button_hover": "#2a2340",
+        "border": "#3d3560",
+        "text": "#e8e6f2",
+        "muted": "#9b93b8",
+        "accent": "#00e5c3",
+        "accent_hover": "#5dffe0",
+        "on_accent": "#0d0b14",
+        "tooltip_bg": "#1a1628",
+        "tooltip_fg": "#e8e6f2",
+        "link": "#ff4ecd",
+        "group_bg": "#1a1628",
+        "input_bg": "#120f1c",
+        "toolbar_bg": "#14101f",
+        "tab_bg": "#1a1628",
+        "tab_selected": "#0d0b14",
+        "menu_bg": "#1a1628",
+        "menu_sel": "#2a2340",
+        "scroll": "#3d3560",
+        "disabled": "#6a6288",
+    },
+    # Rétro années 80 — synthwave / vaporwave
+    "retro80": {
+        "label_key": "theme.retro80",
+        "window": "#1a0a2e",
+        "base": "#12061f",
+        "alt": "#2a1450",
+        "button": "#2d1b4e",
+        "button_hover": "#3d2868",
+        "border": "#7b2cbf",
+        "text": "#f0e6ff",
+        "muted": "#b8a0d0",
+        "accent": "#ff2a6d",
+        "accent_hover": "#ff6b9d",
+        "on_accent": "#1a0a2e",
+        "tooltip_bg": "#2a1450",
+        "tooltip_fg": "#f0e6ff",
+        "link": "#05d9e8",
+        "group_bg": "#2a1450",
+        "input_bg": "#12061f",
+        "toolbar_bg": "#1f0f38",
+        "tab_bg": "#2a1450",
+        "tab_selected": "#1a0a2e",
+        "menu_bg": "#2a1450",
+        "menu_sel": "#3d2868",
+        "scroll": "#7b2cbf",
+        "disabled": "#6a5080",
     },
 }
 
@@ -341,15 +399,51 @@ def _build_stylesheet(c: dict) -> str:
         color: {c["text"]};
         border: 1px solid {c["border"]};
         border-radius: 3px;
-        padding: 2px 4px;
+        padding: 2px 18px 2px 4px;
+        min-height: 18px;
     }}
     QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {{
         background-color: {c["button"]};
         border-left: 1px solid {c["border"]};
         width: 16px;
+        subcontrol-origin: border;
+    }}
+    QAbstractSpinBox::up-button {{
+        subcontrol-position: top right;
+        border-top-right-radius: 2px;
+    }}
+    QAbstractSpinBox::down-button {{
+        subcontrol-position: bottom right;
+        border-bottom-right-radius: 2px;
     }}
     QAbstractSpinBox::up-button:hover, QAbstractSpinBox::down-button:hover {{
         background-color: {c["button_hover"]};
+    }}
+    QAbstractSpinBox::up-button:pressed, QAbstractSpinBox::down-button:pressed {{
+        background-color: {c["accent"]};
+    }}
+    /* Flèches visibles sur tous les thèmes (Fusion/Windows les masque souvent) */
+    QAbstractSpinBox::up-arrow {{
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-bottom: 5px solid {c["text"]};
+        background: transparent;
+        margin: 1px;
+    }}
+    QAbstractSpinBox::down-arrow {{
+        width: 0;
+        height: 0;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+        border-top: 5px solid {c["text"]};
+        background: transparent;
+        margin: 1px;
+    }}
+    QAbstractSpinBox::up-arrow:disabled, QAbstractSpinBox::down-arrow:disabled {{
+        border-bottom-color: {c["disabled"]};
+        border-top-color: {c["disabled"]};
     }}
     QSlider::groove:horizontal {{
         height: 4px;
@@ -421,18 +515,94 @@ def _build_stylesheet(c: dict) -> str:
 """
 
 
-def apply_app_theme(app: QApplication, theme_name: str):
-    """Applique un thème nommé (`dark`, `light`, `dusk`, `warm`) à toute l'application."""
-    app.setStyle("Fusion")
-    name = (theme_name or "dark").lower()
+def normalize_theme_name(theme_name) -> str:
+    """Normalise la valeur lue dans QSettings / le menu vers un code THEMES.
+
+    Sous Windows, QSettings peut renvoyer des types ou libellés inattendus ;
+    on accepte aussi les alias FR/EN.
+    """
+    if theme_name is None:
+        return "dark"
+    name = str(theme_name).strip().lower()
+    aliases = {
+        "sombre": "dark",
+        "dark": "dark",
+        "clair": "light",
+        "light": "light",
+        "dusk": "dusk",
+        "warm": "warm",
+        "warm dim": "warm",
+        "warm_dim": "warm",
+        "neon": "neon",
+        "laser": "neon",
+        "retro80": "retro80",
+        "retro": "retro80",
+        "synthwave": "retro80",
+        "80s": "retro80",
+    }
+    name = aliases.get(name, name)
     if name not in THEMES:
-        name = "dark"
+        return "dark"
+    return name
+
+
+def apply_app_theme(app: QApplication, theme_name: str):
+    """Applique un thème nommé à toute l'application."""
+    app.setStyle("Fusion")
+    name = normalize_theme_name(theme_name)
     colors = THEMES[name]
+    # Réinitialise d'abord pour éviter qu'un ancien stylesheet « clair »
+    # reste partiellement actif après redémarrage.
+    app.setStyleSheet("")
     app.setPalette(_build_palette(colors))
     app.setStyleSheet(_build_stylesheet(colors))
+    return name
 
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("dark", "light", "dusk", "warm")
+    order = ("dark", "light", "dusk", "warm", "neon", "retro80")
     return [(code, THEMES[code]["label_key"]) for code in order]
+
+
+def apply_saved_theme(app: QApplication):
+    """Applique le thème enregistré dans les préférences (« dark » par défaut).
+
+    La valeur est normalisée puis réécrite proprement, pour remplacer les
+    anciens libellés ou les types inattendus renvoyés sous Windows.
+    """
+    settings = QSettings("LaserStudioPro", "UIConfig")
+    name = normalize_theme_name(settings.value("app_theme", "dark"))
+    settings.setValue("app_theme", name)
+    return apply_app_theme(app, name)
+
+
+def install_breeze_icon_theme():
+    """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
+
+    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
+    Le pack minimal vit dans icons/breeze/ à côté de main.py (ou dans le bundle
+    PyInstaller via --add-data \"icons;icons\").
+    """
+    # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
+    current = QIcon.themeName()
+    if current and current not in ("", "hicolor"):
+        return False
+
+    candidates = []
+    here = Path(__file__).resolve().parent
+    candidates.append(here / "icons")
+    if getattr(sys, "frozen", False):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.append(Path(meipass) / "icons")
+        candidates.append(Path(sys.executable).resolve().parent / "icons")
+
+    for base in candidates:
+        index = base / "breeze" / "index.theme"
+        if index.is_file():
+            paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
+            QIcon.setThemeSearchPaths(paths)
+            QIcon.setThemeName("breeze")
+            return True
+    return False

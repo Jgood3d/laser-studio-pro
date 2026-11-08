@@ -40,7 +40,7 @@ from PyQt6.QtGui import (QColor, QFont, QFontMetricsF, QPainterPath, QPen,
                           QBrush, QTransform, QPolygonF, QPainter, QKeySequence)
 from PyQt6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPathItem, QGraphicsItem,
-    QGraphicsRectItem, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
+    QGraphicsRectItem, QGraphicsEllipseItem, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
     QPushButton, QLabel, QTableWidget, QHeaderView,
     QColorDialog, QComboBox, QDoubleSpinBox, QSpinBox, QCheckBox, QDialog,
     QDialogButtonBox, QLineEdit, QFontComboBox, QRadioButton, QButtonGroup,
@@ -808,7 +808,32 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
     def local_tag(elem):
         return elem.tag.split('}')[-1]
 
-    raw = []  # (QPainterPath en coordonnées SVG brutes Y-bas, tag)
+    # Parent map pour retrouver le <g id="CUT|FRAME|ENGRAVE|LAYER_n"> englobant
+    parent_map = {c: p for p in root.iter() for c in list(p)}
+
+    def ancestor_group_id(elem):
+        cur = elem
+        while cur is not None:
+            if local_tag(cur) == "g":
+                gid = cur.attrib.get("id") or cur.attrib.get("label")
+                if not gid:
+                    # inkscape:label éventuel
+                    for k, v in cur.attrib.items():
+                        if k.endswith("label") and v:
+                            gid = v
+                            break
+                if gid:
+                    return str(gid).strip()
+            cur = parent_map.get(cur)
+        return None
+
+    def source_tag_for(elem, geom_tag):
+        gid = ancestor_group_id(elem)
+        if gid:
+            return f"svg:{gid}"
+        return geom_tag
+
+    raw = []  # (QPainterPath en coordonnées SVG brutes Y-bas, source_tag)
 
     for elem in root.iter():
         tag = local_tag(elem)
@@ -817,38 +842,39 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                 d = elem.attrib.get('d')
                 if not d:
                     continue
+                st = source_tag_for(elem, tag)
                 if ungroup:
                     # Sépare chaque sous-tracé (M/m) en objet indépendant.
                     for qp in _svg_path_element_to_subpaths(d):
-                        raw.append((qp, tag))
+                        raw.append((qp, st))
                 else:
                     # Garde le <path> entier (éventuellement multi-sous-tracés)
                     # comme une seule géométrie ; le fusion globale plus bas
                     # regroupera aussi les autres éléments du fichier.
                     qp = _svg_path_element_to_single(d)
                     if qp.elementCount() > 0:
-                        raw.append((qp, tag))
+                        raw.append((qp, st))
             elif tag == 'rect':
                 x = float(elem.attrib.get('x', 0)); y = float(elem.attrib.get('y', 0))
                 w = float(elem.attrib.get('width', 0)); h = float(elem.attrib.get('height', 0))
                 if w > 0 and h > 0:
                     qp = QPainterPath()
                     qp.addRect(x, y, w, h)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'circle':
                 cx = float(elem.attrib.get('cx', 0)); cy = float(elem.attrib.get('cy', 0))
                 r = float(elem.attrib.get('r', 0))
                 if r > 0:
                     qp = QPainterPath()
                     qp.addEllipse(cx - r, cy - r, 2 * r, 2 * r)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'ellipse':
                 cx = float(elem.attrib.get('cx', 0)); cy = float(elem.attrib.get('cy', 0))
                 rx = float(elem.attrib.get('rx', 0)); ry = float(elem.attrib.get('ry', 0))
                 if rx > 0 and ry > 0:
                     qp = QPainterPath()
                     qp.addEllipse(cx - rx, cy - ry, 2 * rx, 2 * ry)
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag in ('polygon', 'polyline'):
                 pts_str = elem.attrib.get('points', '')
                 coords = [float(v) for v in re.split(r'[\s,]+', pts_str.strip()) if v]
@@ -858,14 +884,14 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                     qp.addPolygon(poly)
                     if tag == 'polygon':
                         qp.closeSubpath()
-                    raw.append((qp, tag))
+                    raw.append((qp, source_tag_for(elem, tag)))
             elif tag == 'line':
                 x1 = float(elem.attrib.get('x1', 0)); y1 = float(elem.attrib.get('y1', 0))
                 x2 = float(elem.attrib.get('x2', 0)); y2 = float(elem.attrib.get('y2', 0))
                 qp = QPainterPath()
                 qp.moveTo(x1, y1)
                 qp.lineTo(x2, y2)
-                raw.append((qp, tag))
+                raw.append((qp, source_tag_for(elem, tag)))
         except Exception:
             continue
 
@@ -1010,6 +1036,7 @@ class VectorCanvasView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         self.setBackgroundBrush(QColor("#1c1c1c"))
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
         # Repère "machine" : origine en bas-gauche, Y croissant vers le haut.
         # (Le flip est calculé objet par objet et pour la grille — voir
@@ -1033,6 +1060,31 @@ class VectorCanvasView(QGraphicsView):
         self._draw_start_scene = None
         self._draw_preview_item = None
         self._draw_layer_id = None
+        # Accroche aux extrémités des tracés existants pendant le dessin
+        self.endpoint_snap_enabled = True
+        self.endpoint_snap_px = 12.0  # rayon d'accroche en pixels écran
+        self._snap_indicator = None  # marqueur visuel du point d'accroche
+        # Saisie de dimensions au clavier après le 1er point (ex: "25" ou "30x20")
+        self._draw_dim_buffer = ""
+        self._draw_last_cursor_scene = None
+        # Phases : None → "p1" (2e clic) → "p2" (prêt à tirer) → "depth" (en train de tirer)
+        self._draw_phase = None
+        self._draw_base_p1 = None
+        self._draw_base_p2 = None
+        self._draw_awaiting_second = False
+        self._draw_awaiting_depth = False
+        self._draw_depth_dragging = False
+        # Outil mesure : deux clics → distance affichée
+        self._measure_p1 = None
+        self._measure_preview = None
+        self._measure_labels = []  # annotations persistantes jusqu'à nouvel outil
+        # Mode édition de nœuds (sommets d'un SvgPathObject)
+        self._node_mode = False
+        self._node_target_item = None
+        self._node_handles = []
+        self._node_polylines = []  # list[list[QPointF]] en coordonnées locales objet
+        self._node_drag_index = None  # (poly_idx, pt_idx) pendant un drag
+        self._node_drag_pushed_undo = False
         # Recentrage différé de la vue (voir request_recenter) : attend la
         # fin des redimensionnements (plein écran, changement d'onglet)
         # avant de centrer, sinon la taille du viewport est encore fausse.
@@ -1229,9 +1281,16 @@ class VectorCanvasView(QGraphicsView):
         work_h_px = self.work_h_mm * s
         return scene_pos.x() / s, (work_h_px - scene_pos.y()) / s
 
+    def mm_to_scene(self, x_mm, y_mm):
+        """Millimètres machine (Y haut) -> point scène Qt (Y bas)."""
+        s = self.px_per_mm
+        work_h_px = self.work_h_mm * s
+        return QPointF(x_mm * s, work_h_px - y_mm * s)
+
     def set_draw_tool(self, tool, layer_id=None):
-        """Active un outil de dessin : None/'select', 'line', 'rect', 'ellipse'."""
+        """Active un outil : None/'select', 'line', 'rect', 'ellipse', 'measure'."""
         self._cancel_draw_preview()
+        self._clear_measure_temp()
         if tool in (None, "", "select"):
             self._draw_tool = None
             self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
@@ -1242,12 +1301,42 @@ class VectorCanvasView(QGraphicsView):
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
             self.setCursor(Qt.CursorShape.CrossCursor)
             self.scene_obj.clearSelection()
+            self.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _cancel_draw_preview(self):
         if self._draw_preview_item is not None:
-            self.scene_obj.removeItem(self._draw_preview_item)
+            try:
+                self.scene_obj.removeItem(self._draw_preview_item)
+            except RuntimeError:
+                pass
             self._draw_preview_item = None
+        self._hide_snap_indicator()
         self._draw_start_scene = None
+        self._draw_dim_buffer = ""
+        self._draw_last_cursor_scene = None
+        self._draw_base_p1 = None
+        self._draw_base_p2 = None
+        self._draw_phase = None
+        self._draw_awaiting_second = False
+        self._draw_awaiting_depth = False
+        self._draw_depth_dragging = False
+
+    def _clear_measure_temp(self):
+        self._measure_p1 = None
+        if self._measure_preview is not None:
+            try:
+                self.scene_obj.removeItem(self._measure_preview)
+            except RuntimeError:
+                pass
+            self._measure_preview = None
+
+    def clear_measure_labels(self):
+        for it in self._measure_labels:
+            try:
+                self.scene_obj.removeItem(it)
+            except RuntimeError:
+                pass
+        self._measure_labels = []
 
     def _default_draw_layer_id(self):
         if self._draw_layer_id:
@@ -1262,6 +1351,70 @@ class VectorCanvasView(QGraphicsView):
         pen.setCosmetic(True)
         return pen
 
+    # -- Accroche aux extrémités (dessin) ------------------------------------
+
+    def _collect_endpoint_scene_points(self):
+        """Extrémités (et coins) de tous les objets vectoriels, en coords scène."""
+        pts = []
+        for item in self.scene_obj.items():
+            if not isinstance(item, VectorGraphicsItem):
+                continue
+            # Pendant le dessin, l'aperçu n'est pas un VectorGraphicsItem
+            try:
+                world = item.obj.world_path()
+            except Exception:
+                continue
+            for poly in world.toSubpathPolygons(QTransform()):
+                if poly.count() < 1:
+                    continue
+                # Extrémités de polyligne
+                for idx in (0, poly.count() - 1):
+                    p = poly.at(idx)
+                    x_mm, y_mm = p.x(), p.y()
+                    # world_path est déjà en mm monde Y-haut
+                    pts.append(self.mm_to_scene(x_mm, y_mm))
+                # Tous les sommets (utile pour repartir d'un coin d'encoche)
+                for i in range(poly.count()):
+                    p = poly.at(i)
+                    pts.append(self.mm_to_scene(p.x(), p.y()))
+        return pts
+
+    def _snap_scene_pos(self, scene_pos):
+        """Accroche scene_pos à l'extrémité / sommet le plus proche si dans le rayon."""
+        if not self.endpoint_snap_enabled:
+            return scene_pos, False
+        view_scale = max(abs(self.transform().m11()), 0.01)
+        max_d = self.endpoint_snap_px / view_scale
+        max_d2 = max_d * max_d
+        best = None
+        best_d2 = max_d2
+        for p in self._collect_endpoint_scene_points():
+            dx = p.x() - scene_pos.x()
+            dy = p.y() - scene_pos.y()
+            d2 = dx * dx + dy * dy
+            if d2 <= best_d2:
+                best_d2 = d2
+                best = p
+        if best is not None:
+            return QPointF(best), True
+        return scene_pos, False
+
+    def _show_snap_indicator(self, scene_pos):
+        view_scale = max(abs(self.transform().m11()), 0.01)
+        r = 6.0 / view_scale
+        if self._snap_indicator is None:
+            self._snap_indicator = QGraphicsEllipseItem()
+            self._snap_indicator.setBrush(QBrush(QColor(255, 200, 0, 180)))
+            self._snap_indicator.setPen(QPen(QColor("#222222"), 0))
+            self._snap_indicator.setZValue(3000)
+            self.scene_obj.addItem(self._snap_indicator)
+        self._snap_indicator.setRect(scene_pos.x() - r, scene_pos.y() - r, 2 * r, 2 * r)
+        self._snap_indicator.setVisible(True)
+
+    def _hide_snap_indicator(self):
+        if self._snap_indicator is not None:
+            self._snap_indicator.setVisible(False)
+
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_last_pos = event.position().toPoint()
@@ -1275,15 +1428,122 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
-        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool:
+        # Mode nœuds : clic gauche = sélection / début de drag d'un sommet
+        if event.button() == Qt.MouseButton.LeftButton and self._node_mode:
+            scene_pos = self.mapToScene(event.position().toPoint())
+            hit = self._hit_node_handle(scene_pos)
+            if hit is not None:
+                self._node_drag_index = hit
+                self._node_drag_pushed_undo = False
+                event.accept()
+                return
+            # Double-clic géré séparément ; simple clic sur segment = rien
+            event.accept()
+            return
+
+        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool == "measure":
+            raw = self.mapToScene(event.position().toPoint())
+            pt, snapped = self._snap_scene_pos(raw)
+            if snapped:
+                self._show_snap_indicator(pt)
+            if self._measure_p1 is None:
+                self._measure_p1 = pt
+                if self._measure_preview is None:
+                    self._measure_preview = self.scene_obj.addPath(QPainterPath(), self._preview_pen())
+                    self._measure_preview.setZValue(1000)
+            else:
+                self._finalize_measure(self._measure_p1, pt)
+                self._measure_p1 = None
+                if self._measure_preview is not None:
+                    try:
+                        self.scene_obj.removeItem(self._measure_preview)
+                    except RuntimeError:
+                        pass
+                    self._measure_preview = None
+                self._hide_snap_indicator()
+            event.accept()
+            return
+
+        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool in ("line", "rect", "ellipse"):
             if not self.layer_manager.layers:
                 event.accept()
                 return
-            self._draw_start_scene = self.mapToScene(event.position().toPoint())
-            self._cancel_draw_preview()
-            self._draw_start_scene = self.mapToScene(event.position().toPoint())
-            self._draw_preview_item = self.scene_obj.addPath(QPainterPath(), self._preview_pen())
-            self._draw_preview_item.setZValue(1000)
+            raw = self.mapToScene(event.position().toPoint())
+            pt, snapped = self._snap_scene_pos(raw)
+            if snapped:
+                self._show_snap_indicator(pt)
+
+            phase = self._draw_phase
+
+            # --- Phase profondeur : début du TIRÉ (après les 2 clics nœuds) ---
+            if (
+                phase in ("p2", "depth")
+                and self._draw_tool in ("rect", "ellipse")
+                and self._draw_base_p1 is not None
+                and self._draw_base_p2 is not None
+            ):
+                self._draw_phase = "depth"
+                self._draw_depth_dragging = True
+                self._draw_awaiting_depth = True
+                self._draw_last_cursor_scene = pt
+                event.accept()
+                return
+
+            # --- Phase p1 : 2e CLIC (pas de tiré) → place le 2e nœud ---
+            if phase == "p1" and self._draw_start_scene is not None:
+                if self._draw_tool == "line":
+                    start = self._draw_start_scene
+                    self._cancel_draw_preview()
+                    obj = self._create_drawn_object(start, pt)
+                    if obj is not None:
+                        self.push_undo_snapshot()
+                        item = self.add_object(obj)
+                        self.scene_obj.clearSelection()
+                        item.setSelected(True)
+                    event.accept()
+                    return
+                # Rect / ellipse : largeur figée, on n'autorise le tiré QU'après ce clic
+                self._draw_base_p1 = QPointF(self._draw_start_scene)
+                self._draw_base_p2 = QPointF(pt)
+                self._draw_phase = "p2"
+                self._draw_awaiting_second = False
+                self._draw_awaiting_depth = True
+                self._draw_depth_dragging = False
+                self._draw_dim_buffer = ""
+                self._draw_last_cursor_scene = pt
+                if self._draw_preview_item is None:
+                    self._draw_preview_item = self.scene_obj.addPath(
+                        QPainterPath(), self._preview_pen()
+                    )
+                    self._draw_preview_item.setZValue(1000)
+                # Aperçu = segment de base uniquement (pas encore de profondeur)
+                path = QPainterPath()
+                path.moveTo(self._draw_base_p1)
+                path.lineTo(self._draw_base_p2)
+                self._draw_preview_item.setPath(path)
+                self._draw_preview_item.setPen(self._preview_pen())
+                event.accept()
+                return
+
+            # --- Phase None : 1er CLIC ---
+            if phase is None:
+                self._draw_start_scene = pt
+                self._draw_phase = "p1"
+                self._draw_awaiting_second = True
+                self._draw_awaiting_depth = False
+                self._draw_depth_dragging = False
+                self._draw_base_p1 = None
+                self._draw_base_p2 = None
+                self._draw_dim_buffer = ""
+                self._draw_last_cursor_scene = pt
+                if self._draw_preview_item is None:
+                    self._draw_preview_item = self.scene_obj.addPath(
+                        QPainterPath(), self._preview_pen()
+                    )
+                    self._draw_preview_item.setZValue(1000)
+                event.accept()
+                return
+
             event.accept()
             return
 
@@ -1342,28 +1602,138 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
-        # Aperçu de l'outil de dessin (ligne / rectangle / ellipse)
+        # Drag d'un nœud
         if (
-            self._draw_tool
-            and self._draw_start_scene is not None
+            self._node_mode
+            and self._node_drag_index is not None
             and event.buttons() & Qt.MouseButton.LeftButton
+        ):
+            if not self._node_drag_pushed_undo:
+                self.push_undo_snapshot()
+                self._node_drag_pushed_undo = True
+            scene_pos = self.mapToScene(event.position().toPoint())
+            local = self._scene_to_local(scene_pos)
+            pi, vi = self._node_drag_index
+            if pi < len(self._node_polylines) and vi < len(self._node_polylines[pi]):
+                self._node_polylines[pi][vi] = local
+                # Mise à jour légère : rebuild path + handles
+                item = self._node_target_item
+                if item is not None and isinstance(item.obj, SvgPathObject):
+                    path = self._polylines_to_path(self._node_polylines)
+                    sx = getattr(item.obj, "scale_x", 1.0) or 1.0
+                    sy = getattr(item.obj, "scale_y", 1.0) or 1.0
+                    if abs(sx - 1.0) > 1e-9 or abs(sy - 1.0) > 1e-9:
+                        t = QTransform()
+                        t.scale(1.0 / sx, 1.0 / sy)
+                        path = t.map(path)
+                    item.obj._local_path_data = path
+                    item.refresh()
+                    # Déplace juste le handle concerné
+                    for h in self._node_handles:
+                        data = h.data(0)
+                        if data and data[0] == "node" and data[1] == pi and data[2] == vi:
+                            view_scale = max(self.transform().m11(), 0.01)
+                            r = 5.0 / view_scale
+                            sp = self._local_to_scene(local)
+                            h.setRect(sp.x() - r, sp.y() - r, 2 * r, 2 * r)
+                            break
+            event.accept()
+            return
+
+        # Aperçu profondeur : UNIQUEMENT pendant le tiré (bouton enfoncé)
+        if (
+            self._draw_tool in ("rect", "ellipse")
+            and self._draw_depth_dragging
+            and self._draw_base_p1 is not None
+            and self._draw_base_p2 is not None
             and self._draw_preview_item is not None
         ):
-            end = self.mapToScene(event.position().toPoint())
-            path = QPainterPath()
-            if self._draw_tool == "line":
-                path.moveTo(self._draw_start_scene)
-                path.lineTo(end)
+            raw = self.mapToScene(event.position().toPoint())
+            end, snapped = self._snap_scene_pos(raw)
+            self._draw_last_cursor_scene = end
+            if snapped:
+                self._show_snap_indicator(end)
             else:
-                rect = QRectF(self._draw_start_scene, end).normalized()
-                if self._draw_tool == "ellipse":
-                    path.addEllipse(rect)
-                else:
-                    path.addRect(rect)
+                self._hide_snap_indicator()
+            depth = self._depth_from_cursor(self._draw_base_p1, self._draw_base_p2, end)
+            path = self._preview_path_base_depth(
+                self._draw_base_p1, self._draw_base_p2, depth,
+                ellipse=(self._draw_tool == "ellipse"),
+            )
             self._draw_preview_item.setPath(path)
             self._draw_preview_item.setPen(self._preview_pen())
             event.accept()
             return
+
+        # Phase p2 (base fixée, pas encore de tiré) : segment fixe + accroche
+        if (
+            self._draw_tool in ("rect", "ellipse")
+            and self._draw_phase == "p2"
+            and self._draw_base_p1 is not None
+            and self._draw_base_p2 is not None
+            and self._draw_preview_item is not None
+        ):
+            raw = self.mapToScene(event.position().toPoint())
+            end, snapped = self._snap_scene_pos(raw)
+            self._draw_last_cursor_scene = end
+            if snapped:
+                self._show_snap_indicator(end)
+            else:
+                self._hide_snap_indicator()
+            path = QPainterPath()
+            path.moveTo(self._draw_base_p1)
+            path.lineTo(self._draw_base_p2)
+            self._draw_preview_item.setPath(path)
+            self._draw_preview_item.setPen(self._preview_pen())
+            event.accept()
+            return
+
+        # Phase p1 : ligne du 1er point vers le curseur (sans tenir le bouton)
+        if (
+            self._draw_tool in ("line", "rect", "ellipse")
+            and self._draw_phase == "p1"
+            and self._draw_start_scene is not None
+            and self._draw_preview_item is not None
+        ):
+            raw_end = self.mapToScene(event.position().toPoint())
+            end, snapped = self._snap_scene_pos(raw_end)
+            self._draw_last_cursor_scene = end
+            if snapped:
+                self._show_snap_indicator(end)
+            else:
+                self._hide_snap_indicator()
+            path = QPainterPath()
+            path.moveTo(self._draw_start_scene)
+            path.lineTo(end)
+            self._draw_preview_item.setPath(path)
+            self._draw_preview_item.setPen(self._preview_pen())
+            event.accept()
+            return
+
+        # Aperçu mesure
+        if self._draw_tool == "measure" and self._measure_p1 is not None:
+            raw = self.mapToScene(event.position().toPoint())
+            end, snapped = self._snap_scene_pos(raw)
+            if snapped:
+                self._show_snap_indicator(end)
+            else:
+                self._hide_snap_indicator()
+            if self._measure_preview is not None:
+                path = QPainterPath()
+                path.moveTo(self._measure_p1)
+                path.lineTo(end)
+                self._measure_preview.setPath(path)
+            event.accept()
+            return
+
+        # Survol outil dessin/mesure : prévisualise l'accroche
+        if self._draw_tool and not (event.buttons() & Qt.MouseButton.LeftButton):
+            raw = self.mapToScene(event.position().toPoint())
+            snapped_pos, snapped = self._snap_scene_pos(raw)
+            if snapped:
+                self._show_snap_indicator(snapped_pos)
+            else:
+                self._hide_snap_indicator()
 
         # Déplacement groupé des objets sélectionnés
         if (
@@ -1421,10 +1791,14 @@ class VectorCanvasView(QGraphicsView):
         return item
 
     def remove_selected(self):
+        self.exit_node_edit()
         self.push_undo_snapshot()
         for item in list(self.scene_obj.selectedItems()):
             if isinstance(item, VectorGraphicsItem):
-                self.objects.remove(item.obj)
+                try:
+                    self.objects.remove(item.obj)
+                except ValueError:
+                    pass
                 self.scene_obj.removeItem(item)
 
     def duplicate_selected(self):
@@ -1541,6 +1915,306 @@ class VectorCanvasView(QGraphicsView):
             it.setSelected(True)
         return new_items
 
+    # ------------------------------------------------------------------
+    # Exploser en segments + édition de nœuds
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _path_to_polylines(path: QPainterPath):
+        """Convertit un QPainterPath en polylignes (liste de listes de QPointF).
+
+        Les courbes sont aplaties via toSubpathPolygons (précision suffisante
+        pour l'édition laser : segments / encoches).
+        """
+        polylines = []
+        for poly in path.toSubpathPolygons(QTransform()):
+            pts = [QPointF(p) for p in poly]
+            if len(pts) >= 2:
+                polylines.append(pts)
+        return polylines
+
+    @staticmethod
+    def _polylines_to_path(polylines):
+        path = QPainterPath()
+        for pts in polylines:
+            if len(pts) < 2:
+                continue
+            path.moveTo(pts[0])
+            for p in pts[1:]:
+                path.lineTo(p)
+        return path
+
+    @staticmethod
+    def _world_path_to_svg_object(world_path: QPainterPath, layer_id, source_tag="segment"):
+        """Crée un SvgPathObject ancré sur le bbox monde d'un petit tracé."""
+        bbox = world_path.boundingRect()
+        if bbox.width() <= 0 and bbox.height() <= 0:
+            # Segment purement horizontal/vertical : bbox peut avoir une dim nulle.
+            if world_path.elementCount() == 0:
+                return None
+        x0, y0 = bbox.left(), bbox.top()
+        # Même convention que group/ungroup : Y monde haut -> local avec flip
+        to_local = QTransform(1, 0, 0, -1, -x0, y0)
+        local = to_local.map(world_path)
+        return SvgPathObject(
+            local_path_data=local,
+            source_tag=source_tag,
+            layer_id=layer_id,
+            x_mm=x0,
+            y_mm=y0,
+        )
+
+    def _can_explode_item(self, item):
+        obj = getattr(item, "obj", None)
+        if obj is None:
+            return False
+        # Tout objet avec une géométrie de chemin (forme, svg, texte) peut être explosé
+        # en segments s'il a au moins une arête.
+        path = obj.world_path()
+        polys = self._path_to_polylines(path)
+        n_edges = sum(max(0, len(pts) - 1) for pts in polys)
+        return n_edges >= 1
+
+    def explode_selected(self):
+        """Découpe chaque objet sélectionné en **segments indépendants**
+        (une ligne = un objet). Permet de supprimer une seule encoche ou un
+        seul trait puis de le redessiner. Annulable (Ctrl+Z)."""
+        self.exit_node_edit()
+        items = self.selected_items_vector()
+        targets = [it for it in items if self._can_explode_item(it)]
+        if not targets:
+            return []
+
+        self.push_undo_snapshot()
+        new_items = []
+        for it in targets:
+            obj = it.obj
+            polys = self._path_to_polylines(obj.world_path())
+            segments = []
+            for pts in polys:
+                for i in range(len(pts) - 1):
+                    a, b = pts[i], pts[i + 1]
+                    if (a - b).manhattanLength() < 1e-6:
+                        continue
+                    seg = QPainterPath()
+                    seg.moveTo(a)
+                    seg.lineTo(b)
+                    child = self._world_path_to_svg_object(
+                        seg, obj.layer_id, source_tag="segment"
+                    )
+                    if child is not None:
+                        segments.append(child)
+            if not segments:
+                continue
+            self.objects.remove(obj)
+            self.scene_obj.removeItem(it)
+            for child in segments:
+                new_items.append(self.add_object(child))
+
+        for it in new_items:
+            it.setSelected(True)
+        return new_items
+
+    def _ensure_svg_path_object(self, item):
+        """Convertit ShapeObject/TextObject en SvgPathObject pour l'édition de nœuds."""
+        obj = item.obj
+        if isinstance(obj, SvgPathObject):
+            return item
+        # Bake world path into a new SvgPathObject at same position
+        world = obj.world_path()
+        baked = self._world_path_to_svg_object(
+            world, obj.layer_id, source_tag=getattr(obj, "kind", "path")
+        )
+        if baked is None:
+            return None
+        self.objects.remove(obj)
+        self.scene_obj.removeItem(item)
+        return self.add_object(baked)
+
+    def enter_node_edit(self, item=None):
+        """Active le mode nœuds sur l'item donné (ou la sélection unique)."""
+        self.set_draw_tool(None)
+        if item is None:
+            selected = self.selected_items_vector()
+            if len(selected) != 1:
+                return False
+            item = selected[0]
+        item = self._ensure_svg_path_object(item)
+        if item is None or not isinstance(item.obj, SvgPathObject):
+            return False
+
+        self.exit_node_edit()
+        self._node_mode = True
+        self._node_target_item = item
+        self.scene_obj.clearSelection()
+        item.setSelected(True)
+        # Désactive le déplacement de l'objet pendant l'édition de nœuds
+        item.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+        self._rebuild_node_handles()
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        return True
+
+    def exit_node_edit(self):
+        if self._node_target_item is not None:
+            try:
+                self._node_target_item.setFlag(
+                    QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True
+                )
+            except RuntimeError:
+                pass
+        self._clear_node_handles()
+        self._node_mode = False
+        self._node_target_item = None
+        self._node_polylines = []
+        self._node_drag_index = None
+        self._node_drag_pushed_undo = False
+        if not self._draw_tool:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _clear_node_handles(self):
+        for h in self._node_handles:
+            try:
+                self.scene_obj.removeItem(h)
+            except RuntimeError:
+                pass
+        self._node_handles = []
+
+    def _local_to_scene(self, local_pt: QPointF):
+        """Point local objet (Y Qt descendant dans local_path) -> scène."""
+        item = self._node_target_item
+        if item is None:
+            return local_pt
+        s = self.px_per_mm
+        # Même pipeline que VectorGraphicsItem.refresh : scale mm->px puis transform item
+        p_px = QPointF(local_pt.x() * s, local_pt.y() * s)
+        return item.mapToScene(p_px)
+
+    def _scene_to_local(self, scene_pt: QPointF):
+        item = self._node_target_item
+        if item is None:
+            return scene_pt
+        s = self.px_per_mm
+        p_item = item.mapFromScene(scene_pt)
+        return QPointF(p_item.x() / s, p_item.y() / s)
+
+    def _rebuild_node_handles(self):
+        self._clear_node_handles()
+        item = self._node_target_item
+        if item is None or not isinstance(item.obj, SvgPathObject):
+            return
+        # Polylignes en coords locales (avec scale_x/y déjà appliqué via local_path)
+        self._node_polylines = self._path_to_polylines(item.obj.local_path())
+        s = self.px_per_mm
+        handle_r = 4.0  # px écran approx — on utilise cosmetic via setScale inverse
+        for pi, pts in enumerate(self._node_polylines):
+            for vi, pt in enumerate(pts):
+                scene_pt = self._local_to_scene(pt)
+                # Taille constante à l'écran : rayon en coords scène selon zoom
+                view_scale = max(self.transform().m11(), 0.01)
+                r = 5.0 / view_scale
+                handle = QGraphicsEllipseItem(scene_pt.x() - r, scene_pt.y() - r, 2 * r, 2 * r)
+                handle.setBrush(QBrush(QColor("#ffcc00")))
+                handle.setPen(QPen(QColor("#222222"), 0))
+                handle.setZValue(2000)
+                handle.setData(0, ("node", pi, vi))
+                handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+                handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+                self.scene_obj.addItem(handle)
+                self._node_handles.append(handle)
+
+    def _apply_node_polylines_to_object(self):
+        item = self._node_target_item
+        if item is None or not isinstance(item.obj, SvgPathObject):
+            return
+        path = self._polylines_to_path(self._node_polylines)
+        # Si scale_x/y != 1, local_path applique le scale : on stocke le path « non scalé »
+        sx = getattr(item.obj, "scale_x", 1.0) or 1.0
+        sy = getattr(item.obj, "scale_y", 1.0) or 1.0
+        if abs(sx - 1.0) > 1e-9 or abs(sy - 1.0) > 1e-9:
+            t = QTransform()
+            t.scale(1.0 / sx, 1.0 / sy)
+            path = t.map(path)
+        item.obj._local_path_data = path
+        item.refresh()
+        self._rebuild_node_handles()
+
+    def _hit_node_handle(self, scene_pos):
+        view_scale = max(self.transform().m11(), 0.01)
+        hit_r = 8.0 / view_scale
+        best = None
+        best_d = hit_r * hit_r
+        for h in self._node_handles:
+            data = h.data(0)
+            if not data or data[0] != "node":
+                continue
+            c = h.rect().center()
+            # rect is in item coords = scene for these items
+            d = (c.x() - scene_pos.x()) ** 2 + (c.y() - scene_pos.y()) ** 2
+            if d <= best_d:
+                best_d = d
+                best = (data[1], data[2])
+        return best
+
+    def _hit_segment(self, scene_pos):
+        """Renvoie (poly_idx, insert_after_idx, local_point) si proche d'un segment."""
+        if not self._node_polylines:
+            return None
+        view_scale = max(self.transform().m11(), 0.01)
+        max_dist_scene = 8.0 / view_scale
+        local_pos = self._scene_to_local(scene_pos)
+        best = None
+        best_d = max_dist_scene / max(self.px_per_mm, 1e-6)
+        best_d = best_d * best_d
+        for pi, pts in enumerate(self._node_polylines):
+            for i in range(len(pts) - 1):
+                a, b = pts[i], pts[i + 1]
+                # Projection du point sur le segment
+                abx, aby = b.x() - a.x(), b.y() - a.y()
+                len2 = abx * abx + aby * aby
+                if len2 < 1e-12:
+                    continue
+                t = ((local_pos.x() - a.x()) * abx + (local_pos.y() - a.y()) * aby) / len2
+                t = max(0.0, min(1.0, t))
+                proj = QPointF(a.x() + t * abx, a.y() + t * aby)
+                dx, dy = local_pos.x() - proj.x(), local_pos.y() - proj.y()
+                d = dx * dx + dy * dy
+                if d < best_d:
+                    best_d = d
+                    best = (pi, i, proj)
+        return best
+
+    def delete_selected_node(self):
+        """Supprime le nœud sous le curseur n'est pas disponible ici ; utilisé
+        via sélection interne _node_drag_index ou dernier nœud cliqué."""
+        if not self._node_mode or self._node_drag_index is None:
+            return False
+        pi, vi = self._node_drag_index
+        if pi >= len(self._node_polylines):
+            return False
+        pts = self._node_polylines[pi]
+        if len(pts) <= 2:
+            # Trop peu de points : supprimer toute la polyligne
+            self.push_undo_snapshot()
+            self._node_polylines.pop(pi)
+            if not self._node_polylines:
+                # Plus rien : supprimer l'objet
+                item = self._node_target_item
+                self.exit_node_edit()
+                if item is not None:
+                    try:
+                        self.objects.remove(item.obj)
+                        self.scene_obj.removeItem(item)
+                    except (ValueError, RuntimeError):
+                        pass
+                return True
+            self._apply_node_polylines_to_object()
+            return True
+        self.push_undo_snapshot()
+        pts.pop(vi)
+        self._node_drag_index = None
+        self._apply_node_polylines_to_object()
+        return True
+
     def refresh_all(self):
         for item in self.scene_obj.items():
             if isinstance(item, VectorGraphicsItem):
@@ -1572,21 +2246,44 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
-        # Finalise le dessin à la souris
+        if event.button() == Qt.MouseButton.LeftButton and self._node_mode:
+            if self._node_drag_index is not None:
+                self._rebuild_node_handles()
+                self._node_drag_index = None
+                self._node_drag_pushed_undo = False
+            event.accept()
+            return
+
+        # Rectangle/ellipse : fin du TIRÉ de profondeur (relâchement)
         if (
             event.button() == Qt.MouseButton.LeftButton
-            and self._draw_tool
-            and self._draw_start_scene is not None
+            and self._draw_tool in ("rect", "ellipse")
+            and self._draw_depth_dragging
+            and self._draw_base_p1 is not None
+            and self._draw_base_p2 is not None
         ):
-            end = self.mapToScene(event.position().toPoint())
-            start = self._draw_start_scene
+            raw = self.mapToScene(event.position().toPoint())
+            pt, _ = self._snap_scene_pos(raw)
+            depth = self._depth_from_cursor(self._draw_base_p1, self._draw_base_p2, pt)
+            obj = self._create_rect_from_base(
+                self._draw_base_p1, self._draw_base_p2, depth,
+                ellipse=(self._draw_tool == "ellipse"),
+            )
+            self._draw_depth_dragging = False
             self._cancel_draw_preview()
-            obj = self._create_drawn_object(start, end)
             if obj is not None:
                 self.push_undo_snapshot()
                 item = self.add_object(obj)
                 self.scene_obj.clearSelection()
                 item.setSelected(True)
+            event.accept()
+            return
+
+        # Autres outils dessin/mesure : pas de finalisation sur release
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._draw_tool in ("line", "rect", "ellipse", "measure")
+        ):
             event.accept()
             return
 
@@ -1647,9 +2344,329 @@ class VectorCanvasView(QGraphicsView):
             y_mm=bottom,
         )
 
+    def _create_drawn_object_from_dims(self, start_scene, dims, direction_scene=None):
+        """Crée une forme à partir du 1er point + dimensions clavier.
+
+        Ligne : dims = (length_mm,) — direction = curseur ou horizontale.
+        Rect/ellipse : dims = (width_mm, height_mm) — signe selon quadrant curseur.
+        """
+        x1, y1 = self.scene_to_mm(start_scene)
+        layer_id = self._default_draw_layer_id()
+        if not layer_id:
+            return None
+
+        if self._draw_tool == "line":
+            length = float(dims[0])
+            if length < 0.05:
+                return None
+            # Direction : vers le curseur si dispo, sinon +X
+            if direction_scene is not None:
+                x2, y2 = self.scene_to_mm(direction_scene)
+                dx, dy = x2 - x1, y2 - y1
+                norm = math.hypot(dx, dy)
+                if norm < 1e-9:
+                    dx, dy = 1.0, 0.0
+                else:
+                    dx, dy = dx / norm, dy / norm
+            else:
+                dx, dy = 1.0, 0.0
+            angle = math.degrees(math.atan2(dy, dx))
+            return ShapeObject(
+                shape_type="Ligne",
+                width_mm=length,
+                height_mm=0.1,
+                layer_id=layer_id,
+                x_mm=x1,
+                y_mm=y1,
+                rotation_deg=angle,
+            )
+
+        if len(dims) < 2:
+            return None
+        w, h = abs(float(dims[0])), abs(float(dims[1]))
+        if w < 0.05 and h < 0.05:
+            return None
+        w, h = max(w, 0.05), max(h, 0.05)
+        # Quadrant selon le curseur par rapport au 1er point
+        sx = sy = 1.0
+        if direction_scene is not None:
+            x2, y2 = self.scene_to_mm(direction_scene)
+            if x2 < x1:
+                sx = -1.0
+            if y2 < y1:
+                sy = -1.0
+        left = x1 if sx >= 0 else x1 - w
+        bottom = y1 if sy >= 0 else y1 - h
+        shape_type = "Ellipse" if self._draw_tool == "ellipse" else "Rectangle"
+        return ShapeObject(
+            shape_type=shape_type,
+            width_mm=w,
+            height_mm=h,
+            layer_id=layer_id,
+            x_mm=left,
+            y_mm=bottom,
+        )
+
+    def _parse_draw_dimensions(self, text):
+        """Parse '25', '25mm', '30x20', '30 x 20', '30,20' → tuple de floats (mm)."""
+        t = (text or "").strip().lower().replace(",", "x").replace(" ", "")
+        t = t.replace("mm", "")
+        if not t:
+            return None
+        if "x" in t:
+            parts = [p for p in t.split("x") if p]
+            try:
+                vals = tuple(float(p) for p in parts[:2])
+            except ValueError:
+                return None
+            return vals if vals else None
+        try:
+            return (float(t),)
+        except ValueError:
+            return None
+
+    def _commit_draw_dimensions(self):
+        """Valide le buffer de dimensions et crée l'objet."""
+        dims = self._parse_draw_dimensions(self._draw_dim_buffer)
+        if not dims:
+            return False
+
+        # Profondeur seule après base 2 nœuds (rect / ellipse)
+        if (
+            self._draw_awaiting_depth
+            and self._draw_base_p1 is not None
+            and self._draw_base_p2 is not None
+            and self._draw_tool in ("rect", "ellipse")
+        ):
+            depth = float(dims[0])
+            # Signe : côté du curseur par rapport à la base
+            if self._draw_last_cursor_scene is not None:
+                auto = self._depth_from_cursor(
+                    self._draw_base_p1, self._draw_base_p2, self._draw_last_cursor_scene
+                )
+                if auto < 0:
+                    depth = -abs(depth)
+                else:
+                    depth = abs(depth)
+            obj = self._create_rect_from_base(
+                self._draw_base_p1, self._draw_base_p2, depth,
+                ellipse=(self._draw_tool == "ellipse"),
+            )
+            self._cancel_draw_preview()
+            if obj is None:
+                return False
+            self.push_undo_snapshot()
+            item = self.add_object(obj)
+            self.scene_obj.clearSelection()
+            item.setSelected(True)
+            return True
+
+        if not self._draw_awaiting_second or self._draw_start_scene is None:
+            return False
+        if self._draw_tool == "line" and len(dims) >= 1:
+            pass
+        elif self._draw_tool in ("rect", "ellipse") and len(dims) >= 2:
+            pass
+        elif self._draw_tool in ("rect", "ellipse") and len(dims) == 1:
+            dims = (dims[0], dims[0])  # carré / cercle
+        else:
+            return False
+        obj = self._create_drawn_object_from_dims(
+            self._draw_start_scene, dims, self._draw_last_cursor_scene
+        )
+        self._cancel_draw_preview()
+        if obj is None:
+            return False
+        self.push_undo_snapshot()
+        item = self.add_object(obj)
+        self.scene_obj.clearSelection()
+        item.setSelected(True)
+        return True
+
+    def _depth_from_cursor(self, p1_scene, p2_scene, cursor_scene):
+        """Distance signée du curseur à la droite p1→p2, en mm (Y machine)."""
+        x1, y1 = self.scene_to_mm(p1_scene)
+        x2, y2 = self.scene_to_mm(p2_scene)
+        cx, cy = self.scene_to_mm(cursor_scene)
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy)
+        if length < 1e-9:
+            return 0.0
+        # Normale unitaire à gauche de p1→p2 : (-dy, dx) / length
+        nx, ny = -dy / length, dx / length
+        # Projection du vecteur p1→cursor sur la normale
+        return (cx - x1) * nx + (cy - y1) * ny
+
+    def _preview_path_base_depth(self, p1_scene, p2_scene, depth_mm, ellipse=False):
+        """Aperçu scène d'un rectangle (ou ellipse) défini par base + profondeur."""
+        x1, y1 = self.scene_to_mm(p1_scene)
+        x2, y2 = self.scene_to_mm(p2_scene)
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy)
+        if length < 1e-9:
+            return QPainterPath()
+        ux, uy = dx / length, dy / length
+        nx, ny = -uy, ux  # normale
+        # 4 coins en mm monde
+        c0 = (x1, y1)
+        c1 = (x2, y2)
+        c2 = (x2 + nx * depth_mm, y2 + ny * depth_mm)
+        c3 = (x1 + nx * depth_mm, y1 + ny * depth_mm)
+        s0 = self.mm_to_scene(*c0)
+        s1 = self.mm_to_scene(*c1)
+        s2 = self.mm_to_scene(*c2)
+        s3 = self.mm_to_scene(*c3)
+        path = QPainterPath()
+        if ellipse:
+            # Approximation : bounding orienté via polygone
+            path.moveTo(s0)
+            path.lineTo(s1)
+            path.lineTo(s2)
+            path.lineTo(s3)
+            path.closeSubpath()
+        else:
+            path.moveTo(s0)
+            path.lineTo(s1)
+            path.lineTo(s2)
+            path.lineTo(s3)
+            path.closeSubpath()
+        return path
+
+    def _create_rect_from_base(self, p1_scene, p2_scene, depth_mm, ellipse=False):
+        """Rectangle/ellipse : largeur = |p1p2|, hauteur = |depth|, orientation = angle p1→p2."""
+        x1, y1 = self.scene_to_mm(p1_scene)
+        x2, y2 = self.scene_to_mm(p2_scene)
+        dx, dy = x2 - x1, y2 - y1
+        width = math.hypot(dx, dy)
+        # Refuse les « rectangles plats » (souvent un 3e clic trop proche de la base)
+        if width < 0.05 or abs(depth_mm) < 0.2:
+            return None
+        layer_id = self._default_draw_layer_id()
+        if not layer_id:
+            return None
+        angle = math.degrees(math.atan2(dy, dx))
+        height = abs(depth_mm)
+        # Toujours ancrer l'origine (x_mm,y_mm) sur le 1er point p1.
+        # Si la profondeur est de l'autre côté de la normale, on inverse le
+        # sens local via mirror_v pour que le corps du rectangle suive l'aperçu
+        # tout en gardant p1 comme point d'ancrage (1er point).
+        mirror_v = False
+        if depth_mm < 0:
+            mirror_v = True
+        shape_type = "Ellipse" if ellipse else "Rectangle"
+        return ShapeObject(
+            shape_type=shape_type,
+            width_mm=width,
+            height_mm=height,
+            layer_id=layer_id,
+            x_mm=x1,
+            y_mm=y1,
+            rotation_deg=angle,
+            mirror_v=mirror_v,
+        )
+
+    def _finalize_measure(self, p1_scene, p2_scene):
+        """Ajoute une annotation de mesure (distance + ΔX / ΔY) sur le canevas."""
+        from PyQt6.QtWidgets import QGraphicsSimpleTextItem
+
+        x1, y1 = self.scene_to_mm(p1_scene)
+        x2, y2 = self.scene_to_mm(p2_scene)
+        dist = math.hypot(x2 - x1, y2 - y1)
+        dx, dy = x2 - x1, y2 - y1
+        label = f"{dist:.2f} mm"
+        if abs(dx) > 0.01 or abs(dy) > 0.01:
+            label += f"  (ΔX {dx:+.2f}  ΔY {dy:+.2f})"
+
+        path = QPainterPath()
+        path.moveTo(p1_scene)
+        path.lineTo(p2_scene)
+        pen = QPen(QColor("#ffaa00"), 1.2, Qt.PenStyle.DashLine)
+        pen.setCosmetic(True)
+        line_item = self.scene_obj.addPath(path, pen)
+        line_item.setZValue(1500)
+
+        mid = QPointF((p1_scene.x() + p2_scene.x()) / 2, (p1_scene.y() + p2_scene.y()) / 2)
+        text_item = QGraphicsSimpleTextItem(label)
+        text_item.setBrush(QBrush(QColor("#ffcc66")))
+        text_item.setPos(mid.x() + 4, mid.y() - 16)
+        text_item.setZValue(1501)
+        # Échelle texte approximativement constante à l'écran
+        view_scale = max(abs(self.transform().m11()), 0.01)
+        text_item.setScale(1.0 / view_scale)
+        self.scene_obj.addItem(text_item)
+        self._measure_labels.extend([line_item, text_item])
+
+    def mouseDoubleClickEvent(self, event):
+        if self._node_mode and event.button() == Qt.MouseButton.LeftButton:
+            scene_pos = self.mapToScene(event.position().toPoint())
+            # Priorité : pas sur un nœud existant
+            if self._hit_node_handle(scene_pos) is None:
+                hit = self._hit_segment(scene_pos)
+                if hit is not None:
+                    pi, after_i, proj = hit
+                    self.push_undo_snapshot()
+                    self._node_polylines[pi].insert(after_i + 1, proj)
+                    self._apply_node_polylines_to_object()
+                    event.accept()
+                    return
+        super().mouseDoubleClickEvent(event)
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape and self._draw_tool:
+            if self._draw_phase is not None or self._draw_awaiting_depth or self._draw_awaiting_second:
+                self._cancel_draw_preview()
+                event.accept()
+                return
+            if self._draw_tool == "measure" and self._measure_p1 is not None:
+                self._clear_measure_temp()
+                event.accept()
+                return
             self.set_draw_tool(None)
+            event.accept()
+            return
+        if event.key() == Qt.Key.Key_Escape and self._node_mode:
+            self.exit_node_edit()
+            event.accept()
+            return
+
+        # Saisie de dimensions après le 1er point ou profondeur après base
+        if (
+            (self._draw_awaiting_second or self._draw_awaiting_depth)
+            and self._draw_tool in ("line", "rect", "ellipse")
+        ):
+            key = event.key()
+            text = event.text() or ""
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if self._commit_draw_dimensions():
+                    event.accept()
+                    return
+            if key == Qt.Key.Key_Backspace:
+                self._draw_dim_buffer = self._draw_dim_buffer[:-1]
+                event.accept()
+                return
+            if text and (text.isdigit() or text in ".,xX*-+"):
+                if text in "X*":
+                    text = "x"
+                if text == ",":
+                    text = "."
+                self._draw_dim_buffer += text
+                event.accept()
+                return
+
+        if self._node_mode and event.key() in (
+            Qt.Key.Key_Delete, Qt.Key.Key_Backspace
+        ):
+            # Supprime le nœud le plus récemment dragué, ou celui sous le curseur
+            if self._node_drag_index is not None:
+                self.delete_selected_node()
+            else:
+                # Essaye le nœud sous la position courante de la souris
+                from PyQt6.QtGui import QCursor
+                scene_pos = self.mapToScene(self.mapFromGlobal(QCursor.pos()))
+                hit = self._hit_node_handle(scene_pos)
+                if hit is not None:
+                    self._node_drag_index = hit
+                    self.delete_selected_node()
             event.accept()
             return
         if event.matches(QKeySequence.StandardKey.SelectAll):
@@ -1826,6 +2843,22 @@ class VectorCanvasView(QGraphicsView):
         if ungroupable:
             ungroup_action = menu.addAction(tr("vector.ungroup_objects"))
             ungroup_action.triggered.connect(self.ungroup_selected)
+
+        explodable = [it for it in selected if self._can_explode_item(it)]
+        if explodable:
+            explode_action = menu.addAction(tr("vector.explode_path"))
+            explode_action.triggered.connect(self.explode_selected)
+
+        if len(selected) == 1:
+            nodes_action = menu.addAction(tr("vector.edit_nodes"))
+            nodes_action.triggered.connect(lambda: self.enter_node_edit(selected[0]))
+
+        if self._node_mode:
+            menu.addSeparator()
+            exit_nodes = menu.addAction(tr("vector.exit_nodes"))
+            exit_nodes.triggered.connect(self.exit_node_edit)
+            del_node = menu.addAction(tr("vector.delete_node"))
+            del_node.triggered.connect(self.delete_selected_node)
 
         menu.addSeparator()
         rotate_action = menu.addAction(tr("ui.vector_rotate_90"))
