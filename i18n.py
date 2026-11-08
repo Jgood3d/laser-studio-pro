@@ -74,22 +74,6 @@ TRANSLATIONS = {
         "es": "Warm dim (gris cálido)",
     },
 
-    "theme.neon": {
-        "fr": "Neon laser",
-        "en": "Neon laser",
-        "de": "Neon-Laser",
-        "es": "Neón láser",
-    },
-
-    "theme.retro80": {
-        "fr": "Rétro 80s",
-        "en": "Retro 80s",
-        "de": "Retro 80er",
-        "es": "Retro 80s",
-    },
-
-
-
 
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
 
@@ -1134,14 +1118,6 @@ TRANSLATIONS = {
         "fr": "Position du job sur le plateau", "en": "Job Position on the Bed",
         "de": "Position des Jobs auf der Arbeitsfläche", "es": "Posición del trabajo en la mesa",
     },
-
-    "ui.job_offset_in_image_tab": {
-        "fr": "Offset X/Y : onglet « Graver une image » (réglages à gauche).",
-        "en": "X/Y offset: set in the “Engrave image” tab (left panel).",
-        "de": "X/Y-Offset: im Reiter „Bild gravieren“ (linkes Panel).",
-        "es": "Offset X/Y: pestaña «Grabar imagen» (panel izquierdo).",
-    },
-
     "queue.sent_log_title": {
         "fr": "G-Code envoyé", "en": "Sent G-Code", "de": "Gesendeter G-Code", "es": "G-Code enviado",
     },
@@ -2590,10 +2566,10 @@ TRANSLATIONS = {
         "es": "Línea",
     },
     "ui.vector_tool_line_tip": {
-        "fr": "Ligne : 1er clic = départ, 2e clic = fin. Ou tapez la longueur (ex: 25) puis Entrée. Accroche aux extrémités.",
-        "en": "Line: 1st click = start, 2nd = end. Or type length (e.g. 25) then Enter. Snaps to endpoints.",
-        "de": "Linie: 1. Klick Start, 2. Ende. Oder Länge tippen (z.B. 25) + Enter. Endpunkte.",
-        "es": "Línea: 1er clic inicio, 2º fin. O escriba longitud (ej. 25) y Entrar. Extremos.",
+        "fr": "Tracer une ligne : clic-glisser sur le canevas (Échap pour annuler)",
+        "en": "Draw a line: click-drag on the canvas (Esc to cancel)",
+        "de": "Linie zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar una línea: clic y arrastrar (Esc para cancelar)",
     },
     "ui.vector_tool_rect": {
         "fr": "Rectangle",
@@ -2602,7 +2578,7 @@ TRANSLATIONS = {
         "es": "Rectángulo",
     },
     "ui.vector_tool_rect_tip": {
-        "fr": "Rectangle : 1) un clic sur nœud A  2) un clic sur nœud B  3) seulement ensuite maintenir et tirer pour la profondeur, puis relâcher (ou 5 + Entrée).",
+        "fr": "Tracer un rectangle : clic-glisser sur le canevas (Échap pour annuler)",
         "en": "Draw a rectangle: click-drag on the canvas (Esc to cancel)",
         "de": "Rechteck zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
         "es": "Dibujar un rectángulo: clic y arrastrar (Esc para cancelar)",
@@ -2614,25 +2590,11 @@ TRANSLATIONS = {
         "es": "Elipse",
     },
     "ui.vector_tool_ellipse_tip": {
-        "fr": "Ellipse : 1er clic = coin, 2e = opposé. Ou tapez LxH (ex: 40x25) puis Entrée.",
+        "fr": "Tracer une ellipse : clic-glisser sur le canevas (Échap pour annuler)",
         "en": "Draw an ellipse: click-drag on the canvas (Esc to cancel)",
         "de": "Ellipse zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
         "es": "Dibujar una elipse: clic y arrastrar (Esc para cancelar)",
     },
-
-    "ui.vector_tool_measure": {
-        "fr": "Mesure",
-        "en": "Measure",
-        "de": "Messen",
-        "es": "Medir",
-    },
-    "ui.vector_tool_measure_tip": {
-        "fr": "Mesurer une distance : deux clics (accroche aux extrémités). Échap annule.",
-        "en": "Measure a distance: two clicks (snaps to endpoints). Esc cancels.",
-        "de": "Abstand messen: zwei Klicks (Endpunkte). Esc bricht ab.",
-        "es": "Medir una distancia: dos clics (extremos). Esc cancela.",
-    },
-
     "ui.vector_import_svg": {
         "fr": "📥 Importer SVG / DXF (multi-calques)",
         "en": "📥 Import SVG / DXF (multi-layer)",
@@ -2735,76 +2697,6 @@ TRANSLATIONS = {
         "de": "Drehung (°):",
         "es": "Rotación (°):",
     },
-
-    "ui.vector_width_mm": {
-        "fr": "Largeur",
-        "en": "Width",
-        "de": "Breite",
-        "es": "Ancho",
-    },
-    "ui.vector_height_mm": {
-        "fr": "Hauteur",
-        "en": "Height",
-        "de": "Höhe",
-        "es": "Alto",
-    },
-
-    "ui.vector_anchor_lock": {
-        "fr": "Verrouiller l'ancrage",
-        "en": "Lock anchor",
-        "de": "Anker sperren",
-        "es": "Bloquear anclaje",
-    },
-    "ui.vector_anchor_lock_tip": {
-        "fr": "Si coché, le coin choisi reste fixe quand vous changez largeur ou hauteur.",
-        "en": "When checked, the chosen corner stays fixed while changing width or height.",
-        "de": "Wenn aktiv, bleibt die gewählte Ecke beim Ändern von Breite/Höhe fest.",
-        "es": "Si está marcado, la esquina elegida no se mueve al cambiar ancho o alto.",
-    },
-    "ui.vector_anchor": {
-        "fr": "Coin fixe",
-        "en": "Fixed corner",
-        "de": "Feste Ecke",
-        "es": "Esquina fija",
-    },
-    "ui.vector_anchor_tip": {
-        "fr": "Coin de la forme qui reste accroché (utile pour une encoche liée à un nœud).",
-        "en": "Shape corner that stays locked (useful for a notch tied to a node).",
-        "de": "Ecke der Form, die fixiert bleibt (nützlich für Kerben an einem Knoten).",
-        "es": "Esquina de la forma que permanece fija (útil para una muesca unida a un nodo).",
-    },
-    "ui.vector_anchor_origin": {
-        "fr": "1er point (origine)",
-        "en": "1st point (origin)",
-        "de": "1. Punkt (Ursprung)",
-        "es": "1er punto (origen)",
-    },
-    "ui.vector_anchor_bl": {
-        "fr": "Bas-gauche",
-        "en": "Bottom-left",
-        "de": "Unten links",
-        "es": "Inferior izquierda",
-    },
-    "ui.vector_anchor_br": {
-        "fr": "Bas-droit",
-        "en": "Bottom-right",
-        "de": "Unten rechts",
-        "es": "Inferior derecha",
-    },
-    "ui.vector_anchor_tl": {
-        "fr": "Haut-gauche",
-        "en": "Top-left",
-        "de": "Oben links",
-        "es": "Superior izquierda",
-    },
-    "ui.vector_anchor_tr": {
-        "fr": "Haut-droit",
-        "en": "Top-right",
-        "de": "Oben rechts",
-        "es": "Superior derecha",
-    },
-
-
     "ui.vector_layer": {
         "fr": "Calque :",
         "en": "Layer:",
@@ -3709,6 +3601,127 @@ TRANSLATIONS = {
         "en": "Delete node",
         "de": "Knoten löschen",
         "es": "Eliminar nodo",
+    },
+
+    "ui.mat_image_group": {
+        "fr": "Test à partir d'une image",
+        "en": "Test from an image",
+        "de": "Test mit einem Bild",
+        "es": "Prueba a partir de una imagen",
+    },
+    "ui.mat_image_hint": {
+        "fr": "Chaque case de la matrice grave la même zone d'une image, à l'échelle réelle, avec les réglages d'image (luminosité, contraste, tramage, inversion…) de « Graver une image ». Clique ou glisse sur l'aperçu pour placer la zone.",
+        "en": "Every cell of the matrix engraves the same area of an image at real scale, using the image settings (brightness, contrast, dithering, invert…) of “Engrave an image”. Click or drag on the preview to place the area.",
+        "de": "Jede Zelle der Matrix graviert denselben Bildausschnitt in Originalgröße, mit den Bildeinstellungen (Helligkeit, Kontrast, Rasterung, Invertieren …) von „Bild gravieren“. Klicke oder ziehe in der Vorschau, um den Ausschnitt zu platzieren.",
+        "es": "Cada casilla de la matriz graba la misma zona de una imagen a escala real, con los ajustes de imagen (brillo, contraste, tramado, invertir…) de «Grabar una imagen». Haz clic o arrastra en la vista previa para colocar la zona.",
+    },
+    "ui.mat_image_choose": {
+        "fr": "Choisir une image…",
+        "en": "Choose an image…",
+        "de": "Bild auswählen …",
+        "es": "Elegir una imagen…",
+    },
+    "ui.mat_image_use_loaded": {
+        "fr": "Image chargée",
+        "en": "Loaded image",
+        "de": "Geladenes Bild",
+        "es": "Imagen cargada",
+    },
+    "ui.mat_image_use_loaded_tip": {
+        "fr": "Utilise l'image de « Graver une image », à la taille qui lui est donnée là-bas.",
+        "en": "Uses the image of “Engrave an image”, at the size set there.",
+        "de": "Verwendet das Bild aus „Bild gravieren“ in der dort eingestellten Größe.",
+        "es": "Usa la imagen de «Grabar una imagen», con el tamaño indicado allí.",
+    },
+    "ui.mat_image_none": {
+        "fr": "Aucune image",
+        "en": "No image",
+        "de": "Kein Bild",
+        "es": "Ninguna imagen",
+    },
+    "ui.mat_image_width": {
+        "fr": "Largeur réelle de l'image :",
+        "en": "Real width of the image:",
+        "de": "Reale Bildbreite:",
+        "es": "Ancho real de la imagen:",
+    },
+    "ui.mat_image_width_tip": {
+        "fr": "Largeur de l'image entière une fois gravée. Elle fixe l'échelle : une zone de 15 mm montre exactement 15 mm de l'image.",
+        "en": "Width of the whole image once engraved. It sets the scale: a 15 mm area shows exactly 15 mm of the image.",
+        "de": "Breite des gesamten Bildes nach dem Gravieren. Sie legt den Maßstab fest: Ein 15-mm-Ausschnitt zeigt genau 15 mm des Bildes.",
+        "es": "Ancho de la imagen completa una vez grabada. Fija la escala: una zona de 15 mm muestra exactamente 15 mm de la imagen.",
+    },
+    "ui.mat_tile_width": {
+        "fr": "Zone : largeur :",
+        "en": "Area: width:",
+        "de": "Ausschnitt: Breite:",
+        "es": "Zona: ancho:",
+    },
+    "ui.mat_tile_height": {
+        "fr": "Zone : hauteur :",
+        "en": "Area: height:",
+        "de": "Ausschnitt: Höhe:",
+        "es": "Zona: alto:",
+    },
+    "ui.mat_tile_info": {
+        "fr": "Zone gravée : {w:.1f} × {h:.1f} mm ({pct:.0f} % de la largeur de l'image).",
+        "en": "Engraved area: {w:.1f} × {h:.1f} mm ({pct:.0f}% of the image width).",
+        "de": "Gravierter Ausschnitt: {w:.1f} × {h:.1f} mm ({pct:.0f} % der Bildbreite).",
+        "es": "Zona grabada: {w:.1f} × {h:.1f} mm ({pct:.0f} % del ancho de la imagen).",
+    },
+    "ui.mat_tile_clipped": {
+        "fr": "La zone dépasse l'image : elle est réduite à {w:.1f} × {h:.1f} mm.",
+        "en": "The area is larger than the image: it is reduced to {w:.1f} × {h:.1f} mm.",
+        "de": "Der Ausschnitt ist größer als das Bild: Er wird auf {w:.1f} × {h:.1f} mm verkleinert.",
+        "es": "La zona es mayor que la imagen: se reduce a {w:.1f} × {h:.1f} mm.",
+    },
+    "ui.mat_tile_too_small": {
+        "fr": "La zone est trop petite pour la résolution choisie (moins d'une ligne). Agrandis la zone ou augmente les lignes/mm.",
+        "en": "The area is too small for the chosen resolution (less than one line). Enlarge the area or increase lines/mm.",
+        "de": "Der Ausschnitt ist für die gewählte Auflösung zu klein (weniger als eine Zeile). Vergrößere den Ausschnitt oder erhöhe die Zeilen/mm.",
+        "es": "La zona es demasiado pequeña para la resolución elegida (menos de una línea). Agranda la zona o aumenta las líneas/mm.",
+    },
+    "ui.mat_size_from_image_tip": {
+        "fr": "Avec un test à partir d'une image, la taille des cases est celle de la zone choisie.",
+        "en": "With an image test, the cell size is the size of the chosen area.",
+        "de": "Bei einem Bildtest entspricht die Zellengröße dem gewählten Ausschnitt.",
+        "es": "Con una prueba a partir de una imagen, el tamaño de las casillas es el de la zona elegida.",
+    },
+    "ui.mat_image_file_title": {
+        "fr": "Choisir une image",
+        "en": "Choose an image",
+        "de": "Bild auswählen",
+        "es": "Elegir una imagen",
+    },
+    "ui.mat_image_file_filter": {
+        "fr": "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;Tous les fichiers (*)",
+        "en": "Images (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;All files (*)",
+        "de": "Bilder (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;Alle Dateien (*)",
+        "es": "Imágenes (*.png *.jpg *.jpeg *.bmp *.tif *.tiff);;Todos los archivos (*)",
+    },
+    "ui.mat_image_open_error": {
+        "fr": "Impossible d'ouvrir l'image : {error}",
+        "en": "Could not open the image: {error}",
+        "de": "Das Bild konnte nicht geöffnet werden: {error}",
+        "es": "No se pudo abrir la imagen: {error}",
+    },
+    "ui.mat_image_missing_title": {
+        "fr": "Aucune image",
+        "en": "No image",
+        "de": "Kein Bild",
+        "es": "Ninguna imagen",
+    },
+    "ui.mat_image_missing_body": {
+        "fr": "Choisis d'abord une image, ou charge-en une dans « Graver une image », pour faire un test à partir d'une image.",
+        "en": "First choose an image, or load one in “Engrave an image”, to run an image test.",
+        "de": "Wähle zuerst ein Bild oder lade eines unter „Bild gravieren“, um einen Bildtest durchzuführen.",
+        "es": "Primero elige una imagen, o carga una en «Grabar una imagen», para hacer una prueba a partir de una imagen.",
+    },
+    "ui.mat_image_loaded_none": {
+        "fr": "Aucune image n'est chargée dans « Graver une image ».",
+        "en": "No image is loaded in “Engrave an image”.",
+        "de": "Unter „Bild gravieren“ ist kein Bild geladen.",
+        "es": "No hay ninguna imagen cargada en «Grabar una imagen».",
     },
 
     "layers.mode.fill": {
