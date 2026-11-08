@@ -4189,6 +4189,96 @@ TRANSLATIONS = {
         "fr": "Réinitialiser le recadrage", "en": "Reset crop",
         "de": "Ausschnitt zurücksetzen", "es": "Restablecer recorte",
     },
+    "splash.initializing": {
+        "fr": "Initialisation de Laser Studio Pro...",
+        "en": "Initializing Laser Studio Pro...",
+        "de": "Laser Studio Pro wird initialisiert...",
+        "es": "Inicializando Laser Studio Pro...",
+    },
+    "splash.ready": {
+        "fr": "Prêt !",
+        "en": "Ready!",
+        "de": "Bereit!",
+        "es": "¡Listo!",
+    },
+    "ui.vector_width_mm": {
+        "fr": "Largeur :",
+        "en": "Width:",
+        "de": "Breite:",
+        "es": "Ancho:",
+    },
+    "ui.vector_height_mm": {
+        "fr": "Hauteur :",
+        "en": "Height:",
+        "de": "Höhe:",
+        "es": "Alto:",
+    },
+    "ui.vector_anchor": {
+        "fr": "Ancrage :",
+        "en": "Anchor:",
+        "de": "Anker:",
+        "es": "Anclaje:",
+    },
+    "ui.vector_anchor_lock": {
+        "fr": "Verrouiller l'ancrage",
+        "en": "Lock anchor",
+        "de": "Anker sperren",
+        "es": "Bloquear anclaje",
+    },
+    "ui.vector_anchor_lock_tip": {
+        "fr": "Garde le point d'ancrage choisi fixe quand la taille change.",
+        "en": "Keeps the chosen anchor point fixed when the size changes.",
+        "de": "Hält den gewählten Ankerpunkt bei Größenänderung fest.",
+        "es": "Mantiene fijo el punto de anclaje elegido al cambiar el tamaño.",
+    },
+    "ui.vector_anchor_tip": {
+        "fr": "Point de l'objet qui reste en place lors d'un redimensionnement.",
+        "en": "Point of the object that stays in place when resizing.",
+        "de": "Punkt des Objekts, der beim Skalieren an Ort und Stelle bleibt.",
+        "es": "Punto del objeto que permanece en su sitio al redimensionar.",
+    },
+    "ui.vector_anchor_origin": {
+        "fr": "Origine (0,0)",
+        "en": "Origin (0,0)",
+        "de": "Ursprung (0,0)",
+        "es": "Origen (0,0)",
+    },
+    "ui.vector_anchor_bl": {
+        "fr": "Bas-gauche",
+        "en": "Bottom-left",
+        "de": "Unten links",
+        "es": "Abajo a la izquierda",
+    },
+    "ui.vector_anchor_br": {
+        "fr": "Bas-droite",
+        "en": "Bottom-right",
+        "de": "Unten rechts",
+        "es": "Abajo a la derecha",
+    },
+    "ui.vector_anchor_tl": {
+        "fr": "Haut-gauche",
+        "en": "Top-left",
+        "de": "Oben links",
+        "es": "Arriba a la izquierda",
+    },
+    "ui.vector_anchor_tr": {
+        "fr": "Haut-droite",
+        "en": "Top-right",
+        "de": "Oben rechts",
+        "es": "Arriba a la derecha",
+    },
+    "ui.vector_tool_measure": {
+        "fr": "Mesure",
+        "en": "Measure",
+        "de": "Messen",
+        "es": "Medir",
+    },
+    "ui.vector_tool_measure_tip": {
+        "fr": "Mesurer une distance : clic-glisser sur le canevas.",
+        "en": "Measure a distance: click and drag on the canvas.",
+        "de": "Abstand messen: auf der Zeichenfläche klicken und ziehen.",
+        "es": "Medir una distancia: haga clic y arrastre en el lienzo.",
+    },
 }
 
 _current_lang = None
