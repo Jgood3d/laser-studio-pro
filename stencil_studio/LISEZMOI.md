@@ -378,7 +378,6 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 
 ## v2026.10.78 — Relief en couches : fond de la couleur de l'image
 - Nouveau choix de fond : « Plaque à part (couleur du fond de l'image) » : la plaque du fond prend la couleur réelle du fond de la photo (médiane hors sujet, p. ex. blanc). Avec « Couleur de la plaque de devant », le fond prend la couleur de la plaque la plus claire (ex. beige de la peau), c'est voulu : c'est la même matière.
-<<<<<<< HEAD
 
 
 ## v2026.10.79 — Intégration LSP : message d'erreur QtWebEngine précis
@@ -414,5 +413,3 @@ if "--stencil-studio" in sys.argv:
 ## v2026.10.84 — Pipette de couleurs (relief en couches par couleurs)
 - Dans « Couches » > « Séparer les plaques par : Couleurs dominantes », bouton **Pipette** : clique sur l'image d'origine pour choisir les couleurs (moyenne 5×5 pixels, jusqu'à 8). **Chaque couleur choisie = une plaque** ; clique une pastille pour la retirer, « Effacer les couleurs choisies » pour recommencer, Échap pour quitter la pipette. Sans pipette (ou avec une seule couleur), les couleurs sont trouvées automatiquement comme avant.
 - Avec la pipette, « Nombre de plaques » et la détection automatique sont désactivés ; chaque pixel prend la couleur choisie la plus proche. Avec le fond « Couleur de la plaque de devant », toute l'image est utilisée (tu peux donc choisir le blanc du fond comme une couleur). Les plaques sont triées du plus sombre au plus clair ; les flèches ◀ ▶ les réordonnent.
-=======
->>>>>>> aed42af (feat: description de vos modifications)

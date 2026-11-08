@@ -92,8 +92,9 @@ class CommandsLockTests(unittest.TestCase):
     def test_layout_position_left_jog_center_dro_right(self):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("center_bottom_layout.addLayout(machine_row)")]
-        order = [row.index(k) for k in ("addWidget(self.job_position_box)", "addWidget(jog_box, 1)",
-                                        "addWidget(dro_box)")]
+        # Le facteur d'étirement (place partagée) peut suivre chaque widget.
+        order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(jog_box",
+                                        "addWidget(dro_box")]
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 

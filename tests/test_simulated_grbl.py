@@ -126,23 +126,17 @@ class StreamerWithSimulationTests(unittest.TestCase):
         results, batches = [], []
         streamer.finished_signal.connect(results.append)
         streamer.lines_sent.connect(batches.append)
-<<<<<<< HEAD
         acked = []
         streamer.lines_acked.connect(acked.append)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
         streamer.run()
         self.assertEqual(results, [True])
         self.assertEqual(usb.last_state, "Idle")
         # Suivi de l'envoi (onglet File d'attente) : toutes les lignes, dans l'ordre, par paquets.
         self.assertEqual([line for batch in batches for line in batch], streamer.lines)
         self.assertLess(len(batches), len(streamer.lines))
-<<<<<<< HEAD
         # Lignes acceptées par GRBL (suivi de la gravure sur l'aperçu 2D) : croissant, jusqu'au total.
         self.assertEqual(acked, sorted(acked))
         self.assertEqual(acked[-1], len(streamer.lines))
-=======
->>>>>>> aed42af (feat: description de vos modifications)
 
 
 if __name__ == "__main__":

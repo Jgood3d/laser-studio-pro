@@ -227,15 +227,11 @@ class JobQueueMixin:
         self.progress_bar.setValue(0)
         self._append_sent_gcode([tr("queue.sent_log_job").format(
             index=self._queue_running_index + 1, total=len(self.job_queue), name=job["name"])])
-<<<<<<< HEAD
         if hasattr(self, "_prepare_burn_overlay"):
             self._prepare_burn_overlay(job["gcode"])
         self.streamer = GCodeStreamerThread(self.usb, job["gcode"])
         if hasattr(self, "_connect_burn_overlay"):
             self._connect_burn_overlay(self.streamer)
-=======
-        self.streamer = GCodeStreamerThread(self.usb, job["gcode"])
->>>>>>> aed42af (feat: description de vos modifications)
         self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(
             lambda current, total: self.progress_bar.setValue(int((current / total) * 100) if total else 0))
@@ -260,11 +256,8 @@ class JobQueueMixin:
         log.info("File : job %d terminé, fin propre=%s", self._queue_running_index + 1, clean_finish)
         if hasattr(self, "_check_position_after_stream"):
             self._check_position_after_stream()
-<<<<<<< HEAD
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
         if not clean_finish:
             self.btn_run_queue.setEnabled(True)
             if getattr(self, "status_poll_thread", None):
