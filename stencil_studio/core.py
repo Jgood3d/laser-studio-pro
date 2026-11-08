@@ -11,11 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-<<<<<<< HEAD
-VERSION = "2026.10.84"  # doit être identique dans core.py et studio.html
-=======
-VERSION = "2026.10.78"  # doit être identique dans core.py et studio.html
->>>>>>> aed42af (feat: description de vos modifications)
+VERSION = "2026.11.08"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -117,10 +113,7 @@ class Params:
     ml_eng_level: float = 50.0    # multicouche : sensibilité de la gravure des détails (0 à 100)
     ml_pins: bool = True          # multicouche : 3 trous de repérage identiques dans la bordure de chaque couche
     ml_pin_mm: float = 3.0        # diamètre des trous de repérage (tourillons / vis)
-<<<<<<< HEAD
-    ml_picks: str = ""            # multicouche couleur : couleurs choisies à la pipette (#rrggbb séparés par des virgules ; ≥ 2 = remplace le k-means)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
+    ml_picks: str = ""            # multicouche couleur : couleurs choisies à la pipette (#rrggbb séparés par des virgules)
     ml_color_auto: bool = True    # multicouche couleur : nombre de couleurs détecté automatiquement (ml_layers = maximum)
     ml_pieces: bool = False       # multicouche : plaques de dessus = pièces libres à coller (aucun pont)
     keep_islands: bool = False    # interne : les îlots non reliés sont gardés comme pièces libres (au lieu d'être supprimés)
@@ -1598,9 +1591,9 @@ def _layer_domain(rgb, p, subject, valid):
     return dom
 
 
-<<<<<<< HEAD
+
 def parse_picks(txt):
-    """'#rrggbb,#rrggbb' -> liste de tuples RGB (2 à 8 couleurs), sinon []."""
+    """'#rrggbb,#rrggbb' -> liste de tuples RGB (0 à 8 couleurs)."""
     out = []
     for t in str(txt or "").split(","):
         t = t.strip().lstrip("#")
@@ -1609,11 +1602,9 @@ def parse_picks(txt):
                 out.append(tuple(int(t[i:i + 2], 16) for i in (0, 2, 4)))
             except ValueError:
                 pass
-    return out[:8] if len(out) >= 2 else []
+    return out[:8]
 
 
-=======
->>>>>>> aed42af (feat: description de vos modifications)
 def is_flat_image(rgb, valid=None, top=6, share=0.85):
     """Vrai pour un logo / aplat : quelques couleurs seulement couvrent presque toute l'image."""
     small = cv2.resize(rgb, None, fx=min(1.0, 300.0 / max(rgb.shape[:2])), fy=min(1.0, 300.0 / max(rgb.shape[:2])),
@@ -1628,23 +1619,65 @@ def is_flat_image(rgb, valid=None, top=6, share=0.85):
     return float(cnt[:top].sum()) / max(1, code.size) >= share
 
 
-<<<<<<< HEAD
 def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
-=======
-def color_classes(rgb, dom, n, valid=None, auto=True):
->>>>>>> aed42af (feat: description de vos modifications)
     """Classe chaque pixel du sujet parmi au plus n couleurs dominantes (k-means en Lab).
-    Avec auto : les couleurs proches (ΔE < 14) sont fusionnées et les classes négligeables (< 1,5 %) supprimées ;
-    une image « plate » (logo) est classée au plus proche, bords nets. Retourne (labels triés du plus sombre au plus
-    clair, centres RGB triés)."""
+
+    - picks : couleurs choisies à la pipette (listes de RGB). Elles servent de centres
+      préférés. Le nombre de plaques demandé (n) est TOUJOURS respecté.
+        • len(picks) == n  → centres exacts
+        • len(picks) <  n  → picks en graines + k-means pour le reste
+        • len(picks) >  n  → on garde les n picks les mieux réparties en luminosité
+    - auto : fusion des couleurs proches / suppression des classes négligeables
+      (uniquement quand il n'y a pas de picks).
+    Retourne (labels, centres RGB triés du plus sombre au plus clair).
+    """
     h, w = rgb.shape[:2]
-    lab = cv2.cvtColor(cv2.GaussianBlur(rgb, (0, 0), max(1.0, 0.003 * max(h, w))), cv2.COLOR_RGB2LAB).astype(np.float32)
-    lab0 = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)        # non floutée : les aplats gardent leur vraie couleur
-<<<<<<< HEAD
-    if picks:       # couleurs choisies à la pipette : pas de k-means
-        order_p = sorted(picks, key=lambda c: cv2.cvtColor(np.array([[c]], np.uint8), cv2.COLOR_RGB2LAB)[0, 0, 0])
-        n = len(order_p)
-        cen = cv2.cvtColor(np.array([order_p], np.uint8), cv2.COLOR_RGB2LAB).reshape(n, 3).astype(np.float32)
+    lab = cv2.cvtColor(cv2.GaussianBlur(rgb, (0, 0), max(1.0, 0.003 * max(h, w))),
+                       cv2.COLOR_RGB2LAB).astype(np.float32)
+    lab0 = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+
+    picks = picks or []
+    n = int(max(2, min(8, n)))
+
+    # ---------- Cas pipette ----------
+    if picks:
+        # Tri par luminosité (L) pour un ordre stable arrière → avant
+        order_p = sorted(picks, key=lambda c: cv2.cvtColor(
+            np.array([[c]], np.uint8), cv2.COLOR_RGB2LAB)[0, 0, 0])
+
+        if len(order_p) >= n:
+            # Trop de picks (ou exact) → on garde n couleurs bien réparties
+            if len(order_p) > n:
+                idx = [int(round(i * (len(order_p) - 1) / (n - 1))) for i in range(n)]
+                order_p = [order_p[i] for i in idx]
+            cen = cv2.cvtColor(np.array([order_p], np.uint8),
+                               cv2.COLOR_RGB2LAB).reshape(n, 3).astype(np.float32)
+        else:
+            # Moins de picks que de plaques demandées → graines + k-means
+            fixed = cv2.cvtColor(np.array([order_p], np.uint8),
+                                 cv2.COLOR_RGB2LAB).reshape(len(order_p), 3).astype(np.float32)
+            src = lab0 if auto else lab
+            pts = src[dom > 0]
+            if len(pts) < n * 10:
+                pts = src.reshape(-1, 3)
+            if len(pts) > 40000:
+                pts = pts[np.random.default_rng(3).choice(len(pts), 40000, replace=False)]
+
+            crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
+            # Centres initiaux = picks + points aléatoires
+            n_extra = n - len(fixed)
+            extra = pts[np.random.default_rng(7).choice(len(pts), n_extra, replace=False)]
+            init = np.vstack([fixed, extra]).astype(np.float32)
+            # kmeans avec initialisation manuelle (labels initiaux approx)
+            # On utilise KMEANS_PP puis on force les picks
+            _, _, cen = cv2.kmeans(pts, n, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+            # Remettre les picks exacts aux positions les plus proches
+            for i, f in enumerate(fixed):
+                d = np.linalg.norm(cen - f, axis=1)
+                j = int(np.argmin(d))
+                cen[j] = f
+            cen = cen[np.argsort(cen[:, 0])]
+
         d = ((lab[:, :, None, :] - cen[None, None, :, :]) ** 2).sum(-1)
         if is_flat_image(rgb):
             labels = np.argmin(d, -1).astype(np.uint8)
@@ -1652,11 +1685,15 @@ def color_classes(rgb, dom, n, valid=None, auto=True):
         else:
             prob = np.exp(-d / 400.0)
             sig = max(1.0, 0.004 * max(h, w))
-            sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig) for k in range(n)], -1)
+            sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig)
+                           for k in range(n)], -1)
             labels = np.argmax(sm, -1).astype(np.int32)
-        return labels, [tuple(int(v) for v in c) for c in order_p]
-=======
->>>>>>> aed42af (feat: description de vos modifications)
+
+        rgb_c = cv2.cvtColor(np.clip(cen, 0, 255).reshape(1, n, 3).astype(np.uint8),
+                             cv2.COLOR_LAB2RGB).reshape(n, 3)
+        return labels, [tuple(int(v) for v in q) for q in rgb_c]
+
+    # ---------- Cas classique (sans pipette) ----------
     src = lab0 if auto else lab
     pts = src[dom > 0]
     if len(pts) < n * 10:
@@ -1681,7 +1718,8 @@ def color_classes(rgb, dom, n, valid=None, auto=True):
                         if c in (a, b):
                             continue
                         dab = float(np.linalg.norm(cen[a] - cen[b]))
-                        if dab > 20 and float(np.linalg.norm(cen[a] - cen[c]) + np.linalg.norm(cen[c] - cen[b])) < 1.06 * dab \
+                        if dab > 20 and float(np.linalg.norm(cen[a] - cen[c]) +
+                                              np.linalg.norm(cen[c] - cen[b])) < 1.06 * dab \
                                 and frac[c] < 0.12:
                             mix.append(c)
             if mix and k > 2:
@@ -1710,6 +1748,7 @@ def color_classes(rgb, dom, n, valid=None, auto=True):
             pl = pl[np.random.default_rng(5).choice(len(pl), 40000, replace=False)]
         dmin = np.sqrt(((pl[:, None, :] - cen[None, :, :]) ** 2).sum(-1)).min(1)
         flat = float((dmin < 12.0).mean()) >= 0.85
+
     d = ((lab[:, :, None, :] - cen[None, None, :, :]) ** 2).sum(-1)
     if flat:
         labels = np.argmin(d, -1).astype(np.uint8)
@@ -1717,9 +1756,12 @@ def color_classes(rgb, dom, n, valid=None, auto=True):
     else:
         prob = np.exp(-d / 400.0)
         sig = max(1.0, 0.006 * max(h, w))
-        sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig) for k in range(n)], -1)
+        sm = np.stack([cv2.GaussianBlur(prob[:, :, k].astype(np.float32), (0, 0), sig)
+                       for k in range(n)], -1)
         labels = np.argmax(sm, -1).astype(np.int32)
-    rgb_c = cv2.cvtColor(np.clip(cen, 0, 255).reshape(1, n, 3).astype(np.uint8), cv2.COLOR_LAB2RGB).reshape(n, 3)
+
+    rgb_c = cv2.cvtColor(np.clip(cen, 0, 255).reshape(1, n, 3).astype(np.uint8),
+                         cv2.COLOR_LAB2RGB).reshape(n, 3)
     return labels, [tuple(int(v) for v in q) for q in rgb_c]
 
 
@@ -1727,11 +1769,7 @@ def layers_masks_color(rgb, p, subject, valid, dom=None):
     h, w = rgb.shape[:2]
     dom = _layer_domain(rgb, p, subject, valid) if dom is None else dom
     n = int(min(8, max(2, p.ml_layers)))
-<<<<<<< HEAD
     labels, cols = color_classes(fill_outside(rgb, valid), dom, n, auto=p.ml_color_auto, picks=parse_picks(p.ml_picks))
-=======
-    labels, cols = color_classes(fill_outside(rgb, valid), dom, n, auto=p.ml_color_auto)
->>>>>>> aed42af (feat: description de vos modifications)
     n = len(cols)
     try:
         order = [int(t) for t in str(p.ml_order).split(",") if t.strip() != ""]
@@ -1810,12 +1848,8 @@ def layers_result(rgb, p, subject=None, valid=None):
     h, w = rgb.shape[:2]
     colors, corder = None, None
     dom = _layer_domain(rgb, p, subject, valid)
-<<<<<<< HEAD
     if (p.ml_sep == "color" and subject is None and p.ml_bg == "front"
             and (parse_picks(p.ml_picks) or is_flat_image(fill_outside(rgb, valid), valid))):
-=======
-    if p.ml_sep == "color" and subject is None and p.ml_bg == "front" and is_flat_image(fill_outside(rgb, valid), valid):
->>>>>>> aed42af (feat: description de vos modifications)
         dom = np.ones((h, w), np.uint8) if valid is None else valid.astype(np.uint8)   # logo : pas de fond à retirer
     if p.ml_sep == "color":
         masks, colors, corder = layers_masks_color(rgb, p, subject, valid, dom)

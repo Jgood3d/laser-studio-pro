@@ -183,11 +183,7 @@
 
 <script>
 "use strict";
-<<<<<<< HEAD
-const UI_VERSION = "2026.10.84";  // doit être identique à core.py
-=======
-const UI_VERSION = "2026.10.78";  // doit être identique à core.py
->>>>>>> aed42af (feat: description de vos modifications)
+const UI_VERSION = "2026.11.08";  // doit être identique à core.py
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -347,10 +343,7 @@ const SPEC = [
  {g:"Layers", items:[
   {k:"ml_sep", t:"select", label:"Separate the plates by", def:"tone", ml:1, opts:[["tone","Tone (brightness)"],["color","Dominant colours"]]},
   {k:"ml_color_auto", t:"check", label:"Detect the number of colours automatically", def:true, ml:1, mlcol:1},
-<<<<<<< HEAD
   {k:"ml_picks", t:"text", label:"Picked colours", def:"", ml:1, mlorder:1, maxlen:80},
-=======
->>>>>>> aed42af (feat: description de vos modifications)
   {k:"ml_order", t:"text", label:"Colour order", def:"", ml:1, mlorder:1, maxlen:40},
   {k:"ml_pieces", t:"check", label:"Loose pieces to glue (no bridges)", def:false, ml:1},
   {k:"ml_bg", t:"select", label:"Background", def:"front", ml:1, opts:[["front","Colour of the front plate"],["own","Own plate (colour of your choice)"],["image","Own plate (colour of the picture's background)"]]},
@@ -807,7 +800,7 @@ function refreshDisabled(){
   const hid = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("hidden", !!on);
   dis("threshold", S.auto_threshold);
   dis("aspect", S.shape === "circle");
-  { const pk = S.output === "layers" && S.ml_sep === "color" && picksList().length >= 2; dis("ml_layers", pk); dis("ml_color_auto", pk); }
+  { const pk = S.output === "layers" && S.ml_sep === "color" && picksList().length >= 2; dis("ml_color_auto", pk); /* ml_layers always free */ }
   dis("custom_w", S.shape === "circle" || S.aspect !== "custom");
   dis("custom_h", S.shape === "circle" || S.aspect !== "custom");
   dis("margin", !S.isolate);
@@ -998,8 +991,8 @@ function uploadHints(){
     if (S.isolate) schedule();
   }, "image/png");
 }
-let pickMode = false, pickCv = null, pickImg = null;
-document.addEventListener("keydown", e => { if (e.key === "Escape" && pickMode){ pickMode = false; updateCursor(); try { renderPick(); } catch(_){} } });
+let pickMode = false, pickTarget = null, pickCv = null, pickImg = null;  // pickTarget = index pastille à peaufiner, ou null (ajout)
+document.addEventListener("keydown", e => { if (e.key === "Escape" && pickMode){ pickMode = false; pickTarget = null; updateCursor(); try { renderPick(); } catch(_){} try { renderPalette(); } catch(_){} } });
 function pickAt(p){       // moyenne 5x5 autour du point, sur l'image d'origine
   if (!img) return null;
   if (pickImg !== img){ pickCv = document.createElement("canvas"); pickCv.width = iw; pickCv.height = ih;
@@ -1039,7 +1032,24 @@ cv.addEventListener("pointerdown", e => {
   if (!img) return;
   if (pickMode){
     const c = pickAt(toImg(e));
-    if (c){ const l = picksList(); if (l.length < 8 && !l.includes(c)) setPicks(l.concat([c])); }
+    if (c){
+      let l = picksList();
+      // Si on peaufine une pastille de la palette : initialiser depuis la palette si besoin, puis remplacer
+      if (pickTarget != null && lastStats && lastStats.ml_palette && lastStats.ml_palette.length){
+        if (l.length < 2) l = lastStats.ml_palette.slice();
+        const i = Math.max(0, Math.min(pickTarget, l.length - 1));
+        l[i] = c;
+        // dédoublonne en gardant l'ordre
+        const seen = new Set(); const out = [];
+        l.forEach(h => { if (!seen.has(h)){ seen.add(h); out.push(h); } });
+        setPicks(out.slice(0, 8));
+        pickMode = false; pickTarget = null; updateCursor();
+        try { renderPick(); } catch(_){}
+        try { renderPalette(); } catch(_){}
+      } else {
+        if (l.length < 8 && !l.includes(c)) setPicks(l.concat([c]));
+      }
+    }
     return;
   }
   cv.setPointerCapture(e.pointerId);
@@ -1060,11 +1070,7 @@ cv.addEventListener("pointerdown", e => {
 cv.addEventListener("pointermove", e => {
   if (!img) return;
   const p = toImg(e);
-<<<<<<< HEAD
   if (tool === "move" && !pickMode && !drag && !rsDrag && !rotDrag && resizable()){
-=======
-  if (tool === "move" && !drag && !rsDrag && !rotDrag && resizable()){
->>>>>>> aed42af (feat: description de vos modifications)
     const h = frameHit(e); cv.style.cursor = h ? (h[0] && h[1] ? (h[0] * h[1] > 0 ? "nwse-resize" : "nesw-resize") : (h[0] ? "ew-resize" : "ns-resize")) : "grab";
   }
   if (boxStart){
@@ -1303,44 +1309,83 @@ const BOXMSG = {
   sharp_corners:"Sharp corners (not 90 degrees): the flexible wall may break there. Prefer the stacked box for this shape.",
   radius_small:"Some curves are tighter than 15 mm radius: use thin flexible plywood or a larger pitch of slits.",
   ring_thin:"The outer ring is too narrow for the wall slots: widen it (at least wall thickness + 2 mm)."};
-<<<<<<< HEAD
 function renderPick(){
   let box = $("mlPick");
   const on = S.output === "layers" && S.ml_sep === "color";
   if (!box){
     const anchor = $("row_ml_sep"); if (!anchor) return;
-    box = document.createElement("div"); box.id = "mlPick"; box.style.cssText = "padding:2px 12px 8px";
-    const pal = $("mlPal"); (pal || anchor).parentNode.insertBefore(box, (pal || anchor).nextSibling);
+    box = document.createElement("div"); box.id = "mlPick";
+    box.style.cssText = "padding:2px 12px 8px";
+    const pal = $("mlPal");
+    (pal || anchor).parentNode.insertBefore(box, (pal || anchor).nextSibling);
   }
-  box.style.display = on ? "" : "none"; if (!on){ pickMode = false; updateCursor(); return; }
+  box.style.display = on ? "" : "none";
+  if (!on){ pickMode = false; pickTarget = null; updateCursor(); return; }
+
   const list = picksList();
   box.innerHTML = "";
-  const top = document.createElement("div"); top.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap";
-  const bt = document.createElement("button"); bt.type = "button"; bt.textContent = (pickMode ? "\u25CF " : "") + T("Colour picker");
-  bt.title = T("Click colours on the picture (up to 8). Each picked colour becomes one plate.");
-  if (pickMode) bt.classList.add("on");
-  bt.onclick = () => { pickMode = !pickMode; updateCursor(); renderPick(); };
+
+  const top = document.createElement("div");
+  top.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap";
+
+  const bt = document.createElement("button");
+  bt.type = "button";
+  bt.textContent = (pickMode && pickTarget == null ? "\u25CF " : "") + T("Colour picker");
+  bt.title = T("Click colours on the picture (up to 8). They become preferred centres; the number of plates stays free.");
+  if (pickMode && pickTarget == null) bt.classList.add("on");
+  bt.onclick = () => {
+    if (pickMode && pickTarget == null){ pickMode = false; }
+    else { pickMode = true; pickTarget = null; }
+    updateCursor(); renderPick(); try { renderPalette(); } catch(_){}
+  };
   top.appendChild(bt);
-  if (list.length){ const cl = document.createElement("button"); cl.type = "button"; cl.textContent = T("Clear picked colours"); cl.onclick = () => setPicks([]); top.appendChild(cl); }
+
+  if (list.length){
+    const cl = document.createElement("button");
+    cl.type = "button";
+    cl.textContent = T("Clear picked colours");
+    cl.onclick = () => { pickMode = false; pickTarget = null; setPicks([]); try { renderPalette(); } catch(_){} };
+    top.appendChild(cl);
+  }
   box.appendChild(top);
-  const cap = document.createElement("div"); cap.style.cssText = "font-size:12px;color:var(--mut);margin:4px 0";
-  cap.textContent = list.length >= 2 ? T("{n} picked colours = {n} plates", {n:list.length}) : (list.length === 1 ? T("Pick at least one more colour.") : T("No pick: the colours are found automatically."));
+
+  const cap = document.createElement("div");
+  cap.style.cssText = "font-size:12px;color:var(--mut);margin:4px 0";
+  if (pickMode && pickTarget != null) {
+    cap.textContent = T("Click on the image to refine plate colour #{n}. Esc to cancel.", {n: pickTarget + 1});
+  } else if (list.length === 0) {
+    cap.textContent = T("No pick: the colours are found automatically. Click a plate colour above to refine it.");
+  } else if (list.length === 1) {
+    cap.textContent = T("Pick at least one more colour (or clear). Number of plates stays free.");
+  } else {
+    cap.textContent = T("{n} preferred colours — number of plates remains free (currently {p})", {
+      n: list.length,
+      p: S.ml_layers
+    });
+  }
   box.appendChild(cap);
-  const row = document.createElement("div"); row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
+
+  const row = document.createElement("div");
+  row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
   list.forEach((hex, i) => {
-    const sw = document.createElement("div"); sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:1px solid var(--line);cursor:pointer;position:relative;background:" + hex;
-    sw.title = hex + " — " + T("click to remove");
-    sw.onclick = () => setPicks(list.filter((_, j) => j !== i));
-    const x = document.createElement("span"); x.textContent = "\u00D7"; x.style.cssText = "position:absolute;right:2px;top:-3px;font-size:13px;color:#fff;text-shadow:0 0 3px #000";
-    sw.appendChild(x); row.appendChild(sw);
+    const sw = document.createElement("div");
+    const active = pickMode && pickTarget === i;
+    sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:2px solid " + (active ? "var(--acc2)" : "var(--line)") + ";cursor:pointer;position:relative;background:" + hex;
+    sw.title = hex + " — " + T("click to refine with pipette");
+    sw.onclick = () => {
+      pickMode = true; pickTarget = i; updateCursor(); renderPick(); try { renderPalette(); } catch(_){}
+    };
+    const x = document.createElement("span");
+    x.textContent = "\u00D7";
+    x.style.cssText = "position:absolute;right:2px;top:-3px;font-size:13px;color:#fff;text-shadow:0 0 3px #000";
+    x.onclick = (ev) => { ev.stopPropagation(); setPicks(list.filter((_, j) => j !== i)); };
+    sw.appendChild(x);
+    row.appendChild(sw);
   });
   box.appendChild(row);
 }
 function renderPalette(){
-  try { renderPick(); } catch(e){}
-=======
-function renderPalette(){
->>>>>>> aed42af (feat: description de vos modifications)
+
   let pal = $("mlPal");
   const on = S.output === "layers" && S.ml_sep === "color" && lastStats && lastStats.ml_palette;
   if (!pal){
@@ -1356,7 +1401,20 @@ function renderPalette(){
   const row = document.createElement("div"); row.style.cssText = "display:flex;gap:6px;flex-wrap:wrap";
   cols.forEach((hex, i) => {
     const b = document.createElement("div"); b.style.cssText = "display:flex;flex-direction:column;align-items:center;gap:2px";
-    const sw = document.createElement("div"); sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:1px solid var(--line);background:" + hex; sw.title = hex + " — " + T("plate") + " " + (i + 1);
+    const sw = document.createElement("div");
+    const refining = pickMode && pickTarget === i;
+    sw.style.cssText = "width:34px;height:26px;border-radius:5px;border:2px solid " + (refining ? "var(--acc2)" : "var(--line)") + ";background:" + hex + ";cursor:pointer";
+    sw.title = hex + " — " + T("plate") + " " + (i + 1) + " — " + T("click to refine with pipette");
+    sw.onclick = () => {
+      // Active la pipette pour peaufiner cette couleur de plaque
+      pickMode = true;
+      pickTarget = i;
+      // Si pas encore de picks, on part de la palette courante pour pouvoir remplacer un slot
+      if (picksList().length < 2 && cols && cols.length) setPicks(cols.slice());
+      updateCursor();
+      try { renderPick(); } catch(_){}
+      try { renderPalette(); } catch(_){}
+    };
     const ar = document.createElement("div"); ar.style.cssText = "display:flex;gap:2px";
     const mk = (txt, d) => {
       const x = document.createElement("button"); x.type = "button"; x.textContent = txt; x.style.cssText = "padding:0 5px;font-size:11px;line-height:16px";
