@@ -1118,6 +1118,12 @@ TRANSLATIONS = {
         "fr": "Position du job sur le plateau", "en": "Job Position on the Bed",
         "de": "Position des Jobs auf der Arbeitsfläche", "es": "Posición del trabajo en la mesa",
     },
+    "ui.job_offset_in_image_tab": {
+        "fr": "Le décalage (Offset X / Y) se règle dans l'onglet « Graver une image ».",
+        "en": "The offset (Offset X / Y) is set in the \"Engrave an Image\" tab.",
+        "de": "Der Versatz (Offset X / Y) wird im Reiter „Bild gravieren“ eingestellt.",
+        "es": "El desplazamiento (Offset X / Y) se ajusta en la pestaña «Grabar una imagen».",
+    },
     "queue.sent_log_title": {
         "fr": "G-Code envoyé", "en": "Sent G-Code", "de": "Gesendeter G-Code", "es": "G-Code enviado",
     },
@@ -3845,10 +3851,10 @@ TRANSLATIONS = {
         "es": "Posición no válida (Sobrebarrido)",
     },
     "gen.overscan_body": {
-        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (cadre « {tab_dims} » du panneau machine) ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
-        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset (\"{tab_dims}\" box of the machine panel) or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
-        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhe den X-Versatz (Rahmen „{tab_dims}“ im Maschinenbereich) oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
-        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (recuadro «{tab_dims}» del panel de la máquina) o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
+        "fr": "Avec le surbalayage actuel ({overscan:.2f} mm) et le décalage X configuré ({offset:.2f} mm), le point de départ calculé serait à X={start:.2f} mm — une position NÉGATIVE, impossible pour la machine.\n\nAugmente le décalage X (onglet '{tab_dims}') ou réduis la distance de surbalayage (menu '{tab_grbl}') avant de générer.",
+        "en": "With the current overscan ({overscan:.2f} mm) and the configured X offset ({offset:.2f} mm), the calculated start point would be at X={start:.2f} mm — a NEGATIVE position, impossible for the machine.\n\nIncrease the X offset ('{tab_dims}' tab) or reduce the overscan distance ('{tab_grbl}' menu) before generating.",
+        "de": "Mit dem aktuellen Overscan ({overscan:.2f} mm) und dem eingestellten X-Versatz ({offset:.2f} mm) läge der berechnete Startpunkt bei X={start:.2f} mm — eine NEGATIVE Position, für die Maschine unmöglich.\n\nErhöhe den X-Versatz (Tab '{tab_dims}') oder verringere den Overscan-Abstand (Menü '{tab_grbl}'), bevor du generierst.",
+        "es": "Con el sobrebarrido actual ({overscan:.2f} mm) y el desplazamiento X configurado ({offset:.2f} mm), el punto de inicio calculado estaría en X={start:.2f} mm — una posición NEGATIVA, imposible para la máquina.\n\nAumenta el desplazamiento X (pestaña '{tab_dims}') o reduce la distancia de sobrebarrido (menú '{tab_grbl}') antes de generar.",
     },
     "gen.overscan_vec_title": {
         "fr": "Position invalide (Surbalayage — calque vectoriel)",

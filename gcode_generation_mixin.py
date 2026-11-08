@@ -521,7 +521,7 @@ class GcodeGenerationMixin:
                     tr("gen.overscan_body").format(
                         overscan=overscan_check, offset=params['offset_x'],
                         start=base_x_check - overscan_check,
-                        tab_dims=tr("ui.job_position_box"), tab_grbl=tr("tab.grbl_config"),
+                        tab_dims=tr("ui.tab_image_tracing"), tab_grbl=tr("tab.grbl_config"),
                     )
                 )
                 return
