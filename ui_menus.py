@@ -21,8 +21,8 @@ from app_utils import APP_VERSION, find_resource
 from i18n import SUPPORTED_LANGUAGES, get_current_language, set_language, tr
 from stencil_studio.studio_dialog import open_stencil_studio
 from ui_buy_me_a_coffee_dialog import show_buy_me_a_coffee_dialog
-from ui_support_dialog import show_support_dialog
 from ui.about import AboutDialog
+from ui.support import SupportDialog
 
 
 class MenusMixin:
@@ -251,7 +251,7 @@ class MenusMixin:
         action_support = menu_aide.addAction(
             std_icon(QIcon.ThemeIcon.MailMessageNew), tr("menu.help.support")
         )
-        action_support.triggered.connect(lambda: show_support_dialog(self))
+        action_support.triggered.connect(lambda: SupportDialog(self).exec())
         # Buy me a coffee : même logo que le bouton de soutien
         # (_build_support_button).
         coffee_path = find_resource("buy_me_a_coffee.png")

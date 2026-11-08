@@ -90,7 +90,8 @@ laser-studio-pro/
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
-├── ui_support_dialog.py / ui_buy_me_a_coffee_dialog.py / ui_about_dialog.py
+├── ui_buy_me_a_coffee_dialog.py
+├── ui/about/ / ui/support/          # boîtes « À propos » et « Support » (classes)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
