@@ -172,6 +172,14 @@ class CommandsLockTests(unittest.TestCase):
             self.assertTrue(panel.dro_panel.isEnabled())
             self.assertTrue(box.isEnabled())
 
+    def test_progress_bar_shows_the_engraving_percentage(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from PyQt6.QtWidgets import QGroupBox
+        panel = MachinePanel(QGroupBox("Position"), 6000)
+        self.addCleanup(panel.deleteLater)
+        panel.progress_bar.setValue(42)
+        self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
+
     def test_layout_position_jog_job_actions_dro(self):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]

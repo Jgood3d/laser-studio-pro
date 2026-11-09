@@ -1,5 +1,5 @@
 """Construction de l'interface graphique : layout principal et onglets."""
-from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QTabWidget, QLineEdit, QProgressBar, QDialog, QScrollArea, QSplitter)
+from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QTabWidget, QLineEdit, QDialog, QScrollArea, QSplitter)
 from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QDesktopServices
 from PIL import Image
@@ -12,8 +12,6 @@ from app_constants import KOFI_URL
 from ui.machine import MachinePanel
 from ui.statusbar import StatusBar
 from settings_window import SettingsWindow
-from widgets_extra import (
-    AutoHideLabel)
 
 
 class UiSetupMixin:
@@ -588,16 +586,6 @@ class UiSetupMixin:
         align_box.setStyleSheet("QGroupBox { padding-top: 8px; margin-top: 4px; }")
         layout_vector_editor.addWidget(align_box)
 
-        gen_progress_row_vector = QHBoxLayout()
-        self.lbl_gen_progress_vector = AutoHideLabel("")
-        self.gen_progress_bar_vector = QProgressBar()
-        self.gen_progress_bar_vector.setRange(0, 100)
-        self.gen_progress_bar_vector.setValue(0)
-        self.gen_progress_bar_vector.setVisible(False)
-        self.gen_progress_bar_vector.setMaximumHeight(16)
-        gen_progress_row_vector.addWidget(self.lbl_gen_progress_vector)
-        gen_progress_row_vector.addWidget(self.gen_progress_bar_vector)
-        layout_vector_editor.addLayout(gen_progress_row_vector)
 
         self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant

@@ -2815,6 +2815,12 @@ TRANSLATIONS = {
         "de": "GRBL-Direktbefehls-Konsole",
         "es": "Consola de comandos directos GRBL",
     },
+    "ui.burn_progress": {
+        "fr": "Gravure : {pct}%",
+        "en": "Engraving: {pct}%",
+        "de": "Gravur: {pct}%",
+        "es": "Grabado: {pct}%",
+    },
     "ui.manual_grbl_placeholder": {
         "fr": "Tape une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)",
         "en": "Type a GRBL command ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ for history)",

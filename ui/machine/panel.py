@@ -3,6 +3,7 @@
 from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import QHBoxLayout, QProgressBar, QVBoxLayout, QWidget
 
+from i18n import tr
 from ui.machine.console import DirectConsolePanel
 from ui.machine.controls import JogControlPanel
 from ui.machine.dro import DroPanel
@@ -13,7 +14,7 @@ class MachinePanel(QWidget):
     """Assemble les panneaux de la machine, sous les onglets.
 
     Une rangée de quatre cadres (position du job, pilotage, actions de job,
-    DRO), puis la barre de progression du job et la console directe.
+    DRO), puis la progression de la gravure et la console directe.
 
     Il ne pilote pas la machine, et n'a pas de signaux à lui : chaque
     sous-panneau émet les siens, auxquels la fenêtre (plus tard un
@@ -34,8 +35,7 @@ class MachinePanel(QWidget):
         self.jog_panel = JogControlPanel(max_speed)
         self.job_actions_panel = JobActionsPanel()
         self.dro_panel = DroPanel()
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setValue(0)
+        self.progress_bar = self._progress_bar()
         self.console_panel = DirectConsolePanel()
 
         layout = QVBoxLayout(self)
@@ -82,6 +82,19 @@ class MachinePanel(QWidget):
         machine_row.addWidget(self.job_actions_panel, 0)
         machine_row.addWidget(self.dro_panel, 1)
         return machine_row
+
+    @staticmethod
+    def _progress_bar():
+        """Progression de la gravure en cours, ex. « Gravure : 42% ».
+
+        La fenêtre la fait avancer au fil des lignes de G-Code acquittées par
+        le graveur ; elle reste à 100 % une fois le job terminé.
+        """
+        bar = QProgressBar()
+        # %p : pourcentage, remplacé par Qt.
+        bar.setFormat(tr("ui.burn_progress").format(pct="%p"))
+        bar.setValue(0)
+        return bar
 
     @staticmethod
     def _fit_box_width(box, content_px=0):

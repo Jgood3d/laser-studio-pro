@@ -1,7 +1,7 @@
 """Génération, aperçu, estimation et export du G-Code."""
 import re
 from PyQt6.QtWidgets import (QFileDialog, QMessageBox)
-from PyQt6.QtCore import Qt, QThread, QTimer, QRectF
+from PyQt6.QtCore import Qt, QThread, QRectF
 import pyqtgraph as pg
 import numpy as np
 from PIL import Image
@@ -441,8 +441,6 @@ class GcodeGenerationMixin:
         except Exception as e:
             import traceback
             error_text = f"{e}\n\n{traceback.format_exc()}"
-            self.gen_progress_bar.setVisible(False)
-            self.gen_progress_bar_vector.setVisible(False)
             self.statusBar().hide_progress()
             self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
             QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
@@ -588,31 +586,17 @@ class GcodeGenerationMixin:
         self.worker.finished.connect(self.on_gcode_generated)
         self.worker.progress.connect(self.on_gcode_generation_progress)
         self.worker.error.connect(self.on_gcode_generation_error)
-        self.gen_progress_bar.setValue(0)
-        self.gen_progress_bar.setVisible(True)
-        self.lbl_gen_progress.setText(tr("gen.in_progress"))
-        self.gen_progress_bar_vector.setValue(0)
-        self.gen_progress_bar_vector.setVisible(True)
-        self.lbl_gen_progress_vector.setText(tr("gen.in_progress"))
         self.statusBar().show_progress(0, tr("gen.in_progress"))
         # On montre l'aperçu dès le lancement (il se remplit à la fin, voir on_gcode_generated).
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.worker.start()
 
     def on_gcode_generation_error(self, error_text):
-        self.gen_progress_bar.setVisible(False)
-        self.lbl_gen_progress.setText("")
-        self.gen_progress_bar_vector.setVisible(False)
-        self.lbl_gen_progress_vector.setText("")
         self.statusBar().hide_progress()
         self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
     def on_gcode_generation_progress(self, pct):
-        self.gen_progress_bar.setValue(pct)
-        self.lbl_gen_progress.setText(tr("gen.in_progress_pct").format(pct=pct))
-        self.gen_progress_bar_vector.setValue(pct)
-        self.lbl_gen_progress_vector.setText(tr("gen.in_progress_pct").format(pct=pct))
         self.statusBar().show_progress(pct, tr("gen.in_progress_pct").format(pct=pct))
 
     def generate_test_matrix(self):
@@ -725,12 +709,6 @@ class GcodeGenerationMixin:
             pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
 
     def on_gcode_generated(self, gcode_str, num_lines, avg_power, time_str):
-        self.gen_progress_bar.setValue(100)
-        self.lbl_gen_progress.setText(tr("gen.done"))
-        QTimer.singleShot(1500, lambda: (self.gen_progress_bar.setVisible(False), self.lbl_gen_progress.setText("")))
-        self.gen_progress_bar_vector.setValue(100)
-        self.lbl_gen_progress_vector.setText(tr("gen.done"))
-        QTimer.singleShot(1500, lambda: (self.gen_progress_bar_vector.setVisible(False), self.lbl_gen_progress_vector.setText("")))
         self.statusBar().show_progress(100, tr("gen.done"))
         self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)
