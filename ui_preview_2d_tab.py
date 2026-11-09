@@ -45,7 +45,6 @@ class Preview2DTabMixin:
                 self.chk_hide_rapid_moves,
                 self.chk_optimize_path,
             ],
-            right_widgets=[self._build_support_button()],
         )
         layout_vector_2d.addWidget(toolbar_vector_2d)
 

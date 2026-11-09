@@ -1,17 +1,25 @@
 """Barre d'outils principale, sous le menu."""
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QComboBox, QPushButton, QToolBar
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QPushButton,
+    QSizePolicy,
+    QToolBar,
+    QWidget,
+)
 
 from i18n import tr
+from ui.buy_me_a_coffee import BuyMeACoffeeButton
 
 
 class AppToolBar(QToolBar):
     """Barre d'outils : raccourcis du menu, image, G-code et connexion.
 
     Elle reprend les actions de AppActions (mêmes icône, libellé, raccourci
-    et état que dans le menu) et y ajoute deux widgets : le bouton
-    « Générer le G-code » et la liste des ports du graveur (ports_combo).
+    et état que dans le menu) et y ajoute des widgets : le bouton
+    « Générer le G-code », la liste des ports du graveur (ports_combo) et,
+    tout à droite, le bouton de soutien ko-fi.
     """
 
     def __init__(self, actions, parent=None):
@@ -55,6 +63,18 @@ class AppToolBar(QToolBar):
         self.widgetForAction(actions.connection).setToolButtonStyle(
             Qt.ToolButtonStyle.ToolButtonTextBesideIcon
         )
+        # Soutien du projet, aligné à droite.
+        self.addWidget(self._spacer())
+        self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))
+
+    @staticmethod
+    def _spacer():
+        """Espace extensible : pousse les widgets suivants à droite."""
+        spacer = QWidget()
+        spacer.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
+        return spacer
 
     @staticmethod
     def _generate_button(actions):

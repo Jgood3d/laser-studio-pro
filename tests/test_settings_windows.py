@@ -44,6 +44,17 @@ class AppMenusTests(unittest.TestCase):
         signal.connect(lambda *args: received.append(args))
         return received
 
+    def test_kofi_button_is_the_last_widget_of_the_toolbar(self):
+        from unittest import mock
+        from ui.buy_me_a_coffee import BuyMeACoffeeButton
+        from ui.buy_me_a_coffee import button as button_module
+        last = self.toolbar.widgetForAction(self.toolbar.actions()[-1])
+        self.assertIsInstance(last, BuyMeACoffeeButton)
+        self.assertEqual(last.toolTip(), self.tr("ui.support_button_tooltip"))
+        with mock.patch.object(button_module.QDesktopServices, "openUrl") as open_url:
+            last.click()
+        self.assertEqual(open_url.call_args[0][0].toString(), button_module.KOFI_URL)
+
     def test_menu_bar_order_is_file_settings_tools_help(self):
         tr = self.tr
         self.assertEqual(self.texts(self.menu_bar),

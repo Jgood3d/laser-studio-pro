@@ -4,14 +4,12 @@ L'assemblage de la fenêtre (init_ui) est dans main_window.py ; ce contenu
 partira peu à peu dans ui/tabs/, un onglet à la fois.
 """
 from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox)
-from PyQt6.QtCore import Qt, QSize, QUrl
-from PyQt6.QtGui import QIcon, QDesktopServices
+from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon
 from vector_layers import (
     LayerManagerWidget, VectorCanvasView
 )
-from app_utils import find_resource
 from i18n import tr
-from app_constants import KOFI_URL
 
 
 class UiSetupMixin:
@@ -47,26 +45,6 @@ class UiSetupMixin:
         """Icône « plein écran » standard du thème (repli : bouton d'agrandissement de Qt)."""
         return QIcon.fromTheme(QIcon.ThemeIcon.ViewFullscreen,
                                self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
-
-    def _build_support_button(self, icon_size=40, button_size=44):
-        btn = QPushButton()
-        btn.setFlat(True)
-        btn.setFixedSize(button_size, button_size)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setToolTip(tr("ui.support_button_tooltip"))
-        btn.setStyleSheet(
-            "QPushButton { border: none; border-radius: %dpx; background-color: transparent; }"
-            "QPushButton:hover { background-color: rgba(255, 221, 0, 45); }"
-            % (button_size // 2)
-        )
-        icon_path = find_resource("buy_me_a_coffee.png")
-        if icon_path:
-            btn.setIcon(QIcon(icon_path))
-            btn.setIconSize(QSize(icon_size, icon_size))
-        else:
-            btn.setText("☕")
-        btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(KOFI_URL)))
-        return btn
 
     def _image_tab_kind(self):
         """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
