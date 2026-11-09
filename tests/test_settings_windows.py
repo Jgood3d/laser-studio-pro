@@ -276,7 +276,7 @@ class ShowWindowTests(unittest.TestCase):
 
     def make(self, with_pages=True):
         cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
-        cls = type("Window", (cls, importlib.import_module("ui_menus").MenusMixin), {})
+        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin), {})
         obj = cls.__new__(cls)
         if with_pages:
             obj.tab_machine_profiles = object()

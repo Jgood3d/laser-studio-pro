@@ -31,7 +31,7 @@ main.py
         │  Hérite de tous les mixins :
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    assemblage + éditeur vectoriel
-        ├─ MenusMixin            (ui_menus.py)          abonnement au menu (ui/app/menu/), thème
+        ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
@@ -85,7 +85,7 @@ laser-studio-pro/
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
 ├── ui_setup_mixin.py
-├── ui_menus.py / ui_machine_panel.py / ui_legacy_svg_box.py
+├── ui_window_controller.py / ui_machine_panel.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
@@ -137,7 +137,7 @@ laser-studio-pro/
 | **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers | Tous les mixins |
 | **ui_setup_mixin.py** | Assemblage de la fenêtre (`init_ui` appelle les `_build_*`), onglet éditeur vectoriel (boutons dessin / mesure / explode / nœuds), plein écran, drag&drop | `vector_layers`, `settings_window` |
 | **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports et « Générer ») ne font que les ranger | — |
-| **ui_menus.py** | Côté fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
+| **ui_window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
@@ -202,7 +202,7 @@ main.py
   ├─ app_theme.apply_app_theme
   ├─ icons/breeze  (QIcon theme)
   └─ FullLaserStudio
-        ├─ MenusMixin ──► menu thème ──► change_theme ──► app_theme
+        ├─ WindowControllerMixin ──► menu thème ──► change_theme ──► app_theme
         │                 └─► open_stencil_studio ──► studio_dialog
         │                        (theme_for_lsp / sync_theme_from_lsp)
         ├─ VectorEditingMixin ──► VectorCanvasView (vector_layers)
@@ -290,7 +290,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui_menus.py ui_image_tab.py
+python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui_window_controller.py ui_image_tab.py
 ```
 
 ---

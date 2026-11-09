@@ -1,4 +1,10 @@
-"""Menu et barre d'outils, côté fenêtre : abonnements et actions."""
+"""Contrôleur de la fenêtre : reçoit les demandes de l'interface et agit.
+
+Il abonne la fenêtre aux signaux du menu et de la barre d'outils
+(ui/app/menu/), et regroupe ce qui agit sur toute la fenêtre : thème,
+langue, onglets annexes, état de la connexion. Il deviendra un vrai
+contrôleur, séparé de la fenêtre.
+"""
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QSettings, Qt
@@ -10,7 +16,7 @@ from ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from ui.support import SupportDialog
 
 
-class MenusMixin:
+class WindowControllerMixin:
     def change_theme(self, theme_name):
         """Bascule de thème à la volée et mémorise le code.
 

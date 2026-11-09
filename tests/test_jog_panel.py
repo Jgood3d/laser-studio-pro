@@ -12,7 +12,7 @@ try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from laser_control_mixin import LaserControlMixin
     from ui.machine.controls import JogControlPanel
-    from ui_menus import MenusMixin
+    from ui_window_controller import WindowControllerMixin
     from app_constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
     from i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
@@ -142,10 +142,10 @@ class _Box:
         self.enabled = value
 
 
-@unittest.skipIf(JogControlPanel is None, "ui_menus non importable ici")
+@unittest.skipIf(JogControlPanel is None, "ui_window_controller non importable ici")
 class CommandsLockTests(unittest.TestCase):
     def make(self, connected):
-        class Fake(MenusMixin):
+        class Fake(WindowControllerMixin):
             pass
         f = Fake.__new__(Fake)
         f.usb = type("U", (), {"is_connected": lambda self: connected})()
