@@ -1,5 +1,5 @@
 """Construction de l'interface graphique : layout principal et onglets."""
-from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QTabWidget, QLineEdit, QProgressBar, QDialog)
+from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox, QTabWidget, QLineEdit, QProgressBar, QDialog, QScrollArea, QSplitter)
 from PyQt6.QtCore import Qt, QSettings, QSize, QUrl, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon, QDesktopServices
 from PIL import Image
@@ -9,6 +9,7 @@ from vector_layers import (
 from app_utils import find_resource
 from i18n import tr
 from app_constants import KOFI_URL
+from ui.machine import MachinePanel
 from ui.statusbar import StatusBar
 from settings_window import SettingsWindow
 from widgets_extra import (
@@ -360,6 +361,59 @@ class UiSetupMixin:
         self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
 
         main_layout.addWidget(center_widget)
+
+    def _build_machine_panel(self):
+        """Panneau machine sous les onglets, abonné à la logique de la machine.
+
+        Les sous-panneaux émettent les demandes de l'utilisateur ; la fenêtre
+        les transmet aux méthodes de LaserControlMixin. La vitesse maximale
+        du graveur (`spin_machine_max_speed`, qui doit déjà exister) borne le
+        curseur de vitesse du pilotage. Renvoie la zone de défilement qui
+        contient le panneau, placée sous les onglets dans `center_v_splitter`.
+        """
+        self.machine_panel = MachinePanel(
+            self.job_position_box, self.spin_machine_max_speed.value()
+        )
+        jog = self.machine_panel.jog_panel
+        jog.jog_requested.connect(self.jog_move)
+        jog.home_requested.connect(self.send_homing)
+        jog.pause_requested.connect(self.send_pause)
+        jog.resume_requested.connect(self.send_resume)
+        jog.reset_requested.connect(self.send_reset)
+        jog.emergency_stop_requested.connect(self.send_kill)
+        jog.send_job_requested.connect(self.send_to_laser)
+        self.spin_machine_max_speed.valueChanged.connect(jog.set_max_speed)
+
+        job_actions = self.machine_panel.job_actions_panel
+        job_actions.frame_requested.connect(self.run_frame)
+        job_actions.set_work_zero_requested.connect(self.set_work_zero)
+        job_actions.go_to_work_zero_requested.connect(self.go_to_work_zero)
+        job_actions.repeat_job_requested.connect(self.repeat_last_job)
+
+        self.machine_panel.dro_panel.unlock_requested.connect(
+            self.unlock_alarm
+        )
+        self.machine_panel.console_panel.command_submitted.connect(
+            self.send_manual_cmd
+        )
+        # Commandes verrouillées tant que non connecté
+        self.update_connection_widgets()
+
+        self.main_tabs_view.setMinimumHeight(150)
+        # Le panneau machine (DRO, jog, console directe) demande ~400 px.
+        # Réduit plus bas avec le séparateur, il défile au lieu d'écraser ses
+        # cadres jusqu'à n'en laisser que les titres.
+        center_bottom_scroll = QScrollArea()
+        center_bottom_scroll.setWidget(self.machine_panel)
+        center_bottom_scroll.setWidgetResizable(True)
+        center_bottom_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        center_bottom_scroll.setMinimumHeight(100)
+        self.center_v_splitter = QSplitter(Qt.Orientation.Vertical)
+        self.center_v_splitter.addWidget(self.main_tabs_view)
+        self.center_v_splitter.addWidget(center_bottom_scroll)
+        self.center_v_splitter.setStretchFactor(0, 3)
+        self.center_v_splitter.setStretchFactor(1, 1)
+        return center_bottom_scroll
 
     def _build_layers_tab(self, layout_machine_params):
         """Onglet des calques ; le cadre laser va dans `layout_machine_params`."""

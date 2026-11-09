@@ -201,7 +201,7 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()
-        self.assertIn("center_bottom_scroll.setWidget(center_bottom_widget)", src)
+        self.assertIn("center_bottom_scroll.setWidget(self.machine_panel)", src)
         self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
         self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
 

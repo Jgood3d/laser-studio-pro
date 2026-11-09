@@ -128,10 +128,10 @@ class LaserControlMixin:
 
     def _update_dro_display(self, state, x, y, z):
         """Transmet l'état et la position au DRO (DroPanel.set_status)."""
-        panel = getattr(self, "dro_panel", None)
-        if panel is None:
+        machine_panel = getattr(self, "machine_panel", None)
+        if machine_panel is None:
             return
-        panel.set_status(state, x, y, z)
+        machine_panel.dro_panel.set_status(state, x, y, z)
         # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
         if state is None and hasattr(self, "gcode_position_marker"):
             self.gcode_position_marker.setData([], [])
@@ -384,8 +384,8 @@ class LaserControlMixin:
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        self.jog_panel.set_send_enabled(False)
-        self.progress_bar.setValue(0)
+        self.machine_panel.jog_panel.set_send_enabled(False)
+        self.machine_panel.progress_bar.setValue(0)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.pause()
         # Mémorisé pour "Répéter le dernier job" (voir repeat_last_job) —
@@ -394,8 +394,8 @@ class LaserControlMixin:
         # fois, même si la console a changé depuis (nouvelle génération,
         # import...).
         self._last_sent_gcode = gcode_text
-        if hasattr(self, "job_actions_panel"):
-            self.job_actions_panel.set_repeat_enabled(True)
+        if hasattr(self, "machine_panel"):
+            self.machine_panel.job_actions_panel.set_repeat_enabled(True)
         if hasattr(self, "txt_sent_gcode"):
             self.txt_sent_gcode.clear()
             self._append_sent_gcode([tr("queue.sent_log_direct")])
@@ -404,7 +404,7 @@ class LaserControlMixin:
         self._connect_burn_overlay(self.streamer)
         if hasattr(self, "_append_sent_gcode"):
             self.streamer.lines_sent.connect(self._append_sent_gcode)
-        self.streamer.progress.connect(lambda current, total: self.progress_bar.setValue(int((current / total) * 100)))
+        self.streamer.progress.connect(lambda current, total: self.machine_panel.progress_bar.setValue(int((current / total) * 100)))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self.on_stream_finished)
@@ -486,7 +486,7 @@ class LaserControlMixin:
         self._check_position_after_stream()
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
-        self.jog_panel.set_send_enabled(True)
+        self.machine_panel.jog_panel.set_send_enabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()
         self._notify_job_finished()

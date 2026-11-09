@@ -136,10 +136,9 @@ class WindowControllerMixin:
         # Pilotage, actions de job et console directe : verrouillés tant que
         # le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
-        for name in ("jog_panel", "job_actions_panel", "console_panel"):
-            panel = getattr(self, name, None)
-            if panel is not None:
-                panel.set_connected(connected)
+        machine_panel = getattr(self, "machine_panel", None)
+        if machine_panel is not None:
+            machine_panel.set_connected(connected)
 
     def _on_language_selected(self, lang_code):
         set_language(lang_code)

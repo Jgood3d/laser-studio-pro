@@ -14,7 +14,6 @@ from ui_grbl_config_page import GrblConfigPageMixin
 from ui_image_tab import ImageTabMixin
 from ui_preview_2d_tab import Preview2DTabMixin
 from ui_job_tabs import JobTabsMixin
-from ui_machine_panel import MachinePanelMixin
 from ui_legacy_svg_box import LegacySvgBoxMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
@@ -30,7 +29,7 @@ from separation_mixin import SeparationMixin
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineParamsPageMixin, MachineProfilesPageMixin,
                        TestMatrixPageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
-                       MachinePanelMixin, LegacySvgBoxMixin, MachineProfilesMixin,
+                       LegacySvgBoxMixin, MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
                        JobQueueMixin, Png2SvgMixin, SeparationMixin):
