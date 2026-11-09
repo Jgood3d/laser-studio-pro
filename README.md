@@ -144,7 +144,7 @@ python main.py
 - `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
 - `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
 - `ui_machine_panel.py` — panneau machine sous les onglets (DRO, jog, console directe)
-- `ui_status_bar.py` — barre d’état
+- `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)

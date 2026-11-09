@@ -9,6 +9,7 @@ from vector_layers import (
 from app_utils import find_resource
 from i18n import tr
 from app_constants import KOFI_URL
+from ui.statusbar import StatusBar
 from settings_window import SettingsWindow
 from widgets_extra import (
     AutoHideLabel)
@@ -238,6 +239,10 @@ class UiSetupMixin:
         dialog.show()
         dialog.setWindowState(Qt.WindowState.WindowMaximized)
 
+    def show_status_message(self, text, tooltip=None):
+        """Raccourci vers StatusBar.show_info, utilisé par les mixins et Stencil Studio."""
+        self.statusBar().show_info(text, tooltip)
+
     def closeEvent(self, event):
         if hasattr(self, "_stop_status_poll"):
             self._stop_status_poll()
@@ -311,7 +316,7 @@ class UiSetupMixin:
         self._build_grbl_config_page()
         self._build_layers_tab(layout_machine_params)
         self._build_legacy_svg_box()
-        self._build_status_bar()
+        self.setStatusBar(StatusBar(self))
 
         self._last_gcode_text = None
 

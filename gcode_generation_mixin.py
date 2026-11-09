@@ -443,7 +443,7 @@ class GcodeGenerationMixin:
             error_text = f"{e}\n\n{traceback.format_exc()}"
             self.gen_progress_bar.setVisible(False)
             self.gen_progress_bar_vector.setVisible(False)
-            self.gen_progress_bar_main.setVisible(False)
+            self.statusBar().hide_progress()
             self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
             QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
 
@@ -594,9 +594,7 @@ class GcodeGenerationMixin:
         self.gen_progress_bar_vector.setValue(0)
         self.gen_progress_bar_vector.setVisible(True)
         self.lbl_gen_progress_vector.setText(tr("gen.in_progress"))
-        self.gen_progress_bar_main.setValue(0)
-        self.gen_progress_bar_main.setVisible(True)
-        self.lbl_gen_progress_main.setText(tr("gen.in_progress"))
+        self.statusBar().show_progress(0, tr("gen.in_progress"))
         # On montre l'aperçu dès le lancement (il se remplit à la fin, voir on_gcode_generated).
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.worker.start()
@@ -606,8 +604,7 @@ class GcodeGenerationMixin:
         self.lbl_gen_progress.setText("")
         self.gen_progress_bar_vector.setVisible(False)
         self.lbl_gen_progress_vector.setText("")
-        self.gen_progress_bar_main.setVisible(False)
-        self.lbl_gen_progress_main.setText("")
+        self.statusBar().hide_progress()
         self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
@@ -616,8 +613,7 @@ class GcodeGenerationMixin:
         self.lbl_gen_progress.setText(tr("gen.in_progress_pct").format(pct=pct))
         self.gen_progress_bar_vector.setValue(pct)
         self.lbl_gen_progress_vector.setText(tr("gen.in_progress_pct").format(pct=pct))
-        self.gen_progress_bar_main.setValue(pct)
-        self.lbl_gen_progress_main.setText(tr("gen.in_progress_pct").format(pct=pct))
+        self.statusBar().show_progress(pct, tr("gen.in_progress_pct").format(pct=pct))
 
     def generate_test_matrix(self):
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
@@ -735,9 +731,8 @@ class GcodeGenerationMixin:
         self.gen_progress_bar_vector.setValue(100)
         self.lbl_gen_progress_vector.setText(tr("gen.done"))
         QTimer.singleShot(1500, lambda: (self.gen_progress_bar_vector.setVisible(False), self.lbl_gen_progress_vector.setText("")))
-        self.gen_progress_bar_main.setValue(100)
-        self.lbl_gen_progress_main.setText(tr("gen.done"))
-        QTimer.singleShot(1500, lambda: (self.gen_progress_bar_main.setVisible(False), self.lbl_gen_progress_main.setText("")))
+        self.statusBar().show_progress(100, tr("gen.done"))
+        self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)
         self.lbl_stat_lines.setText(tr("gen.stat_lines").format(n=num_lines))
         self.lbl_stat_power.setText(tr("gen.stat_power").format(value=f"{avg_power:.1f}"))

@@ -49,7 +49,8 @@ UI_CTORS = {"QLabel", "QPushButton", "QCheckBox", "QGroupBox", "QRadioButton", "
             "QToolButton", "AutoHideLabel"}
 UI_METHODS = {"setText", "setToolTip", "setWindowTitle", "setPlaceholderText", "addItem", "addItems",
               "addTab", "setTitle", "setStatusTip", "setLabelText", "setInformativeText", "addAction",
-              "addMenu", "showMessage", "show_status_message"}
+              "addMenu", "showMessage", "show_status_message",
+              "show_info", "show_progress"}
 MSGBOX = {"warning", "critical", "information", "question", "about"}
 
 
