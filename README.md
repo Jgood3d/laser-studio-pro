@@ -134,8 +134,8 @@ python main.py
 - `i18n.py` — système de traduction multilingue
 
 ### Fenêtre principale découpée en mixins
-- `main_window.py` — assemblage de la fenêtre principale
-- `ui_setup_mixin.py` — assemblage de l’interface (`init_ui`), outils communs aux onglets, fermeture de la fenêtre
+- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
+- `ui_setup_mixin.py` — contenu des onglets : éditeur vectoriel, calques, barres d’outils d’onglet (partira dans `ui/tabs/`)
 - `ui_machine_params_page.py` — page « Paramètres du graveur »
 - `ui_machine_profiles_page.py` — page « Matériaux et connexion au graveur »
 - `ui_test_matrix_page.py` — page « Matrice de test »
