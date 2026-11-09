@@ -497,10 +497,11 @@ class MenusMixin:
         # Pilotage, actions de job et console directe : verrouillés tant que
         # le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
-        panel = getattr(self, "jog_panel", None)
-        if panel is not None:
-            panel.set_connected(connected)
-        for name in ("job_actions_box", "direct_console_box"):
+        for name in ("jog_panel", "job_actions_panel"):
+            panel = getattr(self, name, None)
+            if panel is not None:
+                panel.set_connected(connected)
+        for name in ("direct_console_box",):
             box = getattr(self, name, None)
             if box is not None:
                 box.setEnabled(connected)

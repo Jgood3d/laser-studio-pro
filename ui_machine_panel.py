@@ -15,6 +15,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QFontMetrics
 from i18n import tr
 from ui.machine.controls import JogControlPanel
+from ui.machine.job_actions import JobActionsPanel
 from widgets_extra import HistoryLineEdit
 
 
@@ -49,6 +50,15 @@ class MachinePanelMixin:
         panel.emergency_stop_requested.connect(self.send_kill)
         panel.send_job_requested.connect(self.send_to_laser)
         self.spin_machine_max_speed.valueChanged.connect(panel.set_max_speed)
+        return panel
+
+    def _build_job_actions_panel(self):
+        """Panneau des actions de job, abonné à la logique de la machine."""
+        panel = JobActionsPanel()
+        panel.frame_requested.connect(self.run_frame)
+        panel.set_work_zero_requested.connect(self.set_work_zero)
+        panel.go_to_work_zero_requested.connect(self.go_to_work_zero)
+        panel.repeat_job_requested.connect(self.repeat_last_job)
         return panel
 
     def _build_machine_panel(self):
@@ -94,7 +104,7 @@ class MachinePanelMixin:
         self._fit_box_width(dro_box, value_px)
 
         self.jog_panel = self._build_jog_panel()
-        self.job_actions_box = self._build_job_actions_box()
+        self.job_actions_panel = self._build_job_actions_panel()
 
         # Quatre parties côte à côte : position du job à gauche, puis le
         # pilotage et les actions de job, et le DRO à droite. Le pilotage et
@@ -103,11 +113,11 @@ class MachinePanelMixin:
         # du job et le DRO, qui sinon serait coupé.
         self._fit_box_width(self.job_position_box)
         self._fit_box_width(self.jog_panel)
-        self._fit_box_width(self.job_actions_box)
+        self._fit_box_width(self.job_actions_panel)
         machine_row = QHBoxLayout()
         machine_row.addWidget(self.job_position_box, 1)
         machine_row.addWidget(self.jog_panel, 0)
-        machine_row.addWidget(self.job_actions_box, 0)
+        machine_row.addWidget(self.job_actions_panel, 0)
         machine_row.addWidget(dro_box, 1)
         center_bottom_layout.addLayout(machine_row)
 

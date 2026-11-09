@@ -35,7 +35,6 @@ main.py
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
-        ├─ JobActionsMixin       (ui_job_actions.py)    actions de job (provisoire)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
@@ -85,7 +84,7 @@ laser-studio-pro/
 ├── debug_log.py / qt_messages.py
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
-├── ui_setup_mixin.py / ui_job_actions.py
+├── ui_setup_mixin.py
 ├── ui_menus.py / ui_machine_panel.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
@@ -94,6 +93,7 @@ laser-studio-pro/
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
+├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -138,7 +138,7 @@ laser-studio-pro/
 | **ui_menus.py** | Menus, barre d'outils principale, **menu thème** (4 thèmes), `change_theme`, ouverture Stencil Studio, sync thème → Studio | `app_theme`, `stencil_studio.studio_dialog` |
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
-| **ui_job_actions.py** | Actions de job (cadrage, zéro, répétition), provisoire | `LaserControlMixin` |
+| **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |

@@ -356,6 +356,20 @@ class LaserControlMixin:
             return
         self._run_commands_async(cmd)
 
+    def set_work_zero(self):
+        """Fixe l'origine de travail à la position actuelle (G92 X0 Y0).
+
+        Abonné au signal JobActionsPanel.set_work_zero_requested.
+        """
+        self.send_manual_direct_cmd("G92 X0 Y0")
+
+    def go_to_work_zero(self):
+        """Ramène la tête à l'origine de travail (G0 X0 Y0).
+
+        Abonné au signal JobActionsPanel.go_to_work_zero_requested.
+        """
+        self.send_manual_direct_cmd("G0 X0 Y0")
+
     def send_to_laser(self):
         gcode_text = self.txt_console.toPlainText()
         log.info("Envoi : clic sur « Envoyer au laser » (port ouvert=%s, homing fait=%s, état %s)",
@@ -401,8 +415,8 @@ class LaserControlMixin:
         # fois, même si la console a changé depuis (nouvelle génération,
         # import...).
         self._last_sent_gcode = gcode_text
-        if hasattr(self, "btn_repeat_last_job"):
-            self.btn_repeat_last_job.setEnabled(True)
+        if hasattr(self, "job_actions_panel"):
+            self.job_actions_panel.set_repeat_enabled(True)
         if hasattr(self, "txt_sent_gcode"):
             self.txt_sent_gcode.clear()
             self._append_sent_gcode([tr("queue.sent_log_direct")])
