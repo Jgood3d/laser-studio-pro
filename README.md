@@ -153,6 +153,8 @@ python main.py
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`)
 - `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux)
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
+- `ui/machine/dro/` — position de la machine `DroPanel` : état GRBL, X / Y / Z, bouton « Déverrouiller » en alarme (émet `unlock_requested`)
+- `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG

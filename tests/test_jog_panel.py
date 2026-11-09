@@ -149,14 +149,14 @@ class CommandsLockTests(unittest.TestCase):
             pass
         f = Fake.__new__(Fake)
         f.usb = type("U", (), {"is_connected": lambda self: connected})()
-        f.jog_panel, f.job_actions_panel, f.direct_console_box = _Box(), _Box(), _Box()
+        f.jog_panel, f.job_actions_panel, f.console_panel = _Box(), _Box(), _Box()
         return f
 
     def test_commands_follow_the_connection(self):
         for connected in (False, True):
             f = self.make(connected)
             f.update_connection_widgets()
-            self.assertEqual((f.jog_panel.enabled, f.job_actions_panel.enabled, f.direct_console_box.enabled),
+            self.assertEqual((f.jog_panel.enabled, f.job_actions_panel.enabled, f.console_panel.enabled),
                              (connected, connected, connected))
 
     def test_layout_position_jog_job_actions_dro(self):
@@ -164,7 +164,7 @@ class CommandsLockTests(unittest.TestCase):
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("center_bottom_layout.addLayout(machine_row)")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
         order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.jog_panel",
-                                        "addWidget(self.job_actions_panel", "addWidget(dro_box")]
+                                        "addWidget(self.job_actions_panel", "addWidget(self.dro_panel")]
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 

@@ -127,35 +127,14 @@ class LaserControlMixin:
             streamer.lines_acked.connect(self.on_lines_acked)
 
     def _update_dro_display(self, state, x, y, z):
-        if not hasattr(self, "lbl_dro_state"):
+        """Transmet l'état et la position au DRO (DroPanel.set_status)."""
+        panel = getattr(self, "dro_panel", None)
+        if panel is None:
             return
-        if state is None:
-            self.lbl_dro_state.setText(tr("ui.dro_state").format(value="—"))
-            self.lbl_dro_x.setText(tr("ui.dro_x").format(value="—"))
-            self.lbl_dro_y.setText(tr("ui.dro_y").format(value="—"))
-            self.lbl_dro_z.setText(tr("ui.dro_z").format(value="—"))
-            if hasattr(self, "btn_unlock_alarm"):
-                self.btn_unlock_alarm.setVisible(False)
-            # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
-            if hasattr(self, "gcode_position_marker"):
-                self.gcode_position_marker.setData([], [])
-            return
-        self.lbl_dro_state.setText(tr("ui.dro_state").format(value=state))
-        self.lbl_dro_x.setText(tr("ui.dro_x").format(value=f"{x:.3f}"))
-        self.lbl_dro_y.setText(tr("ui.dro_y").format(value=f"{y:.3f}"))
-        self.lbl_dro_z.setText(tr("ui.dro_z").format(value=f"{z:.3f}"))
-        if hasattr(self, "btn_unlock_alarm"):
-            # Le bouton apparaît de lui-même dès que l'état Alarm est
-            # détecté (ex : fin de course déclenchée) et disparaît dès que
-            # l'état change — jamais de déverrouillage automatique sans
-            # action volontaire de l'utilisateur, pour rester sûr.
-            self.btn_unlock_alarm.setVisible(state == "Alarm")
-        state_colors = {
-            "Idle": "#2ecc71", "Run": "#3498db", "Hold": "#e67e22",
-            "Alarm": "#e74c3c", "Home": "#9b59b6", "Jog": "#1abc9c",
-        }
-        color = state_colors.get(state, "#cccccc")
-        self.lbl_dro_state.setStyleSheet(f"color: {color}; font-weight: bold;")
+        panel.set_status(state, x, y, z)
+        # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
+        if state is None and hasattr(self, "gcode_position_marker"):
+            self.gcode_position_marker.setData([], [])
 
     def read_grbl_settings(self):
         """Lit l'intégralité de la configuration GRBL ($$) depuis la machine
@@ -558,8 +537,11 @@ class LaserControlMixin:
     def send_kill(self):
         self._soft_reset("laser.kill_log")
 
-    def send_manual_cmd(self):
-        cmd = self.txt_manual_cmd.text().strip()
+    def send_manual_cmd(self, cmd):
+        """Envoie une commande GRBL tapée dans la console directe.
+
+        Abonné au signal DirectConsolePanel.command_submitted.
+        """
         if not cmd:
             return
         if not self.usb.is_connected():
@@ -569,9 +551,7 @@ class LaserControlMixin:
     tr("laser.connect_first")
 )
             return
-        self.txt_manual_cmd.add_to_history(cmd)
         self._run_commands_async(cmd)
-        self.txt_manual_cmd.clear()
 
     def run_frame(self):
         if not self.usb.is_connected():

@@ -95,6 +95,8 @@ laser-studio-pro/
 ├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
+├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
+├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -141,6 +143,8 @@ laser-studio-pro/
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
+| **ui/machine/dro/** | `DroPanel` : état GRBL coloré, position X / Y / Z, « Déverrouiller » visible seulement en alarme. Reçoit l'état par `set_status()`, émet `unlock_requested` | Alimenté par `LaserControlMixin._update_dro_display` |
+| **ui/machine/console/** | `DirectConsolePanel` : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_manual_cmd` |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
