@@ -3,7 +3,7 @@
 L'assemblage de la fenêtre (init_ui) est dans main_window.py ; ce contenu
 partira peu à peu dans ui/tabs/, un onglet à la fois.
 """
-from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QSpinBox, QDoubleSpinBox, QGroupBox, QFormLayout, QMessageBox, QCheckBox)
+from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QDoubleSpinBox, QGroupBox, QMessageBox, QCheckBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
 from vector_layers import (
@@ -104,8 +104,8 @@ class UiSetupMixin:
         else:
             self.separation_clear_image()
 
-    def _build_layers_tab(self, layout_machine_params):
-        """Onglet des calques ; le cadre laser va dans `layout_machine_params`."""
+    def _build_layers_tab(self):
+        """Onglet des calques."""
         tab_layers = QWidget()
         layout_layers = QVBoxLayout(tab_layers)
         self.layer_widget = LayerManagerWidget(
@@ -118,18 +118,6 @@ class UiSetupMixin:
         layout_layers.addWidget(self.layer_widget)
         # Onglet central, entre « Graver une image vectorielle » et la visualisation du G-Code.
         self.tab_layers = tab_layers
-
-        laser_box = QGroupBox(tr("ui.laser_exec_box"))
-        laser_layout = QFormLayout()
-        self.spin_speed_engrave = QSpinBox(laser_box); self.spin_speed_engrave.setRange(10, 20000); self.spin_speed_engrave.setValue(2000)
-        self.spin_power_engrave = QSpinBox(laser_box); self.spin_power_engrave.setValue(30)
-
-        self.combo_engrave_layer = QComboBox()
-        self.combo_engrave_layer.currentIndexChanged.connect(self._on_engrave_layer_selected)
-        laser_layout.addRow(tr("ui.image_layer_label"), self.combo_engrave_layer)
-        laser_box.setLayout(laser_layout)
-        layout_machine_params.insertWidget(layout_machine_params.count() - 1, laser_box)
-        laser_box.setVisible(False)
 
     def _build_vector_editor_tab(self):
         """Onglet « Éditeur vectoriel »."""

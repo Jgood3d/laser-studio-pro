@@ -3177,18 +3177,6 @@ TRANSLATIONS = {
         "de": "Alle {count} Einstellung(en) wurden erfolgreich an die Maschine gesendet.",
         "es": "Los {count} ajuste(s) se enviaron con éxito a la máquina.",
     },
-    "ui.laser_exec_box": {
-        "fr": "Paramètres d'Exécution Laser — Gravure Image",
-        "en": "Laser Execution Settings — Image Engraving",
-        "de": "Laser-Ausführungsparameter — Bildgravur",
-        "es": "Parámetros de ejecución láser — Grabado de imagen",
-    },
-    "ui.image_layer_label": {
-        "fr": "Calque pour la gravure image :",
-        "en": "Layer for image engraving:",
-        "de": "Ebene für Bildgravur:",
-        "es": "Capa para grabado de imagen:",
-    },
     "ui.svg_legacy_title": {
         "fr": "[Ancien mode, déprécié] Découpe SVG globale",
         "en": "[Legacy mode, deprecated] Global SVG Cutting",

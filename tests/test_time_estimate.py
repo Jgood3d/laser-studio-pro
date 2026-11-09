@@ -38,7 +38,7 @@ class TimeEstimateOverscanTests(unittest.TestCase):
         app.processed_array = np.zeros((10, 100), np.uint8) if array is None else array
         # 10 lignes de 100 mm à 600 mm/min : 100 s sans surbalayage.
         app.spin_w, app.spin_h, app.spin_lmm = _Widget(100.0), _Widget(10.0), _Widget(1.0)
-        app.spin_speed_engrave = _Widget(600)
+        app.engrave_speed = 600
         app.chk_overscan = _Widget(checked=enabled)
         app.combo_overscan_mode = _Widget(index=mode_index)       # 0 : distance fixe, 1 : pourcentage
         app.spin_overscan_dist, app.spin_overscan_pct = _Widget(dist), _Widget(pct)

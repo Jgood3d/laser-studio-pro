@@ -70,6 +70,11 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         self._img_last_undo_push_time = 0.0
 
         self.materials_db = dict(DEFAULT_MATERIALS_DB)
+        # Gravure d'une image : vitesse (mm/min) et puissance (%), reprises du
+        # calque de gravure (engrave_layer_id, voir _on_engrave_layer_selected).
+        self.engrave_speed = 2000
+        self.engrave_power = 30
+        self.engrave_layer_id = None
         
         self.process_timer = QTimer()
         self.process_timer.setSingleShot(True)
@@ -87,7 +92,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         self.load_machine_settings()
         self.load_splitter_sizes()
         self.update_vector_work_area()
-        self._refresh_engrave_layer_combo()
+        self._refresh_engrave_layer()
         self.refresh_com_ports()
         # Différé (au lieu d'un appel direct ici) : à ce stade du __init__,
         # la fenêtre n'est pas encore affichée (main.py appelle showMaximized()
@@ -111,12 +116,12 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         # Plus de colonne de gauche : les pages de réglages s'ouvrent dans des fenêtres (menu
         # Paramètres), les réglages de l'image sont dans « Graver une image », la position du job
         # dans le panneau machine. Le centre occupe toute la largeur.
-        layout_machine_params = self._build_machine_params_page()
+        self._build_machine_params_page()
         self._build_image_settings()
         self._build_machine_profiles_page()
         self._build_test_matrix_page()
         self._build_grbl_config_page()
-        self._build_layers_tab(layout_machine_params)
+        self._build_layers_tab()
         self._build_legacy_svg_box()
         self.setStatusBar(StatusBar(self))
 

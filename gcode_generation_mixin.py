@@ -18,6 +18,16 @@ BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
 PREVIEW_MATERIAL_RGB = (225, 225, 225)
 
 
+# Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
+ENGRAVE_SPEED_RANGE = (10, 20000)
+ENGRAVE_POWER_RANGE = (0, 100)
+
+
+def _clamp(value, bounds):
+    low, high = bounds
+    return min(max(int(value), low), high)
+
+
 class GcodeGenerationMixin:
     def export_gcode_with_ext(self, extension):
         gcode_text = self.txt_console.toPlainText()
@@ -248,7 +258,7 @@ class GcodeGenerationMixin:
 
         if self.processed_array is not None:
             w_mm = self.spin_w.value()
-            speed = self.spin_speed_engrave.value()
+            speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
             if self.chk_overscan.isChecked():
@@ -385,8 +395,8 @@ class GcodeGenerationMixin:
             'origin_pos': self.combo_origin.currentText(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
-            'speed_engrave': self.spin_speed_engrave.value(),
-            'power_engrave': self.spin_power_engrave.value(),
+            'speed_engrave': self.engrave_speed,
+            'power_engrave': self.engrave_power,
             'enable_cut': self.chk_enable_cut.isChecked(),
             'speed_cut': self.spin_speed_cut.value(),
             'power_cut': self.spin_power_cut.value(),
@@ -419,8 +429,8 @@ class GcodeGenerationMixin:
             'origin_pos': self.combo_origin.currentText(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
-            'speed_engrave': self.spin_speed_engrave.value(),
-            'power_engrave': self.spin_power_engrave.value(),
+            'speed_engrave': self.engrave_speed,
+            'power_engrave': self.engrave_power,
             's_max': self.spin_smax.value(),
             'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
             'homing': self.chk_homing.isChecked(),
@@ -434,6 +444,15 @@ class GcodeGenerationMixin:
         self.last_test_matrix_params = None
         self.on_gcode_generated(gcode, n_lines, avg_power, time_str)
         QMessageBox.information(self, tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
+
+    def set_engrave_settings(self, speed, power):
+        """Vitesse (mm/min) et puissance (%) de la gravure d'une image.
+
+        Valeurs entières, ramenées dans ENGRAVE_SPEED_RANGE et
+        ENGRAVE_POWER_RANGE.
+        """
+        self.engrave_speed = _clamp(speed, ENGRAVE_SPEED_RANGE)
+        self.engrave_power = _clamp(power, ENGRAVE_POWER_RANGE)
 
     def generate_job(self):
         try:
@@ -465,7 +484,7 @@ class GcodeGenerationMixin:
             return
 
         max_speed_limit = self.spin_machine_max_speed.value()
-        speeds_to_check = [(tr("gen.speed_row_engrave"), self.spin_speed_engrave.value())]
+        speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
         if self.chk_enable_cut.isChecked():
             speeds_to_check.append((tr("gen.speed_row_cut_old"), self.spin_speed_cut.value()))
         for layer in self.layer_manager.layers:
@@ -565,7 +584,7 @@ class GcodeGenerationMixin:
         # Dernier garde-fou avant de générer une gravure image : rappel de la
         # puissance et de la vitesse, comme l'alerte de surbalayage ci-dessus.
         if self.processed_array is not None:
-            layer_label = self.combo_engrave_layer.currentText() if hasattr(self, "combo_engrave_layer") else "—"
+            layer_label = self._engrave_layer_label()
             reply = QMessageBox.question(
                 self, tr("gen.engrave_confirm_title"),
                 tr("gen.engrave_confirm_body").format(
@@ -696,8 +715,7 @@ class GcodeGenerationMixin:
             speed_val = round(float(speeds[row]))
             if mode == "Gravure":
                 power_val = round(float(col_values[col]))
-                self.spin_speed_engrave.setValue(speed_val)
-                self.spin_power_engrave.setValue(power_val)
+                self.set_engrave_settings(speed_val, power_val)
                 self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
             else:
                 passes_val = int(col_values[col])

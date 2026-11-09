@@ -33,65 +33,53 @@ class VectorEditingMixin:
         sender = self.sender()
         if hasattr(self, "layer_widget") and sender is not self.layer_widget:
             self.layer_widget.refresh()
-        self._refresh_engrave_layer_combo()
+        self._refresh_engrave_layer()
         self._on_engrave_layer_selected()
 
-    def _refresh_engrave_layer_combo(self):
-        """Tient à jour la liste déroulante 'Calque pour la gravure image',
-        sans perdre la sélection courante si le calque existe encore."""
-        if not hasattr(self, "combo_engrave_layer"):
+    def _refresh_engrave_layer(self):
+        """Calque de la gravure image (engrave_layer_id) : garde le calque
+        choisi s'il existe encore. Sinon (démarrage, calque supprimé), prend
+        le premier calque en mode gravure, à défaut le premier calque."""
+        if self.layer_manager.get(self.engrave_layer_id) is not None:
             return
-        current_id = self.combo_engrave_layer.currentData()
-        self.combo_engrave_layer.blockSignals(True)
-        self.combo_engrave_layer.clear()
-        for layer in self.layer_manager.layers:
-            self.combo_engrave_layer.addItem(f"{layer.name}  [{layer.mode}]", layer.id)
-        idx = self.combo_engrave_layer.findData(current_id) if current_id else -1
-        if idx < 0:
-            # Pas de sélection (démarrage) ou calque disparu : on propose par
-            # défaut le premier calque en mode gravure, jamais "Découpe".
-            idx = self._first_engrave_layer_index()
-        if idx >= 0:
-            self.combo_engrave_layer.setCurrentIndex(idx)
-        self.combo_engrave_layer.blockSignals(False)
+        layers = self.layer_manager.layers
+        self.engrave_layer_id = self._first_engrave_layer_id() or (layers[0].id if layers else None)
 
-    def _first_engrave_layer_index(self):
-        """Index (dans combo_engrave_layer) du premier calque en mode
-        Gravure Remplie, ou -1 s'il n'y en a aucun."""
-        for i in range(self.combo_engrave_layer.count()):
-            layer = self.layer_manager.get(self.combo_engrave_layer.itemData(i))
-            if layer and layer.mode == "Gravure Remplie":
-                return i
-        return -1
+    def _first_engrave_layer_id(self):
+        """Identifiant du premier calque en mode Gravure Remplie, ou None
+        s'il n'y en a aucun."""
+        for layer in self.layer_manager.layers:
+            if layer.mode == "Gravure Remplie":
+                return layer.id
+        return None
+
+    def _engrave_layer_label(self):
+        """Nom et mode du calque de la gravure image, ex. « Gravure Texte  [Gravure Remplie] »."""
+        layer = self.layer_manager.get(self.engrave_layer_id)
+        return f"{layer.name}  [{layer.mode}]" if layer else ""
 
     def _ensure_engrave_layer_for_image(self):
         """Appelé avant la génération du G-Code d'une image (Image Tramage /
         Séparation couleur) : si le calque sélectionné n'est pas en mode
         gravure, bascule sur le premier calque de gravure et applique sa
         puissance/vitesse. Sans calque de gravure, ne change rien."""
-        if not hasattr(self, "combo_engrave_layer"):
-            return
-        layer = self.layer_manager.get(self.combo_engrave_layer.currentData())
+        layer = self.layer_manager.get(self.engrave_layer_id)
         if layer and layer.mode == "Gravure Remplie":
             return
-        idx = self._first_engrave_layer_index()
-        if idx < 0:
+        layer_id = self._first_engrave_layer_id()
+        if layer_id is None:
             self.show_status_message(tr("vector.no_engrave_layer"))
             return
-        self.combo_engrave_layer.setCurrentIndex(idx)  # déclenche _on_engrave_layer_selected
+        self.engrave_layer_id = layer_id
         self._on_engrave_layer_selected()
-        self.show_status_message(tr("vector.engrave_layer_auto").format(name=self.combo_engrave_layer.currentText()))
+        self.show_status_message(tr("vector.engrave_layer_auto").format(name=self._engrave_layer_label()))
 
     def _on_engrave_layer_selected(self, *_args):
         """La gravure image utilise toujours la puissance/vitesse du calque
-        choisi ici (plus de saisie manuelle séparée)."""
-        if not hasattr(self, "combo_engrave_layer"):
-            return
-        layer_id = self.combo_engrave_layer.currentData()
-        layer = self.layer_manager.get(layer_id) if layer_id else None
+        de gravure (plus de saisie manuelle séparée)."""
+        layer = self.layer_manager.get(self.engrave_layer_id)
         if layer:
-            self.spin_speed_engrave.setValue(int(layer.speed))
-            self.spin_power_engrave.setValue(int(layer.power))
+            self.set_engrave_settings(layer.speed, layer.power)
 
     def insert_text_object(self):
         if not self.layer_manager.layers:
