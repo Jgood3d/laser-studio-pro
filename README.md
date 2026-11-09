@@ -150,7 +150,8 @@ python main.py
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`)
-- `ui_jog.py` — panneau de pilotage : jog, curseurs de pas et de vitesse, boutons de commande
+- `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux)
+- `ui_job_actions.py` — actions de job (cadrage, zéro, répétition), provisoire
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG

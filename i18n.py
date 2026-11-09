@@ -2739,11 +2739,17 @@ TRANSLATIONS = {
         "de": "Jog-Geschwindigkeit: {min} bis {max} mm/min (Maximum: Höchstgeschwindigkeit des Gravierers)",
         "es": "Velocidad del jog: {min} a {max} mm/min (máximo: velocidad máx. del grabador)",
     },
+    "ui.job_actions_box": {
+        "fr": "Jobs",
+        "en": "Jobs",
+        "de": "Aufträge",
+        "es": "Trabajos",
+    },
     "ui.jog_box": {
-        "fr": "Mouvements manuels (jog) et commandes",
-        "en": "Manual Moves (Jog) and Commands",
-        "de": "Manuelle Bewegungen (Jog) und Befehle",
-        "es": "Movimientos manuales (jog) y comandos",
+        "fr": "Commandes et mouvements manuels",
+        "en": "Commands and Manual Moves",
+        "de": "Befehle und manuelle Bewegungen",
+        "es": "Comandos y movimientos manuales",
     },
     "ui.homing_cmd": {
         "fr": "HOMING ($H)",

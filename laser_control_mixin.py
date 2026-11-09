@@ -330,7 +330,11 @@ class LaserControlMixin:
         self.cmd_thread.log_signal.connect(self.txt_console.append)
         self.cmd_thread.start()
 
-    def jog_move(self, dx, dy):
+    def jog_move(self, dx_mm, dy_mm, speed):
+        """Déplacement relatif (jog) de `dx_mm`, `dy_mm`, à `speed` mm/min.
+
+        Abonné au signal JogControlPanel.jog_requested.
+        """
         if not self.usb.is_connected():
             QMessageBox.warning(
     self,
@@ -339,13 +343,7 @@ class LaserControlMixin:
 )
             return
 
-        step = self.JOG_STEPS_MM[self.slider_jog_step.value()]
-        speed = self.slider_jog_speed.value()
-
-        move_x = dx * step
-        move_y = dy * step
-
-        cmd = f"$J=G91 G21 X{move_x:.3f} Y{move_y:.3f} F{speed}"
+        cmd = f"$J=G91 G21 X{dx_mm:.3f} Y{dy_mm:.3f} F{speed}"
         self._run_commands_async(cmd)
 
     def send_manual_direct_cmd(self, cmd):
@@ -393,7 +391,7 @@ class LaserControlMixin:
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        self.btn_send.setEnabled(False)
+        self.jog_panel.set_send_enabled(False)
         self.progress_bar.setValue(0)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.pause()
@@ -495,7 +493,7 @@ class LaserControlMixin:
         self._check_position_after_stream()
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
-        self.btn_send.setEnabled(True)
+        self.jog_panel.set_send_enabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()
         self._notify_job_finished()

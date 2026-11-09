@@ -494,10 +494,13 @@ class MenusMixin:
             action.setIcon(
                 self._status_dot_icon("#27ae60" if connected else "#e74c3c")
             )
-        # Jog, commandes et console directe : verrouillés tant que le graveur
-        # n'est pas connecté. La position du job reste modifiable (elle sert
-        # aussi à générer le G-Code hors connexion).
-        for name in ("jog_box", "direct_console_box"):
+        # Pilotage, actions de job et console directe : verrouillés tant que
+        # le graveur n'est pas connecté. La position du job reste modifiable
+        # (elle sert aussi à générer le G-Code hors connexion).
+        panel = getattr(self, "jog_panel", None)
+        if panel is not None:
+            panel.set_connected(connected)
+        for name in ("job_actions_box", "direct_console_box"):
             box = getattr(self, name, None)
             if box is not None:
                 box.setEnabled(connected)
