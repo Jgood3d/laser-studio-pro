@@ -132,14 +132,13 @@ class UiSetupMixin:
         affiche une image chargée. Les miroirs (miroir de gravure) restent grisés dans PNG ⇒ SVG,
         dont la conversion ne les utilise pas. Appelée au changement d'onglet, au chargement et à
         la suppression d'une image."""
-        if not getattr(self, "_image_actions", ()):
+        actions = getattr(self, "app_actions", None)
+        if actions is None:
             return
         kind = self._image_tab_kind()
         enabled = self._image_tab_has_image(kind)
-        for action in self._image_actions:
-            action.setEnabled(enabled)
-        for action in self._mirror_actions:
-            action.setEnabled(enabled and kind != "png2svg")
+        actions.set_image_actions_enabled(enabled)
+        actions.set_mirrors_enabled(enabled and kind != "png2svg")
 
     def _on_toolbar_rotate_image(self, clockwise):
         kind = self._image_tab_kind()
@@ -299,8 +298,7 @@ class UiSetupMixin:
         windows[kind].bring_to_front()
 
     def init_ui(self):
-        self._build_menu_bar()
-        self._build_main_toolbar()
+        self._build_app_menus()
 
         main_widget = QWidget()
         self.setCentralWidget(main_widget)

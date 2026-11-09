@@ -146,7 +146,8 @@ python main.py
 - `ui_machine_panel.py` — panneau machine sous les onglets (DRO, jog, console directe)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
-- `ui_menus.py` — barre de menus, barre d’outils principale, thème, état de la connexion
+- `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
+- `ui_menus.py` — côté fenêtre : abonnement aux signaux du menu, thème, langue, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`)

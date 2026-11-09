@@ -36,8 +36,8 @@ class ProjectIOMixin:
             "safe_cut_order": self.chk_safe_cut_order.isChecked(),
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
-            "mirror_h": self.action_mirror_h.isChecked(),
-            "mirror_v": self.action_mirror_v.isChecked(),
+            "mirror_h": self.app_actions.mirror_h.isChecked(),
+            "mirror_v": self.app_actions.mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.spin_speed_engrave.value(),
@@ -133,8 +133,8 @@ class ProjectIOMixin:
             # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
             self.set_material_bg(proj_data.get("material_bg", "dark" if proj_data.get("invert", False) else "light"))
             self.chk_invert.setChecked(proj_data.get("invert", False))
-            self.action_mirror_h.setChecked(proj_data.get("mirror_h", False))
-            self.action_mirror_v.setChecked(proj_data.get("mirror_v", False))
+            self.app_actions.mirror_h.setChecked(proj_data.get("mirror_h", False))
+            self.app_actions.mirror_v.setChecked(proj_data.get("mirror_v", False))
             self.combo_algo.setCurrentText(proj_data.get("algo", "Floyd-Steinberg"))
             self.spin_lmm.setValue(proj_data.get("lmm", 10.0))
 
@@ -199,25 +199,15 @@ class ProjectIOMixin:
         self._refresh_recent_projects_menu()
 
     def _refresh_recent_projects_menu(self):
-        if not hasattr(self, "menu_recent_projects"):
+        """Projets récents encore présents sur le disque, dans le menu Fichier."""
+        if not hasattr(self, "app_menu_bar"):
             return
-        self.menu_recent_projects.clear()
         settings = QSettings("LaserStudioPro", "UIConfig")
         recents = settings.value("recent_projects", [])
         if isinstance(recents, str):
             recents = [recents]
         recents = [p for p in (recents or []) if os.path.exists(p)]
-        if not recents:
-            action_none = self.menu_recent_projects.addAction(
-    tr("project.no_recent")
-)
-            action_none.setEnabled(False)
-            return
-        for path in recents:
-            label = os.path.basename(path)
-            action = self.menu_recent_projects.addAction(label)
-            action.setToolTip(path)
-            action.triggered.connect(lambda checked=False, p=path: self._load_project_from_path(p))
+        self.app_menu_bar.file_menu.set_recent_projects(recents)
 
     # ------------------------------------------------------------------
     # Sauvegarde automatique périodique

@@ -413,13 +413,13 @@ class SeparationMixin:
             self._sep_prev_image_settings = {
                 "material": self.get_material_bg() if hasattr(self, "get_material_bg") else None,
                 "invert": self.chk_invert.isChecked(),
-                "mirror_h": self.action_mirror_h.isChecked(),
+                "mirror_h": self.app_actions.mirror_h.isChecked(),
             }
             self._sep_glass_settings_active = True
         if hasattr(self, "set_material_bg"):
             self.set_material_bg("dark")  # ne touche pas à la case, réglée juste après
         self.chk_invert.setChecked(True)
-        self.action_mirror_h.setChecked(True)
+        self.app_actions.mirror_h.setChecked(True)
 
     def separation_release_image_settings(self):
         """Appelé quand une image est chargée côté Images Tramage : rend les
@@ -434,7 +434,7 @@ class SeparationMixin:
         if prev.get("material") and hasattr(self, "set_material_bg"):
             self.set_material_bg(prev["material"])
         self.chk_invert.setChecked(prev["invert"])
-        self.action_mirror_h.setChecked(prev["mirror_h"])
+        self.app_actions.mirror_h.setChecked(prev["mirror_h"])
 
     def separation_push_tone(self):
         """Envoie la tonalité (canal V, cadrée sur la plaque) à Image & Filtres
@@ -557,9 +557,9 @@ class SeparationMixin:
             t_b = time.perf_counter()
             grav = Image.fromarray(arr).resize((pw, ph), Image.BOX)
             lum = (255.0 - np.asarray(grav, dtype=np.float32)) / 255.0
-            if self.action_mirror_h.isChecked():
+            if self.app_actions.mirror_h.isChecked():
                 lum = lum[:, ::-1]
-            if self.action_mirror_v.isChecked():
+            if self.app_actions.mirror_v.isChecked():
                 lum = lum[::-1, :]
             lum = np.ascontiguousarray(lum)
             dpi_prev = pw / (self.sep_w.value() / 25.4)
@@ -600,7 +600,7 @@ class SeparationMixin:
         la résolution, la vitesse, la puissance et la machine actuelles. Une fois
         gravée, on repère la ligne dont les cases passent régulièrement du noir
         au clair, et on règle le curseur sur la valeur écrite à gauche."""
-        mirror = self.action_mirror_h.isChecked()
+        mirror = self.app_actions.mirror_h.isChecked()
         arr, w_mm, h_mm = build_gain_test_array(self.spin_lmm.value(), mirror=mirror)
         bed_w, bed_h = self.spin_machine_w.value(), self.spin_machine_h.value()
         if w_mm > bed_w or h_mm > bed_h:

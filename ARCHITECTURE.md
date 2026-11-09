@@ -31,7 +31,7 @@ main.py
         │  Hérite de tous les mixins :
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    assemblage + éditeur vectoriel
-        ├─ MenusMixin            (ui_menus.py)          menus, barre d'outils, thème
+        ├─ MenusMixin            (ui_menus.py)          abonnement au menu (ui/app/menu/), thème
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
@@ -92,6 +92,7 @@ laser-studio-pro/
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes)
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
+├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
 ├── settings_window.py
@@ -135,7 +136,8 @@ laser-studio-pro/
 |-----------------|------|---------------------|
 | **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers | Tous les mixins |
 | **ui_setup_mixin.py** | Assemblage de la fenêtre (`init_ui` appelle les `_build_*`), onglet éditeur vectoriel (boutons dessin / mesure / explode / nœuds), plein écran, drag&drop | `vector_layers`, `settings_window` |
-| **ui_menus.py** | Menus, barre d'outils principale, **menu thème** (4 thèmes), `change_theme`, ouverture Stencil Studio, sync thème → Studio | `app_theme`, `stencil_studio.studio_dialog` |
+| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports et « Générer ») ne font que les ranger | — |
+| **ui_menus.py** | Côté fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |

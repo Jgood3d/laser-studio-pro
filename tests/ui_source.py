@@ -7,8 +7,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def ui_files():
-    """Fichiers de l'interface, relatifs à la racine du projet."""
-    return sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "ui_*.py")))
+    """Fichiers de l'interface, relatifs à la racine : ui_*.py et le paquet ui/."""
+    files = glob.glob(os.path.join(ROOT, "ui_*.py"))
+    files += glob.glob(os.path.join(ROOT, "ui", "**", "*.py"), recursive=True)
+    return sorted(os.path.relpath(p, ROOT) for p in files)
 
 
 def _join_wrapped_calls(src):

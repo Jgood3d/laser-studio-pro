@@ -25,11 +25,11 @@ class MachineProfilesPageMixin:
         self.combo_ports = QComboBox()
         # Même liste que le sélecteur de la barre d'outils (modèle partagé) et
         # même port choisi.
-        self.combo_ports.setModel(self.combo_ports_toolbar.model())
+        self.combo_ports.setModel(self.main_toolbar.ports_combo.model())
         self.combo_ports.currentIndexChanged.connect(
-            self.combo_ports_toolbar.setCurrentIndex
+            self.main_toolbar.ports_combo.setCurrentIndex
         )
-        self.combo_ports_toolbar.currentIndexChanged.connect(
+        self.main_toolbar.ports_combo.currentIndexChanged.connect(
             self.combo_ports.setCurrentIndex
         )
         btn_refresh = QPushButton(tr("usb.refresh_ports"))
