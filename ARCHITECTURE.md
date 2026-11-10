@@ -94,6 +94,10 @@ laser-studio-pro/
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
 ├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
+├── ui/app/window_controller.py       # contrôleur de la fenêtre (WindowControllerMixin)
+├── ui/app/qt_messages.py             # filtre des avertissements Qt
+├── ui/widgets/                       # petits widgets (ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar)
+├── ui/utils.py                       # icônes dessinées, images haute résolution
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
 ├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
@@ -141,11 +145,11 @@ laser-studio-pro/
 
 | Mixin / fichier | Rôle | Dépend de / appelle |
 |-----------------|------|---------------------|
-| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages | Tous les mixins, `ui/machine`, `ui/statusbar`, `settings_window` |
-| **ui_setup_mixin.py** | Contenu des onglets : éditeur vectoriel (boutons dessin / mesure / explode / nœuds), barre d'outils d'onglet (`_build_tab_toolbar`), actions de la barre d'outils sur l'image. Partira dans `ui/tabs/` | `vector_layers` |
+| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages | Tous les mixins, `ui/machine`, `ui/statusbar`, `ui/settings/window` |
+| **ui_setup_mixin.py** | Onglet « Éditeur vectoriel » (boutons dessin / mesure / explode / nœuds). Partira dans `ui/tabs/` | `vector_layers` |
 | **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports, « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
-| **ui_window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
-| **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
+| **ui/app/window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, actions de la barre d'outils sur l'image de l'onglet courant, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
+| **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `ui/widgets` |
 | **ui/machine/** | `MachinePanel` : assemble sous les onglets la rangée position du job / pilotage / actions de job / DRO, la barre de progression du job et la console directe. Pas de signaux à lui : la fenêtre s'abonne à ceux de ses sous-panneaux ; `set_connected()` verrouille les commandes | Construit et abonné dans `main_window._build_machine_panel` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |

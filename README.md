@@ -116,8 +116,8 @@ python main.py
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
-- `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
-- `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)
+- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »)
+- `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)

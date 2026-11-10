@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 
 import separation_engine as engine
 from workers import AdvancedGCodeWorker, build_gain_test_array
-from ui.widgets import ZoomableGraphicsView
+from ui.widgets import TabToolBar, ZoomableGraphicsView
 from i18n import tr
 
 _IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
@@ -88,8 +88,11 @@ class SeparationMixin:
         outer = QVBoxLayout(root)
         outer.setContentsMargins(4, 4, 4, 4)
 
-        outer.addWidget(self._build_tab_toolbar(
-            root, lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title")))
+        toolbar = TabToolBar(root)
+        toolbar.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
+        root._fullscreen_control = toolbar.fullscreen_action
+        outer.addWidget(toolbar)
 
         body = QHBoxLayout()
         outer.addLayout(body, 1)

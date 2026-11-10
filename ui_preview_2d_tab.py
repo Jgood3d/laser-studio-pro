@@ -3,6 +3,7 @@
 import pyqtgraph as pg
 from PyQt6.QtWidgets import QCheckBox, QVBoxLayout, QWidget
 from i18n import tr
+from ui.widgets import TabToolBar
 
 
 class Preview2DTabMixin:
@@ -34,11 +35,8 @@ class Preview2DTabMixin:
         self.chk_optimize_path = QCheckBox(tr("ui.optimize_path"))
         self.chk_optimize_path.setToolTip(tr("ui.optimize_path_tip"))
         self.chk_optimize_path.setChecked(True)
-        toolbar_vector_2d = self._build_tab_toolbar(
+        toolbar_vector_2d = TabToolBar(
             tab_vector_2d,
-            lambda: self._toggle_fullscreen_tab(
-                "tab_vector_2d", "ui.tab_2d_preview"
-            ),
             left_widgets=[
                 self.chk_flip_raster_preview,
                 self.chk_negative_raster_preview,
@@ -46,6 +44,12 @@ class Preview2DTabMixin:
                 self.chk_optimize_path,
             ],
         )
+        toolbar_vector_2d.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab(
+                "tab_vector_2d", "ui.tab_2d_preview"
+            )
+        )
+        tab_vector_2d._fullscreen_control = toolbar_vector_2d.fullscreen_action
         layout_vector_2d.addWidget(toolbar_vector_2d)
 
         self.plot_widget = pg.PlotWidget(title=tr("ui.plot_title"))

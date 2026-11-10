@@ -171,16 +171,19 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_tab_toolbars_share_one_builder(self):
         src = ui_source()
-        builder = src[src.index("def _build_tab_toolbar"):src.index("def _fullscreen_icon")]
-        order = [builder.index(k) for k in ("left_actions:", "QSizePolicy.Policy.Expanding",
+        builder = read(os.path.join("ui", "widgets", "tab_toolbar.py"))
+        order = [builder.index(k) for k in ("left_actions:", "self._spacer()",
                                             "right_widgets:", 'tr("ui.vector_fullscreen")')]
         self.assertEqual(order, sorted(order))             # actions à gauche, plein écran à droite
         previews = src[src.index("compare_icon = QIcon.fromTheme"):src.index("outer_layout_previews.addWidget(toolbar_previews)")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
         self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
-        uses = src.count("self._build_tab_toolbar(") + read("separation_mixin.py").count("self._build_tab_toolbar(") \
-            + read("png2svg_mixin.py").count("self._build_tab_toolbar(")
+        uses = src.count(" = TabToolBar(") + read("separation_mixin.py").count(" = TabToolBar(") \
+            + read("png2svg_mixin.py").count(" = TabToolBar(")
         self.assertEqual(uses, 5)                          # Images, PNG→SVG, Séparation, 2D, Console
+        controls = src.count("._fullscreen_control = ") + read("separation_mixin.py").count("._fullscreen_control = ") \
+            + read("png2svg_mixin.py").count("._fullscreen_control = ")
+        self.assertEqual(controls, 6)                      # les 5 barres et l'éditeur vectoriel
 
     def test_every_fullscreen_mode_hides_then_restores_its_button(self):
         for name, func in (("main_window.py", "def _toggle_fullscreen_tab"),
@@ -197,8 +200,8 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_preview_options_are_in_the_2d_tab_toolbar(self):
         src = ui_source()
-        bar = src[src.index("toolbar_vector_2d = self._build_tab_toolbar("):]
-        bar = bar[:bar.index("right_widgets=")]
+        bar = src[src.index("toolbar_vector_2d = TabToolBar("):]
+        bar = bar[:bar.index("toolbar_vector_2d.fullscreen_requested")]
         for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
                      "chk_hide_rapid_moves", "chk_optimize_path"):
             self.assertIn(f"self.{name}", bar, name)
@@ -281,15 +284,14 @@ class MenuStructureTests(unittest.TestCase):
 class ShowWindowTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("ui_setup_mixin")
+            self.mod = importlib.import_module("ui.app.window_controller")
         except ImportError:
-            self.skipTest("ui_setup_mixin non importable ici")
+            self.skipTest("window_controller non importable ici")
 
     def make(self, with_pages=True):
-        cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
         # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
         self.main = importlib.import_module("main_window")
-        cls = type("Window", (cls, importlib.import_module("ui.app.window_controller").WindowControllerMixin),
+        cls = type("Window", (self.mod.WindowControllerMixin,),
                    {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
         if with_pages:
@@ -390,9 +392,10 @@ class ShowWindowTests(unittest.TestCase):
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()
         tab._fullscreen_control = control
-        self.mod.UiSetupMixin._show_fullscreen_control(tab, False)
+        show = importlib.import_module("main_window").FullLaserStudio._show_fullscreen_control
+        show(tab, False)
         control.setVisible.assert_called_with(False)
-        self.mod.UiSetupMixin._show_fullscreen_control(object(), True)   # onglet sans bouton : ignoré
+        show(object(), True)                                             # onglet sans bouton : ignoré
 
     def test_show_main_tab_selects_or_raises_the_fullscreen_window(self):
         obj = self.make()

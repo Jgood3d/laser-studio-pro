@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QPushButton, QWid
 from png2svg_widget import PngToSvgWidget
 from vector_layers import extract_svg_objects
 from i18n import tr
+from ui.widgets import TabToolBar
 
 
 class Png2SvgMixin:
@@ -18,12 +19,15 @@ class Png2SvgMixin:
         """Construit le conteneur de l'onglet PNG -> SVG : une barre d'outils
         (bouton plein écran, comme l'Éditeur Vectoriel) au-dessus du widget
         de conversion. Renvoie ce conteneur (self.tab_png2svg), à insérer
-        dans main_tabs_view par l'appelant (ui_setup_mixin)."""
+        dans main_tabs_view par l'appelant (main_window)."""
         self.tab_png2svg = QWidget()
         layout = QVBoxLayout(self.tab_png2svg)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        layout.addWidget(self._build_tab_toolbar(self.tab_png2svg, self.toggle_fullscreen_png2svg))
+        toolbar = TabToolBar(self.tab_png2svg)
+        toolbar.fullscreen_requested.connect(self.toggle_fullscreen_png2svg)
+        self.tab_png2svg._fullscreen_control = toolbar.fullscreen_action
+        layout.addWidget(toolbar)
 
         self.png2svg_widget = PngToSvgWidget()
         self.png2svg_widget.sendToVectorEditor.connect(self._on_png2svg_send_to_vector)

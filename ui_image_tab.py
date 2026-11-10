@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
-from ui.widgets import ZoomableGraphicsView
+from ui.widgets import TabToolBar, ZoomableGraphicsView
 from i18n import tr
 from ui.widgets import AutoHideLabel
 
@@ -365,9 +365,8 @@ class ImageTabMixin:
         self.chk_show_original = QCheckBox(tr("img.show_original"))
         self.chk_show_original.setToolTip(tr("img.show_original_tip"))
         self.chk_show_original.toggled.connect(self._on_show_original_toggled)
-        toolbar_previews = self._build_tab_toolbar(
+        toolbar_previews = TabToolBar(
             tab_previews,
-            self._toggle_fullscreen_image_tab,
             left_actions=[
                 (
                     compare_icon,
@@ -378,6 +377,10 @@ class ImageTabMixin:
             ],
             left_widgets=[self.chk_show_original],
         )
+        toolbar_previews.fullscreen_requested.connect(
+            self._toggle_fullscreen_image_tab
+        )
+        tab_previews._fullscreen_control = toolbar_previews.fullscreen_action
         outer_layout_previews.addWidget(toolbar_previews)
 
         layout_previews = QHBoxLayout()

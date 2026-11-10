@@ -436,6 +436,14 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         maintenant dans l'onglet lui-même : le plein écran commun suffit."""
         self._toggle_fullscreen_tab("tab_previews", "ui.tab_image_tracing")
 
+    @staticmethod
+    def _show_fullscreen_control(tab_widget, visible):
+        """Masque le bouton « Plein écran » d'un onglet pendant qu'il est affiché en plein écran,
+        et le réaffiche quand il revient dans les onglets (voir les fonctions *fullscreen*)."""
+        control = getattr(tab_widget, "_fullscreen_control", None)
+        if control is not None:
+            control.setVisible(visible)
+
     def _toggle_fullscreen_tab(self, tab_attr, title_key):
         tab_widget = getattr(self, tab_attr, None)
         if tab_widget is None:

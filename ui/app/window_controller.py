@@ -2,7 +2,8 @@
 
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe ce qui agit sur toute la fenêtre : thème,
-langue, onglets annexes, état de la connexion. Il deviendra un vrai
+langue, onglets annexes, état de la connexion, actions de la barre
+d'outils sur l'image de l'onglet courant. Il deviendra un vrai
 contrôleur, séparé de la fenêtre.
 """
 
@@ -114,6 +115,64 @@ class WindowControllerMixin:
         else:
             tab.window().raise_()
             tab.window().activateWindow()
+
+    def _image_tab_kind(self):
+        """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
+        "png2svg", "separation", ou None pour les autres onglets."""
+        tabs = getattr(self, "main_tabs_view", None)
+        current = tabs.currentWidget() if tabs is not None else None
+        for kind in ("previews", "png2svg", "separation"):
+            if current is not None and current is getattr(self, f"tab_{kind}", None):
+                return kind
+        return None
+
+    def _image_tab_has_image(self, kind):
+        if kind == "previews":
+            return self.raw_image is not None
+        if kind == "png2svg":
+            return bool(self.png2svg_widget.image_path)
+        if kind == "separation":
+            return self.sep_src is not None
+        return False
+
+    def update_image_actions_state(self, *_args):
+        """Active les actions de la barre d'outils sur l'image seulement si l'onglet courant
+        affiche une image chargée. Les miroirs (miroir de gravure) restent grisés dans PNG ⇒ SVG,
+        dont la conversion ne les utilise pas. Appelée au changement d'onglet, au chargement et à
+        la suppression d'une image."""
+        actions = getattr(self, "app_actions", None)
+        if actions is None:
+            return
+        kind = self._image_tab_kind()
+        enabled = self._image_tab_has_image(kind)
+        actions.set_image_actions_enabled(enabled)
+        actions.set_mirrors_enabled(enabled and kind != "png2svg")
+
+    def _on_toolbar_rotate_image(self, clockwise):
+        kind = self._image_tab_kind()
+        if kind == "previews":
+            (self.rotate_image_right if clockwise else self.rotate_image_left)()
+        elif kind == "png2svg":
+            self.png2svg_widget.rotate_image(90 if clockwise else -90)
+        elif kind == "separation":
+            self.separation_rotate_image(-90 if clockwise else 90)
+
+    def _on_toolbar_delete_image(self):
+        kind = self._image_tab_kind()
+        if kind == "previews":
+            self.clear_image()           # demande elle-même confirmation
+            return
+        if kind not in ("png2svg", "separation"):
+            return
+        reply = QMessageBox.question(
+            self, tr("image.delete_title"), tr("image.delete_question"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        if kind == "png2svg":
+            self.png2svg_widget.clear_image()
+        else:
+            self.separation_clear_image()
 
     def update_connection_widgets(self):
         """Met le bouton de connexion en accord avec l'état du port.

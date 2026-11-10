@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPalette, QPixmap
-from PyQt6.QtWidgets import QToolButton
+from PyQt6.QtWidgets import QStyle, QToolButton
 
 from app_constants import JOG_BUTTON_SIZE
 
@@ -44,6 +44,14 @@ def tool_button(icon, tooltip, color=None):
             "QToolButton:disabled { background-color: #b0b0b0; }"
         )
     return button
+
+
+def fullscreen_icon(widget):
+    """Icône « plein écran » du thème, sinon bouton d'agrandissement de Qt."""
+    fallback = QStyle.StandardPixmap.SP_TitleBarMaxButton
+    return QIcon.fromTheme(
+        QIcon.ThemeIcon.ViewFullscreen, widget.style().standardIcon(fallback)
+    )
 
 
 def themed_icon(widget, theme_icon, fallback):

@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from i18n import tr
+from ui.widgets import TabToolBar
 
 
 class JobTabsMixin:
@@ -23,11 +24,14 @@ class JobTabsMixin:
         layout_console_gcode = QVBoxLayout(tab_console_gcode)
         layout_console_gcode.setContentsMargins(6, 6, 6, 6)
 
-        toolbar_console_gcode = self._build_tab_toolbar(
-            tab_console_gcode,
+        toolbar_console_gcode = TabToolBar(tab_console_gcode)
+        toolbar_console_gcode.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
                 "tab_console_gcode", "ui.tab_console_gcode"
-            ),
+            )
+        )
+        tab_console_gcode._fullscreen_control = (
+            toolbar_console_gcode.fullscreen_action
         )
         layout_console_gcode.addWidget(toolbar_console_gcode)
 
