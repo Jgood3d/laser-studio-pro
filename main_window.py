@@ -277,7 +277,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         doit déjà exister ; voir _sync_matrix_lmm_from_image).
         """
         page = TestMatrixPage(self.spin_lmm.value())
-        page.generate_requested.connect(self.generate_test_matrix)
+        page.generate_requested.connect(self._generate_test_matrix_and_show)
         page.choose_image_requested.connect(self._mat_choose_image)
         page.use_loaded_image_requested.connect(self._mat_use_loaded_image)
         page.image_test_toggled.connect(self._on_mat_image_test_toggled)
@@ -285,6 +285,17 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         # graveur n'a pas de homing ($22=0, voir LaserControlMixin).
         self.chk_mat_homing = page.homing_check
         self.tab_matrix = page
+
+    def _generate_test_matrix_and_show(self):
+        """Génère la matrice de test, puis ferme sa fenêtre et affiche
+        l'aperçu 2D, où le G-Code apparaît. En cas d'erreur, la fenêtre
+        reste ouverte pour corriger les réglages."""
+        if not self.generate_test_matrix():
+            return
+        self.tab_matrix.window().close()
+        self.show_main_tab("tab_vector_2d")
+        self.raise_()
+        self.activateWindow()
 
     def _build_layers_tab(self):
         """Onglet « Calques », abonné à la logique des calques.

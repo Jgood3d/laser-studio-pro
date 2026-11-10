@@ -619,6 +619,8 @@ class GcodeGenerationMixin:
         self.statusBar().show_progress(pct, tr("gen.in_progress_pct").format(pct=pct))
 
     def generate_test_matrix(self):
+        """Lance la génération de la matrice de test. Renvoie True si elle a
+        démarré, False sinon (zone d'image impossible, message affiché)."""
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
         self._sync_matrix_lmm_from_image()
         # Mode indépendant de la langue : currentText() est traduit (« Engraving », « Gravur »…),
@@ -640,7 +642,7 @@ class GcodeGenerationMixin:
         if engraving and page.image_test_enabled():
             tile = self.build_matrix_image_tile(params['lines_mm'])
             if tile is None:
-                return
+                return False
             params['image_tile'] = tile
             params['cell_w'] = tile['w_mm']
             params['cell_h'] = tile['h_mm']
@@ -652,6 +654,7 @@ class GcodeGenerationMixin:
         self.matrix_worker = TestMatrixWorker(params)
         self.matrix_worker.finished.connect(self.on_gcode_generated)
         self.matrix_worker.start()
+        return True
 
     def _on_plot_clicked(self, event):
         """Clic sur l'aperçu 2D : si le G-Code affiché est bien la dernière
