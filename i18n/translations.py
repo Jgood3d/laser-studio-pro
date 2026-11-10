@@ -1,18 +1,13 @@
-"""Système de traduction simple par dictionnaire, sans dépendance externe
-(pas de fichiers .ts/.qm Qt Linguist à compiler). Le changement de langue
-est mémorisé et appliqué au prochain lancement de l'application — pas de
-rafraîchissement « à chaud » de l'interface déjà construite, ce qui évite
-d'avoir à retenir et reconstruire chaque widget affiché un par un.
+"""Textes de l'interface, dans chaque langue (dictionnaire TRANSLATIONS).
 
-Utilisation : from i18n import tr
-              menu_bar.addMenu(tr("menu.file"))
+Pour ajouter un texte : une clé, et sa traduction dans chaque langue de
+SUPPORTED_LANGUAGES (le français au minimum).
 
 Note sur la qualité des traductions : le français et l'anglais sont
 soigneusement relus. L'allemand et l'espagnol sont une première passe
 raisonnable mais n'ont pas été relus par une personne native — une
 relecture est bienvenue avant de les considérer définitifs.
 """
-from PyQt6.QtCore import QSettings
 
 SUPPORTED_LANGUAGES = {"fr": "Français", "en": "English", "de": "Deutsch", "es": "Español"}
 DEFAULT_LANGUAGE = "fr"
@@ -4220,35 +4215,3 @@ TRANSLATIONS = {
         "es": "Medir una distancia: haga clic y arrastre en el lienzo.",
     },
 }
-
-_current_lang = None
-
-
-def get_current_language():
-    """Langue actuellement sélectionnée (mémorisée entre sessions)."""
-    global _current_lang
-    if _current_lang is None:
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        stored = settings.value("language", DEFAULT_LANGUAGE)
-        _current_lang = stored if stored in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
-    return _current_lang
-
-
-def set_language(lang_code):
-    """Change la langue mémorisée. Prend effet au prochain lancement."""
-    global _current_lang
-    if lang_code not in SUPPORTED_LANGUAGES:
-        return
-    _current_lang = lang_code
-    settings = QSettings("LaserStudioPro", "UIConfig")
-    settings.setValue("language", lang_code)
-
-
-def tr(key):
-    """Renvoie le texte traduit pour la clé donnée, dans la langue
-    actuellement sélectionnée."""
-    entry = TRANSLATIONS.get(key)
-    if not entry:
-        return key
-    lang = get_current_language()
-    return entry.get(lang) or entry.get(DEFAULT_LANGUAGE) or key

@@ -6,7 +6,7 @@ d'onglet dans main_tabs_view (voir png2svg_mixin.py).
 
 Adapté de l'outil autonome PNG -> SVG : la traduction et la persistance
 des réglages UI utilisent maintenant les mêmes mécanismes que le reste
-de Laser Studio Pro (i18n.py commun, QSettings "LaserStudioPro"), et il
+de Laser Studio Pro (paquet i18n commun, QSettings "LaserStudioPro"), et il
 n'y a plus de sélecteur de langue propre au widget — la langue est
 globale à l'application (menu Langue, redémarrage requis).
 """

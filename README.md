@@ -130,7 +130,7 @@ python main.py
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
 - `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
 - `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
-- `i18n.py` — système de traduction multilingue
+- `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
@@ -235,7 +235,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile i18n.py ui_setup_mixin.py main_window.py
+py -m py_compile i18n/translations.py ui_setup_mixin.py main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

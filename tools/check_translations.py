@@ -25,7 +25,8 @@ import i18n  # noqa: E402
 
 T = i18n.TRANSLATIONS
 LANGS = list(i18n.SUPPORTED_LANGUAGES)
-FILES = [f for f in python_files(ROOT) if os.path.basename(f) != "i18n.py"]
+# Le paquet i18n/ contient les textes eux-mêmes : il ne compte pas comme code qui les utilise.
+FILES = [f for f in python_files(ROOT) if not display_name(f).startswith("i18n" + os.sep)]
 
 
 def parse(path):

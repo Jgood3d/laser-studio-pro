@@ -81,8 +81,8 @@ laser-studio-pro/
 ├── main_window.py
 ├── app_theme.py                      # thèmes UI : dark / light / dusk / warm
 ├── app_utils.py
-├── i18n.py
-├── debug_log.py / qt_messages.py
+├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
+├── debug_log.py
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── ui_setup_mixin.py
@@ -136,8 +136,8 @@ laser-studio-pro/
 | **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
 | **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |
-| **qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
-| **i18n.py** | Traductions FR / EN / DE / ES (y compris thèmes, nœuds, explode, outils dessin) | Toute l’UI |
+| **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
+| **i18n/** | Traductions FR / EN / DE / ES : `translations.py` (dictionnaire `TRANSLATIONS`, y compris thèmes, nœuds, explode, outils dessin), `language.py` (langue mémorisée, `tr()`). `from i18n import tr` | Toute l’UI |
 | **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `main_window`, `workers` |
 | **grbl/simulator.py** | `SimulatedGrblSerial` : graveur GRBL 1.1 simulé (`LASER_STUDIO_SIMULATION`), imite la partie de pyserial utilisée | `grbl.connection`, `laser_control_mixin` |
 
