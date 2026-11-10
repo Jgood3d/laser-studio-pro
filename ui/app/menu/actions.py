@@ -50,7 +50,7 @@ class AppActions(QObject):
     (plus tard un contrôleur) s'abonne aux signaux :
 
         actions = AppActions(window)
-        actions.save_project_requested.connect(window.save_project)
+        actions.save_project_requested.connect(window.project.save)
 
     L'état passe par des méthodes set_… (connexion, langue, thème, actions
     sur l'image) ; les miroirs se lisent sur mirror_h / mirror_v.

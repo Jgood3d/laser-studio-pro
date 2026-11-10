@@ -5,7 +5,7 @@ Utilisation :
     from ui.tabs.job_queue import JobQueueTab
 
     tab = JobQueueTab()
-    tab.run_requested.connect(self.run_job_queue)
+    tab.run_requested.connect(queue.run)
 """
 
 from ui.tabs.job_queue.tab import JobQueueTab

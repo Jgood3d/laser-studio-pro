@@ -34,10 +34,34 @@ class SettingsWindow(QDialog):
             height = int(self.screen().availableGeometry().height() * 0.85)
         except (AttributeError, TypeError):
             height = 700
+        needed = self._content_width()
+        if needed:
+            width = max(width, needed)
         self.resize(width, min(max(height, 420), 900))
         saved = self._settings().value(f"settings_window/{self._key}/geometry")
         if saved:
             self.restoreGeometry(saved)
+            # Taille mémorisée plus étroite que la page (ancienne largeur fixe
+            # de 560 px, police plus grande) : élargie, sinon la page est coupée.
+            if needed and self.width() < needed:
+                self.resize(needed, self.height())
+
+    def _content_width(self):
+        """Largeur qui affiche toute la page sans ascenseur horizontal : sa
+        largeur idéale, plus l'ascenseur vertical, le cadre et les marges. Au plus
+        90 % de l'écran. None si elle ne peut pas être calculée."""
+        try:
+            content = self.scroll.widget()
+            content.ensurePolished()
+            frame = 2 * self.scroll.frameWidth()
+            scrollbar = self.scroll.verticalScrollBar().sizeHint().width()
+            margins = self.layout().contentsMargins()
+            width = (content.sizeHint().width() + frame + scrollbar
+                     + margins.left() + margins.right())
+            screen_width = self.screen().availableGeometry().width()
+        except (AttributeError, TypeError):
+            return None
+        return min(width, int(screen_width * 0.9))
 
     def _remember_geometry(self):
         self._settings().setValue(f"settings_window/{self._key}/geometry", self.saveGeometry())

@@ -56,15 +56,15 @@ class WindowControllerMixin:
         self.main_toolbar = AppToolBar(actions, self)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.main_toolbar)
         self._connect_app_actions(actions)
-        self._refresh_recent_projects_menu()
+        self.project.refresh_recent_projects()
         self.update_connection_widgets()
 
     def _connect_app_actions(self, actions):
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
         # Fichier
-        actions.save_project_requested.connect(self.save_project)
-        actions.open_project_requested.connect(self.load_project)
-        actions.recent_project_requested.connect(self._load_project_from_path)
+        actions.save_project_requested.connect(self.project.save)
+        actions.open_project_requested.connect(self.project.open)
+        actions.recent_project_requested.connect(self.project.open_path)
         actions.quit_requested.connect(self.close)
         # Paramètres et outils
         actions.settings_window_requested.connect(self.show_settings_window)

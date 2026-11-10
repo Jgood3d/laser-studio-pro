@@ -31,13 +31,13 @@ class ProjectRoundTripTests(unittest.TestCase):
         win.layer_manager.layers[0].speed = 1234
         path = os.path.join(self.tmp, "projet.lsp")
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(win._get_project_data(encode_image=False), f)
+            json.dump(win.project.data(encode_image=False), f)
 
         win.layer_manager.layers[0].name = "Autre nom"
         win.layers_tab.refresh()
         with mock.patch.object(QMessageBox, "critical") as critical, \
                 mock.patch.object(QMessageBox, "information") as information:
-            win._load_project_from_path(path)
+            win.project.open_path(path)
         critical.assert_not_called()                  # ex. AttributeError sur un widget renommé
         information.assert_called_once()
         self.assertEqual(win.layer_manager.layers[0].name, "Calque du projet")

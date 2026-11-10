@@ -4,13 +4,14 @@ FullLaserStudio construit la fenêtre (init_ui), branche les signaux de ses
 panneaux et gère ses événements (fermeture, glisser-déposer) ; les mixins
 apportent le contenu des onglets et la logique.
 """
-from PyQt6.QtWidgets import (QDialog, QHBoxLayout, QMainWindow, QMessageBox, QPushButton, QScrollArea,
-                             QSplitter, QTabWidget, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QHBoxLayout, QMainWindow, QMessageBox, QScrollArea, QSplitter, QTabWidget,
+                             QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 from i18n import tr
 from ui.machine import MachinePanel
+from ui.machine.job_position import JobPositionBox
 from ui.settings.grbl_config import GrblConfigPage
 from ui.settings.machine_params import MachineParamsPage
 from ui.settings.machine_profiles import MachineProfilesPage
@@ -18,36 +19,36 @@ from ui.settings.test_matrix import TestMatrixPage
 from ui.settings.window import SettingsWindow
 from ui.statusbar import StatusBar
 from ui.tabs.console import ConsoleTab
+from ui.tabs.image import ImageTab
 from ui.tabs.job_queue import JobQueueTab
 from ui.tabs.layers import LayersTab
 from ui.tabs.png2svg import Png2SvgTab
 from ui.tabs.preview_2d import Preview2DTab
+from ui.widgets import FullscreenWindow
 
+from controllers.job_queue import Engraver, JobQueueController
+from controllers.matrix_image import MatrixImageController
+from controllers.png2svg import Png2SvgController
+from controllers.project import ProjectController
 from grbl.connection import LaserUSBController
 from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
 from ui.app.window_controller import WindowControllerMixin
-from matrix_image_mixin import MatrixImageMixin
-from ui_image_tab import ImageTabMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
 from gcode_generation_mixin import GcodeGenerationMixin
 from laser_control_mixin import LaserControlMixin
-from project_io_mixin import ProjectIOMixin
-from job_queue_mixin import JobQueueMixin
-from png2svg_mixin import Png2SvgMixin
 from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
-                       MatrixImageMixin, ImageTabMixin,
                        MachineProfilesMixin,
                        ImageProcessingMixin,
-                       VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
-                       JobQueueMixin, Png2SvgMixin, SeparationMixin):
+                       VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin,
+                       SeparationMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Laser Studio Pro - GRBL Controller")
@@ -67,7 +68,6 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.has_homed_since_connect = False
         self.img_worker = None
         self.pending_reprocess = False
-        self.job_queue = []
         self._img_undo_stack = []
         self._img_redo_stack = []
         self._img_last_undo_push_time = 0.0
@@ -93,9 +93,21 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
 
         # Sauvegarde automatique du projet toutes les 5 minutes, pour ne rien
         # perdre en cas de plantage ou de coupure de courant en pleine session.
+        # Fichier du projet (enregistrer, ouvrir, récents, sauvegarde
+        # automatique) ; l'état lui-même est lu et réappliqué par
+        # _capture_project / _restore_project.
+        self.project = ProjectController(
+            self,
+            capture=self._capture_project,
+            restore=self._restore_project,
+            show_recent_projects=lambda paths: (
+                self.app_menu_bar.file_menu.set_recent_projects(paths)
+            ),
+            log_to_console=lambda text: self.txt_console.append(text),
+        )
         self.autosave_timer = QTimer()
         self.autosave_timer.setInterval(5 * 60 * 1000)
-        self.autosave_timer.timeout.connect(self.autosave_project)
+        self.autosave_timer.timeout.connect(self.project.autosave)
         self.autosave_timer.start()
 
         self.init_ui()
@@ -112,7 +124,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         # la fenêtre existe visuellement — la proposition est faite au premier
         # affichage de la fenêtre (voir showEvent).
         self._autosave_recovery_pending = True
-        self.load_job_queue_from_disk()
+        self.job_queue.load()
 
     # -- Construction de la fenêtre
 
@@ -127,7 +139,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         # Paramètres), les réglages de l'image sont dans « Graver une image », la position du job
         # dans le panneau machine. Le centre occupe toute la largeur.
         self._build_machine_params_page()
-        self._build_image_settings()
+        self._build_image_tab()
         self._build_machine_profiles_page()
         self._build_test_matrix_page()
         self._build_grbl_config_page()
@@ -142,7 +154,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.main_tabs_view = QTabWidget()
         self.main_tabs_view.setMovable(True)
 
-        self._build_image_tab()
+        self.main_tabs_view.addTab(self.tab_previews, tr("ui.tab_image_tracing"))
 
         self._build_png2svg_tab()
 
@@ -316,13 +328,28 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         """
         page = TestMatrixPage(self.spin_lmm.value())
         page.generate_requested.connect(self._generate_test_matrix_and_show)
-        page.choose_image_requested.connect(self._mat_choose_image)
-        page.use_loaded_image_requested.connect(self._mat_use_loaded_image)
-        page.image_test_toggled.connect(self._on_mat_image_test_toggled)
+        # Test à partir d'une image : fichier choisi, ou image de « Graver une
+        # image » avec ses réglages de tramage.
+        self.matrix_image = MatrixImageController(
+            page,
+            loaded_image=self._loaded_image_and_width,
+            image_settings=self.tab_previews.settings.processing_settings,
+        )
+        page.choose_image_requested.connect(self.matrix_image.choose_image)
+        page.use_loaded_image_requested.connect(
+            self.matrix_image.use_loaded_image
+        )
+        page.image_test_toggled.connect(self.matrix_image.on_image_test_toggled)
         # Nom historique : décochée et grisée avec chk_homing quand le
         # graveur n'a pas de homing ($22=0, voir LaserControlMixin).
         self.chk_mat_homing = page.homing_check
         self.tab_matrix = page
+
+    def _loaded_image_and_width(self):
+        """(image, largeur en mm) de « Graver une image », ou None."""
+        if getattr(self, "raw_image", None) is None:
+            return None
+        return self.raw_image, self.spin_w.value()
 
     def _generate_test_matrix_and_show(self):
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
@@ -349,14 +376,82 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         # Mémorise les réglages des calques dans le profil de la machine active.
         self.layers_tab.layers_changed.connect(self._schedule_layer_persist)
 
+    def _build_image_tab(self):
+        """Onglet « Graver une image » et cadre « Position du job », abonnés
+        au traitement de l'image (ImageProcessingMixin).
+
+        Construit tôt : la matrice de test lit ses lignes/mm, le panneau
+        machine reçoit le cadre « Position du job ». L'onglet est placé
+        dans les onglets par init_ui.
+        """
+        tab = ImageTab()
+        settings = tab.settings
+        settings.load_requested.connect(self.load_image)
+        settings.processing_changed.connect(self.update_image_processing)
+        settings.material_changed.connect(self._on_material_bg_changed)
+        settings.size_changed.connect(self.on_dimension_changed)
+        settings.resolution_mode_changed.connect(self.on_lmm_mode_changed)
+        settings.lines_per_mm_changed.connect(
+            self._sync_dpi_and_quality_from_lmm
+        )
+        settings.dpi_changed.connect(self.on_dpi_value_changed)
+        settings.configure_focal_requested.connect(
+            self.goto_laser_focal_settings
+        )
+        settings.save_as_focal_requested.connect(
+            self.save_current_lmm_as_focal
+        )
+        settings.undo_requested.connect(self.undo_image_settings)
+        settings.redo_requested.connect(self.redo_image_settings)
+        tab.compare_requested.connect(self.compare_dither_algorithms)
+        tab.fullscreen_requested.connect(self._toggle_fullscreen_image_tab)
+        # Noms historiques des champs, lus par la logique (traitement de
+        # l'image, génération, projets, profils, séparation, matrice).
+        self.spin_w = settings.width_spin
+        self.spin_h = settings.height_spin
+        self.chk_keep_ratio = settings.keep_ratio_check
+        self.spin_off_x = settings.offset_x_spin
+        self.spin_off_y = settings.offset_y_spin
+        self.slider_bright = settings.brightness_slider
+        self.slider_contrast = settings.contrast_slider
+        self.slider_gamma = settings.gamma_slider
+        self.slider_sharp = settings.sharpness_slider
+        self.chk_invert = settings.invert_check
+        self.combo_material_bg = settings.material_combo
+        self.combo_algo = settings.algorithm_combo
+        self.spin_lmm = settings.lines_per_mm_spin
+        self.combo_lmm_mode = settings.resolution_mode_combo
+        self.spin_dpi = settings.dpi_spin
+        self.lbl_focal_info = settings.focal_info_label
+        self.stack_lmm_input = settings.resolution_stack
+        self.lbl_resolution_quality = settings.resolution_quality_label
+        self.view_preview_src = tab.source_view
+        self.view_preview_dither = tab.dither_view
+        self.tab_previews = tab
+        # Résolution calée sur la focale du laser au départ, puis largeur du
+        # panneau d'après ses textes (dont l'information sur la focale).
+        self.on_lmm_mode_changed(settings.resolution_mode_combo.currentIndex())
+        tab.fit_settings_width()
+
+        self.job_position_box = JobPositionBox()
+        # Nom historique, lu par la génération, les projets et les profils.
+        self.combo_origin = self.job_position_box.origin_combo
+
     def _build_png2svg_tab(self):
         """Onglet « Vectorisation d'image », abonné à sa logique
-        (Png2SvgMixin). Masqué au démarrage, ouvert depuis le menu Outils.
+        (Png2SvgController). Masqué au démarrage, ouvert depuis le menu
+        Outils.
         """
         tab = Png2SvgTab()
-        tab.send_to_vector_requested.connect(self._on_png2svg_send_to_vector)
+        self.png2svg = Png2SvgController(
+            self,
+            self.layer_manager,
+            bed_height=lambda: self.spin_machine_h.value(),
+            add_to_vector_editor=self._add_objects_to_vector_editor,
+        )
+        tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.update_image_actions_state)
-        tab.fullscreen_requested.connect(self.toggle_fullscreen_png2svg)
+        tab.fullscreen_requested.connect(self._toggle_fullscreen_png2svg)
         # Nom historique du widget de conversion, lu par les actions de la
         # barre d'outils sur l'image (rotation, suppression).
         self.png2svg_widget = tab.converter
@@ -406,20 +501,130 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.tab_console_gcode = tab
 
     def _build_job_queue_tab(self):
-        """Onglet « File d'attente », abonné à la logique de la file."""
+        """Onglet « File d'attente », abonné à la file (JobQueueController),
+        qui envoie ses jobs par la connexion au graveur (LaserControlMixin)."""
         tab = JobQueueTab()
-        tab.add_current_requested.connect(self.add_current_gcode_to_queue)
-        tab.remove_selected_requested.connect(self.remove_selected_from_queue)
-        tab.clear_requested.connect(self.clear_job_queue)
-        tab.run_requested.connect(self.run_job_queue)
-        tab.reordered.connect(self._on_queue_reordered)
-        # Noms historiques, lus par la file d'attente et l'envoi du G-Code.
-        self.list_job_queue = tab.queue_list
-        self.btn_run_queue = tab.run_button
-        self.lbl_queue_status = tab.status_label
-        self.txt_sent_gcode = tab.sent_gcode_edit
+        engraver = Engraver(
+            is_connected=self.usb.is_connected,
+            last_state=lambda: self.usb.last_state,
+            confirm_homed=self._confirm_homed_before_job,
+            start_stream=self._start_stream,
+            stream_ended=self._stream_ended,
+            pause_status_poll=self._pause_status_poll,
+            resume_status_poll=self._resume_status_poll,
+            jobs_finished=self._notify_job_finished,
+        )
+        self.job_queue = JobQueueController(
+            tab,
+            self,
+            engraver,
+            current_gcode=self.txt_console.toPlainText,
+            log_to_console=self.txt_console.append,
+        )
+        tab.add_current_requested.connect(self.job_queue.add_current_gcode)
+        tab.remove_selected_requested.connect(self.job_queue.remove_selected)
+        tab.clear_requested.connect(self.job_queue.clear)
+        tab.run_requested.connect(self.job_queue.run)
+        tab.reordered.connect(self.job_queue.on_reordered)
         self.main_tabs_view.addTab(tab, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab
+
+    # -- Projet : état de la fenêtre
+
+    def _capture_project(self):
+        """État du projet (pour ProjectController) : réglages de l'image,
+        machine, gravure et découpe, matériaux, calques, objets vectoriels ;
+        et l'image source (PIL), encodée par le contrôleur."""
+        data = {
+            "w_mm": self.spin_w.value(),
+            "h_mm": self.spin_h.value(),
+            "machine_bed_w_mm": self.spin_machine_w.value(),
+            "machine_bed_h_mm": self.spin_machine_h.value(),
+            "origin_pos": self.combo_origin.currentText(),
+            "offset_x": self.spin_off_x.value(),
+            "offset_y": self.spin_off_y.value(),
+            "bright": self.slider_bright.value(),
+            "contrast": self.slider_contrast.value(),
+            "gamma": self.slider_gamma.value(),
+            "sharp": self.slider_sharp.value(),
+            "safe_cut_order": self.chk_safe_cut_order.isChecked(),
+            "invert": self.chk_invert.isChecked(),
+            "material_bg": self.get_material_bg(),
+            "mirror_h": self.app_actions.mirror_h.isChecked(),
+            "mirror_v": self.app_actions.mirror_v.isChecked(),
+            "algo": self.combo_algo.currentText(),
+            "lmm": self.spin_lmm.value(),
+            "speed_engrave": self.engrave_speed,
+            "power_engrave": self.engrave_power,
+            "enable_cut": self.cut_enabled,
+            "speed_cut": self.cut_speed,
+            "power_cut": self.cut_power,
+            "passes_cut": self.cut_passes,
+            "materials_db": self.materials_db,
+            "raw_image_b64": None,  # rempli par ProjectController
+            "svg_path": self.loaded_svg_path,
+            "layers": self.layer_manager.to_list(),
+            "vector_objects": (
+                self.vector_canvas.serialize_objects()
+                if hasattr(self, "vector_canvas") else []
+            ),
+        }
+        return data, self.raw_image
+
+    def _restore_project(self, data, image):
+        """Réapplique un projet ouvert (voir _capture_project). Les clés
+        absentes (anciens projets) prennent leur valeur par défaut."""
+        # Le projet impose ses propres réglages matière / négatif / miroir :
+        # l'état mémorisé par l'onglet Séparation est oublié, sinon un
+        # chargement d'image ultérieur le « rendrait » par-dessus.
+        self._sep_glass_settings_active = False
+        self._sep_prev_image_settings = None
+
+        self.spin_w.setValue(data.get("w_mm", 100.0))
+        self.spin_h.setValue(data.get("h_mm", 100.0))
+        self.spin_machine_w.setValue(data.get("machine_bed_w_mm", self.spin_machine_w.value()))
+        self.spin_machine_h.setValue(data.get("machine_bed_h_mm", self.spin_machine_h.value()))
+        self.combo_origin.setCurrentText(data.get("origin_pos", "Bas-Gauche (0,0)"))
+        self.spin_off_x.setValue(data.get("offset_x", 0.0))
+        self.spin_off_y.setValue(data.get("offset_y", 0.0))
+
+        self.slider_bright.setValue(data.get("bright", 0))
+        self.slider_contrast.setValue(data.get("contrast", 0))
+        self.slider_gamma.setValue(data.get("gamma", 100))
+        self.slider_sharp.setValue(data.get("sharp", 0))
+        self.chk_safe_cut_order.setChecked(data.get("safe_cut_order", True))
+        # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
+        self.set_material_bg(data.get("material_bg", "dark" if data.get("invert", False) else "light"))
+        self.chk_invert.setChecked(data.get("invert", False))
+        self.app_actions.mirror_h.setChecked(data.get("mirror_h", False))
+        self.app_actions.mirror_v.setChecked(data.get("mirror_v", False))
+        self.combo_algo.setCurrentText(data.get("algo", "Floyd-Steinberg"))
+        self.spin_lmm.setValue(data.get("lmm", 10.0))
+
+        self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
+        self.cut_enabled = bool(data.get("enable_cut", False))
+        self.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
+                              data.get("passes_cut", 2))
+
+        if "materials_db" in data:
+            self.materials_db = data["materials_db"]
+            self.combo_mat.clear()
+            self.combo_mat.addItems(list(self.materials_db.keys()))
+
+        if image is not None:
+            self.raw_image = image
+            self.display_source_image()
+
+        self.loaded_svg_path = data.get("svg_path")
+
+        if "layers" in data:
+            self.layer_manager.load_list(data["layers"])
+            self.layers_tab.refresh()
+        if hasattr(self, "vector_canvas"):
+            self.vector_canvas.load_objects(data.get("vector_objects"))
+            self.update_vector_work_area()
+
+        self.update_image_processing()
 
     # -- Événements de la fenêtre
 
@@ -427,7 +632,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         super().showEvent(event)
         if getattr(self, "_autosave_recovery_pending", False):
             self._autosave_recovery_pending = False
-            QTimer.singleShot(0, self.check_for_autosave_recovery)
+            QTimer.singleShot(0, self.project.offer_autosave_recovery)
 
     def closeEvent(self, event):
         if hasattr(self, "_stop_status_poll"):
@@ -444,7 +649,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
 
         if reply == QMessageBox.StandardButton.Yes:
             # Enregistrement annulé ou en échec : on reste ouvert, rien n'est perdu.
-            if not self.save_project():
+            if not self.project.save():
                 event.ignore()
                 return
             self._flush_background_writes()
@@ -452,7 +657,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         elif reply == QMessageBox.StandardButton.No:
             # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
             # doit pas être proposée en récupération au prochain démarrage.
-            self._clear_autosave()
+            self.project.discard_autosave()
             self._flush_background_writes()
             event.accept()
         else:
@@ -541,6 +746,23 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
 
     # -- Fenêtres annexes : plein écran d'un onglet, réglages, messages
 
+    def _toggle_fullscreen_png2svg(self):
+        """Plein écran de « Vectorisation d'image », avec son propre titre."""
+        self._open_tab_fullscreen(
+            self.tab_png2svg,
+            tr("png2svg.fullscreen_title"),
+            tr("png2svg.close_fullscreen"),
+            tr("png2svg.tab_title"),
+        )
+
+    def _add_objects_to_vector_editor(self, objects):
+        """Ajoute des objets au canevas vectoriel (annulable d'un coup),
+        affiche l'éditeur et centre la vue sur eux."""
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+
     def _toggle_fullscreen_image_tab(self):
         """Plein écran de « Graver une image ». Ses réglages (ancien onglet Image & Filtres) sont
         maintenant dans l'onglet lui-même : le plein écran commun suffit."""
@@ -555,45 +777,39 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
             control.setVisible(visible)
 
     def _toggle_fullscreen_tab(self, tab_attr, title_key):
+        """Plein écran d'un onglet, avec le titre de l'onglet."""
         tab_widget = getattr(self, tab_attr, None)
         if tab_widget is None:
             return
-        idx = self.main_tabs_view.indexOf(tab_widget)
-        if idx == -1:
+        self._open_tab_fullscreen(
+            tab_widget, tr(title_key), tr("vector.close_fullscreen"),
+            tr(title_key))
+
+    def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
+                             on_restored=None):
+        """Sort `tab_widget` des onglets dans une FullscreenWindow, et l'y remet
+        à la même place quand elle se ferme (puis appelle `on_restored`).
+        Sans effet si l'onglet est déjà en plein écran."""
+        index = self.main_tabs_view.indexOf(tab_widget)
+        if index == -1:
             return
-
-        dialog = QDialog(self)
-        dialog.setWindowFlags(Qt.WindowType.Window)
-        dialog.setWindowTitle(tr(title_key))
-
-        dlg_layout = QVBoxLayout(dialog)
-        dlg_layout.setContentsMargins(4, 4, 4, 4)
-
-        btn_close_fullscreen = QPushButton(tr("vector.close_fullscreen"))
-        btn_close_fullscreen.setStyleSheet(
-            "background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;"
-        )
-        btn_close_fullscreen.clicked.connect(dialog.close)
-        dlg_layout.addWidget(btn_close_fullscreen)
-
-        dlg_layout.addWidget(tab_widget)
-        tab_widget.setVisible(True)
+        window = FullscreenWindow(self, tab_widget, window_title, close_text)
         self._show_fullscreen_control(tab_widget, False)
 
-        def restore(_result=None):
+        def restore():
             self._show_fullscreen_control(tab_widget, True)
-            dlg_layout.removeWidget(tab_widget)
-            tab_widget.setParent(None)
-            self.main_tabs_view.insertTab(idx, tab_widget, tr(title_key))
+            self.main_tabs_view.insertTab(index, tab_widget, tab_title)
             self.main_tabs_view.setCurrentWidget(tab_widget)
+            tab_widget.setVisible(True)
             tab_widget.updateGeometry()
             self.main_tabs_view.update()
             self.update()
             self.repaint()
+            if on_restored is not None:
+                on_restored()
 
-        dialog.finished.connect(restore)
-        dialog.show()
-        dialog.setWindowState(Qt.WindowState.WindowMaximized)
+        window.content_released.connect(restore)
+        window.show_maximized()
 
     def show_settings_window(self, kind):
         """Ouvre (ou ramène au premier plan) la fenêtre « Machine & Profils » (kind="machine") ou

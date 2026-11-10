@@ -32,7 +32,7 @@ class TestMatrixPage(QWidget):
 
         page = TestMatrixPage(lines_mm=10.0)
         page.generate_requested.connect(self.generate_test_matrix)
-        page.choose_image_requested.connect(self._mat_choose_image)
+        page.choose_image_requested.connect(matrix_image.choose_image)
         page.set_source_image(gray_image, "photo.png", width_mm=120.0)
         params = page.matrix_params()
     """

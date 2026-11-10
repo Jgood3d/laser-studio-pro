@@ -1,8 +1,9 @@
 """Fichiers Python de l'application, analysés par les outils et les tests.
 
 Ce sont les fichiers de la racine du projet et ceux des paquets ui/,
-grbl/, i18n/ et image/, avec leurs sous-dossiers. Les autres dossiers (tests, tools, stencil_studio,
-.venv...) ne sont pas concernés.
+grbl/, i18n/, image/ et controllers/, avec leurs sous-dossiers. Les
+autres dossiers (tests, tools, stencil_studio, .venv...) ne sont pas
+concernés.
 """
 
 import glob
@@ -11,7 +12,7 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Paquets de l'application, parcourus avec leurs sous-dossiers.
-PACKAGES = ("ui", "grbl", "i18n", "image")
+PACKAGES = ("ui", "grbl", "i18n", "image", "controllers")
 
 
 def python_files(root=ROOT):

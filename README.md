@@ -116,7 +116,7 @@ python main.py
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
-- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »)
+- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet)
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
@@ -133,7 +133,6 @@ python main.py
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
 - `ui_setup_mixin.py` — onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
-- `ui_image_tab.py` — onglet « Graver une image » et position du job
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
@@ -149,7 +148,8 @@ python main.py
 - `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…)
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`)
-- `matrix_image_mixin.py` — matrice de test à partir d’une image : chargement de l’image, zone gravée dans chaque case
+- `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière, tramage, résolution), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
+- `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère), dans le panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
@@ -160,12 +160,11 @@ python main.py
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
-- `project_io_mixin.py` — sauvegarde et ouverture de projet, sauvegarde automatique
-- `job_queue_mixin.py` — file d’attente de jobs
-- `png2svg_mixin.py` — logique de l’onglet PNG/JPEG → SVG : plein écran, envoi du SVG vers l’éditeur vectoriel
+- `controllers/` — contrôleurs, objets Python ordinaires qui remplacent peu à peu les mixins : `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par la fenêtre, `_capture_project` / `_restore_project`)
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
+- `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)
 - `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
 
 ### Signaux des pages et des panneaux
@@ -188,11 +187,13 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | Onglet | Signaux émis | État reçu / lu |
 | --- | --- | --- |
 | `TabToolBar` — barre d’outils d’un onglet | `fullscreen_requested` | `fullscreen_action` (bouton masqué en plein écran) |
+| `ImageTab` — Graver une image | `compare_requested`, `fullscreen_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` |
+| `ImageSettingsPanel` — réglages de « Graver une image » | `load_requested`, `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
 | `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed`, `fullscreen_requested` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
 | `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
 | `ConsoleTab` — Console / G-Code | `export_requested(extension)`, `fullscreen_requested` | `set_stats(lignes, puissance, temps)`, `console_edit` |
-| `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `queue_list`, `run_button`, `status_label`, `sent_gcode_edit` |
+| `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()`, `append_sent_gcode()`, `mark_sent_end()` |
 
 **Panneau machine** (sous les onglets, `ui/machine/`) :
 
@@ -202,7 +203,15 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `JobActionsPanel` — actions de job | `frame_requested`, `set_work_zero_requested`, `go_to_work_zero_requested`, `repeat_job_requested` | `set_connected(bool)`, `set_repeat_enabled(bool)` |
 | `DroPanel` — position de la machine | `unlock_requested` | `set_status(état, x, y, z)` |
 | `DirectConsolePanel` — console directe | `command_submitted(commande)` | `set_connected(bool)` |
+| `JobPositionBox` — position du job | (aucun : l’origine est lue à la génération) | `origin_combo` |
 | `MachinePanel` — assemble les panneaux ci-dessus | (ceux de ses panneaux) | `set_connected(bool)` |
+
+**Boîtes et fenêtres** (`ui/dialogs/`, `ui/widgets/`) :
+
+| Fenêtre | Signaux émis | État reçu |
+| --- | --- | --- |
+| `DitherComparisonDialog` — comparaison des algorithmes de tramage | `algorithm_chosen(nom)` | vignettes tramées, à la construction |
+| `FullscreenWindow` — plein écran d’un onglet | `content_released` (le contenu retourne dans les onglets) | le contenu, à la construction ; `show_maximized()` |
 
 Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/menu/actions.py`), qui émet un signal par action : `save_project_requested`, `settings_window_requested(page)`, `theme_selected(code)`, `generate_requested`, `connection_toggle_requested`…
 

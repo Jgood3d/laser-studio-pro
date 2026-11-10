@@ -14,7 +14,7 @@ class Png2SvgTab(QWidget):
     l'onglet relaie ses demandes :
 
         tab = Png2SvgTab()
-        tab.send_to_vector_requested.connect(self._on_png2svg_send_to_vector)
+        tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.update_image_actions_state)
     """
 

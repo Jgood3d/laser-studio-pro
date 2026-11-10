@@ -84,7 +84,7 @@ class LaserControlMixin:
         """Démarre le thread de polling DRO (position/état machine en
         direct) via requêtes '?' périodiques — utilisé hors streaming actif
         (idle, jog, homing...). Mis en pause pendant un job (voir
-        send_job / run_job_queue), car c'est alors GCodeStreamerThread
+        _start_stream), car c'est alors GCodeStreamerThread
         qui interroge lui-même le statut."""
         self._stop_status_poll()
         self.status_poll_thread = StatusPollThread(self.usb)
@@ -385,9 +385,7 @@ class LaserControlMixin:
             return
 
         self.machine_panel.jog_panel.set_send_enabled(False)
-        self.machine_panel.progress_bar.setValue(0)
-        if getattr(self, "status_poll_thread", None):
-            self.status_poll_thread.pause()
+        self._pause_status_poll()
         # Mémorisé pour "Répéter le dernier job" (voir repeat_last_job) —
         # le G-Code RÉELLEMENT envoyé, pas juste généré, pour que "répéter"
         # corresponde toujours à ce qui a vraiment été gravé la dernière
@@ -396,20 +394,49 @@ class LaserControlMixin:
         self._last_sent_gcode = gcode_text
         if hasattr(self, "machine_panel"):
             self.machine_panel.job_actions_panel.set_repeat_enabled(True)
-        if hasattr(self, "txt_sent_gcode"):
-            self.txt_sent_gcode.clear()
-            self._append_sent_gcode([tr("queue.sent_log_direct")])
+        self.tab_job_queue.clear_sent_gcode()
+        self.tab_job_queue.append_sent_gcode([tr("queue.sent_log_direct")])
+        self._start_stream(gcode_text, self.on_stream_finished)
+
+    def _start_stream(self, gcode_text, on_finished):
+        """Lance l'envoi de `gcode_text` au graveur (GCodeStreamerThread),
+        pour « Envoyer au laser » comme pour chaque job de la file.
+
+        Barre de progression, aperçu 2D (traits gravés en rouge), suivi du
+        G-Code envoyé, console, DRO et perte de connexion suivent l'envoi ;
+        `on_finished(fin_propre)` est appelée à la fin. L'envoi en cours
+        reste dans self.streamer (arrêt d'urgence, Reset...).
+        """
+        self.machine_panel.progress_bar.setValue(0)
         self._prepare_burn_overlay(gcode_text)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self._connect_burn_overlay(self.streamer)
-        if hasattr(self, "_append_sent_gcode"):
-            self.streamer.lines_sent.connect(self._append_sent_gcode)
-        self.streamer.progress.connect(lambda current, total: self.machine_panel.progress_bar.setValue(int((current / total) * 100)))
+        self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)
+        self.streamer.progress.connect(
+            lambda current, total: self.machine_panel.progress_bar.setValue(
+                int((current / total) * 100) if total else 0))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
-        self.streamer.finished_signal.connect(self.on_stream_finished)
+        self.streamer.finished_signal.connect(on_finished)
         self.streamer.connection_lost.connect(self._on_job_connection_lost)
         self.streamer.start()
+
+    def _stream_ended(self, clean_finish):
+        """Fin d'un envoi (direct ou job de la file) : repère de fin dans le
+        suivi, contrôle de la position, aperçu 2D."""
+        self.tab_job_queue.mark_sent_end(clean_finish)
+        self._check_position_after_stream()
+        if hasattr(self, "finish_burn_overlay"):
+            self.finish_burn_overlay(clean_finish)
+
+    def _pause_status_poll(self):
+        """Pendant un envoi, c'est GCodeStreamerThread qui interroge l'état."""
+        if getattr(self, "status_poll_thread", None):
+            self.status_poll_thread.pause()
+
+    def _resume_status_poll(self):
+        if getattr(self, "status_poll_thread", None):
+            self.status_poll_thread.resume()
 
     def _on_job_connection_lost(self):
         """Coupure USB détectée en cours de job (voir GCodeStreamerThread) :
@@ -480,15 +507,10 @@ class LaserControlMixin:
             self.txt_console.append(tr("laser.position_lost_log"))
 
     def on_stream_finished(self, clean_finish):
-        if hasattr(self, "_log_sent_gcode_end"):
-            self._log_sent_gcode_end(clean_finish)
         log.info("Envoi : terminé, fin propre=%s", clean_finish)
-        self._check_position_after_stream()
-        if hasattr(self, "finish_burn_overlay"):
-            self.finish_burn_overlay(clean_finish)
+        self._stream_ended(clean_finish)
         self.machine_panel.jog_panel.set_send_enabled(True)
-        if getattr(self, "status_poll_thread", None):
-            self.status_poll_thread.resume()
+        self._resume_status_poll()
         self._notify_job_finished()
         if clean_finish:
             QMessageBox.information(

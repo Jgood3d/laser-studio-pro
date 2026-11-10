@@ -16,7 +16,7 @@ try:
 except ImportError:
     HAS_BUILD = False
 
-from test_calibration_patterns import burn_segments
+from gcode_reader import burn_segments
 
 
 def rect(x0, y0, x1, y1):

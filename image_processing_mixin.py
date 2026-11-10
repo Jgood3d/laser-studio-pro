@@ -1,13 +1,14 @@
 """Chargement, transformations et traitement (tramage) de l'image source."""
 import os
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QGridLayout, QDialog)
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtGui import QImage
 import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
 from image.filters import sharpen_image
 from image.size import natural_size_mm, read_dpi
 from i18n import tr
+from ui.dialogs.dither_comparison import DitherComparisonDialog
 
 
 class ImageProcessingMixin:
@@ -535,36 +536,16 @@ class ImageProcessingMixin:
                  "Bayer 2x2 (ordonné)", "Bayer 4x4 (ordonné)", "Bayer 8x8 (ordonné)"]
 
         dummy_worker = ImageProcessingWorker(None, {})
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr("image.compare_dialog_title"))
-        grid = QGridLayout(dialog)
-        cols = 5
-        for i, algo in enumerate(algos):
+        thumbnails = []
+        for algo in algos:
             try:
-                out_arr = dummy_worker.apply_error_diffusion(arr.copy(), algo)
+                thumbnails.append((algo, dummy_worker.apply_error_diffusion(arr.copy(), algo)))
             except Exception:
                 continue
-            h, w = out_arr.shape
-            qimg = QImage(out_arr.tobytes(), w, h, w, QImage.Format.Format_Grayscale8)
-            pixmap = QPixmap.fromImage(qimg)
 
-            cell = QWidget()
-            cell_layout = QVBoxLayout(cell)
-            lbl_img = QLabel()
-            lbl_img.setPixmap(pixmap)
-            lbl_img.setStyleSheet("border: 1px solid #555;")
-            btn_choose = QPushButton(algo)
-            btn_choose.clicked.connect(lambda _, a=algo, d=dialog: self._choose_algo_from_comparison(a, d))
-            cell_layout.addWidget(lbl_img)
-            cell_layout.addWidget(btn_choose)
-            grid.addWidget(cell, i // cols, i % cols)
-
+        dialog = DitherComparisonDialog(self, thumbnails)
+        dialog.algorithm_chosen.connect(self.combo_algo.setCurrentText)
         dialog.exec()
-
-    def _choose_algo_from_comparison(self, algo, dialog):
-        self.combo_algo.setCurrentText(algo)
-        dialog.accept()
 
     def _on_preview_options_changed(self, *_args):
         if self._last_gcode_text:

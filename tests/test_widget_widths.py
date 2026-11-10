@@ -54,12 +54,12 @@ class WidgetWidthTests(unittest.TestCase):
 
     def test_the_material_selector_is_covered(self):
         names = {(f, c) for f, c, _, _ in long_combos()}
-        self.assertIn(("ui_image_tab.py", "self.combo_material_bg"), names)
+        self.assertIn((os.path.join("ui", "tabs", "image", "settings_panel.py"), "self.material_combo"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
         src = ui_source()
-        self.assertIn("self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)", src)
-        self.assertRegex(src, r"self\.combo_material_bg\.setMinimumContentsLength\(\d{1,2}\)")
+        self.assertIn("self.material_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)", src)
+        self.assertRegex(src, r"self\.material_combo\.setMinimumContentsLength\(\d{1,2}\)")
 
 
 class SplitterTests(unittest.TestCase):

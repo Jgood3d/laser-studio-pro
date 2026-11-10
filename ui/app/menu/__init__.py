@@ -7,7 +7,7 @@ Utilisation :
     actions = AppActions(self)
     self.setMenuBar(AppMenuBar(actions))
     self.addToolBar(AppToolBar(actions, self))
-    actions.save_project_requested.connect(self.save_project)
+    actions.save_project_requested.connect(self.project.save)
 """
 
 from ui.app.menu.actions import AppActions

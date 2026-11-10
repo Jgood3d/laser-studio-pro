@@ -41,7 +41,12 @@ def read(path):
 def source_files():
     pattern = [
         glob.glob(os.path.join(ROOT, p), recursive=True)
-        for p in ("*.py", "ui/**/*.py", "stencil_studio/*.py")
+        for p in (
+            "*.py",
+            "ui/**/*.py",
+            "controllers/*.py",
+            "stencil_studio/*.py",
+        )
     ]
     return sorted(os.path.relpath(f, ROOT) for files in pattern for f in files)
 
@@ -151,6 +156,11 @@ def describe_target(node, owner_names, index):
             cls = index.class_of_call(node.value)
             if cls:
                 return f"{cls}(…).{node.attr}()", index.classes[cls]
+        if owner.startswith("self.") and owner.count(".") == 1:
+            # Méthode d'un objet de la fenêtre (contrôleur...) : self.x.f
+            cls = index.attributes.get(owner[5:], (None, None))[0]
+            if cls:
+                return f"{owner[5:]}.{node.attr}", index.classes[cls]
         if owner in owner_names:  # variable locale : x = self.a.b
             source = owner_names[owner]
             attr = source.split(".")[-1]
@@ -223,10 +233,10 @@ PALETTE = {
     "gcode_generation_mixin.py": "#e67e22",
     "image_processing_mixin.py": "#16a085",
     "vector_editing_mixin.py": "#2980b9",
-    "matrix_image_mixin.py": "#c0392b",
-    "job_queue_mixin.py": "#7f8c3d",
-    "project_io_mixin.py": "#b8860b",
-    "png2svg_mixin.py": "#1abc9c",
+    "controllers/matrix_image.py": "#c0392b",
+    "controllers/job_queue.py": "#7f8c3d",
+    "controllers/project.py": "#b8860b",
+    "controllers/png2svg.py": "#1abc9c",
     "separation_mixin.py": "#6c5ce7",
     "main_window.py": "#34495e",
     "ui/app/window_controller.py": "#5d6d7e",

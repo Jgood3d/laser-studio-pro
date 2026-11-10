@@ -23,11 +23,13 @@ class JobQueueTab(QWidget):
     des signaux, auxquels la fenêtre (plus tard un contrôleur) s'abonne :
 
         tab = JobQueueTab()
-        tab.run_requested.connect(self.run_job_queue)
-        tab.reordered.connect(self._on_queue_reordered)
+        tab.run_requested.connect(queue.run)
+        tab.reordered.connect(queue.on_reordered)
 
-    Les éléments restent accessibles directement (queue_list, run_button,
-    status_label, sent_gcode_edit).
+    Son état se règle par des méthodes : liste des jobs (add_job,
+    remove_job, set_jobs...), texte d'état, bouton « Lancer », et suivi du
+    G-Code envoyé (append_sent_gcode, mark_sent_end). Les éléments restent
+    accessibles (queue_list, run_button, status_label, sent_gcode_edit).
     """
 
     add_current_requested = pyqtSignal()
@@ -110,3 +112,57 @@ class JobQueueTab(QWidget):
         )
         sent_layout.addWidget(self.sent_gcode_edit)
         return sent_box
+
+    # -- liste des jobs
+
+    def add_job(self, name):
+        self.queue_list.addItem(name)
+
+    def remove_job(self, row):
+        self.queue_list.takeItem(row)
+
+    def set_jobs(self, names):
+        """Remplace la liste par ces noms, dans cet ordre."""
+        self.queue_list.clear()
+        for name in names:
+            self.queue_list.addItem(name)
+
+    def job_names(self):
+        """Noms des jobs, dans l'ordre affiché."""
+        return [
+            self.queue_list.item(row).text()
+            for row in range(self.queue_list.count())
+        ]
+
+    def selected_row(self):
+        """Ligne sélectionnée, ou -1."""
+        return self.queue_list.currentRow()
+
+    def select_job(self, row):
+        self.queue_list.setCurrentRow(row)
+
+    # -- état
+
+    def set_status(self, text):
+        self.status_label.setText(text)
+
+    def set_run_enabled(self, enabled):
+        self.run_button.setEnabled(enabled)
+
+    # -- G-Code envoyé
+
+    def clear_sent_gcode(self):
+        self.sent_gcode_edit.clear()
+
+    def append_sent_gcode(self, lines):
+        """Ajoute des lignes au suivi d'envoi (lignes du G-Code au moment où
+        elles partent vers la machine, ou repères de début et de fin)."""
+        if lines:
+            self.sent_gcode_edit.appendPlainText("\n".join(lines))
+
+    def mark_sent_end(self, clean_finish):
+        """Repère de fin d'envoi : terminé, ou interrompu."""
+        key = (
+            "queue.sent_log_done" if clean_finish else "queue.sent_log_stopped"
+        )
+        self.append_sent_gcode([tr(key)])

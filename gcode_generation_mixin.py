@@ -654,7 +654,7 @@ class GcodeGenerationMixin:
         })
         # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
         if engraving and page.image_test_enabled():
-            tile = self.build_matrix_image_tile(params['lines_mm'])
+            tile = self.matrix_image.build_tile(params['lines_mm'])
             if tile is None:
                 return False
             params['image_tile'] = tile

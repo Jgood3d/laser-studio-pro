@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Onglet « Séparation Couleur / Verre » (PyQt6), calqué sur png2svg_mixin.py.
+"""Onglet « Séparation Couleur / Verre » (PyQt6), calqué sur l'onglet PNG -> SVG.
 
 Principe : l'image couleur est chargée ici ; sa tonalité (canal V) est envoyée à
 l'onglet « Image & Filtres » (raw_image), qui applique luminosité / contraste /
