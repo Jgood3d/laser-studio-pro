@@ -30,13 +30,11 @@ REPO_ROOT = os.path.dirname(SPECPATH)  # SPECPATH = dossier macos/
 sys.path.insert(0, REPO_ROOT)
 from app_utils import APP_VERSION
 
-# Ressources embarquées à côté de l'exécutable dans le bundle (retrouvées au
-# runtime par app_utils.find_resource() / get_bundle_dir()). Ces images
-# sources restent à la racine, partagées avec les builds Windows/Linux.
+# Ressources embarquées dans le bundle, dans resources/ (retrouvées au
+# runtime par app_utils.find_resource()). Ce dossier est partagé avec les
+# builds Windows/Linux.
 datas = [
-    (os.path.join(REPO_ROOT, 'laser_studio_pro.ico'), '.'),
-    (os.path.join(REPO_ROOT, 'laser_studio_pro_512.png'), '.'),
-    (os.path.join(REPO_ROOT, 'laser_studio_pro_banner.png'), '.'),
+    (os.path.join(REPO_ROOT, 'resources'), 'resources'),
 ]
 datas += collect_data_files('pyqtgraph')
 datas += collect_data_files('skimage')

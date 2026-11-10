@@ -58,6 +58,7 @@ laser-studio-pro/
 ├── .github/workflows/macos-build.yml
 ├── docs/                             # captures, page de présentation
 ├── macos/                            # build macOS (spec, scripts, icns)
+├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
 ├── icons/
 │   └── breeze/                       # thème d’icônes FreeDesktop embarqué
 │       ├── index.theme
@@ -117,8 +118,7 @@ laser-studio-pro/
 ├── separation_mixin.py / separation_engine.py
 ├── requirements-linux.txt / requirements-windows.txt
 ├── build.bat / setup.iss / BUILD.md
-├── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
-└── ressources graphiques (.ico, .png, banner…)
+└── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
 ```
 
 ---
@@ -271,7 +271,7 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 4. **Thème unique source de vérité** : `app_theme.THEMES` + `QSettings("app_theme")` ; Stencil Studio consomme via `theme_for_lsp`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")` dans `i18n.py`.
-7. **Ressources** : images/icônes via `find_resource` / pack `icons/` ; penser à `--add-data` dans les builds.
+7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `icons/` ; penser à `--add-data "resources;resources"` dans les builds.
 
 ---
 

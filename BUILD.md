@@ -44,24 +44,24 @@ pip install pyinstaller
 
 ### 4. Compiler
 Depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
-être présents), avec les fichiers `laser_studio_pro.ico`,
-`laser_studio_pro_banner.png` et `laser_studio_pro_512.png` :
+être présents), avec le dossier `resources/` (icône, bannière, logo,
+image « Buy me a coffee ») :
 ```powershell
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "icons;icons" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "icons;icons" main.py
 Avec Stencil Studio :
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "icons;icons" --add-data "stencil_studio;stencil_studio" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "icons;icons" --add-data "stencil_studio;stencil_studio" main.py
 
 ```
 Sous Windows, `--add-data` sépare source et destination par `;`. Le code
-(`app_utils.find_resource`) cherche ces images à la fois à côté de l'exécutable
-et dans le bundle PyInstaller, donc `--add-data` suffit — pas besoin de copier
-les images manuellement dans `dist\` après coup.
+(`app_utils.find_resource`) cherche ces images dans `resources/` à côté de
+l'exécutable, puis dans le bundle PyInstaller, donc `--add-data` suffit — pas
+besoin de copier les images manuellement dans `dist\` après coup.
 
-> Si tu n'as pas certains fichiers (ex. `laser_studio_pro_512.png`), retire
-> simplement le `--add-data` correspondant : le code passe automatiquement au
-> suivant dans sa liste de repli (`.ico` → `_256.png` → `_512.png`) et
-> n'affiche une image manquante que si aucune n'est trouvée du tout.
+> Une image absente de `resources/` n'empêche pas la compilation : pour
+> l'icône, le code passe au suivant dans sa liste de repli (`.ico` →
+> `_256.png` → `_512.png`) et n'affiche une image manquante que si aucune
+> n'est trouvée du tout.
 
 ### 5. Résultat
 L'exécutable `LaserStudioPro.exe` se trouve dans le dossier `dist\`.
@@ -95,11 +95,11 @@ pip install pyinstaller
 
 ### 4. Compiler
 ```bash
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "icons:icons" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "icons:icons" main.py
 
 Avec Stencil studio
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "icons:icons" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "icons:icons" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
 Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien

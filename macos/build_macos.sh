@@ -41,19 +41,19 @@ pip install -r "${MACOS_DIR}/requirements-macos.txt" -q
 pip install pyinstaller -q
 
 # 2. Génération de l'icône .icns si absente ou si la source a changé.
-#    Source (laser_studio_pro_512.png) partagée avec Windows/Linux, reste
-#    à la racine ; l'icône .icns générée, elle, va dans macos/.
+#    Source (resources/laser_studio_pro_512.png) partagée avec
+#    Windows/Linux ; l'icône .icns générée, elle, va dans macos/.
 ICNS_PATH="${MACOS_DIR}/laser_studio_pro.icns"
-if [ ! -f "$ICNS_PATH" ] || [ "laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
+if [ ! -f "$ICNS_PATH" ] || [ "resources/laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
     echo "Génération de l'icône .icns..."
     ICONSET_DIR="$(mktemp -d)/laser_studio_pro.iconset"
     mkdir -p "$ICONSET_DIR"
     for size in 16 32 64 128 256 512; do
-        sips -z "$size" "$size" laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}.png" >/dev/null
+        sips -z "$size" "$size" resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}.png" >/dev/null
         double=$((size * 2))
-        sips -z "$double" "$double" laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}@2x.png" >/dev/null
+        sips -z "$double" "$double" resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}@2x.png" >/dev/null
     done
-    sips -z 1024 1024 laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null
+    sips -z 1024 1024 resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null
     iconutil -c icns "$ICONSET_DIR" -o "$ICNS_PATH"
     rm -rf "$(dirname "$ICONSET_DIR")"
 fi
