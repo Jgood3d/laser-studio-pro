@@ -123,13 +123,9 @@ class WindowControllerMixin:
         Verrouille ou déverrouille aussi les commandes de la machine.
         """
         connected = self.usb.is_connected()
-        label = tr("laser.disconnect") if connected else tr("laser.connect")
-        button = getattr(self, "btn_connect", None)
-        if button is not None:
-            button.setText(label)
-            button.setStyleSheet(
-                "background-color: #27ae60; color: white;" if connected else ""
-            )
+        page = getattr(self, "tab_machine_profiles", None)
+        if page is not None:
+            page.set_connected(connected)
         actions = getattr(self, "app_actions", None)
         if actions is not None:
             actions.set_connected(connected)

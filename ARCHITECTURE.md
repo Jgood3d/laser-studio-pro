@@ -32,7 +32,7 @@ main.py
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    contenu des onglets (éditeur vectoriel…)
         ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
-        ├─ …PageMixin            (ui_*_page.py)         pages de réglages
+        ├─ …PageMixin            (ui_*_page.py)         matrice de test, configuration GRBL
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
@@ -87,7 +87,6 @@ laser-studio-pro/
 ├── ui_setup_mixin.py
 ├── ui_window_controller.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
-├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
@@ -98,6 +97,8 @@ laser-studio-pro/
 ├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
 ├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
+├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
+├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -147,6 +148,8 @@ laser-studio-pro/
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
 | **ui/machine/dro/** | `DroPanel` : état GRBL coloré, position X / Y / Z, « Déverrouiller » visible seulement en alarme. Reçoit l'état par `set_status()`, émet `unlock_requested` | Alimenté par `LaserControlMixin._update_dro_display` |
 | **ui/machine/console/** | `DirectConsolePanel` : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_manual_cmd` |
+| **ui/settings/machine_params/** | `MachineParamsPage` (QScrollArea) : profils machine, dimensions du lit, spot, limites. Émet `profile_selected`, `new/update/delete_profile_requested`, `bed_size_changed(l, p)`, `focal_changed(mm)`, `max_speed_changed` | Construite et abonnée dans `main_window._build_machine_params_page` ; ses champs gardent leurs anciens noms dans la fenêtre (`spin_machine_w`…) |
+| **ui/settings/machine_profiles/** | `MachineProfilesPage` : port (modèle partagé avec la barre d'outils), connexion, profils de matériaux. Émet `connect_requested`, `material_selected`, `save/new/delete_material_requested`…, reçoit `set_connected()` | Construite et abonnée dans `main_window._build_machine_profiles_page` (`combo_ports`, `combo_mat` gardent leurs noms) |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`), relaie `layers_changed`, `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |

@@ -160,7 +160,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
         self.assertIn("shortcut_undo_img.activated.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("self.combo_ports.setModel(self.main_toolbar.ports_combo.model())", src)
+        self.assertIn("MachineProfilesPage(ports.model(), self.materials_db.keys())", src)
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
@@ -248,14 +248,14 @@ class MenuStructureTests(unittest.TestCase):
         src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
-        self.assertIn("self.tab_machine_profiles = tab_mach", src)
+        self.assertIn("self.tab_machine_profiles = page", src)
         self.assertIn("self.tab_grbl_config = tab_gcode_cfg", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
         src = ui_source()
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
-        self.assertIn("self.tab_machine_params = tab_machine_params", src)
+        self.assertIn("self.tab_machine_params = page", src)
         self.assertIn("self.tab_matrix = tab_matrix", src)
 
     def test_other_tabs_are_still_there(self):
@@ -380,11 +380,11 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
-        obj.btn_connect, obj.app_actions = mock.Mock(), mock.Mock()
-        for connected, label in ((False, "laser.connect"), (True, "laser.disconnect")):
+        obj.tab_machine_profiles, obj.app_actions = mock.Mock(), mock.Mock()
+        for connected in (False, True):
             obj.usb = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
-            obj.btn_connect.setText.assert_called_with(self.mod.tr(label))
+            obj.tab_machine_profiles.set_connected.assert_called_with(connected)
             obj.app_actions.set_connected.assert_called_with(connected)
 
     def test_show_fullscreen_control(self):

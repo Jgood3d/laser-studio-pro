@@ -12,6 +12,8 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 from i18n import tr
 from settings_window import SettingsWindow
 from ui.machine import MachinePanel
+from ui.settings.machine_params import MachineParamsPage
+from ui.settings.machine_profiles import MachineProfilesPage
 from ui.statusbar import StatusBar
 from ui.tabs.layers import LayersTab
 
@@ -20,8 +22,6 @@ from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
 from ui_window_controller import WindowControllerMixin
-from ui_machine_params_page import MachineParamsPageMixin
-from ui_machine_profiles_page import MachineProfilesPageMixin
 from ui_test_matrix_page import TestMatrixPageMixin
 from ui_grbl_config_page import GrblConfigPageMixin
 from ui_image_tab import ImageTabMixin
@@ -40,7 +40,7 @@ from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
-class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineParamsPageMixin, MachineProfilesPageMixin,
+class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
                        TestMatrixPageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
                        LegacySvgBoxMixin, MachineProfilesMixin,
                        ImageProcessingMixin,
@@ -191,7 +191,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         jog.reset_requested.connect(self.send_reset)
         jog.emergency_stop_requested.connect(self.send_kill)
         jog.send_job_requested.connect(self.send_to_laser)
-        self.spin_machine_max_speed.valueChanged.connect(jog.set_max_speed)
+        self.tab_machine_params.max_speed_changed.connect(jog.set_max_speed)
 
         job_actions = self.machine_panel.job_actions_panel
         job_actions.frame_requested.connect(self.run_frame)
@@ -223,6 +223,51 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         self.center_v_splitter.setStretchFactor(0, 3)
         self.center_v_splitter.setStretchFactor(1, 1)
         return center_bottom_scroll
+
+    def _build_machine_params_page(self):
+        """Page « Paramètres du graveur », abonnée à la logique des profils.
+
+        Affichée dans une fenêtre du menu Paramètres (show_settings_window).
+        """
+        page = MachineParamsPage()
+        page.profile_selected.connect(self._on_machine_profile_selected)
+        page.new_profile_requested.connect(self._add_machine_profile)
+        page.update_profile_requested.connect(self._update_machine_profile)
+        page.delete_profile_requested.connect(self._delete_machine_profile)
+        page.bed_size_changed.connect(self.update_vector_work_area)
+        page.focal_changed.connect(self._on_machine_focal_changed)
+        # Noms historiques des champs, lus par la logique (profils,
+        # génération, éditeur vectoriel, Stencil Studio…).
+        self.combo_machine_profile = page.profile_combo
+        self.spin_machine_w = page.bed_width_spin
+        self.spin_machine_h = page.bed_height_spin
+        self.spin_machine_focal = page.focal_spin
+        self.spin_machine_max_speed = page.max_speed_spin
+        self.spin_machine_accel = page.accel_spin
+        self.tab_machine_params = page
+
+    def _build_machine_profiles_page(self):
+        """Page « Matériaux et connexion au graveur », abonnée à la logique.
+
+        Sa liste des ports est celle de la barre d'outils (même modèle), et
+        le port choisi est le même des deux côtés.
+        """
+        ports = self.main_toolbar.ports_combo
+        page = MachineProfilesPage(ports.model(), self.materials_db.keys())
+        page.port_selected.connect(ports.setCurrentIndex)
+        ports.currentIndexChanged.connect(page.set_port_index)
+        page.refresh_ports_requested.connect(self.refresh_com_ports)
+        page.connect_requested.connect(self.toggle_usb)
+        page.material_selected.connect(self.apply_material_profile)
+        page.save_material_requested.connect(self.save_material_profile)
+        page.new_material_requested.connect(self.add_material_profile)
+        page.delete_material_requested.connect(self.delete_material_profile)
+        page.export_materials_requested.connect(self.export_material_profiles)
+        page.import_materials_requested.connect(self.import_material_profiles)
+        # Noms historiques des listes, lus par la logique.
+        self.combo_ports = page.ports_combo
+        self.combo_mat = page.material_combo
+        self.tab_machine_profiles = page
 
     def _build_layers_tab(self):
         """Onglet « Calques », abonné à la logique des calques.

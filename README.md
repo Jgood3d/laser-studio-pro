@@ -136,8 +136,6 @@ python main.py
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
 - `ui_setup_mixin.py` — contenu des onglets : éditeur vectoriel, barres d’outils d’onglet (partira dans `ui/tabs/`)
-- `ui_machine_params_page.py` — page « Paramètres du graveur »
-- `ui_machine_profiles_page.py` — page « Matériaux et connexion au graveur »
 - `ui_test_matrix_page.py` — page « Matrice de test »
 - `ui_grbl_config_page.py` — page « Configuration GRBL »
 - `ui_image_tab.py` — onglet « Graver une image » et position du job
@@ -155,6 +153,8 @@ python main.py
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
 - `ui/machine/dro/` — position de la machine `DroPanel` : état GRBL, X / Y / Z, bouton « Déverrouiller » en alarme (émet `unlock_requested`)
 - `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
+- `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
+- `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
