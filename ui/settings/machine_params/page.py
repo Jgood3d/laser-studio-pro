@@ -26,7 +26,7 @@ class MachineParamsPage(QScrollArea):
     tard un contrôleur) s'abonne :
 
         page = MachineParamsPage()
-        page.new_profile_requested.connect(self._add_machine_profile)
+        page.new_profile_requested.connect(self._new_machine_profile)
         page.focal_changed.connect(self._on_machine_focal_changed)
 
     Les champs restent lisibles directement (profile_combo, bed_width_spin,

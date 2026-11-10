@@ -192,12 +192,12 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         )
         jog = self.machine_panel.jog_panel
         jog.jog_requested.connect(self.jog_move)
-        jog.home_requested.connect(self.send_homing)
+        jog.home_requested.connect(self.home_machine)
         jog.pause_requested.connect(self.send_pause)
         jog.resume_requested.connect(self.send_resume)
         jog.reset_requested.connect(self.send_reset)
-        jog.emergency_stop_requested.connect(self.send_kill)
-        jog.send_job_requested.connect(self.send_to_laser)
+        jog.emergency_stop_requested.connect(self.emergency_stop)
+        jog.send_job_requested.connect(self.send_job)
         self.tab_machine_params.max_speed_changed.connect(jog.set_max_speed)
 
         job_actions = self.machine_panel.job_actions_panel
@@ -210,7 +210,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
             self.unlock_alarm
         )
         self.machine_panel.console_panel.command_submitted.connect(
-            self.send_manual_cmd
+            self.send_console_command
         )
         # Commandes verrouillées tant que non connecté
         self.update_connection_widgets()
@@ -238,7 +238,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         """
         page = MachineParamsPage()
         page.profile_selected.connect(self._on_machine_profile_selected)
-        page.new_profile_requested.connect(self._add_machine_profile)
+        page.new_profile_requested.connect(self._new_machine_profile)
         page.update_profile_requested.connect(self._update_machine_profile)
         page.delete_profile_requested.connect(self._delete_machine_profile)
         page.bed_size_changed.connect(self.update_vector_work_area)
@@ -264,10 +264,10 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         page.port_selected.connect(ports.setCurrentIndex)
         ports.currentIndexChanged.connect(page.set_port_index)
         page.refresh_ports_requested.connect(self.refresh_com_ports)
-        page.connect_requested.connect(self.toggle_usb)
+        page.connect_requested.connect(self.toggle_connection)
         page.material_selected.connect(self.apply_material_profile)
         page.save_material_requested.connect(self.save_material_profile)
-        page.new_material_requested.connect(self.add_material_profile)
+        page.new_material_requested.connect(self.new_material_profile)
         page.delete_material_requested.connect(self.delete_material_profile)
         page.export_materials_requested.connect(self.export_material_profiles)
         page.import_materials_requested.connect(self.import_material_profiles)
@@ -371,7 +371,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         """
         tab = Preview2DTab()
         tab.display_options_changed.connect(
-            self.on_flip_raster_preview_changed
+            self._on_preview_options_changed
         )
         tab.plot_clicked.connect(self._on_plot_clicked)
         tab.fullscreen_requested.connect(

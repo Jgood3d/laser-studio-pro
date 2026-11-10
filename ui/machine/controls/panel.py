@@ -44,7 +44,7 @@ class JogControlPanel(QGroupBox):
 
         panel = JogControlPanel(max_speed=6000)
         panel.jog_requested.connect(laser.jog_move)
-        panel.home_requested.connect(laser.send_homing)
+        panel.home_requested.connect(laser.home_machine)
 
     Il reçoit l'état de la machine par set_connected() et set_max_speed().
     """

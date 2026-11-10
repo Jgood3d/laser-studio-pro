@@ -50,7 +50,7 @@
 <path d="M342 285.0 L380 285.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 281.0 L388 285.0 L380 289.0 Z" fill="#8e44ad"/>
 <rect x="388" y="276" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_add_machine_profile</text>
+<text x="396" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_new_machine_profile</text>
 <text x="698" y="289.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
 <rect x="42" y="298" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="311.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">update_profile_requested</text>
@@ -103,7 +103,7 @@
 <path d="M342 509.0 L380 509.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M380 505.0 L388 509.0 L380 513.0 Z" fill="#d9534f"/>
 <rect x="388" y="500" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="396" y="513.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">toggle_usb</text>
+<text x="396" y="513.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">toggle_connection</text>
 <text x="698" y="513.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <rect x="42" y="522" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">material_selected</text>
@@ -124,7 +124,7 @@
 <path d="M342 575.0 L380 575.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 571.0 L388 575.0 L380 579.0 Z" fill="#8e44ad"/>
 <rect x="388" y="566" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">add_material_profile</text>
+<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">new_material_profile</text>
 <text x="698" y="579.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
 <rect x="42" y="588" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_material_requested</text>
@@ -285,7 +285,7 @@
 <path d="M342 1405.0 L380 1405.0" stroke="#16a085" stroke-width="2" fill="none"/>
 <path d="M380 1401.0 L388 1405.0 L380 1409.0 Z" fill="#16a085"/>
 <rect x="388" y="1396" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1409.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">on_flip_raster_preview_changed</text>
+<text x="396" y="1409.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_on_preview_options_changed</text>
 <text x="698" y="1409.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">image_processing_mixin.py</text>
 <rect x="42" y="1418" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="1431.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">plot_clicked</text>
@@ -375,7 +375,7 @@
 <path d="M1278 263.0 L1316 263.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M1316 259.0 L1324 263.0 L1316 267.0 Z" fill="#d9534f"/>
 <rect x="1324" y="254" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="1332" y="267.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_homing</text>
+<text x="1332" y="267.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">home_machine</text>
 <text x="1634" y="267.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <rect x="978" y="276" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">pause_requested</text>
@@ -403,14 +403,14 @@
 <path d="M1278 351.0 L1316 351.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M1316 347.0 L1324 351.0 L1316 355.0 Z" fill="#d9534f"/>
 <rect x="1324" y="342" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="1332" y="355.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_kill</text>
+<text x="1332" y="355.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">emergency_stop</text>
 <text x="1634" y="355.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <rect x="978" y="364" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="377.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">send_job_requested</text>
 <path d="M1278 373.0 L1316 373.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M1316 369.0 L1324 373.0 L1316 377.0 Z" fill="#d9534f"/>
 <rect x="1324" y="364" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="1332" y="377.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_to_laser</text>
+<text x="1332" y="377.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_job</text>
 <text x="1634" y="377.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <rect x="966" y="408" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="978" y="428" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">JobActionsPanel</text>
@@ -464,7 +464,7 @@
 <path d="M1278 715.0 L1316 715.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M1316 711.0 L1324 715.0 L1316 719.0 Z" fill="#d9534f"/>
 <rect x="1324" y="706" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="1332" y="719.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_manual_cmd</text>
+<text x="1332" y="719.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">send_console_command</text>
 <text x="1634" y="719.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <text x="966" y="776" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="#5d6d7e">MENU ET BARRE D&#x27;OUTILS</text>
 <rect x="966" y="790" width="896" height="562" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
@@ -630,6 +630,6 @@
 <path d="M1278 1331.0 L1316 1331.0" stroke="#d9534f" stroke-width="2" fill="none"/>
 <path d="M1316 1327.0 L1324 1331.0 L1316 1335.0 Z" fill="#d9534f"/>
 <rect x="1324" y="1322" width="300" height="18" rx="4" fill="#d9534f" stroke="none"/>
-<text x="1332" y="1335.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">toggle_usb</text>
+<text x="1332" y="1335.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">toggle_connection</text>
 <text x="1634" y="1335.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 </svg>

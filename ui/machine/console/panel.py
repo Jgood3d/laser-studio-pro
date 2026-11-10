@@ -15,7 +15,7 @@ class DirectConsolePanel(QGroupBox):
     vide), l'ajoute à l'historique (flèches Haut / Bas) et vide le champ.
 
         panel = DirectConsolePanel()
-        panel.command_submitted.connect(laser.send_manual_cmd)
+        panel.command_submitted.connect(laser.send_console_command)
     """
 
     command_submitted = pyqtSignal(str)

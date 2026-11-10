@@ -20,7 +20,7 @@ class LaserControlMixin:
         for p in ports:
             self.combo_ports.addItem(f"{p.device} - {p.description}")
 
-    def toggle_usb(self):
+    def toggle_connection(self):
         if self.usb.is_connected():
             self._stop_status_poll()
             self.usb.disconnect()
@@ -53,7 +53,7 @@ class LaserControlMixin:
     tr("laser.connection_error").format(port=port)
 )
 
-    def send_homing(self):
+    def home_machine(self):
         """Lance le homing ($H) et retient qu'il a eu lieu depuis la
         connexion — utilisé pour avertir avant un envoi de job si ça n'a
         jamais été fait (voir _confirm_homed_before_job)."""
@@ -84,7 +84,7 @@ class LaserControlMixin:
         """Démarre le thread de polling DRO (position/état machine en
         direct) via requêtes '?' périodiques — utilisé hors streaming actif
         (idle, jog, homing...). Mis en pause pendant un job (voir
-        send_to_laser / run_job_queue), car c'est alors GCodeStreamerThread
+        send_job / run_job_queue), car c'est alors GCodeStreamerThread
         qui interroge lui-même le statut."""
         self._stop_status_poll()
         self.status_poll_thread = StatusPollThread(self.usb)
@@ -349,7 +349,7 @@ class LaserControlMixin:
         """
         self.send_manual_direct_cmd("G0 X0 Y0")
 
-    def send_to_laser(self):
+    def send_job(self):
         gcode_text = self.txt_console.toPlainText()
         log.info("Envoi : clic sur « Envoyer au laser » (port ouvert=%s, homing fait=%s, état %s)",
                  self.usb.is_connected(), getattr(self, "has_homed_since_connect", False),
@@ -443,14 +443,14 @@ class LaserControlMixin:
     def repeat_last_job(self):
         """Relance directement le dernier G-Code effectivement envoyé au
         laser, sans repasser par tout le pipeline de réglages — pratique
-        pour une petite série de pièces identiques. Réutilise send_to_laser
+        pour une petite série de pièces identiques. Réutilise send_job
         (donc les mêmes vérifications de sécurité : connexion, homing,
         confirmation)."""
         last = getattr(self, "_last_sent_gcode", None)
         if not last:
             return
         self.txt_console.setPlainText(last)
-        self.send_to_laser()
+        self.send_job()
 
     def unlock_alarm(self):
         """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de
@@ -534,10 +534,10 @@ class LaserControlMixin:
     def send_reset(self):
         self._soft_reset("laser.reset_log")
 
-    def send_kill(self):
+    def emergency_stop(self):
         self._soft_reset("laser.kill_log")
 
-    def send_manual_cmd(self, cmd):
+    def send_console_command(self, cmd):
         """Envoie une commande GRBL tapée dans la console directe.
 
         Abonné au signal DirectConsolePanel.command_submitted.

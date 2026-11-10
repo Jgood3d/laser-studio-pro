@@ -5,7 +5,7 @@ Utilisation :
     from ui.settings.machine_profiles import MachineProfilesPage
 
     page = MachineProfilesPage(ports_model, material_names)
-    page.connect_requested.connect(self.toggle_usb)
+    page.connect_requested.connect(self.toggle_connection)
 """
 
 from ui.settings.machine_profiles.page import MachineProfilesPage

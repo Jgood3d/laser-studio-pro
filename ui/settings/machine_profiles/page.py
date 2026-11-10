@@ -26,7 +26,7 @@ class MachineProfilesPage(QWidget):
     set_connected() :
 
         page = MachineProfilesPage(ports_model, ["MDF 4mm", "Cuir 2mm"])
-        page.connect_requested.connect(laser.toggle_usb)
+        page.connect_requested.connect(laser.toggle_connection)
         page.set_connected(True)
 
     `ports_model` : modèle de la liste des ports, partagé avec la barre

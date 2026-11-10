@@ -380,7 +380,7 @@ class MachineProfilesMixin:
         if hasattr(self, "layers_tab"):
             self.layers_tab.refresh_focal_quality()
 
-    def _add_machine_profile(self):
+    def _new_machine_profile(self):
         name, ok = QInputDialog.getText(
     self,
     tr("machine.new_title"),
@@ -538,7 +538,7 @@ class MachineProfilesMixin:
     tr("material.saved_body").format(name=mat_name)
 )
 
-    def add_material_profile(self):
+    def new_material_profile(self):
         name, ok = QInputDialog.getText(
     self,
     tr("material.new_profile_title"),

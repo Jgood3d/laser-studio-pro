@@ -53,7 +53,7 @@ class SoftResetTests(unittest.TestCase):
         return f
 
     def test_reset_when_idle_keeps_homed(self):
-        for action in ("send_reset", "send_kill"):
+        for action in ("send_reset", "emergency_stop"):
             f = self.make("Idle")
             getattr(f, action)()
             self.assertEqual(f.usb.sent, [b"\x18"])
@@ -61,7 +61,7 @@ class SoftResetTests(unittest.TestCase):
 
     def test_reset_while_streaming_loses_homed_and_stops_stream(self):
         f = self.make("Idle", streaming=True)   # même si le dernier statut lu est « Idle »
-        f.send_kill()
+        f.emergency_stop()
         self.assertTrue(f.streamer.stopped)
         self.assertFalse(f.has_homed_since_connect)
 

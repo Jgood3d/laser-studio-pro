@@ -97,7 +97,7 @@ class WindowControllerMixin:
         actions.gcode_import_requested.connect(self.import_gcode_file)
         # Connexion au graveur
         actions.refresh_ports_requested.connect(self.refresh_com_ports)
-        actions.connection_toggle_requested.connect(self.toggle_usb)
+        actions.connection_toggle_requested.connect(self.toggle_connection)
 
     def show_main_tab(self, tab_attr):
         """Affiche l'onglet central `tab_attr` (ex. "tab_separation").
