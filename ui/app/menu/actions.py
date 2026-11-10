@@ -50,7 +50,7 @@ class AppActions(QObject):
     (plus tard un contrôleur) s'abonne aux signaux :
 
         actions = AppActions(window)
-        actions.save_project_requested.connect(window.save_project)
+        actions.save_project_requested.connect(window.project.save)
 
     L'état passe par des méthodes set_… (connexion, langue, thème, actions
     sur l'image) ; les miroirs se lisent sur mirror_h / mirror_v.
@@ -215,7 +215,7 @@ class AppActions(QObject):
             action.setChecked(code == current_lang)
             self.language_actions[code] = action
 
-        from app_theme import available_themes, normalize_theme_name
+        from ui.app.theme import available_themes, normalize_theme_name
 
         self.theme_icon = standard_icon(
             "preferences-desktop-theme", QStyle.StandardPixmap.SP_DesktopIcon

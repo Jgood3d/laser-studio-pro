@@ -69,8 +69,8 @@ class MachineProfilesMixin:
         # Même logique qu'à chaque validation de profil machine : les
         # calques suivent automatiquement la focale dès le démarrage, sans
         # action manuelle.
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.link_all_to_focal()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.link_all_to_focal()
 
         raw_profiles = settings.value("machine_profiles_json", "")
         try:
@@ -214,10 +214,10 @@ class MachineProfilesMixin:
                 d = by_id.get(layer.id) or (saved_layers[i] if i < len(saved_layers) else None)
                 if d:
                     self._coerce_layer_settings(layer, d)
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh()
             # Les calques liés à la focale suivent la focale de CETTE machine.
-            self.layer_widget.link_all_to_focal()
+            self.layers_tab.link_all_to_focal()
 
     def _coerce_layer_settings(self, layer, source, reset_invalid=False):
         """Copie les réglages de `source` vers `layer` en forçant le bon type.
@@ -377,10 +377,10 @@ class MachineProfilesMixin:
         # la focale, peu importe le mode actif.
         if hasattr(self, "_apply_focal_to_lmm"):
             self._apply_focal_to_lmm()
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh_focal_quality()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh_focal_quality()
 
-    def _add_machine_profile(self):
+    def _new_machine_profile(self):
         name, ok = QInputDialog.getText(
     self,
     tr("machine.new_title"),
@@ -412,8 +412,8 @@ class MachineProfilesMixin:
         # Reboucle automatiquement le pas de remplissage de tous les calques
         # sur la focale qui vient d'être validée : plus besoin de cocher le
         # 🔗 manuellement calque par calque (source d'oubli sinon).
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.link_all_to_focal()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.link_all_to_focal()
         QMessageBox.information(
     self,
     tr("machine.updated_title"),
@@ -521,18 +521,16 @@ class MachineProfilesMixin:
         if mat_name in self.materials_db:
             p = self.materials_db[mat_name]
             self.set_engrave_settings(p['sp_e'], p['pw_e'])
-            self.spin_speed_cut.setValue(p['sp_c'])
-            self.spin_power_cut.setValue(p['pw_c'])
-            self.spin_passes_cut.setValue(p['pass_c'])
+            self.set_cut_settings(p['sp_c'], p['pw_c'], p['pass_c'])
 
     def save_material_profile(self):
         mat_name = self.combo_mat.currentText()
         self.materials_db[mat_name] = {
             "sp_e": self.engrave_speed,
             "pw_e": self.engrave_power,
-            "sp_c": self.spin_speed_cut.value(),
-            "pw_c": self.spin_power_cut.value(),
-            "pass_c": self.spin_passes_cut.value()
+            "sp_c": self.cut_speed,
+            "pw_c": self.cut_power,
+            "pass_c": self.cut_passes
         }
         QMessageBox.information(
     self,
@@ -540,7 +538,7 @@ class MachineProfilesMixin:
     tr("material.saved_body").format(name=mat_name)
 )
 
-    def add_material_profile(self):
+    def new_material_profile(self):
         name, ok = QInputDialog.getText(
     self,
     tr("material.new_profile_title"),
@@ -551,9 +549,9 @@ class MachineProfilesMixin:
             self.materials_db[name] = {
                 "sp_e": self.engrave_speed,
                 "pw_e": self.engrave_power,
-                "sp_c": self.spin_speed_cut.value(),
-                "pw_c": self.spin_power_cut.value(),
-                "pass_c": self.spin_passes_cut.value()
+                "sp_c": self.cut_speed,
+                "pw_c": self.cut_power,
+                "pass_c": self.cut_passes
             }
             self.combo_mat.addItem(name)
             self.combo_mat.setCurrentText(name)
@@ -576,25 +574,3 @@ class MachineProfilesMixin:
         if reply == QMessageBox.StandardButton.Yes:
             del self.materials_db[mat_name]
             self.combo_mat.removeItem(self.combo_mat.currentIndex())
-
-    def on_mat_mode_changed(self, index):
-        is_gravure = (index == 0)
-        self.lbl_mat_p1.setText(tr("ui.mat_min_power") if is_gravure else tr("ui.mat_unique_power"))
-        self.spin_mat_max_p.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_max_p).setVisible(is_gravure)
-        self.spin_mat_steps_p.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_steps_p).setVisible(is_gravure)
-
-        self.spin_mat_min_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_min_passes).setVisible(not is_gravure)
-        self.spin_mat_max_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_max_passes).setVisible(not is_gravure)
-        self.spin_mat_steps_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_steps_passes).setVisible(not is_gravure)
-
-        self.spin_mat_lmm.setVisible(is_gravure)
-        self.spin_mat_lmm.dpi_label.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_lmm.dpi_row_layout).setVisible(is_gravure)
-
-    def on_overscan_mode_changed(self, index):
-        self.overscan_stacked.setCurrentIndex(index)

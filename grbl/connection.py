@@ -1,0 +1,177 @@
+"""Gestionnaire de connexion USB / GRBL."""
+import time
+import threading
+import re
+import serial
+
+from grbl.simulator import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
+from debug_log import get_logger
+
+log = get_logger()
+
+# Rapport de statut GRBL temps réel, ex : "<Idle|MPos:0.000,0.000,0.000|FS:0,0>"
+# ou avec WPos (coordonnées travail) selon le firmware/réglage $10.
+_STATUS_RE = re.compile(r'<([A-Za-z]+)[^|>]*\|(?:MPos|WPos):(-?[\d.]+),(-?[\d.]+),(-?[\d.]+)')
+
+
+class LaserUSBController:
+    """Gestionnaire de connexion USB / GRBL"""
+    def __init__(self):
+        self.ser = None
+        self._lock = threading.Lock()
+        # Dernier statut connu (mis à jour par CommandThread/GCodeStreamerThread/
+        # StatusPollThread dès qu'une ligne "<...>" est reçue) — lu par l'UI
+        # pour l'affichage DRO (position/état machine en direct).
+        self.last_state = None
+        self.last_x = None
+        self.last_y = None
+        self.last_z = None
+        # Retenus même après une déconnexion (voir disconnect) : nécessaires
+        # pour tenter une reconnexion automatique sur le MÊME port après une
+        # coupure USB en cours de job (voir ReconnectThread dans workers.py).
+        self.last_port = None
+        self.last_baudrate = 115200
+
+    @staticmethod
+    def parse_status_line(line):
+        """Parse une ligne de rapport de statut GRBL temps réel. Renvoie
+        (état, x, y, z) ou None si la ligne ne correspond pas au format
+        attendu."""
+        m = _STATUS_RE.match(line.strip())
+        if not m:
+            return None
+        state = m.group(1)
+        try:
+            x, y, z = float(m.group(2)), float(m.group(3)), float(m.group(4))
+        except ValueError:
+            return None
+        return state, x, y, z
+
+    def update_last_status(self, line):
+        """Parse une ligne de statut et met à jour last_state/x/y/z si elle
+        est valide. Renvoie le tuple parsé (ou None)."""
+        parsed = self.parse_status_line(line)
+        if parsed:
+            if parsed[0] != self.last_state:
+                log.info("GRBL : état %s -> %s (%r)", self.last_state, parsed[0], line.strip())
+            self.last_state, self.last_x, self.last_y, self.last_z = parsed
+        return parsed
+
+    def query_status(self, timeout=0.5):
+        """Envoie une requête de statut temps réel ('?', un seul caractère —
+        GRBL y répond immédiatement sans consommer le buffer RX du G-Code en
+        cours, contrairement à une commande classique terminée par '\\n') et
+        lit la réponse. Réservé à l'utilisation hors streaming actif (voir
+        StatusPollThread) : pendant un job, c'est GCodeStreamerThread qui
+        interroge lui-même périodiquement, pour éviter toute concurrence
+        d'accès au port série entre deux threads."""
+        with self._lock:
+            if not (self.ser and self.ser.is_open):
+                return None
+            try:
+                self.ser.write(b'?')
+                start = time.time()
+                while time.time() - start < timeout:
+                    line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                    if line.startswith('<'):
+                        return self.update_last_status(line)
+                return None
+            except Exception:
+                return None
+
+    def is_connected(self):
+        return bool(self.ser and self.ser.is_open)
+
+    def connect(self, port, baudrate=115200):
+        try:
+            speed = simulation_speed()
+            if speed is not None and port == SIMULATED_PORT:
+                # Graveur simulé (variable LASER_STUDIO_SIMULATION) : pas d'attente du redémarrage de la carte.
+                self.ser = SimulatedGrblSerial(port, baudrate, timeout=1, speed=speed)
+                self.ser.write(b"\r\n\r\n")
+                self.ser.reset_input_buffer()
+                self.last_port = port
+                self.last_baudrate = baudrate
+                return True
+            log.info("USB : connexion à %s (%d baud)", port, baudrate)
+            self.ser = serial.Serial(port, baudrate, timeout=1)
+            time.sleep(2)
+            self.ser.write(b"\r\n\r\n")
+            time.sleep(0.5)
+            if self.ser.in_waiting:
+                # Message d'accueil de GRBL (« Grbl 1.1h ['$' for help] ») : identifie le firmware.
+                log.info("USB : message à la connexion %r", self.ser.read(self.ser.in_waiting))
+            self.ser.reset_input_buffer()
+            log.info("USB : connecté à %s", port)
+            self.last_port = port
+            self.last_baudrate = baudrate
+            return True
+        except Exception as e:
+            log.exception("USB : échec de connexion à %s", port)
+            print(f"Erreur connexion : {e}")
+            self.ser = None
+            return False
+
+    def disconnect(self):
+        log.info("USB : déconnexion")
+        with self._lock:
+            if self.ser and self.ser.is_open:
+                try:
+                    self.ser.close()
+                except Exception:
+                    pass
+            self.ser = None
+        self.last_state = None
+        self.last_x = None
+        self.last_y = None
+        self.last_z = None
+
+    # Commandes dont la réponse « ok » n'arrive qu'à la fin d'un mouvement
+    # physique (cycle de homing) : elles dépassent largement 2 s.
+    SLOW_COMMAND_TIMEOUT = 90.0
+    DEFAULT_COMMAND_TIMEOUT = 2.0
+
+    def send_command(self, cmd, timeout=None):
+        """Envoie une commande et lit la réponse jusqu'à 'ok' / 'error' /
+        'ALARM'. `timeout` (secondes) : par défaut 2 s, porté à 90 s pour le
+        homing ($H, $HX...) afin de ne pas renvoyer une réponse tronquée
+        pendant que la machine est encore en mouvement."""
+        if timeout is None:
+            timeout = (self.SLOW_COMMAND_TIMEOUT if cmd.strip().upper().startswith("$H")
+                       else self.DEFAULT_COMMAND_TIMEOUT)
+        with self._lock:
+            if not (self.ser and self.ser.is_open):
+                return "Non connecté"
+            try:
+                self.ser.write(f"{cmd.strip()}\n".encode('utf-8'))
+                response_lines = []
+                start_time = time.time()
+                while True:
+                    line = self.ser.readline().decode('utf-8', errors='ignore').strip()
+                    if line:
+                        response_lines.append(line)
+                        if line == 'ok' or line.startswith('error') or line.startswith('ALARM'):
+                            break
+                    if time.time() - start_time > timeout:
+                        log.warning("USB : commande %r sans réponse finale après %.1f s", cmd.strip(), timeout)
+                        break
+                log.info("USB : commande %r -> %r", cmd.strip(), response_lines)
+                return "\n".join(response_lines) if response_lines else "Pas de réponse"
+            except Exception as e:
+                log.exception("USB : commande %r, connexion perdue", cmd.strip())
+                try:
+                    self.ser.close()
+                except Exception:
+                    pass
+                self.ser = None
+                return f"ERROR: Connexion perdue ({e})"
+
+    def send_raw_byte(self, raw_bytes):
+        with self._lock:
+            if self.ser and self.ser.is_open:
+                try:
+                    log.info("USB : commande temps réel %r", raw_bytes)
+                    self.ser.write(raw_bytes)
+                    self.ser.flush()
+                except Exception as e:
+                    print(f"Erreur envoi commande temps réel : {e}")

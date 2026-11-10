@@ -5,7 +5,7 @@ Utilisation :
     from ui.machine.console import DirectConsolePanel
 
     panel = DirectConsolePanel()
-    panel.command_submitted.connect(self.send_manual_cmd)
+    panel.command_submitted.connect(self.send_console_command)
 """
 
 from ui.machine.console.panel import DirectConsolePanel

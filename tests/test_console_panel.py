@@ -79,12 +79,12 @@ class SendManualCommandTests(unittest.TestCase):
 
     def test_command_is_sent(self):
         f = self.make()
-        f.send_manual_cmd("$H")
+        f.send_console_command("$H")
         self.assertEqual(f.sent, ["$H"])
 
     def test_empty_command_is_ignored(self):
         f = self.make()
-        f.send_manual_cmd("")
+        f.send_console_command("")
         self.assertEqual(f.sent, [])
 
 

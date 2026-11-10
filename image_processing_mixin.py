@@ -1,13 +1,14 @@
 """Chargement, transformations et traitement (tramage) de l'image source."""
 import os
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QGridLayout, QDialog)
-from PyQt6.QtGui import QPixmap, QImage
+from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtGui import QImage
 import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
-from image_filters import sharpen_image
-from image_size import natural_size_mm, read_dpi
+from image.filters import sharpen_image
+from image.size import natural_size_mm, read_dpi
 from i18n import tr
+from ui.dialogs.dither_comparison import DitherComparisonDialog
 
 
 class ImageProcessingMixin:
@@ -128,16 +129,16 @@ class ImageProcessingMixin:
         self._apply_focal_to_lmm()
         # Même lien côté onglet Calques : les pastilles de qualité du "Pas
         # remplissage (mm)" de chaque calque dépendent aussi de la focale.
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh_focal_quality()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh_focal_quality()
 
     def _sync_matrix_lmm_from_image(self):
         """Reporte automatiquement le lignes/mm de l'onglet Image / Filtre
-        (self.spin_lmm) dans la Matrice de Test gravure (self.spin_mat_lmm),
+        (self.spin_lmm) dans la Matrice de Test gravure,
         pour que le test soit fait avec exactement la même densité de lignes
         que la gravure réelle."""
-        if hasattr(self, "spin_mat_lmm") and hasattr(self, "spin_lmm"):
-            self.spin_mat_lmm.setValue(self.spin_lmm.value())
+        if hasattr(self, "tab_matrix") and hasattr(self, "spin_lmm"):
+            self.tab_matrix.set_lines_mm(self.spin_lmm.value())
 
     def _sync_separation_with_resolution(self):
         """L'onglet Séparation Couleur / Verre affiche et utilise la résolution
@@ -535,37 +536,17 @@ class ImageProcessingMixin:
                  "Bayer 2x2 (ordonné)", "Bayer 4x4 (ordonné)", "Bayer 8x8 (ordonné)"]
 
         dummy_worker = ImageProcessingWorker(None, {})
-
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr("image.compare_dialog_title"))
-        grid = QGridLayout(dialog)
-        cols = 5
-        for i, algo in enumerate(algos):
+        thumbnails = []
+        for algo in algos:
             try:
-                out_arr = dummy_worker.apply_error_diffusion(arr.copy(), algo)
+                thumbnails.append((algo, dummy_worker.apply_error_diffusion(arr.copy(), algo)))
             except Exception:
                 continue
-            h, w = out_arr.shape
-            qimg = QImage(out_arr.tobytes(), w, h, w, QImage.Format.Format_Grayscale8)
-            pixmap = QPixmap.fromImage(qimg)
 
-            cell = QWidget()
-            cell_layout = QVBoxLayout(cell)
-            lbl_img = QLabel()
-            lbl_img.setPixmap(pixmap)
-            lbl_img.setStyleSheet("border: 1px solid #555;")
-            btn_choose = QPushButton(algo)
-            btn_choose.clicked.connect(lambda _, a=algo, d=dialog: self._choose_algo_from_comparison(a, d))
-            cell_layout.addWidget(lbl_img)
-            cell_layout.addWidget(btn_choose)
-            grid.addWidget(cell, i // cols, i % cols)
-
+        dialog = DitherComparisonDialog(self, thumbnails)
+        dialog.algorithm_chosen.connect(self.combo_algo.setCurrentText)
         dialog.exec()
 
-    def _choose_algo_from_comparison(self, algo, dialog):
-        self.combo_algo.setCurrentText(algo)
-        dialog.accept()
-
-    def on_flip_raster_preview_changed(self, _state):
+    def _on_preview_options_changed(self, *_args):
         if self._last_gcode_text:
             self.plot_gcode_preview(self._last_gcode_text)

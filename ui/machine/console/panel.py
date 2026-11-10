@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton
 
 from i18n import tr
-from widgets_extra import HistoryLineEdit
+from ui.widgets import HistoryLineEdit
 
 
 class DirectConsolePanel(QGroupBox):
@@ -15,7 +15,7 @@ class DirectConsolePanel(QGroupBox):
     vide), l'ajoute à l'historique (flèches Haut / Bas) et vide le champ.
 
         panel = DirectConsolePanel()
-        panel.command_submitted.connect(laser.send_manual_cmd)
+        panel.command_submitted.connect(laser.send_console_command)
     """
 
     command_submitted = pyqtSignal(str)

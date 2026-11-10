@@ -4,7 +4,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QProgressBar, QSizePolicy, QStatusBar
 
 from app_constants import STATUS_BAR_MESSAGE_DURATION
-from widgets_extra import AutoHideLabel
+from ui.widgets import AutoHideLabel
 
 
 class StatusBar(QStatusBar):

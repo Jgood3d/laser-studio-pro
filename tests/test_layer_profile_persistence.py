@@ -76,7 +76,7 @@ def _make_app(profile_index=0, profiles=None):
         pass
     a = App()
     a.layer_manager = LayerManager()
-    a.layer_widget = _Widget()
+    a.layers_tab = _Widget()
     a.combo_machine_profile = _Combo(profile_index)
     a.machine_profiles = profiles if profiles is not None else [{"name": "M1", "w": 400, "h": 400}]
     return a
@@ -109,8 +109,8 @@ class LayerProfileTests(unittest.TestCase):
         self.assertEqual(b.layer_manager.layers[0].speed, 1234)
         self.assertEqual(len(b.layer_manager.layers), 3)
         self.assertEqual(b.layer_manager.layers[2].passes, 4)
-        self.assertGreaterEqual(b.layer_widget.refreshed, 1)
-        self.assertGreaterEqual(b.layer_widget.linked, 1)
+        self.assertGreaterEqual(b.layers_tab.refreshed, 1)
+        self.assertGreaterEqual(b.layers_tab.linked, 1)
 
     def test_switching_machine_only_updates_settings_by_id(self):
         a = _make_app()

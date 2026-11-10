@@ -55,7 +55,7 @@ class FakeUSB:
         self.last_state = None
 
     def update_last_status(self, line):
-        from usb_controller import LaserUSBController
+        from grbl.connection import LaserUSBController
         parsed = LaserUSBController.parse_status_line(line)
         if parsed:
             self.last_state = parsed[0]

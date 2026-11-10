@@ -158,9 +158,10 @@ class MenuStructureTests(unittest.TestCase):
         # et la connexion restent aussi sur leur page.
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
-        self.assertIn("shortcut_undo_img.activated.connect(self.undo_image_settings)", src)
+        self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
+        self.assertIn("settings.undo_requested.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("self.combo_ports.setModel(self.main_toolbar.ports_combo.model())", src)
+        self.assertIn("MachineProfilesPage(ports.model(), self.materials_db.keys())", src)
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
@@ -171,24 +172,32 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_tab_toolbars_share_one_builder(self):
         src = ui_source()
-        builder = src[src.index("def _build_tab_toolbar"):src.index("def _fullscreen_icon")]
-        order = [builder.index(k) for k in ("left_actions:", "QSizePolicy.Policy.Expanding",
+        builder = read(os.path.join("ui", "widgets", "tab_toolbar.py"))
+        order = [builder.index(k) for k in ("left_actions:", "self._spacer()",
                                             "right_widgets:", 'tr("ui.vector_fullscreen")')]
         self.assertEqual(order, sorted(order))             # actions à gauche, plein écran à droite
-        previews = src[src.index("compare_icon = QIcon.fromTheme"):src.index("outer_layout_previews.addWidget(toolbar_previews)")]
+        image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
+        previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
         self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
-        uses = src.count("self._build_tab_toolbar(") + read("separation_mixin.py").count("self._build_tab_toolbar(") \
-            + read("png2svg_mixin.py").count("self._build_tab_toolbar(")
+        uses = src.count(" = TabToolBar(") + read("separation_mixin.py").count(" = TabToolBar(")
         self.assertEqual(uses, 5)                          # Images, PNG→SVG, Séparation, 2D, Console
+        controls = src.count("._fullscreen_control = ") + read("separation_mixin.py").count("._fullscreen_control = ")
+        self.assertEqual(controls, 6)                      # les 5 barres et l'éditeur vectoriel
 
     def test_every_fullscreen_mode_hides_then_restores_its_button(self):
-        for name, func in (("main_window.py", "def _toggle_fullscreen_tab"),
-                           ("png2svg_mixin.py", "def toggle_fullscreen_png2svg"),
-                           ("vector_editing_mixin.py", "def toggle_fullscreen_vector_editor")):
+        # Plein écran commun (FullscreenWindow) : tous les onglets sauf l'éditeur
+        # vectoriel, qui garde le sien pour l'instant.
+        for func in ("def _toggle_fullscreen_tab", "def _toggle_fullscreen_png2svg"):
+            src = read("main_window.py")
+            body = src[src.index(func):]
+            self.assertIn("self._open_tab_fullscreen(", body[:body.index("\n    def ", 10)], func)
+        for name, func, end in (("main_window.py", "def _open_tab_fullscreen", "window.content_released.connect(restore)"),
+                                ("vector_editing_mixin.py", "def toggle_fullscreen_vector_editor",
+                                 "dialog.finished.connect(restore)")):
             src = read(name)
             body = src[src.index(func):]
-            body = body[:body.index("dialog.finished.connect(restore)")]
+            body = body[:body.index(end)]
             hide = body.index("_show_fullscreen_control(")
             self.assertIn(", False)", body[hide:hide + 80], func)
             restore = body[body.index("def restore"):]
@@ -197,12 +206,15 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_preview_options_are_in_the_2d_tab_toolbar(self):
         src = ui_source()
-        bar = src[src.index("toolbar_vector_2d = self._build_tab_toolbar("):]
-        bar = bar[:bar.index("right_widgets=")]
-        for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
-                     "chk_hide_rapid_moves", "chk_optimize_path"):
-            self.assertIn(f"self.{name}", bar, name)
-            self.assertEqual(src.count(f"self.{name} = QCheckBox("), 1, name)
+        tab = read(os.path.join("ui", "tabs", "preview_2d", "tab.py"))
+        bar = tab[tab.index("toolbar = TabToolBar("):]
+        bar = bar[:bar.index("toolbar.fullscreen_requested")]
+        for check, name in (("flip_check", "chk_flip_raster_preview"),
+                            ("negative_check", "chk_negative_raster_preview"),
+                            ("hide_rapid_check", "chk_hide_rapid_moves"),
+                            ("optimize_path_check", "chk_optimize_path")):
+            self.assertIn(f"self.{check}", bar, check)
+            self.assertEqual(src.count(f"self.{name} = tab.{check}"), 1, name)   # ancien nom, lu par la logique
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
@@ -218,22 +230,24 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_original_image_is_hidden_in_the_image_tab(self):
         src = ui_source()
-        self.assertIn("box_src.setVisible(False)", src)
-        self.assertIn("left_widgets=[self.chk_show_original]", src)      # case « Afficher l'originale »
+        self.assertIn("self._source_box.setVisible(False)", src)
+        self.assertIn("left_widgets=[self.show_original_check]", src)      # case « Afficher l'originale »
 
     def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
-        src = ui_source()
-        block = src[src.index("queue_splitter = QSplitter("):src.index('self.main_tabs_view.addTab(tab_job_queue')]
+        block = read(os.path.join("ui", "tabs", "job_queue", "tab.py"))
         self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
                         block.index("queue_splitter.addWidget(sent_box)"))
-        self.assertIn("self.txt_sent_gcode.setReadOnly(True)", block)
-        for name in ("job_queue_mixin.py", "laser_control_mixin.py"):
-            self.assertIn("self.streamer.lines_sent.connect(self._append_sent_gcode)", read(name), name)
+        self.assertIn("self.text_edit.setReadOnly(True)",
+                      read(os.path.join("ui", "tabs", "job_queue", "sent_gcode_log.py")))
+        # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
+        self.assertIn("self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)",
+                      read("laser_control_mixin.py"))
+        self.assertIn("start_stream=self._start_stream", ui_source())
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
         src = ui_source()
-        self.assertIn("layout_img.addRow(btn_img)", src)
-        self.assertIn("layout_img.insertRow(3, self.chk_keep_ratio)", src)
+        self.assertIn("layout.addRow(load_button)", src)
+        self.assertIn("layout.addRow(self.keep_ratio_check)", src)
 
     def test_load_image_button_is_on_two_lines(self):
         from i18n import TRANSLATIONS
@@ -242,38 +256,41 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_resolution_stack_does_not_stretch(self):
         src = ui_source()
-        self.assertIn("self.stack_lmm_input.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)", src)
+        self.assertIn("self.stack.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)",
+                      read(os.path.join("ui", "tabs", "image", "resolution_box.py")).replace("(\n            ", "(").replace(",\n            ", ", ").replace("\n        )", ")"))
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
         src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
-        self.assertIn("self.tab_machine_profiles = tab_mach", src)
-        self.assertIn("self.tab_grbl_config = tab_gcode_cfg", src)
+        self.assertIn("self.tab_machine_profiles = page", src)
+        self.assertIn("self.tab_grbl_config = page", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
         src = ui_source()
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
-        self.assertIn("self.tab_machine_params = tab_machine_params", src)
-        self.assertIn("self.tab_matrix = tab_matrix", src)
+        self.assertIn("self.tab_machine_params = page", src)
+        self.assertIn("self.tab_matrix = page", src)
 
     def test_other_tabs_are_still_there(self):
         src = ui_source()
         # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
         # ancrage : cadre « Position du job » du panneau machine ; Calques : onglet central.
-        self.assertIn('layout_img.insertRow(1, tr("dim.width"), self.spin_w)', src)
+        self.assertIn('layout.addRow(tr("dim.width"), self.width_spin)', src)
+        self.assertIn("self.spin_w = settings.width_spin", src)
         self.assertIn("machine_row.addWidget(self.job_position_box", src)
-        self.assertRegex(src, r"job_position_layout\.addRow\(tr\(\"[a-z_.]+\"\), self\.combo_origin\)")
-        for widget in ("self.spin_off_x", "self.spin_off_y"):
-            self.assertRegex(src, rf"layout_img\.insertRow\(\d, tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
+        self.assertIn('layout.addRow(tr("dim.origin"), self.origin_combo)', src)
+        self.assertIn("self.combo_origin = self.job_position_box.origin_combo", src)
+        for widget in ("self.offset_x_spin", "self.offset_y_spin"):
+            self.assertRegex(src, rf"layout\.addRow\(tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
         self.assertNotIn('tr("tab.dimensions")', src)
-        self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
+        self.assertIn("self._settings_scroll = self._side_scroll(self.settings)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
         self.assertIn("self.main_tabs_view.addTab(tab_vector_editor", src)
-        self.assertIn("self.main_tabs_view.addTab(tab_vector_2d", src)
+        self.assertIn('self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))', src)
         order = [src.index(k) for k in ("self._build_vector_editor_tab()",
-                                         'self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))',
+                                         'self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))',
                                          "self._build_2d_preview_tab()")]
         self.assertEqual(order, sorted(order))
 
@@ -281,15 +298,14 @@ class MenuStructureTests(unittest.TestCase):
 class ShowWindowTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("ui_setup_mixin")
+            self.mod = importlib.import_module("ui.app.window_controller")
         except ImportError:
-            self.skipTest("ui_setup_mixin non importable ici")
+            self.skipTest("window_controller non importable ici")
 
     def make(self, with_pages=True):
-        cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
         # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
         self.main = importlib.import_module("main_window")
-        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin),
+        cls = type("Window", (self.mod.WindowControllerMixin,),
                    {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
         if with_pages:
@@ -380,19 +396,20 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
-        obj.btn_connect, obj.app_actions = mock.Mock(), mock.Mock()
-        for connected, label in ((False, "laser.connect"), (True, "laser.disconnect")):
+        obj.tab_machine_profiles, obj.app_actions = mock.Mock(), mock.Mock()
+        for connected in (False, True):
             obj.usb = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
-            obj.btn_connect.setText.assert_called_with(self.mod.tr(label))
+            obj.tab_machine_profiles.set_connected.assert_called_with(connected)
             obj.app_actions.set_connected.assert_called_with(connected)
 
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()
         tab._fullscreen_control = control
-        self.mod.UiSetupMixin._show_fullscreen_control(tab, False)
+        show = importlib.import_module("main_window").FullLaserStudio._show_fullscreen_control
+        show(tab, False)
         control.setVisible.assert_called_with(False)
-        self.mod.UiSetupMixin._show_fullscreen_control(object(), True)   # onglet sans bouton : ignoré
+        show(object(), True)                                             # onglet sans bouton : ignoré
 
     def test_show_main_tab_selects_or_raises_the_fullscreen_window(self):
         obj = self.make()
@@ -469,9 +486,9 @@ def load_window_module():
     fake_widgets = types.ModuleType("PyQt6.QtWidgets")
     fake_widgets.QDialog, fake_widgets.QScrollArea, fake_widgets.QVBoxLayout = FakeQt.QDialog, FakeQt.QScrollArea, FakeQt.QVBoxLayout
     with mock.patch.dict(sys.modules, {"PyQt6.QtCore": fake_core, "PyQt6.QtWidgets": fake_widgets}):
-        sys.modules.pop("settings_window", None)
-        module = importlib.import_module("settings_window")
-    sys.modules.pop("settings_window", None)
+        sys.modules.pop("ui.settings.window", None)
+        module = importlib.import_module("ui.settings.window")
+    sys.modules.pop("ui.settings.window", None)
     return module
 
 

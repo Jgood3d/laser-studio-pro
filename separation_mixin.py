@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Onglet « Séparation Couleur / Verre » (PyQt6), calqué sur png2svg_mixin.py.
+"""Onglet « Séparation Couleur / Verre » (PyQt6), calqué sur l'onglet PNG -> SVG.
 
 Principe : l'image couleur est chargée ici ; sa tonalité (canal V) est envoyée à
 l'onglet « Image & Filtres » (raw_image), qui applique luminosité / contraste /
@@ -20,9 +20,9 @@ from PyQt6.QtWidgets import (
     QSlider, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
-import separation_engine as engine
+from image import separation as engine
 from workers import AdvancedGCodeWorker, build_gain_test_array
-from graphics_view import ZoomableGraphicsView
+from ui.widgets import TabToolBar, ZoomableGraphicsView
 from i18n import tr
 
 _IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
@@ -88,8 +88,11 @@ class SeparationMixin:
         outer = QVBoxLayout(root)
         outer.setContentsMargins(4, 4, 4, 4)
 
-        outer.addWidget(self._build_tab_toolbar(
-            root, lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title")))
+        toolbar = TabToolBar(root)
+        toolbar.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
+        root._fullscreen_control = toolbar.fullscreen_action
+        outer.addWidget(toolbar)
 
         body = QHBoxLayout()
         outer.addLayout(body, 1)

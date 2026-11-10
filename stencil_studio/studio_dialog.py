@@ -35,7 +35,7 @@ except Exception as _e:  # pragma: no cover  (ImportError, mais aussi erreurs de
     HAVE_WEBENGINE = False
     WEBENGINE_ERROR = f"{type(_e).__name__}: {_e}"
 
-# Thèmes Stencil Studio alignés sur ceux de Laser Studio Pro (app_theme.py).
+# Thèmes Stencil Studio alignés sur ceux de Laser Studio Pro (ui/app/theme.py).
 LSP_THEME_DARK = {
     "bg": "#232323", "panel": "#303030", "panel2": "#3b3b3b", "line": "#4d4d4d",
     "fg": "#f2f2f2", "mut": "#a8a8a8", "acc": "#3a5b89", "acc2": "#6dbef9", "onacc": "#ffffff",
@@ -121,7 +121,7 @@ def theme_from_palette(pal=None):
 
 
 def theme_for_lsp(theme_name=None):
-    """Thème Studio aligné sur LSP (source privilégiée : app_theme.THEMES)."""
+    """Thème Studio aligné sur LSP (source privilégiée : ui.app.theme.THEMES)."""
     if theme_name is None:
         try:
             from PyQt6.QtCore import QSettings
@@ -129,7 +129,7 @@ def theme_for_lsp(theme_name=None):
         except Exception:
             theme_name = "dark"
     try:
-        from app_theme import THEMES, normalize_theme_name
+        from ui.app.theme import THEMES, normalize_theme_name
         key = normalize_theme_name(theme_name)
         c = THEMES[key]
         return {

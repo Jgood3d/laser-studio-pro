@@ -172,16 +172,33 @@ def get_background_writer():
     return _BACKGROUND_WRITER
 
 
-def find_resource(filename):
-    """Cherche un fichier de ressource (icône, bannière...) à deux endroits
-    possibles, dans cet ordre :
-    1. à côté de l'exécutable — pratique pour remplacer/ajouter une image
+# Dossier des ressources (images, icône), à la racine du projet et dans
+# le bundle PyInstaller (--add-data "resources;resources").
+RESOURCES_DIRNAME = "resources"
+
+
+def resource_candidates(filename):
+    """Emplacements possibles d'un fichier de ressource (icône, bannière...),
+    dans l'ordre où find_resource les essaie :
+    1. à côté de l'exécutable, dans resources/ puis directement à côté
+       (ancien emplacement) — pratique pour remplacer/ajouter une image
        après coup, sans recompiler ;
     2. dans le bundle PyInstaller, si le fichier a été embarqué au moment
        de la compilation avec --add-data.
-    Renvoie le premier chemin trouvé, ou None si absent des deux."""
+    Sans PyInstaller, les deux dossiers sont la racine du projet."""
+    candidates = []
     for folder in (get_app_dir(), get_bundle_dir()):
-        candidate = os.path.join(folder, filename)
+        for path in (os.path.join(folder, RESOURCES_DIRNAME, filename),
+                     os.path.join(folder, filename)):
+            if path not in candidates:
+                candidates.append(path)
+    return candidates
+
+
+def find_resource(filename):
+    """Premier emplacement existant du fichier de ressource `filename` (voir
+    resource_candidates), ou None s'il est introuvable."""
+    for candidate in resource_candidates(filename):
         if os.path.exists(candidate):
             return candidate
     return None

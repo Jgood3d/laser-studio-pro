@@ -9,9 +9,9 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ui_source import ui_source  # noqa: E402
+from ui_source import project_state_source, ui_source  # noqa: E402
 
-import image_filters as imf
+from image import filters as imf
 
 try:
     import workers
@@ -114,8 +114,9 @@ class IntegrationSourceTests(unittest.TestCase):
 
     def test_slider_is_created_and_shown_after_gamma(self):
         ui = ui_source()
-        self.assertIn("self.slider_sharp = QSlider", ui)
-        self.assertLess(ui.index('layout_img.addRow(tr("img.gamma")'), ui.index('layout_img.addRow(tr("img.sharpness")'))
+        self.assertIn("self.sharpness_slider = self._sharpness_row.slider", ui)
+        self.assertIn("self.slider_sharp = settings.sharpness_slider", ui)
+        self.assertLess(ui.index('layout.addRow(tr("img.gamma")'), ui.index('layout.addRow(tr("img.sharpness")'))
 
     def test_reset_undo_params_and_comparison_use_it(self):
         ip = self.src("image_processing_mixin.py")
@@ -125,9 +126,9 @@ class IntegrationSourceTests(unittest.TestCase):
             self.assertIn(needle, ip)
 
     def test_project_saves_and_restores_it_with_a_default(self):
-        pj = self.src("project_io_mixin.py")
+        pj = project_state_source()
         self.assertIn('"sharp": self.slider_sharp.value()', pj)
-        self.assertIn('self.slider_sharp.setValue(proj_data.get("sharp", 0))', pj)
+        self.assertIn('self.slider_sharp.setValue(data.get("sharp", 0))', pj)
 
 
 if __name__ == "__main__":

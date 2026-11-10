@@ -1,124 +1,15 @@
-"""Contenu des onglets : éditeur vectoriel, calques, barres d'outils d'onglet.
+"""Onglet « Éditeur vectoriel ».
 
-L'assemblage de la fenêtre (init_ui) est dans main_window.py ; ce contenu
-partira peu à peu dans ui/tabs/, un onglet à la fois.
+L'assemblage de la fenêtre (init_ui) est dans main_window.py. Cet onglet
+partira dans ui/tabs/ quand Julien aura fini son travail sur le vectoriel.
 """
-from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QDoubleSpinBox, QGroupBox, QMessageBox, QCheckBox)
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QIcon
-from vector_layers import (
-    LayerManagerWidget, VectorCanvasView
-)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QDoubleSpinBox, QGroupBox, QCheckBox)
+from vector_layers import VectorCanvasView
 from i18n import tr
+from ui.utils import fullscreen_icon
 
 
 class UiSetupMixin:
-    def _build_tab_toolbar(self, parent, on_fullscreen, left_actions=(), left_widgets=(), right_widgets=()):
-        """Barre d'outils en tête d'un onglet : `left_actions` (icône, libellé, infobulle, slot) et
-        `left_widgets` à gauche, puis, alignés à droite, `right_widgets` et le bouton « Plein écran »."""
-        toolbar = QToolBar(parent)
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        for icon, label, tooltip, slot in left_actions:
-            action = toolbar.addAction(icon, label, slot)
-            if tooltip:
-                action.setToolTip(tooltip)
-        for widget in left_widgets:
-            toolbar.addWidget(widget)
-        spacer = QWidget()
-        spacer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        toolbar.addWidget(spacer)
-        for widget in right_widgets:
-            toolbar.addWidget(widget)
-        parent._fullscreen_control = toolbar.addAction(self._fullscreen_icon(), tr("ui.vector_fullscreen"),
-                                                       on_fullscreen)
-        return toolbar
-
-    @staticmethod
-    def _show_fullscreen_control(tab_widget, visible):
-        """Masque le bouton « Plein écran » d'un onglet pendant qu'il est affiché en plein écran,
-        et le réaffiche quand il revient dans les onglets (voir les fonctions *fullscreen*)."""
-        control = getattr(tab_widget, "_fullscreen_control", None)
-        if control is not None:
-            control.setVisible(visible)
-
-    def _fullscreen_icon(self):
-        """Icône « plein écran » standard du thème (repli : bouton d'agrandissement de Qt)."""
-        return QIcon.fromTheme(QIcon.ThemeIcon.ViewFullscreen,
-                               self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMaxButton))
-
-    def _image_tab_kind(self):
-        """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
-        "png2svg", "separation", ou None pour les autres onglets."""
-        tabs = getattr(self, "main_tabs_view", None)
-        current = tabs.currentWidget() if tabs is not None else None
-        for kind in ("previews", "png2svg", "separation"):
-            if current is not None and current is getattr(self, f"tab_{kind}", None):
-                return kind
-        return None
-
-    def _image_tab_has_image(self, kind):
-        if kind == "previews":
-            return self.raw_image is not None
-        if kind == "png2svg":
-            return bool(self.png2svg_widget.image_path)
-        if kind == "separation":
-            return self.sep_src is not None
-        return False
-
-    def update_image_actions_state(self, *_args):
-        """Active les actions de la barre d'outils sur l'image seulement si l'onglet courant
-        affiche une image chargée. Les miroirs (miroir de gravure) restent grisés dans PNG ⇒ SVG,
-        dont la conversion ne les utilise pas. Appelée au changement d'onglet, au chargement et à
-        la suppression d'une image."""
-        actions = getattr(self, "app_actions", None)
-        if actions is None:
-            return
-        kind = self._image_tab_kind()
-        enabled = self._image_tab_has_image(kind)
-        actions.set_image_actions_enabled(enabled)
-        actions.set_mirrors_enabled(enabled and kind != "png2svg")
-
-    def _on_toolbar_rotate_image(self, clockwise):
-        kind = self._image_tab_kind()
-        if kind == "previews":
-            (self.rotate_image_right if clockwise else self.rotate_image_left)()
-        elif kind == "png2svg":
-            self.png2svg_widget.rotate_image(90 if clockwise else -90)
-        elif kind == "separation":
-            self.separation_rotate_image(-90 if clockwise else 90)
-
-    def _on_toolbar_delete_image(self):
-        kind = self._image_tab_kind()
-        if kind == "previews":
-            self.clear_image()           # demande elle-même confirmation
-            return
-        if kind not in ("png2svg", "separation"):
-            return
-        reply = QMessageBox.question(
-            self, tr("image.delete_title"), tr("image.delete_question"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        if kind == "png2svg":
-            self.png2svg_widget.clear_image()
-        else:
-            self.separation_clear_image()
-
-    def _build_layers_tab(self):
-        """Onglet des calques."""
-        tab_layers = QWidget()
-        layout_layers = QVBoxLayout(tab_layers)
-        self.layer_widget = LayerManagerWidget(
-            self.layer_manager,
-            focal_getter=lambda: self.spin_machine_focal.value(),
-        )
-        self.layer_widget.layers_changed.connect(self.on_layers_changed)
-        # Mémorise les réglages des calques dans le profil de la machine active.
-        self.layer_widget.layers_changed.connect(self._schedule_layer_persist)
-        layout_layers.addWidget(self.layer_widget)
-        # Onglet central, entre « Graver une image vectorielle » et la visualisation du G-Code.
-        self.tab_layers = tab_layers
-
     def _build_vector_editor_tab(self):
         """Onglet « Éditeur vectoriel »."""
         tab_vector_editor = QWidget()
@@ -155,7 +46,7 @@ class UiSetupMixin:
         btn_redo_vector = QPushButton(tr("ui.vector_redo"))
         btn_redo_vector.clicked.connect(lambda: self.vector_canvas.redo())
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fullscreen_vector.setIcon(self._fullscreen_icon())
+        btn_fullscreen_vector.setIcon(fullscreen_icon(self))
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
         tab_vector_editor._fullscreen_control = btn_fullscreen_vector   # voir _show_fullscreen_control
         # Outils de dessin à la souris (ligne / rectangle / ellipse) + sélection

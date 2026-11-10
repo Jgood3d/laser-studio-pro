@@ -13,7 +13,7 @@ from app_constants import (
 )
 from app_utils import find_resource
 from i18n import tr
-from widgets_extra import scaled_to_width_hidpi
+from ui.utils import scaled_to_width_hidpi
 
 
 class StartupSplash(QSplashScreen):

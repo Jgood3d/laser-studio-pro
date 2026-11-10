@@ -1,4 +1,5 @@
-"""Gravure d'une image : vitesse et puissance reprises du calque de gravure."""
+"""Gravure d'une image : vitesse et puissance reprises du calque de gravure.
+Découpe de l'ancien mode SVG : vitesse, puissance et passes."""
 import os
 import sys
 import unittest
@@ -32,6 +33,15 @@ class EngraveSettingsTests(unittest.TestCase):
         self.assertEqual((f.engrave_speed, f.engrave_power), (1234, 55))
         f.set_engrave_settings(5, 150)
         self.assertEqual((f.engrave_speed, f.engrave_power), (10, 100))   # 100 % reste possible
+
+    def test_cut_values_are_whole_numbers_within_bounds(self):
+        f = self.make()
+        f.set_cut_settings(250.9, 95.4, 2.7)
+        self.assertEqual((f.cut_speed, f.cut_power, f.cut_passes), (250, 95, 2))
+        f.set_cut_settings(5, 100, 0)                   # 100 % et 0 passe restent possibles
+        self.assertEqual((f.cut_speed, f.cut_power, f.cut_passes), (10, 100, 0))
+        f.set_cut_settings(9000, 150, 500)
+        self.assertEqual((f.cut_speed, f.cut_power, f.cut_passes), (5000, 100, 99))
 
     def test_image_uses_the_first_engrave_layer(self):
         f = self.make()

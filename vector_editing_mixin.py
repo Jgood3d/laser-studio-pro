@@ -1,5 +1,4 @@
 """Édition des objets vectoriels (texte, formes, SVG) sur le canevas."""
-import os
 from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
 from vector_layers import (
@@ -8,11 +7,11 @@ from vector_layers import (
 from i18n import tr
 import box_generator
 import dxf_import
-from box_dialog import BoxGeneratorDialog, error_message
+from ui.dialogs.box_generator import BoxGeneratorDialog, error_message
 from vector_import import box_to_objects, decor_to_objects, dxf_to_objects
 import nesting
 from nesting_apply import apply_result, build_pieces
-from nesting_dialog import NestingDialog
+from ui.dialogs.nesting import NestingDialog
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
@@ -31,8 +30,8 @@ class VectorEditingMixin:
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.refresh_all()
         sender = self.sender()
-        if hasattr(self, "layer_widget") and sender is not self.layer_widget:
-            self.layer_widget.refresh()
+        if hasattr(self, "layers_tab") and sender is not self.layers_tab:
+            self.layers_tab.refresh()
         self._refresh_engrave_layer()
         self._on_engrave_layer_selected()
 
@@ -651,18 +650,6 @@ class VectorEditingMixin:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
         QMessageBox.information(self, tr("box.title"), message)
 
-
-    def load_svg(self):
-        path, _ = QFileDialog.getOpenFileName(
-    self,
-    tr("vector.open_svg_title"),
-    "",
-    tr("vector.svg_filter")
-)
-        if path:
-            self.loaded_svg_path = path
-            self.show_status_message(tr("vector.svg_loaded").format(path=os.path.basename(path)),
-                                     tr("vector.svg_loaded").format(path=path))
 
     # ------------------------------------------------------------------
     # Alignement / distribution multi-objets

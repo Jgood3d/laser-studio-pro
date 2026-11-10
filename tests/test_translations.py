@@ -1,11 +1,11 @@
-"""Contrôle automatique des traductions (i18n.py) et de leur usage dans le code.
+"""Contrôle automatique des traductions (i18n/translations.py) et de leur usage dans le code.
 
 Échoue si :
   - une clé est définie deux fois dans TRANSLATIONS ;
   - une langue manque ou est vide pour une clé ;
   - les {placeholders} diffèrent d'une langue à l'autre (KeyError à l'affichage) ;
   - le nombre de retours à la ligne ou de %s diffère d'une langue à l'autre ;
-  - le code appelle tr("clé") avec une clé absente de i18n.py ;
+  - le code appelle tr("clé") avec une clé absente de i18n/translations.py ;
   - un appel tr("clé").format(...) ne fournit pas tous les {placeholders} d'une langue.
 
 Pour un rapport plus complet (textes en dur, mélange tu/vous, valeurs identiques
@@ -38,9 +38,9 @@ def placeholders(text):
 
 
 def project_files():
-    """Racine du projet et paquet ui/ (voir tools/project_files.py)."""
+    """Code de l'application, sans le paquet i18n/ (voir tools/project_files.py)."""
     return [f for f in python_files(ROOT)
-            if os.path.basename(f) not in ("i18n.py",)]
+            if not display_name(f).startswith("i18n" + os.sep)]
 
 
 def tr_calls():
@@ -70,7 +70,7 @@ def tr_calls():
 @unittest.skipIf(i18n is None, "i18n non importable ici")
 class TranslationTests(unittest.TestCase):
     def test_no_duplicate_keys(self):
-        with open(os.path.join(ROOT, "i18n.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "i18n", "translations.py"), encoding="utf-8") as f:
             tree = ast.parse(f.read())
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "TRANSLATIONS":
@@ -116,7 +116,7 @@ class TranslationTests(unittest.TestCase):
         calls, _ = tr_calls()
         missing = sorted({(f, ln, k) for f, ln, k in calls
                           if k is not None and k not in i18n.TRANSLATIONS})
-        self.assertEqual(missing, [], "tr() avec une clé absente de i18n.py :\n"
+        self.assertEqual(missing, [], "tr() avec une clé absente de i18n/translations.py :\n"
                          + "\n".join(f"{f}:{ln} {k}" for f, ln, k in missing))
 
     def test_format_calls_provide_all_placeholders(self):

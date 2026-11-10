@@ -112,66 +112,115 @@ python main.py
 - `app_constants.py` — valeurs fixes de l’application (liens, adresses)
 
 ### Composants autonomes
-- `graphics_view.py` — `ZoomableGraphicsView`
 - `vector_font.py` — `VectorFont`
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
-- `usb_controller.py` — `LaserUSBController`
+- `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
-- `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
-- `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)
+- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
+- `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
-- `qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
-- `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
-- `image_filters.py` — filtres d’image purs (netteté)
+- `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
+- `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
+- `image/` — traitement d’image sans Qt : `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
 - `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
-- `image_size.py` — taille d’origine d’une image d’après sa résolution (sans Qt)
 - `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
 - `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
 - `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-- `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
-- `i18n.py` — système de traduction multilingue
+- `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
-- `ui_setup_mixin.py` — contenu des onglets : éditeur vectoriel, calques, barres d’outils d’onglet (partira dans `ui/tabs/`)
-- `ui_machine_params_page.py` — page « Paramètres du graveur »
-- `ui_machine_profiles_page.py` — page « Matériaux et connexion au graveur »
-- `ui_test_matrix_page.py` — page « Matrice de test »
-- `ui_grbl_config_page.py` — page « Configuration GRBL »
-- `ui_image_tab.py` — onglet « Graver une image » et position du job
-- `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
-- `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
+- `ui_setup_mixin.py` — onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
-- `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
-- `ui_window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
+- `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
 - `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble la position du job, le pilotage, les actions de job, le DRO, la barre de progression et la console directe
-- `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux)
+- `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux) ; les commandes temps réel et l’envoi du job sont `RealtimeCommands`
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
 - `ui/machine/dro/` — position de la machine `DroPanel` : état GRBL, X / Y / Z, bouton « Déverrouiller » en alarme (émet `unlock_requested`)
 - `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
+- `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
+- `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
+- `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…) ; le cadre « Réglages GRBL complets » est `GrblSettingsBox`
+- `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`) ; le cadre « Test à partir d’une image » est `ImageTestGroup`
+- `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
+- `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère), dans le panneau machine
+- `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
+- `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
+- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
+- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…) ; le suivi du G-Code envoyé est `SentGcodeLog`
+- `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
-- `project_io_mixin.py` — sauvegarde et ouverture de projet, sauvegarde automatique
-- `job_queue_mixin.py` — file d’attente de jobs
-- `png2svg_mixin.py` — onglet PNG/JPEG → SVG
+- `controllers/` — contrôleurs, objets Python ordinaires qui remplacent peu à peu les mixins : `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par la fenêtre, `_capture_project` / `_restore_project`)
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
-- `box_dialog.py` — fenêtre du générateur de boîte
-- `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
-- `settings_window.py` — fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
+- `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
+- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
+- `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)
+- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
+
+### Signaux des pages et des panneaux
+
+Les pages, onglets et panneaux de `ui/` ne contiennent pas de logique : ils émettent des signaux (ce que l’utilisateur demande, avec des valeurs métier : mm, mm/min, %), et reçoivent leur état par des méthodes `set_…`. La fenêtre (`main_window.py`) les construit et abonne la logique à leurs signaux.
+
+Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_project_requested` → `save_project`, `emergency_stop_requested` → `emergency_stop`) ; un signal d’état `y_changed` ou `y_selected` appelle `_on_y_changed()` ou une fonction qui dit ce qu’elle fait (`profile_selected` → `_on_machine_profile_selected`). La carte `docs/architecture/signaux.png` (`tools/signal_map.py`) montre toutes les paires.
+
+**Pages de réglages** (menu Paramètres, `ui/settings/`) :
+
+| Page | Signaux émis | État reçu / lu |
+| --- | --- | --- |
+| `MachineParamsPage` — Paramètres du graveur | `profile_selected(int)`, `new_profile_requested`, `update_profile_requested`, `delete_profile_requested`, `bed_size_changed(largeur_mm, profondeur_mm)`, `focal_changed(spot_mm)`, `max_speed_changed(mm_min)` | champs `profile_combo`, `bed_width_spin`, `bed_height_spin`, `focal_spin`, `max_speed_spin`, `accel_spin` |
+| `MachineProfilesPage` — Matériaux et connexion au graveur | `port_selected(int)`, `refresh_ports_requested`, `connect_requested`, `material_selected(int)`, `save_material_requested`, `new_material_requested`, `delete_material_requested`, `export_materials_requested`, `import_materials_requested` | `set_connected(bool)`, `set_port_index(int)` |
+| `TestMatrixPage` — Matrice de test | `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled(bool)` | `set_lines_mm()`, `set_source_image()`, `set_image_test_checked()` ; fournit `matrix_params()`, `tile_settings()`, `is_engraving()`, `image_test_enabled()` |
+| `GrblConfigPage` — Configuration GRBL | `bidir_test_requested`, `scan_offset_changed(mm)`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | champs `laser_cmd_combo`, `smax_spin`, `homing_check`, `overscan_check`, `overscan_mode_combo`, `scan_offset_spin`, `grbl_settings_edit`… |
+
+**Onglets** (`ui/tabs/`, et la barre d’outils commune `TabToolBar`) :
+
+| Onglet | Signaux émis | État reçu / lu |
+| --- | --- | --- |
+| `TabToolBar` — barre d’outils d’un onglet | `fullscreen_requested` | `fullscreen_action` (bouton masqué en plein écran) |
+| `ImageTab` — Graver une image | `compare_requested`, `fullscreen_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` |
+| `ImageSettingsPanel` — réglages de « Graver une image » | `load_requested`, `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
+| `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed`, `fullscreen_requested` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
+| `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
+| `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
+| `ConsoleTab` — Console / G-Code | `export_requested(extension)`, `fullscreen_requested` | `set_stats(lignes, puissance, temps)`, `console_edit` |
+| `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()`, `append_sent_gcode()`, `mark_sent_end()` |
+
+**Panneau machine** (sous les onglets, `ui/machine/`) :
+
+| Panneau | Signaux émis | État reçu |
+| --- | --- | --- |
+| `JogControlPanel` — pilotage | `jog_requested(dx_mm, dy_mm, vitesse_mm_min)`, `home_requested`, `pause_requested`, `resume_requested`, `reset_requested`, `emergency_stop_requested`, `send_job_requested` | `set_connected(bool)`, `set_send_enabled(bool)`, `set_max_speed(mm_min)` |
+| `JobActionsPanel` — actions de job | `frame_requested`, `set_work_zero_requested`, `go_to_work_zero_requested`, `repeat_job_requested` | `set_connected(bool)`, `set_repeat_enabled(bool)` |
+| `DroPanel` — position de la machine | `unlock_requested` | `set_status(état, x, y, z)` |
+| `DirectConsolePanel` — console directe | `command_submitted(commande)` | `set_connected(bool)` |
+| `JobPositionBox` — position du job | (aucun : l’origine est lue à la génération) | `origin_combo` |
+| `MachinePanel` — assemble les panneaux ci-dessus | (ceux de ses panneaux) | `set_connected(bool)` |
+
+**Boîtes et fenêtres** (`ui/dialogs/`, `ui/widgets/`) :
+
+| Fenêtre | Signaux émis | État reçu |
+| --- | --- | --- |
+| `DitherComparisonDialog` — comparaison des algorithmes de tramage | `algorithm_chosen(nom)` | vignettes tramées, à la construction |
+| `FullscreenWindow` — plein écran d’un onglet | `content_released` (le contenu retourne dans les onglets) | le contenu, à la construction ; `show_maximized()` |
+
+Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/menu/actions.py`), qui émet un signal par action : `save_project_requested`, `settings_window_requested(page)`, `theme_selected(code)`, `generate_requested`, `connection_toggle_requested`…
 
 ### Qualité
 - `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)
 - `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
 - `tools/check_ui_attributes.py` — détecte les widgets utilisés mais jamais construits (fichier resté à l’ancienne version)
+- `tools/signal_map.py` — carte des signaux (qui émet quoi, qui branche, quelle fonction s’exécute), dans `docs/architecture/signaux.svg` et `.png`
+- `tools/screenshots.py` — captures d’écran de tous les onglets, pages de réglages et boîtes de dialogue, dans `docs/screenshots/`
 
 ## Captures d’écran
 
@@ -226,14 +275,16 @@ Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail et les versions précédente
 
 ## Compilation (PyInstaller)
 
-Les ressources suivantes sont cherchées à côté de l’exécutable puis dans le bundle PyInstaller : `laser_studio_pro.ico` (ou `laser_studio_pro_256.png` / `laser_studio_pro_512.png`), `laser_studio_pro_banner.png` et `buy_me_a_coffee.png`. Pour les embarquer, ajoutez `--add-data "fichier;."` (Windows) ou `--add-data "fichier:."` (Linux) à la commande PyInstaller. Supprimez `build/`, `dist/` et `LaserStudioPro.spec` avant de recompiler pour que les nouvelles ressources soient prises en compte.
+Les scripts de compilation sont dans `packaging/` : `windows/build.bat` (et `windows/setup.iss` pour l’installateur), `linux/build-linux.sh` et `macos/build_macos.sh`. Le détail est dans [`BUILD.md`](BUILD.md).
+
+Les images de l’application sont dans le dossier `resources/` : `laser_studio_pro.ico` (ou `laser_studio_pro_256.png` / `laser_studio_pro_512.png`), `laser_studio_pro_banner.png` et `buy_me_a_coffee.png`, ainsi que le pack d’icônes Breeze (`icons/breeze/`, utilisé quand le système n’a pas de thème d’icônes). Elles sont cherchées dans `resources/` à côté de l’exécutable (ou directement à côté, ancien emplacement), puis dans le bundle PyInstaller. Pour les embarquer, ajoutez `--add-data "resources;resources"` (Windows) ou `--add-data "resources:resources"` (Linux) à la commande PyInstaller. Supprimez `build/`, `dist/` et `LaserStudioPro.spec` avant de recompiler pour que les nouvelles ressources soient prises en compte.
 
 ## Développement / validation
 
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile i18n.py ui_setup_mixin.py main_window.py
+py -m py_compile i18n/translations.py ui_setup_mixin.py main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :
@@ -252,6 +303,18 @@ Contrôler les traductions (rapport détaillé) :
 
 ```bash
 python tools/check_translations.py
+```
+
+Régénérer la carte des signaux après un changement de l’interface (`--list` pour la version texte) :
+
+```bash
+python tools/signal_map.py
+```
+
+Refaire les captures d’écran (les fenêtres s’ouvrent quelques secondes ; `--offscreen` pour capturer sans écran, sans emojis ni icônes du système) :
+
+```bash
+python tools/screenshots.py
 ```
 
 ### Variables d’environnement
@@ -294,3 +357,59 @@ Merci à toutes les personnes qui contribuent au projet, testent les fonctionnal
 Laser Studio Pro est un logiciel libre : il peut être redistribué et modifié selon les termes de la [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html) publiée par la Free Software Foundation, version 3 de la licence ou (au choix) toute version ultérieure (GPL-3.0-or-later).
 
 Il est distribué dans l’espoir d’être utile, mais SANS AUCUNE GARANTIE, sans même la garantie implicite de QUALITÉ MARCHANDE ou d’ADÉQUATION À UN USAGE PARTICULIER. Le texte complet de la licence se trouve dans le fichier [`LICENSE`](LICENSE).
+
+## Captures de chaque onglet et page
+
+Images produites par `tools/screenshots.py` (avec une image d’exemple chargée et son G-Code généré).
+
+### Onglets
+
+**Graver une image :**
+
+![Graver une image](docs/screenshots/01-onglet-graver-une-image.png)
+
+**Vectorisation d’image :**
+
+![Vectorisation d'image](docs/screenshots/02-onglet-vectorisation-d-image.png)
+
+**Séparation Couleur / Verre :**
+
+![Séparation Couleur / Verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
+
+**Graver une image vectorielle :**
+
+![Graver une image vectorielle](docs/screenshots/04-onglet-graver-une-image-vectorielle.png)
+
+**Calques (Layers) :**
+
+![Calques (Layers)](docs/screenshots/05-onglet-calques-layers.png)
+
+**Visualisation 2D G-Code :**
+
+![Visualisation 2D G-Code](docs/screenshots/06-onglet-visualisation-2d-g-code.png)
+
+**Console / G-Code :**
+
+![Console / G-Code](docs/screenshots/07-onglet-console-g-code.png)
+
+**File d’attente :**
+
+![File d'attente](docs/screenshots/08-onglet-file-d-attente.png)
+
+### Pages de réglages (menu Paramètres)
+
+**Paramètres du graveur :**
+
+![Paramètres du graveur](docs/screenshots/10-page-parametres-du-graveur.png)
+
+**Matériaux et connexion au graveur :**
+
+![Matériaux et connexion au graveur](docs/screenshots/11-page-materiaux-et-connexion-au-graveur.png)
+
+**Configuration GRBL :**
+
+![Configuration GRBL](docs/screenshots/12-page-configuration-grbl.png)
+
+**Matrice de test :**
+
+![Matrice de test](docs/screenshots/13-page-matrice-de-test.png)

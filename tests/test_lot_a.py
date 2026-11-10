@@ -13,9 +13,9 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ui_source import ui_source  # noqa: E402
+from ui_source import project_state_source, ui_source  # noqa: E402
 
-import image_size as isz
+from image import size as isz
 import vector_nudge as vn
 
 
@@ -26,12 +26,14 @@ def read(name):
 
 class HomingTests(unittest.TestCase):
     def test_auto_homing_is_checked_by_default(self):
-        self.assertIn("self.chk_homing.setChecked(True)", ui_source())
-        self.assertNotIn("self.chk_homing.setChecked(False)", ui_source())
+        page = read(os.path.join("ui", "settings", "grbl_config", "page.py"))
+        self.assertIn("self.homing_check.setChecked(True)", page)
+        self.assertNotIn("self.homing_check.setChecked(False)", page)
+        self.assertIn("self.chk_homing = page.homing_check", ui_source())
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
-        for name in ("machine_profiles_mixin.py", "project_io_mixin.py"):
-            self.assertNotIn("chk_homing", read(name), name)
+        self.assertNotIn("chk_homing", read("machine_profiles_mixin.py"))
+        self.assertNotIn("chk_homing", project_state_source())
 
 
 class NaturalSizeTests(unittest.TestCase):

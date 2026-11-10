@@ -19,7 +19,8 @@ from app_constants import (
     JOG_STEPS_MM,
 )
 from i18n import tr
-from ui_utils import painted_icon, themed_icon, tool_button
+from ui.machine.controls.realtime_commands import RealtimeCommands
+from ui.utils import painted_icon, themed_icon, tool_button
 
 # Flèches : (ligne, colonne, dx, dy, angle de la flèche en degrés), avec
 # 0 degré vers le haut. Le homing occupe le centre (ligne 1, colonne 1).
@@ -44,7 +45,7 @@ class JogControlPanel(QGroupBox):
 
         panel = JogControlPanel(max_speed=6000)
         panel.jog_requested.connect(laser.jog_move)
-        panel.home_requested.connect(laser.send_homing)
+        panel.home_requested.connect(laser.home_machine)
 
     Il reçoit l'état de la machine par set_connected() et set_max_speed().
     """
@@ -74,7 +75,7 @@ class JogControlPanel(QGroupBox):
             self._slider_column(self.speed_slider, "ui.jog_speed_label", str)
         )
         layout.addSpacing(12)
-        layout.addLayout(self._realtime_commands())
+        layout.addWidget(self._realtime_commands())
         layout.addStretch()
 
     # -- état reçu de la fenêtre / du contrôleur
@@ -132,60 +133,19 @@ class JogControlPanel(QGroupBox):
         return grid
 
     def _realtime_commands(self):
-        """Pause, reprise, reset et arrêt d'urgence, puis l'envoi du job."""
-        grid = QGridLayout()
-        grid.setSpacing(4)
-        commands = (
-            (
-                QIcon.ThemeIcon.MediaPlaybackPause,
-                QStyle.StandardPixmap.SP_MediaPause,
-                "ui.pause",
-                "#e67e22",
-                self.pause_requested,
-            ),
-            (
-                QIcon.ThemeIcon.MediaPlaybackStart,
-                QStyle.StandardPixmap.SP_MediaPlay,
-                "ui.resume",
-                "#27ae60",
-                self.resume_requested,
-            ),
-            (
-                QIcon.ThemeIcon.SystemReboot,
-                QStyle.StandardPixmap.SP_BrowserReload,
-                "ui.reset",
-                "#c0392b",
-                self.reset_requested,
-            ),
-            (
-                QIcon.ThemeIcon.ProcessStop,
-                QStyle.StandardPixmap.SP_BrowserStop,
-                "ui.kill",
-                "#ff0000",
-                self.emergency_stop_requested,
-            ),
+        """Pause, reprise, reset, arrêt d'urgence et envoi du job (voir
+        RealtimeCommands) : leurs signaux sont relayés par le panneau."""
+        commands = RealtimeCommands()
+        commands.pause_requested.connect(self.pause_requested)
+        commands.resume_requested.connect(self.resume_requested)
+        commands.reset_requested.connect(self.reset_requested)
+        commands.emergency_stop_requested.connect(
+            self.emergency_stop_requested
         )
-        for col, (icon, fallback, key, color, signal) in enumerate(commands):
-            button = tool_button(
-                themed_icon(self, icon, fallback), tr(key), color
-            )
-            button.clicked.connect(signal)
-            grid.addWidget(button, 0, col)
-        # Envoi du job : ligne à part, sous les commandes temps réel.
-        self.send_button = tool_button(
-            themed_icon(
-                self,
-                QIcon.ThemeIcon.DocumentSend,
-                QStyle.StandardPixmap.SP_ArrowForward,
-            ),
-            tr("ui.send_to_laser"),
-            "#2980b9",
-        )
-        self.send_button.clicked.connect(self.send_job_requested)
-        grid.addWidget(self.send_button, 1, 0)
-        # Boutons en haut, place libre en dessous.
-        grid.setRowStretch(2, 1)
-        return grid
+        commands.send_job_requested.connect(self.send_job_requested)
+        self.realtime_commands = commands
+        self.send_button = commands.send_button
+        return commands
 
     def _step_slider(self):
         """Curseur vertical du pas : un cran par valeur de JOG_STEPS_MM."""

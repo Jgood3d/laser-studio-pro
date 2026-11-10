@@ -19,7 +19,7 @@ except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = (*ui_files(), "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
+UI_FILES = (*ui_files(), "separation_mixin.py", "vector_layers.py", "image_processing_mixin.py")
 
 
 def long_combos():
@@ -54,12 +54,14 @@ class WidgetWidthTests(unittest.TestCase):
 
     def test_the_material_selector_is_covered(self):
         names = {(f, c) for f, c, _, _ in long_combos()}
-        self.assertIn(("ui_image_tab.py", "self.combo_material_bg"), names)
+        self.assertIn((os.path.join("ui", "tabs", "image", "material_combo.py"), "self"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
         src = ui_source()
-        self.assertIn("self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)", src)
-        self.assertRegex(src, r"self\.combo_material_bg\.setMinimumContentsLength\(\d{1,2}\)")
+        with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:
+            combo = f.read()
+        self.assertIn("self.setSizeAdjustPolicy(\n            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon", combo)
+        self.assertRegex(combo, r"self\.setMinimumContentsLength\(\d{1,2}\)")
 
 
 class SplitterTests(unittest.TestCase):
@@ -78,7 +80,10 @@ class SplitterTests(unittest.TestCase):
         # La colonne de gauche a été supprimée : réglages de l'image dans « Graver une image »,
         # position du job dans le panneau machine. Le centre occupe toute la largeur.
         src = self.source()
-        self.assertNotRegex(src, r"\bleft_widget\b")
+        # Le widget de conversion PNG → SVG a son propre panneau de gauche
+        # (left_widget) : seule la fenêtre principale est concernée ici.
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"\bleft_widget\b")
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)
 

@@ -1,5 +1,6 @@
 """Imbrication dans l'éditeur : groupes rigides (trous qui suivent leur pièce), rotation, fenêtre de réglage.
 Les objets et le canevas Qt sont remplacés par de petites classes factices."""
+import importlib
 import math
 import os
 import sys
@@ -156,9 +157,11 @@ from test_box_dialog_smoke import fake_widgets_module  # noqa: E402
 
 def load_dialog():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
-        sys.modules.pop("nesting_dialog", None)
-        module = __import__("nesting_dialog")
-    sys.modules.pop("nesting_dialog", None)
+        # patch.dict remet sys.modules en l'état à la sortie : le module
+        # « factice » (et son paquet) ne reste pas en cache.
+        for name in ("ui.dialogs.nesting", "ui.dialogs.nesting.dialog"):
+            sys.modules.pop(name, None)
+        module = importlib.import_module("ui.dialogs.nesting.dialog")
     return module
 
 
@@ -168,7 +171,7 @@ except ImportError:
     nd = None
 
 
-@unittest.skipIf(nd is None, "nesting_dialog non importable ici")
+@unittest.skipIf(nd is None, "ui.dialogs.nesting non importable ici")
 class DialogTests(unittest.TestCase):
     def test_defaults_scope_and_round_trip(self):
         d = nd.NestingDialog(None, 400.0, 300.0, 3, 10)

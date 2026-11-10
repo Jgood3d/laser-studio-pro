@@ -1,5 +1,5 @@
 """Filtre des avertissements de Qt sans conséquence
-(qt_messages.qt_message_handler)."""
+(ui.app.qt_messages.qt_message_handler)."""
 import contextlib
 import io
 import os
@@ -11,7 +11,7 @@ sys.path.insert(
 
 try:
     from PyQt6.QtCore import qInstallMessageHandler, qWarning
-    import qt_messages
+    from ui.app import qt_messages
 except ImportError:  # PyQt6 manquant
     qt_messages = None
 
