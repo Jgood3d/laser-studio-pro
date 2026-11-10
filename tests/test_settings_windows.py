@@ -255,7 +255,8 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_resolution_stack_does_not_stretch(self):
         src = ui_source()
-        self.assertIn("self.resolution_stack.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)", src)
+        self.assertIn("self.stack.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)",
+                      read(os.path.join("ui", "tabs", "image", "resolution_box.py")).replace("(\n            ", "(").replace(",\n            ", ", ").replace("\n        )", ")"))
 
     def test_pages_are_no_longer_tabs_of_the_left_column(self):
         src = ui_source()

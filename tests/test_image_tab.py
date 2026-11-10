@@ -10,10 +10,13 @@ sys.path.insert(0, ROOT)
 
 try:
     from PyQt6.QtGui import QShortcut
-    from PyQt6.QtWidgets import QApplication, QPushButton
+    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
     from i18n import tr
     from ui.machine.job_position import JobPositionBox
     from ui.tabs.image import ImageSettingsPanel, ImageTab
+    from ui.tabs.image.material_combo import MaterialComboBox
+    from ui.tabs.image.resolution_box import ResolutionBox
+    from ui.widgets import SliderWithButtons
 except ImportError:  # PyQt6 manquant
     ImageTab = None
 
@@ -142,6 +145,39 @@ class JobPositionBoxTests(_QtTest):
             [box.origin_combo.itemText(i) for i in range(2)],
             [tr("ui.origin_bottom_left"), tr("ui.origin_center")],
         )
+
+
+@unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
+class ImagePanelPartsTests(_QtTest):
+    def test_slider_buttons_move_by_their_step_and_show_the_value(self):
+        row = SliderWithButtons(
+            0, 300, 100, step=10, formatter=lambda v: f"{v / 100:.2f}"
+        )
+        self.addCleanup(row.deleteLater)
+        received = record(row.value_changed)
+        minus, plus = row.findChildren(QPushButton)
+        plus.click()
+        minus.click()
+        minus.click()
+        self.assertEqual(received, [(110,), (100,), (90,)])
+        labels = [l.text() for l in row.findChildren(QLabel)]
+        self.assertIn("0.90", labels)
+
+    def test_material_combo_emits_the_material(self):
+        combo = self.make(MaterialComboBox)
+        self.assertEqual(combo.material(), "light")
+        received = record(combo.material_changed)
+        combo.setCurrentIndex(0)
+        self.assertEqual((received, combo.material()), ([("dark",)], "dark"))
+
+    def test_resolution_box_signals_and_pages(self):
+        box = self.make(ResolutionBox)
+        self.assertEqual(box.stack.currentIndex(), 2)  # focale au départ
+        mode, dpi = record(box.mode_changed), record(box.dpi_changed)
+        box.mode_combo.setCurrentIndex(1)
+        box.dpi_spin.setValue(300.0)
+        self.assertEqual((mode, dpi), ([(1,)], [(300.0,)]))
+        self.assertFalse(box.quality_label.isVisibleTo(box))  # vide : masqué
 
 
 if __name__ == "__main__":

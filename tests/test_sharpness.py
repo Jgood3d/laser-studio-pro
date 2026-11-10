@@ -114,7 +114,7 @@ class IntegrationSourceTests(unittest.TestCase):
 
     def test_slider_is_created_and_shown_after_gamma(self):
         ui = ui_source()
-        self.assertIn("self.sharpness_slider = self._slider(", ui)
+        self.assertIn("self.sharpness_slider = self._sharpness_row.slider", ui)
         self.assertIn("self.slider_sharp = settings.sharpness_slider", ui)
         self.assertLess(ui.index('layout.addRow(tr("img.gamma")'), ui.index('layout.addRow(tr("img.sharpness")'))
 

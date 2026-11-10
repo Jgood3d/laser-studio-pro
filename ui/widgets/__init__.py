@@ -8,6 +8,7 @@ Utilisation :
 from ui.widgets.auto_hide_label import AutoHideLabel
 from ui.widgets.fullscreen_window import FullscreenWindow
 from ui.widgets.history_line_edit import HistoryLineEdit
+from ui.widgets.slider_with_buttons import SliderWithButtons
 from ui.widgets.tab_toolbar import TabToolBar
 from ui.widgets.zoomable_graphics_view import ZoomableGraphicsView
 
@@ -15,6 +16,7 @@ __all__ = [
     "AutoHideLabel",
     "FullscreenWindow",
     "HistoryLineEdit",
+    "SliderWithButtons",
     "TabToolBar",
     "ZoomableGraphicsView",
 ]
