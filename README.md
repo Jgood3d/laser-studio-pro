@@ -154,7 +154,7 @@ python main.py
 - `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
 - `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
 - `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
-- `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image (émet `generate_requested`…, fournit `matrix_params()`)
+- `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`)
 - `matrix_image_mixin.py` — matrice de test à partir d’une image : chargement de l’image, zone gravée dans chaque case
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine

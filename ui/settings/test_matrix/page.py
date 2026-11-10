@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 import matrix_image
 from i18n import tr
-from matrix_tile_picker import TilePicker
+from ui.settings.test_matrix.tile_picker import TilePicker
 
 HINT_STYLE = "color: #888888;"
 ENGRAVING, CUTTING = 0, 1

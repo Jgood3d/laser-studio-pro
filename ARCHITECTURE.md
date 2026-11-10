@@ -100,7 +100,7 @@ laser-studio-pro/
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
-├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage)
+├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, aperçu TilePicker)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py

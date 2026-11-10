@@ -13,6 +13,9 @@ try:
     from ui.settings.machine_params import MachineParamsPage
     from ui.settings.machine_profiles import MachineProfilesPage
     from ui.settings.test_matrix import TestMatrixPage
+    from ui.settings.test_matrix.tile_picker import TilePicker
+    from PyQt6.QtCore import QPoint, Qt
+    from PyQt6.QtTest import QTest
     from PIL import Image
 except ImportError:  # PyQt6 manquant
     MachineParamsPage = None
@@ -190,6 +193,33 @@ class TestMatrixPageTests(unittest.TestCase):
         self.assertEqual(page.image_name_label.text(), "photo.png")
         self.assertEqual(page.tile_settings()[:3], (60.0, 15.0, 15.0))
         self.assertTrue(page.tile_info_label.text())
+
+
+@unittest.skipIf(MachineParamsPage is None, "PyQt6 non importable ici")
+class TilePickerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self):
+        picker = TilePicker()
+        picker.resize(300, 200)
+        picker.set_image(Image.new("L", (300, 200), 128))
+        self.addCleanup(picker.deleteLater)
+        return picker
+
+    def test_frame_always_stays_inside_the_image(self):
+        picker = self.make()
+        picker.set_frame_fraction(0.5, 0.5)
+        self.assertEqual(picker.center(), (0.5, 0.5))
+        QTest.mouseClick(picker, Qt.MouseButton.LeftButton, pos=QPoint(3, 3))
+        cx, cy = picker.center()
+        self.assertEqual((cx, cy), (0.25, 0.25))           # coin haut-gauche : cadre collé au bord
+
+    def test_whole_image_frame_is_centred(self):
+        picker = self.make()
+        picker.set_frame_fraction(1.0, 1.0)
+        self.assertEqual(picker.center(), (0.5, 0.5))
 
 
 if __name__ == "__main__":
