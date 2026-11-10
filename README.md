@@ -346,3 +346,59 @@ Merci à toutes les personnes qui contribuent au projet, testent les fonctionnal
 Laser Studio Pro est un logiciel libre : il peut être redistribué et modifié selon les termes de la [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html) publiée par la Free Software Foundation, version 3 de la licence ou (au choix) toute version ultérieure (GPL-3.0-or-later).
 
 Il est distribué dans l’espoir d’être utile, mais SANS AUCUNE GARANTIE, sans même la garantie implicite de QUALITÉ MARCHANDE ou d’ADÉQUATION À UN USAGE PARTICULIER. Le texte complet de la licence se trouve dans le fichier [`LICENSE`](LICENSE).
+
+## Captures de chaque onglet et page
+
+Images produites par `tools/screenshots.py` (avec une image d’exemple chargée et son G-Code généré).
+
+### Onglets
+
+**Graver une image :**
+
+![Graver une image](docs/screenshots/01-onglet-graver-une-image.png)
+
+**Vectorisation d’image :**
+
+![Vectorisation d'image](docs/screenshots/02-onglet-vectorisation-d-image.png)
+
+**Séparation Couleur / Verre :**
+
+![Séparation Couleur / Verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
+
+**Graver une image vectorielle :**
+
+![Graver une image vectorielle](docs/screenshots/04-onglet-graver-une-image-vectorielle.png)
+
+**Calques (Layers) :**
+
+![Calques (Layers)](docs/screenshots/05-onglet-calques-layers.png)
+
+**Visualisation 2D G-Code :**
+
+![Visualisation 2D G-Code](docs/screenshots/06-onglet-visualisation-2d-g-code.png)
+
+**Console / G-Code :**
+
+![Console / G-Code](docs/screenshots/07-onglet-console-g-code.png)
+
+**File d’attente :**
+
+![File d'attente](docs/screenshots/08-onglet-file-d-attente.png)
+
+### Pages de réglages (menu Paramètres)
+
+**Paramètres du graveur :**
+
+![Paramètres du graveur](docs/screenshots/10-page-parametres-du-graveur.png)
+
+**Matériaux et connexion au graveur :**
+
+![Matériaux et connexion au graveur](docs/screenshots/11-page-materiaux-et-connexion-au-graveur.png)
+
+**Configuration GRBL :**
+
+![Configuration GRBL](docs/screenshots/12-page-configuration-grbl.png)
+
+**Matrice de test :**
+
+![Matrice de test](docs/screenshots/13-page-matrice-de-test.png)
