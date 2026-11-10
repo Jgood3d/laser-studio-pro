@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QSlider, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
 )
 
-import separation_engine as engine
+from image import separation as engine
 from workers import AdvancedGCodeWorker, build_gain_test_array
 from ui.widgets import TabToolBar, ZoomableGraphicsView
 from i18n import tr

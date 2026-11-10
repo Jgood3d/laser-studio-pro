@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-import matrix_image
+from image import matrix as matrix_image
 from i18n import tr
 from ui.settings.test_matrix.tile_picker import TilePicker
 

@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 
-from converter import ConversionSettings, convert_image_to_svg, save_svg
+from image.vectorize import ConversionSettings, convert_image_to_svg, save_svg
 from i18n import tr
 from ui.tabs.png2svg.svg_view import HAS_SVG_WIDGET, ZoomableSvgView
 
@@ -373,7 +373,7 @@ class PngToSvgWidget(QWidget):
         """Charge une image (PNG ou JPEG) depuis un chemin de fichier —
         factorisé entre l'ouverture manuelle, le glisser-déposer et le
         collage presse-papiers (qui écrit d'abord dans un fichier
-        temporaire). Le pipeline de conversion (converter.py, via Pillow)
+        temporaire). Le pipeline de conversion (image/vectorize.py, via Pillow)
         accepte déjà nativement le JPEG, aucun changement nécessaire de ce
         côté-là."""
         self.image_path = path
@@ -411,7 +411,7 @@ class PngToSvgWidget(QWidget):
         """Reçoit une image déjà en mémoire (glisser-déposer d'une image
         sans fichier, ou collage presse-papiers) : l'écrit dans un fichier
         temporaire PNG pour réutiliser tel quel tout le pipeline existant
-        (converter.py travaille à partir d'un chemin)."""
+        (image/vectorize.py travaille à partir d'un chemin)."""
         if qimage.isNull():
             return
         fd, tmp_path = tempfile.mkstemp(suffix=".png")

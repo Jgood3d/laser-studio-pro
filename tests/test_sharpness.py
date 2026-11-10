@@ -11,7 +11,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
-import image_filters as imf
+from image import filters as imf
 
 try:
     import workers

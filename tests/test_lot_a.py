@@ -15,7 +15,7 @@ sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
-import image_size as isz
+from image import size as isz
 import vector_nudge as vn
 
 

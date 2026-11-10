@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""separation_engine.py - Calculs de séparation couleur / verre (numpy + Pillow, sans Qt).
+"""Calculs de séparation couleur / verre (numpy + Pillow, sans Qt).
 
 Le calque NOIR (luminosité, contraste, gamma, tramage, spot) n'est plus calculé
 ici : c'est le pipeline de l'onglet « Image & Filtres » qui s'en charge. Ce

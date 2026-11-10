@@ -5,8 +5,8 @@ from PyQt6.QtGui import QPixmap, QImage
 import numpy as np
 from PIL import Image, ImageEnhance
 from workers import ImageProcessingWorker
-from image_filters import sharpen_image
-from image_size import natural_size_mm, read_dpi
+from image.filters import sharpen_image
+from image.size import natural_size_mm, read_dpi
 from i18n import tr
 
 

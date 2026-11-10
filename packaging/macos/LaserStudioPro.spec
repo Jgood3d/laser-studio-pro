@@ -40,7 +40,7 @@ datas += collect_data_files('pyqtgraph')
 datas += collect_data_files('skimage')
 
 hiddenimports = [
-    # Import différé dans converter.py (skimage.morphology.skeletonize),
+    # Import différé dans image/vectorize.py (skimage.morphology.skeletonize),
     # non détecté automatiquement par l'analyse statique de PyInstaller.
     'skimage.morphology',
     'skimage.filters',

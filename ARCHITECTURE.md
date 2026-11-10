@@ -111,7 +111,8 @@ laser-studio-pro/
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── machine_profiles_mixin.py
-├── image_processing_mixin.py / image_filters.py / image_size.py
+├── image_processing_mixin.py
+├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
 ├── vector_font.py / vector_order.py / vector_nudge.py / vector_import.py
@@ -120,8 +121,8 @@ laser-studio-pro/
 ├── nesting.py / nesting_apply.py
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── project_io_mixin.py / job_queue_mixin.py
-├── png2svg_mixin.py / converter.py
-├── separation_mixin.py / separation_engine.py
+├── png2svg_mixin.py
+├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
 ├── BUILD.md
 └── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
@@ -168,7 +169,7 @@ laser-studio-pro/
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab` ; lu par `JobQueueMixin` (`list_job_queue`, `btn_run_queue`…) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
-| **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
+| **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |

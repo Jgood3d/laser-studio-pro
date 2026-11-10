@@ -8,7 +8,7 @@ d'image gravée dans chaque case.
 from PIL import Image
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
-import matrix_image
+from image import matrix as matrix_image
 from i18n import tr
 
 

@@ -121,11 +121,9 @@ python main.py
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
-- `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
-- `image_filters.py` — filtres d’image purs (netteté)
+- `image/` — traitement d’image sans Qt : `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
 - `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
-- `image_size.py` — taille d’origine d’une image d’après sa résolution (sans Qt)
 - `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
 - `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)

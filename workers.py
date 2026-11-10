@@ -24,9 +24,9 @@ except ImportError:
 
 from vector_font import VectorFont
 from vector_layers import build_vector_layers_gcode
-import separation_engine
-from image_filters import sharpen_image
-from matrix_image import tile_raster_gcode
+from image import separation as separation_engine
+from image.filters import sharpen_image
+from image.matrix import tile_raster_gcode
 from i18n import tr
 
 

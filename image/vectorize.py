@@ -1,10 +1,8 @@
 """
-converter.py
-------------
-Coeur de conversion PNG -> SVG, sans aucune dépendance à Qt.
+Coeur de conversion PNG -> SVG (vectorisation), sans aucune dépendance à Qt.
 Peut être importé directement dans Laser Studio Pro :
 
-    from converter import ConversionSettings, convert_image_to_svg
+    from image.vectorize import ConversionSettings, convert_image_to_svg
     svg_text = convert_image_to_svg("logo.png", ConversionSettings(mode="bw"))
 
 Algorithme :

@@ -1,11 +1,11 @@
-"""Tests de matrix_image (recadrage et G-Code d'une zone d'image) — sans Qt."""
+"""Tests de image/matrix.py (recadrage et G-Code d'une zone d'image) — sans Qt."""
 import re
 import unittest
 
 import numpy as np
 from PIL import Image
 
-import matrix_image as mi
+from image import matrix as mi
 
 
 def _moves(lines):
