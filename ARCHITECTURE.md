@@ -106,6 +106,8 @@ laser-studio-pro/
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
 ├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, aperçu TilePicker)
 ├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage)
+├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog)
+├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -113,8 +115,8 @@ laser-studio-pro/
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
 ├── vector_font.py / vector_order.py / vector_nudge.py / vector_import.py
 ├── dxf_import.py
-├── box_generator.py / box_dialog.py
-├── nesting.py / nesting_apply.py / nesting_dialog.py
+├── box_generator.py
+├── nesting.py / nesting_apply.py
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── project_io_mixin.py / job_queue_mixin.py
 ├── png2svg_mixin.py / png2svg_widget.py / converter.py

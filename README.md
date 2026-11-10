@@ -165,8 +165,8 @@ python main.py
 - `job_queue_mixin.py` — file d’attente de jobs
 - `png2svg_mixin.py` — onglet PNG/JPEG → SVG
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
-- `box_dialog.py` — fenêtre du générateur de boîte
-- `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
+- `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
+- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
 - `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
 
 ### Signaux des pages et des panneaux

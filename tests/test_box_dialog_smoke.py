@@ -140,9 +140,11 @@ def fake_widgets_module():
 
 def load_dialog_module():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
-        sys.modules.pop("box_dialog", None)
-        module = importlib.import_module("box_dialog")
-    sys.modules.pop("box_dialog", None)          # ne pas laisser le module « factice » en cache
+        # patch.dict remet sys.modules en l'état à la sortie : le module
+        # « factice » (et son paquet) ne reste pas en cache.
+        for name in ("ui.dialogs.box_generator", "ui.dialogs.box_generator.dialog"):
+            sys.modules.pop(name, None)
+        module = importlib.import_module("ui.dialogs.box_generator.dialog")
     return module
 
 
@@ -159,7 +161,7 @@ except ImportError:
     bd = None
 
 
-@unittest.skipIf(bd is None, "box_dialog non importable ici")
+@unittest.skipIf(bd is None, "ui.dialogs.box_generator non importable ici")
 class DialogSmokeTests(unittest.TestCase):
     def make(self, **kw):
         return bd.BoxGeneratorDialog(None, LAYERS, 400.0, 300.0, kw.get("initial"))

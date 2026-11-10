@@ -5,7 +5,7 @@ Laser Studio Pro (LSP) est une application bureau open-source développée en Py
 
 ## Stack Technique
 - **Langage :** Python 3.12+
-- **Interface Graphique :** PyQt6 (`ui/widgets/zoomable_graphics_view.py`, `box_dialog.py`)
+- **Interface Graphique :** PyQt6 (`ui/widgets/zoomable_graphics_view.py`, `ui/dialogs/box_generator/`)
 - **Traitement d'image :** OpenCV (`image_processing_mixin.py`, `image_filters.py`)
 - **Contrôle Laser / G-code :** `laser_control_mixin.py`, `gcode_generation_mixin.py`
 - **Build / Packaging :** PyInstaller, scripts batch (`packaging/windows/build.bat`)

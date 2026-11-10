@@ -7,11 +7,11 @@ from vector_layers import (
 from i18n import tr
 import box_generator
 import dxf_import
-from box_dialog import BoxGeneratorDialog, error_message
+from ui.dialogs.box_generator import BoxGeneratorDialog, error_message
 from vector_import import box_to_objects, decor_to_objects, dxf_to_objects
 import nesting
 from nesting_apply import apply_result, build_pieces
-from nesting_dialog import NestingDialog
+from ui.dialogs.nesting import NestingDialog
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
