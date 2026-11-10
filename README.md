@@ -120,6 +120,7 @@ python main.py
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
+- `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
 - `image_filters.py` — filtres d’image purs (netteté)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)

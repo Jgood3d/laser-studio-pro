@@ -23,7 +23,7 @@ class WindowControllerMixin:
 
         Codes possibles : dark, light, dusk, warm.
         """
-        from app_theme import apply_app_theme, normalize_theme_name
+        from ui.app.theme import apply_app_theme, normalize_theme_name
 
         theme_name = normalize_theme_name(theme_name)
         app = QApplication.instance()

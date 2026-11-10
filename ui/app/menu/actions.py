@@ -215,7 +215,7 @@ class AppActions(QObject):
             action.setChecked(code == current_lang)
             self.language_actions[code] = action
 
-        from app_theme import available_themes, normalize_theme_name
+        from ui.app.theme import available_themes, normalize_theme_name
 
         self.theme_icon = standard_icon(
             "preferences-desktop-theme", QStyle.StandardPixmap.SP_DesktopIcon

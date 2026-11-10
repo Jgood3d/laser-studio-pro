@@ -16,7 +16,7 @@ from debug_log import setup_debug_logging
 from i18n import tr
 from ui.app.qt_messages import install_qt_message_filters
 from ui.splashscreen import StartupSplash
-from app_theme import apply_saved_theme, install_breeze_icon_theme
+from ui.app.theme import apply_saved_theme, install_breeze_icon_theme
 
 
 if __name__ == "__main__":

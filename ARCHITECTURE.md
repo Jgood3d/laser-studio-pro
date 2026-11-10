@@ -23,7 +23,7 @@ main.py
   ├─► install_qt_message_filters / setup_debug_logging
   ├─► QApplication
   ├─► install_breeze_icon_theme()   # resources/icons/breeze (surtout Windows)
-  ├─► apply_app_theme()            # app_theme.py (dark / light / dusk / warm)
+  ├─► apply_app_theme()            # ui/app/theme.py (dark / light / dusk / warm)
   ├─► StartupSplash
   │
   └─► main_window.py  (classe FullLaserStudio : construit la fenêtre, init_ui)
@@ -77,7 +77,6 @@ laser-studio-pro/
 │   └── check_ui_attributes.py
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
-├── app_theme.py                      # thèmes UI : dark / light / dusk / warm
 ├── app_utils.py
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
 ├── debug_log.py
@@ -92,6 +91,7 @@ laser-studio-pro/
 ├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
 ├── ui/app/window_controller.py       # contrôleur de la fenêtre (WindowControllerMixin)
 ├── ui/app/qt_messages.py             # filtre des avertissements Qt
+├── ui/app/theme.py                   # thèmes UI : dark / light / dusk / warm, pack d'icônes Breeze
 ├── ui/widgets/                       # petits widgets (ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar)
 ├── ui/utils.py                       # icônes dessinées, images haute résolution
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
@@ -134,8 +134,8 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `app_theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
-| **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
+| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
+| **ui/app/theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
 | **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
@@ -199,7 +199,7 @@ laser-studio-pro/
 
 | Élément | Rôle |
 |---------|------|
-| **app_theme.py** | 4 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré) |
+| **ui/app/theme.py** | 4 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré) |
 | Menu **Paramètres → Thème** | `available_themes()` + `change_theme()` ; persistance `QSettings("app_theme")` |
 | **resources/icons/breeze/** | Pack minimal Breeze (LGPL-3) ; activé par `install_breeze_icon_theme()` si pas de thème système, cherché comme les images (`resource_candidates`) |
 | **packaging/ / BUILD.md** | `--add-data "resources;resources"` embarque les images et le pack d'icônes |
@@ -224,10 +224,10 @@ Inchangé dans l’esprit : `workers.py` (threads), `grbl/`, `ui/settings/window
 
 ```
 main.py
-  ├─ app_theme.apply_app_theme
+  ├─ ui.app.theme.apply_app_theme
   ├─ resources/icons/breeze  (QIcon theme)
   └─ FullLaserStudio
-        ├─ WindowControllerMixin ──► menu thème ──► change_theme ──► app_theme
+        ├─ WindowControllerMixin ──► menu thème ──► change_theme ──► ui.app.theme
         │                 └─► open_stencil_studio ──► studio_dialog
         │                        (theme_for_lsp / sync_theme_from_lsp)
         ├─ VectorEditingMixin ──► VectorCanvasView (vector_layers)
@@ -277,7 +277,7 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 1. **Mixins additifs** : ne pas casser les responsabilités (UI ≠ G-Code ≠ USB).
 2. **Repère machine** : origine bas-gauche, Y vers le haut dans le modèle monde ; conversion écran dans `VectorGraphicsItem.refresh`.
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
-4. **Thème unique source de vérité** : `app_theme.THEMES` + `QSettings("app_theme")` ; Stencil Studio consomme via `theme_for_lsp`.
+4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` ; Stencil Studio consomme via `theme_for_lsp`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
@@ -288,7 +288,7 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 
 | Domaine | Ajout |
 |---------|--------|
-| Thèmes | `dark`, `light`, **`dusk`**, **`warm`** (`app_theme.py`) |
+| Thèmes | `dark`, `light`, **`dusk`**, **`warm`** (`ui/app/theme.py`) |
 | Icônes | Pack **Breeze** embarqué (`resources/icons/breeze`) |
 | Import | Plus de dégroupage automatique SVG/DXF |
 | Dessin | Outils souris ligne / rectangle / ellipse |
@@ -315,7 +315,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui/app/window_controller.py ui_image_tab.py
+python -m py_compile main.py ui/app/theme.py vector_layers.py ui_setup_mixin.py ui/app/window_controller.py ui_image_tab.py
 ```
 
 ---
