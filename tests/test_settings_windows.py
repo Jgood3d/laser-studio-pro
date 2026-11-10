@@ -256,7 +256,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
         self.assertIn("self.tab_machine_params = page", src)
-        self.assertIn("self.tab_matrix = tab_matrix", src)
+        self.assertIn("self.tab_matrix = page", src)
 
     def test_other_tabs_are_still_there(self):
         src = ui_source()

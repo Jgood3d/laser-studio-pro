@@ -577,24 +577,5 @@ class MachineProfilesMixin:
             del self.materials_db[mat_name]
             self.combo_mat.removeItem(self.combo_mat.currentIndex())
 
-    def on_mat_mode_changed(self, index):
-        is_gravure = (index == 0)
-        self.lbl_mat_p1.setText(tr("ui.mat_min_power") if is_gravure else tr("ui.mat_unique_power"))
-        self.spin_mat_max_p.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_max_p).setVisible(is_gravure)
-        self.spin_mat_steps_p.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_steps_p).setVisible(is_gravure)
-
-        self.spin_mat_min_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_min_passes).setVisible(not is_gravure)
-        self.spin_mat_max_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_max_passes).setVisible(not is_gravure)
-        self.spin_mat_steps_passes.setVisible(not is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_steps_passes).setVisible(not is_gravure)
-
-        self.spin_mat_lmm.setVisible(is_gravure)
-        self.spin_mat_lmm.dpi_label.setVisible(is_gravure)
-        self.form_matrix.labelForField(self.spin_mat_lmm.dpi_row_layout).setVisible(is_gravure)
-
     def on_overscan_mode_changed(self, index):
         self.overscan_stacked.setCurrentIndex(index)

@@ -1,4 +1,4 @@
-"""Pages de réglages (MachineParamsPage, MachineProfilesPage) : signaux et état."""
+"""Pages de réglages (MachineParamsPage, MachineProfilesPage, TestMatrixPage) : signaux et état."""
 import os
 import sys
 import unittest
@@ -12,6 +12,8 @@ try:
     from i18n import tr
     from ui.settings.machine_params import MachineParamsPage
     from ui.settings.machine_profiles import MachineProfilesPage
+    from ui.settings.test_matrix import TestMatrixPage
+    from PIL import Image
 except ImportError:  # PyQt6 manquant
     MachineParamsPage = None
 
@@ -125,6 +127,69 @@ class MachineProfilesPageTests(unittest.TestCase):
         page.set_connected(False)
         self.assertEqual((page.connect_button.text(), page.connect_button.styleSheet()),
                          (tr("laser.connect"), ""))
+
+
+@unittest.skipIf(MachineParamsPage is None, "PyQt6 non importable ici")
+class TestMatrixPageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self):
+        page = TestMatrixPage(lines_mm=10.0)
+        self.addCleanup(page.deleteLater)
+        return page
+
+    def record(self, signal):
+        return _Recorder(self).record(signal)
+
+    def button(self, page, key):
+        return next(b for b in page.findChildren(QPushButton) if b.text() == tr(key))
+
+    def test_buttons_emit_their_signal(self):
+        page = self.make()
+        page.set_image_test_checked(True)          # boutons d'image grisés tant que le cadre est décoché
+        for key, signal in (("ui.gen_test_matrix", page.generate_requested),
+                            ("ui.mat_image_choose", page.choose_image_requested),
+                            ("ui.mat_image_use_loaded", page.use_loaded_image_requested)):
+            received = self.record(signal)
+            self.button(page, key).click()
+            self.assertEqual(received, [()], key)
+
+    def test_params_are_business_values(self):
+        page = self.make()
+        page.set_lines_mm(12.0)
+        params = page.matrix_params()
+        self.assertEqual((params["min_power"], params["max_power"], params["lines_mm"], params["laser_cmd"]),
+                         (10, 80, 12.0, "M4"))
+        self.assertEqual(params["single_power"], params["min_power"])
+
+    def test_cutting_mode_shows_passes_instead_of_power_range(self):
+        page = self.make()
+        page.show()
+        self.assertTrue(page.is_engraving())
+        self.assertTrue(page.max_power_spin.isVisible() and not page.min_passes_spin.isVisible())
+        page.mode_combo.setCurrentIndex(1)
+        self.assertFalse(page.is_engraving())
+        self.assertTrue(page.min_passes_spin.isVisible() and not page.max_power_spin.isVisible())
+        self.assertFalse(page.lines_mm_spin.isVisible())
+
+    def test_image_test_only_exists_in_engraving(self):
+        page = self.make()
+        toggles = self.record(page.image_test_toggled)
+        page.set_image_test_checked(True)
+        self.assertEqual(toggles, [(True,)])
+        self.assertTrue(page.image_test_enabled())
+        self.assertFalse(page.square_size_spin.isEnabled())   # taille des cases : celle de la zone d'image
+        page.mode_combo.setCurrentIndex(1)
+        self.assertFalse(page.image_test_enabled())
+
+    def test_source_image_sets_the_real_width_and_the_tile_info(self):
+        page = self.make()
+        page.set_source_image(Image.new("L", (600, 400), 128), "photo.png", width_mm=60.0)
+        self.assertEqual(page.image_name_label.text(), "photo.png")
+        self.assertEqual(page.tile_settings()[:3], (60.0, 15.0, 15.0))
+        self.assertTrue(page.tile_info_label.text())
 
 
 if __name__ == "__main__":

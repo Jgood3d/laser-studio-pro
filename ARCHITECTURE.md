@@ -32,7 +32,8 @@ main.py
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    contenu des onglets (éditeur vectoriel…)
         ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
-        ├─ …PageMixin            (ui_*_page.py)         matrice de test, configuration GRBL
+        ├─ GrblConfigPageMixin   (ui_grbl_config_page.py) page Configuration GRBL
+        ├─ MatrixImageMixin      (matrix_image_mixin.py) matrice de test à partir d'une image
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
@@ -87,7 +88,7 @@ laser-studio-pro/
 ├── ui_setup_mixin.py
 ├── ui_window_controller.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
-├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
+├── ui_grbl_config_page.py / matrix_image_mixin.py
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
@@ -99,6 +100,7 @@ laser-studio-pro/
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
+├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -150,6 +152,8 @@ laser-studio-pro/
 | **ui/machine/console/** | `DirectConsolePanel` : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_manual_cmd` |
 | **ui/settings/machine_params/** | `MachineParamsPage` (QScrollArea) : profils machine, dimensions du lit, spot, limites. Émet `profile_selected`, `new/update/delete_profile_requested`, `bed_size_changed(l, p)`, `focal_changed(mm)`, `max_speed_changed` | Construite et abonnée dans `main_window._build_machine_params_page` ; ses champs gardent leurs anciens noms dans la fenêtre (`spin_machine_w`…) |
 | **ui/settings/machine_profiles/** | `MachineProfilesPage` : port (modèle partagé avec la barre d'outils), connexion, profils de matériaux. Émet `connect_requested`, `material_selected`, `save/new/delete_material_requested`…, reçoit `set_connected()` | Construite et abonnée dans `main_window._build_machine_profiles_page` (`combo_ports`, `combo_mat` gardent leurs noms) |
+| **ui/settings/test_matrix/** | `TestMatrixPage` : réglages de la matrice (puissances, passes, vitesses, cases), affichage selon le mode gravure / découpe, test à partir d'une image (aperçu `TilePicker`). Émet `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled` ; fournit `matrix_params()`, `tile_settings()` ; reçoit `set_lines_mm()`, `set_source_image()` | Construite et abonnée dans `main_window._build_test_matrix_page` ; lue par `GcodeGenerationMixin.generate_test_matrix` |
+| **matrix_image_mixin.py** | Test à partir d'une image : choix du fichier (taille réelle d'après sa résolution), reprise de l'image de « Graver une image », zone d'image traitée pour chaque case (`build_matrix_image_tile`) | `matrix_image`, `workers` |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`), relaie `layers_changed`, `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |

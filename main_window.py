@@ -14,6 +14,7 @@ from settings_window import SettingsWindow
 from ui.machine import MachinePanel
 from ui.settings.machine_params import MachineParamsPage
 from ui.settings.machine_profiles import MachineProfilesPage
+from ui.settings.test_matrix import TestMatrixPage
 from ui.statusbar import StatusBar
 from ui.tabs.layers import LayersTab
 
@@ -22,7 +23,7 @@ from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
 from ui_window_controller import WindowControllerMixin
-from ui_test_matrix_page import TestMatrixPageMixin
+from matrix_image_mixin import MatrixImageMixin
 from ui_grbl_config_page import GrblConfigPageMixin
 from ui_image_tab import ImageTabMixin
 from ui_preview_2d_tab import Preview2DTabMixin
@@ -41,7 +42,7 @@ from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
-                       TestMatrixPageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
+                       MatrixImageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
                        LegacySvgBoxMixin, MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
@@ -268,6 +269,22 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.combo_ports = page.ports_combo
         self.combo_mat = page.material_combo
         self.tab_machine_profiles = page
+
+    def _build_test_matrix_page(self):
+        """Page « Matrice de test », abonnée à la génération de la matrice.
+
+        Ses lignes/mm suivent celles de « Graver une image » (spin_lmm, qui
+        doit déjà exister ; voir _sync_matrix_lmm_from_image).
+        """
+        page = TestMatrixPage(self.spin_lmm.value())
+        page.generate_requested.connect(self.generate_test_matrix)
+        page.choose_image_requested.connect(self._mat_choose_image)
+        page.use_loaded_image_requested.connect(self._mat_use_loaded_image)
+        page.image_test_toggled.connect(self._on_mat_image_test_toggled)
+        # Nom historique : décochée et grisée avec chk_homing quand le
+        # graveur n'a pas de homing ($22=0, voir LaserControlMixin).
+        self.chk_mat_homing = page.homing_check
+        self.tab_matrix = page
 
     def _build_layers_tab(self):
         """Onglet « Calques », abonné à la logique des calques.

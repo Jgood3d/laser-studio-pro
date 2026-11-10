@@ -136,7 +136,6 @@ python main.py
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
 - `ui_setup_mixin.py` — contenu des onglets : éditeur vectoriel, barres d’outils d’onglet (partira dans `ui/tabs/`)
-- `ui_test_matrix_page.py` — page « Matrice de test »
 - `ui_grbl_config_page.py` — page « Configuration GRBL »
 - `ui_image_tab.py` — onglet « Graver une image » et position du job
 - `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
@@ -155,6 +154,8 @@ python main.py
 - `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
 - `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
 - `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
+- `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image (émet `generate_requested`…, fournit `matrix_params()`)
+- `matrix_image_mixin.py` — matrice de test à partir d’une image : chargement de l’image, zone gravée dans chaque case
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière

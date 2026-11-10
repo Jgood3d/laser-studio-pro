@@ -623,36 +623,21 @@ class GcodeGenerationMixin:
         self._sync_matrix_lmm_from_image()
         # Mode indépendant de la langue : currentText() est traduit (« Engraving », « Gravur »…),
         # alors que le générateur et _on_plot_clicked comparent à « Gravure ».
-        engraving = self.combo_mat_mode.currentIndex() == 0
-        params = {
-            'min_power': self.spin_mat_min_p.value(),
-            'max_power': self.spin_mat_max_p.value(),
-            'steps_power': self.spin_mat_steps_p.value(),
-            'single_power': self.spin_mat_min_p.value(),
-            'min_passes': self.spin_mat_min_passes.value(),
-            'max_passes': self.spin_mat_max_passes.value(),
-            'steps_passes': self.spin_mat_steps_passes.value(),
-            'min_speed': self.spin_mat_min_s.value(),
-            'max_speed': self.spin_mat_max_s.value(),
-            'steps_speed': self.spin_mat_steps_s.value(),
-            'size_square': self.spin_mat_size.value(),
-            'gap': self.spin_mat_gap.value(),
+        page = self.tab_matrix
+        engraving = page.is_engraving()
+        params = page.matrix_params()
+        params.update({
             'mode': "Gravure" if engraving else "Découpe",
-            'lines_mm': self.spin_mat_lmm.value(),
-            'matrix_offset_x': self.spin_mat_off_x.value(),
-            'matrix_offset_y': self.spin_mat_off_y.value(),
             's_max': self.spin_smax.value(),
-            'laser_cmd': self.combo_mat_laser_cmd.currentText().split()[0],
-            'homing': self.chk_mat_homing.isChecked(),
             'enable_overscan': self.chk_overscan.isChecked(),
             'overscan_mode': self._overscan_mode_value(),
             'overscan_dist': self.spin_overscan_dist.value(),
             'overscan_pct': self.spin_overscan_pct.value(),
             # Décalage des lignes retour (réglage machine), comme pour une gravure d'image.
             'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
-        }
+        })
         # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
-        if engraving and self.matrix_image_enabled():
+        if engraving and page.image_test_enabled():
             tile = self.build_matrix_image_tile(params['lines_mm'])
             if tile is None:
                 return

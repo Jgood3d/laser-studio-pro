@@ -133,11 +133,11 @@ class ImageProcessingMixin:
 
     def _sync_matrix_lmm_from_image(self):
         """Reporte automatiquement le lignes/mm de l'onglet Image / Filtre
-        (self.spin_lmm) dans la Matrice de Test gravure (self.spin_mat_lmm),
+        (self.spin_lmm) dans la Matrice de Test gravure,
         pour que le test soit fait avec exactement la même densité de lignes
         que la gravure réelle."""
-        if hasattr(self, "spin_mat_lmm") and hasattr(self, "spin_lmm"):
-            self.spin_mat_lmm.setValue(self.spin_lmm.value())
+        if hasattr(self, "tab_matrix") and hasattr(self, "spin_lmm"):
+            self.tab_matrix.set_lines_mm(self.spin_lmm.value())
 
     def _sync_separation_with_resolution(self):
         """L'onglet Séparation Couleur / Verre affiche et utilise la résolution
