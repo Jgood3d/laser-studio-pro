@@ -1,4 +1,4 @@
-"""Code source de l'interface, réparti entre ui_setup_mixin.py et les fichiers ui_*.py."""
+"""Code source de l'interface, réparti entre main_window.py, les fichiers ui_*.py et le paquet ui/."""
 import glob
 import os
 import re
@@ -7,8 +7,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def ui_files():
-    """Fichiers de l'interface, relatifs à la racine : ui_*.py et le paquet ui/."""
-    files = glob.glob(os.path.join(ROOT, "ui_*.py"))
+    """Fichiers de l'interface, relatifs à la racine : main_window.py, ui_*.py et le paquet ui/."""
+    files = [os.path.join(ROOT, "main_window.py")]
+    files += glob.glob(os.path.join(ROOT, "ui_*.py"))
     files += glob.glob(os.path.join(ROOT, "ui", "**", "*.py"), recursive=True)
     return sorted(os.path.relpath(p, ROOT) for p in files)
 

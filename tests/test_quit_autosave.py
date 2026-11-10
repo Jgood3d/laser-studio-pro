@@ -12,11 +12,10 @@ sys.path.insert(0, ROOT)
 class QuitTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("ui_setup_mixin")
+            self.mod = importlib.import_module("main_window")
         except ImportError:
-            self.skipTest("ui_setup_mixin non importable ici")
-        cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
-        self.win = cls.__new__(cls)
+            self.skipTest("main_window non importable ici")
+        self.win = type("Window", (), {})()
         self.calls = []
         for name in ("save_machine_settings", "save_splitter_sizes", "_clear_autosave", "_flush_background_writes"):
             setattr(self.win, name, lambda n=name: self.calls.append(n))
@@ -26,7 +25,7 @@ class QuitTests(unittest.TestCase):
         self.win.save_project = lambda: self.calls.append("save_project") or saved
         button = getattr(self.mod.QMessageBox.StandardButton, answer)
         with mock.patch.object(self.mod.QMessageBox, "question", return_value=button):
-            self.win.closeEvent(self.event)
+            self.mod.FullLaserStudio.closeEvent(self.win, self.event)
 
     def test_quit_without_saving_clears_the_autosave(self):
         self.close_with("No")

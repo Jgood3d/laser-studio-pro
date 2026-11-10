@@ -12,6 +12,7 @@ try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from laser_control_mixin import LaserControlMixin
     from ui.machine.controls import JogControlPanel
+    from ui.machine import MachinePanel
     from ui_window_controller import WindowControllerMixin
     from app_constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
     from i18n import tr
@@ -149,22 +150,42 @@ class CommandsLockTests(unittest.TestCase):
             pass
         f = Fake.__new__(Fake)
         f.usb = type("U", (), {"is_connected": lambda self: connected})()
-        f.jog_panel, f.job_actions_panel, f.direct_console_box = _Box(), _Box(), _Box()
+        f.machine_panel = _Box()
         return f
 
     def test_commands_follow_the_connection(self):
         for connected in (False, True):
             f = self.make(connected)
             f.update_connection_widgets()
-            self.assertEqual((f.jog_panel.enabled, f.job_actions_panel.enabled, f.direct_console_box.enabled),
-                             (connected, connected, connected))
+            self.assertEqual(f.machine_panel.enabled, connected)
+
+    def test_machine_panel_locks_commands_but_not_the_dro(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from PyQt6.QtWidgets import QGroupBox
+        box = QGroupBox("Position")
+        panel = MachinePanel(box, 6000)
+        self.addCleanup(panel.deleteLater)
+        for connected in (False, True):
+            panel.set_connected(connected)
+            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
+                              panel.console_panel.isEnabled()), (connected, connected, connected))
+            self.assertTrue(panel.dro_panel.isEnabled())
+            self.assertTrue(box.isEnabled())
+
+    def test_progress_bar_shows_the_engraving_percentage(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from PyQt6.QtWidgets import QGroupBox
+        panel = MachinePanel(QGroupBox("Position"), 6000)
+        self.addCleanup(panel.deleteLater)
+        panel.progress_bar.setValue(42)
+        self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
 
     def test_layout_position_jog_job_actions_dro(self):
         src = ui_source()
-        row = src[src.index("machine_row = QHBoxLayout()"):src.index("center_bottom_layout.addLayout(machine_row)")]
+        row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
         order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.jog_panel",
-                                        "addWidget(self.job_actions_panel", "addWidget(dro_box")]
+                                        "addWidget(self.job_actions_panel", "addWidget(self.dro_panel")]
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 
@@ -185,7 +206,7 @@ class WindowWiringTests(unittest.TestCase):
 
     def test_speed_slider_follows_the_machine_max_speed(self):
         win = self.win
-        slider = win.jog_panel.speed_slider
+        slider = win.machine_panel.jog_panel.speed_slider
         self.assertEqual(slider.maximum(), int(win.spin_machine_max_speed.value()))
         win.spin_machine_max_speed.setValue(2000)
         self.assertEqual((slider.maximum(), slider.value()), (2000, 2000))

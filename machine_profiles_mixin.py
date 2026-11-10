@@ -520,8 +520,7 @@ class MachineProfilesMixin:
         mat_name = self.combo_mat.currentText()
         if mat_name in self.materials_db:
             p = self.materials_db[mat_name]
-            self.spin_speed_engrave.setValue(p['sp_e'])
-            self.spin_power_engrave.setValue(p['pw_e'])
+            self.set_engrave_settings(p['sp_e'], p['pw_e'])
             self.spin_speed_cut.setValue(p['sp_c'])
             self.spin_power_cut.setValue(p['pw_c'])
             self.spin_passes_cut.setValue(p['pass_c'])
@@ -529,8 +528,8 @@ class MachineProfilesMixin:
     def save_material_profile(self):
         mat_name = self.combo_mat.currentText()
         self.materials_db[mat_name] = {
-            "sp_e": self.spin_speed_engrave.value(),
-            "pw_e": self.spin_power_engrave.value(),
+            "sp_e": self.engrave_speed,
+            "pw_e": self.engrave_power,
             "sp_c": self.spin_speed_cut.value(),
             "pw_c": self.spin_power_cut.value(),
             "pass_c": self.spin_passes_cut.value()
@@ -550,8 +549,8 @@ class MachineProfilesMixin:
         if ok and name.strip():
             name = name.strip()
             self.materials_db[name] = {
-                "sp_e": self.spin_speed_engrave.value(),
-                "pw_e": self.spin_power_engrave.value(),
+                "sp_e": self.engrave_speed,
+                "pw_e": self.engrave_power,
                 "sp_c": self.spin_speed_cut.value(),
                 "pw_c": self.spin_power_cut.value(),
                 "pass_c": self.spin_passes_cut.value()

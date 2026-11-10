@@ -224,7 +224,7 @@ class JobQueueMixin:
             )
         )
 
-        self.progress_bar.setValue(0)
+        self.machine_panel.progress_bar.setValue(0)
         self._append_sent_gcode([tr("queue.sent_log_job").format(
             index=self._queue_running_index + 1, total=len(self.job_queue), name=job["name"])])
         if hasattr(self, "_prepare_burn_overlay"):
@@ -234,7 +234,7 @@ class JobQueueMixin:
             self._connect_burn_overlay(self.streamer)
         self.streamer.lines_sent.connect(self._append_sent_gcode)
         self.streamer.progress.connect(
-            lambda current, total: self.progress_bar.setValue(int((current / total) * 100) if total else 0))
+            lambda current, total: self.machine_panel.progress_bar.setValue(int((current / total) * 100) if total else 0))
         self.streamer.log_signal.connect(self.txt_console.append)
         self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(self._on_queued_job_finished)

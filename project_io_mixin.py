@@ -40,8 +40,8 @@ class ProjectIOMixin:
             "mirror_v": self.app_actions.mirror_v.isChecked(),
             "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
-            "speed_engrave": self.spin_speed_engrave.value(),
-            "power_engrave": self.spin_power_engrave.value(),
+            "speed_engrave": self.engrave_speed,
+            "power_engrave": self.engrave_power,
             "enable_cut": self.chk_enable_cut.isChecked(),
             "speed_cut": self.spin_speed_cut.value(),
             "power_cut": self.spin_power_cut.value(),
@@ -138,8 +138,8 @@ class ProjectIOMixin:
             self.combo_algo.setCurrentText(proj_data.get("algo", "Floyd-Steinberg"))
             self.spin_lmm.setValue(proj_data.get("lmm", 10.0))
 
-            self.spin_speed_engrave.setValue(proj_data.get("speed_engrave", 2000))
-            self.spin_power_engrave.setValue(proj_data.get("power_engrave", 30))
+            self.set_engrave_settings(proj_data.get("speed_engrave", 2000),
+                                      proj_data.get("power_engrave", 30))
 
             self.chk_enable_cut.setChecked(proj_data.get("enable_cut", False))
 

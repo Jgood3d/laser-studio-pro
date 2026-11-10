@@ -2815,6 +2815,12 @@ TRANSLATIONS = {
         "de": "GRBL-Direktbefehls-Konsole",
         "es": "Consola de comandos directos GRBL",
     },
+    "ui.burn_progress": {
+        "fr": "Gravure : {pct}%",
+        "en": "Engraving: {pct}%",
+        "de": "Gravur: {pct}%",
+        "es": "Grabado: {pct}%",
+    },
     "ui.manual_grbl_placeholder": {
         "fr": "Tape une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)",
         "en": "Type a GRBL command ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ for history)",
@@ -3170,18 +3176,6 @@ TRANSLATIONS = {
         "en": "All {count} setting(s) were sent successfully to the machine.",
         "de": "Alle {count} Einstellung(en) wurden erfolgreich an die Maschine gesendet.",
         "es": "Los {count} ajuste(s) se enviaron con éxito a la máquina.",
-    },
-    "ui.laser_exec_box": {
-        "fr": "Paramètres d'Exécution Laser — Gravure Image",
-        "en": "Laser Execution Settings — Image Engraving",
-        "de": "Laser-Ausführungsparameter — Bildgravur",
-        "es": "Parámetros de ejecución láser — Grabado de imagen",
-    },
-    "ui.image_layer_label": {
-        "fr": "Calque pour la gravure image :",
-        "en": "Layer for image engraving:",
-        "de": "Ebene für Bildgravur:",
-        "es": "Capa para grabado de imagen:",
     },
     "ui.svg_legacy_title": {
         "fr": "[Ancien mode, déprécié] Découpe SVG globale",

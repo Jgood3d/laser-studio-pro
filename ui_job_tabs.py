@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QPlainTextEdit,
-    QProgressBar,
     QPushButton,
     QSplitter,
     QTextEdit,
@@ -15,7 +14,6 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from i18n import tr
-from widgets_extra import AutoHideLabel
 
 
 class JobTabsMixin:
@@ -82,17 +80,6 @@ class JobTabsMixin:
         self.txt_console = QTextEdit()
         self.txt_console.setFontFamily("Courier")
         layout_console_gcode.addWidget(self.txt_console)
-
-        gen_progress_row = QHBoxLayout()
-        self.lbl_gen_progress = AutoHideLabel("")
-        self.gen_progress_bar = QProgressBar()
-        self.gen_progress_bar.setRange(0, 100)
-        self.gen_progress_bar.setValue(0)
-        self.gen_progress_bar.setVisible(False)
-        self.gen_progress_bar.setMaximumHeight(16)
-        gen_progress_row.addWidget(self.lbl_gen_progress)
-        gen_progress_row.addWidget(self.gen_progress_bar)
-        layout_console_gcode.addLayout(gen_progress_row)
 
         self.main_tabs_view.addTab(
             tab_console_gcode, tr("ui.tab_console_gcode")

@@ -26,14 +26,14 @@ main.py
   ├─► apply_app_theme()            # app_theme.py (dark / light / dusk / warm)
   ├─► StartupSplash
   │
-  └─► main_window.py  (classe FullLaserStudio)
+  └─► main_window.py  (classe FullLaserStudio : construit la fenêtre, init_ui)
         │
         │  Hérite de tous les mixins :
         │
-        ├─ UiSetupMixin          (ui_setup_mixin.py)    assemblage + éditeur vectoriel
+        ├─ UiSetupMixin          (ui_setup_mixin.py)    contenu des onglets (éditeur vectoriel…)
         ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
-        ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
+        ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
@@ -85,16 +85,18 @@ laser-studio-pro/
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
 ├── ui_setup_mixin.py
-├── ui_window_controller.py / ui_machine_panel.py / ui_legacy_svg_box.py
+├── ui_window_controller.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
-├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes)
+├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
 ├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
+├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
+├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -123,7 +125,7 @@ laser-studio-pro/
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
 | **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `app_theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
-| **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui_setup_mixin.change_theme` |
+| **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui_window_controller.change_theme` |
 | **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |
 | **qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
@@ -134,13 +136,16 @@ laser-studio-pro/
 
 | Mixin / fichier | Rôle | Dépend de / appelle |
 |-----------------|------|---------------------|
-| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers | Tous les mixins |
-| **ui_setup_mixin.py** | Assemblage de la fenêtre (`init_ui` appelle les `_build_*`), onglet éditeur vectoriel (boutons dessin / mesure / explode / nœuds), plein écran, drag&drop | `vector_layers`, `settings_window` |
-| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports et « Générer ») ne font que les ranger | — |
+| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages | Tous les mixins, `ui/machine`, `ui/statusbar`, `settings_window` |
+| **ui_setup_mixin.py** | Contenu des onglets : éditeur vectoriel (boutons dessin / mesure / explode / nœuds), calques, barre d'outils d'onglet (`_build_tab_toolbar`), actions de la barre d'outils sur l'image. Partira dans `ui/tabs/` | `vector_layers` |
+| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports, « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
 | **ui_window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
-| **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
-| **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
+| **ui/machine/** | `MachinePanel` : assemble sous les onglets la rangée position du job / pilotage / actions de job / DRO, la barre de progression du job et la console directe. Pas de signaux à lui : la fenêtre s'abonne à ceux de ses sous-panneaux ; `set_connected()` verrouille les commandes | Construit et abonné dans `main_window._build_machine_panel` |
+| **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
+| **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
+| **ui/machine/dro/** | `DroPanel` : état GRBL coloré, position X / Y / Z, « Déverrouiller » visible seulement en alarme. Reçoit l'état par `set_status()`, émet `unlock_requested` | Alimenté par `LaserControlMixin._update_dro_display` |
+| **ui/machine/console/** | `DirectConsolePanel` : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_manual_cmd` |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |

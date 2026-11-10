@@ -1,7 +1,7 @@
 """Génération, aperçu, estimation et export du G-Code."""
 import re
 from PyQt6.QtWidgets import (QFileDialog, QMessageBox)
-from PyQt6.QtCore import Qt, QThread, QTimer, QRectF
+from PyQt6.QtCore import Qt, QThread, QRectF
 import pyqtgraph as pg
 import numpy as np
 from PIL import Image
@@ -16,6 +16,16 @@ BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
 
 # Couleur du "matériau" simulé sous la gravure dans l'aperçu 2D normal (non négatif).
 PREVIEW_MATERIAL_RGB = (225, 225, 225)
+
+
+# Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
+ENGRAVE_SPEED_RANGE = (10, 20000)
+ENGRAVE_POWER_RANGE = (0, 100)
+
+
+def _clamp(value, bounds):
+    low, high = bounds
+    return min(max(int(value), low), high)
 
 
 class GcodeGenerationMixin:
@@ -248,7 +258,7 @@ class GcodeGenerationMixin:
 
         if self.processed_array is not None:
             w_mm = self.spin_w.value()
-            speed = self.spin_speed_engrave.value()
+            speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
             if self.chk_overscan.isChecked():
@@ -385,8 +395,8 @@ class GcodeGenerationMixin:
             'origin_pos': self.combo_origin.currentText(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
-            'speed_engrave': self.spin_speed_engrave.value(),
-            'power_engrave': self.spin_power_engrave.value(),
+            'speed_engrave': self.engrave_speed,
+            'power_engrave': self.engrave_power,
             'enable_cut': self.chk_enable_cut.isChecked(),
             'speed_cut': self.spin_speed_cut.value(),
             'power_cut': self.spin_power_cut.value(),
@@ -419,8 +429,8 @@ class GcodeGenerationMixin:
             'origin_pos': self.combo_origin.currentText(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
-            'speed_engrave': self.spin_speed_engrave.value(),
-            'power_engrave': self.spin_power_engrave.value(),
+            'speed_engrave': self.engrave_speed,
+            'power_engrave': self.engrave_power,
             's_max': self.spin_smax.value(),
             'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
             'homing': self.chk_homing.isChecked(),
@@ -435,14 +445,21 @@ class GcodeGenerationMixin:
         self.on_gcode_generated(gcode, n_lines, avg_power, time_str)
         QMessageBox.information(self, tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
 
+    def set_engrave_settings(self, speed, power):
+        """Vitesse (mm/min) et puissance (%) de la gravure d'une image.
+
+        Valeurs entières, ramenées dans ENGRAVE_SPEED_RANGE et
+        ENGRAVE_POWER_RANGE.
+        """
+        self.engrave_speed = _clamp(speed, ENGRAVE_SPEED_RANGE)
+        self.engrave_power = _clamp(power, ENGRAVE_POWER_RANGE)
+
     def generate_job(self):
         try:
             self._generate_job_impl()
         except Exception as e:
             import traceback
             error_text = f"{e}\n\n{traceback.format_exc()}"
-            self.gen_progress_bar.setVisible(False)
-            self.gen_progress_bar_vector.setVisible(False)
             self.statusBar().hide_progress()
             self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
             QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
@@ -467,7 +484,7 @@ class GcodeGenerationMixin:
             return
 
         max_speed_limit = self.spin_machine_max_speed.value()
-        speeds_to_check = [(tr("gen.speed_row_engrave"), self.spin_speed_engrave.value())]
+        speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
         if self.chk_enable_cut.isChecked():
             speeds_to_check.append((tr("gen.speed_row_cut_old"), self.spin_speed_cut.value()))
         for layer in self.layer_manager.layers:
@@ -567,7 +584,7 @@ class GcodeGenerationMixin:
         # Dernier garde-fou avant de générer une gravure image : rappel de la
         # puissance et de la vitesse, comme l'alerte de surbalayage ci-dessus.
         if self.processed_array is not None:
-            layer_label = self.combo_engrave_layer.currentText() if hasattr(self, "combo_engrave_layer") else "—"
+            layer_label = self._engrave_layer_label()
             reply = QMessageBox.question(
                 self, tr("gen.engrave_confirm_title"),
                 tr("gen.engrave_confirm_body").format(
@@ -588,31 +605,17 @@ class GcodeGenerationMixin:
         self.worker.finished.connect(self.on_gcode_generated)
         self.worker.progress.connect(self.on_gcode_generation_progress)
         self.worker.error.connect(self.on_gcode_generation_error)
-        self.gen_progress_bar.setValue(0)
-        self.gen_progress_bar.setVisible(True)
-        self.lbl_gen_progress.setText(tr("gen.in_progress"))
-        self.gen_progress_bar_vector.setValue(0)
-        self.gen_progress_bar_vector.setVisible(True)
-        self.lbl_gen_progress_vector.setText(tr("gen.in_progress"))
         self.statusBar().show_progress(0, tr("gen.in_progress"))
         # On montre l'aperçu dès le lancement (il se remplit à la fin, voir on_gcode_generated).
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.worker.start()
 
     def on_gcode_generation_error(self, error_text):
-        self.gen_progress_bar.setVisible(False)
-        self.lbl_gen_progress.setText("")
-        self.gen_progress_bar_vector.setVisible(False)
-        self.lbl_gen_progress_vector.setText("")
         self.statusBar().hide_progress()
         self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
     def on_gcode_generation_progress(self, pct):
-        self.gen_progress_bar.setValue(pct)
-        self.lbl_gen_progress.setText(tr("gen.in_progress_pct").format(pct=pct))
-        self.gen_progress_bar_vector.setValue(pct)
-        self.lbl_gen_progress_vector.setText(tr("gen.in_progress_pct").format(pct=pct))
         self.statusBar().show_progress(pct, tr("gen.in_progress_pct").format(pct=pct))
 
     def generate_test_matrix(self):
@@ -712,8 +715,7 @@ class GcodeGenerationMixin:
             speed_val = round(float(speeds[row]))
             if mode == "Gravure":
                 power_val = round(float(col_values[col]))
-                self.spin_speed_engrave.setValue(speed_val)
-                self.spin_power_engrave.setValue(power_val)
+                self.set_engrave_settings(speed_val, power_val)
                 self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
             else:
                 passes_val = int(col_values[col])
@@ -725,12 +727,6 @@ class GcodeGenerationMixin:
             pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
 
     def on_gcode_generated(self, gcode_str, num_lines, avg_power, time_str):
-        self.gen_progress_bar.setValue(100)
-        self.lbl_gen_progress.setText(tr("gen.done"))
-        QTimer.singleShot(1500, lambda: (self.gen_progress_bar.setVisible(False), self.lbl_gen_progress.setText("")))
-        self.gen_progress_bar_vector.setValue(100)
-        self.lbl_gen_progress_vector.setText(tr("gen.done"))
-        QTimer.singleShot(1500, lambda: (self.gen_progress_bar_vector.setVisible(False), self.lbl_gen_progress_vector.setText("")))
         self.statusBar().show_progress(100, tr("gen.done"))
         self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)

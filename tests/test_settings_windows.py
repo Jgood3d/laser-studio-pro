@@ -44,6 +44,17 @@ class AppMenusTests(unittest.TestCase):
         signal.connect(lambda *args: received.append(args))
         return received
 
+    def test_kofi_button_is_the_last_widget_of_the_toolbar(self):
+        from unittest import mock
+        from ui.buy_me_a_coffee import BuyMeACoffeeButton
+        from ui.buy_me_a_coffee import button as button_module
+        last = self.toolbar.widgetForAction(self.toolbar.actions()[-1])
+        self.assertIsInstance(last, BuyMeACoffeeButton)
+        self.assertEqual(last.toolTip(), self.tr("ui.support_button_tooltip"))
+        with mock.patch.object(button_module.QDesktopServices, "openUrl") as open_url:
+            last.click()
+        self.assertEqual(open_url.call_args[0][0].toString(), button_module.KOFI_URL)
+
     def test_menu_bar_order_is_file_settings_tools_help(self):
         tr = self.tr
         self.assertEqual(self.texts(self.menu_bar),
@@ -172,7 +183,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(uses, 5)                          # Images, PNG→SVG, Séparation, 2D, Console
 
     def test_every_fullscreen_mode_hides_then_restores_its_button(self):
-        for name, func in (("ui_setup_mixin.py", "def _toggle_fullscreen_tab"),
+        for name, func in (("main_window.py", "def _toggle_fullscreen_tab"),
                            ("png2svg_mixin.py", "def toggle_fullscreen_png2svg"),
                            ("vector_editing_mixin.py", "def toggle_fullscreen_vector_editor")):
             src = read(name)
@@ -201,7 +212,7 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()
-        self.assertIn("center_bottom_scroll.setWidget(center_bottom_widget)", src)
+        self.assertIn("center_bottom_scroll.setWidget(self.machine_panel)", src)
         self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
         self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
 
@@ -276,7 +287,10 @@ class ShowWindowTests(unittest.TestCase):
 
     def make(self, with_pages=True):
         cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
-        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin), {})
+        # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
+        self.main = importlib.import_module("main_window")
+        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin),
+                   {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
         if with_pages:
             obj.tab_machine_profiles = object()
@@ -297,7 +311,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_window_is_created_once_and_reused(self):
         self.Recorder.created = []
         obj = self.make()
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
             obj.show_settings_window("machine")
             obj.show_settings_window("machine")
             obj.show_settings_window("grbl")
@@ -313,7 +327,7 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make()
         obj.tab_machine_params, obj.tab_matrix = object(), object()
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "machine", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
         pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
@@ -396,7 +410,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []
         obj = self.make(with_pages=False)
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
             obj.show_settings_window("machine")
         self.assertEqual(self.Recorder.created, [])
 

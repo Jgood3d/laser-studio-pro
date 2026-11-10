@@ -134,8 +134,8 @@ python main.py
 - `i18n.py` — système de traduction multilingue
 
 ### Fenêtre principale découpée en mixins
-- `main_window.py` — assemblage de la fenêtre principale
-- `ui_setup_mixin.py` — assemblage de l’interface (`init_ui`), outils communs aux onglets, fermeture de la fenêtre
+- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
+- `ui_setup_mixin.py` — contenu des onglets : éditeur vectoriel, calques, barres d’outils d’onglet (partira dans `ui/tabs/`)
 - `ui_machine_params_page.py` — page « Paramètres du graveur »
 - `ui_machine_profiles_page.py` — page « Matériaux et connexion au graveur »
 - `ui_test_matrix_page.py` — page « Matrice de test »
@@ -143,16 +143,18 @@ python main.py
 - `ui_image_tab.py` — onglet « Graver une image » et position du job
 - `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
 - `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
-- `ui_machine_panel.py` — panneau machine sous les onglets (DRO, jog, console directe)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui_window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
-- `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`)
+- `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
+- `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble la position du job, le pilotage, les actions de job, le DRO, la barre de progression et la console directe
 - `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux)
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
+- `ui/machine/dro/` — position de la machine `DroPanel` : état GRBL, X / Y / Z, bouton « Déverrouiller » en alarme (émet `unlock_requested`)
+- `ui/machine/console/` — console directe `DirectConsolePanel` : commande GRBL tapée à la main, historique (émet `command_submitted`)
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
