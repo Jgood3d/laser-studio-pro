@@ -74,7 +74,9 @@ laser-studio-pro/
 ├── tests/
 ├── tools/
 │   ├── check_translations.py
-│   └── check_ui_attributes.py
+│   ├── check_ui_attributes.py
+│   ├── signal_map.py                 # carte des signaux → docs/architecture/signaux.svg / .png
+│   └── screenshots.py                # captures de l'interface → docs/screenshots/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
 ├── app_utils.py

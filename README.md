@@ -208,6 +208,8 @@ Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/
 - `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)
 - `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
 - `tools/check_ui_attributes.py` — détecte les widgets utilisés mais jamais construits (fichier resté à l’ancienne version)
+- `tools/signal_map.py` — carte des signaux (qui émet quoi, qui branche, quelle fonction s’exécute), dans `docs/architecture/signaux.svg` et `.png`
+- `tools/screenshots.py` — captures d’écran de tous les onglets, pages de réglages et boîtes de dialogue, dans `docs/screenshots/`
 
 ## Captures d’écran
 
@@ -290,6 +292,18 @@ Contrôler les traductions (rapport détaillé) :
 
 ```bash
 python tools/check_translations.py
+```
+
+Régénérer la carte des signaux après un changement de l’interface (`--list` pour la version texte) :
+
+```bash
+python tools/signal_map.py
+```
+
+Refaire les captures d’écran (les fenêtres s’ouvrent quelques secondes ; `--offscreen` pour capturer sans écran, sans emojis ni icônes du système) :
+
+```bash
+python tools/screenshots.py
 ```
 
 ### Variables d’environnement
