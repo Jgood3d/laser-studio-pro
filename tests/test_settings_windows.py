@@ -237,7 +237,8 @@ class MenuStructureTests(unittest.TestCase):
         block = read(os.path.join("ui", "tabs", "job_queue", "tab.py"))
         self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
                         block.index("queue_splitter.addWidget(sent_box)"))
-        self.assertIn("self.sent_gcode_edit.setReadOnly(True)", block)
+        self.assertIn("self.text_edit.setReadOnly(True)",
+                      read(os.path.join("ui", "tabs", "job_queue", "sent_gcode_log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
         self.assertIn("self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)",
                       read("laser_control_mixin.py"))

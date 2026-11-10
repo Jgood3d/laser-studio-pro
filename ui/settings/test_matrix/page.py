@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QPushButton,
@@ -14,11 +13,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from image import matrix as matrix_image
 from i18n import tr
-from ui.settings.test_matrix.tile_picker import TilePicker
+from ui.settings.test_matrix.image_test_group import HINT_STYLE, ImageTestGroup
 
-HINT_STYLE = "color: #888888;"
 ENGRAVING, CUTTING = 0, 1
 
 
@@ -45,7 +42,6 @@ class TestMatrixPage(QWidget):
 
     def __init__(self, lines_mm, parent=None):
         super().__init__(parent)
-        self.source_image = None  # image source en niveaux de gris (PIL)
         self._form = QFormLayout(self)
         self._build_fields(lines_mm)
         self._image_group = self._build_image_group()
@@ -60,17 +56,19 @@ class TestMatrixPage(QWidget):
         """Lignes/mm de la gravure, reprises de « Graver une image »."""
         self.lines_mm_spin.setValue(value)
 
+    @property
+    def source_image(self):
+        """Image source du test (PIL, niveaux de gris), ou None."""
+        return self._image_group.source_image
+
+    @source_image.setter
+    def source_image(self, image):
+        self._image_group.source_image = image
+
     def set_source_image(self, gray_image, name, width_mm=None):
         """Image du test : `gray_image` (PIL, niveaux de gris), son nom
         affiché et, si connue, sa largeur réelle en mm."""
-        self.source_image = gray_image
-        self.image_name_label.setText(name)
-        if width_mm and width_mm > 0:
-            self.image_width_spin.blockSignals(True)
-            self.image_width_spin.setValue(min(max(width_mm, 1.0), 5000.0))
-            self.image_width_spin.blockSignals(False)
-        self.tile_picker.set_image(gray_image)
-        self._update_tile()
+        self._image_group.set_source_image(gray_image, name, width_mm)
 
     def set_image_test_checked(self, checked):
         """Coche ou décoche le test à partir d'une image."""
@@ -90,12 +88,7 @@ class TestMatrixPage(QWidget):
     def tile_settings(self):
         """Zone d'image de chaque case : (largeur réelle de l'image en mm,
         largeur et hauteur de la zone en mm, centre choisi dans l'aperçu)."""
-        return (
-            self.image_width_spin.value(),
-            self.tile_width_spin.value(),
-            self.tile_height_spin.value(),
-            *self.tile_picker.center(),
-        )
+        return self._image_group.tile_settings()
 
     def matrix_params(self):
         """Réglages de la matrice, en valeurs métier (%, mm, mm/min)."""
@@ -185,54 +178,20 @@ class TestMatrixPage(QWidget):
         return self._lines_mm_row_layout
 
     def _build_image_group(self):
-        """Cadre « Test à partir d'une image » : choix de l'image, taille
-        de la zone, aperçu."""
-        group = QGroupBox(tr("ui.mat_image_group"))
-        group.setCheckable(True)
-        group.setChecked(False)
-        layout = QFormLayout(group)
-
-        hint = QLabel(tr("ui.mat_image_hint"))
-        hint.setWordWrap(True)
-        hint.setStyleSheet(HINT_STYLE)
-        layout.addRow(hint)
-
-        choose_button = QPushButton(tr("ui.mat_image_choose"))
-        choose_button.clicked.connect(self.choose_image_requested)
-        loaded_button = QPushButton(tr("ui.mat_image_use_loaded"))
-        loaded_button.setToolTip(tr("ui.mat_image_use_loaded_tip"))
-        loaded_button.clicked.connect(self.use_loaded_image_requested)
-        buttons = QHBoxLayout()
-        buttons.addWidget(choose_button)
-        buttons.addWidget(loaded_button)
-        layout.addRow(buttons)
-
-        self.image_name_label = QLabel(tr("ui.mat_image_none"))
-        self.image_name_label.setWordWrap(True)
-        layout.addRow(self.image_name_label)
-
-        self.image_width_spin = self._mm_spin(1.0, 5000.0, 100.0)
-        self.image_width_spin.setToolTip(tr("ui.mat_image_width_tip"))
-        self.tile_width_spin = self._mm_spin(1.0, 200.0, 15.0)
-        self.tile_height_spin = self._mm_spin(1.0, 200.0, 15.0)
-        layout.addRow(tr("ui.mat_image_width"), self.image_width_spin)
-        layout.addRow(tr("ui.mat_tile_width"), self.tile_width_spin)
-        layout.addRow(tr("ui.mat_tile_height"), self.tile_height_spin)
-
-        self.tile_picker = TilePicker()
-        layout.addRow(self.tile_picker)
-        self.tile_info_label = QLabel()
-        self.tile_info_label.setWordWrap(True)
-        self.tile_info_label.setStyleSheet(HINT_STYLE)
-        layout.addRow(self.tile_info_label)
-
-        for spin in (
-            self.image_width_spin,
-            self.tile_width_spin,
-            self.tile_height_spin,
-        ):
-            spin.valueChanged.connect(self._update_tile)
+        """Cadre « Test à partir d'une image » (voir ImageTestGroup) : ses
+        signaux sont relayés, ses champs gardent leur nom ici."""
+        group = ImageTestGroup()
+        group.choose_image_requested.connect(self.choose_image_requested)
+        group.use_loaded_image_requested.connect(
+            self.use_loaded_image_requested
+        )
         group.toggled.connect(self._on_image_test_toggled)
+        self.image_name_label = group.image_name_label
+        self.image_width_spin = group.image_width_spin
+        self.tile_width_spin = group.tile_width_spin
+        self.tile_height_spin = group.tile_height_spin
+        self.tile_picker = group.tile_picker
+        self.tile_info_label = group.tile_info_label
         return group
 
     def _generate_button(self):
@@ -257,12 +216,6 @@ class TestMatrixPage(QWidget):
         spin = QDoubleSpinBox()
         spin.setRange(low, high)
         spin.setValue(value)
-        return spin
-
-    @classmethod
-    def _mm_spin(cls, low, high, value):
-        spin = cls._double_spin(low, high, value)
-        spin.setSuffix(" mm")
         return spin
 
     # -- réactions internes
@@ -310,22 +263,3 @@ class TestMatrixPage(QWidget):
         self.square_size_spin.setToolTip(
             tr("ui.mat_size_from_image_tip") if use_image else ""
         )
-
-    def _update_tile(self, *_args):
-        """Cadre de la zone dans l'aperçu, et sa taille réelle."""
-        src = self.source_image
-        if src is None:
-            self.tile_info_label.setText("")
-            return
-        image_w, tile_w, tile_h = self.tile_settings()[:3]
-        args = (src.width, src.height, image_w, tile_w, tile_h)
-        try:
-            fw, fh = matrix_image.frame_fraction(*args)
-            eff_w, eff_h = matrix_image.effective_tile_mm(*args)
-        except ValueError:
-            return
-        self.tile_picker.set_frame_fraction(fw, fh)
-        text = tr("ui.mat_tile_info").format(w=eff_w, h=eff_h, pct=fw * 100.0)
-        if eff_w < tile_w - 1e-6 or eff_h < tile_h - 1e-6:
-            text += "\n" + tr("ui.mat_tile_clipped").format(w=eff_w, h=eff_h)
-        self.tile_info_label.setText(text)

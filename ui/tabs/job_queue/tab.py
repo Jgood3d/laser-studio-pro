@@ -2,11 +2,9 @@
 
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QListWidget,
-    QPlainTextEdit,
     QPushButton,
     QSplitter,
     QVBoxLayout,
@@ -14,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from i18n import tr
+from ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
 
 
 class JobQueueTab(QWidget):
@@ -94,24 +93,10 @@ class JobQueueTab(QWidget):
         return panel
 
     def _sent_box(self):
-        """Suivi de l'envoi : chaque ligne de G-Code s'ajoute ici au moment
-        où elle part vers la machine, pour la file comme pour « Envoyer au
-        laser »."""
-        sent_box = QGroupBox(tr("queue.sent_log_title"))
-        sent_layout = QVBoxLayout(sent_box)
-        self.sent_gcode_edit = QPlainTextEdit()
-        self.sent_gcode_edit.setReadOnly(True)
-        # Garde les 20 000 dernières lignes.
-        self.sent_gcode_edit.setMaximumBlockCount(20000)
-        self.sent_gcode_edit.setLineWrapMode(
-            QPlainTextEdit.LineWrapMode.NoWrap
-        )
-        self.sent_gcode_edit.setStyleSheet("font-family: monospace;")
-        self.sent_gcode_edit.setPlaceholderText(
-            tr("queue.sent_log_placeholder")
-        )
-        sent_layout.addWidget(self.sent_gcode_edit)
-        return sent_box
+        """Suivi du G-Code envoyé (voir SentGcodeLog)."""
+        self.sent_log = SentGcodeLog()
+        self.sent_gcode_edit = self.sent_log.text_edit
+        return self.sent_log
 
     # -- liste des jobs
 
@@ -152,17 +137,13 @@ class JobQueueTab(QWidget):
     # -- G-Code envoyé
 
     def clear_sent_gcode(self):
-        self.sent_gcode_edit.clear()
+        self.sent_log.clear_lines()
 
     def append_sent_gcode(self, lines):
         """Ajoute des lignes au suivi d'envoi (lignes du G-Code au moment où
         elles partent vers la machine, ou repères de début et de fin)."""
-        if lines:
-            self.sent_gcode_edit.appendPlainText("\n".join(lines))
+        self.sent_log.append_lines(lines)
 
     def mark_sent_end(self, clean_finish):
         """Repère de fin d'envoi : terminé, ou interrompu."""
-        key = (
-            "queue.sent_log_done" if clean_finish else "queue.sent_log_stopped"
-        )
-        self.append_sent_gcode([tr(key)])
+        self.sent_log.mark_end(clean_finish)

@@ -6,17 +6,15 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QGroupBox,
-    QHBoxLayout,
     QPushButton,
     QSpinBox,
     QStackedWidget,
     QTextEdit,
-    QVBoxLayout,
     QWidget,
 )
 
 from i18n import tr
+from ui.settings.grbl_config.settings_box import GrblSettingsBox
 
 
 class GrblConfigPage(QWidget):
@@ -150,40 +148,17 @@ class GrblConfigPage(QWidget):
         return button
 
     def _grbl_settings_box(self):
-        """Réglages GRBL complets ($$) : lire, envoyer, exporter, importer,
-        lier au profil machine."""
-        box = QGroupBox(tr("ui.grbl_settings_box"))
-        layout = QVBoxLayout()
-        self.grbl_settings_edit = QTextEdit()
-        self.grbl_settings_edit.setPlaceholderText(
-            tr("ui.grbl_settings_placeholder")
+        """Réglages GRBL complets : ses signaux sont relayés par la page."""
+        box = GrblSettingsBox()
+        box.read_requested.connect(self.read_settings_requested)
+        box.send_requested.connect(self.send_settings_requested)
+        box.export_requested.connect(self.export_settings_requested)
+        box.import_requested.connect(self.import_settings_requested)
+        box.link_to_profile_requested.connect(
+            self.link_settings_to_profile_requested
         )
-        self.grbl_settings_edit.setMaximumHeight(140)
-        self.grbl_settings_edit.setStyleSheet("font-family: monospace;")
-        layout.addWidget(self.grbl_settings_edit)
-
-        buttons = QHBoxLayout()
-        for key, signal in (
-            ("ui.grbl_read", self.read_settings_requested),
-            ("ui.grbl_send", self.send_settings_requested),
-            ("ui.grbl_export", self.export_settings_requested),
-            ("ui.grbl_import", self.import_settings_requested),
-        ):
-            buttons.addWidget(self._button(key, signal))
-        layout.addLayout(buttons)
-        layout.addWidget(
-            self._button(
-                "ui.grbl_link_profile", self.link_settings_to_profile_requested
-            )
-        )
-        box.setLayout(layout)
+        self.grbl_settings_edit = box.text_edit
         return box
-
-    @staticmethod
-    def _button(key, signal):
-        button = QPushButton(tr(key))
-        button.clicked.connect(signal)
-        return button
 
     # -- affichage
 

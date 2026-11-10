@@ -98,7 +98,7 @@ laser-studio-pro/
 ├── ui/app/theme.py                   # thèmes UI : dark / light / dusk / warm, pack d'icônes Breeze
 ├── ui/widgets/                       # petits widgets (ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar, FullscreenWindow, SliderWithButtons)
 ├── ui/utils.py                       # icônes dessinées, images haute résolution
-├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
+├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, commandes RealtimeCommands)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
 ├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
 ├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
@@ -108,11 +108,11 @@ laser-studio-pro/
 ├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
 ├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
 ├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
-├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab : run_requested, reordered…)
+├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab, suivi SentGcodeLog)
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
-├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, aperçu TilePicker)
-├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage)
+├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, cadre ImageTestGroup, aperçu TilePicker)
+├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
 ├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog)
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
