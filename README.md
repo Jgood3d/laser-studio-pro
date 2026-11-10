@@ -130,7 +130,6 @@ python main.py
 - `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
 - `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
 - `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-- `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins
@@ -153,6 +152,7 @@ python main.py
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…)
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`)
 - `matrix_image_mixin.py` — matrice de test à partir d’une image : chargement de l’image, zone gravée dans chaque case
+- `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…)
@@ -164,7 +164,7 @@ python main.py
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
 - `project_io_mixin.py` — sauvegarde et ouverture de projet, sauvegarde automatique
 - `job_queue_mixin.py` — file d’attente de jobs
-- `png2svg_mixin.py` — onglet PNG/JPEG → SVG
+- `png2svg_mixin.py` — logique de l’onglet PNG/JPEG → SVG : plein écran, envoi du SVG vers l’éditeur vectoriel
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
@@ -188,6 +188,7 @@ Les pages, onglets et panneaux de `ui/` ne contiennent pas de logique : ils éme
 | Onglet | Signaux émis | État reçu / lu |
 | --- | --- | --- |
 | `TabToolBar` — barre d’outils d’un onglet | `fullscreen_requested` | `fullscreen_action` (bouton masqué en plein écran) |
+| `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed`, `fullscreen_requested` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
 | `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
 | `ConsoleTab` — Console / G-Code | `export_requested(extension)`, `fullscreen_requested` | `set_stats(lignes, puissance, temps)`, `console_edit` |

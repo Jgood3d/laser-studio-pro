@@ -1,41 +1,19 @@
-"""Intégration de l'onglet PNG -> SVG : construction de l'onglet et envoi
-du SVG généré vers l'Éditeur Vectoriel (réutilise le même pipeline que
-l'import SVG classique — extract_svg_objects — via un fichier temporaire,
-puisque le convertisseur ne travaille qu'en mémoire)."""
+"""Logique de l'onglet PNG -> SVG (Png2SvgTab, dans ui/tabs/png2svg/) :
+plein écran, et envoi du SVG généré vers l'Éditeur Vectoriel (réutilise
+le même pipeline que l'import SVG classique — extract_svg_objects — via
+un fichier temporaire, puisque le convertisseur ne travaille qu'en
+mémoire)."""
 import os
 import tempfile
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QPushButton, QWidget
+from PyQt6.QtWidgets import QMessageBox, QDialog, QVBoxLayout, QPushButton
 
-from png2svg_widget import PngToSvgWidget
 from vector_layers import extract_svg_objects
 from i18n import tr
-from ui.widgets import TabToolBar
 
 
 class Png2SvgMixin:
-    def _init_png2svg_tab(self):
-        """Construit le conteneur de l'onglet PNG -> SVG : une barre d'outils
-        (bouton plein écran, comme l'Éditeur Vectoriel) au-dessus du widget
-        de conversion. Renvoie ce conteneur (self.tab_png2svg), à insérer
-        dans main_tabs_view par l'appelant (main_window)."""
-        self.tab_png2svg = QWidget()
-        layout = QVBoxLayout(self.tab_png2svg)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        toolbar = TabToolBar(self.tab_png2svg)
-        toolbar.fullscreen_requested.connect(self.toggle_fullscreen_png2svg)
-        self.tab_png2svg._fullscreen_control = toolbar.fullscreen_action
-        layout.addWidget(toolbar)
-
-        self.png2svg_widget = PngToSvgWidget()
-        self.png2svg_widget.sendToVectorEditor.connect(self._on_png2svg_send_to_vector)
-        self.png2svg_widget.imageChanged.connect(self.update_image_actions_state)
-        layout.addWidget(self.png2svg_widget)
-
-        return self.tab_png2svg
-
     def toggle_fullscreen_png2svg(self):
         """Ouvre l'onglet PNG -> SVG dans une fenêtre à part, maximisée,
         exactement comme toggle_fullscreen_vector_editor (voir

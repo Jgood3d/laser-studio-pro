@@ -1,8 +1,6 @@
 """
-png2svg_widget.py
-------------------
-Widget de conversion PNG -> SVG intégré à Laser Studio Pro, sous forme
-d'onglet dans main_tabs_view (voir png2svg_mixin.py).
+Widget de conversion PNG -> SVG intégré à Laser Studio Pro, affiché dans
+l'onglet « Vectorisation d'image » (Png2SvgTab).
 
 Adapté de l'outil autonome PNG -> SVG : la traduction et la persistance
 des réglages UI utilisent maintenant les mêmes mécanismes que le reste
@@ -16,77 +14,18 @@ from __future__ import annotations
 import os
 import tempfile
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QByteArray, QSettings, QRectF
-from PyQt6.QtGui import QPixmap, QPainter, QImage, QShortcut, QKeySequence, QTransform
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSettings
+from PyQt6.QtGui import QPixmap, QImage, QShortcut, QKeySequence, QTransform
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QSlider,
     QComboBox, QCheckBox, QSpinBox, QDoubleSpinBox, QVBoxLayout, QHBoxLayout,
     QFormLayout, QGroupBox, QFileDialog, QMessageBox, QSplitter,
-    QScrollArea, QGraphicsView, QGraphicsScene,
+    QScrollArea,
 )
-
-try:
-    from PyQt6.QtSvgWidgets import QGraphicsSvgItem
-    from PyQt6.QtSvg import QSvgRenderer
-    _HAS_SVG_WIDGET = True
-except ImportError:
-    _HAS_SVG_WIDGET = False
 
 from converter import ConversionSettings, convert_image_to_svg, save_svg
 from i18n import tr
-
-
-class ZoomableSvgView(QGraphicsView):
-    """Aperçu SVG avec zoom (molette ou boutons) et déplacement (glisser)."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._scene = QGraphicsScene(self)
-        self.setScene(self._scene)
-        self._svg_item = QGraphicsSvgItem()
-        self._renderer: QSvgRenderer | None = None
-        self._scene.addItem(self._svg_item)
-        self.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
-        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
-        self.setBackgroundBrush(Qt.GlobalColor.white)
-        self._has_content = False
-
-    def load_svg_bytes(self, svg_bytes: bytes):
-        self._renderer = QSvgRenderer(QByteArray(svg_bytes))
-        self._svg_item.setSharedRenderer(self._renderer)
-        rect = self._svg_item.boundingRect()
-        if rect.isEmpty():
-            rect = QRectF(0, 0, 1, 1)
-        self._scene.setSceneRect(rect)
-        was_empty = not self._has_content
-        self._has_content = True
-        if was_empty:
-            self.zoom_fit()
-
-    def clear(self):
-        """Vide l'aperçu (même nom que QLabel.clear, utilisé quand QtSvgWidgets manque)."""
-        self._renderer = QSvgRenderer()
-        self._svg_item.setSharedRenderer(self._renderer)
-        self._has_content = False
-
-    def zoom_fit(self):
-        if self._scene.sceneRect().isEmpty():
-            return
-        self.resetTransform()
-        self.fitInView(self._scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
-
-    def zoom_in(self):
-        self.scale(1.25, 1.25)
-
-    def zoom_out(self):
-        self.scale(0.8, 0.8)
-
-    def wheelEvent(self, event):
-        if not self._has_content:
-            return
-        factor = 1.15 if event.angleDelta().y() > 0 else (1 / 1.15)
-        self.scale(factor, factor)
+from ui.tabs.png2svg.svg_view import HAS_SVG_WIDGET, ZoomableSvgView
 
 
 class PngToSvgWidget(QWidget):
@@ -303,7 +242,7 @@ class PngToSvgWidget(QWidget):
         svg_header.addWidget(self.btn_zoom_fit)
         svg_header.addWidget(self.btn_zoom_in)
 
-        if _HAS_SVG_WIDGET:
+        if HAS_SVG_WIDGET:
             self.svg_view = ZoomableSvgView()
             self.btn_zoom_out.clicked.connect(self.svg_view.zoom_out)
             self.btn_zoom_in.clicked.connect(self.svg_view.zoom_in)
@@ -548,7 +487,7 @@ class PngToSvgWidget(QWidget):
             return
 
         self.last_result = result
-        if _HAS_SVG_WIDGET:
+        if HAS_SVG_WIDGET:
             self.svg_view.load_svg_bytes(result.svg_text.encode("utf-8"))
         self.status_label.setText(tr("png2svg.paths_count").format(n=result.path_count))
         self.btn_send_vector.setEnabled(True)

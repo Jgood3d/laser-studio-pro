@@ -20,6 +20,7 @@ from ui.statusbar import StatusBar
 from ui.tabs.console import ConsoleTab
 from ui.tabs.job_queue import JobQueueTab
 from ui.tabs.layers import LayersTab
+from ui.tabs.png2svg import Png2SvgTab
 from ui.tabs.preview_2d import Preview2DTab
 
 from grbl.connection import LaserUSBController
@@ -143,8 +144,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
 
         self._build_image_tab()
 
-        tab_png2svg = self._init_png2svg_tab()
-        self.main_tabs_view.addTab(tab_png2svg, tr("png2svg.tab_title"))
+        self._build_png2svg_tab()
 
         # --- ONGLET SÉPARATION COULEUR ---
         self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
@@ -348,6 +348,20 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.layers_tab.layers_changed.connect(self.on_layers_changed)
         # Mémorise les réglages des calques dans le profil de la machine active.
         self.layers_tab.layers_changed.connect(self._schedule_layer_persist)
+
+    def _build_png2svg_tab(self):
+        """Onglet « Vectorisation d'image », abonné à sa logique
+        (Png2SvgMixin). Masqué au démarrage, ouvert depuis le menu Outils.
+        """
+        tab = Png2SvgTab()
+        tab.send_to_vector_requested.connect(self._on_png2svg_send_to_vector)
+        tab.image_changed.connect(self.update_image_actions_state)
+        tab.fullscreen_requested.connect(self.toggle_fullscreen_png2svg)
+        # Nom historique du widget de conversion, lu par les actions de la
+        # barre d'outils sur l'image (rotation, suppression).
+        self.png2svg_widget = tab.converter
+        self.main_tabs_view.addTab(tab, tr("png2svg.tab_title"))
+        self.tab_png2svg = tab
 
     def _build_2d_preview_tab(self):
         """Onglet « Visualisation 2D G-Code », abonné à la génération.

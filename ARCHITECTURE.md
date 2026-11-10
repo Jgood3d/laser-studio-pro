@@ -99,6 +99,7 @@ laser-studio-pro/
 ├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
 ├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
+├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
 ├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
 ├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
 ├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab : run_requested, reordered…)
@@ -119,7 +120,7 @@ laser-studio-pro/
 ├── nesting.py / nesting_apply.py
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── project_io_mixin.py / job_queue_mixin.py
-├── png2svg_mixin.py / png2svg_widget.py / converter.py
+├── png2svg_mixin.py / converter.py
 ├── separation_mixin.py / separation_engine.py
 ├── requirements-linux.txt / requirements-windows.txt
 ├── BUILD.md
@@ -173,7 +174,7 @@ laser-studio-pro/
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
 | **project_io_mixin.py** | Projets + autosave | `app_utils` |
 | **job_queue_mixin.py** | File d’attente G-Code | `workers.GCodeStreamerThread` |
-| **png2svg_mixin.py** / **separation_mixin.py** | PNG→SVG et séparation couleur | widgets / engines dédiés |
+| **png2svg_mixin.py** / **separation_mixin.py** | Logique de l'onglet PNG→SVG (vue : `ui/tabs/png2svg/`) et séparation couleur | widgets / engines dédiés |
 
 ### 3.3 Vectoriel (cœur édition)
 

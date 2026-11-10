@@ -19,7 +19,7 @@ except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = (*ui_files(), "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
+UI_FILES = (*ui_files(), "separation_mixin.py", "vector_layers.py", "image_processing_mixin.py")
 
 
 def long_combos():
@@ -78,7 +78,10 @@ class SplitterTests(unittest.TestCase):
         # La colonne de gauche a été supprimée : réglages de l'image dans « Graver une image »,
         # position du job dans le panneau machine. Le centre occupe toute la largeur.
         src = self.source()
-        self.assertNotRegex(src, r"\bleft_widget\b")
+        # Le widget de conversion PNG → SVG a son propre panneau de gauche
+        # (left_widget) : seule la fenêtre principale est concernée ici.
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"\bleft_widget\b")
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)
 
