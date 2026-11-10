@@ -330,7 +330,11 @@ class LaserControlMixin:
         self.cmd_thread.log_signal.connect(self.txt_console.append)
         self.cmd_thread.start()
 
-    def jog_move(self, dx, dy):
+    def jog_move(self, dx_mm, dy_mm, speed):
+        """Déplacement relatif (jog) de `dx_mm`, `dy_mm`, à `speed` mm/min.
+
+        Abonné au signal JogControlPanel.jog_requested.
+        """
         if not self.usb.is_connected():
             QMessageBox.warning(
     self,
@@ -339,13 +343,7 @@ class LaserControlMixin:
 )
             return
 
-        step = self.JOG_STEPS_MM[self.slider_jog_step.value()]
-        speed = self.slider_jog_speed.value()
-
-        move_x = dx * step
-        move_y = dy * step
-
-        cmd = f"$J=G91 G21 X{move_x:.3f} Y{move_y:.3f} F{speed}"
+        cmd = f"$J=G91 G21 X{dx_mm:.3f} Y{dy_mm:.3f} F{speed}"
         self._run_commands_async(cmd)
 
     def send_manual_direct_cmd(self, cmd):
@@ -357,6 +355,20 @@ class LaserControlMixin:
 )
             return
         self._run_commands_async(cmd)
+
+    def set_work_zero(self):
+        """Fixe l'origine de travail à la position actuelle (G92 X0 Y0).
+
+        Abonné au signal JobActionsPanel.set_work_zero_requested.
+        """
+        self.send_manual_direct_cmd("G92 X0 Y0")
+
+    def go_to_work_zero(self):
+        """Ramène la tête à l'origine de travail (G0 X0 Y0).
+
+        Abonné au signal JobActionsPanel.go_to_work_zero_requested.
+        """
+        self.send_manual_direct_cmd("G0 X0 Y0")
 
     def send_to_laser(self):
         gcode_text = self.txt_console.toPlainText()
@@ -393,7 +405,7 @@ class LaserControlMixin:
         if reply != QMessageBox.StandardButton.Yes:
             return
 
-        self.btn_send.setEnabled(False)
+        self.jog_panel.set_send_enabled(False)
         self.progress_bar.setValue(0)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.pause()
@@ -403,8 +415,8 @@ class LaserControlMixin:
         # fois, même si la console a changé depuis (nouvelle génération,
         # import...).
         self._last_sent_gcode = gcode_text
-        if hasattr(self, "btn_repeat_last_job"):
-            self.btn_repeat_last_job.setEnabled(True)
+        if hasattr(self, "job_actions_panel"):
+            self.job_actions_panel.set_repeat_enabled(True)
         if hasattr(self, "txt_sent_gcode"):
             self.txt_sent_gcode.clear()
             self._append_sent_gcode([tr("queue.sent_log_direct")])
@@ -495,7 +507,7 @@ class LaserControlMixin:
         self._check_position_after_stream()
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
-        self.btn_send.setEnabled(True)
+        self.jog_panel.set_send_enabled(True)
         if getattr(self, "status_poll_thread", None):
             self.status_poll_thread.resume()
         self._notify_job_finished()

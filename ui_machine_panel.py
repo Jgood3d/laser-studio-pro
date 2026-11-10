@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QFontMetrics
 from i18n import tr
+from ui.machine.controls import JogControlPanel
+from ui.machine.job_actions import JobActionsPanel
 from widgets_extra import HistoryLineEdit
 
 
@@ -30,6 +32,34 @@ class MachinePanelMixin:
         font.setBold(True)
         title_px = QFontMetrics(font).horizontalAdvance(box.title()) + 44
         box.setMinimumWidth(max(box.minimumSizeHint().width(), title_px, content_px))
+
+    def _build_jog_panel(self):
+        """Panneau de pilotage, abonné à la logique de la machine.
+
+        Le panneau émet les demandes de l'utilisateur ; la fenêtre les
+        transmet aux méthodes de LaserControlMixin. La vitesse maximale du
+        graveur (`spin_machine_max_speed`, qui doit déjà exister) borne son
+        curseur de vitesse.
+        """
+        panel = JogControlPanel(self.spin_machine_max_speed.value())
+        panel.jog_requested.connect(self.jog_move)
+        panel.home_requested.connect(self.send_homing)
+        panel.pause_requested.connect(self.send_pause)
+        panel.resume_requested.connect(self.send_resume)
+        panel.reset_requested.connect(self.send_reset)
+        panel.emergency_stop_requested.connect(self.send_kill)
+        panel.send_job_requested.connect(self.send_to_laser)
+        self.spin_machine_max_speed.valueChanged.connect(panel.set_max_speed)
+        return panel
+
+    def _build_job_actions_panel(self):
+        """Panneau des actions de job, abonné à la logique de la machine."""
+        panel = JobActionsPanel()
+        panel.frame_requested.connect(self.run_frame)
+        panel.set_work_zero_requested.connect(self.set_work_zero)
+        panel.go_to_work_zero_requested.connect(self.go_to_work_zero)
+        panel.repeat_job_requested.connect(self.repeat_last_job)
+        return panel
 
     def _build_machine_panel(self):
         """Panneau machine sous les onglets (DRO, jog, console directe)."""
@@ -73,20 +103,23 @@ class MachinePanelMixin:
             tr("ui.dro_x").format(value="-1000.000")) + 40
         self._fit_box_width(dro_box, value_px)
 
-        jog_box = self._build_jog_box()
+        self.jog_panel = self._build_jog_panel()
+        self.job_actions_panel = self._build_job_actions_panel()
 
-        # Trois parties côte à côte : position du job à gauche, jog au centre,
-        # DRO à droite. Le jog garde sa taille naturelle (ses boutons ne grandissent pas) ;
-        # la place libre est partagée entre la position du job et le DRO. Avant, elle allait
-        # toute au jog (vide à droite de ses boutons) et le DRO, sans extension, était coupé.
+        # Quatre parties côte à côte : position du job à gauche, puis le
+        # pilotage et les actions de job, et le DRO à droite. Le pilotage et
+        # les actions gardent leur taille naturelle (leurs boutons ne
+        # grandissent pas) ; la place libre est partagée entre la position
+        # du job et le DRO, qui sinon serait coupé.
         self._fit_box_width(self.job_position_box)
-        self._fit_box_width(jog_box)
+        self._fit_box_width(self.jog_panel)
+        self._fit_box_width(self.job_actions_panel)
         machine_row = QHBoxLayout()
         machine_row.addWidget(self.job_position_box, 1)
-        machine_row.addWidget(jog_box, 0)
+        machine_row.addWidget(self.jog_panel, 0)
+        machine_row.addWidget(self.job_actions_panel, 0)
         machine_row.addWidget(dro_box, 1)
         center_bottom_layout.addLayout(machine_row)
-        self.jog_box = jog_box
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)

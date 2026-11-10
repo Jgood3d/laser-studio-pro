@@ -31,11 +31,10 @@ main.py
         │  Hérite de tous les mixins :
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    assemblage + éditeur vectoriel
-        ├─ MenusMixin            (ui_menus.py)          menus, barre d'outils, thème
+        ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
         ├─ …PageMixin            (ui_*_page.py)         pages de réglages
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin, MachinePanelMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
-        ├─ JogMixin              (ui_jog.py)
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
@@ -85,14 +84,17 @@ laser-studio-pro/
 ├── debug_log.py / qt_messages.py
 ├── simulated_grbl.py / usb_controller.py / workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
-├── ui_setup_mixin.py / ui_jog.py
-├── ui_menus.py / ui_machine_panel.py / ui_legacy_svg_box.py
+├── ui_setup_mixin.py
+├── ui_window_controller.py / ui_machine_panel.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
 ├── ui_machine_params_page.py / ui_machine_profiles_page.py
 ├── ui_test_matrix_page.py / ui_grbl_config_page.py            # pages de réglages
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes)
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
+├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
+├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, signaux)
+├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
 ├── settings_window.py
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
@@ -134,9 +136,11 @@ laser-studio-pro/
 |-----------------|------|---------------------|
 | **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers | Tous les mixins |
 | **ui_setup_mixin.py** | Assemblage de la fenêtre (`init_ui` appelle les `_build_*`), onglet éditeur vectoriel (boutons dessin / mesure / explode / nœuds), plein écran, drag&drop | `vector_layers`, `settings_window` |
-| **ui_menus.py** | Menus, barre d'outils principale, **menu thème** (4 thèmes), `change_theme`, ouverture Stencil Studio, sync thème → Studio | `app_theme`, `stencil_studio.studio_dialog` |
+| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports et « Générer ») ne font que les ranger | — |
+| **ui_window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui_image_tab.py** | Onglet « Graver une image » : réglages, taille + offset, aperçus originale / tramé côte à côte | `graphics_view` |
-| **ui_jog.py** | Jog, pas, vitesse, boutons machine | `LaserControlMixin` |
+| **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
+| **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `ui_machine_panel.py`) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
@@ -198,7 +202,7 @@ main.py
   ├─ app_theme.apply_app_theme
   ├─ icons/breeze  (QIcon theme)
   └─ FullLaserStudio
-        ├─ MenusMixin ──► menu thème ──► change_theme ──► app_theme
+        ├─ WindowControllerMixin ──► menu thème ──► change_theme ──► app_theme
         │                 └─► open_stencil_studio ──► studio_dialog
         │                        (theme_for_lsp / sync_theme_from_lsp)
         ├─ VectorEditingMixin ──► VectorCanvasView (vector_layers)
@@ -286,7 +290,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui_menus.py ui_image_tab.py
+python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui_window_controller.py ui_image_tab.py
 ```
 
 ---

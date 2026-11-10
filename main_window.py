@@ -6,8 +6,7 @@ from usb_controller import LaserUSBController
 from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
-from ui_jog import JogMixin
-from ui_menus import MenusMixin
+from ui_window_controller import WindowControllerMixin
 from ui_machine_params_page import MachineParamsPageMixin
 from ui_machine_profiles_page import MachineProfilesPageMixin
 from ui_test_matrix_page import TestMatrixPageMixin
@@ -29,9 +28,9 @@ from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
-class FullLaserStudio(QMainWindow, UiSetupMixin, MenusMixin, MachineParamsPageMixin, MachineProfilesPageMixin,
+class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineParamsPageMixin, MachineProfilesPageMixin,
                        TestMatrixPageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
-                       MachinePanelMixin, LegacySvgBoxMixin, JogMixin, MachineProfilesMixin,
+                       MachinePanelMixin, LegacySvgBoxMixin, MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
                        JobQueueMixin, Png2SvgMixin, SeparationMixin):

@@ -18,63 +18,138 @@ def read(name):
         return f.read().replace("\r\n", "\n")
 
 
-class MenuStructureTests(unittest.TestCase):
-    def test_menu_bar_order_is_file_settings_tools(self):
-        src = read("ui_menus.py")
-        body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
-        order = [body.index(k) for k in ('tr("menu.file")', 'tr("menu.settings")', 'tr("tab.machine_params")',
-                                         'tr("tab.machine_profiles")', 'tr("tab.grbl_config")', 'tr("menu.language")',
-                                         'tr("menu.tools")', 'tr("tab.test_matrix")', 'tr("menu.tools.stencil_studio")')]
+class AppMenusTests(unittest.TestCase):
+    """Menu et barre d'outils (ui/app/menu/) : structure et signaux."""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            from PyQt6.QtWidgets import QApplication
+            from ui.app.menu import AppActions, AppMenuBar, AppToolBar
+            from i18n import tr
+        except ImportError:
+            raise unittest.SkipTest("PyQt6 non importable ici")
+        cls.app = QApplication.instance() or QApplication([])
+        cls.tr = staticmethod(tr)
+        cls.actions = AppActions()
+        cls.menu_bar = AppMenuBar(cls.actions)
+        cls.toolbar = AppToolBar(cls.actions)
+
+    @staticmethod
+    def texts(widget):
+        return [a.text() for a in widget.actions() if not a.isSeparator()]
+
+    def record(self, signal):
+        received = []
+        signal.connect(lambda *args: received.append(args))
+        return received
+
+    def test_menu_bar_order_is_file_settings_tools_help(self):
+        tr = self.tr
+        self.assertEqual(self.texts(self.menu_bar),
+                         [tr("menu.file"), tr("menu.settings"), tr("menu.tools"), tr("menu.help")])
+
+    def test_settings_and_tools_entries_are_in_their_menu(self):
+        tr = self.tr
+        settings = self.texts(self.menu_bar.settings_menu)
+        self.assertEqual(settings, [tr("tab.machine_params"), tr("tab.machine_profiles"), tr("tab.grbl_config"),
+                                    tr("menu.language"), tr("menu.theme")])
+        self.assertEqual(self.texts(self.menu_bar.tools_menu),
+                         [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
+                          tr("png2svg.tab_title")])
+
+    def test_toolbar_reuses_the_menu_actions(self):
+        # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
+        a = self.actions
+        in_toolbar = set(self.toolbar.actions())
+        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window, a.machine_window,
+                       a.grbl_window, *a.tool_actions):
+            self.assertIn(action, in_toolbar, action.text())
+        self.assertIn(a.save_project, self.menu_bar.file_menu.actions())
+
+    def test_toolbar_order_undo_image_and_connection(self):
+        from PyQt6.QtWidgets import QWidgetAction
+        a = self.actions
+        entries = [x for x in self.toolbar.actions() if not x.isSeparator()]
+        widgets = [x for x in entries if isinstance(x, QWidgetAction)]
+        order = [entries.index(x) for x in (a.quit, a.save_project, a.png2svg_tab, a.image_undo, a.image_redo,
+                                            a.image_delete, a.mirror_v, a.image_reset, a.estimate)]
+        order += [entries.index(widgets[0]), entries.index(a.gcode_import), entries.index(widgets[1]),
+                  entries.index(a.refresh_ports), entries.index(a.connection)]
         self.assertEqual(order, sorted(order))
+        self.assertEqual(widgets[0].defaultWidget().text(), self.tr("gcode.generate"))
+        self.assertIs(widgets[1].defaultWidget(), self.toolbar.ports_combo)
 
-    def test_settings_and_tools_entries_are_in_their_menu_not_the_bar(self):
-        src = read("ui_menus.py")
-        body = src[src.index("def _build_menu_bar"):src.index("menu_aide = menu_bar.addMenu")]
-        def added_to(menu, method, key):
-            # Appel menu.method(...) dont le dernier argument est tr(key), icône éventuelle avant.
-            call = rf'{re.escape(menu)}\.{method}\((?:[^()]|\([^()]*(?:\([^()]*\))?[^()]*\))*tr\("{re.escape(key)}"\),?\s*\)'
-            self.assertRegex(body, call)
+    def test_image_actions_are_disabled_until_an_image_is_shown(self):
+        from ui.app.menu import AppActions
+        a = AppActions()                                 # instance neuve : état de départ
+        for action in (*a.image_actions, a.mirror_h, a.mirror_v):
+            self.assertFalse(action.isEnabled(), action.text())
+        a.set_image_actions_enabled(True)
+        a.set_mirrors_enabled(True)
+        self.assertTrue(all(x.isEnabled() for x in (*a.image_actions, a.mirror_h, a.mirror_v)))
 
-        added_to("menu_parametres", "addAction", "tab.machine_params")
-        added_to("menu_parametres", "addAction", "tab.machine_profiles")
-        added_to("menu_parametres", "addAction", "tab.grbl_config")
-        added_to("menu_parametres", "addMenu", "menu.language")
-        added_to("self.tools_menu", "addAction", "tab.test_matrix")
-        added_to("self.tools_menu", "addAction", "menu.tools.stencil_studio")
-        added_to("self.tools_menu", "addAction", "sep.tab_title")
-        added_to("self.tools_menu", "addAction", "png2svg.tab_title")
-        self.assertNotIn("menu_bar.addAction(", body)
+    def test_mirror_changed_gives_both_mirrors(self):
+        a = self.actions
+        received = self.record(a.mirror_changed)
+        a.mirror_h.setChecked(True)
+        a.mirror_v.setChecked(True)
+        a.mirror_h.setChecked(False)
+        a.mirror_v.setChecked(False)
+        self.assertEqual(received, [(True, False), (True, True), (False, True), (False, False)])
 
-    def test_image_actions_are_in_the_toolbar_not_the_image_tab(self):
+    def test_actions_emit_their_signal(self):
+        a = self.actions
+        for action, signal, expected in (
+                (a.save_project, a.save_project_requested, ()),
+                (a.open_project, a.open_project_requested, ()),
+                (a.quit, a.quit_requested, ()),
+                (a.machine_window, a.settings_window_requested, ("machine",)),
+                (a.test_matrix_window, a.settings_window_requested, ("test_matrix",)),
+                (a.separation_tab, a.main_tab_requested, ("tab_separation",)),
+                (a.language_actions["en"], a.language_selected, ("en",)),
+                (a.theme_actions["light"], a.theme_selected, ("light",)),
+                (a.image_rotate_right, a.image_rotate_requested, (True,)),
+                (a.connection, a.connection_toggle_requested, ())):
+            received = self.record(signal)
+            action.setEnabled(True)
+            action.trigger()
+            self.assertEqual(received, [expected], action.text())
+
+    def test_recent_projects(self):
+        a, file_menu = self.actions, self.menu_bar.file_menu
+        file_menu.set_recent_projects([])
+        empty = file_menu.recent_projects_menu.actions()
+        self.assertEqual([(x.text(), x.isEnabled()) for x in empty], [(self.tr("project.no_recent"), False)])
+        file_menu.set_recent_projects(["/tmp/projets/plaque.lsp"])
+        (entry,) = file_menu.recent_projects_menu.actions()
+        self.assertEqual((entry.text(), entry.toolTip()), ("plaque.lsp", "/tmp/projets/plaque.lsp"))
+        received = self.record(a.recent_project_requested)
+        entry.trigger()
+        self.assertEqual(received, [("/tmp/projets/plaque.lsp",)])
+
+    def test_connection_state(self):
+        a = self.actions
+        a.set_connected(True)
+        self.assertEqual(a.connection.text(), self.tr("laser.disconnect"))
+        a.set_connected(False)
+        self.assertEqual(a.connection.text(), self.tr("laser.connect"))
+
+
+class MenuStructureTests(unittest.TestCase):
+    def test_image_settings_buttons_left_the_image_tab(self):
         src = ui_source()
-        menus = read("ui_menus.py")
-        toolbar = menus[menus.index("def _build_main_toolbar"):menus.index("def _on_language_selected")]
-        self.assertIn("self._on_toolbar_delete_image", toolbar)
-        self.assertEqual(toolbar.count("self._on_toolbar_rotate_image("), 2)
-        for name in ("action_mirror_h", "action_mirror_v"):
-            self.assertIn(f"self.{name} = toolbar.addAction(", toolbar)
         # Plus aucun bouton dans l'onglet Image & Filtres : seul l'aiguillage les appelle.
         for call in ("self.rotate_image_left", "self.rotate_image_right", "self.clear_image()"):
             self.assertEqual(src.count(call), 1, call)
         self.assertNotIn("chk_mirror", src)
-
-    def test_toolbar_order_undo_image_and_connection(self):
-        src = ui_source()
-        toolbar = src[src.index("def _build_main_toolbar"):src.index("def _status_dot_icon")]
-        order = [toolbar.index(k) for k in (
-            "toolbar.addAction(self.action_quit)", "toolbar.addAction(self.action_save_project)",
-            "self.tools_menu.actions()", 'tr("ui.img_undo")', 'tr("ui.img_redo")', 'tr("img.delete")',
-            'tr("img.mirror_v")', 'tr("img.reset")', 'tr("gcode.estimate")', 'tr("gcode.generate")',
-            'tr("gcode.import")', "self.combo_ports_toolbar = QComboBox()",
-            'tr("usb.refresh_ports")', "self.action_connect = toolbar.addAction(")]
-        self.assertEqual(order, sorted(order))
         # Annuler / refaire ont quitté l'onglet Image & Filtres (raccourcis conservés) ; réinitialiser
         # et la connexion restent aussi sur leur page.
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
         self.assertIn("shortcut_undo_img.activated.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("self.combo_ports.setModel(self.combo_ports_toolbar.model())", src)
+        self.assertIn("self.combo_ports.setModel(self.main_toolbar.ports_combo.model())", src)
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
@@ -201,7 +276,7 @@ class ShowWindowTests(unittest.TestCase):
 
     def make(self, with_pages=True):
         cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
-        cls = type("Window", (cls, importlib.import_module("ui_menus").MenusMixin), {})
+        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin), {})
         obj = cls.__new__(cls)
         if with_pages:
             obj.tab_machine_profiles = object()
@@ -248,8 +323,7 @@ class ShowWindowTests(unittest.TestCase):
 
     def image_tabs(self):
         obj = self.make()
-        obj._image_actions = (mock.Mock(), mock.Mock(), mock.Mock())
-        obj._mirror_actions = (mock.Mock(), mock.Mock())
+        obj.app_actions = mock.Mock()
         obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
         obj.main_tabs_view = mock.Mock()
         obj.raw_image = obj.sep_src = None
@@ -259,10 +333,8 @@ class ShowWindowTests(unittest.TestCase):
     def assert_enabled(self, obj, tab, image_actions, mirrors):
         obj.main_tabs_view.currentWidget.return_value = tab
         obj.update_image_actions_state()
-        for action in obj._image_actions:
-            action.setEnabled.assert_called_with(image_actions)
-        for action in obj._mirror_actions:
-            action.setEnabled.assert_called_with(mirrors)
+        obj.app_actions.set_image_actions_enabled.assert_called_with(image_actions)
+        obj.app_actions.set_mirrors_enabled.assert_called_with(mirrors)
 
     def test_image_actions_need_an_image_on_the_current_tab(self):
         obj = self.image_tabs()
@@ -294,14 +366,12 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
-        obj.btn_connect, obj.action_connect = mock.Mock(), mock.Mock()
-        obj._status_dot_icon = lambda color: color
-        for connected, label, color in ((False, "laser.connect", "#e74c3c"), (True, "laser.disconnect", "#27ae60")):
+        obj.btn_connect, obj.app_actions = mock.Mock(), mock.Mock()
+        for connected, label in ((False, "laser.connect"), (True, "laser.disconnect")):
             obj.usb = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
             obj.btn_connect.setText.assert_called_with(self.mod.tr(label))
-            obj.action_connect.setText.assert_called_with(self.mod.tr(label))
-            obj.action_connect.setIcon.assert_called_with(color)
+            obj.app_actions.set_connected.assert_called_with(connected)
 
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()

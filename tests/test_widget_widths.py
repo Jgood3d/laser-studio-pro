@@ -83,10 +83,10 @@ class SplitterTests(unittest.TestCase):
         self.assertIn("main_layout.addWidget(center_widget)", src)
 
     def test_generate_button_padding(self):
-        with open(os.path.join(ROOT, "ui_menus.py"), encoding="utf-8") as f:
-            menus = f.read()
-        self.assertRegex(menus, r'btn_generate\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
-                                r'"font-weight: bold; padding: 3px;"')
+        with open(os.path.join(ROOT, "ui", "app", "menu", "toolbar.py"), encoding="utf-8") as f:
+            toolbar = f.read()
+        self.assertRegex(toolbar, r'button\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
+                                  r'"font-weight: bold; padding: 3px;"')
 
 
 @unittest.skipIf(i18n is None, "i18n non importable ici")
