@@ -22,7 +22,7 @@ main.py
   │
   ├─► install_qt_message_filters / setup_debug_logging
   ├─► QApplication
-  ├─► install_breeze_icon_theme()   # icons/breeze (surtout Windows)
+  ├─► install_breeze_icon_theme()   # resources/icons/breeze (surtout Windows)
   ├─► apply_app_theme()            # app_theme.py (dark / light / dusk / warm)
   ├─► StartupSplash
   │
@@ -58,8 +58,7 @@ laser-studio-pro/
 ├── docs/                             # captures, page de présentation
 ├── packaging/                        # compilation : windows/ (build.bat, setup.iss), linux/ (build-linux.sh), macos/ (spec, scripts, icns)
 ├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
-├── icons/
-│   └── breeze/                       # thème d’icônes FreeDesktop embarqué
+│   └── icons/breeze/                 # thème d’icônes FreeDesktop embarqué
 │       ├── index.theme
 │       ├── COPYING.LGPL-3
 │       ├── 16x16/actions/…
@@ -196,8 +195,8 @@ laser-studio-pro/
 |---------|------|
 | **app_theme.py** | 4 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré) |
 | Menu **Paramètres → Thème** | `available_themes()` + `change_theme()` ; persistance `QSettings("app_theme")` |
-| **icons/breeze/** | Pack minimal Breeze (LGPL-3) ; activé par `install_breeze_icon_theme()` si pas de thème système |
-| **packaging/ / BUILD.md** | `--add-data "icons;icons"` pour embarquer le pack |
+| **resources/icons/breeze/** | Pack minimal Breeze (LGPL-3) ; activé par `install_breeze_icon_theme()` si pas de thème système, cherché comme les images (`resource_candidates`) |
+| **packaging/ / BUILD.md** | `--add-data "resources;resources"` embarque les images et le pack d'icônes |
 
 ### 3.5 Stencil Studio
 
@@ -220,7 +219,7 @@ Inchangé dans l’esprit : `workers.py` (threads), `grbl/`, `ui/settings/window
 ```
 main.py
   ├─ app_theme.apply_app_theme
-  ├─ icons/breeze  (QIcon theme)
+  ├─ resources/icons/breeze  (QIcon theme)
   └─ FullLaserStudio
         ├─ WindowControllerMixin ──► menu thème ──► change_theme ──► app_theme
         │                 └─► open_stencil_studio ──► studio_dialog
@@ -274,8 +273,8 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
 4. **Thème unique source de vérité** : `app_theme.THEMES` + `QSettings("app_theme")` ; Stencil Studio consomme via `theme_for_lsp`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
-6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")` dans `i18n.py`.
-7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `icons/` ; penser à `--add-data "resources;resources"` dans les builds.
+6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
+7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
 
 ---
 
@@ -284,7 +283,7 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 | Domaine | Ajout |
 |---------|--------|
 | Thèmes | `dark`, `light`, **`dusk`**, **`warm`** (`app_theme.py`) |
-| Icônes | Pack **Breeze** embarqué (`icons/breeze`) |
+| Icônes | Pack **Breeze** embarqué (`resources/icons/breeze`) |
 | Import | Plus de dégroupage automatique SVG/DXF |
 | Dessin | Outils souris ligne / rectangle / ellipse |
 | Édition | **Exploser en segments** + **mode nœuds** |

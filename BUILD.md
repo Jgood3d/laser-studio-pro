@@ -59,12 +59,12 @@ pip install pyinstaller
 Le plus simple : `packaging\windows\build.bat` (Stencil Studio compris).
 À la main, depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
 être présents), avec le dossier `resources/` (icône, bannière, logo,
-image « Buy me a coffee ») :
+image « Buy me a coffee », pack d'icônes Breeze dans `resources/icons/`) :
 ```powershell
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "icons;icons" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" main.py
 Avec Stencil Studio :
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "icons;icons" --add-data "stencil_studio;stencil_studio" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "stencil_studio;stencil_studio" main.py
 
 ```
 Sous Windows, `--add-data` sépare source et destination par `;`. Le code
@@ -111,11 +111,11 @@ pip install pyinstaller
 Le plus simple : `packaging/linux/build-linux.sh` (Stencil Studio compris).
 À la main :
 ```bash
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "icons:icons" main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" main.py
 
 Avec Stencil studio
 
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "icons:icons" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
+pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
 Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien

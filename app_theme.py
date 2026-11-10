@@ -1,10 +1,11 @@
 """Thèmes clair / sombre / Dusk / Warm dim de Laser Studio Pro (palette + feuille de style)."""
-import sys
 from pathlib import Path
 
 from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon, QPalette, QColor
+
+from app_utils import resource_candidates
 
 
 # ---------------------------------------------------------------------------
@@ -581,24 +582,16 @@ def install_breeze_icon_theme():
     """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
 
     Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
-    Le pack minimal vit dans icons/breeze/ à côté de main.py (ou dans le bundle
-    PyInstaller via --add-data \"icons;icons\").
+    Le pack minimal vit dans resources/icons/breeze/, cherché comme les
+    images de l'application (voir app_utils.resource_candidates) : à côté de
+    l'exécutable, puis dans le bundle PyInstaller (--add-data "resources;resources").
     """
     # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
     current = QIcon.themeName()
     if current and current not in ("", "hicolor"):
         return False
 
-    candidates = []
-    here = Path(__file__).resolve().parent
-    candidates.append(here / "icons")
-    if getattr(sys, "frozen", False):
-        meipass = getattr(sys, "_MEIPASS", None)
-        if meipass:
-            candidates.append(Path(meipass) / "icons")
-        candidates.append(Path(sys.executable).resolve().parent / "icons")
-
-    for base in candidates:
+    for base in map(Path, resource_candidates("icons")):
         index = base / "breeze" / "index.theme"
         if index.is_file():
             paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]

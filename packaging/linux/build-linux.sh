@@ -59,7 +59,6 @@ python3 -m PyInstaller --noconfirm "$MODE" --windowed --name LaserStudioPro \
     --icon "$REPO_ROOT/resources/laser_studio_pro.ico" \
     --specpath build \
     --add-data "$REPO_ROOT/resources:resources" \
-    --add-data "$REPO_ROOT/icons:icons" \
     --add-data "$REPO_ROOT/stencil_studio:stencil_studio" \
     --collect-submodules serial --hidden-import serial \
     --hidden-import PyQt6.QtWebEngineWidgets --hidden-import PyQt6.QtWebEngineCore \

@@ -22,7 +22,6 @@ rem  declares en hidden-import pour que PyInstaller embarque aussi cv2 / numpy /
 rem  QtWebEngine est embarque automatiquement (main.py l'importe en tete).
 pyinstaller --onedir --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico ^
  --add-data "resources;resources" ^
- --add-data "icons;icons" ^
  --add-data "stencil_studio;stencil_studio" ^
  --paths "C:\Users\Bonnevie\Desktop\Log-gravure\laser-studio-pro-propre\venv\Lib\site-packages" ^
  --collect-submodules serial --hidden-import=serial ^
