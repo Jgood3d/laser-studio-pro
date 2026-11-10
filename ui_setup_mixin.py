@@ -6,9 +6,7 @@ partira peu à peu dans ui/tabs/, un onglet à la fois.
 from PyQt6.QtWidgets import (QSizePolicy, QStyle, QToolBar, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox, QDoubleSpinBox, QGroupBox, QMessageBox, QCheckBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QIcon
-from vector_layers import (
-    LayerManagerWidget, VectorCanvasView
-)
+from vector_layers import VectorCanvasView
 from i18n import tr
 
 
@@ -103,21 +101,6 @@ class UiSetupMixin:
             self.png2svg_widget.clear_image()
         else:
             self.separation_clear_image()
-
-    def _build_layers_tab(self):
-        """Onglet des calques."""
-        tab_layers = QWidget()
-        layout_layers = QVBoxLayout(tab_layers)
-        self.layer_widget = LayerManagerWidget(
-            self.layer_manager,
-            focal_getter=lambda: self.spin_machine_focal.value(),
-        )
-        self.layer_widget.layers_changed.connect(self.on_layers_changed)
-        # Mémorise les réglages des calques dans le profil de la machine active.
-        self.layer_widget.layers_changed.connect(self._schedule_layer_persist)
-        layout_layers.addWidget(self.layer_widget)
-        # Onglet central, entre « Graver une image vectorielle » et la visualisation du G-Code.
-        self.tab_layers = tab_layers
 
     def _build_vector_editor_tab(self):
         """Onglet « Éditeur vectoriel »."""

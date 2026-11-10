@@ -13,6 +13,7 @@ from i18n import tr
 from settings_window import SettingsWindow
 from ui.machine import MachinePanel
 from ui.statusbar import StatusBar
+from ui.tabs.layers import LayersTab
 
 from usb_controller import LaserUSBController
 from vector_layers import LayerManager
@@ -142,7 +143,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
 
         self._build_vector_editor_tab()
-        self.main_tabs_view.addTab(self.tab_layers, tr("tab.layers"))
+        self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))
 
         self._build_2d_preview_tab()
         center_bottom_scroll = self._build_machine_panel()
@@ -222,6 +223,20 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin, MachineP
         self.center_v_splitter.setStretchFactor(0, 3)
         self.center_v_splitter.setStretchFactor(1, 1)
         return center_bottom_scroll
+
+    def _build_layers_tab(self):
+        """Onglet « Calques », abonné à la logique des calques.
+
+        Il est placé dans les onglets par init_ui, entre l'éditeur
+        vectoriel et l'aperçu 2D.
+        """
+        self.layers_tab = LayersTab(
+            self.layer_manager,
+            focal_getter=lambda: self.spin_machine_focal.value(),
+        )
+        self.layers_tab.layers_changed.connect(self.on_layers_changed)
+        # Mémorise les réglages des calques dans le profil de la machine active.
+        self.layers_tab.layers_changed.connect(self._schedule_layer_persist)
 
     # -- Événements de la fenêtre
 

@@ -31,8 +31,8 @@ class VectorEditingMixin:
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.refresh_all()
         sender = self.sender()
-        if hasattr(self, "layer_widget") and sender is not self.layer_widget:
-            self.layer_widget.refresh()
+        if hasattr(self, "layers_tab") and sender is not self.layers_tab:
+            self.layers_tab.refresh()
         self._refresh_engrave_layer()
         self._on_engrave_layer_selected()
 

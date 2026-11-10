@@ -71,7 +71,7 @@ def _get_machine_focal(window):
         pass
     # Via le focal_getter du widget calques (même source que « + Calque »)
     try:
-        w = getattr(window, "layer_widget", None)
+        w = getattr(window, "layers_tab", None) or getattr(window, "layer_widget", None)
         if w is not None and getattr(w, "focal_getter", None):
             v = float(w.focal_getter())
             if v > 0:
@@ -332,12 +332,12 @@ def _import_svg_routed(window, path):
 def _refresh_layers_ui(window):
     """Rafraîchit le panneau des calques après création de LAYER_n (import Stencil Studio).
 
-    Le widget s'appelle ``layer_widget`` dans FullLaserStudio / UiSetupMixin
-    (pas ``layer_manager_widget``). On émet aussi ``layers_changed`` pour
+    L'onglet s'appelle ``layers_tab`` dans FullLaserStudio (``layer_widget``
+    dans les versions précédentes, ``layer_manager_widget`` encore avant). On émet aussi ``layers_changed`` pour
     déclencher la persistance et les mises à jour liées (aperçu G-Code, etc.).
     """
     try:
-        w = getattr(window, "layer_widget", None)
+        w = getattr(window, "layers_tab", None) or getattr(window, "layer_widget", None)
         if w is None:
             w = getattr(window, "layer_manager_widget", None)  # rétrocompat
         if w is None:

@@ -128,8 +128,8 @@ class ImageProcessingMixin:
         self._apply_focal_to_lmm()
         # Même lien côté onglet Calques : les pastilles de qualité du "Pas
         # remplissage (mm)" de chaque calque dépendent aussi de la focale.
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh_focal_quality()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh_focal_quality()
 
     def _sync_matrix_lmm_from_image(self):
         """Reporte automatiquement le lignes/mm de l'onglet Image / Filtre

@@ -69,8 +69,8 @@ class MachineProfilesMixin:
         # Même logique qu'à chaque validation de profil machine : les
         # calques suivent automatiquement la focale dès le démarrage, sans
         # action manuelle.
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.link_all_to_focal()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.link_all_to_focal()
 
         raw_profiles = settings.value("machine_profiles_json", "")
         try:
@@ -214,10 +214,10 @@ class MachineProfilesMixin:
                 d = by_id.get(layer.id) or (saved_layers[i] if i < len(saved_layers) else None)
                 if d:
                     self._coerce_layer_settings(layer, d)
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh()
             # Les calques liés à la focale suivent la focale de CETTE machine.
-            self.layer_widget.link_all_to_focal()
+            self.layers_tab.link_all_to_focal()
 
     def _coerce_layer_settings(self, layer, source, reset_invalid=False):
         """Copie les réglages de `source` vers `layer` en forçant le bon type.
@@ -377,8 +377,8 @@ class MachineProfilesMixin:
         # la focale, peu importe le mode actif.
         if hasattr(self, "_apply_focal_to_lmm"):
             self._apply_focal_to_lmm()
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.refresh_focal_quality()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh_focal_quality()
 
     def _add_machine_profile(self):
         name, ok = QInputDialog.getText(
@@ -412,8 +412,8 @@ class MachineProfilesMixin:
         # Reboucle automatiquement le pas de remplissage de tous les calques
         # sur la focale qui vient d'être validée : plus besoin de cocher le
         # 🔗 manuellement calque par calque (source d'oubli sinon).
-        if hasattr(self, "layer_widget"):
-            self.layer_widget.link_all_to_focal()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.link_all_to_focal()
         QMessageBox.information(
     self,
     tr("machine.updated_title"),
