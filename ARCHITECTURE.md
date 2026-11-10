@@ -30,9 +30,8 @@ main.py
         │
         │  Hérite de tous les mixins :
         │
-        ├─ UiSetupMixin          (ui_setup_mixin.py)    contenu des onglets (éditeur vectoriel…)
-        ├─ WindowControllerMixin (ui_window_controller.py) signaux du menu, thème, connexion
-        ├─ GrblConfigPageMixin   (ui_grbl_config_page.py) page Configuration GRBL
+        ├─ UiSetupMixin          (ui_setup_mixin.py)    onglet Éditeur vectoriel
+        ├─ WindowControllerMixin (ui/app/window_controller.py) signaux du menu, thème, connexion
         ├─ MatrixImageMixin      (matrix_image_mixin.py) matrice de test à partir d'une image
         ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
         │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
@@ -106,7 +105,8 @@ laser-studio-pro/
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
 ├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, aperçu TilePicker)
-├── settings_window.py
+├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage)
+├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── machine_profiles_mixin.py
 ├── image_processing_mixin.py / image_filters.py / image_size.py
 ├── vector_editing_mixin.py
@@ -158,6 +158,7 @@ laser-studio-pro/
 | **ui/settings/machine_params/** | `MachineParamsPage` (QScrollArea) : profils machine, dimensions du lit, spot, limites. Émet `profile_selected`, `new/update/delete_profile_requested`, `bed_size_changed(l, p)`, `focal_changed(mm)`, `max_speed_changed` | Construite et abonnée dans `main_window._build_machine_params_page` ; ses champs gardent leurs anciens noms dans la fenêtre (`spin_machine_w`…) |
 | **ui/settings/machine_profiles/** | `MachineProfilesPage` : port (modèle partagé avec la barre d'outils), connexion, profils de matériaux. Émet `connect_requested`, `material_selected`, `save/new/delete_material_requested`…, reçoit `set_connected()` | Construite et abonnée dans `main_window._build_machine_profiles_page` (`combo_ports`, `combo_mat` gardent leurs noms) |
 | **ui/settings/test_matrix/** | `TestMatrixPage` : réglages de la matrice (puissances, passes, vitesses, cases), affichage selon le mode gravure / découpe, test à partir d'une image (aperçu `TilePicker`). Émet `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled` ; fournit `matrix_params()`, `tile_settings()` ; reçoit `set_lines_mm()`, `set_source_image()` | Construite et abonnée dans `main_window._build_test_matrix_page` ; lue par `GcodeGenerationMixin.generate_test_matrix` |
+| **ui/settings/grbl_config/** | `GrblConfigPage` : commande laser, S-Max, homing, surbalayage (la page affiche la distance ou le pourcentage selon le mode), ordre de découpe sûr, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets ($$). Émet `bidir_test_requested`, `scan_offset_changed`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | Construite et abonnée dans `main_window._build_grbl_config_page`, qui garde les anciens noms des champs (`combo_laser_cmd`, `chk_overscan`, `txt_grbl_settings`…) lus par la génération, les profils, les projets et la connexion |
 | **matrix_image_mixin.py** | Test à partir d'une image : choix du fichier (taille réelle d'après sa résolution), reprise de l'image de « Graver une image », zone d'image traitée pour chaque case (`build_matrix_image_tile`) | `matrix_image`, `workers` |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`), relaie `layers_changed`, `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |

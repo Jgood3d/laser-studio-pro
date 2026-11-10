@@ -252,7 +252,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
         self.assertIn("self.tab_machine_profiles = page", src)
-        self.assertIn("self.tab_grbl_config = tab_gcode_cfg", src)
+        self.assertIn("self.tab_grbl_config = page", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
         src = ui_source()

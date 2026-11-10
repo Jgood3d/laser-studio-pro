@@ -576,6 +576,3 @@ class MachineProfilesMixin:
         if reply == QMessageBox.StandardButton.Yes:
             del self.materials_db[mat_name]
             self.combo_mat.removeItem(self.combo_mat.currentIndex())
-
-    def on_overscan_mode_changed(self, index):
-        self.overscan_stacked.setCurrentIndex(index)

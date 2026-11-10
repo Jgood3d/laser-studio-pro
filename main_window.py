@@ -11,6 +11,7 @@ from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 from i18n import tr
 from ui.machine import MachinePanel
+from ui.settings.grbl_config import GrblConfigPage
 from ui.settings.machine_params import MachineParamsPage
 from ui.settings.machine_profiles import MachineProfilesPage
 from ui.settings.test_matrix import TestMatrixPage
@@ -24,7 +25,6 @@ from vector_layers import LayerManager
 from ui_setup_mixin import UiSetupMixin
 from ui.app.window_controller import WindowControllerMixin
 from matrix_image_mixin import MatrixImageMixin
-from ui_grbl_config_page import GrblConfigPageMixin
 from ui_image_tab import ImageTabMixin
 from ui_preview_2d_tab import Preview2DTabMixin
 from ui_job_tabs import JobTabsMixin
@@ -42,7 +42,7 @@ from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
-                       MatrixImageMixin, GrblConfigPageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
+                       MatrixImageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
                        LegacySvgBoxMixin, MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
@@ -269,6 +269,38 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.combo_ports = page.ports_combo
         self.combo_mat = page.material_combo
         self.tab_machine_profiles = page
+
+    def _build_grbl_config_page(self):
+        """Page « Configuration GRBL », abonnée au dialogue avec le graveur.
+
+        Affichée dans une fenêtre du menu Paramètres (show_settings_window).
+        """
+        page = GrblConfigPage()
+        page.bidir_test_requested.connect(self.generate_bidir_test)
+        # Décalage aller/retour : mémorisé dans le profil de la machine.
+        page.scan_offset_changed.connect(self._schedule_layer_persist)
+        page.read_settings_requested.connect(self.read_grbl_settings)
+        page.send_settings_requested.connect(self.send_grbl_settings)
+        page.export_settings_requested.connect(self.export_grbl_settings)
+        page.import_settings_requested.connect(self.import_grbl_settings)
+        page.link_settings_to_profile_requested.connect(
+            self.save_grbl_settings_to_profile
+        )
+        # Noms historiques des champs, lus par la logique (génération,
+        # profils machine, projets, connexion au graveur).
+        self.combo_laser_cmd = page.laser_cmd_combo
+        self.spin_smax = page.smax_spin
+        self.chk_homing = page.homing_check
+        self.chk_overscan = page.overscan_check
+        self.chk_safe_cut_order = page.safe_cut_order_check
+        self.combo_overscan_mode = page.overscan_mode_combo
+        self.spin_overscan_dist = page.overscan_dist_spin
+        self.spin_overscan_pct = page.overscan_pct_spin
+        self.spin_scan_offset = page.scan_offset_spin
+        self.txt_start_gcode = page.start_gcode_edit
+        self.txt_end_gcode = page.end_gcode_edit
+        self.txt_grbl_settings = page.grbl_settings_edit
+        self.tab_grbl_config = page
 
     def _build_test_matrix_page(self):
         """Page « Matrice de test », abonnée à la génération de la matrice.

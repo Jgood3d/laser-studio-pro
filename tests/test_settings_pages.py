@@ -1,4 +1,4 @@
-"""Pages de réglages (MachineParamsPage, MachineProfilesPage, TestMatrixPage) : signaux et état."""
+"""Pages de réglages (MachineParamsPage, MachineProfilesPage, TestMatrixPage, GrblConfigPage) : signaux et état."""
 import os
 import sys
 import unittest
@@ -10,6 +10,7 @@ try:
     from PyQt6.QtGui import QStandardItemModel, QStandardItem
     from PyQt6.QtWidgets import QApplication, QPushButton, QScrollArea
     from i18n import tr
+    from ui.settings.grbl_config import GrblConfigPage
     from ui.settings.machine_params import MachineParamsPage
     from ui.settings.machine_profiles import MachineProfilesPage
     from ui.settings.test_matrix import TestMatrixPage
@@ -220,6 +221,56 @@ class TilePickerTests(unittest.TestCase):
         picker = self.make()
         picker.set_frame_fraction(1.0, 1.0)
         self.assertEqual(picker.center(), (0.5, 0.5))
+
+
+@unittest.skipIf(MachineParamsPage is None, "PyQt6 non importable ici")
+class GrblConfigPageTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self):
+        page = GrblConfigPage()
+        self.addCleanup(page.deleteLater)
+        return page
+
+    def record(self, signal):
+        return _Recorder(self).record(signal)
+
+    def test_buttons_emit_their_signal(self):
+        page = self.make()
+        for key, signal in (("ui.bidir_test_btn", page.bidir_test_requested),
+                            ("ui.grbl_read", page.read_settings_requested),
+                            ("ui.grbl_send", page.send_settings_requested),
+                            ("ui.grbl_export", page.export_settings_requested),
+                            ("ui.grbl_import", page.import_settings_requested),
+                            ("ui.grbl_link_profile", page.link_settings_to_profile_requested)):
+            received = self.record(signal)
+            next(b for b in page.findChildren(QPushButton) if b.text() == tr(key)).click()
+            self.assertEqual(received, [()], key)
+
+    def test_scan_offset_emits_its_value_in_mm(self):
+        page = self.make()
+        received = self.record(page.scan_offset_changed)
+        page.scan_offset_spin.setValue(0.25)
+        self.assertEqual(received, [(0.25,)])
+
+    def test_overscan_value_follows_the_mode(self):
+        page = self.make()
+        page.show()
+        self.assertTrue(page.overscan_dist_spin.isVisible())
+        self.assertFalse(page.overscan_pct_spin.isVisible())
+        page.overscan_mode_combo.setCurrentIndex(1)            # pourcentage
+        self.assertFalse(page.overscan_dist_spin.isVisible())
+        self.assertTrue(page.overscan_pct_spin.isVisible())
+
+    def test_defaults(self):
+        page = self.make()
+        self.assertTrue(page.homing_check.isChecked())          # homing automatique activé d'office
+        self.assertTrue(page.overscan_check.isChecked())
+        self.assertTrue(page.safe_cut_order_check.isChecked())
+        self.assertEqual(page.laser_cmd_combo.currentText().split()[0], "M4")
+        self.assertEqual(page.smax_spin.value(), 1000)
 
 
 if __name__ == "__main__":

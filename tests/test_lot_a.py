@@ -26,8 +26,10 @@ def read(name):
 
 class HomingTests(unittest.TestCase):
     def test_auto_homing_is_checked_by_default(self):
-        self.assertIn("self.chk_homing.setChecked(True)", ui_source())
-        self.assertNotIn("self.chk_homing.setChecked(False)", ui_source())
+        page = read(os.path.join("ui", "settings", "grbl_config", "page.py"))
+        self.assertIn("self.homing_check.setChecked(True)", page)
+        self.assertNotIn("self.homing_check.setChecked(False)", page)
+        self.assertIn("self.chk_homing = page.homing_check", ui_source())
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
         for name in ("machine_profiles_mixin.py", "project_io_mixin.py"):

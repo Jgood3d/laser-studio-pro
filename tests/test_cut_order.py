@@ -128,7 +128,8 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
-        self.assertIn("self.chk_safe_cut_order = QCheckBox", ui_source())
+        self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
+        self.assertIn("self.chk_safe_cut_order = page.safe_cut_order_check", ui_source())
         self.assertIn("'safe_cut_order':", self.src("gcode_generation_mixin.py"))
         self.assertIn("safe_cut_order=bool(self.params.get('safe_cut_order', True))", self.src("workers.py"))
         self.assertIn("safe_cut_order=False", self.src("vector_layers.py"))
