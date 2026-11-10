@@ -374,9 +374,9 @@ class GcodeGenerationMixin:
 
         self.txt_console.setPlainText(gcode_text)
         num_lines = len([l for l in gcode_text.split('\n') if l.strip()])
-        self.lbl_stat_lines.setText(tr("gen.stat_lines").format(n=num_lines))
-        self.lbl_stat_power.setText(tr("gen.stat_power_imported"))
-        self.lbl_stat_time.setText(tr("gen.stat_time_imported"))
+        self.tab_console_gcode.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                         tr("gen.stat_power_imported"),
+                                         tr("gen.stat_time_imported"))
         self.plot_gcode_preview(gcode_text)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.txt_console.append(
@@ -670,7 +670,7 @@ class GcodeGenerationMixin:
         self.matrix_worker.start()
         return True
 
-    def _on_plot_clicked(self, event):
+    def _on_plot_clicked(self, x_mm, y_mm):
         """Clic sur l'aperçu 2D : si le G-Code affiché est bien la dernière
         matrice de test générée, retrouve la case cliquée et applique sa
         puissance/vitesse (ou nombre de passes) aux réglages de gravure ou
@@ -680,10 +680,6 @@ class GcodeGenerationMixin:
         if not params:
             return
         try:
-            view_box = self.plot_widget.getPlotItem().vb
-            pos = view_box.mapSceneToView(event.scenePos())
-            x_mm, y_mm = pos.x(), pos.y()
-
             offset_labels_x, offset_labels_y = 22.0, 14.0
             mat_off_x = params.get('matrix_offset_x', 0.0)
             mat_off_y = params.get('matrix_offset_y', 0.0)
@@ -730,9 +726,9 @@ class GcodeGenerationMixin:
         self.statusBar().show_progress(100, tr("gen.done"))
         self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)
-        self.lbl_stat_lines.setText(tr("gen.stat_lines").format(n=num_lines))
-        self.lbl_stat_power.setText(tr("gen.stat_power").format(value=f"{avg_power:.1f}"))
-        self.lbl_stat_time.setText(tr("gen.stat_time").format(value=time_str))
+        self.tab_console_gcode.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                         tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
+                                         tr("gen.stat_time").format(value=time_str))
         self.plot_gcode_preview(gcode_str)
         
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)

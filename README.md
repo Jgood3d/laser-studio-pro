@@ -136,8 +136,6 @@ python main.py
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
 - `ui_setup_mixin.py` — onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui_image_tab.py` — onglet « Graver une image » et position du job
-- `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
-- `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
@@ -154,6 +152,9 @@ python main.py
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…)
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`)
 - `matrix_image_mixin.py` — matrice de test à partir d’une image : chargement de l’image, zone gravée dans chaque case
+- `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
+- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
+- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière

@@ -566,6 +566,6 @@ class ImageProcessingMixin:
         self.combo_algo.setCurrentText(algo)
         dialog.accept()
 
-    def on_flip_raster_preview_changed(self, _state):
+    def on_flip_raster_preview_changed(self, *_args):
         if self._last_gcode_text:
             self.plot_gcode_preview(self._last_gcode_text)

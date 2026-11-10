@@ -33,8 +33,7 @@ main.py
         ├─ UiSetupMixin          (ui_setup_mixin.py)    onglet Éditeur vectoriel
         ├─ WindowControllerMixin (ui/app/window_controller.py) signaux du menu, thème, connexion
         ├─ MatrixImageMixin      (matrix_image_mixin.py) matrice de test à partir d'une image
-        ├─ ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
-        │  LegacySvgBoxMixin                           (ui_*.py, un par bloc)
+        ├─ ImageTabMixin         (ui_image_tab.py)      onglet Graver une image
         ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
@@ -85,9 +84,8 @@ laser-studio-pro/
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── ui_setup_mixin.py
-├── ui_window_controller.py / ui_legacy_svg_box.py
-├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
-├── ui_grbl_config_page.py / matrix_image_mixin.py
+├── ui_image_tab.py                   # onglet Graver une image
+├── matrix_image_mixin.py
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
@@ -101,6 +99,9 @@ laser-studio-pro/
 ├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
 ├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
+├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
+├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
+├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab : run_requested, reordered…)
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
 ├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, aperçu TilePicker)
@@ -160,6 +161,9 @@ laser-studio-pro/
 | **ui/settings/grbl_config/** | `GrblConfigPage` : commande laser, S-Max, homing, surbalayage (la page affiche la distance ou le pourcentage selon le mode), ordre de découpe sûr, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets ($$). Émet `bidir_test_requested`, `scan_offset_changed`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | Construite et abonnée dans `main_window._build_grbl_config_page`, qui garde les anciens noms des champs (`combo_laser_cmd`, `chk_overscan`, `txt_grbl_settings`…) lus par la génération, les profils, les projets et la connexion |
 | **matrix_image_mixin.py** | Test à partir d'une image : choix du fichier (taille réelle d'après sa résolution), reprise de l'image de « Graver une image », zone d'image traitée pour chaque case (`build_matrix_image_tile`) | `matrix_image`, `workers` |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`), relaie `layers_changed`, `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
+| **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
+| **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
+| **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab` ; lu par `JobQueueMixin` (`list_job_queue`, `btn_run_queue`…) |
 | **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |

@@ -71,7 +71,7 @@ class JobQueueMixin:
 
     def _on_queue_reordered(self, *args):
         """Appelé après un glisser-déposer de réordonnancement dans la
-        liste (voir setDragDropMode InternalMove dans ui_setup_mixin.py) :
+        liste (voir setDragDropMode InternalMove dans ui/tabs/job_queue/tab.py) :
         reconstruit job_queue pour qu'il corresponde au nouvel ordre
         visuel — les jobs sont réappariés par nom, unique en pratique
         puisqu'horodaté à la création."""

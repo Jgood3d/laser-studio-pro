@@ -17,7 +17,10 @@ from ui.settings.machine_profiles import MachineProfilesPage
 from ui.settings.test_matrix import TestMatrixPage
 from ui.settings.window import SettingsWindow
 from ui.statusbar import StatusBar
+from ui.tabs.console import ConsoleTab
+from ui.tabs.job_queue import JobQueueTab
 from ui.tabs.layers import LayersTab
+from ui.tabs.preview_2d import Preview2DTab
 
 from grbl.connection import LaserUSBController
 from vector_layers import LayerManager
@@ -26,8 +29,6 @@ from ui_setup_mixin import UiSetupMixin
 from ui.app.window_controller import WindowControllerMixin
 from matrix_image_mixin import MatrixImageMixin
 from ui_image_tab import ImageTabMixin
-from ui_preview_2d_tab import Preview2DTabMixin
-from ui_job_tabs import JobTabsMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
@@ -41,7 +42,7 @@ from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
-                       MatrixImageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
+                       MatrixImageMixin, ImageTabMixin,
                        MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
@@ -347,6 +348,64 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.layers_tab.layers_changed.connect(self.on_layers_changed)
         # Mémorise les réglages des calques dans le profil de la machine active.
         self.layers_tab.layers_changed.connect(self._schedule_layer_persist)
+
+    def _build_2d_preview_tab(self):
+        """Onglet « Visualisation 2D G-Code », abonné à la génération.
+
+        La génération dessine dans son graphique (plot_widget) et y place
+        la tête du laser (gcode_position_marker).
+        """
+        tab = Preview2DTab()
+        tab.display_options_changed.connect(
+            self.on_flip_raster_preview_changed
+        )
+        tab.plot_clicked.connect(self._on_plot_clicked)
+        tab.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab(
+                "tab_vector_2d", "ui.tab_2d_preview"
+            )
+        )
+        # Noms historiques, lus par la génération et la connexion au graveur.
+        self.chk_flip_raster_preview = tab.flip_check
+        self.chk_negative_raster_preview = tab.negative_check
+        self.chk_hide_rapid_moves = tab.hide_rapid_check
+        self.chk_optimize_path = tab.optimize_path_check
+        self.plot_widget = tab.plot_widget
+        self.gcode_position_marker = tab.position_marker
+        self.info_text_item = tab.info_text_item
+        self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))
+        self.tab_vector_2d = tab
+
+    def _build_console_tab(self):
+        """Onglet « Console / G-Code », abonné à l'export du G-Code."""
+        tab = ConsoleTab()
+        tab.export_requested.connect(self.export_gcode_with_ext)
+        tab.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab(
+                "tab_console_gcode", "ui.tab_console_gcode"
+            )
+        )
+        # Nom historique de la console : toute l'application y écrit
+        # (G-Code généré, messages du graveur, Stencil Studio…).
+        self.txt_console = tab.console_edit
+        self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
+        self.tab_console_gcode = tab
+
+    def _build_job_queue_tab(self):
+        """Onglet « File d'attente », abonné à la logique de la file."""
+        tab = JobQueueTab()
+        tab.add_current_requested.connect(self.add_current_gcode_to_queue)
+        tab.remove_selected_requested.connect(self.remove_selected_from_queue)
+        tab.clear_requested.connect(self.clear_job_queue)
+        tab.run_requested.connect(self.run_job_queue)
+        tab.reordered.connect(self._on_queue_reordered)
+        # Noms historiques, lus par la file d'attente et l'envoi du G-Code.
+        self.list_job_queue = tab.queue_list
+        self.btn_run_queue = tab.run_button
+        self.lbl_queue_status = tab.status_label
+        self.txt_sent_gcode = tab.sent_gcode_edit
+        self.main_tabs_view.addTab(tab, tr("ui.tab_job_queue"))
+        self.tab_job_queue = tab
 
     # -- Événements de la fenêtre
 

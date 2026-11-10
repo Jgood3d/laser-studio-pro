@@ -200,12 +200,15 @@ class MenuStructureTests(unittest.TestCase):
 
     def test_preview_options_are_in_the_2d_tab_toolbar(self):
         src = ui_source()
-        bar = src[src.index("toolbar_vector_2d = TabToolBar("):]
-        bar = bar[:bar.index("toolbar_vector_2d.fullscreen_requested")]
-        for name in ("chk_flip_raster_preview", "chk_negative_raster_preview",
-                     "chk_hide_rapid_moves", "chk_optimize_path"):
-            self.assertIn(f"self.{name}", bar, name)
-            self.assertEqual(src.count(f"self.{name} = QCheckBox("), 1, name)
+        tab = read(os.path.join("ui", "tabs", "preview_2d", "tab.py"))
+        bar = tab[tab.index("toolbar = TabToolBar("):]
+        bar = bar[:bar.index("toolbar.fullscreen_requested")]
+        for check, name in (("flip_check", "chk_flip_raster_preview"),
+                            ("negative_check", "chk_negative_raster_preview"),
+                            ("hide_rapid_check", "chk_hide_rapid_moves"),
+                            ("optimize_path_check", "chk_optimize_path")):
+            self.assertIn(f"self.{check}", bar, check)
+            self.assertEqual(src.count(f"self.{name} = tab.{check}"), 1, name)   # ancien nom, lu par la logique
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
@@ -225,11 +228,11 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("left_widgets=[self.chk_show_original]", src)      # case « Afficher l'originale »
 
     def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
-        src = ui_source()
-        block = src[src.index("queue_splitter = QSplitter("):src.index('self.main_tabs_view.addTab(tab_job_queue')]
+        block = read(os.path.join("ui", "tabs", "job_queue", "tab.py"))
         self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
                         block.index("queue_splitter.addWidget(sent_box)"))
-        self.assertIn("self.txt_sent_gcode.setReadOnly(True)", block)
+        self.assertIn("self.sent_gcode_edit.setReadOnly(True)", block)
+        self.assertIn("self.txt_sent_gcode = tab.sent_gcode_edit", ui_source())
         for name in ("job_queue_mixin.py", "laser_control_mixin.py"):
             self.assertIn("self.streamer.lines_sent.connect(self._append_sent_gcode)", read(name), name)
 
@@ -274,7 +277,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("img_settings_scroll = self._side_settings_panel(self.tab_img)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
         self.assertIn("self.main_tabs_view.addTab(tab_vector_editor", src)
-        self.assertIn("self.main_tabs_view.addTab(tab_vector_2d", src)
+        self.assertIn('self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))', src)
         order = [src.index(k) for k in ("self._build_vector_editor_tab()",
                                          'self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))',
                                          "self._build_2d_preview_tab()")]
