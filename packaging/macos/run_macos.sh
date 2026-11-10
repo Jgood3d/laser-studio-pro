@@ -1,12 +1,12 @@
 #!/bin/bash
 # Lance Laser Studio Pro depuis les sources sur macOS.
 # Crée le venv et installe les dépendances si besoin, puis démarre l'appli.
-# Ce script vit dans macos/ mais s'exécute depuis la racine du dépôt (où
+# Ce script vit dans packaging/macos/ mais s'exécute depuis la racine du dépôt (où
 # se trouve main.py), pour ne rien changer à l'arborescence Windows/Linux.
 set -e
 
 MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(dirname "$MACOS_DIR")"
+REPO_ROOT="$(dirname "$(dirname "$MACOS_DIR")")"
 cd "$REPO_ROOT"
 
 # Préfère Python 3.12 (version cible du projet) s'il est disponible

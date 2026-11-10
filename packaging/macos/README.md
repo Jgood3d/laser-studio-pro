@@ -14,7 +14,7 @@ Depuis la racine du dépôt :
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-pip install -r macos/requirements-macos.txt
+pip install -r packaging/macos/requirements-macos.txt
 python main.py
 ```
 
@@ -22,7 +22,7 @@ Ou plus simplement, via le script fourni (crée le venv, installe les
 dépendances et lance l'appli en une seule commande) :
 
 ```bash
-./macos/run_macos.sh
+./packaging/macos/run_macos.sh
 ```
 
 `numba` (accélération optionnelle du tramage d'image) n'est pas installé
@@ -63,11 +63,11 @@ version de Python dispose d'une wheel compatible.
 Depuis la racine du dépôt :
 
 ```bash
-./macos/build_macos.sh
+./packaging/macos/build_macos.sh
 ```
 
 Ça crée un environnement de build isolé (`build_venv/`), compile avec
-PyInstaller (`macos/LaserStudioPro.spec`), génère l'icône `.icns` si besoin,
+PyInstaller (`packaging/macos/LaserStudioPro.spec`), génère l'icône `.icns` si besoin,
 puis produit `dist/LaserStudioPro.app` et `dist/LaserStudioPro_<version>_macos_<arch>.dmg`.
 
 Cible l'architecture de la machine qui compile (arm64 ou x86_64) — pas de

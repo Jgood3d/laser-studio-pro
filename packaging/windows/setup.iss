@@ -13,7 +13,8 @@ OutputBaseFilename=LaserStudioPro_Setup
 
 Compression=lzma
 SolidCompression=yes
-SetupIconFile=resources\laser_studio_pro.ico
+; Chemin relatif au dossier de ce script (packaging\windows\).
+SetupIconFile=..\..\resources\laser_studio_pro.ico
 
 [Files]
 ; Copie tout le contenu du dossier généré par PyInstaller vers le dossier de destination

@@ -2,13 +2,13 @@
 # Compile Laser Studio Pro en .app puis en .dmg sur macOS.
 # Cible l'architecture de LA MACHINE qui exécute ce script (pas de
 # cross-compilation, pas d'universal2 — voir LaserStudioPro.spec).
-# Ce script vit dans macos/ mais s'exécute depuis la racine du dépôt (où
+# Ce script vit dans packaging/macos/ mais s'exécute depuis la racine du dépôt (où
 # se trouve main.py), pour ne rien changer à l'arborescence Windows/Linux.
 # dist/ et build/ sont créés à la racine, comme pour les builds Windows/Linux.
 set -e
 
 MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO_ROOT="$(dirname "$MACOS_DIR")"
+REPO_ROOT="$(dirname "$(dirname "$MACOS_DIR")")"
 cd "$REPO_ROOT"
 
 APP_NAME="LaserStudioPro"
@@ -42,7 +42,7 @@ pip install pyinstaller -q
 
 # 2. Génération de l'icône .icns si absente ou si la source a changé.
 #    Source (resources/laser_studio_pro_512.png) partagée avec
-#    Windows/Linux ; l'icône .icns générée, elle, va dans macos/.
+#    Windows/Linux ; l'icône .icns générée, elle, va dans packaging/macos/.
 ICNS_PATH="${MACOS_DIR}/laser_studio_pro.icns"
 if [ ! -f "$ICNS_PATH" ] || [ "resources/laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
     echo "Génération de l'icône .icns..."

@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 """Spec PyInstaller — Laser Studio Pro pour macOS.
 
-Vit dans macos/, à côté de l'icône .icns, séparément du code source et
+Vit dans packaging/macos/, à côté de l'icône .icns, séparément du code source et
 des chaînes de build Windows/Linux qui restent à la racine du dépôt.
 Les chemins ci-dessous sont dérivés de SPECPATH (dossier de ce fichier,
 fourni automatiquement par PyInstaller) pour fonctionner quel que soit le
@@ -13,7 +13,7 @@ universal2 disponibles. Compiler séparément sur Apple Silicon et sur
 Intel si les deux cibles sont nécessaires (voir build_macos.sh).
 
 Utilisation (depuis la racine du dépôt, ou build_macos.sh) :
-    pyinstaller macos/LaserStudioPro.spec
+    pyinstaller packaging/macos/LaserStudioPro.spec
 """
 import os
 import sys
@@ -21,7 +21,7 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 
-REPO_ROOT = os.path.dirname(SPECPATH)  # SPECPATH = dossier macos/
+REPO_ROOT = os.path.dirname(os.path.dirname(SPECPATH))  # SPECPATH = packaging/macos/
 
 # Numéro de version : lu depuis app_utils.py (source unique, déjà utilisée
 # par l'app elle-même pour l'"À propos") plutôt que dupliqué ici en dur —

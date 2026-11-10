@@ -9,6 +9,19 @@ modules manquants ou de conflits de bibliothèques (DLL).
 > Windows ne fonctionne que sur Windows. Il faut lancer la compilation
 > **sur chaque OS cible** (ou dans une VM / conteneur de cet OS).
 
+Les scripts de compilation sont rangés dans `packaging/`, un dossier par
+système :
+
+| Système | Script | Résultat |
+|---|---|---|
+| Windows | `packaging\windows\build.bat`, puis `packaging\windows\setup.iss` (Inno Setup) pour l'installateur | `dist\LaserStudioPro\` |
+| Linux | `packaging/linux/build-linux.sh` (`--onedir` pour un dossier) | `dist/LaserStudioPro` |
+| macOS | `packaging/macos/build_macos.sh` (voir `packaging/macos/README.md`) | `dist/LaserStudioPro.app` |
+
+Ils se lancent depuis n'importe quel dossier et travaillent à la racine du
+dépôt. Les commandes détaillées ci-dessous restent utiles pour comprendre
+ce qu'ils font, ou compiler à la main.
+
 ---
 
 ## Windows
@@ -43,7 +56,8 @@ pip install pyinstaller
 ```
 
 ### 4. Compiler
-Depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
+Le plus simple : `packaging\windows\build.bat` (Stencil Studio compris).
+À la main, depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
 être présents), avec le dossier `resources/` (icône, bannière, logo,
 image « Buy me a coffee ») :
 ```powershell
@@ -94,6 +108,8 @@ pip install pyinstaller
 ```
 
 ### 4. Compiler
+Le plus simple : `packaging/linux/build-linux.sh` (Stencil Studio compris).
+À la main :
 ```bash
 pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "icons:icons" main.py
 

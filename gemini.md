@@ -8,14 +8,14 @@ Laser Studio Pro (LSP) est une application bureau open-source développée en Py
 - **Interface Graphique :** PyQt6 (`graphics_view.py`, `box_dialog.py`)
 - **Traitement d'image :** OpenCV (`image_processing_mixin.py`, `image_filters.py`)
 - **Contrôle Laser / G-code :** `laser_control_mixin.py`, `gcode_generation_mixin.py`
-- **Build / Packaging :** PyInstaller, scripts batch (`build.bat`)
+- **Build / Packaging :** PyInstaller, scripts batch (`packaging/windows/build.bat`)
 
 ## Commandes clés
 - Lancer l'application : `python laser_studio_pro.py`
-- Compiler l'exécutable : `build.bat`
+- Compiler l'exécutable : `packaging/windows/build.bat`
 
 ## Scripts de Build et Packaging
-- **Compilation Windows (PyInstaller) :** `build.bat` automatise la création de l'exécutable standalone et l'intégration des assets graphiques.
+- **Compilation Windows (PyInstaller) :** `packaging/windows/build.bat` automatise la création de l'exécutable standalone et l'intégration des assets graphiques.
 - **Gestion Linux / AppImage :** Scripts shell (`.sh`) et configuration AppImage pour optimiser le lancement sous Linux Mint.
 - **Inno Setup :** Utilisation de scripts de setup pour générer les installateurs Windows automatisés.
 

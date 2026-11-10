@@ -392,7 +392,7 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 ## v2026.10.81 — Version compilée (PyInstaller)
 - Les réglages mémorisés (`presets.json`) et le modèle IA (`models`) sont écrits dans `%LOCALAPPDATA%\StencilStudio` quand LSP est compilé (ou quand le dossier du Studio n'est pas modifiable), au lieu du dossier de l'application.
 - Le repli « fenêtre séparée » est désactivé dans une version compilée (le programme à relancer serait LSP lui-même).
-- `build.bat` fourni : ajoute les `--hidden-import` nécessaires (modules du Studio, QtWebEngine, scipy) à la commande PyInstaller.
+- `packaging/windows/build.bat` fourni : ajoute les `--hidden-import` nécessaires (modules du Studio, QtWebEngine, scipy) à la commande PyInstaller.
 
 
 ## v2026.10.82 — Diagnostic QtWebEngine

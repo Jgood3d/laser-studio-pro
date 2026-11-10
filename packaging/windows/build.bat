@@ -1,4 +1,8 @@
 @echo off
+rem Ce script vit dans packaging\windows\ mais s'execute depuis la racine du depot
+rem (la ou se trouve main.py), quel que soit le dossier d'ou il est lance.
+cd /d "%~dp0..\.."
+
 echo ==========================================
 echo Activation de l'environnement virtuel...
 echo ==========================================

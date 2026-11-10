@@ -57,7 +57,7 @@ main.py
 laser-studio-pro/
 ├── .github/workflows/macos-build.yml
 ├── docs/                             # captures, page de présentation
-├── macos/                            # build macOS (spec, scripts, icns)
+├── packaging/                        # compilation : windows/ (build.bat, setup.iss), linux/ (build-linux.sh), macos/ (spec, scripts, icns)
 ├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
 ├── icons/
 │   └── breeze/                       # thème d’icônes FreeDesktop embarqué
@@ -117,7 +117,7 @@ laser-studio-pro/
 ├── png2svg_mixin.py / png2svg_widget.py / converter.py
 ├── separation_mixin.py / separation_engine.py
 ├── requirements-linux.txt / requirements-windows.txt
-├── build.bat / setup.iss / BUILD.md
+├── BUILD.md
 └── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
 ```
 
@@ -193,7 +193,7 @@ laser-studio-pro/
 | **app_theme.py** | 4 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré) |
 | Menu **Paramètres → Thème** | `available_themes()` + `change_theme()` ; persistance `QSettings("app_theme")` |
 | **icons/breeze/** | Pack minimal Breeze (LGPL-3) ; activé par `install_breeze_icon_theme()` si pas de thème système |
-| **build.bat / BUILD.md** | `--add-data "icons;icons"` pour embarquer le pack |
+| **packaging/ / BUILD.md** | `--add-data "icons;icons"` pour embarquer le pack |
 
 ### 3.5 Stencil Studio
 

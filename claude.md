@@ -15,7 +15,7 @@ Application PyQt6 open-source en Python dédiée à la gravure laser, la découp
 - Assurer la portabilité multi-plateforme (Linux Mint / Windows).
 
 ## Processus de Build & Déploiement
-- **Scripts Batch (`build.bat`) :** Utilisés pour packager l'application PyQt6 avec PyInstaller en s'assurant que toutes les dépendances binaires (OpenCV, PyQt6) et les fichiers de traduction (`en`, `fr`, `de`, `es`) sont inclus.
+- **Scripts Batch (`packaging/windows/build.bat`) :** Utilisés pour packager l'application PyQt6 avec PyInstaller en s'assurant que toutes les dépendances binaires (OpenCV, PyQt6) et les fichiers de traduction (`en`, `fr`, `de`, `es`) sont inclus.
 - **Installateurs :** Utilisation d'Inno Setup pour les packages Windows.
 - **Optimisation Linux :** Création d'archives ou de paquets portables pour un démarrage rapide sous Linux Mint.
 
