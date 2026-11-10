@@ -161,7 +161,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
         self.assertIn("settings.undo_requested.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("MachineProfilesPage(ports.model(), self.materials_db.keys())", src)
+        self.assertIn("MachineProfilesPage(ports.model(), materials.keys())", src)
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 

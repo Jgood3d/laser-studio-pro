@@ -27,6 +27,7 @@ from ui.tabs.preview_2d import Preview2DTab
 from ui.widgets import FullscreenWindow
 
 from controllers.job_queue import Engraver, JobQueueController
+from controllers.materials import DEFAULT_MATERIALS_DB, MaterialsController
 from controllers.matrix_image import MatrixImageController
 from controllers.png2svg import Png2SvgController
 from controllers.project import ProjectController
@@ -40,7 +41,6 @@ from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
 from gcode_generation_mixin import GcodeGenerationMixin
 from laser_control_mixin import LaserControlMixin
-from machine_profiles_mixin import DEFAULT_MATERIALS_DB
 from separation_mixin import SeparationMixin
 
 
@@ -72,7 +72,6 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self._img_redo_stack = []
         self._img_last_undo_push_time = 0.0
 
-        self.materials_db = dict(DEFAULT_MATERIALS_DB)
         # Gravure d'une image : vitesse (mm/min) et puissance (%), reprises du
         # calque de gravure (engrave_layer_id, voir _on_engrave_layer_selected).
         self.engrave_speed = 2000
@@ -272,20 +271,27 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         le port choisi est le même des deux côtés.
         """
         ports = self.main_toolbar.ports_combo
-        page = MachineProfilesPage(ports.model(), self.materials_db.keys())
+        materials = dict(DEFAULT_MATERIALS_DB)
+        page = MachineProfilesPage(ports.model(), materials.keys())
+        self.materials = MaterialsController(
+            self,
+            page.material_combo,
+            materials,
+            current_settings=self._job_settings,
+            apply_settings=self._apply_job_settings,
+        )
         page.port_selected.connect(ports.setCurrentIndex)
         ports.currentIndexChanged.connect(page.set_port_index)
         page.refresh_ports_requested.connect(self.refresh_com_ports)
         page.connect_requested.connect(self.toggle_connection)
-        page.material_selected.connect(self.apply_material_profile)
-        page.save_material_requested.connect(self.save_material_profile)
-        page.new_material_requested.connect(self.new_material_profile)
-        page.delete_material_requested.connect(self.delete_material_profile)
-        page.export_materials_requested.connect(self.export_material_profiles)
-        page.import_materials_requested.connect(self.import_material_profiles)
-        # Noms historiques des listes, lus par la logique.
+        page.material_selected.connect(self.materials.apply_selected)
+        page.save_material_requested.connect(self.materials.save_selected)
+        page.new_material_requested.connect(self.materials.new_material)
+        page.delete_material_requested.connect(self.materials.delete_selected)
+        page.export_materials_requested.connect(self.materials.export_materials)
+        page.import_materials_requested.connect(self.materials.import_materials)
+        # Nom historique de la liste des ports, lu par la logique.
         self.combo_ports = page.ports_combo
-        self.combo_mat = page.material_combo
         self.tab_machine_profiles = page
 
     def _build_grbl_config_page(self):
@@ -350,6 +356,22 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         if getattr(self, "raw_image", None) is None:
             return None
         return self.raw_image, self.spin_w.value()
+
+    def _job_settings(self):
+        """Vitesses, puissances et passes en cours, au format d'un matériau
+        (voir MaterialsController)."""
+        return {
+            "sp_e": self.engrave_speed,
+            "pw_e": self.engrave_power,
+            "sp_c": self.cut_speed,
+            "pw_c": self.cut_power,
+            "pass_c": self.cut_passes,
+        }
+
+    def _apply_job_settings(self, material):
+        """Applique les réglages d'un matériau (gravure, puis découpe)."""
+        self.set_engrave_settings(material["sp_e"], material["pw_e"])
+        self.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
 
     def _generate_test_matrix_and_show(self):
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
@@ -560,7 +582,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
             "speed_cut": self.cut_speed,
             "power_cut": self.cut_power,
             "passes_cut": self.cut_passes,
-            "materials_db": self.materials_db,
+            "materials_db": self.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
             "svg_path": self.loaded_svg_path,
             "layers": self.layer_manager.to_list(),
@@ -607,9 +629,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
                               data.get("passes_cut", 2))
 
         if "materials_db" in data:
-            self.materials_db = data["materials_db"]
-            self.combo_mat.clear()
-            self.combo_mat.addItems(list(self.materials_db.keys()))
+            self.materials.set_materials(data["materials_db"])
 
         if image is not None:
             self.raw_image = image

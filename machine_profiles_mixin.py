@@ -1,25 +1,13 @@
-"""Gestion des profils machine et des profils matériaux (sauvegarde/chargement via QSettings)."""
+"""Gestion des profils machine (sauvegarde/chargement via QSettings) ; les
+matériaux sont dans controllers/materials.py."""
 from PyQt6.QtWidgets import (QMessageBox, QInputDialog, QFileDialog)
 from PyQt6.QtCore import QSettings, QTimer
 import copy
 import json
 
+from controllers.materials import DEFAULT_MATERIALS_DB
 from i18n import tr
 
-# Base de matériaux utilisée (1) au tout premier lancement de l'application,
-# avant tout profil machine, et (2) comme repli pour un ancien profil machine
-# enregistré avant l'ajout de la liaison materials_db <-> profil (voir
-# _apply_machine_profile_fields). Une nouvelle machine créée après cet ajout
-# démarre avec une COPIE de cette base, qu'elle peut ensuite personnaliser
-# sans affecter les autres profils (voir _capture_machine_profile_fields).
-DEFAULT_MATERIALS_DB = {
-    "Personnalisé": {"sp_e": 2000, "pw_e": 30, "sp_c": 300, "pw_c": 90, "pass_c": 1},
-    "Contreplaqué 3mm": {"sp_e": 2500, "pw_e": 35, "sp_c": 250, "pw_c": 95, "pass_c": 2},
-    "MDF 4mm": {"sp_e": 2200, "pw_e": 40, "sp_c": 180, "pw_c": 100, "pass_c": 3},
-    "Acrylique 3mm": {"sp_e": 3000, "pw_e": 25, "sp_c": 200, "pw_c": 90, "pass_c": 2},
-    "Ardoise / Carrelage": {"sp_e": 1500, "pw_e": 45, "sp_c": 500, "pw_c": 0, "pass_c": 0},
-    "Cuir 2mm": {"sp_e": 2800, "pw_e": 20, "sp_c": 350, "pw_c": 80, "pass_c": 1},
-}
 
 
 class MachineProfilesMixin:
@@ -295,7 +283,7 @@ class MachineProfilesMixin:
             # Base de matériaux propre à CETTE machine (voir
             # _apply_machine_profile_fields) : une copie, pour que modifier
             # les matériaux d'un profil n'affecte jamais les autres.
-            "materials_db": dict(self.materials_db) if hasattr(self, "materials_db") else dict(DEFAULT_MATERIALS_DB),
+            "materials_db": dict(self.materials.materials) if hasattr(self, "materials") else dict(DEFAULT_MATERIALS_DB),
             # Réglages des calques (vitesse, puissance, passes...) propres à
             # cette machine — voir _apply_profile_layers.
             "layers": self.layer_manager.to_list() if hasattr(self, "layer_manager") else [],
@@ -348,14 +336,10 @@ class MachineProfilesMixin:
         # ainsi que les matériaux pertinents pour la machine sélectionnée
         # (repli sur la base par défaut pour un profil enregistré avant
         # cette liaison materials_db <-> profil).
-        if hasattr(self, "combo_mat"):
-            self.materials_db = dict(p.get("materials_db", DEFAULT_MATERIALS_DB))
-            self.combo_mat.blockSignals(True)
-            self.combo_mat.clear()
-            self.combo_mat.addItems(list(self.materials_db.keys()))
-            self.combo_mat.blockSignals(False)
-            if hasattr(self, "apply_material_profile"):
-                self.apply_material_profile()
+        if hasattr(self, "materials"):
+            self.materials.set_materials(dict(p.get("materials_db", DEFAULT_MATERIALS_DB)),
+                                         block_signals=True)
+            self.materials.apply_selected()
         if hasattr(self, "spin_scan_offset"):
             try:
                 self.spin_scan_offset.setValue(float(p.get("scan_offset_mm", 0.0)))
@@ -441,136 +425,3 @@ class MachineProfilesMixin:
         if reply == QMessageBox.StandardButton.Yes:
             self.machine_profiles.pop(idx)
             self._refresh_machine_profile_combo()
-
-    def export_material_profiles(self):
-        """Exporte tous les profils matériaux courants dans un fichier .json
-        séparé, partageable avec d'autres utilisateurs (ex: même machine)."""
-        path, _ = QFileDialog.getSaveFileName(
-    self,
-    tr("material.export_title"),
-    "materiaux_laser.json",
-    "JSON (*.json)"
-)
-        if not path:
-            return
-        try:
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump(self.materials_db, f, indent=2, ensure_ascii=False)
-            QMessageBox.information(
-    self,
-    tr("material.export_success_title"),
-    tr("material.export_success_body").format(
-        count=len(self.materials_db),
-        path=path
-    )
-)
-        except Exception as e:
-            QMessageBox.critical(
-    self,
-    tr("laser.error"),
-    tr("material.error_export").format(error=e)
-)
-
-    def import_material_profiles(self):
-        """Importe des profils matériaux depuis un fichier .json exporté par
-        cette application (ou par un·e autre utilisateur·rice) : les profils
-        du même nom sont mis à jour, les nouveaux sont ajoutés."""
-        path, _ = QFileDialog.getOpenFileName(
-    self,
-    tr("material.import_title"),
-    "",
-    "JSON (*.json)"
-)
-        if not path:
-            return
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                imported = json.load(f)
-            if not isinstance(imported, dict):
-                raise ValueError(tr("material.invalid_file"))
-            added, updated = 0, 0
-            for name, profile in imported.items():
-                if not isinstance(profile, dict):
-                    continue
-                if name in self.materials_db:
-                    updated += 1
-                else:
-                    added += 1
-                self.materials_db[name] = profile
-            self.combo_mat.blockSignals(True)
-            self.combo_mat.clear()
-            self.combo_mat.addItems(list(self.materials_db.keys()))
-            self.combo_mat.blockSignals(False)
-            QMessageBox.information(
-    self,
-    tr("material.import_success_title"),
-    tr("material.import_success_body").format(
-        added=added,
-        updated=updated
-    )
-)
-        except Exception as e:
-            QMessageBox.critical(
-    self,
-    tr("laser.error"),
-    tr("material.error_import").format(error=e)
-)
-
-    def apply_material_profile(self):
-        mat_name = self.combo_mat.currentText()
-        if mat_name in self.materials_db:
-            p = self.materials_db[mat_name]
-            self.set_engrave_settings(p['sp_e'], p['pw_e'])
-            self.set_cut_settings(p['sp_c'], p['pw_c'], p['pass_c'])
-
-    def save_material_profile(self):
-        mat_name = self.combo_mat.currentText()
-        self.materials_db[mat_name] = {
-            "sp_e": self.engrave_speed,
-            "pw_e": self.engrave_power,
-            "sp_c": self.cut_speed,
-            "pw_c": self.cut_power,
-            "pass_c": self.cut_passes
-        }
-        QMessageBox.information(
-    self,
-    tr("material.saved_title"),
-    tr("material.saved_body").format(name=mat_name)
-)
-
-    def new_material_profile(self):
-        name, ok = QInputDialog.getText(
-    self,
-    tr("material.new_profile_title"),
-    tr("material.new_profile_prompt")
-)
-        if ok and name.strip():
-            name = name.strip()
-            self.materials_db[name] = {
-                "sp_e": self.engrave_speed,
-                "pw_e": self.engrave_power,
-                "sp_c": self.cut_speed,
-                "pw_c": self.cut_power,
-                "pass_c": self.cut_passes
-            }
-            self.combo_mat.addItem(name)
-            self.combo_mat.setCurrentText(name)
-
-    def delete_material_profile(self):
-        mat_name = self.combo_mat.currentText()
-        if mat_name == "Personnalisé":
-            QMessageBox.warning(
-    self,
-    tr("material.delete_forbidden_title"),
-    tr("material.delete_forbidden_body")
-)
-            return
-        reply = QMessageBox.question(
-    self,
-    tr("material.delete_title"),
-    tr("material.delete_body").format(name=mat_name),
-    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-)
-        if reply == QMessageBox.StandardButton.Yes:
-            del self.materials_db[mat_name]
-            self.combo_mat.removeItem(self.combo_mat.currentIndex())

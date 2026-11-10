@@ -236,6 +236,7 @@ PALETTE = {
     "controllers/matrix_image.py": "#c0392b",
     "controllers/job_queue.py": "#7f8c3d",
     "controllers/project.py": "#b8860b",
+    "controllers/materials.py": "#9b59b6",
     "controllers/png2svg.py": "#1abc9c",
     "separation_mixin.py": "#6c5ce7",
     "main_window.py": "#34495e",

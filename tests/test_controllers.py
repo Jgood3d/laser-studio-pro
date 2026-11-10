@@ -14,9 +14,15 @@ sys.path.insert(0, ROOT)
 try:
     from PIL import Image
     from PyQt6.QtCore import QSettings
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PyQt6.QtWidgets import (
+        QApplication,
+        QComboBox,
+        QInputDialog,
+        QMessageBox,
+    )
     from controllers import job_queue as jq
     from controllers.job_queue import Engraver, JobQueueController
+    from controllers.materials import MaterialsController
     from controllers.matrix_image import MatrixImageController
     from controllers import project as project_module
     from controllers.png2svg import Png2SvgController
@@ -377,6 +383,65 @@ class ProjectControllerTests(_QtTest):
         )
         self.image = None
         self.assertIsNone(self.project.data()["raw_image_b64"])
+
+
+@unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")
+class MaterialsControllerTests(_QtTest):
+    def make(self):
+        self.applied, self.current = [], {
+            "sp_e": 1,
+            "pw_e": 2,
+            "sp_c": 3,
+            "pw_c": 4,
+            "pass_c": 5,
+        }
+        combo = QComboBox()
+        self.addCleanup(combo.deleteLater)
+        materials = {"Personnalisé": {"sp_e": 9}, "Bois": {"sp_e": 8}}
+        combo.addItems(list(materials))
+        controller = MaterialsController(
+            None,
+            combo,
+            materials,
+            current_settings=lambda: dict(self.current),
+            apply_settings=self.applied.append,
+        )
+        return controller, combo
+
+    def test_selected_material_is_applied_and_saved(self):
+        controller, combo = self.make()
+        combo.setCurrentText("Bois")
+        controller.apply_selected()
+        self.assertEqual(self.applied, [{"sp_e": 8}])
+        controller.save_selected()
+        self.assertEqual(controller.materials["Bois"], self.current)
+
+    def test_new_and_deleted_materials(self):
+        controller, combo = self.make()
+        with mock.patch.object(
+            QInputDialog, "getText", return_value=(" Verre ", True)
+        ):
+            controller.new_material()
+        self.assertEqual(combo.currentText(), "Verre")
+        self.assertIn("Verre", controller.materials)
+        combo.setCurrentText("Personnalisé")
+        controller.delete_selected()  # interdit
+        self.assertIn("Personnalisé", controller.materials)
+        with mock.patch.object(
+            QMessageBox,
+            "question",
+            return_value=QMessageBox.StandardButton.Yes,
+        ):
+            combo.setCurrentText("Verre")
+            controller.delete_selected()
+        self.assertNotIn("Verre", controller.materials)
+
+    def test_replacing_the_list(self):
+        controller, combo = self.make()
+        controller.set_materials({"A": {}, "B": {}}, block_signals=True)
+        self.assertEqual(
+            [combo.itemText(i) for i in range(combo.count())], ["A", "B"]
+        )
 
 
 if __name__ == "__main__":

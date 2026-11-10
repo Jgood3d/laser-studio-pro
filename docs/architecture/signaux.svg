@@ -18,14 +18,16 @@
 <text x="1314.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/job_queue.py</text>
 <rect x="1499.2" y="84" width="16" height="16" rx="3" fill="#b8860b" stroke="none"/>
 <text x="1521.2" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/project.py</text>
-<rect x="30" y="108" width="16" height="16" rx="3" fill="#1abc9c" stroke="none"/>
-<text x="52" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/png2svg.py</text>
-<rect x="222.4" y="108" width="16" height="16" rx="3" fill="#34495e" stroke="none"/>
-<text x="244.4" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">main_window.py</text>
-<rect x="357.20000000000005" y="108" width="16" height="16" rx="3" fill="#5d6d7e" stroke="none"/>
-<text x="379.20000000000005" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">ui/app/window_controller.py</text>
-<rect x="585.6" y="108" width="16" height="16" rx="3" fill="#95a5a6" stroke="none"/>
-<text x="607.6" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">ui/ (widgets, boîtes), Qt, Stencil Studio</text>
+<rect x="30" y="108" width="16" height="16" rx="3" fill="#9b59b6" stroke="none"/>
+<text x="52" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/materials.py</text>
+<rect x="236.8" y="108" width="16" height="16" rx="3" fill="#1abc9c" stroke="none"/>
+<text x="258.8" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/png2svg.py</text>
+<rect x="429.20000000000005" y="108" width="16" height="16" rx="3" fill="#34495e" stroke="none"/>
+<text x="451.20000000000005" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">main_window.py</text>
+<rect x="564.0" y="108" width="16" height="16" rx="3" fill="#5d6d7e" stroke="none"/>
+<text x="586.0" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">ui/app/window_controller.py</text>
+<rect x="792.4" y="108" width="16" height="16" rx="3" fill="#95a5a6" stroke="none"/>
+<text x="814.4" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">ui/ (widgets, boîtes), Qt, Stencil Studio</text>
 <text x="30" y="170" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="#5d6d7e">PAGES DE RÉGLAGES (MENU PARAMÈTRES)</text>
 <rect x="30" y="184" width="896" height="210" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="42" y="204" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">MachineParamsPage</text>
@@ -107,46 +109,46 @@
 <text x="698" y="513.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#d9534f">laser_control_mixin.py</text>
 <rect x="42" y="522" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">material_selected</text>
-<path d="M342 531.0 L380 531.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 527.0 L388 531.0 L380 535.0 Z" fill="#8e44ad"/>
-<rect x="388" y="522" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">apply_material_profile</text>
-<text x="698" y="535.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 531.0 L380 531.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 527.0 L388 531.0 L380 535.0 Z" fill="#9b59b6"/>
+<rect x="388" y="522" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.apply_selected</text>
+<text x="698" y="535.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="544" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">save_material_requested</text>
-<path d="M342 553.0 L380 553.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 549.0 L388 553.0 L380 557.0 Z" fill="#8e44ad"/>
-<rect x="388" y="544" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">save_material_profile</text>
-<text x="698" y="557.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 553.0 L380 553.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 549.0 L388 553.0 L380 557.0 Z" fill="#9b59b6"/>
+<rect x="388" y="544" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.save_selected</text>
+<text x="698" y="557.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="566" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">new_material_requested</text>
-<path d="M342 575.0 L380 575.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 571.0 L388 575.0 L380 579.0 Z" fill="#8e44ad"/>
-<rect x="388" y="566" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">new_material_profile</text>
-<text x="698" y="579.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 575.0 L380 575.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 571.0 L388 575.0 L380 579.0 Z" fill="#9b59b6"/>
+<rect x="388" y="566" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.new_material</text>
+<text x="698" y="579.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="588" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_material_requested</text>
-<path d="M342 597.0 L380 597.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 593.0 L388 597.0 L380 601.0 Z" fill="#8e44ad"/>
-<rect x="388" y="588" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">delete_material_profile</text>
-<text x="698" y="601.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 597.0 L380 597.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 593.0 L388 597.0 L380 601.0 Z" fill="#9b59b6"/>
+<rect x="388" y="588" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.delete_selected</text>
+<text x="698" y="601.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="610" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="623.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">export_materials_requested</text>
-<path d="M342 619.0 L380 619.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 615.0 L388 619.0 L380 623.0 Z" fill="#8e44ad"/>
-<rect x="388" y="610" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="623.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">export_material_profiles</text>
-<text x="698" y="623.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 619.0 L380 619.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 615.0 L388 619.0 L380 623.0 Z" fill="#9b59b6"/>
+<rect x="388" y="610" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="623.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.export_materials</text>
+<text x="698" y="623.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="632" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="645.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">import_materials_requested</text>
-<path d="M342 641.0 L380 641.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 637.0 L388 641.0 L380 645.0 Z" fill="#8e44ad"/>
-<rect x="388" y="632" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="645.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">import_material_profiles</text>
-<text x="698" y="645.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<path d="M342 641.0 L380 641.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 637.0 L388 641.0 L380 645.0 Z" fill="#9b59b6"/>
+<rect x="388" y="632" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="645.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">materials.import_materials</text>
+<text x="698" y="645.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="30" y="676" width="896" height="210" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="42" y="696" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">GrblConfigPage</text>
 <text x="172.39999999999998" y="696" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Configuration GRBL</text>

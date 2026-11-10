@@ -45,7 +45,8 @@ main.py
         ├─ png2svg       = Png2SvgController      envoi du SVG vers l'éditeur vectoriel
         ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
         ├─ job_queue     = JobQueueController     file d'attente (graveur : interface Engraver)
-        └─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
+        ├─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
+        └─ materials     = MaterialsController    profils matériaux
 ```
 
 `FullLaserStudio` est le **cœur** : il assemble les mixins et possède les objets partagés (`usb`, `layer_manager`, images, file d’attente…).
@@ -88,7 +89,7 @@ laser-studio-pro/
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── ui_setup_mixin.py
-├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project (remplacent des mixins)
+├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials (remplacent des mixins)
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
