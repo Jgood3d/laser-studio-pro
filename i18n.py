@@ -2290,12 +2290,6 @@ TRANSLATIONS = {
         "de": "SVG oder DXF importieren (mehrere Ebenen)",
         "es": "Importar SVG o DXF (multicapa)",
     },
-    "vector.svg_filter": {
-        "fr": "Vectoriel SVG (*.svg)",
-        "en": "SVG Vector (*.svg)",
-        "de": "SVG-Vektor (*.svg)",
-        "es": "Vectorial SVG (*.svg)",
-    },
     "vector.svg_error_title": {
         "fr": "Erreur d'import SVG",
         "en": "SVG Import Error",
@@ -2343,18 +2337,6 @@ TRANSLATIONS = {
               "asignado(s) a la capa «{layer}».\n\n"
               "Para separar los trazos: clic derecho → Desagrupar, luego asigna "
               "cada parte a la capa deseada.",
-    },
-    "vector.open_svg_title": {
-        "fr": "Ouvrir SVG Découpe",
-        "en": "Open Cutting SVG",
-        "de": "Schneide-SVG öffnen",
-        "es": "Abrir SVG de corte",
-    },
-    "vector.svg_loaded": {
-        "fr": "Fichier SVG chargé : {path}",
-        "en": "SVG file loaded: {path}",
-        "de": "SVG-Datei geladen: {path}",
-        "es": "Archivo SVG cargado: {path}",
     },
     "vector.no_engrave_layer": {
         "fr": "Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.",
@@ -3176,48 +3158,6 @@ TRANSLATIONS = {
         "en": "All {count} setting(s) were sent successfully to the machine.",
         "de": "Alle {count} Einstellung(en) wurden erfolgreich an die Maschine gesendet.",
         "es": "Los {count} ajuste(s) se enviaron con éxito a la máquina.",
-    },
-    "ui.svg_legacy_title": {
-        "fr": "[Ancien mode, déprécié] Découpe SVG globale",
-        "en": "[Legacy mode, deprecated] Global SVG Cutting",
-        "de": "[Altmodus, veraltet] Globale SVG-Schneideoption",
-        "es": "[Modo antiguo, obsoleto] Corte SVG global",
-    },
-    "ui.load_svg_legacy": {
-        "fr": "Charger SVG (ancien mode)",
-        "en": "Load SVG (legacy mode)",
-        "de": "SVG laden (Altmodus)",
-        "es": "Cargar SVG (modo antiguo)",
-    },
-    "ui.enable_cut": {
-        "fr": "Activer Passe de Découpe",
-        "en": "Enable Cutting Pass",
-        "de": "Schnittdurchgang aktivieren",
-        "es": "Activar pasada de corte",
-    },
-    "ui.cut_speed": {
-        "fr": "Vitesse Découpe (mm/min):",
-        "en": "Cut Speed (mm/min):",
-        "de": "Schnittgeschwindigkeit (mm/min):",
-        "es": "Velocidad de corte (mm/min):",
-    },
-    "ui.cut_power": {
-        "fr": "Puissance Découpe (%):",
-        "en": "Cut Power (%):",
-        "de": "Schnittleistung (%):",
-        "es": "Potencia de corte (%):",
-    },
-    "ui.cut_passes": {
-        "fr": "Passes Découpe:",
-        "en": "Cut Passes:",
-        "de": "Schnittdurchgänge:",
-        "es": "Pasadas de corte:",
-    },
-    "ui.vector_file_label": {
-        "fr": "Fichier Vectoriel:",
-        "en": "Vector File:",
-        "de": "Vektordatei:",
-        "es": "Archivo vectorial:",
     },
     "ui.plot_title": {
         "fr": "Visualisation 2D du Parcours Laser",

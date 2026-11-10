@@ -21,6 +21,9 @@ PREVIEW_MATERIAL_RGB = (225, 225, 225)
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)
 ENGRAVE_POWER_RANGE = (0, 100)
+CUT_SPEED_RANGE = (10, 5000)
+CUT_POWER_RANGE = (0, 100)
+CUT_PASSES_RANGE = (0, 99)
 
 
 def _clamp(value, bounds):
@@ -295,8 +298,8 @@ class GcodeGenerationMixin:
                             total_len_svg += parse_path(d).length(error=1e-3)
                         except Exception:
                             pass
-                speed_cut = self.spin_speed_cut.value()
-                passes_cut = self.spin_passes_cut.value()
+                speed_cut = self.cut_speed
+                passes_cut = self.cut_passes
                 t = (total_len_svg / max(speed_cut, 1)) * 60.0 * passes_cut
                 total_seconds += t
                 details.append(tr("gcode.svg_details").format(
@@ -397,10 +400,10 @@ class GcodeGenerationMixin:
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
             'power_engrave': self.engrave_power,
-            'enable_cut': self.chk_enable_cut.isChecked(),
-            'speed_cut': self.spin_speed_cut.value(),
-            'power_cut': self.spin_power_cut.value(),
-            'passes_cut': self.spin_passes_cut.value(),
+            'enable_cut': self.cut_enabled,
+            'speed_cut': self.cut_speed,
+            'power_cut': self.cut_power,
+            'passes_cut': self.cut_passes,
             'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
             'algo': self.combo_algo.currentText(),
             's_max': self.spin_smax.value(),
@@ -454,6 +457,17 @@ class GcodeGenerationMixin:
         self.engrave_speed = _clamp(speed, ENGRAVE_SPEED_RANGE)
         self.engrave_power = _clamp(power, ENGRAVE_POWER_RANGE)
 
+    def set_cut_settings(self, speed, power, passes):
+        """Vitesse (mm/min), puissance (%) et passes de la découpe de
+        l'ancien mode SVG.
+
+        Valeurs entières, ramenées dans CUT_SPEED_RANGE, CUT_POWER_RANGE
+        et CUT_PASSES_RANGE.
+        """
+        self.cut_speed = _clamp(speed, CUT_SPEED_RANGE)
+        self.cut_power = _clamp(power, CUT_POWER_RANGE)
+        self.cut_passes = _clamp(passes, CUT_PASSES_RANGE)
+
     def generate_job(self):
         try:
             self._generate_job_impl()
@@ -485,8 +499,8 @@ class GcodeGenerationMixin:
 
         max_speed_limit = self.spin_machine_max_speed.value()
         speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
-        if self.chk_enable_cut.isChecked():
-            speeds_to_check.append((tr("gen.speed_row_cut_old"), self.spin_speed_cut.value()))
+        if self.cut_enabled:
+            speeds_to_check.append((tr("gen.speed_row_cut_old"), self.cut_speed))
         for layer in self.layer_manager.layers:
             if layer.enabled:
                 speeds_to_check.append((tr("gen.speed_row_layer").format(name=layer.name), layer.speed))
@@ -707,9 +721,7 @@ class GcodeGenerationMixin:
                 self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
             else:
                 passes_val = int(col_values[col])
-                self.spin_speed_cut.setValue(speed_val)
-                self.spin_passes_cut.setValue(passes_val)
-                self.spin_power_cut.setValue(round(params.get('single_power', self.spin_power_cut.value())))
+                self.set_cut_settings(speed_val, round(params.get('single_power', self.cut_power)), passes_val)
                 self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
         except Exception:
             pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli

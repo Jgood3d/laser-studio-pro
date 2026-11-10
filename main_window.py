@@ -28,7 +28,6 @@ from matrix_image_mixin import MatrixImageMixin
 from ui_image_tab import ImageTabMixin
 from ui_preview_2d_tab import Preview2DTabMixin
 from ui_job_tabs import JobTabsMixin
-from ui_legacy_svg_box import LegacySvgBoxMixin
 from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
@@ -43,7 +42,7 @@ from separation_mixin import SeparationMixin
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
                        MatrixImageMixin, ImageTabMixin, Preview2DTabMixin, JobTabsMixin,
-                       LegacySvgBoxMixin, MachineProfilesMixin,
+                       MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin, ProjectIOMixin,
                        JobQueueMixin, Png2SvgMixin, SeparationMixin):
@@ -77,6 +76,13 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.engrave_speed = 2000
         self.engrave_power = 30
         self.engrave_layer_id = None
+        # Ancien mode SVG : découpe d'un SVG entier (loaded_svg_path), avec un
+        # seul réglage. Plus accessible depuis l'interface, mais encore lu dans
+        # les anciens projets et les profils matériaux (voir set_cut_settings).
+        self.cut_enabled = False
+        self.cut_speed = 300
+        self.cut_power = 90
+        self.cut_passes = 2
         
         self.process_timer = QTimer()
         self.process_timer.setSingleShot(True)
@@ -124,7 +130,6 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self._build_test_matrix_page()
         self._build_grbl_config_page()
         self._build_layers_tab()
-        self._build_legacy_svg_box()
         self.setStatusBar(StatusBar(self))
 
         self._last_gcode_text = None

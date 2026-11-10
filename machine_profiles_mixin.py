@@ -521,18 +521,16 @@ class MachineProfilesMixin:
         if mat_name in self.materials_db:
             p = self.materials_db[mat_name]
             self.set_engrave_settings(p['sp_e'], p['pw_e'])
-            self.spin_speed_cut.setValue(p['sp_c'])
-            self.spin_power_cut.setValue(p['pw_c'])
-            self.spin_passes_cut.setValue(p['pass_c'])
+            self.set_cut_settings(p['sp_c'], p['pw_c'], p['pass_c'])
 
     def save_material_profile(self):
         mat_name = self.combo_mat.currentText()
         self.materials_db[mat_name] = {
             "sp_e": self.engrave_speed,
             "pw_e": self.engrave_power,
-            "sp_c": self.spin_speed_cut.value(),
-            "pw_c": self.spin_power_cut.value(),
-            "pass_c": self.spin_passes_cut.value()
+            "sp_c": self.cut_speed,
+            "pw_c": self.cut_power,
+            "pass_c": self.cut_passes
         }
         QMessageBox.information(
     self,
@@ -551,9 +549,9 @@ class MachineProfilesMixin:
             self.materials_db[name] = {
                 "sp_e": self.engrave_speed,
                 "pw_e": self.engrave_power,
-                "sp_c": self.spin_speed_cut.value(),
-                "pw_c": self.spin_power_cut.value(),
-                "pass_c": self.spin_passes_cut.value()
+                "sp_c": self.cut_speed,
+                "pw_c": self.cut_power,
+                "pass_c": self.cut_passes
             }
             self.combo_mat.addItem(name)
             self.combo_mat.setCurrentText(name)

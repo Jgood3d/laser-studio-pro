@@ -139,7 +139,6 @@ python main.py
 - `ui_preview_2d_tab.py` — onglet d’aperçu 2D du G-Code
 - `ui_job_tabs.py` — onglets Console / G-Code et File d’attente
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
-- `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)

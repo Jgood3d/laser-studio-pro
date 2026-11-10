@@ -1,5 +1,4 @@
 """Édition des objets vectoriels (texte, formes, SVG) sur le canevas."""
-import os
 from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
 from vector_layers import (
@@ -651,18 +650,6 @@ class VectorEditingMixin:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
         QMessageBox.information(self, tr("box.title"), message)
 
-
-    def load_svg(self):
-        path, _ = QFileDialog.getOpenFileName(
-    self,
-    tr("vector.open_svg_title"),
-    "",
-    tr("vector.svg_filter")
-)
-        if path:
-            self.loaded_svg_path = path
-            self.show_status_message(tr("vector.svg_loaded").format(path=os.path.basename(path)),
-                                     tr("vector.svg_loaded").format(path=path))
 
     # ------------------------------------------------------------------
     # Alignement / distribution multi-objets

@@ -42,10 +42,10 @@ class ProjectIOMixin:
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.engrave_speed,
             "power_engrave": self.engrave_power,
-            "enable_cut": self.chk_enable_cut.isChecked(),
-            "speed_cut": self.spin_speed_cut.value(),
-            "power_cut": self.spin_power_cut.value(),
-            "passes_cut": self.spin_passes_cut.value(),
+            "enable_cut": self.cut_enabled,
+            "speed_cut": self.cut_speed,
+            "power_cut": self.cut_power,
+            "passes_cut": self.cut_passes,
             "materials_db": self.materials_db,
             "raw_image_b64": None,
             "svg_path": self.loaded_svg_path,
@@ -141,11 +141,10 @@ class ProjectIOMixin:
             self.set_engrave_settings(proj_data.get("speed_engrave", 2000),
                                       proj_data.get("power_engrave", 30))
 
-            self.chk_enable_cut.setChecked(proj_data.get("enable_cut", False))
-
-            self.spin_speed_cut.setValue(proj_data.get("speed_cut", 300))
-            self.spin_power_cut.setValue(proj_data.get("power_cut", 90))
-            self.spin_passes_cut.setValue(proj_data.get("passes_cut", 2))
+            self.cut_enabled = bool(proj_data.get("enable_cut", False))
+            self.set_cut_settings(proj_data.get("speed_cut", 300),
+                                  proj_data.get("power_cut", 90),
+                                  proj_data.get("passes_cut", 2))
 
             if "materials_db" in proj_data:
                 self.materials_db = proj_data["materials_db"]
