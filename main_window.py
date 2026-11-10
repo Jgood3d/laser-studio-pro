@@ -18,7 +18,7 @@ from ui.settings.test_matrix import TestMatrixPage
 from ui.statusbar import StatusBar
 from ui.tabs.layers import LayersTab
 
-from usb_controller import LaserUSBController
+from grbl.connection import LaserUSBController
 from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin

@@ -4,7 +4,7 @@ import threading
 import re
 import serial
 
-from simulated_grbl import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
+from grbl.simulator import SIMULATED_PORT, SimulatedGrblSerial, simulation_speed
 from debug_log import get_logger
 
 log = get_logger()

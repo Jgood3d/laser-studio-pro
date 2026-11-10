@@ -1,7 +1,7 @@
 """Fichiers Python de l'application, analysés par les outils et les tests.
 
-Ce sont les fichiers de la racine du projet et ceux du paquet ui/, avec
-ses sous-dossiers. Les autres dossiers (tests, tools, stencil_studio,
+Ce sont les fichiers de la racine du projet et ceux des paquets ui/ et
+grbl/, avec leurs sous-dossiers. Les autres dossiers (tests, tools, stencil_studio,
 .venv...) ne sont pas concernés.
 """
 
@@ -11,7 +11,7 @@ import os
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Paquets de l'application, parcourus avec leurs sous-dossiers.
-PACKAGES = ("ui",)
+PACKAGES = ("ui", "grbl")
 
 
 def python_files(root=ROOT):

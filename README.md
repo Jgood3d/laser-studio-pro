@@ -115,7 +115,7 @@ python main.py
 - `graphics_view.py` — `ZoomableGraphicsView`
 - `vector_font.py` — `VectorFont`
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
-- `usb_controller.py` — `LaserUSBController`
+- `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
 - `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)

@@ -83,7 +83,8 @@ laser-studio-pro/
 ├── app_utils.py
 ├── i18n.py
 ├── debug_log.py / qt_messages.py
-├── simulated_grbl.py / usb_controller.py / workers.py
+├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
+├── workers.py
 ├── graphics_view.py / widgets_extra.py / ui_utils.py
 ├── ui_setup_mixin.py
 ├── ui_window_controller.py / ui_legacy_svg_box.py
@@ -134,7 +135,8 @@ laser-studio-pro/
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |
 | **qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
 | **i18n.py** | Traductions FR / EN / DE / ES (y compris thèmes, nœuds, explode, outils dessin) | Toute l’UI |
-| **simulated_grbl.py** | Port GRBL simulé | `laser_control_mixin` |
+| **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `main_window`, `workers` |
+| **grbl/simulator.py** | `SimulatedGrblSerial` : graveur GRBL 1.1 simulé (`LASER_STUDIO_SIMULATION`), imite la partie de pyserial utilisée | `grbl.connection`, `laser_control_mixin` |
 
 ### 3.2 Fenêtre principale = assemblage de mixins
 
@@ -159,7 +161,7 @@ laser-studio-pro/
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image_filters`, `image_size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
-| **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `usb_controller`, `workers` |
+| **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
 | **project_io_mixin.py** | Projets + autosave | `app_utils` |
 | **job_queue_mixin.py** | File d’attente G-Code | `workers.GCodeStreamerThread` |
 | **png2svg_mixin.py** / **separation_mixin.py** | PNG→SVG et séparation couleur | widgets / engines dédiés |
@@ -225,7 +227,7 @@ main.py
         │         ├─ explode_selected / enter_node_edit
         │         └─ nesting / box_generator
         ├─ GcodeGenerationMixin ──► workers + vector_layers G-Code
-        └─ LaserControlMixin ──► usb_controller / simulated_grbl
+        └─ LaserControlMixin ──► grbl.connection / grbl.simulator
 ```
 
 ---
