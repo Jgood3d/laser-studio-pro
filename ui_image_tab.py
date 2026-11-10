@@ -20,9 +20,9 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QIcon, QKeySequence, QShortcut
-from graphics_view import ZoomableGraphicsView
+from ui.widgets import ZoomableGraphicsView
 from i18n import tr
-from widgets_extra import AutoHideLabel
+from ui.widgets import AutoHideLabel
 
 
 class ImageTabMixin:

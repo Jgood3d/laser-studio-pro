@@ -289,7 +289,7 @@ class ShowWindowTests(unittest.TestCase):
         cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
         # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
         self.main = importlib.import_module("main_window")
-        cls = type("Window", (cls, importlib.import_module("ui_window_controller").WindowControllerMixin),
+        cls = type("Window", (cls, importlib.import_module("ui.app.window_controller").WindowControllerMixin),
                    {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
         if with_pages:
@@ -469,9 +469,9 @@ def load_window_module():
     fake_widgets = types.ModuleType("PyQt6.QtWidgets")
     fake_widgets.QDialog, fake_widgets.QScrollArea, fake_widgets.QVBoxLayout = FakeQt.QDialog, FakeQt.QScrollArea, FakeQt.QVBoxLayout
     with mock.patch.dict(sys.modules, {"PyQt6.QtCore": fake_core, "PyQt6.QtWidgets": fake_widgets}):
-        sys.modules.pop("settings_window", None)
-        module = importlib.import_module("settings_window")
-    sys.modules.pop("settings_window", None)
+        sys.modules.pop("ui.settings.window", None)
+        module = importlib.import_module("ui.settings.window")
+    sys.modules.pop("ui.settings.window", None)
     return module
 
 

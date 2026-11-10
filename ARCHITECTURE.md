@@ -86,7 +86,6 @@ laser-studio-pro/
 ├── debug_log.py / qt_messages.py
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
-├── graphics_view.py / widgets_extra.py / ui_utils.py
 ├── ui_setup_mixin.py
 ├── ui_window_controller.py / ui_legacy_svg_box.py
 ├── ui_image_tab.py / ui_preview_2d_tab.py / ui_job_tabs.py   # onglets
@@ -130,7 +129,7 @@ laser-studio-pro/
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
 | **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `app_theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
-| **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui_window_controller.change_theme` |
+| **app_theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
 | **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
 | **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `job_queue_mixin` |
 | **qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
@@ -207,7 +206,7 @@ Thèmes Studio (`LSP_THEME_*`) alignés sur les palettes LSP.
 
 ### 3.6 Image, machine, build
 
-Inchangé dans l’esprit : `workers.py` (threads), `usb_controller.py`, `settings_window.py`, scripts `build.bat` / `macos/` / `setup.iss`. Voir CHANGELOG pour le détail des versions.
+Inchangé dans l’esprit : `workers.py` (threads), `grbl/`, `ui/settings/window.py`, scripts `build.bat` / `macos/` / `setup.iss`. Voir CHANGELOG pour le détail des versions.
 
 ---
 
@@ -306,7 +305,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui_window_controller.py ui_image_tab.py
+python -m py_compile main.py app_theme.py vector_layers.py ui_setup_mixin.py ui/app/window_controller.py ui_image_tab.py
 ```
 
 ---

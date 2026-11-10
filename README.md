@@ -112,7 +112,6 @@ python main.py
 - `app_constants.py` — valeurs fixes de l’application (liens, adresses)
 
 ### Composants autonomes
-- `graphics_view.py` — `ZoomableGraphicsView`
 - `vector_font.py` — `VectorFont`
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
@@ -120,7 +119,7 @@ python main.py
 - `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
 - `ui_utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
-- `qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
+- `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
 - `image_filters.py` — filtres d’image purs (netteté)
 - `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
@@ -143,7 +142,7 @@ python main.py
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui_legacy_svg_box.py` — ancien mode SVG, conservé pour compatibilité
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
-- `ui_window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
+- `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
@@ -168,7 +167,7 @@ python main.py
 - `separation_mixin.py` — onglet Séparation Couleur / Verre
 - `box_dialog.py` — fenêtre du générateur de boîte
 - `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
-- `settings_window.py` — fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
+- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
 
 ### Qualité
 - `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)

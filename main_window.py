@@ -10,11 +10,11 @@ from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 from i18n import tr
-from settings_window import SettingsWindow
 from ui.machine import MachinePanel
 from ui.settings.machine_params import MachineParamsPage
 from ui.settings.machine_profiles import MachineProfilesPage
 from ui.settings.test_matrix import TestMatrixPage
+from ui.settings.window import SettingsWindow
 from ui.statusbar import StatusBar
 from ui.tabs.layers import LayersTab
 
@@ -22,7 +22,7 @@ from grbl.connection import LaserUSBController
 from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
-from ui_window_controller import WindowControllerMixin
+from ui.app.window_controller import WindowControllerMixin
 from matrix_image_mixin import MatrixImageMixin
 from ui_grbl_config_page import GrblConfigPageMixin
 from ui_image_tab import ImageTabMixin

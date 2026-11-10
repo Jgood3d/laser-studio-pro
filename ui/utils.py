@@ -49,3 +49,18 @@ def tool_button(icon, tooltip, color=None):
 def themed_icon(widget, theme_icon, fallback):
     """Icône du thème du système, sinon icône standard du style Qt."""
     return QIcon.fromTheme(theme_icon, widget.style().standardIcon(fallback))
+
+
+def scaled_to_width_hidpi(pixmap, width, ratio):
+    """Réduit `pixmap` pour l'afficher sur `width` pixels logiques, net sur
+    un écran à l'échelle `ratio` (2.0 pour un écran haute résolution réglé
+    à 200 %).
+
+    Réduire à `width` pixels réels puis laisser Qt agrandir l'image ×ratio
+    à l'affichage la rendrait floue : elle est donc réduite à width × ratio
+    pixels réels, marqués comme tels."""
+    ratio = max(1.0, ratio)
+    scaled = pixmap.scaledToWidth(
+        round(width * ratio), Qt.TransformationMode.SmoothTransformation)
+    scaled.setDevicePixelRatio(ratio)
+    return scaled

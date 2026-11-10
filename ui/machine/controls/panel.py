@@ -19,7 +19,7 @@ from app_constants import (
     JOG_STEPS_MM,
 )
 from i18n import tr
-from ui_utils import painted_icon, themed_icon, tool_button
+from ui.utils import painted_icon, themed_icon, tool_button
 
 # Flèches : (ligne, colonne, dx, dy, angle de la flèche en degrés), avec
 # 0 degré vers le haut. Le homing occupe le centre (ligne 1, colonne 1).

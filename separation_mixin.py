@@ -22,7 +22,7 @@ from PyQt6.QtWidgets import (
 
 import separation_engine as engine
 from workers import AdvancedGCodeWorker, build_gain_test_array
-from graphics_view import ZoomableGraphicsView
+from ui.widgets import ZoomableGraphicsView
 from i18n import tr
 
 _IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")

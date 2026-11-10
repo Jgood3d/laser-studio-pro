@@ -4,7 +4,7 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton
 
 from i18n import tr
-from widgets_extra import HistoryLineEdit
+from ui.widgets import HistoryLineEdit
 
 
 class DirectConsolePanel(QGroupBox):

@@ -5,7 +5,7 @@ from PyQt6.QtGui import QIcon, QPen, QPolygonF
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QStyle
 
 from i18n import tr
-from ui_utils import painted_icon, themed_icon, tool_button
+from ui.utils import painted_icon, themed_icon, tool_button
 
 
 class JobActionsPanel(QGroupBox):
