@@ -162,7 +162,7 @@ class ProjectIOMixin:
 
             if "layers" in proj_data:
                 self.layer_manager.load_list(proj_data["layers"])
-                self.layer_widget.refresh()
+                self.layers_tab.refresh()
             if hasattr(self, "vector_canvas"):
                 self.vector_canvas.load_objects(proj_data.get("vector_objects"))
                 self.update_vector_work_area()
