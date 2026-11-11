@@ -9,12 +9,12 @@ contrôleur, séparé de la fenêtre.
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QSettings, Qt, QTimer
-from i18n import set_language, tr
+from laser_studio.i18n import set_language, tr
+from laser_studio.ui.about import AboutDialog
+from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
+from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from laser_studio.ui.support import SupportDialog
 from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
-from ui.about import AboutDialog
-from ui.app.menu import AppActions, AppMenuBar, AppToolBar
-from ui.buy_me_a_coffee import BuyMeACoffeeDialog
-from ui.support import SupportDialog
 
 
 class WindowControllerMixin:
@@ -23,7 +23,7 @@ class WindowControllerMixin:
 
         Codes possibles : dark, light, dusk, warm.
         """
-        from ui.app.theme import apply_app_theme, normalize_theme_name
+        from laser_studio.ui.app.theme import apply_app_theme, normalize_theme_name
 
         theme_name = normalize_theme_name(theme_name)
         app = QApplication.instance()
