@@ -151,6 +151,7 @@ python main.py
 - `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
 - `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère), dans le panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
+- `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…) ; le suivi du G-Code envoyé est `SentGcodeLog`
@@ -160,7 +161,7 @@ python main.py
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
 - `controllers/` — contrôleurs, objets Python ordinaires qui remplacent peu à peu les mixins : `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `machine_profiles.py` (`MachineProfilesController` : profils machine, leurs actions et la mémoire continue des calques ; chaque page fournit ses champs par `profile_values()` / `apply_profile_values()`), `layer_memory.py` (mémoire des calques par machine : réglages des calques enregistrés dans chaque profil et réappliqués, sans Qt), `materials.py` (`MaterialsController` : profils matériaux, et la liste par défaut `DEFAULT_MATERIALS_DB`), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par la fenêtre, `_capture_project` / `_restore_project`)
-- `separation_mixin.py` — onglet Séparation Couleur / Verre
+- `separation_mixin.py` — logique de l’onglet Séparation Couleur / Verre : tonalité envoyée à « Graver une image », calque couleur, aperçus, export, test du gain
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
 - `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)

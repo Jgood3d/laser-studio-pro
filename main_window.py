@@ -24,6 +24,7 @@ from ui.tabs.job_queue import JobQueueTab
 from ui.tabs.layers import LayersTab
 from ui.tabs.png2svg import Png2SvgTab
 from ui.tabs.preview_2d import Preview2DTab
+from ui.tabs.separation import SeparationTab
 from ui.widgets import FullscreenWindow
 
 from controllers.job_queue import Engraver, JobQueueController
@@ -158,7 +159,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self._build_png2svg_tab()
 
         # --- ONGLET SÉPARATION COULEUR ---
-        self.main_tabs_view.addTab(self._init_separation_tab(), tr("sep.tab_title"))
+        self._build_separation_tab()
 
         self._build_vector_editor_tab()
         self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))
@@ -492,6 +493,38 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         self.png2svg_widget = tab.converter
         self.main_tabs_view.addTab(tab, tr("png2svg.tab_title"))
         self.tab_png2svg = tab
+
+    def _build_separation_tab(self):
+        """Onglet « Séparation Couleur / Verre », abonné à sa logique
+        (SeparationMixin). Masqué au démarrage, ouvert depuis le menu Outils.
+        """
+        self._init_separation_state()
+        tab = SeparationTab()
+        tab.load_requested.connect(self.separation_load_image)
+        tab.image_dropped.connect(self.separation_load_path)
+        tab.tone_changed.connect(self._sep_schedule_push)
+        tab.preview_changed.connect(self._sep_schedule_preview)
+        tab.gain_test_requested.connect(self.separation_gain_test)
+        tab.export_requested.connect(self.separation_export)
+        tab.preview_tab_changed.connect(lambda _index: self._sep_render_current())
+        tab.fullscreen_requested.connect(
+            lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
+        # Noms historiques, lus par la logique de la séparation.
+        self.sep_w = tab.plate_width_spin
+        self.sep_h = tab.plate_height_spin
+        self.sep_dp = tab.print_dpi_spin
+        self.sep_gain = tab.gain_slider
+        self.sep_sat = tab.saturation_slider
+        self.sep_cla = tab.lightness_slider
+        self.sep_mir_print = tab.mirror_print_check
+        self.sep_dif = tab.diffusion_slider
+        self.sep_int = tab.intensity_slider
+        self.sep_lbl_file = tab.file_label
+        self.sep_tabs = tab.preview_tabs
+        self.sep_views = tab.preview_views
+        self.tab_separation = tab
+        self._sep_update_dpi_label()
+        self.main_tabs_view.addTab(tab, tr("sep.tab_title"))
 
     def _build_2d_preview_tab(self):
         """Onglet « Visualisation 2D G-Code », abonné à la génération.

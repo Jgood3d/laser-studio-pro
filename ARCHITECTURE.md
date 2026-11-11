@@ -36,7 +36,7 @@ main.py
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
         ├─ GcodeGenerationMixin  (gcode_generation_mixin.py)
         ├─ LaserControlMixin     (laser_control_mixin.py)
-        └─ SeparationMixin       (separation_mixin.py)
+        └─ SeparationMixin       (separation_mixin.py)  logique de la séparation (vue : ui/tabs/separation/)
         │
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
         │  qui reçoivent ce dont ils ont besoin :
@@ -106,6 +106,7 @@ laser-studio-pro/
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
 ├── ui/tabs/image/                    # onglet Graver une image (ImageTab, ImageSettingsPanel, MaterialComboBox, ResolutionBox)
 ├── ui/machine/job_position/          # cadre Position du job (JobPositionBox)
+├── ui/tabs/separation/               # onglet Séparation Couleur / Verre (SeparationTab)
 ├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
 ├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
 ├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
@@ -178,7 +179,7 @@ laser-studio-pro/
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
-| **separation_mixin.py** | Séparation couleur | widgets / engines dédiés |
+| **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
 
 ### 3.3 Vectoriel (cœur édition)
 

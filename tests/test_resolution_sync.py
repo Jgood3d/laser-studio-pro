@@ -13,6 +13,15 @@ except ImportError:
     ImageProcessingMixin = None
 
 
+class SeparationTabStub:
+    """Faux SeparationTab : retient la résolution de gravure affichée."""
+
+    dpi = None
+
+    def set_engrave_dpi(self, dpi):
+        self.dpi = dpi
+
+
 class Spin:
     def __init__(self, value=0.0, lo=1.0, hi=50.0):
         self._v, self._lo, self._hi = value, lo, hi
@@ -68,14 +77,14 @@ class ResolutionSyncTests(unittest.TestCase):
         f.stack_lmm_input = Stack()
         f.lbl_focal_info = Label()
         if with_separation:
-            f.sep_lbl_dpi = Label()
+            f.tab_separation = SeparationTabStub()
             f.sep_src = object() if image_loaded else None
             f._sep_update_dpi_label()              # libellé construit au démarrage : 254 DPI
         return f
 
     @staticmethod
     def shown_dpi(f):
-        return int(f.sep_lbl_dpi.text.split(":")[1].split("DPI")[0])
+        return f.tab_separation.dpi
 
     def test_label_starts_at_the_default(self):
         self.assertEqual(self.shown_dpi(self.make()), 254)

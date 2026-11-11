@@ -149,7 +149,7 @@ class ImageProcessingMixin:
         défaut (254 DPI), en désaccord avec le champ DPI d'ici.
         Appelée depuis _update_resolution_quality, point central de tous les
         changements de résolution."""
-        if hasattr(self, "sep_lbl_dpi") and hasattr(self, "_sep_update_dpi_label"):
+        if hasattr(self, "tab_separation") and hasattr(self, "_sep_update_dpi_label"):
             self._sep_update_dpi_label()
         # Une image est chargée côté Séparation : sa tonalité est cadrée à une
         # densité de pixels qui dépend de la résolution de gravure — on la renvoie.

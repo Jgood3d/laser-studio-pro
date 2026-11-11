@@ -14,57 +14,26 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QImage
-from PyQt6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QDoubleSpinBox, QFileDialog, QFormLayout,
-    QGroupBox, QHBoxLayout, QLabel, QMessageBox, QPushButton, QScrollArea,
-    QSlider, QSpinBox, QTabWidget, QVBoxLayout, QWidget,
-)
+from PyQt6.QtWidgets import QApplication, QFileDialog, QMessageBox
 
 from image import separation as engine
 from workers import AdvancedGCodeWorker, build_gain_test_array
-from ui.widgets import TabToolBar, ZoomableGraphicsView
 from i18n import tr
-
-_IMG_EXT = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
-
-
-class _SeparationRoot(QWidget):
-    """Conteneur de l'onglet, qui accepte le glisser-déposer d'une image."""
-
-    def __init__(self, on_drop):
-        super().__init__()
-        self._on_drop = on_drop
-        self.setAcceptDrops(True)
-
-    def dragEnterEvent(self, e):
-        if e.mimeData().hasUrls():
-            e.acceptProposedAction()
-
-    def dropEvent(self, e):
-        for url in e.mimeData().urls():
-            p = url.toLocalFile()
-            if p.lower().endswith(_IMG_EXT):
-                e.acceptProposedAction()
-                self._on_drop(p)
-                return
-
 
 class SeparationMixin:
     # Mettre à False une fois le diagnostic de lenteur terminé.
     SEP_DEBUG = True
 
-    # (saturation %, clarté %, diffusion en 1/100 mm) - à calibrer à l'œil
-    SEP_SUPPORTS = {0: (140, 100, 15), 1: (170, 90, 60)}
-
     # ------------------------------------------------------------------
     # Construction
     # ------------------------------------------------------------------
-    def _init_separation_tab(self):
+    def _init_separation_state(self):
+        """État et minuteurs de l'onglet Séparation (la vue, SeparationTab,
+        est construite et branchée par main_window._build_separation_tab)."""
         self.sep_src = None          # image couleur complète (RGB)
         self.sep_src_small = None    # miniature pour les aperçus
         self.sep_path = ""
         self.sep_dirty = False
-        self._sep_block = False      # évite les boucles entre largeur et hauteur
         self.sep_version = 0         # incrémenté à chaque nouvelle image (invalide le cache)
         self._sep_cache = None       # calque couleur mis en cache (voir _sep_color_data)
         self._sep_stale = set()      # aperçus à recalculer (seul l'onglet affiché l'est vraiment)
@@ -83,237 +52,13 @@ class SeparationMixin:
         self.sep_preview_timer.setInterval(250)
         self.sep_preview_timer.timeout.connect(self.separation_refresh_preview)
 
-        root = _SeparationRoot(self.separation_load_path)
-        self.tab_separation = root
-        outer = QVBoxLayout(root)
-        outer.setContentsMargins(4, 4, 4, 4)
-
-        toolbar = TabToolBar(root)
-        toolbar.fullscreen_requested.connect(
-            lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
-        root._fullscreen_control = toolbar.fullscreen_action
-        outer.addWidget(toolbar)
-
-        body = QHBoxLayout()
-        outer.addLayout(body, 1)
-
-        panel = QWidget()
-        pl = QVBoxLayout(panel)
-
-        btn_load = QPushButton(tr("sep.load_image_btn"))
-        btn_load.clicked.connect(self.separation_load_image)
-        pl.addWidget(btn_load)
-        hint = QLabel(tr("sep.drag_drop_hint"))
-        hint.setStyleSheet("color: #888888;")
-        pl.addWidget(hint)
-        self.sep_lbl_file = QLabel(tr("sep.no_image_loaded"))
-        self.sep_lbl_file.setWordWrap(True)
-        pl.addWidget(self.sep_lbl_file)
-
-        # --- Plaque de verre ---
-        gb = QGroupBox(tr("sep.plate_title"))
-        f = QFormLayout(gb)
-        self.sep_w = QDoubleSpinBox(); self.sep_w.setRange(5, 2000); self.sep_w.setValue(150)
-        self.sep_h = QDoubleSpinBox(); self.sep_h.setRange(5, 2000); self.sep_h.setValue(100)
-        self.sep_dp = QSpinBox(); self.sep_dp.setRange(72, 1200); self.sep_dp.setValue(300)
-        self.sep_framing = QComboBox()
-        self.sep_framing.addItems([tr("sep.crop_fit"), tr("sep.stretch")])
-        self.sep_keep_ratio = QCheckBox(tr("sep.keep_ratio"))
-        self.sep_keep_ratio.setChecked(True)
-        self.sep_w.valueChanged.connect(lambda _v: self._sep_on_plate_changed("w"))
-        self.sep_h.valueChanged.connect(lambda _v: self._sep_on_plate_changed("h"))
-        self.sep_keep_ratio.toggled.connect(self._sep_on_keep_ratio)
-        self.sep_framing.currentIndexChanged.connect(self._sep_on_framing_changed)
-        f.addRow(self.sep_keep_ratio)
-        f.addRow(tr("sep.width"), self.sep_w)
-        f.addRow(tr("sep.height"), self.sep_h)
-        f.addRow(tr("sep.print_dpi"), self.sep_dp)
-        f.addRow(tr("sep.framing"), self.sep_framing)
-        self.sep_lbl_dpi = QLabel()
-        self.sep_lbl_dpi.setWordWrap(True)
-        f.addRow(self.sep_lbl_dpi)
-        note = QLabel(tr("sep.sync_note"))
-        note.setWordWrap(True)
-        note.setStyleSheet("color: #888888;")
-        f.addRow(note)
-        pl.addWidget(gb)
-
-        # --- Recadrage (plaque aux proportions libres) ---
-        gb = QGroupBox(tr("sep.crop_title"))
-        self.sep_crop_box = gb
-        f = QFormLayout(gb)
-        crop_hint = QLabel(tr("sep.crop_hint"))
-        crop_hint.setWordWrap(True)
-        crop_hint.setStyleSheet("color: #888888;")
-        f.addRow(crop_hint)
-        self.sep_crop_zoom = self._sep_slider(f, "sep.crop_zoom", 100, 400, 100,
-                                              lambda v: f"{v} %", self._sep_on_crop_changed)
-        self.sep_crop_x = self._sep_slider(f, "sep.crop_x", 0, 100, 50,
-                                           lambda v: f"{v} %", self._sep_on_crop_changed)
-        self.sep_crop_y = self._sep_slider(f, "sep.crop_y", 0, 100, 50,
-                                           lambda v: f"{v} %", self._sep_on_crop_changed)
-        btn_reset = QPushButton(tr("sep.crop_reset"))
-        btn_reset.clicked.connect(self._sep_reset_crop)
-        f.addRow(btn_reset)
-        pl.addWidget(gb)
-        self._sep_update_crop_enabled()
-
-        # --- Calque noir ---
-        gb = QGroupBox(tr("sep.black_layer_title"))
-        f = QFormLayout(gb)
-        info = QLabel(tr("sep.black_info"))
-        info.setWordWrap(True)
-        info.setStyleSheet("color: #888888;")
-        f.addRow(info)
-        self.sep_gain = self._sep_slider(f, "sep.gain", 0, 20, 0, lambda v: f"{v}",
-                                         self._sep_schedule_push, "sep.gain_tip")
-        btn_gain_test = QPushButton(tr("sep.gain_test_btn"))
-        btn_gain_test.setToolTip(tr("sep.gain_test_tip"))
-        btn_gain_test.clicked.connect(self.separation_gain_test)
-        f.addRow(btn_gain_test)
-        pl.addWidget(gb)
-
-        # --- Calque couleur ---
-        gb = QGroupBox(tr("sep.color_layer_title"))
-        f = QFormLayout(gb)
-        self.sep_support = QComboBox()
-        self.sep_support.addItems([tr("sep.transparent_film"), tr("sep.tracing_paper"), tr("sep.custom")])
-        self.sep_support.activated.connect(self._sep_apply_support)
-        f.addRow(tr("sep.support_medium"), self.sep_support)
-        self.sep_sat = self._sep_slider(f, "sep.saturation", 50, 300, 140,
-                                        lambda v: f"{v / 100:.2f}", self._sep_schedule_preview)
-        self.sep_cla = self._sep_slider(f, "sep.lightness", 40, 100, 100,
-                                        lambda v: f"{v / 100:.2f}", self._sep_schedule_preview)
-        self.sep_mir_print = QCheckBox(tr("sep.mirror_print"))
-        self.sep_mir_print.setToolTip(tr("sep.mirror_print_tip"))
-        self.sep_mir_print.toggled.connect(self._sep_schedule_preview)
-        f.addRow(self.sep_mir_print)
-        pl.addWidget(gb)
-
-        # --- Simulation ---
-        gb = QGroupBox(tr("sep.backlight_title"))
-        f = QFormLayout(gb)
-        self.sep_dif = self._sep_slider(f, "sep.light_diffusion", 0, 100, 15,
-                                        lambda v: f"{v / 100:.2f}", self._sep_schedule_preview)
-        self.sep_int = self._sep_slider(f, "sep.backlight_intensity", 50, 300, 100,
-                                        lambda v: f"{v / 100:.2f}", self._sep_schedule_preview)
-        pl.addWidget(gb)
-
-        btn_export = QPushButton(tr("sep.export_btn"))
-        btn_export.clicked.connect(self.separation_export)
-        pl.addWidget(btn_export)
-        tip = QLabel(tr("sep.tip"))
-        tip.setWordWrap(True)
-        tip.setStyleSheet("color: #888888;")
-        pl.addWidget(tip)
-        pl.addStretch(1)
-
-        scroll = QScrollArea()
-        scroll.setWidget(panel)
-        scroll.setWidgetResizable(True)
-        scroll.setFixedWidth(360)
-        body.addWidget(scroll)
-
-        # --- Aperçus ---
-        self.sep_tabs = QTabWidget()
-        self.sep_views = []
-        for key in ("sep.tab_original", "sep.tab_engraving", "sep.tab_print", "sep.tab_simulation"):
-            v = ZoomableGraphicsView()
-            self.sep_views.append(v)
-            self.sep_tabs.addTab(v, tr(key))
-        self.sep_tabs.setCurrentIndex(3)
-        self.sep_tabs.currentChanged.connect(lambda _i: self._sep_render_current())
-        body.addWidget(self.sep_tabs, 1)
-
-        self._sep_update_dpi_label()
-        return root
-
-    def _sep_slider(self, form, label_key, lo, hi, val, fmt, on_change, tip_key=None):
-        s = QSlider(Qt.Orientation.Horizontal)
-        s.setRange(lo, hi)
-        s.setValue(val)
-        lab = QLabel(fmt(val))
-        lab.setMinimumWidth(42)
-        s.valueChanged.connect(lambda v: (lab.setText(fmt(v)), on_change()))
-        row = QHBoxLayout()
-        row.addWidget(s, 1)
-        row.addWidget(lab)
-        form.addRow(tr(label_key), row)
-        if tip_key:
-            s.setToolTip(tr(tip_key))
-        return s
-
-    def _sep_apply_support(self, i):
-        if i in self.SEP_SUPPORTS:
-            sat, cla, dif = self.SEP_SUPPORTS[i]
-            self.sep_sat.setValue(sat)
-            self.sep_cla.setValue(cla)
-            self.sep_dif.setValue(dif)
-
-    # --- Proportions et recadrage ---
-    def _sep_frame_args(self):
-        """(cadrage, zoom, ox, oy) réellement appliqués. Avec les proportions de
-        l'image conservées, ou en mode « étirer », zoom et décalage sont ignorés."""
-        fr = self.sep_framing.currentIndex()
-        if self.sep_keep_ratio.isChecked() or fr != 0:
-            return (fr if not self.sep_keep_ratio.isChecked() else 0, 1.0, 0.5, 0.5)
-        return (0, self.sep_crop_zoom.value() / 100.0,
-                self.sep_crop_x.value() / 100.0, self.sep_crop_y.value() / 100.0)
-
-    def _sep_apply_ratio(self, driver="w"):
-        """Recalcule la hauteur (driver='w') ou la largeur (driver='h') pour
-        respecter les proportions de l'image chargée."""
-        if self.sep_src is None:
-            return
-        ratio = self.sep_src.width / self.sep_src.height
-        self._sep_block = True
-        try:
-            if driver == "w":
-                self.sep_h.setValue(self.sep_w.value() / ratio)
-            else:
-                self.sep_w.setValue(self.sep_h.value() * ratio)
-        finally:
-            self._sep_block = False
-
-    def _sep_on_plate_changed(self, which):
-        if self._sep_block:
-            return
-        if self.sep_keep_ratio.isChecked():
-            self._sep_apply_ratio(which)
-        self._sep_schedule_push()
-        self._sep_schedule_preview()
-
-    def _sep_on_keep_ratio(self, checked):
-        if checked:
-            self._sep_apply_ratio("w")
-        self._sep_update_crop_enabled()
-        self._sep_schedule_push()
-        self._sep_schedule_preview()
-
-    def _sep_on_framing_changed(self, *_a):
-        self._sep_update_crop_enabled()
-        self._sep_schedule_push()
-        self._sep_schedule_preview()
-
-    def _sep_update_crop_enabled(self):
-        libre = not self.sep_keep_ratio.isChecked()
-        self.sep_framing.setEnabled(libre)
-        self.sep_crop_box.setEnabled(libre and self.sep_framing.currentIndex() == 0)
-
-    def _sep_on_crop_changed(self):
-        self._sep_schedule_push()
-        self._sep_schedule_preview()
-
-    def _sep_reset_crop(self):
-        for sl, v in ((self.sep_crop_zoom, 100), (self.sep_crop_x, 50), (self.sep_crop_y, 50)):
-            sl.setValue(v)
 
     def _sep_original_with_crop(self):
         """Image source entière ; hors de la zone gravée, elle est assombrie et
         la zone est cernée d'un cadre rouge."""
         prev = self.sep_src_small.copy()
         prev.thumbnail((self.PREVIEW_MAX, self.PREVIEW_MAX))
-        fr, z, ox, oy = self._sep_frame_args()
+        fr, z, ox, oy = self.tab_separation.frame_args()
         if fr != 0:
             return prev
         box = engine.boite_recadrage(prev.width, prev.height,
@@ -333,8 +78,7 @@ class SeparationMixin:
         self.sep_preview_timer.start()
 
     def _sep_update_dpi_label(self):
-        dpi = round(self.spin_lmm.value() * 25.4)
-        self.sep_lbl_dpi.setText(tr("sep.engrave_dpi").format(dpi=dpi))
+        self.tab_separation.set_engrave_dpi(round(self.spin_lmm.value() * 25.4))
 
     # ------------------------------------------------------------------
     # Chargement de l'image et envoi de la tonalité à Image & Filtres
@@ -366,8 +110,8 @@ class SeparationMixin:
         # (matière « fond noir » => négatif) et on grave en miroir. Modifiable
         # ensuite dans Image & Filtres.
         self._sep_apply_glass_settings()
-        if self.sep_keep_ratio.isChecked():
-            self._sep_apply_ratio("w")
+        self.tab_separation.set_image_ratio(self.sep_src.width / self.sep_src.height)
+        self.tab_separation.fit_plate_to_image()
         self.separation_push_tone()
         self.update_image_actions_state()
 
@@ -381,13 +125,8 @@ class SeparationMixin:
         small.thumbnail((2500, 2500))
         self.sep_src_small = small
         self.sep_version += 1
-        self._sep_block = True
-        try:
-            w_mm, h_mm = self.sep_w.value(), self.sep_h.value()
-            self.sep_w.setValue(h_mm)
-            self.sep_h.setValue(w_mm)
-        finally:
-            self._sep_block = False
+        self.tab_separation.set_image_ratio(self.sep_src.width / self.sep_src.height)
+        self.tab_separation.swap_plate_size()
         self.separation_push_tone()
 
     def separation_clear_image(self):
@@ -405,6 +144,7 @@ class SeparationMixin:
         for view in self.sep_views:
             view.clear_image()
         self._sep_view_sizes = {}
+        self.tab_separation.set_image_ratio(None)
         self.update_image_actions_state()
 
     def _sep_apply_glass_settings(self):
@@ -449,7 +189,7 @@ class SeparationMixin:
         # px/mm : au moins la résolution de gravure, ~2000 px minimum, 6000 px maximum
         scale = min(max(self.spin_lmm.value(), 2000.0 / longest), 6000.0 / longest)
         framed = engine.cadrer(self.sep_src, round(w_mm * scale), round(h_mm * scale),
-                               *self._sep_frame_args())
+                               *self.tab_separation.frame_args())
         tone = engine.tonalite_v(np.asarray(framed))
         tone = engine.compenser_gain_point(tone, self.sep_gain.value() / 100.0)
         self.raw_image = Image.fromarray((tone * 255 + 0.5).astype(np.uint8))
@@ -509,11 +249,11 @@ class SeparationMixin:
         """Calque couleur de l'aperçu, mis en cache : il ne dépend ni du tramage
         ni des réglages d'Image & Filtres, seulement de l'image, du cadrage, de
         la saturation et de la clarté."""
-        key = (self.sep_version, pw, ph, self._sep_frame_args(),
+        key = (self.sep_version, pw, ph, self.tab_separation.frame_args(),
                self.sep_sat.value(), self.sep_cla.value())
         c = self._sep_cache
         if c is None or c["key"] != key:
-            img = engine.cadrer(self.sep_src_small, pw, ph, *self._sep_frame_args())
+            img = engine.cadrer(self.sep_src_small, pw, ph, *self.tab_separation.frame_args())
             couleur = engine.calculer_calque_couleur(
                 np.asarray(img), self.sep_sat.value() / 100.0, self.sep_cla.value() / 100.0)
             c = {"key": key, "img": img, "couleur": couleur,
@@ -655,7 +395,7 @@ class SeparationMixin:
 
             # Calque couleur : même taille physique, à la résolution d'impression
             img_p = engine.cadrer(self.sep_src, round(w_mm / 25.4 * dpi_p), round(h_mm / 25.4 * dpi_p),
-                                  *self._sep_frame_args())
+                                  *self.tab_separation.frame_args())
             couleur = engine.array_vers_image(engine.calculer_calque_couleur(
                 np.asarray(img_p), self.sep_sat.value() / 100.0, self.sep_cla.value() / 100.0))
             if self.sep_mir_print.isChecked():
