@@ -124,7 +124,7 @@ laser-studio-pro/
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, nesting, nesting_apply, importers
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -188,7 +188,7 @@ laser-studio-pro/
 | **vector_layers.py** | Calques (`LayerManager`), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** | Éditeur, G-Code, profils |
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
-| **vector/box_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, imbrication des pièces | `vector_editing_mixin`, `ui/dialogs` |
+| **vector/box_generator.py** / **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
 
 #### Capacités du canevas (`VectorCanvasView`)
 
@@ -241,7 +241,7 @@ main.py
         │         ├─ import SVG/DXF (groupé)
         │         ├─ set_vector_draw_tool (line/rect/ellipse)
         │         ├─ explode_selected / enter_node_edit
-        │         └─ nesting / box_generator
+        │         └─ nesting / box_generator / puzzle_generator
         ├─ GcodeGenerationMixin ──► workers + vector_layers G-Code
         └─ LaserControlMixin ──► grbl.connection / grbl.simulator
 ```
@@ -309,14 +309,38 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 
 | Fichier | Rôle |
 |---------|------|
-| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée |
-| **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme) |
+| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée ; validation ; **kerf** (rétrécit chaque pièce de kerf/2) |
+| **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme, calque de découpe) |
 | **vector/importers.puzzle_to_objects** | Pièces → `SvgPathObject` |
 | **vector_editing_mixin.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
-| **main_window._build_vector_editor_tab** | Bouton toolbar |
+| **main_window._build_vector_editor_tab** | Bouton toolbar « 🧩 Puzzle » |
+| **i18n/translations.py** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
 
-Flux : bouton éditeur / menu Outils → `open_puzzle_generator` → dialogue →
-`vector.puzzle_generator.build_puzzle` → `puzzle_to_objects` → `vector_canvas`.
+Flux :
+
+```
+Bouton éditeur / menu Outils
+  → open_puzzle_generator()
+      → PuzzleGeneratorDialog
+      → vector.puzzle_generator.build_puzzle(params)   # validate + kerf
+      → vector.importers.puzzle_to_objects(...)
+      → vector_canvas.add_object(...) + push_undo_snapshot()
+```
+
+Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de découpe, undo canevas).
+`PuzzleError` → message traduit `puzzle.err.<code>`.
+
+## 8.1 Stencil Studio → calques multiples (lsp_bridge)
+
+Export Studio vers LSP : routage par nom de calque DXF / groupe SVG
+
+| Nom export | Calque LSP |
+|------------|------------|
+| CUT / FRAME | Découpe (existant ou créé) |
+| ENGRAVE / MARK | Gravure / Marquage |
+| LAYER_n | Calque dédié « LAYER n » (créé si besoin), mode Découpe, réglages repris du premier calque découpe (+ focale si liée) |
+
+Fichier : **stencil_studio/lsp_bridge.py** (`ensure_multi_layer`, `kind_for_layer_name`, `pick_layer`).
 
 ## 9. Commandes utiles
 

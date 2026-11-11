@@ -683,6 +683,18 @@ class VectorEditingMixin:
         try:
             params = dialog.params()
             result = puzzle_generator.build_puzzle(params)
+        except puzzle_generator.PuzzleError as e:
+            key = f"puzzle.err.{e.code}"
+            text = tr(key)
+            if text == key:
+                text = tr("puzzle.error") + f" ({e.code})"
+            else:
+                try:
+                    text = text.format(**e.info)
+                except Exception:
+                    pass
+            QMessageBox.warning(self, tr("puzzle.title"), text)
+            return
         except Exception as e:
             QMessageBox.warning(self, tr("puzzle.error"), str(e))
             return
