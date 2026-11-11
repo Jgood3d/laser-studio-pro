@@ -11,6 +11,15 @@ from typing import List, Sequence, Tuple
 Point = Tuple[float, float]
 
 
+class PuzzleError(ValueError):
+    """Paramètres de puzzle invalides (message prêt à afficher)."""
+
+    def __init__(self, code, **info):
+        super().__init__(code)
+        self.code = code
+        self.info = info
+
+
 class PuzzlePiece:
     def __init__(self, col: int, row: int, points: List[Point]):
         self.id = (col, row)
@@ -72,7 +81,114 @@ class PuzzleParams:
         self.head_bulge = 1.0 / max(0.3, self.neck_width)
 
 
+def validate_params(params: PuzzleParams):
+    """Vérifie les dimensions et la taille des tenons ; lève PuzzleError si invalide."""
+    if params.width <= 0 or params.height <= 0:
+        raise PuzzleError("size", width=params.width, height=params.height)
+    if params.nx < 1 or params.ny < 1:
+        raise PuzzleError("grid", nx=params.nx, ny=params.ny)
+    if params.kerf < 0:
+        raise PuzzleError("kerf", value=params.kerf)
+    piece_w = params.width / params.nx
+    piece_h = params.height / params.ny
+    # profondeur max ~ 34 % du côté (voir generate_jigsaw_edge) ; garder une marge
+    max_depth_ratio = 0.34
+    min_side = min(piece_w, piece_h)
+    if min_side < 3.0:
+        raise PuzzleError("piece_too_small", side=min_side, minimum=3.0)
+    tab_mm = params.tab_depth * min_side  # approx si depth est relatif au côté
+    # tab_depth est déjà un ratio dans generate_jigsaw_edge (depth = length * tab_depth)
+    if params.tab_depth > 0.40:
+        raise PuzzleError("tab_too_deep", value=params.tab_depth, maximum=0.40)
+    if params.tab_span < 0.15 or params.tab_span > 0.55:
+        raise PuzzleError("tab_span", value=params.tab_span)
+    if not (0.25 <= params.neck_width <= 0.70):
+        raise PuzzleError("neck_width", value=params.neck_width)
+    # kerf ne doit pas manger toute la pièce
+    if params.kerf > 0 and params.kerf >= min_side * 0.25:
+        raise PuzzleError("kerf_too_large", value=params.kerf, side=min_side)
+    return piece_w, piece_h
+
+
+def _close_contour(pts: List[Point]) -> List[Point]:
+    """Assure un contour fermé (dernier point = premier)."""
+    if len(pts) < 3:
+        return pts
+    x0, y0 = pts[0]
+    x1, y1 = pts[-1]
+    if abs(x0 - x1) > 1e-9 or abs(y0 - y1) > 1e-9:
+        return list(pts) + [(x0, y0)]
+    return list(pts)
+
+
+def _polygon_area(pts: Sequence[Point]) -> float:
+    s = 0.0
+    n = len(pts)
+    if n < 3:
+        return 0.0
+    # ignorer le doublon de fermeture éventuel
+    m = n - 1 if abs(pts[0][0] - pts[-1][0]) < 1e-12 and abs(pts[0][1] - pts[-1][1]) < 1e-12 else n
+    for i in range(m):
+        x0, y0 = pts[i]
+        x1, y1 = pts[(i + 1) % m]
+        s += x0 * y1 - x1 * y0
+    return 0.5 * s
+
+
+def offset_closed_polygon(pts: Sequence[Point], delta: float) -> List[Point]:
+    """Décale un polygone fermé de `delta` mm (positif = extérieur si CCW).
+
+    Utilise la normale moyenne aux sommets. Pour le kerf laser on appellera
+    avec delta négatif (rétrécir chaque pièce d'environ kerf/2).
+    """
+    if abs(delta) < 1e-12 or len(pts) < 3:
+        return list(pts)
+    # Retirer le point de fermeture dupliqué pour le calcul
+    work = list(pts)
+    if abs(work[0][0] - work[-1][0]) < 1e-12 and abs(work[0][1] - work[-1][1]) < 1e-12:
+        work = work[:-1]
+    n = len(work)
+    if n < 3:
+        return list(pts)
+    # Sens : CCW → normale gauche = extérieur
+    area = _polygon_area(work)
+    sign = 1.0 if area >= 0 else -1.0
+    out = []
+    for i in range(n):
+        p_prev = work[i - 1]
+        p = work[i]
+        p_next = work[(i + 1) % n]
+        e1x, e1y = p[0] - p_prev[0], p[1] - p_prev[1]
+        e2x, e2y = p_next[0] - p[0], p_next[1] - p[1]
+        l1 = math.hypot(e1x, e1y) or 1e-12
+        l2 = math.hypot(e2x, e2y) or 1e-12
+        # normales sortantes (gauche de l'arête si CCW)
+        n1x, n1y = -e1y / l1 * sign, e1x / l1 * sign
+        n2x, n2y = -e2y / l2 * sign, e2x / l2 * sign
+        nx, ny = n1x + n2x, n1y + n2y
+        ln = math.hypot(nx, ny) or 1e-12
+        nx, ny = nx / ln, ny / ln
+        # correction miter simple (limite les pics)
+        dot = max(-1.0, min(1.0, n1x * nx + n1y * ny))
+        miter = min(4.0, 1.0 / max(0.25, abs(dot)))
+        out.append((p[0] + nx * delta * miter, p[1] + ny * delta * miter))
+    # refermer
+    out.append(out[0])
+    return out
+
+
+def apply_kerf(result: PuzzleResult, kerf: float) -> PuzzleResult:
+    """Rétrécit chaque pièce de kerf/2 pour compenser la largeur du trait laser."""
+    if kerf is None or kerf <= 0:
+        return result
+    d = -0.5 * float(kerf)  # intérieur
+    for piece in result.pieces:
+        piece.cut = offset_closed_polygon(_close_contour(piece.cut), d)
+    return result
+
+
 def build_puzzle(params: PuzzleParams) -> PuzzleResult:
+    validate_params(params)
     style = getattr(params, "style", "Classique") or "Classique"
     seed = getattr(params, "seed", None)
     base = dict(
@@ -81,15 +197,20 @@ def build_puzzle(params: PuzzleParams) -> PuzzleResult:
         x_offset=params.x, y_offset=params.y, seed=seed,
     )
     if style == "Organique":
-        return generate_wavy_grid_puzzle(**base)
-    return generate_classic_jigsaw_puzzle(
-        **base,
-        tab_depth=params.tab_depth,
-        tab_span=params.tab_span,
-        neck_width=getattr(params, "neck_width", 0.45),
-        pos_random=getattr(params, "pos_random", 0.60),
-        jitter_amt=getattr(params, "jitter", 0.10),
-    )
+        result = generate_wavy_grid_puzzle(**base)
+    else:
+        result = generate_classic_jigsaw_puzzle(
+            **base,
+            tab_depth=params.tab_depth,
+            tab_span=params.tab_span,
+            neck_width=getattr(params, "neck_width", 0.45),
+            pos_random=getattr(params, "pos_random", 0.60),
+            jitter_amt=getattr(params, "jitter", 0.10),
+        )
+    # Fermeture + kerf
+    for piece in result.pieces:
+        piece.cut = _close_contour(piece.cut)
+    return apply_kerf(result, params.kerf)
 
 
 def _lerp(a, b, t):

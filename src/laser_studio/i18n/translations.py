@@ -938,6 +938,30 @@ TRANSLATIONS = {
         "de": "Puzzle {nx}×{ny} — {count} Teile ({w:.1f}×{h:.1f} mm) auf der Schnittebene erzeugt.",
         "es": "Puzzle {nx}×{ny} — {count} piezas ({w:.1f}×{h:.1f} mm) generado en la capa de corte.",
     },
+    "puzzle.err.piece_too_small": {
+        "fr": "Pièces trop petites ({side:.1f} mm). Réduis le nombre de colonnes/lignes (minimum ~3 mm par pièce).",
+        "en": "Pieces too small ({side:.1f} mm). Reduce columns/rows (about 3 mm minimum per piece).",
+        "de": "Teile zu klein ({side:.1f} mm). Weniger Spalten/Zeilen (mind. ca. 3 mm pro Teil).",
+        "es": "Piezas demasiado pequeñas ({side:.1f} mm). Reduce columnas/filas (mín. ~3 mm por pieza).",
+    },
+    "puzzle.err.tab_too_deep": {
+        "fr": "Tenons trop profonds (ratio {value:.2f}). Maximum 0,40.",
+        "en": "Tabs too deep (ratio {value:.2f}). Maximum 0.40.",
+        "de": "Zapfen zu tief (Ratio {value:.2f}). Maximum 0,40.",
+        "es": "Lengüetas demasiado profundas (ratio {value:.2f}). Máximo 0,40.",
+    },
+    "puzzle.err.kerf_too_large": {
+        "fr": "Kerf trop grand ({value:.2f} mm) pour des pièces de {side:.1f} mm.",
+        "en": "Kerf too large ({value:.2f} mm) for {side:.1f} mm pieces.",
+        "de": "Kerf zu groß ({value:.2f} mm) für Teile von {side:.1f} mm.",
+        "es": "Kerf demasiado grande ({value:.2f} mm) para piezas de {side:.1f} mm.",
+    },
+    "puzzle.err.grid": {
+        "fr": "Grille invalide ({nx}×{ny}).",
+        "en": "Invalid grid ({nx}×{ny}).",
+        "de": "Ungültiges Raster ({nx}×{ny}).",
+        "es": "Rejilla no válida ({nx}×{ny}).",
+    },
 
     # --- Imbrication automatique ---
     "ui.vector_nesting": {
