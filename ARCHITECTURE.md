@@ -89,7 +89,7 @@ laser-studio-pro/
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── ui_setup_mixin.py
-├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials (remplacent des mixins)
+├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory (remplacent des mixins)
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)

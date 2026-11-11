@@ -5,6 +5,7 @@ from PyQt6.QtCore import QSettings, QTimer
 import copy
 import json
 
+from controllers.layer_memory import apply_saved_layers
 from controllers.materials import DEFAULT_MATERIALS_DB
 from i18n import tr
 
@@ -120,14 +121,6 @@ class MachineProfilesMixin:
     # ------------------------------------------------------------------
     # Réglages des calques liés à la machine
     # ------------------------------------------------------------------
-    # Réglages repris d'un profil machine quand on CHANGE de machine en cours
-    # de session (le nom, la couleur et l'identité des calques ne bougent pas :
-    # les objets du canevas y sont rattachés par identifiant).
-    _LAYER_SETTING_CASTS = (
-        ("mode", str), ("power", float), ("speed", int), ("passes", int),
-        ("line_interval", float), ("line_interval_linked", bool), ("enabled", bool),
-    )
-
     def _store_layers_in_active_profile(self):
         """Copie l'état courant des calques dans le profil machine actif
         (en mémoire ; écrit sur disque par save_machine_settings)."""
@@ -174,62 +167,17 @@ class MachineProfilesMixin:
             pass                       # valeur illisible dans le profil : on garde l'affichage actuel
 
     def _apply_profile_layers(self, saved_layers, full=False):
-        """Applique les calques mémorisés dans un profil machine.
-
-        full=True (démarrage) : remplace entièrement la liste des calques.
-        full=False (changement de machine en cours de session) : ne reprend
-        que les réglages (mode, puissance, vitesse, passes, pas, actif) et
-        les applique aux calques existants, retrouvés par identifiant puis,
-        à défaut, par position. Les calques ne sont ni ajoutés, ni supprimés,
-        ni renommés : sinon des objets du canevas perdraient leur calque et
-        ne seraient plus gravés.
-        Un profil sans calques mémorisés (ancien profil) ne change rien."""
-        if not saved_layers or not isinstance(saved_layers, list) or not hasattr(self, "layer_manager"):
+        """Applique les calques mémorisés dans un profil machine (voir
+        controllers/layer_memory.apply_saved_layers), puis met l'onglet
+        Calques à jour."""
+        if not hasattr(self, "layer_manager"):
             return
-        saved_layers = [d for d in saved_layers if isinstance(d, dict)]
-        if not saved_layers:
+        if not apply_saved_layers(self.layer_manager, saved_layers, full):
             return
-        mgr = self.layer_manager
-        if full:
-            mgr.load_list(saved_layers)
-            # Valeurs corrompues dans les réglages enregistrés : on retombe sur
-            # un type valide plutôt que de planter à l'ouverture.
-            for layer in mgr.layers:
-                self._coerce_layer_settings(layer, layer.to_dict(), reset_invalid=True)
-        else:
-            by_id = {d.get("id"): d for d in saved_layers}
-            for i, layer in enumerate(mgr.layers):
-                d = by_id.get(layer.id) or (saved_layers[i] if i < len(saved_layers) else None)
-                if d:
-                    self._coerce_layer_settings(layer, d)
         if hasattr(self, "layers_tab"):
             self.layers_tab.refresh()
             # Les calques liés à la focale suivent la focale de CETTE machine.
             self.layers_tab.link_all_to_focal()
-
-    def _coerce_layer_settings(self, layer, source, reset_invalid=False):
-        """Copie les réglages de `source` vers `layer` en forçant le bon type.
-        Une valeur inutilisable est ignorée (le calque garde sa valeur) ; avec
-        reset_invalid=True (calque tout juste chargé, dont la valeur
-        corrompue est déjà en place), elle est remplacée par la valeur par
-        défaut d'un calque neuf."""
-        try:
-            from vector_layers import LAYER_MODES
-        except ImportError:
-            LAYER_MODES = None
-        defaults = type(layer)() if reset_invalid else None
-        for key, cast in self._LAYER_SETTING_CASTS:
-            if key not in source:
-                continue
-            try:
-                value = cast(source[key])
-                if key == "mode" and LAYER_MODES is not None and value not in LAYER_MODES:
-                    raise ValueError(value)
-            except (TypeError, ValueError):
-                if defaults is not None:
-                    setattr(layer, key, getattr(defaults, key))
-                continue
-            setattr(layer, key, value)
 
     def _schedule_layer_persist(self, *args):
         """Un calque a changé : enregistre les calques de la machine active
