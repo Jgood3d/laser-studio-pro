@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
 
 from image import size as isz
-import vector_nudge as vn
+from vector import nudge as vn
 
 
 def read(name):

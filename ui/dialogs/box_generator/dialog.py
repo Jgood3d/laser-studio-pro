@@ -1,6 +1,6 @@
 """Fenêtre du générateur de boîte à encoches : dimensions X/Y/Z, matériau, calques,
-et décor (texte ou SVG) à graver sur les faces. Les calculs sont dans box_generator.py,
-la création des objets dans vector_import.py."""
+et décor (texte ou SVG) à graver sur les faces. Les calculs sont dans vector/box_generator.py,
+la création des objets dans vector/importers.py."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFontComboBox,
@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-import box_generator as bg
-from box_generator import BoxDecor
+from vector import box_generator as bg
+from vector.box_generator import BoxDecor
 from i18n import tr
 
 FACE_LABEL_KEYS = {

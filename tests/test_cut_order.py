@@ -9,7 +9,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
-import vector_order as vo
+from vector import order as vo
 
 try:
     from vector_layers import build_vector_layers_gcode

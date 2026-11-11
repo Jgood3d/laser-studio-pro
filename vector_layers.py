@@ -48,8 +48,8 @@ from PyQt6.QtWidgets import (
 )
 
 from i18n import tr
-from vector_order import CUT_MODE, order_layers_for_cutting, order_polygons_inner_first
-from vector_nudge import NUDGE_UNDO_WINDOW_S, nudge_step
+from vector.order import CUT_MODE, order_layers_for_cutting, order_polygons_inner_first
+from vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 
 
 # ============================================================================

@@ -14,11 +14,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 sys.path.insert(0, HERE)
 
-import nesting as ng
-import vector_order as vo
+from vector import nesting as ng
+from vector import order as vo
 
 try:
-    import nesting_apply as na
+    from vector import nesting_apply as na
 except ImportError:
     na = None
 

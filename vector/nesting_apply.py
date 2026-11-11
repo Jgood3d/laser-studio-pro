@@ -1,9 +1,9 @@
-"""Passerelle entre l'éditeur vectoriel et l'algorithme d'imbrication (nesting.py) : extrait les
+"""Passerelle entre l'éditeur vectoriel et l'algorithme d'imbrication (vector/nesting.py) : extrait les
 contours des objets, regroupe ceux qui vont ensemble (un trou ou un détail gravé suit sa pièce), puis
 applique les positions et rotations calculées en gardant chaque groupe rigide."""
 from PyQt6.QtGui import QTransform
 
-import nesting as ng
+from vector import nesting as ng
 
 
 def object_polygons(obj):

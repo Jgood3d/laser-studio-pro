@@ -120,10 +120,7 @@ laser-studio-pro/
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector_font.py / vector_order.py / vector_nudge.py / vector_import.py
-├── dxf_import.py
-├── box_generator.py
-├── nesting.py / nesting_apply.py
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, nesting, nesting_apply, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -175,7 +172,7 @@ laser-studio-pro/
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
-| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
+| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
 | **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
@@ -185,8 +182,9 @@ laser-studio-pro/
 | Fichier | Rôle | Utilisé par |
 |---------|------|-------------|
 | **vector_layers.py** | Calques (`LayerManager`), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** | Éditeur, G-Code, profils |
-| **vector_import.py** / **dxf_import.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
-| **vector_order.py** / **vector_nudge.py** / **vector_font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
+| **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
+| **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
+| **vector/box_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, imbrication des pièces | `vector_editing_mixin`, `ui/dialogs` |
 
 #### Capacités du canevas (`VectorCanvasView`)
 

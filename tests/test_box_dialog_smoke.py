@@ -271,7 +271,7 @@ class DialogSmokeTests(unittest.TestCase):
         self.assertEqual((d2.cut_layer_id(), d2.engrave_layer_id()), ("c", "g"))
 
     def test_error_messages_exist_for_each_error_code(self):
-        import box_generator as bg
+        from vector import box_generator as bg
         for code, info in (("thickness", {"value": 0}), ("kerf", {"value": 5}), ("too_small", {"axis": "X", "value": 5.0, "minimum": 9.0}),
                            ("finger_too_small", {"value": 1.0, "minimum": 3.0}), ("pinched_panel", {"point": (0, 0)}),
                            ("unknown_code", {})):

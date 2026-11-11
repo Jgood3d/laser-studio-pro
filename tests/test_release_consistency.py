@@ -42,7 +42,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
 
     def test_new_modules_are_documented_in_the_readme(self):
         readme = read("README.md")
-        for module in ("dxf_import.py", "box_generator.py", "vector_import.py", "settings_window.py"):
+        for module in ("vector/dxf.py", "vector/box_generator.py", "vector/importers.py", "settings_window.py"):
             if os.path.exists(os.path.join(ROOT, module)):
                 self.assertIn(f"`{module}`", readme, f"{module} absent de la structure du README")
 

@@ -8,8 +8,8 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
-import nesting as ng
-import vector_order as vo
+from vector import nesting as ng
+from vector import order as vo
 
 
 def rect(w, h, x=0.0, y=0.0):

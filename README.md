@@ -111,7 +111,6 @@ python main.py
 - `core/` — socle sans interface : `version.py` (version de l’application), `paths.py` (chemins, ressources), `files.py` (écriture atomique des fichiers de données), `constants.py` (valeurs fixes : liens, tailles), `debug_log.py` (journal de débogage de la gravure)
 
 ### Composants autonomes
-- `vector_font.py` — `VectorFont`
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
@@ -121,12 +120,14 @@ python main.py
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
 - `image/` — traitement d’image sans Qt : `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
-- `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
-- `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
-- `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
-- `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
-- `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
-- `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
+- `vector/` — géométrie vectorielle :
+  - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
+  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
+  - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
+  - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
+  - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
+  - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
+  - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins

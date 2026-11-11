@@ -1,6 +1,6 @@
 """Passerelle Laser Studio Pro : range les fichiers exportés par le Studio dans les bons calques de LSP.
 
-Sans dépendance Qt à l'import (testable seul). Utilise les modules de LSP (dxf_import, vector_import)
+Sans dépendance Qt à l'import (testable seul). Utilise les modules de LSP (vector.dxf, vector.importers)
 et les attributs de la fenêtre principale (layer_manager, vector_canvas, tab_vector_editor...).
 
 Routage par calque DXF / groupe SVG :
@@ -281,8 +281,8 @@ def _notify_import(window, path, stats):
 
 
 def _import_dxf_routed(window, path):
-    import dxf_import
-    from vector_import import dxf_to_objects
+    from vector import dxf as dxf_import
+    from vector.importers import dxf_to_objects
 
     layers = window.layer_manager.layers
     if not layers:

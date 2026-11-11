@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageDraw
 
-import vector_order as vo
+from vector import order as vo
 
 ANGLE_SETS = {
     "none": (0.0,),

@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout, QWidget,
 )
 
-import nesting
+from vector import nesting
 from i18n import tr
 
 

@@ -5,12 +5,12 @@ from vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
 from i18n import tr
-import box_generator
-import dxf_import
+from vector import box_generator
+from vector import dxf as dxf_import
 from ui.dialogs.box_generator import BoxGeneratorDialog, error_message
-from vector_import import box_to_objects, decor_to_objects, dxf_to_objects
-import nesting
-from nesting_apply import apply_result, build_pieces
+from vector.importers import box_to_objects, decor_to_objects, dxf_to_objects
+from vector import nesting
+from vector.nesting_apply import apply_result, build_pieces
 from ui.dialogs.nesting import NestingDialog
 
 class VectorEditingMixin:

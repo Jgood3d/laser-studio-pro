@@ -22,7 +22,7 @@ try:
 except ImportError:
     _HAS_NUMBA = False
 
-from vector_font import VectorFont
+from vector.font import VectorFont
 from vector_layers import build_vector_layers_gcode
 from image import separation as separation_engine
 from image.filters import sharpen_image

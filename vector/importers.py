@@ -1,4 +1,4 @@
-"""Passerelle entre les modules de calcul (dxf_import, box_generator) et les objets
+"""Passerelle entre les modules de calcul (vector.dxf, vector.box_generator) et les objets
 de l'éditeur vectoriel : crée des SvgPathObject (tracés fixes, comme un SVG importé)
 et place texte / SVG de décor sur les faces d'une boîte.
 
@@ -7,7 +7,7 @@ Repère des objets : origine en bas à gauche de la zone de travail, Y vers le h
 extract_svg_objects)."""
 from PyQt6.QtGui import QPainterPath
 
-from box_generator import BoxDecor  # noqa: F401  (réexporté : vector_import.BoxDecor)
+from vector.box_generator import BoxDecor  # noqa: F401  (réexporté : vector.importers.BoxDecor)
 from vector_layers import SvgPathObject, TextObject, extract_svg_objects
 
 
