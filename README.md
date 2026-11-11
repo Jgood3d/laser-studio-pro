@@ -131,8 +131,7 @@ python main.py
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins
-- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
-- `ui_setup_mixin.py` — onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
+- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs, onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
@@ -284,7 +283,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile i18n/translations.py ui_setup_mixin.py main_window.py
+py -m py_compile i18n/translations.py main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

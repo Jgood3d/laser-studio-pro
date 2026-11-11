@@ -113,7 +113,7 @@ def main():
         shown = ", ".join(f"{b}:{l}" for b, l in places[:4]) + (" ..." if len(places) > 4 else "")
         print(f"  self.{name}   <- {shown}")
     print("\nUn fichier est probablement une ancienne version : vérifie que tous les fichiers livrés ensemble"
-          "\nsont bien remplacés (typiquement ui_setup_mixin.py pour les widgets).")
+          "\nsont bien remplacés (typiquement main_window.py pour les widgets).")
     return 1
 
 

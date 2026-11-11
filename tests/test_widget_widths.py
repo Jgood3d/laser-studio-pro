@@ -99,7 +99,7 @@ class VectorToolbarTests(unittest.TestCase):
     """Barre d'outils de l'éditeur vectoriel : deux lignes, libellés entièrement visibles."""
 
     def rows(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
             src = f.read().replace("\r\n", "\n")
         block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_tools)")]
         keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', block))
