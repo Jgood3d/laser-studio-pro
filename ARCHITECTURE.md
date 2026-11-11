@@ -305,7 +305,20 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 
 ---
 
-## 8. Commandes utiles
+## 8. Générateur de Puzzle
+
+| Fichier | Rôle |
+|---------|------|
+| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée |
+| **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme) |
+| **vector/importers.puzzle_to_objects** | Pièces → `SvgPathObject` |
+| **vector_editing_mixin.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
+| **main_window._build_vector_editor_tab** | Bouton toolbar |
+
+Flux : bouton éditeur / menu Outils → `open_puzzle_generator` → dialogue →
+`vector.puzzle_generator.build_puzzle` → `puzzle_to_objects` → `vector_canvas`.
+
+## 9. Commandes utiles
 
 ```bash
 # Lancer l’application
@@ -323,7 +336,7 @@ python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
 python -m compileall -q main.py src
-```
+
 
 ---
 
