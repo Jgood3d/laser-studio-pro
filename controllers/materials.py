@@ -10,9 +10,9 @@ from i18n import tr
 # Base de matériaux utilisée (1) au tout premier lancement de l'application,
 # avant tout profil machine, et (2) comme repli pour un ancien profil machine
 # enregistré avant l'ajout de la liaison materials_db <-> profil (voir
-# MachineProfilesMixin._apply_machine_profile_widgets). Une nouvelle machine créée après cet ajout
+# main_window._apply_machine_profile). Une nouvelle machine créée après cet ajout
 # démarre avec une COPIE de cette base, qu'elle peut ensuite personnaliser
-# sans affecter les autres profils (voir MachineProfilesMixin._capture_machine_profile_fields).
+# sans affecter les autres profils (voir main_window._capture_machine_profile).
 DEFAULT_MATERIALS_DB = {
     "Personnalisé": {
         "sp_e": 2000,

@@ -32,7 +32,6 @@ main.py
         │
         ├─ UiSetupMixin          (ui_setup_mixin.py)    onglet Éditeur vectoriel
         ├─ WindowControllerMixin (ui/app/window_controller.py) signaux du menu, thème, connexion
-        ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
         ├─ GcodeGenerationMixin  (gcode_generation_mixin.py)
@@ -46,7 +45,8 @@ main.py
         ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
         ├─ job_queue     = JobQueueController     file d'attente (graveur : interface Engraver)
         ├─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
-        └─ materials     = MaterialsController    profils matériaux
+        ├─ materials     = MaterialsController    profils matériaux
+        └─ machines      = MachineProfilesController profils machine (champs : ProfileFields)
 ```
 
 `FullLaserStudio` est le **cœur** : il assemble les mixins et possède les objets partagés (`usb`, `layer_manager`, images, file d’attente…).
@@ -89,7 +89,7 @@ laser-studio-pro/
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── ui_setup_mixin.py
-├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory (remplacent des mixins)
+├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles (remplacent des mixins)
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
@@ -118,7 +118,6 @@ laser-studio-pro/
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
-├── machine_profiles_mixin.py
 ├── image_processing_mixin.py
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
@@ -175,7 +174,6 @@ laser-studio-pro/
 | **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
-| **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |

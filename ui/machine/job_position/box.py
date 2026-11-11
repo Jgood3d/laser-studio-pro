@@ -25,3 +25,14 @@ class JobPositionBox(QGroupBox):
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #888888;")
         layout.addRow(hint)
+
+    def profile_values(self):
+        """Origine du repère, enregistrée dans un profil machine."""
+        return {"origin": self.origin_combo.currentText()}
+
+    def apply_profile_values(self, profile):
+        """Réapplique l'origine d'un profil, si elle existe dans la liste."""
+        if "origin" in profile:
+            index = self.origin_combo.findText(profile["origin"])
+            if index >= 0:
+                self.origin_combo.setCurrentIndex(index)

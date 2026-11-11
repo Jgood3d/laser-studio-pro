@@ -13,6 +13,8 @@ try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from i18n import tr
     from ui.machine.controls.realtime_commands import RealtimeCommands
+    from ui.machine.job_position import JobPositionBox
+    from ui.settings.machine_params import MachineParamsPage
     from ui.settings.grbl_config.settings_box import GrblSettingsBox
     from ui.settings.test_matrix.image_test_group import ImageTestGroup
     from ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
@@ -86,6 +88,42 @@ class WidgetPartsTests(unittest.TestCase):
         self.assertEqual(received, [[()]] * 5)
         commands.set_send_enabled(False)
         self.assertFalse(commands.send_button.isEnabled())
+
+    def test_machine_params_profile_round_trip(self):
+        page = self.make(MachineParamsPage)
+        page.apply_profile_values(
+            {
+                "w": 420.0,
+                "h": 310.0,
+                "focal": 0.08,
+                "max_speed": 7000.0,
+                "accel": 800.0,
+            }
+        )
+        self.assertEqual(
+            page.profile_values(),
+            {
+                "w": 420.0,
+                "h": 310.0,
+                "focal": 0.08,
+                "max_speed": 7000.0,
+                "accel": 800.0,
+            },
+        )
+        page.apply_profile_values({})  # ancien profil : défauts
+        values = page.profile_values()
+        self.assertEqual(
+            (values["w"], values["max_speed"], values["accel"]),
+            (420.0, 6000.0, 500.0),
+        )
+
+    def test_job_position_profile_round_trip(self):
+        box = self.make(JobPositionBox)
+        center = box.origin_combo.itemText(1)
+        box.apply_profile_values({"origin": center})
+        self.assertEqual(box.profile_values(), {"origin": center})
+        box.apply_profile_values({"origin": "Inconnue"})  # gardée
+        self.assertEqual(box.profile_values(), {"origin": center})
 
 
 if __name__ == "__main__":

@@ -229,7 +229,7 @@ def title_of(cls, index):
 
 PALETTE = {
     "laser_control_mixin.py": "#d9534f",
-    "machine_profiles_mixin.py": "#8e44ad",
+    "controllers/machine_profiles.py": "#8e44ad",
     "gcode_generation_mixin.py": "#e67e22",
     "image_processing_mixin.py": "#16a085",
     "vector_editing_mixin.py": "#2980b9",

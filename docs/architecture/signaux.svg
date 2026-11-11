@@ -5,19 +5,19 @@
 <rect x="30" y="84" width="16" height="16" rx="3" fill="#d9534f" stroke="none"/>
 <text x="52" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">laser_control_mixin.py</text>
 <rect x="222.4" y="84" width="16" height="16" rx="3" fill="#8e44ad" stroke="none"/>
-<text x="244.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">machine_profiles_mixin.py</text>
-<rect x="436.4" y="84" width="16" height="16" rx="3" fill="#e67e22" stroke="none"/>
-<text x="458.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">gcode_generation_mixin.py</text>
-<rect x="650.4" y="84" width="16" height="16" rx="3" fill="#16a085" stroke="none"/>
-<text x="672.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">image_processing_mixin.py</text>
-<rect x="864.4" y="84" width="16" height="16" rx="3" fill="#2980b9" stroke="none"/>
-<text x="886.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">vector_editing_mixin.py</text>
-<rect x="1064.0" y="84" width="16" height="16" rx="3" fill="#c0392b" stroke="none"/>
-<text x="1086.0" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/matrix_image.py</text>
-<rect x="1292.4" y="84" width="16" height="16" rx="3" fill="#7f8c3d" stroke="none"/>
-<text x="1314.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/job_queue.py</text>
-<rect x="1499.2" y="84" width="16" height="16" rx="3" fill="#b8860b" stroke="none"/>
-<text x="1521.2" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/project.py</text>
+<text x="244.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/machine_profiles.py</text>
+<rect x="479.6" y="84" width="16" height="16" rx="3" fill="#e67e22" stroke="none"/>
+<text x="501.6" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">gcode_generation_mixin.py</text>
+<rect x="693.6" y="84" width="16" height="16" rx="3" fill="#16a085" stroke="none"/>
+<text x="715.6" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">image_processing_mixin.py</text>
+<rect x="907.6" y="84" width="16" height="16" rx="3" fill="#2980b9" stroke="none"/>
+<text x="929.6" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">vector_editing_mixin.py</text>
+<rect x="1107.2" y="84" width="16" height="16" rx="3" fill="#c0392b" stroke="none"/>
+<text x="1129.2" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/matrix_image.py</text>
+<rect x="1335.6000000000001" y="84" width="16" height="16" rx="3" fill="#7f8c3d" stroke="none"/>
+<text x="1357.6000000000001" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/job_queue.py</text>
+<rect x="1542.4" y="84" width="16" height="16" rx="3" fill="#b8860b" stroke="none"/>
+<text x="1564.4" y="97" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/project.py</text>
 <rect x="30" y="108" width="16" height="16" rx="3" fill="#9b59b6" stroke="none"/>
 <text x="52" y="121" font-family="DejaVu Sans Mono" font-size="12" font-weight="normal" fill="#1f2d3d">controllers/materials.py</text>
 <rect x="236.8" y="108" width="16" height="16" rx="3" fill="#1abc9c" stroke="none"/>
@@ -45,29 +45,29 @@
 <path d="M342 263.0 L380 263.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 259.0 L388 263.0 L380 267.0 Z" fill="#8e44ad"/>
 <rect x="388" y="254" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="267.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_on_machine_profile_selected</text>
-<text x="698" y="267.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="267.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.on_selected</text>
+<text x="698" y="267.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="276" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">new_profile_requested</text>
 <path d="M342 285.0 L380 285.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 281.0 L388 285.0 L380 289.0 Z" fill="#8e44ad"/>
 <rect x="388" y="276" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_new_machine_profile</text>
-<text x="698" y="289.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="289.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.new_profile</text>
+<text x="698" y="289.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="298" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="311.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">update_profile_requested</text>
 <path d="M342 307.0 L380 307.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 303.0 L388 307.0 L380 311.0 Z" fill="#8e44ad"/>
 <rect x="388" y="298" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="311.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_update_machine_profile</text>
-<text x="698" y="311.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="311.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.update_profile</text>
+<text x="698" y="311.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="320" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="333.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_profile_requested</text>
 <path d="M342 329.0 L380 329.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 325.0 L388 329.0 L380 333.0 Z" fill="#8e44ad"/>
 <rect x="388" y="320" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="333.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_delete_machine_profile</text>
-<text x="698" y="333.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="333.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.delete_profile</text>
+<text x="698" y="333.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="342" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="355.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">bed_size_changed</text>
 <path d="M342 351.0 L380 351.0" stroke="#2980b9" stroke-width="2" fill="none"/>
@@ -165,8 +165,8 @@
 <path d="M342 755.0 L380 755.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 751.0 L388 755.0 L380 759.0 Z" fill="#8e44ad"/>
 <rect x="388" y="746" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="759.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_schedule_layer_persist</text>
-<text x="698" y="759.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="759.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.schedule_persist</text>
+<text x="698" y="759.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="768" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="781.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">read_settings_requested</text>
 <path d="M342 777.0 L380 777.0" stroke="#d9534f" stroke-width="2" fill="none"/>
@@ -200,8 +200,8 @@
 <path d="M342 865.0 L380 865.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 861.0 L388 865.0 L380 869.0 Z" fill="#8e44ad"/>
 <rect x="388" y="856" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="869.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">save_grbl_settings_to_profile</text>
-<text x="698" y="869.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="869.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.update_profile</text>
+<text x="698" y="869.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="30" y="900" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="42" y="920" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">TestMatrixPage</text>
 <text x="172.39999999999998" y="920" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Matrice de test</text>
@@ -251,8 +251,8 @@
 <path d="M342 1177.0 L380 1177.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 1173.0 L388 1177.0 L380 1181.0 Z" fill="#8e44ad"/>
 <rect x="388" y="1168" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_schedule_layer_persist</text>
-<text x="698" y="1181.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">machine_profiles_mixin.py</text>
+<text x="396" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">machines.schedule_persist</text>
+<text x="698" y="1181.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="30" y="1212" width="896" height="298" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="42" y="1232" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ImageSettingsPanel</text>
 <text x="206.79999999999998" y="1232" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image</text>

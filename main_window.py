@@ -28,6 +28,8 @@ from ui.widgets import FullscreenWindow
 
 from controllers.job_queue import Engraver, JobQueueController
 from controllers.materials import DEFAULT_MATERIALS_DB, MaterialsController
+from controllers.layer_memory import apply_saved_layers
+from controllers.machine_profiles import MachineProfilesController, ProfileFields
 from controllers.matrix_image import MatrixImageController
 from controllers.png2svg import Png2SvgController
 from controllers.project import ProjectController
@@ -36,7 +38,6 @@ from vector_layers import LayerManager
 
 from ui_setup_mixin import UiSetupMixin
 from ui.app.window_controller import WindowControllerMixin
-from machine_profiles_mixin import MachineProfilesMixin
 from image_processing_mixin import ImageProcessingMixin
 from vector_editing_mixin import VectorEditingMixin
 from gcode_generation_mixin import GcodeGenerationMixin
@@ -45,7 +46,6 @@ from separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
-                       MachineProfilesMixin,
                        ImageProcessingMixin,
                        VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin,
                        SeparationMixin):
@@ -248,10 +248,23 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         Affichée dans une fenêtre du menu Paramètres (show_settings_window).
         """
         page = MachineParamsPage()
-        page.profile_selected.connect(self._on_machine_profile_selected)
-        page.new_profile_requested.connect(self._new_machine_profile)
-        page.update_profile_requested.connect(self._update_machine_profile)
-        page.delete_profile_requested.connect(self._delete_machine_profile)
+        self.machines = MachineProfilesController(
+            self,
+            page.profile_combo,
+            ProfileFields(
+                capture=self._capture_machine_profile,
+                apply=self._apply_machine_profile,
+                apply_layers=self._apply_profile_layers,
+                memory=self._machine_memory,
+                profile_selected=self._after_machine_profile_selected,
+                link_layers_to_focal=lambda: self.layers_tab.link_all_to_focal(),
+            ),
+            save_settings=self.save_machine_settings,
+        )
+        page.profile_selected.connect(self.machines.on_selected)
+        page.new_profile_requested.connect(self.machines.new_profile)
+        page.update_profile_requested.connect(self.machines.update_profile)
+        page.delete_profile_requested.connect(self.machines.delete_profile)
         page.bed_size_changed.connect(self.update_vector_work_area)
         page.focal_changed.connect(self._on_machine_focal_changed)
         # Noms historiques des champs, lus par la logique (profils,
@@ -302,13 +315,13 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         page = GrblConfigPage()
         page.bidir_test_requested.connect(self.generate_bidir_test)
         # Décalage aller/retour : mémorisé dans le profil de la machine.
-        page.scan_offset_changed.connect(self._schedule_layer_persist)
+        page.scan_offset_changed.connect(self.machines.schedule_persist)
         page.read_settings_requested.connect(self.read_grbl_settings)
         page.send_settings_requested.connect(self.send_grbl_settings)
         page.export_settings_requested.connect(self.export_grbl_settings)
         page.import_settings_requested.connect(self.import_grbl_settings)
         page.link_settings_to_profile_requested.connect(
-            self.save_grbl_settings_to_profile
+            self.machines.update_profile
         )
         # Noms historiques des champs, lus par la logique (génération,
         # profils machine, projets, connexion au graveur).
@@ -396,7 +409,7 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         )
         self.layers_tab.layers_changed.connect(self.on_layers_changed)
         # Mémorise les réglages des calques dans le profil de la machine active.
-        self.layers_tab.layers_changed.connect(self._schedule_layer_persist)
+        self.layers_tab.layers_changed.connect(self.machines.schedule_persist)
 
     def _build_image_tab(self):
         """Onglet « Graver une image » et cadre « Position du job », abonnés
@@ -550,6 +563,119 @@ class FullLaserStudio(QMainWindow, UiSetupMixin, WindowControllerMixin,
         tab.reordered.connect(self.job_queue.on_reordered)
         self.main_tabs_view.addTab(tab, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab
+
+    # -- Réglages machine : démarrage et fermeture
+
+    def save_machine_settings(self):
+        """Mémorise les réglages machine (profils, dimensions, résolution de
+        l'image) pour les retrouver au prochain lancement, sans recharger de
+        projet. Les calques sont rangés dans le profil de la machine active."""
+        settings = QSettings("LaserStudioPro", "MachineConfig")
+        settings.setValue("machine_bed_w_mm", self.spin_machine_w.value())
+        settings.setValue("machine_bed_h_mm", self.spin_machine_h.value())
+        settings.setValue("machine_focal_mm", self.spin_machine_focal.value())
+        self.machines.store_memory()
+        settings.setValue("machine_profiles_json", self.machines.to_json())
+        name = self.machines.current_name()
+        if name is not None:
+            settings.setValue("last_machine_profile", name)
+        settings.setValue("lmm_mode_index", self.combo_lmm_mode.currentIndex())
+        settings.setValue("lmm_dpi_value", self.spin_dpi.value())
+        settings.setValue("lmm_value", self.spin_lmm.value())
+
+    def load_machine_settings(self):
+        """Restaure au démarrage les réglages mémorisés par
+        save_machine_settings."""
+        settings = QSettings("LaserStudioPro", "MachineConfig")
+        for key, spin in (("machine_bed_w_mm", self.spin_machine_w),
+                          ("machine_bed_h_mm", self.spin_machine_h),
+                          ("machine_focal_mm", self.spin_machine_focal)):
+            value = settings.value(key, None)
+            if value is not None:
+                try:
+                    spin.setValue(float(value))
+                except (TypeError, ValueError):
+                    pass
+        # Comme à chaque validation de profil : les calques suivent la focale
+        # dès le démarrage.
+        self.layers_tab.link_all_to_focal()
+
+        self.machines.load(
+            settings.value("machine_profiles_json", ""),
+            settings.value("last_machine_profile", None),
+            {"name": "Machine par défaut", "w": self.spin_machine_w.value(),
+             "h": self.spin_machine_h.value()},
+        )
+
+        lmm_value = settings.value("lmm_value", None)
+        dpi_value = settings.value("lmm_dpi_value", None)
+        mode_index = settings.value("lmm_mode_index", None)
+        for value, spin in ((lmm_value, self.spin_lmm), (dpi_value, self.spin_dpi)):
+            if value is not None:
+                try:
+                    spin.blockSignals(True)
+                    spin.setValue(float(value))
+                    spin.blockSignals(False)
+                except (TypeError, ValueError):
+                    pass
+        if mode_index is not None:
+            try:
+                self.combo_lmm_mode.setCurrentIndex(int(mode_index))
+            except (TypeError, ValueError):
+                pass
+        # Recalcule dans tous les cas l'écart lignes/mm et la pastille de
+        # qualité à partir de l'état chargé, quel que soit le mode.
+        self.on_lmm_mode_changed(self.combo_lmm_mode.currentIndex())
+        # À partir d'ici seulement, un changement de calque est mémorisé.
+        self.machines.persist_ready = True
+
+    # -- Profils machine : champs de la fenêtre (voir ProfileFields)
+
+    def _capture_machine_profile(self):
+        """Champs d'un profil machine : pages Paramètres du graveur et
+        Configuration GRBL, position du job, matériaux (une copie, pour que
+        modifier ceux d'un profil n'affecte pas les autres) et calques."""
+        return {
+            **self.tab_machine_params.profile_values(),
+            **self.job_position_box.profile_values(),
+            **self.tab_grbl_config.profile_values(),
+            "materials_db": dict(self.materials.materials),
+            "layers": self.layer_manager.to_list(),
+        }
+
+    def _apply_machine_profile(self, profile):
+        """Réapplique les champs d'un profil (les calques à part)."""
+        self.tab_machine_params.apply_profile_values(profile)
+        self.job_position_box.apply_profile_values(profile)
+        self.tab_grbl_config.apply_profile_values(profile)
+        # Matériaux propres à cette machine (repli sur la base par défaut
+        # pour un profil enregistré avant cette liaison).
+        self.materials.set_materials(
+            dict(profile.get("materials_db", DEFAULT_MATERIALS_DB)),
+            block_signals=True)
+        self.materials.apply_selected()
+
+    def _machine_memory(self):
+        """Mémorisé en continu dans le profil actif : calques et réglages
+        mécaniques (décalage des lignes retour, surbalayage)."""
+        return {"layers": self.layer_manager.to_list(),
+                **self.tab_grbl_config.mechanical_values()}
+
+    def _apply_profile_layers(self, saved_layers, full=False):
+        """Réapplique les calques mémorisés (voir apply_saved_layers), puis
+        met l'onglet Calques à jour."""
+        if not apply_saved_layers(self.layer_manager, saved_layers, full):
+            return
+        self.layers_tab.refresh()
+        # Les calques liés à la focale suivent la focale de CETTE machine.
+        self.layers_tab.link_all_to_focal()
+
+    def _after_machine_profile_selected(self):
+        """Après un changement de profil : lignes/mm et DPI suivent la focale
+        (même si elle n'a pas changé, ou si le profil n'en a pas), et la
+        qualité des calques est recalculée."""
+        self._apply_focal_to_lmm()
+        self.layers_tab.refresh_focal_quality()
 
     # -- Projet : état de la fenêtre
 

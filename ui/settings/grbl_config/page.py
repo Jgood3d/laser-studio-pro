@@ -62,6 +62,67 @@ class GrblConfigPage(QWidget):
         layout.addRow(tr("ui.gcode_end"), self.end_gcode_edit)
         layout.addRow(self._grbl_settings_box())
 
+    # -- profil machine
+
+    def mechanical_values(self):
+        """Réglages propres à la mécanique de la machine, mémorisés en
+        continu dans son profil : décalage des lignes retour (mm) et
+        surbalayage. Le mode est enregistré par son index (0 = distance
+        fixe, 1 = pourcentage), les libellés étant traduits."""
+        return {
+            "scan_offset_mm": self.scan_offset_spin.value(),
+            "overscan_enabled": self.overscan_check.isChecked(),
+            "overscan_mode": self.overscan_mode_combo.currentIndex(),
+            "overscan_dist_mm": self.overscan_dist_spin.value(),
+            "overscan_pct": self.overscan_pct_spin.value(),
+        }
+
+    def profile_values(self):
+        """Champs de la page enregistrés dans un profil machine : G-Code de
+        début et de fin, réglages GRBL complets ($$), et mechanical_values."""
+        return {
+            "start_gcode": self.start_gcode_edit.toPlainText(),
+            "end_gcode": self.end_gcode_edit.toPlainText(),
+            "grbl_settings": self.grbl_settings_edit.toPlainText(),
+            **self.mechanical_values(),
+        }
+
+    def apply_profile_values(self, profile):
+        """Réapplique les champs d'un profil. Un champ absent (profil
+        enregistré avant son ajout) garde sa valeur ; un décalage illisible
+        revient à 0 ; un surbalayage illisible garde l'affichage actuel.
+        Les réglages GRBL ne sont jamais envoyés à la machine ici."""
+        for key, edit in (
+            ("start_gcode", self.start_gcode_edit),
+            ("end_gcode", self.end_gcode_edit),
+            ("grbl_settings", self.grbl_settings_edit),
+        ):
+            if key in profile:
+                edit.setPlainText(profile[key])
+        try:
+            self.scan_offset_spin.setValue(
+                float(profile.get("scan_offset_mm", 0.0))
+            )
+        except (TypeError, ValueError):
+            self.scan_offset_spin.setValue(0.0)
+        try:
+            if "overscan_enabled" in profile:
+                self.overscan_check.setChecked(
+                    bool(profile["overscan_enabled"])
+                )
+            if profile.get("overscan_mode") in (0, 1):
+                self.overscan_mode_combo.setCurrentIndex(
+                    profile["overscan_mode"]
+                )
+            if "overscan_dist_mm" in profile:
+                self.overscan_dist_spin.setValue(
+                    float(profile["overscan_dist_mm"])
+                )
+            if "overscan_pct" in profile:
+                self.overscan_pct_spin.setValue(float(profile["overscan_pct"]))
+        except (TypeError, ValueError):
+            pass
+
     # -- construction
 
     def _build_fields(self):

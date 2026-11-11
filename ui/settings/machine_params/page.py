@@ -57,6 +57,34 @@ class MachineParamsPage(QScrollArea):
         self.setWidgetResizable(True)
         self.setFrameShape(QScrollArea.Shape.NoFrame)
 
+    # -- profil machine
+
+    def profile_values(self):
+        """Champs de la page enregistrés dans un profil machine : lit
+        (w, h, en mm), spot du laser (focal, mm), vitesse maximale
+        (mm/min) et accélération."""
+        return {
+            "w": self.bed_width_spin.value(),
+            "h": self.bed_height_spin.value(),
+            "focal": self.focal_spin.value(),
+            "max_speed": self.max_speed_spin.value(),
+            "accel": self.accel_spin.value(),
+        }
+
+    def apply_profile_values(self, profile):
+        """Réapplique les champs d'un profil. Lit et spot absents : valeurs
+        actuelles gardées ; vitesse et accélération absentes : valeurs par
+        défaut."""
+        self.bed_width_spin.setValue(
+            profile.get("w", self.bed_width_spin.value())
+        )
+        self.bed_height_spin.setValue(
+            profile.get("h", self.bed_height_spin.value())
+        )
+        self.focal_spin.setValue(profile.get("focal", self.focal_spin.value()))
+        self.max_speed_spin.setValue(profile.get("max_speed", 6000.0))
+        self.accel_spin.setValue(profile.get("accel", 500.0))
+
     # -- construction
 
     def _profiles_box(self):

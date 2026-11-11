@@ -32,7 +32,12 @@ class HomingTests(unittest.TestCase):
         self.assertIn("self.chk_homing = page.homing_check", ui_source())
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
-        self.assertNotIn("chk_homing", read("machine_profiles_mixin.py"))
+        self.assertNotIn("chk_homing", read(os.path.join("controllers", "machine_profiles.py")))
+        window = read("main_window.py")
+        profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
+        self.assertNotIn("chk_homing", profiles)
+        self.assertNotIn("homing", read(os.path.join("ui", "settings", "grbl_config", "page.py"))
+                         .split("def profile_values")[1].split("def apply_profile_values")[0])
         self.assertNotIn("chk_homing", project_state_source())
 
 
