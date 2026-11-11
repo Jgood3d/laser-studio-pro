@@ -1,7 +1,13 @@
 @echo off
-rem Ce script vit dans packaging\windows\ mais s'execute depuis la racine du depot
-rem (la ou se trouve main.py), quel que soit le dossier d'ou il est lance.
+rem  Ce fichier peut etre lance depuis packaging\windows\ ou depuis la racine du projet :
+rem  on se place toujours a la racine (le dossier qui contient main.py).
 cd /d "%~dp0..\.."
+if not exist main.py cd /d "%~dp0"
+if not exist main.py (
+    echo ERREUR : main.py introuvable. Lance ce script depuis le projet Laser Studio Pro.
+    pause
+    exit /b 1
+)
 
 echo ==========================================
 echo Activation de l'environnement virtuel...
@@ -17,13 +23,15 @@ if exist dist rmdir /s /q dist
 echo ==========================================
 echo Compilation de Laser Studio Pro (Mode Onedir)...
 echo ==========================================
+rem  Images, logo, icone et pack d'icones Breeze : tout le dossier resources\ (cherche par find_resource).
 rem  Stencil Studio : le dossier est copie en donnees (studio.html, locales, polices...) ET ses modules sont
-rem  declares en hidden-import pour que PyInstaller embarque aussi cv2 / numpy / scipy / Pillow qu'ils utilisent.
+rem  declares en hidden-import pour que PyInstaller embarque aussi cv2 / numpy / scipy / Pillow qu'ils utilisent
+rem  (studio_dialog importe studio a la demande, dans une fonction : on le declare donc explicitement).
 rem  QtWebEngine est embarque automatiquement (main.py l'importe en tete).
-pyinstaller --onedir --windowed --name LaserStudioPro --icon=src\laser_studio\resources\laser_studio_pro.ico ^
-  --paths src --add-data "src\laser_studio\resources;resources" ^
+rem  Les paquets du projet (controllers, grbl, image, i18n, ui...) sont trouves seuls par PyInstaller.
+pyinstaller --onedir --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico ^
+ --add-data "resources;resources" ^
  --add-data "stencil_studio;stencil_studio" ^
- --paths "C:\Users\Bonnevie\Desktop\Log-gravure\laser-studio-pro-propre\venv\Lib\site-packages" ^
  --collect-submodules serial --hidden-import=serial ^
  --hidden-import=PyQt6.QtWebEngineWidgets --hidden-import=PyQt6.QtWebEngineCore ^
  --hidden-import=stencil_studio.studio_dialog --hidden-import=stencil_studio.studio_window --hidden-import=stencil_studio.studio ^
@@ -35,7 +43,7 @@ pyinstaller --onedir --windowed --name LaserStudioPro --icon=src\laser_studio\re
 echo ==========================================
 echo Copie du fichier icone dans le dossier dist...
 echo ==========================================
-copy src\laser_studio\resources\laser_studio_pro.ico dist\LaserStudioPro\
+copy resources\laser_studio_pro.ico dist\LaserStudioPro\
 
 echo ==========================================
 echo Termine ! Le dossier dist\LaserStudioPro est pret.
