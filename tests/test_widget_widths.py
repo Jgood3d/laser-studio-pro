@@ -116,11 +116,11 @@ class VectorToolbarTests(unittest.TestCase):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
-    def test_two_rows_with_all_nineteen_buttons(self):
+    def test_two_rows_with_all_twenty_buttons(self):
         rows = self.rows()
         self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_tools"])
-        self.assertEqual(sum(len(v) for v in rows.values()), 19)
-        self.assertEqual(len(set(k for v in rows.values() for k in v)), 19)
+        self.assertEqual(sum(len(v) for v in rows.values()), 20)
+        self.assertEqual(len(set(k for v in rows.values() for k in v)), 20)
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():
@@ -130,6 +130,7 @@ class VectorToolbarTests(unittest.TestCase):
         first = self.rows()["toolbar_vector"]
         self.assertIn("ui.vector_import_svg", first)
         self.assertIn("ui.vector_box_generator", first)
+        self.assertIn("ui.vector_puzzle_generator", first)
         self.assertIn("ui.vector_nesting", first)
 
 
