@@ -8,7 +8,9 @@ from laser_studio.i18n import tr
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
-from laser_studio.vector.importers import box_to_objects, decor_to_objects, dxf_to_objects
+from laser_studio.ui.dialogs.puzzle import PuzzleGeneratorDialog
+from laser_studio.vector import puzzle_generator
+from laser_studio.vector.importers import box_to_objects, decor_to_objects, dxf_to_objects, puzzle_to_objects
 from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
@@ -649,6 +651,57 @@ class VectorEditingMixin:
         if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
         QMessageBox.information(self, tr("box.title"), message)
+
+
+
+    def open_puzzle_generator(self):
+        """Fenêtre du générateur de puzzle : crée les pièces sur le calque de découpe."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return
+        # Cadre image courant (si présent) pour caler le puzzle dessus
+        target_rect = None
+        try:
+            if hasattr(self, "spin_w") and hasattr(self, "spin_h"):
+                ox = float(self.spin_off_x.value()) if hasattr(self, "spin_off_x") else 0.0
+                oy = float(self.spin_off_y.value()) if hasattr(self, "spin_off_y") else 0.0
+                target_rect = (ox, oy, float(self.spin_w.value()), float(self.spin_h.value()))
+        except Exception:
+            target_rect = None
+        dialog = PuzzleGeneratorDialog(
+            parent=self,
+            layers=self.layer_manager.layers,
+            bed_w=self.spin_machine_w.value(),
+            bed_h=self.spin_machine_h.value(),
+            saved_settings=getattr(self, "_puzzle_settings", None),
+            target_image_rect=target_rect,
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        if hasattr(dialog, "settings"):
+            self._puzzle_settings = dialog.settings()
+        try:
+            params = dialog.params()
+            result = puzzle_generator.build_puzzle(params)
+        except Exception as e:
+            QMessageBox.warning(self, tr("puzzle.error"), str(e))
+            return
+        layer_id = dialog.cut_layer_id() if hasattr(dialog, "cut_layer_id") else params.cut_layer_id
+        objects = puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0)
+        if not objects:
+            QMessageBox.warning(self, tr("puzzle.title"), tr("puzzle.empty"))
+            return
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+        QMessageBox.information(
+            self,
+            tr("puzzle.title"),
+            tr("puzzle.done").format(
+                nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(objects),
+            ),
+        )
 
 
     # ------------------------------------------------------------------
