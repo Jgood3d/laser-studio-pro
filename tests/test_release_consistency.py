@@ -5,17 +5,18 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
 def read(name):
-    with open(os.path.join(ROOT, name), encoding="utf-8") as f:
+    with open(os.path.join(REPO, name), encoding="utf-8") as f:
         return f.read().replace("\r\n", "\n")
 
 
 class ReleaseConsistencyTests(unittest.TestCase):
     def app_version(self):
-        return re.search(r'^APP_VERSION = "([\d.]+)"', read("core/version.py"), re.M).group(1)
+        return re.search(r'^APP_VERSION = "([\d.]+)"', read("src/laser_studio/core/version.py"), re.M).group(1)
 
     def changelog_versions(self):
         return re.findall(r"^## \[v?([\d.]+)\] — (\d{4}-\d{2}-\d{2})", read("CHANGELOG.md"), re.M)
@@ -37,7 +38,7 @@ class ReleaseConsistencyTests(unittest.TestCase):
 
     def test_release_notes_file_matches_the_version_if_present(self):
         name = f"RELEASE_NOTES_{self.app_version()}.md"          # les notes des versions précédentes sont ignorées
-        if os.path.exists(os.path.join(ROOT, name)):
+        if os.path.exists(os.path.join(REPO, name)):
             self.assertTrue(read(name).startswith(f"## [{self.app_version()}]"))
 
     def test_new_modules_are_documented_in_the_readme(self):

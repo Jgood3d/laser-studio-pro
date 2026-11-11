@@ -5,14 +5,15 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
-from vector import order as vo
+from laser_studio.vector import order as vo
 
 try:
-    from vector_layers import build_vector_layers_gcode
+    from laser_studio.vector_layers import build_vector_layers_gcode
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False

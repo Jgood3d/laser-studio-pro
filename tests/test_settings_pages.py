@@ -3,18 +3,19 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtGui import QStandardItemModel, QStandardItem
     from PyQt6.QtWidgets import QApplication, QPushButton, QScrollArea
-    from i18n import tr
-    from ui.settings.grbl_config import GrblConfigPage
-    from ui.settings.machine_params import MachineParamsPage
-    from ui.settings.machine_profiles import MachineProfilesPage
-    from ui.settings.test_matrix import TestMatrixPage
-    from ui.settings.test_matrix.tile_picker import TilePicker
+    from laser_studio.i18n import tr
+    from laser_studio.ui.settings.grbl_config import GrblConfigPage
+    from laser_studio.ui.settings.machine_params import MachineParamsPage
+    from laser_studio.ui.settings.machine_profiles import MachineProfilesPage
+    from laser_studio.ui.settings.test_matrix import TestMatrixPage
+    from laser_studio.ui.settings.test_matrix.tile_picker import TilePicker
     from PyQt6.QtCore import QPoint, Qt
     from PyQt6.QtTest import QTest
     from PIL import Image

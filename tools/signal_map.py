@@ -22,8 +22,9 @@ import os
 import sys
 from html import escape
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT = os.path.join(ROOT, "docs", "architecture", "signaux")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+OUTPUT = os.path.join(REPO, "docs", "architecture", "signaux")
 # Fichiers où la fenêtre branche les signaux.
 WIRING_FILES = (
     "main_window.py",
@@ -45,7 +46,7 @@ def source_files():
             "*.py",
             "ui/**/*.py",
             "controllers/*.py",
-            "stencil_studio/*.py",
+            "../../stencil_studio/*.py",
         )
     ]
     return sorted(os.path.relpath(f, ROOT) for files in pattern for f in files)

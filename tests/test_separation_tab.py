@@ -5,14 +5,15 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtCore import QMimeData, QPointF, Qt, QUrl
     from PyQt6.QtGui import QDropEvent
     from PyQt6.QtWidgets import QApplication
-    from ui.tabs.separation import SeparationTab
+    from laser_studio.ui.tabs.separation import SeparationTab
 except ImportError:  # PyQt6 manquant
     SeparationTab = None
 

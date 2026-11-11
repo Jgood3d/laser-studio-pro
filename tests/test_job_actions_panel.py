@@ -3,14 +3,15 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
-    from laser_control_mixin import LaserControlMixin
-    from ui.machine.job_actions import JobActionsPanel
-    from i18n import tr
+    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.ui.machine.job_actions import JobActionsPanel
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
     JobActionsPanel = None
 

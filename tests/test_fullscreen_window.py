@@ -4,13 +4,14 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
-    from ui.widgets import FullscreenWindow
+    from laser_studio.ui.widgets import FullscreenWindow
 except ImportError:  # PyQt6 manquant
     FullscreenWindow = None
 

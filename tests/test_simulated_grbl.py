@@ -6,10 +6,10 @@ import time
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-import grbl.simulator as sim
-from grbl.simulator import SimulatedGrblSerial
+import laser_studio.grbl.simulator as sim
+from laser_studio.grbl.simulator import SimulatedGrblSerial
 
 
 def lines(ser):
@@ -108,7 +108,7 @@ class SimulatedGrblTests(unittest.TestCase):
 
 
 try:
-    from workers import GCodeStreamerThread
+    from laser_studio.workers import GCodeStreamerThread
 except ImportError:
     GCodeStreamerThread = None
 
@@ -116,7 +116,7 @@ except ImportError:
 @unittest.skipIf(GCodeStreamerThread is None, "workers non importable ici")
 class StreamerWithSimulationTests(unittest.TestCase):
     def test_a_whole_job_streams_to_the_end(self):
-        from grbl.connection import LaserUSBController
+        from laser_studio.grbl.connection import LaserUSBController
         with mock.patch.dict(os.environ, {"LASER_STUDIO_SIMULATION": "500"}):
             usb = LaserUSBController()
             self.assertTrue(usb.connect(sim.SIMULATED_PORT))

@@ -6,13 +6,14 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QComboBox
-    from controllers.machine_profiles import MachineProfilesController, ProfileFields
-    from ui.settings.grbl_config import GrblConfigPage
+    from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
+    from laser_studio.ui.settings.grbl_config import GrblConfigPage
 except ImportError:  # PyQt6 manquant
     GrblConfigPage = None
 

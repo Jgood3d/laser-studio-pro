@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "laser-studio-pro"
+dynamic = ["version"]
+description = "Préparation et pilotage de gravures laser GRBL"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+# Versions exactes des builds : requirements_principal.txt.
+dependencies = [
+    "numpy",
+    "opencv-python",
+    "pillow",
+    "PyQt6",
+    "PyQt6-WebEngine",
+    "pyqtgraph",
+    "pyserial",
+    "scikit-image",
+    "scipy",
+    "svg.path",
+]
+
+[project.gui-scripts]
+laser-studio-pro = "laser_studio.main:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "laser_studio.core.version.APP_VERSION"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+laser_studio = ["resources/**/*"]

@@ -106,9 +106,17 @@ python main.py
 
 ## Structure du projet
 
+Le code suit la disposition `src/` recommandée pour les projets Python (voir `pyproject.toml`) :
+- `src/laser_studio/` — l’application Laser Studio ; les chemins ci-dessous lui sont relatifs ;
+- `src/laser_common/` — code partagé par Laser Studio et Stencil Studio, indépendant des deux (`files.py` : écriture sûre des fichiers de données) ;
+- `stencil_studio/` — Stencil Studio (rejoindra `src/` plus tard) ;
+- `tests/`, `tools/`, `packaging/`, `docs/` à la racine du dépôt.
+
+On lance l’application avec `python main.py` depuis le dépôt, ou `python -m laser_studio` après `pip install -e .`.
+
 ### Point d’entrée
-- `main.py` — lance l’application
-- `core/` — socle sans interface : `version.py` (version de l’application), `paths.py` (chemins, ressources), `files.py` (écriture atomique des fichiers de données), `constants.py` (valeurs fixes : liens, tailles), `debug_log.py` (journal de débogage de la gravure)
+- `main.py` (racine du dépôt) — lance l’application sans installation ; `main.py` dans `src/laser_studio/` contient le démarrage (`main()`)
+- `core/` — socle sans interface : `version.py` (version de l’application), `paths.py` (chemins, ressources), `constants.py` (valeurs fixes : liens, tailles), `debug_log.py` (journal de débogage de la gravure)
 
 ### Composants autonomes
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
@@ -283,7 +291,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile i18n/translations.py main_window.py
+py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

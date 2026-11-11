@@ -3,11 +3,11 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtWidgets import QApplication
-    import main_window
+    from laser_studio import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 

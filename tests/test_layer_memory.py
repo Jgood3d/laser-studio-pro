@@ -4,14 +4,14 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from controllers.layer_memory import (
+    from laser_studio.controllers.layer_memory import (
         apply_saved_layers,
         coerce_layer_settings,
     )
-    from vector_layers import LaserLayer, LayerManager
+    from laser_studio.vector_layers import LaserLayer, LayerManager
 except ImportError:  # PyQt6 manquant (vector_layers)
     LayerManager = None
 

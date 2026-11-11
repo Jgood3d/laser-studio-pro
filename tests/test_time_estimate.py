@@ -7,10 +7,10 @@ from unittest import mock
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    import gcode_generation_mixin as ggm
+    import laser_studio.gcode_generation_mixin as ggm
 except ImportError:  # PyQt6 manquant
     ggm = None
 

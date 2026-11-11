@@ -6,15 +6,15 @@ import sys
 import time
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtGui import QPixmap
-    from ui.splashscreen import StartupSplash
-    from core.constants import SPLASH_SCREEN_WIDTH
-    from i18n import tr
+    from laser_studio.ui.splashscreen import StartupSplash
+    from laser_studio.core.constants import SPLASH_SCREEN_WIDTH
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6 manquant
     StartupSplash = None
 
@@ -53,7 +53,7 @@ class StartupSplashTests(unittest.TestCase):
 
     def test_missing_banner_is_replaced_by_a_grey_rectangle(self):
         from unittest import mock
-        with mock.patch("ui.splashscreen.splash.find_resource", return_value=None):
+        with mock.patch("laser_studio.ui.splashscreen.splash.find_resource", return_value=None):
             pixmap = StartupSplash.banner()
         self.assertEqual((pixmap.width(), pixmap.height()), (500, 250))
 

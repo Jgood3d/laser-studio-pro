@@ -10,13 +10,14 @@ from unittest import mock
 import numpy as np
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
 
-from image import size as isz
-from vector import nudge as vn
+from laser_studio.image import size as isz
+from laser_studio.vector import nudge as vn
 
 
 def read(name):
@@ -75,7 +76,7 @@ class NaturalSizeTests(unittest.TestCase):
 
 
 try:
-    import image_processing_mixin as ipm
+    import laser_studio.image_processing_mixin as ipm
 except ImportError:
     ipm = None
 

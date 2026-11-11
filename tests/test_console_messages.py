@@ -4,10 +4,10 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    import workers
+    from laser_studio import workers
 except ImportError:  # PyQt6/svg.path manquants
     workers = None
 

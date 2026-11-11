@@ -8,14 +8,14 @@ import sys
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtWidgets import QApplication, QComboBox, QInputDialog, QMessageBox
-    from controllers import machine_profiles as mp
-    from controllers.layer_memory import apply_saved_layers
-    from controllers.machine_profiles import MachineProfilesController, ProfileFields
-    from vector_layers import LayerManager
+    from laser_studio.controllers import machine_profiles as mp
+    from laser_studio.controllers.layer_memory import apply_saved_layers
+    from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
+    from laser_studio.vector_layers import LayerManager
 except ImportError:  # PyQt6 manquant
     MachineProfilesController = None
 

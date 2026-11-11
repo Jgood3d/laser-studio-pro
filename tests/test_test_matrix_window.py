@@ -5,12 +5,13 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QMessageBox, QPushButton
-    from i18n import tr
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6 manquant
     QApplication = None
 
@@ -21,8 +22,8 @@ class TestMatrixWindowTests(unittest.TestCase):
     def setUpClass(cls):
         tmp = tempfile.mkdtemp()                       # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
-            import main_window
-            import gcode_generation_mixin
+            from laser_studio import main_window
+            from laser_studio import gcode_generation_mixin
             cls.gen = gcode_generation_mixin
             cls.app = QApplication.instance() or QApplication([])
             cls.win = main_window.FullLaserStudio()

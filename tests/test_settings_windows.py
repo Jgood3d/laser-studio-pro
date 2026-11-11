@@ -7,8 +7,9 @@ import types
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
@@ -25,8 +26,8 @@ class AppMenusTests(unittest.TestCase):
     def setUpClass(cls):
         try:
             from PyQt6.QtWidgets import QApplication
-            from ui.app.menu import AppActions, AppMenuBar, AppToolBar
-            from i18n import tr
+            from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
+            from laser_studio.i18n import tr
         except ImportError:
             raise unittest.SkipTest("PyQt6 non importable ici")
         cls.app = QApplication.instance() or QApplication([])
@@ -46,8 +47,8 @@ class AppMenusTests(unittest.TestCase):
 
     def test_kofi_button_is_the_last_widget_of_the_toolbar(self):
         from unittest import mock
-        from ui.buy_me_a_coffee import BuyMeACoffeeButton
-        from ui.buy_me_a_coffee import button as button_module
+        from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
+        from laser_studio.ui.buy_me_a_coffee import button as button_module
         last = self.toolbar.widgetForAction(self.toolbar.actions()[-1])
         self.assertIsInstance(last, BuyMeACoffeeButton)
         self.assertEqual(last.toolTip(), self.tr("ui.support_button_tooltip"))
@@ -92,7 +93,7 @@ class AppMenusTests(unittest.TestCase):
         self.assertIs(widgets[1].defaultWidget(), self.toolbar.ports_combo)
 
     def test_image_actions_are_disabled_until_an_image_is_shown(self):
-        from ui.app.menu import AppActions
+        from laser_studio.ui.app.menu import AppActions
         a = AppActions()                                 # instance neuve : état de départ
         for action in (*a.image_actions, a.mirror_h, a.mirror_v):
             self.assertFalse(action.isEnabled(), action.text())
@@ -250,7 +251,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("layout.addRow(self.keep_ratio_check)", src)
 
     def test_load_image_button_is_on_two_lines(self):
-        from i18n import TRANSLATIONS
+        from laser_studio.i18n import TRANSLATIONS
         for lang, text in TRANSLATIONS["img.load"].items():
             self.assertEqual(text.count("\n"), 1, lang)
 
@@ -298,13 +299,13 @@ class MenuStructureTests(unittest.TestCase):
 class ShowWindowTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("ui.app.window_controller")
+            self.mod = importlib.import_module("laser_studio.ui.app.window_controller")
         except ImportError:
             self.skipTest("window_controller non importable ici")
 
     def make(self, with_pages=True):
         # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
-        self.main = importlib.import_module("main_window")
+        self.main = importlib.import_module("laser_studio.main_window")
         cls = type("Window", (self.mod.WindowControllerMixin,),
                    {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
@@ -406,7 +407,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()
         tab._fullscreen_control = control
-        show = importlib.import_module("main_window").FullLaserStudio._show_fullscreen_control
+        show = importlib.import_module("laser_studio.main_window").FullLaserStudio._show_fullscreen_control
         show(tab, False)
         control.setVisible.assert_called_with(False)
         show(object(), True)                                             # onglet sans bouton : ignoré
@@ -486,9 +487,9 @@ def load_window_module():
     fake_widgets = types.ModuleType("PyQt6.QtWidgets")
     fake_widgets.QDialog, fake_widgets.QScrollArea, fake_widgets.QVBoxLayout = FakeQt.QDialog, FakeQt.QScrollArea, FakeQt.QVBoxLayout
     with mock.patch.dict(sys.modules, {"PyQt6.QtCore": fake_core, "PyQt6.QtWidgets": fake_widgets}):
-        sys.modules.pop("ui.settings.window", None)
-        module = importlib.import_module("ui.settings.window")
-    sys.modules.pop("ui.settings.window", None)
+        sys.modules.pop("laser_studio.ui.settings.window", None)
+        module = importlib.import_module("laser_studio.ui.settings.window")
+    sys.modules.pop("laser_studio.ui.settings.window", None)
     return module
 
 

@@ -5,12 +5,12 @@ import tempfile
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtWidgets import QApplication
     from PIL import Image
-    import main_window
+    from laser_studio import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 

@@ -7,7 +7,7 @@ import types
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 
 class Sig:
@@ -142,9 +142,9 @@ def load_dialog_module():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
         # patch.dict remet sys.modules en l'état à la sortie : le module
         # « factice » (et son paquet) ne reste pas en cache.
-        for name in ("ui.dialogs.box_generator", "ui.dialogs.box_generator.dialog"):
+        for name in ("laser_studio.ui.dialogs.box_generator", "laser_studio.ui.dialogs.box_generator.dialog"):
             sys.modules.pop(name, None)
-        module = importlib.import_module("ui.dialogs.box_generator.dialog")
+        module = importlib.import_module("laser_studio.ui.dialogs.box_generator.dialog")
     return module
 
 
@@ -271,7 +271,7 @@ class DialogSmokeTests(unittest.TestCase):
         self.assertEqual((d2.cut_layer_id(), d2.engrave_layer_id()), ("c", "g"))
 
     def test_error_messages_exist_for_each_error_code(self):
-        from vector import box_generator as bg
+        from laser_studio.vector import box_generator as bg
         for code, info in (("thickness", {"value": 0}), ("kerf", {"value": 5}), ("too_small", {"axis": "X", "value": 5.0, "minimum": 9.0}),
                            ("finger_too_small", {"value": 1.0, "minimum": 3.0}), ("pinched_panel", {"point": (0, 0)}),
                            ("unknown_code", {})):

@@ -5,10 +5,11 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
-from core import paths  # noqa: E402
+from laser_studio.core import paths  # noqa: E402
 
 IMAGES = ("buy_me_a_coffee.png", "laser_studio_pro_banner.png",
           "laser_studio_pro_512.png", "laser_studio_pro.ico")

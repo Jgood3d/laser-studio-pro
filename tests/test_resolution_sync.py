@@ -4,11 +4,11 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from image_processing_mixin import ImageProcessingMixin
-    from separation_mixin import SeparationMixin
+    from laser_studio.image_processing_mixin import ImageProcessingMixin
+    from laser_studio.separation_mixin import SeparationMixin
 except ImportError:
     ImageProcessingMixin = None
 
@@ -141,7 +141,7 @@ class SeparationHooksStillPresentTests(unittest.TestCase):
     quand image_processing_mixin.py est remplacé par une autre version."""
 
     def source(self):
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "image_processing_mixin.py")
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "laser_studio", "image_processing_mixin.py")
         with open(path, encoding="utf-8") as f:
             return f.read()
 

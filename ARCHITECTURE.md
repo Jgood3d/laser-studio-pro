@@ -56,9 +56,13 @@ main.py
 
 ```
 laser-studio-pro/
+├── pyproject.toml                    # disposition src/ : paquets laser_studio et laser_common
+├── main.py                           # lance l'application depuis le dépôt (et point d'entrée PyInstaller)
 ├── .github/workflows/macos-build.yml
 ├── docs/                             # captures, page de présentation
 ├── packaging/                        # compilation : windows/ (build.bat, setup.iss), linux/ (build-linux.sh), macos/ (spec, scripts, icns)
+├── src/laser_common/                 # partagé par Laser Studio et Stencil Studio : files (écriture sûre)
+├── src/laser_studio/                 # l'application : resources/, ui/, core/, vector/, image/, grbl/, i18n/, controllers/, main_window.py, mixins (détail ci-dessous, sauf stencil_studio/, tests/, tools/)
 ├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
 │   └── icons/breeze/                 # thème d’icônes FreeDesktop embarqué
 │       ├── index.theme
@@ -82,7 +86,7 @@ laser-studio-pro/
 │   └── screenshots.py                # captures de l'interface → docs/screenshots/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
-├── core/                             # socle sans interface : version, paths (chemins, ressources), files (écriture atomique, en arrière-plan), constants, debug_log
+├── core/                             # socle sans interface : version, paths (chemins, ressources), constants, debug_log
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
@@ -140,7 +144,7 @@ laser-studio-pro/
 | **ui/app/theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
 | **core/version.py** | Version (`APP_VERSION`), lue aussi par le build macOS | `ui/about`, `ui/app/menu` |
 | **core/paths.py** | Dossier de l'exécutable et du bundle, dossier des données (autosave), ressources (`find_resource`) | Utilisé largement |
-| **core/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
+| **laser_common/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
 | **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
 | **core/debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `controllers/job_queue`, `grbl`, `workers` |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
@@ -318,7 +322,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py ui/app/theme.py vector_layers.py ui/app/window_controller.py ui/tabs/image/tab.py
+python -m compileall -q main.py src
 ```
 
 ---

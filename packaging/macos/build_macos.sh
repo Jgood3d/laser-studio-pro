@@ -12,9 +12,9 @@ REPO_ROOT="$(dirname "$(dirname "$MACOS_DIR")")"
 cd "$REPO_ROOT"
 
 APP_NAME="LaserStudioPro"
-# Version lue depuis core/version.py (source unique, voir LaserStudioPro.spec)
+# Version lue depuis src/laser_studio/core/version.py (source unique, voir LaserStudioPro.spec)
 # plutôt que dupliquée ici en dur.
-VERSION="$(grep -m1 '^APP_VERSION' "${REPO_ROOT}/core/version.py" | sed -E 's/.*"([^"]+)".*/\1/')"
+VERSION="$(grep -m1 '^APP_VERSION' "${REPO_ROOT}/src/laser_studio/core/version.py" | sed -E 's/.*"([^"]+)".*/\1/')"
 ARCH="$(uname -m)"
 DMG_NAME="${APP_NAME}_${VERSION}_macos_${ARCH}.dmg"
 
@@ -44,16 +44,16 @@ pip install pyinstaller -q
 #    Source (resources/laser_studio_pro_512.png) partagée avec
 #    Windows/Linux ; l'icône .icns générée, elle, va dans packaging/macos/.
 ICNS_PATH="${MACOS_DIR}/laser_studio_pro.icns"
-if [ ! -f "$ICNS_PATH" ] || [ "resources/laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
+if [ ! -f "$ICNS_PATH" ] || [ "src/laser_studio/resources/laser_studio_pro_512.png" -nt "$ICNS_PATH" ]; then
     echo "Génération de l'icône .icns..."
     ICONSET_DIR="$(mktemp -d)/laser_studio_pro.iconset"
     mkdir -p "$ICONSET_DIR"
     for size in 16 32 64 128 256 512; do
-        sips -z "$size" "$size" resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}.png" >/dev/null
+        sips -z "$size" "$size" src/laser_studio/resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}.png" >/dev/null
         double=$((size * 2))
-        sips -z "$double" "$double" resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}@2x.png" >/dev/null
+        sips -z "$double" "$double" src/laser_studio/resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_${size}x${size}@2x.png" >/dev/null
     done
-    sips -z 1024 1024 resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null
+    sips -z 1024 1024 src/laser_studio/resources/laser_studio_pro_512.png --out "${ICONSET_DIR}/icon_512x512@2x.png" >/dev/null
     iconutil -c icns "$ICONSET_DIR" -o "$ICNS_PATH"
     rm -rf "$(dirname "$ICONSET_DIR")"
 fi

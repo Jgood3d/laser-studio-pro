@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from image import matrix as mi
+from laser_studio.image import matrix as mi
 
 
 def _moves(lines):

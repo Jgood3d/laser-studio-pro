@@ -5,18 +5,19 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtGui import QShortcut
     from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
-    from i18n import tr
-    from ui.machine.job_position import JobPositionBox
-    from ui.tabs.image import ImageSettingsPanel, ImageTab
-    from ui.tabs.image.material_combo import MaterialComboBox
-    from ui.tabs.image.resolution_box import ResolutionBox
-    from ui.widgets import SliderWithButtons
+    from laser_studio.i18n import tr
+    from laser_studio.ui.machine.job_position import JobPositionBox
+    from laser_studio.ui.tabs.image import ImageSettingsPanel, ImageTab
+    from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
+    from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
+    from laser_studio.ui.widgets import SliderWithButtons
 except ImportError:  # PyQt6 manquant
     ImageTab = None
 

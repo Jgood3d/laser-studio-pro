@@ -6,10 +6,11 @@ import random
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-from vector import nesting as ng
-from vector import order as vo
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+from laser_studio.vector import nesting as ng
+from laser_studio.vector import order as vo
 
 
 def rect(w, h, x=0.0, y=0.0):

@@ -23,18 +23,18 @@ block_cipher = None
 
 REPO_ROOT = os.path.dirname(os.path.dirname(SPECPATH))  # SPECPATH = packaging/macos/
 
-# Numéro de version : lu depuis core/version.py (source unique, déjà utilisée
+# Numéro de version : lu depuis src/laser_studio/core/version.py (source unique, déjà utilisée
 # par l'app elle-même pour l'"À propos") plutôt que dupliqué ici en dur —
-# une seule ligne à changer dans core/version.py suffit pour toutes les
+# une seule ligne à changer dans src/laser_studio/core/version.py suffit pour toutes les
 # plateformes qui en dépendent.
-sys.path.insert(0, REPO_ROOT)
-from core.version import APP_VERSION
+sys.path.insert(0, os.path.join(REPO_ROOT, 'src'))
+from laser_studio.core.version import APP_VERSION
 
 # Ressources embarquées dans le bundle, dans resources/ (retrouvées au
 # runtime par core.paths.find_resource()). Ce dossier est partagé avec les
 # builds Windows/Linux.
 datas = [
-    (os.path.join(REPO_ROOT, 'resources'), 'resources'),
+    (os.path.join(REPO_ROOT, 'src', 'laser_studio', 'resources'), 'resources'),
 ]
 datas += collect_data_files('pyqtgraph')
 datas += collect_data_files('skimage')
@@ -51,7 +51,7 @@ hiddenimports += collect_submodules('pyqtgraph')
 
 a = Analysis(
     [os.path.join(REPO_ROOT, 'main.py')],
-    pathex=[REPO_ROOT],
+    pathex=[REPO_ROOT, os.path.join(REPO_ROOT, 'src')],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,

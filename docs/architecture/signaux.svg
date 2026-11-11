@@ -685,11 +685,11 @@
 <text x="1634" y="983.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#5d6d7e">ui/app/window_controller.py</text>
 <rect x="978" y="992" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="1005.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">stencil_studio_requested</text>
-<path d="M1278 1001.0 L1316 1001.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M1316 997.0 L1324 1001.0 L1316 1005.0 Z" fill="#95a5a6"/>
-<rect x="1324" y="992" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="1332" y="1005.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_stencil_studio</text>
-<text x="1634" y="1005.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">stencil_studio/studio_dialog.py</text>
+<path d="M1278 1001.0 L1316 1001.0" stroke="#5d6d7e" stroke-width="2" fill="none"/>
+<path d="M1316 997.0 L1324 1001.0 L1316 1005.0 Z" fill="#5d6d7e"/>
+<rect x="1324" y="992" width="300" height="18" rx="4" fill="#5d6d7e" stroke="none"/>
+<text x="1332" y="1005.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">_open_stencil_studio</text>
+<text x="1634" y="1005.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#5d6d7e">ui/app/window_controller.py</text>
 <rect x="978" y="1014" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="1027.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">main_tab_requested</text>
 <path d="M1278 1023.0 L1316 1023.0" stroke="#5d6d7e" stroke-width="2" fill="none"/>

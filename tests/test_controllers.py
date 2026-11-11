@@ -8,8 +8,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PIL import Image
@@ -20,14 +21,14 @@ try:
         QInputDialog,
         QMessageBox,
     )
-    from controllers import job_queue as jq
-    from controllers.job_queue import Engraver, JobQueueController
-    from controllers.materials import MaterialsController
-    from controllers.matrix_image import MatrixImageController
-    from controllers import project as project_module
-    from controllers.png2svg import Png2SvgController
-    from controllers.project import ProjectController
-    from vector_layers import LayerManager
+    from laser_studio.controllers import job_queue as jq
+    from laser_studio.controllers.job_queue import Engraver, JobQueueController
+    from laser_studio.controllers.materials import MaterialsController
+    from laser_studio.controllers.matrix_image import MatrixImageController
+    from laser_studio.controllers import project as project_module
+    from laser_studio.controllers.png2svg import Png2SvgController
+    from laser_studio.controllers.project import ProjectController
+    from laser_studio.vector_layers import LayerManager
 except ImportError:  # PyQt6, Pillow... manquants
     JobQueueController = None
 

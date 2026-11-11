@@ -3,12 +3,12 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from ui.machine.dro import DroPanel
-    from i18n import tr
+    from laser_studio.ui.machine.dro import DroPanel
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6 manquant
     DroPanel = None
 

@@ -20,13 +20,14 @@ import string
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-sys.path.insert(0, os.path.join(ROOT, "tools"))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.join(REPO, "tools"))
 from project_files import display_name, python_files  # noqa: E402
 
 try:
-    import i18n
+    from laser_studio import i18n
 except ImportError:  # PyQt6 absent
     i18n = None
 

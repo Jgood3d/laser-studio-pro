@@ -4,12 +4,13 @@ import sys
 import time
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from ui.statusbar import StatusBar
+    from laser_studio.ui.statusbar import StatusBar
 except ImportError:  # PyQt6 manquant
     StatusBar = None
 

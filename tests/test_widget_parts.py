@@ -5,19 +5,20 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PIL import Image
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
-    from i18n import tr
-    from ui.machine.controls.realtime_commands import RealtimeCommands
-    from ui.machine.job_position import JobPositionBox
-    from ui.settings.machine_params import MachineParamsPage
-    from ui.settings.grbl_config.settings_box import GrblSettingsBox
-    from ui.settings.test_matrix.image_test_group import ImageTestGroup
-    from ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
+    from laser_studio.i18n import tr
+    from laser_studio.ui.machine.controls.realtime_commands import RealtimeCommands
+    from laser_studio.ui.machine.job_position import JobPositionBox
+    from laser_studio.ui.settings.machine_params import MachineParamsPage
+    from laser_studio.ui.settings.grbl_config.settings_box import GrblSettingsBox
+    from laser_studio.ui.settings.test_matrix.image_test_group import ImageTestGroup
+    from laser_studio.ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
 except ImportError:  # PyQt6 manquant
     GrblSettingsBox = None
 

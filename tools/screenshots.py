@@ -26,10 +26,11 @@ import tempfile
 import time
 import unicodedata
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUT = os.path.join(ROOT, "docs", "screenshots")
-SAMPLE_IMAGE = os.path.join(ROOT, "docs", "gravure-test-original.jpg")
-SEPARATION_IMAGE = os.path.join(ROOT, "docs", "result-color-layer.jpg")
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+OUTPUT = os.path.join(REPO, "docs", "screenshots")
+SAMPLE_IMAGE = os.path.join(REPO, "docs", "gravure-test-original.jpg")
+SEPARATION_IMAGE = os.path.join(REPO, "docs", "result-color-layer.jpg")
 WINDOW_SIZE = (1600, 980)
 # Pages du menu Paramètres (clés de show_settings_window).
 SETTINGS_PAGES = ("machine_params", "machine", "grbl", "test_matrix")
@@ -61,7 +62,7 @@ def main():
     os.environ.setdefault("QT_LOGGING_RULES", "qt.qpa.wayland.textinput=false")
     if args.offscreen:
         os.environ["QT_QPA_PLATFORM"] = "offscreen"
-    sys.path.insert(0, ROOT)
+    sys.path.insert(0, os.path.dirname(ROOT))
     os.makedirs(args.output, exist_ok=True)
 
     from unittest import mock
@@ -70,13 +71,13 @@ def main():
     from PyQt6.QtWidgets import QApplication, QMessageBox
 
     app = QApplication([])
-    from core.paths import find_resource
-    from ui.app.theme import apply_saved_theme, install_breeze_icon_theme
+    from laser_studio.core.paths import find_resource
+    from laser_studio.ui.app.theme import apply_saved_theme, install_breeze_icon_theme
 
     install_breeze_icon_theme()
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
-    import main_window
+    from laser_studio import main_window
 
     window = main_window.FullLaserStudio()
     apply_saved_theme(app)
@@ -132,11 +133,11 @@ def main():
         settings.close()
 
     print("Boîtes de dialogue")
-    from ui.about import AboutDialog
-    from ui.buy_me_a_coffee import BuyMeACoffeeDialog
-    from ui.dialogs.box_generator import BoxGeneratorDialog
-    from ui.dialogs.nesting import NestingDialog
-    from ui.support import SupportDialog
+    from laser_studio.ui.about import AboutDialog
+    from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
+    from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog
+    from laser_studio.ui.dialogs.nesting import NestingDialog
+    from laser_studio.ui.support import SupportDialog
 
     bed = (window.spin_machine_w.value(), window.spin_machine_h.value())
     dialogs = (

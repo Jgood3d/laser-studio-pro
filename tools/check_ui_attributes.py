@@ -21,7 +21,8 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from project_files import display_name, python_files  # noqa: E402
 WIDGET_PREFIXES = ("combo", "spin", "chk", "btn", "lbl", "txt", "slider", "list", "edit", "radio",

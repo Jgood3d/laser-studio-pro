@@ -3,14 +3,14 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtCore import Qt
     from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication, QPushButton
-    from laser_control_mixin import LaserControlMixin
-    from ui.machine.console import DirectConsolePanel
+    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.ui.machine.console import DirectConsolePanel
 except ImportError:  # PyQt6, pyserial... manquants
     DirectConsolePanel = None
 
