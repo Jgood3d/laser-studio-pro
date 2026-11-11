@@ -23,14 +23,14 @@ if exist dist rmdir /s /q dist
 echo ==========================================
 echo Compilation de Laser Studio Pro (Mode Onedir)...
 echo ==========================================
-rem  Images, logo, icone et pack d'icones Breeze : tout le dossier resources\ (cherche par find_resource).
+rem  Images, logo, icone et pack d'icones Breeze : tout le dossier src\laser_studio\resources\ (cherche par find_resource).
 rem  Stencil Studio : le dossier est copie en donnees (studio.html, locales, polices...) ET ses modules sont
 rem  declares en hidden-import pour que PyInstaller embarque aussi cv2 / numpy / scipy / Pillow qu'ils utilisent
 rem  (studio_dialog importe studio a la demande, dans une fonction : on le declare donc explicitement).
 rem  QtWebEngine est embarque automatiquement (main.py l'importe en tete).
-rem  Les paquets du projet (controllers, grbl, image, i18n, ui...) sont trouves seuls par PyInstaller.
-pyinstaller --onedir --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico ^
- --add-data "resources;resources" ^
+rem  Le code est dans src\ (paquets laser_studio et laser_common) : --paths src le fait trouver par PyInstaller.
+pyinstaller --onedir --windowed --name LaserStudioPro --icon=src\laser_studio\resources\laser_studio_pro.ico ^
+ --paths src --add-data "src\laser_studio\resources;resources" ^
  --add-data "stencil_studio;stencil_studio" ^
  --collect-submodules serial --hidden-import=serial ^
  --hidden-import=PyQt6.QtWebEngineWidgets --hidden-import=PyQt6.QtWebEngineCore ^
@@ -43,7 +43,7 @@ pyinstaller --onedir --windowed --name LaserStudioPro --icon=resources\laser_stu
 echo ==========================================
 echo Copie du fichier icone dans le dossier dist...
 echo ==========================================
-copy resources\laser_studio_pro.ico dist\LaserStudioPro\
+copy src\laser_studio\resources\laser_studio_pro.ico dist\LaserStudioPro\
 
 echo ==========================================
 echo Termine ! Le dossier dist\LaserStudioPro est pret.
