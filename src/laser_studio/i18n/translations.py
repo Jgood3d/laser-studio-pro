@@ -37,6 +37,12 @@ TRANSLATIONS = {
     "menu.tools": {"fr": "Outils", "en": "Tools", "de": "Werkzeuge", "es": "Herramientas"},
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
+    "menu.tools.puzzle": {
+        "fr": "Générateur de Puzzle…",
+        "en": "Puzzle Generator…",
+        "de": "Puzzle-Generator…",
+        "es": "Generador de puzzle…",
+    },
 
     "menu.theme": {
         "fr": "Thème de l'interface",
@@ -479,6 +485,18 @@ TRANSLATIONS = {
         "de": "Erstellt eine Fingerzinken-Box mit frei wählbaren Maßen X, Y, Z und Text- oder SVG-Dekor auf den Seiten.",
         "es": "Crea una caja con encastres de dimensiones X, Y, Z, con decoración de texto o SVG en las caras.",
     },
+    "ui.vector_puzzle_generator": {
+        "fr": "🧩 Puzzle",
+        "en": "🧩 Puzzle",
+        "de": "🧩 Puzzle",
+        "es": "🧩 Puzzle",
+    },
+    "ui.vector_puzzle_generator_tip": {
+        "fr": "Créer une grille de puzzle découpée (tenons / mortaises)",
+        "en": "Create a cut jigsaw puzzle grid (tabs / slots)",
+        "de": "Ausgeschnittenes Puzzle-Gitter erzeugen (Zapfen / Nuten)",
+        "es": "Crear una rejilla de puzzle recortada (lengüetas / ranuras)",
+    },
     "vector.import_filter": {
         "fr": "Vectoriel SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
         "en": "Vector SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
@@ -895,6 +913,32 @@ TRANSLATIONS = {
         "de": "Gravur- und Markierungsebenen laufen vor den Schneideebenen, und innerhalb einer Schneideebene werden innere Konturen (Löcher, Details) vor den umgebenden geschnitten: das Teil verrutscht oder kippt nicht, bevor seine Details fertig sind. Deaktiviere es, um die Ebenenreihenfolge strikt einzuhalten.",
         "es": "Las capas de grabado y marcado se ejecutan antes que las de corte, y dentro de una capa de corte los contornos interiores (agujeros, detalles) se cortan antes que los que los contienen: la pieza no se mueve ni se vuelca antes de terminar sus detalles. Desmarca para seguir estrictamente el orden de la lista de capas.",
     },
+    # --- Générateur de Puzzle ---
+    "puzzle.title": {
+        "fr": "Générateur de Puzzle",
+        "en": "Puzzle Generator",
+        "de": "Puzzle-Generator",
+        "es": "Generador de puzzle",
+    },
+    "puzzle.error": {
+        "fr": "Erreur puzzle",
+        "en": "Puzzle error",
+        "de": "Puzzle-Fehler",
+        "es": "Error de puzzle",
+    },
+    "puzzle.empty": {
+        "fr": "Aucune pièce générée.",
+        "en": "No pieces generated.",
+        "de": "Keine Teile erzeugt.",
+        "es": "No se generaron piezas.",
+    },
+    "puzzle.done": {
+        "fr": "Puzzle {nx}×{ny} — {count} pièces ({w:.1f}×{h:.1f} mm) généré sur le calque de découpe.",
+        "en": "Puzzle {nx}×{ny} — {count} pieces ({w:.1f}×{h:.1f} mm) generated on the cut layer.",
+        "de": "Puzzle {nx}×{ny} — {count} Teile ({w:.1f}×{h:.1f} mm) auf der Schnittebene erzeugt.",
+        "es": "Puzzle {nx}×{ny} — {count} piezas ({w:.1f}×{h:.1f} mm) generado en la capa de corte.",
+    },
+
     # --- Imbrication automatique ---
     "ui.vector_nesting": {
         "fr": "🧩 Imbrication auto",
