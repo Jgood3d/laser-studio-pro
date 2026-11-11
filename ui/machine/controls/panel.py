@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
-from app_constants import (
+from core.constants import (
     JOG_DEFAULT_SPEED,
     JOG_DEFAULT_STEP_MM,
     JOG_SPEED_MIN,

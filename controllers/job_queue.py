@@ -13,8 +13,9 @@ from typing import Callable
 
 from PyQt6.QtWidgets import QMessageBox
 
-from app_utils import get_autosave_dir, get_background_writer
-from debug_log import get_logger, log_gcode_summary
+from core.debug_log import get_logger, log_gcode_summary
+from core.files import get_background_writer
+from core.paths import get_autosave_dir
 from i18n import tr
 
 log = get_logger()

@@ -68,7 +68,7 @@ pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_st
 
 ```
 Sous Windows, `--add-data` sépare source et destination par `;`. Le code
-(`app_utils.find_resource`) cherche ces images dans `resources/` à côté de
+(`core.paths.find_resource`) cherche ces images dans `resources/` à côté de
 l'exécutable, puis dans le bundle PyInstaller, donc `--add-data` suffit — pas
 besoin de copier les images manuellement dans `dist\` après coup.
 
@@ -118,7 +118,7 @@ Avec Stencil studio
 pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
 ```
 Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
-Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien
+Comme sous Windows, `core.paths.find_resource` retrouve ces images aussi bien
 embarquées via `--add-data` que placées à côté de l'exécutable.
 
 ### 5. Résultat

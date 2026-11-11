@@ -14,7 +14,7 @@ try:
     from ui.machine.controls import JogControlPanel
     from ui.machine import MachinePanel
     from ui.app.window_controller import WindowControllerMixin
-    from app_constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
+    from core.constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
     from i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
     JogControlPanel = None

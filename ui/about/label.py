@@ -3,7 +3,7 @@
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QLabel
 
-from app_utils import APP_VERSION
+from core.version import APP_VERSION
 from i18n import tr
 
 

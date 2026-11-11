@@ -4,7 +4,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QLabel
 
 from i18n import tr
-from app_constants import KOFI_URL
+from core.constants import KOFI_URL
 
 
 class BuyMeACoffeeLabel(QLabel):

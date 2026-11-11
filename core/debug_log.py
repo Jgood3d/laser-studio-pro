@@ -10,7 +10,7 @@ import logging
 import os
 import re
 
-from app_utils import get_autosave_dir
+from core.paths import get_autosave_dir
 
 LOGGER_NAME = "laser_studio.gravure"
 LOG_FILENAME = "gravure_debug.log"

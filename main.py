@@ -10,9 +10,9 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QElapsedTimer, QTimer
 from PyQt6 import QtWebEngineWidgets
 
-from app_constants import SPLASH_SCREEN_DURATION
-from app_utils import find_resource
-from debug_log import setup_debug_logging
+from core.constants import SPLASH_SCREEN_DURATION
+from core.debug_log import setup_debug_logging
+from core.paths import find_resource
 from i18n import tr
 from ui.app.qt_messages import install_qt_message_filters
 from ui.splashscreen import StartupSplash

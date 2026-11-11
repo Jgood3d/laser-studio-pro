@@ -70,7 +70,7 @@ def main():
     from PyQt6.QtWidgets import QApplication, QMessageBox
 
     app = QApplication([])
-    from app_utils import find_resource
+    from core.paths import find_resource
     from ui.app.theme import apply_saved_theme, install_breeze_icon_theme
 
     install_breeze_icon_theme()

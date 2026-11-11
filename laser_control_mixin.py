@@ -6,7 +6,7 @@ from PyQt6.QtCore import QTimer
 from workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread, image_origin
 from i18n import tr
 from grbl.simulator import SIMULATED_PORT, simulation_enabled
-from debug_log import get_logger, log_gcode_summary
+from core.debug_log import get_logger, log_gcode_summary
 
 log = get_logger()
 

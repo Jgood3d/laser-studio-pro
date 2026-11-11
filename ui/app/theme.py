@@ -5,7 +5,7 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon, QPalette, QColor
 
-from app_utils import resource_candidates
+from core.paths import resource_candidates
 
 
 # ---------------------------------------------------------------------------
@@ -583,7 +583,7 @@ def install_breeze_icon_theme():
 
     Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
     Le pack minimal vit dans resources/icons/breeze/, cherché comme les
-    images de l'application (voir app_utils.resource_candidates) : à côté de
+    images de l'application (voir core.paths.resource_candidates) : à côté de
     l'exécutable, puis dans le bundle PyInstaller (--add-data "resources;resources").
     """
     # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.

@@ -15,7 +15,7 @@ def read(name):
 
 class ReleaseConsistencyTests(unittest.TestCase):
     def app_version(self):
-        return re.search(r'^APP_VERSION = "([\d.]+)"', read("app_utils.py"), re.M).group(1)
+        return re.search(r'^APP_VERSION = "([\d.]+)"', read("core/version.py"), re.M).group(1)
 
     def changelog_versions(self):
         return re.findall(r"^## \[v?([\d.]+)\] — (\d{4}-\d{2}-\d{2})", read("CHANGELOG.md"), re.M)

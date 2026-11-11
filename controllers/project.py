@@ -10,11 +10,8 @@ from PIL import Image
 from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
-from app_utils import (
-    atomic_write_json,
-    get_autosave_dir,
-    get_background_writer,
-)
+from core.files import atomic_write_json, get_background_writer
+from core.paths import get_autosave_dir
 from i18n import tr
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"

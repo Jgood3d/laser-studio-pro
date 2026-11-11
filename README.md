@@ -108,8 +108,7 @@ python main.py
 
 ### Point d’entrée
 - `main.py` — lance l’application
-- `app_utils.py` — version de l’application, chemins de ressources, écriture atomique des fichiers de données
-- `app_constants.py` — valeurs fixes de l’application (liens, adresses)
+- `core/` — socle sans interface : `version.py` (version de l’application), `paths.py` (chemins, ressources), `files.py` (écriture atomique des fichiers de données), `constants.py` (valeurs fixes : liens, tailles), `debug_log.py` (journal de débogage de la gravure)
 
 ### Composants autonomes
 - `vector_font.py` — `VectorFont`

@@ -1087,7 +1087,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         arrière-plan — file d'attente, sauvegarde automatique — avant que le
         processus ne s'arrête, sinon une écriture en cours serait perdue."""
         try:
-            from app_utils import get_background_writer
+            from core.files import get_background_writer
             get_background_writer().wait_idle(10)
         except Exception:
             pass

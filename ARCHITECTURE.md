@@ -2,7 +2,7 @@
 
 > Document mis à jour pour faciliter la prise en main et la modification du projet.  
 > Branche de référence : **Dev** — dépôt : https://github.com/Jgood3d/laser-studio-pro  
-> Version applicative : **2.5.0** (voir `app_utils.APP_VERSION`)
+> Version applicative : **2.5.0** (voir `core/version.py`)
 
 Ce fichier regroupe :
 1. L’arborescence complète
@@ -82,9 +82,8 @@ laser-studio-pro/
 │   └── screenshots.py                # captures de l'interface → docs/screenshots/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
-├── app_utils.py
+├── core/                             # socle sans interface : version, paths (chemins, ressources), files (écriture atomique, en arrière-plan), constants, debug_log
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
-├── debug_log.py
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
 ├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles (remplacent des mixins)
@@ -140,10 +139,13 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
+| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
 | **ui/app/theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
-| **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
-| **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `controllers/job_queue` |
+| **core/version.py** | Version (`APP_VERSION`), lue aussi par le build macOS | `ui/about`, `ui/app/menu` |
+| **core/paths.py** | Dossier de l'exécutable et du bundle, dossier des données (autosave), ressources (`find_resource`) | Utilisé largement |
+| **core/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
+| **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
+| **core/debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `controllers/job_queue`, `grbl`, `workers` |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
 | **i18n/** | Traductions FR / EN / DE / ES : `translations.py` (dictionnaire `TRANSLATIONS`, y compris thèmes, nœuds, explode, outils dessin), `language.py` (langue mémorisée, `tr()`). `from i18n import tr` | Toute l’UI |
 | **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `main_window`, `workers` |

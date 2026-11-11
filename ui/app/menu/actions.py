@@ -17,7 +17,8 @@ from PyQt6.QtGui import (
 )
 from PyQt6.QtWidgets import QApplication, QStyle
 
-from app_utils import APP_VERSION, find_resource
+from core.paths import find_resource
+from core.version import APP_VERSION
 from i18n import SUPPORTED_LANGUAGES, get_current_language, tr
 
 

@@ -6,12 +6,12 @@ from PyQt6.QtCore import QEvent, Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import QApplication, QSplashScreen, QWidget
 
-from app_constants import (
+from core.constants import (
     BANNER_FILENAME,
     SPLASH_SCREEN_SLEEP_INTERVAL,
     SPLASH_SCREEN_WIDTH,
 )
-from app_utils import find_resource
+from core.paths import find_resource
 from i18n import tr
 from ui.utils import scaled_to_width_hidpi
 

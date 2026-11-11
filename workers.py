@@ -12,7 +12,7 @@ from svg.path import parse_path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
-from debug_log import get_logger
+from core.debug_log import get_logger
 
 log = get_logger()
 

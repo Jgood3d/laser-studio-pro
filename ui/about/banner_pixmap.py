@@ -2,8 +2,8 @@
 
 from PyQt6.QtGui import QPixmap
 
-from app_constants import BANNER_FILENAME
-from app_utils import find_resource, resource_candidates
+from core.constants import BANNER_FILENAME
+from core.paths import find_resource, resource_candidates
 from i18n import tr
 from ui.utils import scaled_to_width_hidpi
 

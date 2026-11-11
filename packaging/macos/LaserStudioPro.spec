@@ -23,15 +23,15 @@ block_cipher = None
 
 REPO_ROOT = os.path.dirname(os.path.dirname(SPECPATH))  # SPECPATH = packaging/macos/
 
-# Numéro de version : lu depuis app_utils.py (source unique, déjà utilisée
+# Numéro de version : lu depuis core/version.py (source unique, déjà utilisée
 # par l'app elle-même pour l'"À propos") plutôt que dupliqué ici en dur —
-# une seule ligne à changer dans app_utils.py suffit pour toutes les
+# une seule ligne à changer dans core/version.py suffit pour toutes les
 # plateformes qui en dépendent.
 sys.path.insert(0, REPO_ROOT)
-from app_utils import APP_VERSION
+from core.version import APP_VERSION
 
 # Ressources embarquées dans le bundle, dans resources/ (retrouvées au
-# runtime par app_utils.find_resource()). Ce dossier est partagé avec les
+# runtime par core.paths.find_resource()). Ce dossier est partagé avec les
 # builds Windows/Linux.
 datas = [
     (os.path.join(REPO_ROOT, 'resources'), 'resources'),

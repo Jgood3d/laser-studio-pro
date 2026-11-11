@@ -13,7 +13,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtGui import QPixmap
     from ui.splashscreen import StartupSplash
-    from app_constants import SPLASH_SCREEN_WIDTH
+    from core.constants import SPLASH_SCREEN_WIDTH
     from i18n import tr
 except ImportError:  # PyQt6 manquant
     StartupSplash = None

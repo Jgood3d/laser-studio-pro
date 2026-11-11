@@ -4,8 +4,8 @@ from PyQt6.QtCore import QSize, Qt, QUrl
 from PyQt6.QtGui import QDesktopServices, QIcon
 from PyQt6.QtWidgets import QPushButton
 
-from app_constants import KOFI_URL
-from app_utils import find_resource
+from core.constants import KOFI_URL
+from core.paths import find_resource
 from i18n import tr
 
 ICON_FILENAME = "buy_me_a_coffee.png"

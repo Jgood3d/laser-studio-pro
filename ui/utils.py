@@ -4,7 +4,7 @@ from PyQt6.QtCore import QSize, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPalette, QPixmap
 from PyQt6.QtWidgets import QStyle, QToolButton
 
-from app_constants import JOG_BUTTON_SIZE
+from core.constants import JOG_BUTTON_SIZE
 
 
 def painted_icon(palette, draw):

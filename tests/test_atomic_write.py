@@ -7,7 +7,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from app_utils import atomic_write_json, atomic_write_text
+from core.files import atomic_write_json, atomic_write_text
 
 
 class AtomicWriteTests(unittest.TestCase):
@@ -38,7 +38,7 @@ class AtomicWriteTests(unittest.TestCase):
 
     def test_failure_during_replace_keeps_old_file_and_cleans_tmp(self):
         atomic_write_json(self.path, {"ok": True})
-        with mock.patch("app_utils.os.replace", side_effect=OSError("disque plein")):
+        with mock.patch("core.files.os.replace", side_effect=OSError("disque plein")):
             with self.assertRaises(OSError):
                 atomic_write_text(self.path, json.dumps({"new": 1}))
         self.assertEqual(self._read(), {"ok": True})
@@ -46,7 +46,7 @@ class AtomicWriteTests(unittest.TestCase):
 
     def test_failure_during_write_keeps_old_file_and_cleans_tmp(self):
         atomic_write_json(self.path, {"ok": True})
-        with mock.patch("app_utils.os.fsync", side_effect=OSError("erreur E/S")):
+        with mock.patch("core.files.os.fsync", side_effect=OSError("erreur E/S")):
             with self.assertRaises(OSError):
                 atomic_write_text(self.path, json.dumps({"new": 1}))
         self.assertEqual(self._read(), {"ok": True})
