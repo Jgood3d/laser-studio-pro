@@ -4,7 +4,7 @@ import sys
 import tempfile
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 # Préférences et données de l'application isolées : le test ne touche pas à celles de l'utilisateur.
 _TMP = tempfile.mkdtemp()
@@ -13,7 +13,7 @@ os.environ.setdefault("XDG_DATA_HOME", _TMP)
 
 try:
     from PyQt6.QtWidgets import QApplication
-    import main_window
+    from laser_studio import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 

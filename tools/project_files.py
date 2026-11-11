@@ -1,7 +1,7 @@
 """Fichiers Python de l'application, analysés par les outils et les tests.
 
-Ce sont les fichiers de la racine du projet et ceux des paquets ui/,
-grbl/, i18n/, image/ et controllers/, avec leurs sous-dossiers. Les
+Ce sont les fichiers de src/laser_studio/ et ceux de ses paquets ui/, core/,
+grbl/, i18n/, image/, controllers/ et vector/, avec leurs sous-dossiers. Les
 autres dossiers (tests, tools, stencil_studio, .venv...) ne sont pas
 concernés.
 """
@@ -9,10 +9,12 @@ concernés.
 import glob
 import os
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Code de l'application (disposition src/, voir pyproject.toml).
+ROOT = os.path.join(REPO, "src", "laser_studio")
 
 # Paquets de l'application, parcourus avec leurs sous-dossiers.
-PACKAGES = ("ui", "grbl", "i18n", "image", "controllers")
+PACKAGES = ("ui", "grbl", "i18n", "image", "controllers", "core", "vector")
 
 
 def python_files(root=ROOT):

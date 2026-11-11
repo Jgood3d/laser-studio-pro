@@ -6,15 +6,16 @@ import unittest
 import numpy as np
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
 
-from image import filters as imf
+from laser_studio.image import filters as imf
 
 try:
-    import workers
+    from laser_studio import workers
 except ImportError:
     workers = None
 

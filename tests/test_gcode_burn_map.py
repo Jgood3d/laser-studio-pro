@@ -19,10 +19,10 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    import workers
+    from laser_studio import workers
 except ImportError as exc:  # dépendance manquante (PyQt6, svg.path...)
     workers = None
     _IMPORT_ERROR = exc

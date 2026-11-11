@@ -7,11 +7,11 @@ import sys
 import unittest
 
 sys.path.insert(
-    0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
     from PyQt6.QtCore import qInstallMessageHandler, qWarning
-    from ui.app import qt_messages
+    from laser_studio.ui.app import qt_messages
 except ImportError:  # PyQt6 manquant
     qt_messages = None
 

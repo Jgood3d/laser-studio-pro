@@ -10,13 +10,14 @@ from unittest import mock
 import numpy as np
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import project_state_source, ui_source  # noqa: E402
 
-from image import size as isz
-import vector_nudge as vn
+from laser_studio.image import size as isz
+from laser_studio.vector import nudge as vn
 
 
 def read(name):
@@ -32,7 +33,12 @@ class HomingTests(unittest.TestCase):
         self.assertIn("self.chk_homing = page.homing_check", ui_source())
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
-        self.assertNotIn("chk_homing", read("machine_profiles_mixin.py"))
+        self.assertNotIn("chk_homing", read(os.path.join("controllers", "machine_profiles.py")))
+        window = read("main_window.py")
+        profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
+        self.assertNotIn("chk_homing", profiles)
+        self.assertNotIn("homing", read(os.path.join("ui", "settings", "grbl_config", "page.py"))
+                         .split("def profile_values")[1].split("def apply_profile_values")[0])
         self.assertNotIn("chk_homing", project_state_source())
 
 
@@ -70,7 +76,7 @@ class NaturalSizeTests(unittest.TestCase):
 
 
 try:
-    import image_processing_mixin as ipm
+    import laser_studio.image_processing_mixin as ipm
 except ImportError:
     ipm = None
 

@@ -6,8 +6,9 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.join(REPO, "tools"))
 from project_files import display_name, python_files  # noqa: E402
 _BUILTINS = set(dir(builtins)) | {"__file__", "__name__", "__doc__", "__class__"}
 

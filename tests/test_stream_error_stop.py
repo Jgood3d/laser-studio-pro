@@ -4,10 +4,10 @@ import sys
 import threading
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from workers import GCodeStreamerThread
+    from laser_studio.workers import GCodeStreamerThread
 except ImportError:  # PyQt6, numpy... manquants
     GCodeStreamerThread = None
 
@@ -55,7 +55,7 @@ class FakeUSB:
         self.last_state = None
 
     def update_last_status(self, line):
-        from grbl.connection import LaserUSBController
+        from laser_studio.grbl.connection import LaserUSBController
         parsed = LaserUSBController.parse_status_line(line)
         if parsed:
             self.last_state = parsed[0]

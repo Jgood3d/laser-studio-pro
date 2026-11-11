@@ -129,7 +129,7 @@ def theme_for_lsp(theme_name=None):
         except Exception:
             theme_name = "dark"
     try:
-        from ui.app.theme import THEMES, normalize_theme_name
+        from laser_studio.ui.app.theme import THEMES, normalize_theme_name
         key = normalize_theme_name(theme_name)
         c = THEMES[key]
         return {

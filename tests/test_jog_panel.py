@@ -3,19 +3,20 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
 try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
-    from laser_control_mixin import LaserControlMixin
-    from ui.machine.controls import JogControlPanel
-    from ui.machine import MachinePanel
-    from ui.app.window_controller import WindowControllerMixin
-    from app_constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
-    from i18n import tr
+    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.ui.machine.controls import JogControlPanel
+    from laser_studio.ui.machine import MachinePanel
+    from laser_studio.ui.app.window_controller import WindowControllerMixin
+    from laser_studio.core.constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
     JogControlPanel = None
 
@@ -200,7 +201,7 @@ class WindowWiringTests(unittest.TestCase):
         from unittest import mock
         tmp = tempfile.mkdtemp()                       # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
-            import main_window
+            from laser_studio import main_window
             cls.app = QApplication.instance() or QApplication([])
             cls.win = main_window.FullLaserStudio()
 

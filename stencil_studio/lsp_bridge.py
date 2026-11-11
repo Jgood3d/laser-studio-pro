@@ -1,6 +1,6 @@
 """Passerelle Laser Studio Pro : range les fichiers exportés par le Studio dans les bons calques de LSP.
 
-Sans dépendance Qt à l'import (testable seul). Utilise les modules de LSP (dxf_import, vector_import)
+Sans dépendance Qt à l'import (testable seul). Utilise les modules de LSP (vector.dxf, vector.importers)
 et les attributs de la fenêtre principale (layer_manager, vector_canvas, tab_vector_editor...).
 
 Routage par calque DXF / groupe SVG :
@@ -94,7 +94,7 @@ def ensure_multi_layer(layer_manager, index, color=None, window=None):
     for l in layer_manager.layers:
         if _norm(getattr(l, "name", "")) == _norm(name):
             return l
-    from vector_layers import LaserLayer, DEFAULT_LAYER_COLORS
+    from laser_studio.vector_layers import LaserLayer, DEFAULT_LAYER_COLORS
     col = color or DEFAULT_LAYER_COLORS[(index - 1) % len(DEFAULT_LAYER_COLORS)]
 
     # --- puissance / vitesse / passes ---
@@ -281,8 +281,8 @@ def _notify_import(window, path, stats):
 
 
 def _import_dxf_routed(window, path):
-    import dxf_import
-    from vector_import import dxf_to_objects
+    from laser_studio.vector import dxf as dxf_import
+    from laser_studio.vector.importers import dxf_to_objects
 
     layers = window.layer_manager.layers
     if not layers:
@@ -303,7 +303,7 @@ def _import_dxf_routed(window, path):
 
 
 def _import_svg_routed(window, path):
-    from vector_layers import extract_svg_objects
+    from laser_studio.vector_layers import extract_svg_objects
 
     layers = window.layer_manager.layers
     if not layers:

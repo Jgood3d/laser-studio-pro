@@ -6,8 +6,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QMessageBox
@@ -21,7 +22,7 @@ class ProjectRoundTripTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()               # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": cls.tmp, "XDG_DATA_HOME": cls.tmp}):
-            import main_window
+            from laser_studio import main_window
             cls.app = QApplication.instance() or QApplication([])
             cls.win = main_window.FullLaserStudio()
 

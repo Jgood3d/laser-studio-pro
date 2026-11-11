@@ -7,14 +7,15 @@ import unittest
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    import workers
+    from laser_studio import workers
 except ImportError:  # dépendance manquante (PyQt6, svg.path...)
     workers = None
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
 class _Params(dict):

@@ -2,7 +2,7 @@
 
 > Document mis à jour pour faciliter la prise en main et la modification du projet.  
 > Branche de référence : **Dev** — dépôt : https://github.com/Jgood3d/laser-studio-pro  
-> Version applicative : **2.5.0** (voir `app_utils.APP_VERSION`)
+> Version applicative : **2.5.0** (voir `core/version.py`)
 
 Ce fichier regroupe :
 1. L’arborescence complète
@@ -30,14 +30,12 @@ main.py
         │
         │  Hérite des mixins :
         │
-        ├─ UiSetupMixin          (ui_setup_mixin.py)    onglet Éditeur vectoriel
         ├─ WindowControllerMixin (ui/app/window_controller.py) signaux du menu, thème, connexion
-        ├─ MachineProfilesMixin  (machine_profiles_mixin.py)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
         ├─ GcodeGenerationMixin  (gcode_generation_mixin.py)
         ├─ LaserControlMixin     (laser_control_mixin.py)
-        └─ SeparationMixin       (separation_mixin.py)
+        └─ SeparationMixin       (separation_mixin.py)  logique de la séparation (vue : ui/tabs/separation/)
         │
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
         │  qui reçoivent ce dont ils ont besoin :
@@ -45,7 +43,9 @@ main.py
         ├─ png2svg       = Png2SvgController      envoi du SVG vers l'éditeur vectoriel
         ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
         ├─ job_queue     = JobQueueController     file d'attente (graveur : interface Engraver)
-        └─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
+        ├─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
+        ├─ materials     = MaterialsController    profils matériaux
+        └─ machines      = MachineProfilesController profils machine (champs : ProfileFields)
 ```
 
 `FullLaserStudio` est le **cœur** : il assemble les mixins et possède les objets partagés (`usb`, `layer_manager`, images, file d’attente…).
@@ -56,9 +56,13 @@ main.py
 
 ```
 laser-studio-pro/
+├── pyproject.toml                    # disposition src/ : paquets laser_studio et laser_common
+├── main.py                           # lance l'application depuis le dépôt (et point d'entrée PyInstaller)
 ├── .github/workflows/macos-build.yml
 ├── docs/                             # captures, page de présentation
 ├── packaging/                        # compilation : windows/ (build.bat, setup.iss), linux/ (build-linux.sh), macos/ (spec, scripts, icns)
+├── src/laser_common/                 # partagé par Laser Studio et Stencil Studio : files (écriture sûre)
+├── src/laser_studio/                 # l'application : resources/, ui/, core/, vector/, image/, grbl/, i18n/, controllers/, main_window.py, mixins (détail ci-dessous, sauf stencil_studio/, tests/, tools/)
 ├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
 │   └── icons/breeze/                 # thème d’icônes FreeDesktop embarqué
 │       ├── index.theme
@@ -82,13 +86,11 @@ laser-studio-pro/
 │   └── screenshots.py                # captures de l'interface → docs/screenshots/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
-├── app_utils.py
+├── core/                             # socle sans interface : version, paths (chemins, ressources), constants, debug_log
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
-├── debug_log.py
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
-├── ui_setup_mixin.py
-├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project (remplacent des mixins)
+├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles (remplacent des mixins)
 ├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
 ├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
 ├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
@@ -105,6 +107,7 @@ laser-studio-pro/
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
 ├── ui/tabs/image/                    # onglet Graver une image (ImageTab, ImageSettingsPanel, MaterialComboBox, ResolutionBox)
 ├── ui/machine/job_position/          # cadre Position du job (JobPositionBox)
+├── ui/tabs/separation/               # onglet Séparation Couleur / Verre (SeparationTab)
 ├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
 ├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
 ├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
@@ -117,15 +120,11 @@ laser-studio-pro/
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
-├── machine_profiles_mixin.py
 ├── image_processing_mixin.py
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector_font.py / vector_order.py / vector_nudge.py / vector_import.py
-├── dxf_import.py
-├── box_generator.py
-├── nesting.py / nesting_apply.py
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, nesting, nesting_apply, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -141,10 +140,13 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `app_utils`, `ui.splashscreen` |
+| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
 | **ui/app/theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
-| **app_utils.py** | Version (`APP_VERSION`), chemins ressources (`find_resource`), écriture atomique, autosave, background writer | Utilisé largement |
-| **debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `controllers/job_queue` |
+| **core/version.py** | Version (`APP_VERSION`), lue aussi par le build macOS | `ui/about`, `ui/app/menu` |
+| **core/paths.py** | Dossier de l'exécutable et du bundle, dossier des données (autosave), ressources (`find_resource`) | Utilisé largement |
+| **laser_common/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
+| **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
+| **core/debug_log.py** | Logging debug / résumés G-Code | `laser_control_mixin`, `controllers/job_queue`, `grbl`, `workers` |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
 | **i18n/** | Traductions FR / EN / DE / ES : `translations.py` (dictionnaire `TRANSLATIONS`, y compris thèmes, nœuds, explode, outils dessin), `language.py` (langue mémorisée, `tr()`). `from i18n import tr` | Toute l’UI |
 | **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `main_window`, `workers` |
@@ -154,8 +156,7 @@ laser-studio-pro/
 
 | Mixin / fichier | Rôle | Dépend de / appelle |
 |-----------------|------|---------------------|
-| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages | Tous les mixins, `ui/machine`, `ui/statusbar`, `ui/settings/window` |
-| **ui_setup_mixin.py** | Onglet « Éditeur vectoriel » (boutons dessin / mesure / explode / nœuds). Partira dans `ui/tabs/` | `vector_layers` |
+| **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages, onglet « Éditeur vectoriel » (`_build_vector_editor_tab`, partira dans `ui/tabs/`) | Tous les mixins, `ui/machine`, `ui/statusbar`, `ui/settings/window` |
 | **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports, « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
 | **ui/app/window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, actions de la barre d'outils sur l'image de l'onglet courant, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui/tabs/image/** | `ImageTab` : onglet « Graver une image », réglages à gauche (`ImageSettingsPanel` : taille + offset, réglages photo, matière, tramage, résolution), aperçus originale / tramé côte à côte. Émet `compare_requested`, `fullscreen_requested` ; le panneau émet `processing_changed`, `size_changed`, `material_changed`, `resolution_mode_changed`… | Construit et abonné dans `main_window._build_image_tab`, qui garde les anciens noms des champs (`spin_w`, `slider_bright`, `combo_algo`, `spin_lmm`…) |
@@ -174,20 +175,20 @@ laser-studio-pro/
 | **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
-| **machine_profiles_mixin.py** | Profils machine, matériaux, réglages calques mémorisés | `vector_layers.LAYER_MODES` |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
-| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector_import`, `dxf_import`, `nesting_*` |
+| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
-| **separation_mixin.py** | Séparation couleur | widgets / engines dédiés |
+| **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
 
 ### 3.3 Vectoriel (cœur édition)
 
 | Fichier | Rôle | Utilisé par |
 |---------|------|-------------|
 | **vector_layers.py** | Calques (`LayerManager`), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** | Éditeur, G-Code, profils |
-| **vector_import.py** / **dxf_import.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
-| **vector_order.py** / **vector_nudge.py** / **vector_font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
+| **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
+| **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
+| **vector/box_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, imbrication des pièces | `vector_editing_mixin`, `ui/dialogs` |
 
 #### Capacités du canevas (`VectorCanvasView`)
 
@@ -321,7 +322,7 @@ python tools/check_translations.py
 python tools/check_ui_attributes.py
 
 # Compilation syntaxe rapide
-python -m py_compile main.py ui/app/theme.py vector_layers.py ui_setup_mixin.py ui/app/window_controller.py ui/tabs/image/tab.py
+python -m compileall -q main.py src
 ```
 
 ---

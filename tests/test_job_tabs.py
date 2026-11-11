@@ -4,16 +4,17 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtCore import QPointF
     from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
-    from i18n import tr
-    from ui.tabs.console import ConsoleTab
-    from ui.tabs.job_queue import JobQueueTab
-    from ui.tabs.preview_2d import Preview2DTab
+    from laser_studio.i18n import tr
+    from laser_studio.ui.tabs.console import ConsoleTab
+    from laser_studio.ui.tabs.job_queue import JobQueueTab
+    from laser_studio.ui.tabs.preview_2d import Preview2DTab
 except ImportError:  # PyQt6, pyqtgraph... manquants
     ConsoleTab = None
 

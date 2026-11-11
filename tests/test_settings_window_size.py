@@ -5,13 +5,14 @@ import sys
 import tempfile
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtCore import QSettings
     from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
-    from ui.settings.window import SettingsWindow
+    from laser_studio.ui.settings.window import SettingsWindow
 except ImportError:  # PyQt6 manquant
     SettingsWindow = None
 

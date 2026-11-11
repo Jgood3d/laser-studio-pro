@@ -4,13 +4,13 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 try:
     from PyQt6.QtWidgets import QApplication
     from PyQt6.QtGui import QPixmap
-    from ui.utils import scaled_to_width_hidpi
+    from laser_studio.ui.utils import scaled_to_width_hidpi
 except ImportError:  # PyQt6 manquant
     scaled_to_width_hidpi = None
 

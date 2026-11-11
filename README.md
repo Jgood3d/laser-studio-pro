@@ -106,13 +106,19 @@ python main.py
 
 ## Structure du projet
 
+Le code suit la disposition `src/` recommandée pour les projets Python (voir `pyproject.toml`) :
+- `src/laser_studio/` — l’application Laser Studio ; les chemins ci-dessous lui sont relatifs ;
+- `src/laser_common/` — code partagé par Laser Studio et Stencil Studio, indépendant des deux (`files.py` : écriture sûre des fichiers de données) ;
+- `stencil_studio/` — Stencil Studio (rejoindra `src/` plus tard) ;
+- `tests/`, `tools/`, `packaging/`, `docs/` à la racine du dépôt.
+
+On lance l’application avec `python main.py` depuis le dépôt, ou `python -m laser_studio` après `pip install -e .`.
+
 ### Point d’entrée
-- `main.py` — lance l’application
-- `app_utils.py` — version de l’application, chemins de ressources, écriture atomique des fichiers de données
-- `app_constants.py` — valeurs fixes de l’application (liens, adresses)
+- `main.py` (racine du dépôt) — lance l’application sans installation ; `main.py` dans `src/laser_studio/` contient le démarrage (`main()`)
+- `core/` — socle sans interface : `version.py` (version de l’application), `paths.py` (chemins, ressources), `constants.py` (valeurs fixes : liens, tailles), `debug_log.py` (journal de débogage de la gravure)
 
 ### Composants autonomes
-- `vector_font.py` — `VectorFont`
 - `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `workers.py` — threads et fonctions de traitement image / G-Code
@@ -122,17 +128,18 @@ python main.py
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
 - `image/` — traitement d’image sans Qt : `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
-- `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
-- `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
-- `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
-- `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
-- `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
-- `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
+- `vector/` — géométrie vectorielle :
+  - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
+  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
+  - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
+  - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
+  - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
+  - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
+  - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale découpée en mixins
-- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs
-- `ui_setup_mixin.py` — onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
+- `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs, onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
@@ -151,17 +158,17 @@ python main.py
 - `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
 - `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère), dans le panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
+- `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…) ; le suivi du G-Code envoyé est `SentGcodeLog`
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
-- `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
 - `laser_control_mixin.py` — USB / GRBL / commandes temps réel
-- `controllers/` — contrôleurs, objets Python ordinaires qui remplacent peu à peu les mixins : `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par la fenêtre, `_capture_project` / `_restore_project`)
-- `separation_mixin.py` — onglet Séparation Couleur / Verre
+- `controllers/` — contrôleurs, objets Python ordinaires qui remplacent peu à peu les mixins : `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `machine_profiles.py` (`MachineProfilesController` : profils machine, leurs actions et la mémoire continue des calques ; chaque page fournit ses champs par `profile_values()` / `apply_profile_values()`), `layer_memory.py` (mémoire des calques par machine : réglages des calques enregistrés dans chaque profil et réappliqués, sans Qt), `materials.py` (`MaterialsController` : profils matériaux, et la liste par défaut `DEFAULT_MATERIALS_DB`), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par la fenêtre, `_capture_project` / `_restore_project`)
+- `separation_mixin.py` — logique de l’onglet Séparation Couleur / Verre : tonalité envoyée à « Graver une image », calque couleur, aperçus, export, test du gain
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
 - `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)
@@ -284,7 +291,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile i18n/translations.py ui_setup_mixin.py main_window.py
+py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

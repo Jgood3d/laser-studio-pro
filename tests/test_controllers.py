@@ -8,20 +8,27 @@ import tempfile
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PIL import Image
     from PyQt6.QtCore import QSettings
-    from PyQt6.QtWidgets import QApplication, QMessageBox
-    from controllers import job_queue as jq
-    from controllers.job_queue import Engraver, JobQueueController
-    from controllers.matrix_image import MatrixImageController
-    from controllers import project as project_module
-    from controllers.png2svg import Png2SvgController
-    from controllers.project import ProjectController
-    from vector_layers import LayerManager
+    from PyQt6.QtWidgets import (
+        QApplication,
+        QComboBox,
+        QInputDialog,
+        QMessageBox,
+    )
+    from laser_studio.controllers import job_queue as jq
+    from laser_studio.controllers.job_queue import Engraver, JobQueueController
+    from laser_studio.controllers.materials import MaterialsController
+    from laser_studio.controllers.matrix_image import MatrixImageController
+    from laser_studio.controllers import project as project_module
+    from laser_studio.controllers.png2svg import Png2SvgController
+    from laser_studio.controllers.project import ProjectController
+    from laser_studio.vector_layers import LayerManager
 except ImportError:  # PyQt6, Pillow... manquants
     JobQueueController = None
 
@@ -377,6 +384,65 @@ class ProjectControllerTests(_QtTest):
         )
         self.image = None
         self.assertIsNone(self.project.data()["raw_image_b64"])
+
+
+@unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")
+class MaterialsControllerTests(_QtTest):
+    def make(self):
+        self.applied, self.current = [], {
+            "sp_e": 1,
+            "pw_e": 2,
+            "sp_c": 3,
+            "pw_c": 4,
+            "pass_c": 5,
+        }
+        combo = QComboBox()
+        self.addCleanup(combo.deleteLater)
+        materials = {"Personnalisé": {"sp_e": 9}, "Bois": {"sp_e": 8}}
+        combo.addItems(list(materials))
+        controller = MaterialsController(
+            None,
+            combo,
+            materials,
+            current_settings=lambda: dict(self.current),
+            apply_settings=self.applied.append,
+        )
+        return controller, combo
+
+    def test_selected_material_is_applied_and_saved(self):
+        controller, combo = self.make()
+        combo.setCurrentText("Bois")
+        controller.apply_selected()
+        self.assertEqual(self.applied, [{"sp_e": 8}])
+        controller.save_selected()
+        self.assertEqual(controller.materials["Bois"], self.current)
+
+    def test_new_and_deleted_materials(self):
+        controller, combo = self.make()
+        with mock.patch.object(
+            QInputDialog, "getText", return_value=(" Verre ", True)
+        ):
+            controller.new_material()
+        self.assertEqual(combo.currentText(), "Verre")
+        self.assertIn("Verre", controller.materials)
+        combo.setCurrentText("Personnalisé")
+        controller.delete_selected()  # interdit
+        self.assertIn("Personnalisé", controller.materials)
+        with mock.patch.object(
+            QMessageBox,
+            "question",
+            return_value=QMessageBox.StandardButton.Yes,
+        ):
+            combo.setCurrentText("Verre")
+            controller.delete_selected()
+        self.assertNotIn("Verre", controller.materials)
+
+    def test_replacing_the_list(self):
+        controller, combo = self.make()
+        controller.set_materials({"A": {}, "B": {}}, block_signals=True)
+        self.assertEqual(
+            [combo.itemText(i) for i in range(combo.count())], ["A", "B"]
+        )
 
 
 if __name__ == "__main__":

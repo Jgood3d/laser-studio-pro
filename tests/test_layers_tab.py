@@ -3,13 +3,14 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QLineEdit
-    from ui.tabs.layers import LayersTab
-    from vector_layers import LayerManager
+    from laser_studio.ui.tabs.layers import LayersTab
+    from laser_studio.vector_layers import LayerManager
 except ImportError:  # PyQt6 manquant
     LayersTab = None
 

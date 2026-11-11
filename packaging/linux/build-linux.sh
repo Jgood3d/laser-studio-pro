@@ -56,9 +56,10 @@ echo "=========================================="
 # QtWebEngine est embarqué automatiquement (main.py l'importe en tête).
 # Le .spec généré va dans build/ : la racine du dépôt reste propre.
 python3 -m PyInstaller --noconfirm "$MODE" --windowed --name LaserStudioPro \
-    --icon "$REPO_ROOT/resources/laser_studio_pro.ico" \
+    --icon "$REPO_ROOT/src/laser_studio/resources/laser_studio_pro.ico" \
     --specpath build \
-    --add-data "$REPO_ROOT/resources:resources" \
+    --paths "$REPO_ROOT/src" \
+    --add-data "$REPO_ROOT/src/laser_studio/resources:resources" \
     --add-data "$REPO_ROOT/stencil_studio:stencil_studio" \
     --collect-submodules serial --hidden-import serial \
     --hidden-import PyQt6.QtWebEngineWidgets --hidden-import PyQt6.QtWebEngineCore \

@@ -4,13 +4,14 @@ import os
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtGui import QIcon
     from PyQt6.QtWidgets import QApplication, QCheckBox, QLabel
-    from ui.widgets import TabToolBar
+    from laser_studio.ui.widgets import TabToolBar
 except ImportError:  # PyQt6 manquant
     TabToolBar = None
 

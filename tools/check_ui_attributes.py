@@ -21,7 +21,8 @@ import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from project_files import display_name, python_files  # noqa: E402
 WIDGET_PREFIXES = ("combo", "spin", "chk", "btn", "lbl", "txt", "slider", "list", "edit", "radio",
@@ -113,7 +114,7 @@ def main():
         shown = ", ".join(f"{b}:{l}" for b, l in places[:4]) + (" ..." if len(places) > 4 else "")
         print(f"  self.{name}   <- {shown}")
     print("\nUn fichier est probablement une ancienne version : vérifie que tous les fichiers livrés ensemble"
-          "\nsont bien remplacés (typiquement ui_setup_mixin.py pour les widgets).")
+          "\nsont bien remplacés (typiquement main_window.py pour les widgets).")
     return 1
 
 

@@ -8,17 +8,18 @@ import unittest
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(HERE)
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 sys.path.insert(0, HERE)
 
-import nesting as ng
-import vector_order as vo
+from laser_studio.vector import nesting as ng
+from laser_studio.vector import order as vo
 
 try:
-    import nesting_apply as na
+    from laser_studio.vector import nesting_apply as na
 except ImportError:
     na = None
 
@@ -159,9 +160,9 @@ def load_dialog():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
         # patch.dict remet sys.modules en l'état à la sortie : le module
         # « factice » (et son paquet) ne reste pas en cache.
-        for name in ("ui.dialogs.nesting", "ui.dialogs.nesting.dialog"):
+        for name in ("laser_studio.ui.dialogs.nesting", "laser_studio.ui.dialogs.nesting.dialog"):
             sys.modules.pop(name, None)
-        module = importlib.import_module("ui.dialogs.nesting.dialog")
+        module = importlib.import_module("laser_studio.ui.dialogs.nesting.dialog")
     return module
 
 

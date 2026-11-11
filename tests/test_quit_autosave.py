@@ -5,14 +5,15 @@ import sys
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 
 class QuitTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("main_window")
+            self.mod = importlib.import_module("laser_studio.main_window")
         except ImportError:
             self.skipTest("main_window non importable ici")
         self.win = type("Window", (), {})()
