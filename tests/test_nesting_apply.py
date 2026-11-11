@@ -1,5 +1,6 @@
 """Imbrication dans l'éditeur : groupes rigides (trous qui suivent leur pièce), rotation, fenêtre de réglage.
 Les objets et le canevas Qt sont remplacés par de petites classes factices."""
+import importlib
 import math
 import os
 import sys
@@ -7,17 +8,18 @@ import unittest
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(HERE)
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 sys.path.insert(0, HERE)
 
-import nesting as ng
-import vector_order as vo
+from laser_studio.vector import nesting as ng
+from laser_studio.vector import order as vo
 
 try:
-    import nesting_apply as na
+    from laser_studio.vector import nesting_apply as na
 except ImportError:
     na = None
 
@@ -156,9 +158,11 @@ from test_box_dialog_smoke import fake_widgets_module  # noqa: E402
 
 def load_dialog():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
-        sys.modules.pop("nesting_dialog", None)
-        module = __import__("nesting_dialog")
-    sys.modules.pop("nesting_dialog", None)
+        # patch.dict remet sys.modules en l'état à la sortie : le module
+        # « factice » (et son paquet) ne reste pas en cache.
+        for name in ("laser_studio.ui.dialogs.nesting", "laser_studio.ui.dialogs.nesting.dialog"):
+            sys.modules.pop(name, None)
+        module = importlib.import_module("laser_studio.ui.dialogs.nesting.dialog")
     return module
 
 
@@ -168,7 +172,7 @@ except ImportError:
     nd = None
 
 
-@unittest.skipIf(nd is None, "nesting_dialog non importable ici")
+@unittest.skipIf(nd is None, "ui.dialogs.nesting non importable ici")
 class DialogTests(unittest.TestCase):
     def test_defaults_scope_and_round_trip(self):
         d = nd.NestingDialog(None, 400.0, 300.0, 3, 10)

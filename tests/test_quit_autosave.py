@@ -5,32 +5,34 @@ import sys
 import unittest
 from unittest import mock
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 
 
 class QuitTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("ui_setup_mixin")
+            self.mod = importlib.import_module("laser_studio.main_window")
         except ImportError:
-            self.skipTest("ui_setup_mixin non importable ici")
-        cls = next(c for c in vars(self.mod).values() if isinstance(c, type) and c.__name__ == "UiSetupMixin")
-        self.win = cls.__new__(cls)
+            self.skipTest("main_window non importable ici")
+        self.win = type("Window", (), {})()
         self.calls = []
-        for name in ("save_machine_settings", "save_splitter_sizes", "_clear_autosave", "_flush_background_writes"):
+        for name in ("save_machine_settings", "save_splitter_sizes", "_flush_background_writes"):
             setattr(self.win, name, lambda n=name: self.calls.append(n))
+        self.win.project = mock.Mock()
+        self.win.project.discard_autosave = lambda: self.calls.append("discard_autosave")
         self.event = mock.Mock()
 
     def close_with(self, answer, saved=True):
-        self.win.save_project = lambda: self.calls.append("save_project") or saved
+        self.win.project.save = lambda: self.calls.append("save_project") or saved
         button = getattr(self.mod.QMessageBox.StandardButton, answer)
         with mock.patch.object(self.mod.QMessageBox, "question", return_value=button):
-            self.win.closeEvent(self.event)
+            self.mod.FullLaserStudio.closeEvent(self.win, self.event)
 
     def test_quit_without_saving_clears_the_autosave(self):
         self.close_with("No")
-        self.assertIn("_clear_autosave", self.calls)
+        self.assertIn("discard_autosave", self.calls)
         self.event.accept.assert_called_once()
 
     def test_cancelled_save_keeps_the_window_open(self):
@@ -46,7 +48,7 @@ class QuitTests(unittest.TestCase):
     def test_cancel_keeps_the_window_open_and_the_autosave(self):
         self.close_with("Cancel")
         self.event.ignore.assert_called_once()
-        self.assertNotIn("_clear_autosave", self.calls)
+        self.assertNotIn("discard_autosave", self.calls)
 
 
 if __name__ == "__main__":

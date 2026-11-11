@@ -5,14 +5,15 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ui_source import ui_source  # noqa: E402
-import vector_order as vo
+from ui_source import project_state_source, ui_source  # noqa: E402
+from laser_studio.vector import order as vo
 
 try:
-    from vector_layers import build_vector_layers_gcode
+    from laser_studio.vector_layers import build_vector_layers_gcode
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
@@ -128,15 +129,16 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
-        self.assertIn("self.chk_safe_cut_order = QCheckBox", ui_source())
+        self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
+        self.assertIn("self.chk_safe_cut_order = page.safe_cut_order_check", ui_source())
         self.assertIn("'safe_cut_order':", self.src("gcode_generation_mixin.py"))
         self.assertIn("safe_cut_order=bool(self.params.get('safe_cut_order', True))", self.src("workers.py"))
         self.assertIn("safe_cut_order=False", self.src("vector_layers.py"))
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
-        pj = self.src("project_io_mixin.py")
+        pj = project_state_source()
         self.assertIn('"safe_cut_order": self.chk_safe_cut_order.isChecked()', pj)
-        self.assertIn('self.chk_safe_cut_order.setChecked(proj_data.get("safe_cut_order", True))', pj)
+        self.assertIn('self.chk_safe_cut_order.setChecked(data.get("safe_cut_order", True))', pj)
 
 
 if __name__ == "__main__":

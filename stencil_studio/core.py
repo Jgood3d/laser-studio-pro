@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.11.08"  # doit être identique dans core.py et studio.html
+VERSION = "2026.10.84"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 

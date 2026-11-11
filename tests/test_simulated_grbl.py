@@ -6,10 +6,10 @@ import time
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-import simulated_grbl as sim
-from simulated_grbl import SimulatedGrblSerial
+import laser_studio.grbl.simulator as sim
+from laser_studio.grbl.simulator import SimulatedGrblSerial
 
 
 def lines(ser):
@@ -108,7 +108,7 @@ class SimulatedGrblTests(unittest.TestCase):
 
 
 try:
-    from workers import GCodeStreamerThread
+    from laser_studio.workers import GCodeStreamerThread
 except ImportError:
     GCodeStreamerThread = None
 
@@ -116,7 +116,7 @@ except ImportError:
 @unittest.skipIf(GCodeStreamerThread is None, "workers non importable ici")
 class StreamerWithSimulationTests(unittest.TestCase):
     def test_a_whole_job_streams_to_the_end(self):
-        from usb_controller import LaserUSBController
+        from laser_studio.grbl.connection import LaserUSBController
         with mock.patch.dict(os.environ, {"LASER_STUDIO_SIMULATION": "500"}):
             usb = LaserUSBController()
             self.assertTrue(usb.connect(sim.SIMULATED_PORT))
@@ -126,23 +126,17 @@ class StreamerWithSimulationTests(unittest.TestCase):
         results, batches = [], []
         streamer.finished_signal.connect(results.append)
         streamer.lines_sent.connect(batches.append)
-<<<<<<< HEAD
         acked = []
         streamer.lines_acked.connect(acked.append)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
         streamer.run()
         self.assertEqual(results, [True])
         self.assertEqual(usb.last_state, "Idle")
         # Suivi de l'envoi (onglet File d'attente) : toutes les lignes, dans l'ordre, par paquets.
         self.assertEqual([line for batch in batches for line in batch], streamer.lines)
         self.assertLess(len(batches), len(streamer.lines))
-<<<<<<< HEAD
         # Lignes acceptées par GRBL (suivi de la gravure sur l'aperçu 2D) : croissant, jusqu'au total.
         self.assertEqual(acked, sorted(acked))
         self.assertEqual(acked[-1], len(streamer.lines))
-=======
->>>>>>> aed42af (feat: description de vos modifications)
 
 
 if __name__ == "__main__":

@@ -1,54 +1,23 @@
-"""Tests de la mémorisation des réglages des calques (vitesse, puissance,
-passes...) dans le profil de la machine active.
+"""Calques et profils machine : mémoire continue des calques dans le profil
+actif, restauration au démarrage, changement de machine, actions sur les
+profils (controllers/machine_profiles.py, controllers/layer_memory.py)."""
 
-Lancer depuis le dossier du projet :  python -m unittest discover tests -v
-"""
 import json
 import os
 import sys
 import unittest
 from unittest import mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    import machine_profiles_mixin as mpm
-    from machine_profiles_mixin import MachineProfilesMixin
-    from vector_layers import LayerManager
-except ImportError:  # PyQt6... manquant
-    MachineProfilesMixin = None
-
-
-class _Combo:
-    def __init__(self, index=0):
-        self.index = index
-
-    def currentIndex(self):
-        return self.index
-
-    def currentText(self):
-        return "Bas-Gauche (0,0)"
-
-
-class _Val:
-    def __init__(self, v):
-        self.v = v
-
-    def value(self):
-        return self.v
-
-
-class _Widget:
-    """Faux LayerManagerWidget : compte les appels."""
-    def __init__(self):
-        self.refreshed = 0
-        self.linked = 0
-
-    def refresh(self):
-        self.refreshed += 1
-
-    def link_all_to_focal(self):
-        self.linked += 1
+    from PyQt6.QtWidgets import QApplication, QComboBox, QInputDialog, QMessageBox
+    from laser_studio.controllers import machine_profiles as mp
+    from laser_studio.controllers.layer_memory import apply_saved_layers
+    from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
+    from laser_studio.vector_layers import LayerManager
+except ImportError:  # PyQt6 manquant
+    MachineProfilesController = None
 
 
 class _FakeTimer:
@@ -71,122 +40,172 @@ class _FakeTimer:
         self.started += 1
 
 
-def _make_app(profile_index=0, profiles=None):
-    class App(MachineProfilesMixin):
-        pass
-    a = App()
-    a.layer_manager = LayerManager()
-    a.layer_widget = _Widget()
-    a.combo_machine_profile = _Combo(profile_index)
-    a.machine_profiles = profiles if profiles is not None else [{"name": "M1", "w": 400, "h": 400}]
-    return a
-
-
-@unittest.skipIf(MachineProfilesMixin is None, "machine_profiles_mixin non importable ici")
+@unittest.skipIf(MachineProfilesController is None, "PyQt6 non importable ici")
 class LayerProfileTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self, profiles, index=0):
+        self.manager = LayerManager()
+        self.captured = {"w": 400.0}
+        self.applied, self.linked, self.saved = [], [], []
+        combo = QComboBox()
+        self.addCleanup(combo.deleteLater)
+        controller = MachineProfilesController(
+            None,
+            combo,
+            ProfileFields(
+                capture=lambda: dict(self.captured, layers=self.manager.to_list()),
+                apply=self.applied.append,
+                apply_layers=lambda saved, full: apply_saved_layers(self.manager, saved, full),
+                memory=lambda: {"layers": self.manager.to_list()},
+                profile_selected=lambda: None,
+                link_layers_to_focal=lambda: self.linked.append(True),
+            ),
+            save_settings=lambda: self.saved.append(True),
+        )
+        controller.profiles = profiles
+        controller.refresh_combo()
+        combo.setCurrentIndex(index)
+        return controller
+
+    # -- mémoire continue
+
     def test_store_puts_layers_in_active_profile_only(self):
-        a = _make_app(profile_index=1, profiles=[{"name": "A"}, {"name": "B"}])
-        a.layer_manager.layers[0].power = 55.0
-        a._store_layers_in_active_profile()
-        self.assertNotIn("layers", a.machine_profiles[0])
-        self.assertEqual(a.machine_profiles[1]["layers"], a.layer_manager.to_list())
+        c = self.make([{"name": "A"}, {"name": "B"}], index=1)
+        self.manager.layers[0].power = 55.0
+        c.store_memory()
+        self.assertNotIn("layers", c.profiles[0])
+        self.assertEqual(c.profiles[1]["layers"], self.manager.to_list())
 
     def test_startup_restores_layers_completely(self):
-        a = _make_app()
-        a.layer_manager.layers[0].power = 55.0
-        a.layer_manager.layers[0].speed = 1234
-        a.layer_manager.layers[0].name = "Mon calque"
-        extra = a.layer_manager.add_layer()
-        extra.passes = 4
-        a._store_layers_in_active_profile()
-        saved = json.loads(json.dumps(a.machine_profiles))   # aller-retour disque (QSettings en JSON)
+        c = self.make([{"name": "M1"}])
+        first = self.manager.layers[0]
+        first.power, first.speed, first.name = 55.0, 1234, "Mon calque"
+        self.manager.add_layer().passes = 4
+        c.store_memory()
+        saved = json.loads(c.to_json())  # aller-retour disque
+        ids = [layer.id for layer in self.manager.layers]
 
-        b = _make_app(profiles=saved)                          # nouveau démarrage : calques par défaut
-        b._apply_profile_layers(saved[0]["layers"], full=True)
-        self.assertEqual([l.id for l in b.layer_manager.layers], [l.id for l in a.layer_manager.layers])
-        self.assertEqual(b.layer_manager.layers[0].name, "Mon calque")
-        self.assertEqual(b.layer_manager.layers[0].power, 55.0)
-        self.assertEqual(b.layer_manager.layers[0].speed, 1234)
-        self.assertEqual(len(b.layer_manager.layers), 3)
-        self.assertEqual(b.layer_manager.layers[2].passes, 4)
-        self.assertGreaterEqual(b.layer_widget.refreshed, 1)
-        self.assertGreaterEqual(b.layer_widget.linked, 1)
+        other = LayerManager()  # nouveau démarrage : calques par défaut
+        self.assertTrue(apply_saved_layers(other, saved[0]["layers"], full=True))
+        self.assertEqual([layer.id for layer in other.layers], ids)
+        self.assertEqual((other.layers[0].name, other.layers[0].power, other.layers[0].speed),
+                         ("Mon calque", 55.0, 1234))
+        self.assertEqual(len(other.layers), 3)
+        self.assertEqual(other.layers[2].passes, 4)
 
-    def test_switching_machine_only_updates_settings_by_id(self):
-        a = _make_app()
-        ids = [l.id for l in a.layer_manager.layers]
-        names = [l.name for l in a.layer_manager.layers]
-        other = [dict(l.to_dict(), power=11.0, speed=999, passes=7, enabled=False) for l in a.layer_manager.layers]
-        other[0]["name"] = "Nom de l'autre machine"
-        other[0]["color"] = "#000000"
-        a._apply_profile_layers(other, full=False)
-        self.assertEqual([l.id for l in a.layer_manager.layers], ids)          # identité conservée
-        self.assertEqual([l.name for l in a.layer_manager.layers], names)      # nom conservé
-        for l in a.layer_manager.layers:
-            self.assertEqual((l.power, l.speed, l.passes, l.enabled), (11.0, 999, 7, False))
-
-    def test_switching_machine_falls_back_to_position(self):
-        a = _make_app()
-        other = [{"id": "zzz1", "power": 20.0, "speed": 3000}, {"id": "zzz2", "power": 70.0, "speed": 400}]
-        a._apply_profile_layers(other, full=False)
-        self.assertEqual((a.layer_manager.layers[0].power, a.layer_manager.layers[0].speed), (20.0, 3000))
-        self.assertEqual((a.layer_manager.layers[1].power, a.layer_manager.layers[1].speed), (70.0, 400))
-
-    def test_switching_never_adds_or_removes_layers(self):
-        a = _make_app()
-        n = len(a.layer_manager.layers)
-        a._apply_profile_layers([{"power": 1.0}], full=False)                      # moins de calques
-        self.assertEqual(len(a.layer_manager.layers), n)
-        a._apply_profile_layers([{"power": 2.0}] * (n + 3), full=False)            # plus de calques
-        self.assertEqual(len(a.layer_manager.layers), n)
-
-    def test_profile_without_layers_changes_nothing(self):
-        a = _make_app()
-        before = a.layer_manager.to_list()
-        for saved in (None, [], "oups", [None, 3]):
-            a._apply_profile_layers(saved, full=True)
-            a._apply_profile_layers(saved, full=False)
-        self.assertEqual(a.layer_manager.to_list(), before)
-
-    def test_corrupted_values_do_not_crash(self):
-        a = _make_app()
-        a._apply_profile_layers([{"id": a.layer_manager.layers[0].id, "power": "abc", "speed": None, "passes": 3}], full=False)
-        l = a.layer_manager.layers[0]
-        self.assertEqual(l.passes, 3)                       # la valeur valide est reprise
-        self.assertIsInstance(l.power, float)               # la valeur corrompue est ignorée
-        self.assertIsInstance(l.speed, int)
-        a._apply_profile_layers([{"power": "abc", "speed": "x", "passes": [], "enabled": 0, "mode": "Inconnu"}], full=True)
-        for l in a.layer_manager.layers:
-            self.assertIsInstance(l.power, float)
-            self.assertIsInstance(l.speed, int)
-            self.assertIsInstance(l.passes, int)
-            self.assertEqual(l.mode, "Découpe")             # mode inconnu -> valeur par défaut
-            self.assertFalse(l.enabled)                      # valeur valide reprise
-
-    def test_capture_includes_layers(self):
-        a = _make_app()
-        a.spin_machine_w, a.spin_machine_h = _Val(400.0), _Val(400.0)
-        a.spin_machine_max_speed, a.spin_machine_accel = _Val(6000.0), _Val(500.0)
-        a.layer_manager.layers[1].speed = 777
-        fields = a._capture_machine_profile_fields()
-        self.assertEqual(fields["layers"], a.layer_manager.to_list())
-        self.assertEqual(fields["layers"][1]["speed"], 777)
+    def test_load_applies_the_last_profile_fully(self):
+        c = self.make([])
+        layers = LayerManager()
+        layers.layers[0].speed = 4321
+        raw = json.dumps([{"name": "A"}, {"name": "B", "layers": layers.to_list()}])
+        c.load(raw, "B", {"name": "Défaut"})
+        self.assertEqual(c.current_name(), "B")
+        self.assertEqual(self.applied[-1]["name"], "B")
+        self.assertEqual(self.manager.layers[0].speed, 4321)
+        c.load("pas du json", None, {"name": "Défaut"})
+        self.assertEqual([p["name"] for p in c.profiles], ["Défaut"])
 
     def test_schedule_persist_waits_until_ready_and_debounces(self):
-        a = _make_app()
+        c = self.make([{"name": "M1"}])
         _FakeTimer.instances.clear()
-        with mock.patch.object(mpm, "QTimer", _FakeTimer):
-            a._schedule_layer_persist()                       # pas encore prêt : ignoré
+        with mock.patch.object(mp, "QTimer", _FakeTimer):
+            c.schedule_persist()  # pas encore prêt : ignoré
             self.assertEqual(_FakeTimer.instances, [])
-            a._layers_persist_ready = True
-            a._schedule_layer_persist()
-            a._schedule_layer_persist()
-        self.assertEqual(len(_FakeTimer.instances), 1)        # un seul minuteur réutilisé
-        self.assertEqual(a.machine_profiles[0]["layers"], a.layer_manager.to_list())  # rangé tout de suite
-        t = _FakeTimer.instances[0]
-        self.assertEqual(t.started, 2)
-        self.assertTrue(t.single)
-        t.timeout.connect.assert_called_once_with(a.save_machine_settings)
+            c.persist_ready = True
+            c.schedule_persist()
+            c.schedule_persist()
+        self.assertEqual(len(_FakeTimer.instances), 1)  # un seul minuteur réutilisé
+        self.assertEqual(c.profiles[0]["layers"], self.manager.to_list())  # rangé tout de suite
+        timer = _FakeTimer.instances[0]
+        self.assertEqual((timer.started, timer.single), (2, True))
+        timer.timeout.connect.assert_called_once()
+
+    # -- changement de machine (calques existants)
+
+    def test_switching_machine_only_updates_settings_by_id(self):
+        manager = LayerManager()
+        ids = [layer.id for layer in manager.layers]
+        names = [layer.name for layer in manager.layers]
+        other = [dict(layer.to_dict(), power=11.0, speed=999, passes=7, enabled=False)
+                 for layer in manager.layers]
+        other[0]["name"], other[0]["color"] = "Nom de l'autre machine", "#000000"
+        apply_saved_layers(manager, other, full=False)
+        self.assertEqual([layer.id for layer in manager.layers], ids)  # identité conservée
+        self.assertEqual([layer.name for layer in manager.layers], names)  # nom conservé
+        for layer in manager.layers:
+            self.assertEqual((layer.power, layer.speed, layer.passes, layer.enabled),
+                             (11.0, 999, 7, False))
+
+    def test_switching_machine_falls_back_to_position(self):
+        manager = LayerManager()
+        apply_saved_layers(manager, [{"id": "zzz1", "power": 20.0, "speed": 3000},
+                                     {"id": "zzz2", "power": 70.0, "speed": 400}])
+        self.assertEqual((manager.layers[0].power, manager.layers[0].speed), (20.0, 3000))
+        self.assertEqual((manager.layers[1].power, manager.layers[1].speed), (70.0, 400))
+
+    def test_switching_never_adds_or_removes_layers(self):
+        manager = LayerManager()
+        n = len(manager.layers)
+        apply_saved_layers(manager, [{"power": 1.0}])  # moins de calques
+        apply_saved_layers(manager, [{"power": 2.0}] * (n + 3))  # plus de calques
+        self.assertEqual(len(manager.layers), n)
+
+    def test_profile_without_layers_changes_nothing(self):
+        manager = LayerManager()
+        before = manager.to_list()
+        for saved in (None, [], "oups", [None, 3]):
+            apply_saved_layers(manager, saved, full=True)
+            apply_saved_layers(manager, saved, full=False)
+        self.assertEqual(manager.to_list(), before)
+
+    def test_corrupted_values_do_not_crash(self):
+        manager = LayerManager()
+        apply_saved_layers(manager, [{"id": manager.layers[0].id, "power": "abc",
+                                      "speed": None, "passes": 3}])
+        layer = manager.layers[0]
+        self.assertEqual(layer.passes, 3)  # la valeur valide est reprise
+        self.assertIsInstance(layer.power, float)  # la valeur corrompue est ignorée
+        self.assertIsInstance(layer.speed, int)
+        apply_saved_layers(manager, [{"power": "abc", "speed": "x", "passes": [],
+                                      "enabled": 0, "mode": "Inconnu"}], full=True)
+        for layer in manager.layers:
+            self.assertIsInstance(layer.power, float)
+            self.assertIsInstance(layer.speed, int)
+            self.assertIsInstance(layer.passes, int)
+            self.assertEqual(layer.mode, "Découpe")  # mode inconnu -> valeur par défaut
+            self.assertFalse(layer.enabled)  # valeur valide reprise
+
+    # -- actions sur les profils
+
+    def test_new_profile_captures_the_displayed_settings(self):
+        c = self.make([{"name": "A"}])
+        self.manager.layers[1].speed = 777
+        with mock.patch.object(QInputDialog, "getText", return_value=("  B  ", True)):
+            c.new_profile()
+        self.assertEqual(c.current_name(), "B")
+        self.assertEqual(c.profiles[1]["w"], 400.0)
+        self.assertEqual(c.profiles[1]["layers"][1]["speed"], 777)
+
+    def test_update_keeps_the_name_and_links_layers(self):
+        c = self.make([{"name": "A", "w": 100.0}])
+        with mock.patch.object(QMessageBox, "information"):
+            c.update_profile()
+        self.assertEqual((c.profiles[0]["name"], c.profiles[0]["w"]), ("A", 400.0))
+        self.assertEqual(self.linked, [True])
+
+    def test_the_last_profile_cannot_be_deleted(self):
+        c = self.make([{"name": "A"}, {"name": "B"}], index=1)
+        with mock.patch.object(QMessageBox, "question",
+                               return_value=QMessageBox.StandardButton.Yes):
+            c.delete_profile()
+        self.assertEqual([p["name"] for p in c.profiles], ["A"])
+        with mock.patch.object(QMessageBox, "warning") as warning:
+            c.delete_profile()
+        warning.assert_called_once()
+        self.assertEqual(len(c.profiles), 1)
 
 
 if __name__ == "__main__":

@@ -8,18 +8,19 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_files, ui_source  # noqa: E402
 
 try:
-    import i18n
+    from laser_studio import i18n
 except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = (*ui_files(), "separation_mixin.py", "png2svg_widget.py", "vector_layers.py", "image_processing_mixin.py")
+UI_FILES = (*ui_files(), "separation_mixin.py", "vector_layers.py", "image_processing_mixin.py")
 
 
 def long_combos():
@@ -54,12 +55,14 @@ class WidgetWidthTests(unittest.TestCase):
 
     def test_the_material_selector_is_covered(self):
         names = {(f, c) for f, c, _, _ in long_combos()}
-        self.assertIn(("ui_image_tab.py", "self.combo_material_bg"), names)
+        self.assertIn((os.path.join("ui", "tabs", "image", "material_combo.py"), "self"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
         src = ui_source()
-        self.assertIn("self.combo_material_bg.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)", src)
-        self.assertRegex(src, r"self\.combo_material_bg\.setMinimumContentsLength\(\d{1,2}\)")
+        with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:
+            combo = f.read()
+        self.assertIn("self.setSizeAdjustPolicy(\n            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon", combo)
+        self.assertRegex(combo, r"self\.setMinimumContentsLength\(\d{1,2}\)")
 
 
 class SplitterTests(unittest.TestCase):
@@ -78,15 +81,18 @@ class SplitterTests(unittest.TestCase):
         # La colonne de gauche a été supprimée : réglages de l'image dans « Graver une image »,
         # position du job dans le panneau machine. Le centre occupe toute la largeur.
         src = self.source()
-        self.assertNotRegex(src, r"\bleft_widget\b")
+        # Le widget de conversion PNG → SVG a son propre panneau de gauche
+        # (left_widget) : seule la fenêtre principale est concernée ici.
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            self.assertNotRegex(f.read(), r"\bleft_widget\b")
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)
 
     def test_generate_button_padding(self):
-        with open(os.path.join(ROOT, "ui_menus.py"), encoding="utf-8") as f:
-            menus = f.read()
-        self.assertRegex(menus, r'btn_generate\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
-                                r'"font-weight: bold; padding: 3px;"')
+        with open(os.path.join(ROOT, "ui", "app", "menu", "toolbar.py"), encoding="utf-8") as f:
+            toolbar = f.read()
+        self.assertRegex(toolbar, r'button\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
+                                  r'"font-weight: bold; padding: 3px;"')
 
 
 @unittest.skipIf(i18n is None, "i18n non importable ici")
@@ -94,24 +100,27 @@ class VectorToolbarTests(unittest.TestCase):
     """Barre d'outils de l'éditeur vectoriel : deux lignes, libellés entièrement visibles."""
 
     def rows(self):
-        with open(os.path.join(ROOT, "ui_setup_mixin.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
             src = f.read().replace("\r\n", "\n")
-        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_edit)")]
+        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_tools)")]
         keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', block))
         rows = {}
         for layout, button in re.findall(r"(toolbar_vector\w*)\.addWidget\((btn_\w+)\)", block):
             rows.setdefault(layout, []).append(keys[button])
+        # Boutons ajoutés par une boucle : for w in (btn_a, btn_b): toolbar.addWidget(w)
+        for names, layout in re.findall(r"for w in \(([^)]*)\):\s*\n\s*(toolbar_vector\w*)\.addWidget\(w\)", block):
+            rows.setdefault(layout, []).extend(keys[n.strip()] for n in names.split(",") if n.strip())
         return rows
 
     def estimated_width(self, keys):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
-    def test_two_rows_with_all_twelve_buttons(self):
+    def test_two_rows_with_all_nineteen_buttons(self):
         rows = self.rows()
-        self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_edit"])
-        self.assertEqual(sum(len(v) for v in rows.values()), 12)
-        self.assertEqual(len(set(k for v in rows.values() for k in v)), 12)
+        self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_tools"])
+        self.assertEqual(sum(len(v) for v in rows.values()), 19)
+        self.assertEqual(len(set(k for v in rows.values() for k in v)), 19)
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():

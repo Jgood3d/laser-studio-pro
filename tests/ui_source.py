@@ -1,14 +1,18 @@
-"""Code source de l'interface, réparti entre ui_setup_mixin.py et les fichiers ui_*.py."""
+"""Code source de l'interface, réparti entre main_window.py, les fichiers ui_*.py et le paquet ui/."""
 import glob
 import os
 import re
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
 def ui_files():
-    """Fichiers de l'interface, relatifs à la racine du projet."""
-    return sorted(os.path.basename(p) for p in glob.glob(os.path.join(ROOT, "ui_*.py")))
+    """Fichiers de l'interface, relatifs à la racine : main_window.py, ui_*.py et le paquet ui/."""
+    files = [os.path.join(ROOT, "main_window.py")]
+    files += glob.glob(os.path.join(ROOT, "ui_*.py"))
+    files += glob.glob(os.path.join(ROOT, "ui", "**", "*.py"), recursive=True)
+    return sorted(os.path.relpath(p, ROOT) for p in files)
 
 
 def _join_wrapped_calls(src):
@@ -25,3 +29,13 @@ def ui_source():
         with open(os.path.join(ROOT, name), encoding="utf-8") as f:
             parts.append(f.read().replace("\r\n", "\n"))
     return _join_wrapped_calls("\n".join(parts))
+
+
+def project_state_source():
+    """Code qui lit et réapplique l'état d'un projet (main_window.py :
+    _capture_project et _restore_project)."""
+    with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        src = f.read().replace("\r\n", "\n")
+    start = src.index("    def _capture_project(self):")
+    end = src.index("    # -- Événements de la fenêtre", start)
+    return src[start:end]

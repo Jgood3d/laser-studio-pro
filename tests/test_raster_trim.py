@@ -9,13 +9,13 @@ from unittest import mock
 
 import numpy as np
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # test_gcode_burn_map
 
 from test_gcode_burn_map import generate_gcode, power_map, workers  # noqa: E402
 
 try:
-    import gcode_generation_mixin as ggm
+    import laser_studio.gcode_generation_mixin as ggm
 except ImportError:  # PyQt6 manquant
     ggm = None
 
@@ -106,7 +106,7 @@ class QuickEstimateTests(unittest.TestCase):
         arr = np.full((10, 60), 255, np.uint8)
         arr[[2, 7], 10:40] = 0                      # 2 lignes de 30 px (30 mm), 8 lignes vides
         app.processed_array = arr
-        app.spin_w, app.spin_speed_engrave = _Spin(60.0), _Spin(600)
+        app.spin_w, app.engrave_speed = _Spin(60.0), 600
         app.chk_overscan = types.SimpleNamespace(isChecked=lambda: False)
         app.loaded_svg_path = None
         with mock.patch.object(ggm.QMessageBox, "information") as box:

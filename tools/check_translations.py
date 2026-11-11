@@ -13,18 +13,21 @@ Ce rapport est INFORMATIF (code de sortie 0) : certains résultats sont voulus
 """
 import ast
 import collections
-import glob
 import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-import i18n  # noqa: E402
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from project_files import display_name, python_files  # noqa: E402
+from laser_studio import i18n  # noqa: E402
 
 T = i18n.TRANSLATIONS
 LANGS = list(i18n.SUPPORTED_LANGUAGES)
-FILES = sorted(f for f in glob.glob(os.path.join(ROOT, "*.py")) if os.path.basename(f) != "i18n.py")
+# Le paquet i18n/ contient les textes eux-mêmes : il ne compte pas comme code qui les utilise.
+FILES = [f for f in python_files(ROOT) if not display_name(f).startswith("i18n" + os.sep)]
 
 
 def parse(path):
@@ -48,7 +51,8 @@ UI_CTORS = {"QLabel", "QPushButton", "QCheckBox", "QGroupBox", "QRadioButton", "
             "QToolButton", "AutoHideLabel"}
 UI_METHODS = {"setText", "setToolTip", "setWindowTitle", "setPlaceholderText", "addItem", "addItems",
               "addTab", "setTitle", "setStatusTip", "setLabelText", "setInformativeText", "addAction",
-              "addMenu", "showMessage", "show_status_message"}
+              "addMenu", "showMessage", "show_status_message",
+              "show_info", "show_progress"}
 MSGBOX = {"warning", "critical", "information", "question", "about"}
 
 
@@ -87,7 +91,7 @@ def section_b():
                 for c in ast.walk(a):
                     if (isinstance(c, ast.Constant) and isinstance(c.value, str) and _texty(c.value)
                             and not inside_tr(c) and not re.fullmatch(r"[a-z_]+", c.value)):
-                        found[os.path.basename(path)].add((c.lineno, name, c.value.replace("\n", "\\n")[:80]))
+                        found[display_name(path)].add((c.lineno, name, c.value.replace("\n", "\\n")[:80]))
     total = sum(len(v) for v in found.values())
     print(f"\n== B. Textes d'interface probablement en dur : {total} ==")
     for f, items in found.items():

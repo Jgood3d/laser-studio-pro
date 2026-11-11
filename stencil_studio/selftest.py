@@ -89,10 +89,7 @@ EXPECTED = {
     'multicouche : 4 plaques + repères': 1.0,
     'multicouche couleur : palette': 1.0,
     'couleur auto : logo 2 plaques': 1.0,
-<<<<<<< HEAD
     'couleur : pipette 3 couleurs': 1.0,
-=======
->>>>>>> aed42af (feat: description de vos modifications)
     'couleur : îlots gardés (pièces libres)': 1.0,
     'couleur : logo plein cadre (fond = couleur dominante)': 1.0,
     'multicouche : fond à part + gravure': 1.0,
@@ -236,12 +233,9 @@ def measure():
     _li = cv2.GaussianBlur(_li, (0, 0), 1.0)
     _lj = core.layers_result(_li, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4, shape="none", size_mm=300, max_bridge_mm=2))
     m["couleur : îlots gardés (pièces libres)"] = float(len(_lj.layers) >= 2 and _lj.stats.get("ml_loose", 0) >= 1)
-<<<<<<< HEAD
     _lp = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=8,
                                                ml_picks="#4070b0,#ffffff,#ff0000"))
     m["couleur : pipette 3 couleurs"] = float(len(_lp.layers) == 3 and len(_lp.stats.get("ml_palette", [])) == 3)
-=======
->>>>>>> aed42af (feat: description de vos modifications)
     m["multicouche : fond à part + gravure"] = float(len(mg.layers) == 4 and len(mg.layer_colors) == 4
                                                     and mg.layer_colors[0] == (232, 220, 200))
     return m

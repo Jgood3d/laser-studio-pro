@@ -5,18 +5,19 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(HERE)
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, HERE)
 
 try:
-    from vector_layers import build_vector_layers_gcode, _scanline_fill_union
+    from laser_studio.vector_layers import build_vector_layers_gcode, _scanline_fill_union
     HAS_BUILD = callable(build_vector_layers_gcode) and callable(_scanline_fill_union) and \
         not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
 
-from test_calibration_patterns import burn_segments
+from gcode_reader import burn_segments
 
 
 def rect(x0, y0, x1, y1):

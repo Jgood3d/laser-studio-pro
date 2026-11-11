@@ -17,12 +17,14 @@ Ce contrôle statique relève, dans tous les fichiers du projet :
 Code de sortie 1 s'il en trouve (utile avant de pousser sur GitHub).
 """
 import ast
-import glob
 import os
 import re
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from project_files import display_name, python_files  # noqa: E402
 WIDGET_PREFIXES = ("combo", "spin", "chk", "btn", "lbl", "txt", "slider", "list", "edit", "radio",
                    "tab", "tabs", "progress", "stack", "menu", "action", "group", "box", "canvas",
                    "view", "widget", "dial", "table", "tree", "check", "button", "label", "text")
@@ -38,7 +40,8 @@ def checked(name):
 
 
 def project_files(root=ROOT):
-    return sorted(f for f in glob.glob(os.path.join(root, "*.py")))
+    """Racine du projet et paquet ui/ (voir tools/project_files.py)."""
+    return python_files(root)
 
 
 def analyse(files):
@@ -46,7 +49,7 @@ def analyse(files):
     for path in files:
         with open(path, encoding="utf-8") as fh:
             tree = ast.parse(fh.read(), path)
-        base = os.path.basename(path)
+        base = display_name(path)
         for node in ast.walk(tree):
             # self.x = ..., self.x += ..., self.x: T = ..., for self.x in ..., with ... as self.x
             targets = []
@@ -111,7 +114,7 @@ def main():
         shown = ", ".join(f"{b}:{l}" for b, l in places[:4]) + (" ..." if len(places) > 4 else "")
         print(f"  self.{name}   <- {shown}")
     print("\nUn fichier est probablement une ancienne version : vérifie que tous les fichiers livrés ensemble"
-          "\nsont bien remplacés (typiquement ui_setup_mixin.py pour les widgets).")
+          "\nsont bien remplacés (typiquement main_window.py pour les widgets).")
     return 1
 
 

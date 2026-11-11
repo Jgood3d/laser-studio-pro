@@ -3,10 +3,10 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_control_mixin import LaserControlMixin
+    from laser_studio.laser_control_mixin import LaserControlMixin
 except ImportError:  # PyQt6, pyserial... manquants
     LaserControlMixin = None
 
