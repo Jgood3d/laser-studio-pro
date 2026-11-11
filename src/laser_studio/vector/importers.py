@@ -121,3 +121,15 @@ def decor_to_objects(decor, panel, layer_id, bed_h_mm, offset_x_mm=10.0, offset_
     obj = TextObject(text=decor.text, font_family=decor.font_family, size_mm=decor.size_mm,
                      bold=decor.bold, italic=decor.italic, layer_id=layer_id, x_mm=0.0, y_mm=0.0)
     return center_group([obj], cx, cy)
+
+
+def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
+    """Pièces de puzzle -> liste de SvgPathObject (contours fermés de découpe)."""
+    objects = []
+    for piece in result.pieces:
+        points = piece.placed() if hasattr(piece, "placed") else piece.cut
+        tag = f"puzzle:{piece.id[0]}_{piece.id[1]}" if hasattr(piece, "id") else "puzzle"
+        obj = _path_object(points, True, tag, layer_id, offset_x_mm, offset_y_mm)
+        if obj is not None:
+            objects.append(obj)
+    return objects
