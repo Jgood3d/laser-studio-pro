@@ -8,29 +8,22 @@ contrôleur, séparé de la fenêtre.
 """
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
-from PyQt6.QtCore import QSettings, Qt
-from laser_studio.i18n import set_language, tr
-from laser_studio.ui.about import AboutDialog
-from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
-from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
-from laser_studio.ui.support import SupportDialog
+from PyQt6.QtCore import QSettings, Qt, QTimer
+from i18n import set_language, tr
+from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
+from ui.about import AboutDialog
+from ui.app.menu import AppActions, AppMenuBar, AppToolBar
+from ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from ui.support import SupportDialog
 
 
 class WindowControllerMixin:
-    def _open_stencil_studio(self):
-        """Stencil Studio est une application à part (stencil_studio/, à la
-        racine du dépôt) : importée seulement quand on l'ouvre, Laser Studio
-        démarre aussi sans elle."""
-        from stencil_studio.studio_dialog import open_stencil_studio
-
-        open_stencil_studio(self)
-
     def change_theme(self, theme_name):
         """Bascule de thème à la volée et mémorise le code.
 
         Codes possibles : dark, light, dusk, warm.
         """
-        from laser_studio.ui.app.theme import apply_app_theme, normalize_theme_name
+        from ui.app.theme import apply_app_theme, normalize_theme_name
 
         theme_name = normalize_theme_name(theme_name)
         app = QApplication.instance()
@@ -65,6 +58,9 @@ class WindowControllerMixin:
         self._connect_app_actions(actions)
         self.project.refresh_recent_projects()
         self.update_connection_widgets()
+        # Préchauffe Stencil Studio en arrière-plan une fois la fenêtre affichée :
+        # « Outils > Stencil Studio » s'ouvre ensuite sans attente.
+        QTimer.singleShot(3000, lambda: preload_stencil_studio(self))
 
     def _connect_app_actions(self, actions):
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
@@ -77,7 +73,9 @@ class WindowControllerMixin:
         actions.settings_window_requested.connect(self.show_settings_window)
         actions.language_selected.connect(self._on_language_selected)
         actions.theme_selected.connect(self.change_theme)
-        actions.stencil_studio_requested.connect(self._open_stencil_studio)
+        actions.stencil_studio_requested.connect(
+            lambda: open_stencil_studio(self)
+        )
         actions.main_tab_requested.connect(self.show_main_tab)
         # Aide
         actions.about_requested.connect(lambda: AboutDialog(self).exec())
