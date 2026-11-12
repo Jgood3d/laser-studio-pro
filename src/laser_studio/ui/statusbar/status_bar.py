@@ -6,6 +6,27 @@ from PyQt6.QtWidgets import QProgressBar, QSizePolicy, QStatusBar
 from laser_studio.core.constants import STATUS_BAR_MESSAGE_DURATION
 from laser_studio.ui.widgets import AutoHideLabel
 
+# Repères en tête des anciens messages de console : inutiles dans la barre d'état.
+CONSOLE_MARKERS = (">>>", "!!!", ";")
+
+
+def status_text(text):
+    """Message sur une ligne pour la barre d'état : repères de console
+    (« >>> », « !!! », « ; ») et cadres « --- … --- » retirés, lignes
+    jointes par « — »."""
+    lines = []
+    for line in str(text).splitlines():
+        line = line.strip()
+        for marker in CONSOLE_MARKERS:
+            if line.startswith(marker):
+                line = line[len(marker):].strip()
+                break
+        if line.startswith("---") and line.endswith("---"):
+            line = line.strip("-").strip()
+        if line:
+            lines.append(line)
+    return " — ".join(lines)
+
 
 class StatusBar(QStatusBar):
     """Barre d'état : messages d'information et progression de la génération.

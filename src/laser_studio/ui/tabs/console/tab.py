@@ -8,10 +8,11 @@ from laser_studio.ui.widgets import TabToolBar
 
 
 class ConsoleTab(QWidget):
-    """Console : G-Code généré, et messages de l'application et du graveur.
+    """Console : G-Code généré (ou importé), et rien d'autre.
 
-    Toute l'application écrit dans `console_edit`. Les statistiques du job
-    sont dans le panneau machine (JobStatsPanel), et l'enregistrement du
+    `console_edit` est relu par l'export et la file d'attente : les messages
+    des actions vont dans la barre d'état (log_message). Les statistiques du job
+    sont à droite de l'aperçu 2D (JobStatsPanel), et l'enregistrement du
     G-Code dans le menu Fichier. L'onglet est masqué au démarrage
     (menu Affichage).
 

@@ -242,7 +242,7 @@ class GcodeGenerationMixin:
             image_item.setAutoDownsample(True)
             self.plot_widget.addItem(image_item)
         except Exception as e:
-            self.txt_console.append(f"; Aperçu image raster indisponible : {e}")
+            self.log_message(f"; Aperçu image raster indisponible : {e}")
 
     def _format_duration(self, seconds):
         seconds = max(0, int(seconds))
@@ -382,7 +382,7 @@ class GcodeGenerationMixin:
         # « Fichier > Enregistrer le G-Code » : le G-Code importé peut être réenregistré.
         self.app_actions.set_gcode_export_enabled(True)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
-        self.txt_console.append(
+        self.log_message(
     tr("gcode.imported_from").format(path=path)
 )
 
@@ -478,7 +478,7 @@ class GcodeGenerationMixin:
             import traceback
             error_text = f"{e}\n\n{traceback.format_exc()}"
             self.statusBar().hide_progress()
-            self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
+            self.log_message(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
             QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
 
     def _generate_job_impl(self):
@@ -629,7 +629,7 @@ class GcodeGenerationMixin:
 
     def on_gcode_generation_error(self, error_text):
         self.statusBar().hide_progress()
-        self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
+        self.log_message(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
     def on_gcode_generation_progress(self, pct):
@@ -717,11 +717,11 @@ class GcodeGenerationMixin:
             if mode == "Gravure":
                 power_val = round(float(col_values[col]))
                 self.set_engrave_settings(speed_val, power_val)
-                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
+                self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
             else:
                 passes_val = int(col_values[col])
                 self.set_cut_settings(speed_val, round(params.get('single_power', self.cut_power)), passes_val)
-                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
+                self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
         except Exception:
             pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
 
@@ -843,7 +843,7 @@ class GcodeGenerationMixin:
             # (notamment un fichier importé d'un autre outil) contient une
             # ligne inattendue qui fait planter l'analyse, on le signale
             # clairement dans la console plutôt que d'afficher un graphique vide.
-            self.txt_console.append(f"\n; ERREUR aperçu 2D : {e}")
+            self.log_message(f"\n; ERREUR aperçu 2D : {e}")
             QMessageBox.warning(self, tr("gen.preview_error_title"),
                                  tr("gen.preview_error_body").format(error=e))
 

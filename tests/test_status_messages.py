@@ -1,4 +1,4 @@
-"""Messages d'information dans la barre d'état (show_status_message), plus dans la console du graveur."""
+"""Messages d'information dans la barre d'état (show_status_message, log_message), jamais dans la console du G-Code."""
 import os
 import sys
 import tempfile
@@ -57,6 +57,35 @@ class StatusMessagesTests(unittest.TestCase):
         self.assertFalse(status_bar.progress_bar.isHidden())
         status_bar.hide_progress()
         self.assertTrue(status_bar.progress_bar.isHidden())
+
+    def test_action_messages_go_to_the_status_bar_not_the_console(self):
+        # La console ne contient que le G-Code généré, relu par l'export et la file d'attente.
+        self.win.txt_console.setPlainText("G21\nG1 X10")
+        self.win.log_message(">>> Connecté sur COM3")
+        self.win.log_message("> $$\n< ok")
+        self.assertEqual(self.win.txt_console.toPlainText(), "G21\nG1 X10")
+        label = self.win.statusBar().message_label
+        self.assertEqual(label.text(), "> $$ — < ok")
+        self.assertEqual(label.toolTip(), "> $$\n< ok")
+
+    def test_no_message_is_written_to_the_console_anymore(self):
+        root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "laser_studio")
+        for dirpath, _dirs, files in os.walk(root):
+            for name in files:
+                if name.endswith(".py"):
+                    with open(os.path.join(dirpath, name), encoding="utf-8") as f:
+                        self.assertNotIn("txt_console.append", f.read(), name)
+
+
+class StatusTextTests(unittest.TestCase):
+    def test_console_markers_are_removed_and_lines_joined(self):
+        from laser_studio.ui.statusbar import status_text
+        self.assertEqual(status_text(">>> Déverrouillage ($X) envoyé"), "Déverrouillage ($X) envoyé")
+        self.assertEqual(status_text("\n; ERREUR DE GÉNÉRATION :\n; division par zéro"),
+                         "ERREUR DE GÉNÉRATION : — division par zéro")
+        self.assertEqual(status_text("!!! ERREUR GRBL : error:9"), "ERREUR GRBL : error:9")
+        self.assertEqual(status_text("--- Importé depuis : job.nc ---"), "Importé depuis : job.nc")
+        self.assertEqual(status_text("  \n "), "")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
 
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
+from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.job_position import JobPositionBox
@@ -19,7 +20,7 @@ from laser_studio.ui.settings.machine_params import MachineParamsPage
 from laser_studio.ui.settings.machine_profiles import MachineProfilesPage
 from laser_studio.ui.settings.test_matrix import TestMatrixPage
 from laser_studio.ui.settings.window import SettingsWindow
-from laser_studio.ui.statusbar import StatusBar
+from laser_studio.ui.statusbar import StatusBar, status_text
 from laser_studio.ui.tabs.console import ConsoleTab
 from laser_studio.ui.tabs.image import ImageTab
 from laser_studio.ui.tabs.job_queue import JobQueueTab
@@ -47,6 +48,8 @@ from laser_studio.gcode_generation_mixin import GcodeGenerationMixin
 from laser_studio.laser_control_mixin import LaserControlMixin
 from laser_studio.separation_mixin import SeparationMixin
 
+
+log = get_logger()
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
@@ -105,7 +108,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             show_recent_projects=lambda paths: (
                 self.app_menu_bar.file_menu.set_recent_projects(paths)
             ),
-            log_to_console=lambda text: self.txt_console.append(text),
+            log_to_console=self.log_message,
         )
         self.autosave_timer = QTimer()
         self.autosave_timer.setInterval(5 * 60 * 1000)
@@ -812,8 +815,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 on_restored=self._add_console_close_button,
             )
         )
-        # Nom historique de la console : toute l'application y écrit
-        # (G-Code généré, messages du graveur, Stencil Studio…).
+        # Nom historique de la console : le G-Code généré ou importé, seul (les messages vont dans
+        # la barre d'état, voir log_message).
         self.txt_console = tab.console_edit
         self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab
@@ -849,7 +852,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self,
             engraver,
             current_gcode=self.txt_console.toPlainText,
-            log_to_console=self.txt_console.append,
+            log_to_console=self.log_message,
             sent_log=self.machine_panel.sent_gcode_log,
         )
         tab.add_current_requested.connect(self.job_queue.add_current_gcode)
@@ -1289,3 +1292,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
     def show_status_message(self, text, tooltip=None):
         """Raccourci vers StatusBar.show_info, utilisé par les mixins et Stencil Studio."""
         self.statusBar().show_info(text, tooltip)
+
+    def log_message(self, text):
+        """Message d'une action (connexion, GRBL, file, projet…) : barre d'état, et journal de
+        débogage pour l'historique. Jamais dans la console : elle ne contient que le G-Code
+        généré, relu par l'export et la file d'attente."""
+        text = str(text)
+        log.info("Message : %s", text.strip())
+        short = status_text(text)
+        if short:
+            self.show_status_message(short, text.strip())
