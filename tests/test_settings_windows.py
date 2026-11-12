@@ -128,15 +128,19 @@ class AppMenusTests(unittest.TestCase):
             self.assertIn(action, in_toolbar, action.text())
         self.assertIn(a.save_project, self.menu_bar.file_menu.actions())
 
-    def test_toolbar_order_undo_image_and_gcode(self):
+    def test_toolbar_order_image_and_gcode(self):
         from PyQt6.QtWidgets import QWidgetAction
         a = self.actions
         entries = [x for x in self.toolbar.actions() if not x.isSeparator()]
         widgets = [x for x in entries if isinstance(x, QWidgetAction)]
-        order = [entries.index(x) for x in (a.quit, a.save_project, a.png2svg_tab, a.image_undo, a.image_redo,
-                                            a.image_delete, a.mirror_v, a.image_reset, a.estimate)]
+        order = [entries.index(x) for x in (a.quit, a.save_project, a.png2svg_tab,
+                                            a.image_delete, a.image_reset, a.estimate)]
         order += [entries.index(widgets[0])]
         self.assertEqual(order, sorted(order))
+        # Annuler / refaire, pivoter et miroirs : barre flottante des aperçus d'image.
+        for action in (a.image_undo, a.image_redo, a.image_rotate_left, a.image_rotate_right,
+                       a.mirror_h, a.mirror_v):
+            self.assertNotIn(action, entries, action.text())
         self.assertNotIn(a.gcode_import, entries)          # passé dans le menu Fichier
         self.assertEqual(widgets[0].defaultWidget().text(), self.tr("gcode.generate"))
         # La connexion au graveur est passée dans le panneau machine.

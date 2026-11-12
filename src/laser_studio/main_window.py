@@ -29,7 +29,7 @@ from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
 from laser_studio.ui.utils import fullscreen_icon
-from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
+from laser_studio.ui.widgets import FloatingToolBar, FullscreenWindow, TabCloseButton
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
 from laser_studio.controllers.materials import DEFAULT_MATERIALS_DB, MaterialsController
@@ -184,6 +184,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # ou Affichage pour la console G-Code et la file d'attente (set_optional_tab_visible).
         for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
+        self._add_image_floating_toolbars()
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
         # Console G-Code : affichée ou non comme à la dernière fermeture (masquée la première fois).
@@ -201,6 +202,21 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
 
         main_layout.addWidget(center_widget)
+
+    def _add_image_floating_toolbars(self):
+        """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
+        barre d'outils (état actif / coché partagé, voir update_image_actions_state).
+
+        « Graver une image » : annuler / refaire, pivoter, miroirs. Séparation : pivoter, miroirs.
+        PNG ⇒ SVG : pivoter (les miroirs n'y servent pas)."""
+        a = self.app_actions
+        rotate = [a.image_rotate_left, a.image_rotate_right]
+        mirrors = [a.mirror_h, a.mirror_v]
+        self.image_floating_toolbar = FloatingToolBar(
+            [a.image_undo, a.image_redo, None, *rotate, None, *mirrors], self.tab_previews.preview_area)
+        self.separation_floating_toolbar = FloatingToolBar(
+            [*rotate, None, *mirrors], self.tab_separation.preview_tabs, top_margin=34)
+        self.png2svg_floating_toolbar = FloatingToolBar(rotate, self.png2svg_widget.splitter)
 
     def _build_machine_panel(self):
         """Panneau machine sous les onglets, abonné à la logique de la machine.

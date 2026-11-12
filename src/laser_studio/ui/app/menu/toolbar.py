@@ -40,13 +40,9 @@ class AppToolBar(QToolBar):
         for action in actions.tool_actions:
             self.addAction(action)
         self.addSeparator()
-        self.addAction(actions.image_undo)
-        self.addAction(actions.image_redo)
-        self.addSeparator()
-        for action in actions.image_actions:
-            self.addAction(action)
-        self.addAction(actions.mirror_h)
-        self.addAction(actions.mirror_v)
+        # Annuler / refaire, pivoter et miroirs : barre flottante des aperçus
+        # d'image (voir FloatingToolBar, main_window._add_image_floating_toolbars).
+        self.addAction(actions.image_delete)
         self.addAction(actions.image_reset)
         self.addSeparator()
         self.addAction(actions.estimate)
