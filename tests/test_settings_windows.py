@@ -124,8 +124,12 @@ class AppMenusTests(unittest.TestCase):
         a = self.actions
         in_toolbar = set(self.toolbar.actions())
         for action in (a.quit, a.save_project, a.open_project, a.machine_params_window, a.machine_window,
-                       a.grbl_window, *a.tool_actions):
+                       a.grbl_window, *a.tool_actions, *a.vector_tool_actions):
             self.assertIn(action, in_toolbar, action.text())
+        # Le menu Outils, sans séparateur, est repris en entier dans la barre.
+        tools = self.menu_bar.tools_menu.actions()
+        self.assertFalse(any(x.isSeparator() for x in tools))
+        self.assertTrue(set(tools) <= in_toolbar)
         self.assertIn(a.save_project, self.menu_bar.file_menu.actions())
 
     def test_toolbar_order_image_and_gcode(self):

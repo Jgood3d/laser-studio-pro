@@ -37,7 +37,8 @@ class AppToolBar(QToolBar):
         self.addAction(actions.machine_window)
         self.addAction(actions.grbl_window)
         self.addSeparator()
-        for action in actions.tool_actions:
+        # Toutes les entrées du menu Outils.
+        for action in (*actions.tool_actions, *actions.vector_tool_actions):
             self.addAction(action)
         self.addSeparator()
         # Actions sur l'image (annuler, pivoter, miroirs, réinitialiser,

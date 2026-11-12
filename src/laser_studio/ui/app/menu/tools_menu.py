@@ -11,8 +11,5 @@ class ToolsMenu(QMenu):
 
     def __init__(self, actions, parent=None):
         super().__init__(tr("menu.tools"), parent)
-        for action in actions.tool_actions:
-            self.addAction(action)
-        self.addSeparator()
-        for action in actions.vector_tool_actions:
+        for action in (*actions.tool_actions, *actions.vector_tool_actions):
             self.addAction(action)
