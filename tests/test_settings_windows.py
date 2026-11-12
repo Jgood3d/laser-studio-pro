@@ -437,6 +437,20 @@ class ShowWindowTests(unittest.TestCase):
         obj._run_in_vector_editor(lambda: calls.append("puzzle"))
         self.assertEqual(calls, ["tab_vector_editor", "puzzle"])
 
+    def test_preview_2d_splitter_position_is_remembered(self):
+        main = importlib.import_module("laser_studio.main_window")
+        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
+        fake = mock.Mock()
+        fake.return_value.setValue.side_effect = stored.__setitem__
+        fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
+        obj = types.SimpleNamespace(tab_vector_2d=types.SimpleNamespace(splitter=mock.Mock()))
+        obj.tab_vector_2d.splitter.sizes.return_value = [900, 0]     # statistiques repliées : gardé
+        with mock.patch.object(main, "QSettings", fake):
+            main.FullLaserStudio.save_splitter_sizes(obj)
+            self.assertEqual(stored["preview_2d_splitter_sizes"], [900, 0])
+            main.FullLaserStudio.load_splitter_sizes(obj)
+        obj.tab_vector_2d.splitter.setSizes.assert_called_once_with([900, 0])
+
     def test_gcode_console_visibility_is_remembered(self):
         obj = self.make()
         obj.tab_console_gcode = object()

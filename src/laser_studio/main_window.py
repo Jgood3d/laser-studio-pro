@@ -786,6 +786,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self._on_preview_options_changed
         )
         tab.plot_clicked.connect(self._on_plot_clicked)
+        # Séparateur aperçu / statistiques : position mémorisée (load_splitter_sizes).
+        tab.splitter.splitterMoved.connect(self.save_splitter_sizes)
         tab.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
                 "tab_vector_2d", "ui.tab_2d_preview"
@@ -1168,6 +1170,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 sizes = self.center_v_splitter.sizes()
             if sizes and all(v > 0 for v in sizes):
                 settings.setValue("center_v_splitter_sizes", sizes)
+        # Aperçu 2D / statistiques du job : un côté peut être replié (0).
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview is not None:
+            sizes = preview.splitter.sizes()
+            if sum(sizes) > 0:
+                settings.setValue("preview_2d_splitter_sizes", sizes)
 
     def load_splitter_sizes(self):
         settings = QSettings("LaserStudioPro", "UIConfig")
@@ -1181,6 +1189,15 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 if all(v > 0 for v in loaded_sizes):
                     self._bottom_panel_sizes = loaded_sizes
                     self.center_v_splitter.setSizes(loaded_sizes)
+            except (TypeError, ValueError):
+                pass
+        preview_sizes = settings.value("preview_2d_splitter_sizes", None)
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview_sizes and preview is not None:
+            try:
+                loaded_sizes = [int(s) for s in preview_sizes]
+                if len(loaded_sizes) == 2 and min(loaded_sizes) >= 0 and sum(loaded_sizes) > 0:
+                    preview.splitter.setSizes(loaded_sizes)
             except (TypeError, ValueError):
                 pass
 
