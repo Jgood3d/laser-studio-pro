@@ -57,6 +57,9 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 # ============================================================================
 
 LAYER_MODES = ["Gravure Remplie", "Découpe", "Marquage (Contour)"]
+# Modes qui ne tracent que le contour : le pas de remplissage n'y sert pas, il
+# n'est donc pas lié à la taille du spot (voir link_all_to_focal).
+CONTOUR_MODES = ("Découpe", "Marquage (Contour)")
 # Les valeurs de LAYER_MODES sont des identifiants internes (sauvegardés dans
 # les projets, testés dans le générateur de G-Code) : elles ne changent jamais.
 # Seul leur AFFICHAGE est traduit, via ces clés.
@@ -379,11 +382,17 @@ class LayerManagerWidget(QWidget):
         un. Avant, seul le drapeau 'lié' était posé (icône verte) sans
         jamais recalculer line_interval : un calque encore à sa valeur par
         défaut (0.10 mm, celle de LaserLayer) restait affiché tel quel,
-        avec un lien vert trompeur ne correspondant pas à la focale réelle."""
+        avec un lien vert trompeur ne correspondant pas à la focale réelle.
+
+        Les calques de contour (Découpe, Marquage) ne sont pas liés : ils
+        gardent leur propre pas (ex. 0,06 mm pour le calque Marquage)."""
         if self.focal_getter is None:
             return
         focal = self.focal_getter()
         for layer in self.mgr.layers:
+            if layer.mode in CONTOUR_MODES:
+                layer.line_interval_linked = False
+                continue
             layer.line_interval_linked = True
             if focal and focal > 0:
                 layer.line_interval = focal
