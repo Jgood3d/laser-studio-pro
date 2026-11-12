@@ -260,15 +260,14 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self._source_box.setVisible(False)", src)
         self.assertIn("left_widgets=[self.show_original_check]", src)      # case « Afficher l'originale »
 
-    def test_queue_tab_is_split_with_the_sent_gcode_on_the_right(self):
-        block = read(os.path.join("ui", "tabs", "job_queue", "tab.py"))
-        self.assertLess(block.index("queue_splitter.addWidget(queue_left)"),
-                        block.index("queue_splitter.addWidget(sent_box)"))
+    def test_sent_gcode_is_followed_in_the_machine_panel(self):
+        self.assertNotIn("SentGcodeLog()", read(os.path.join("ui", "tabs", "job_queue", "tab.py")))
         self.assertIn("self.text_edit.setReadOnly(True)",
-                      read(os.path.join("ui", "tabs", "job_queue", "sent_gcode_log.py")))
+                      read(os.path.join("ui", "machine", "sent_gcode", "log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
-        self.assertIn("self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)",
+        self.assertIn("self.streamer.lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
                       read("laser_control_mixin.py"))
+        self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
         self.assertIn("start_stream=self._start_stream", ui_source())
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
@@ -303,10 +302,10 @@ class MenuStructureTests(unittest.TestCase):
     def test_other_tabs_are_still_there(self):
         src = ui_source()
         # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
-        # ancrage : cadre « Position du job » du panneau machine ; Calques : onglet central.
+        # ancrage : cadre « Position du job », dans l'onglet Visualisation 2D ; Calques : onglet central.
         self.assertIn('layout.addRow(tr("dim.width"), self.width_spin)', src)
         self.assertIn("self.spin_w = settings.width_spin", src)
-        self.assertIn("machine_row.addWidget(self.job_position_box", src)
+        self.assertIn("layout.addWidget(self.job_position_box)", src)
         self.assertIn('layout.addRow(tr("dim.origin"), self.origin_combo)', src)
         self.assertIn('"origin_pos": self.job_position_box.origin()', src)   # code, pas le libellé traduit
         for widget in ("self.offset_x_spin", "self.offset_y_spin"):
@@ -447,7 +446,7 @@ class ShowWindowTests(unittest.TestCase):
         obj.tab_vector_2d.splitter.sizes.return_value = [900, 0]     # statistiques repliées : gardé
         with mock.patch.object(main, "QSettings", fake):
             main.FullLaserStudio.save_splitter_sizes(obj)
-            self.assertEqual(stored["preview_2d_splitter_sizes"], [900, 0])
+            self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
             main.FullLaserStudio.load_splitter_sizes(obj)
         obj.tab_vector_2d.splitter.setSizes.assert_called_once_with([900, 0])
 

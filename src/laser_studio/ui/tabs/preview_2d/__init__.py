@@ -5,7 +5,7 @@ Utilisation :
 
     from laser_studio.ui.tabs.preview_2d import Preview2DTab
 
-    tab = Preview2DTab()
+    tab = Preview2DTab(job_position_box)
     tab.plot_clicked.connect(self._on_plot_clicked)
     tab.job_stats_panel.set_stats("Lignes : 4", "Puissance : 12 %", "Temps : 1 min")
 """

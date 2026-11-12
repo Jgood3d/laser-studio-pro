@@ -3582,6 +3582,9 @@ TRANSLATIONS = {
         "de": "Schneiden",
         "es": "Corte",
     },
+    "layers.default_name_mark": {
+        "fr": "Marquage", "en": "Marking", "de": "Markierung", "es": "Marcado",
+    },
     "layers.default_name_cut": {
         "fr": "Découpe", "en": "Cut", "de": "Schneiden", "es": "Corte",
     },

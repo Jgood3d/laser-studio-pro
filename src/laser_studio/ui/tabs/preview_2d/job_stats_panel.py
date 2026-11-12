@@ -24,7 +24,6 @@ class JobStatsPanel(QGroupBox):
         layout.addWidget(self.lines_label)
         layout.addWidget(self.power_label)
         layout.addWidget(self.time_label)
-        layout.addStretch()
 
     def set_stats(self, lines, power, time):
         """Textes des statistiques du job : lignes, puissance, temps."""

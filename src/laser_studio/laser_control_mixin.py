@@ -395,8 +395,8 @@ class LaserControlMixin:
         self._last_sent_gcode = gcode_text
         if hasattr(self, "machine_panel"):
             self.machine_panel.job_actions_panel.set_repeat_enabled(True)
-        self.tab_job_queue.clear_sent_gcode()
-        self.tab_job_queue.append_sent_gcode([tr("queue.sent_log_direct")])
+        self.machine_panel.sent_gcode_log.clear_lines()
+        self.machine_panel.sent_gcode_log.append_lines([tr("queue.sent_log_direct")])
         self._start_stream(gcode_text, self.on_stream_finished)
 
     def _start_stream(self, gcode_text, on_finished):
@@ -412,7 +412,7 @@ class LaserControlMixin:
         self._prepare_burn_overlay(gcode_text)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self._connect_burn_overlay(self.streamer)
-        self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)
+        self.streamer.lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)
         self.streamer.progress.connect(
             lambda current, total: self.machine_panel.progress_bar.setValue(
                 int((current / total) * 100) if total else 0))
@@ -425,7 +425,7 @@ class LaserControlMixin:
     def _stream_ended(self, clean_finish):
         """Fin d'un envoi (direct ou job de la file) : repère de fin dans le
         suivi, contrôle de la position, aperçu 2D."""
-        self.tab_job_queue.mark_sent_end(clean_finish)
+        self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self._check_position_after_stream()
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)

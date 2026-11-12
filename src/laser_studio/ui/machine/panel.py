@@ -1,5 +1,5 @@
-"""Panneau machine sous les onglets : position du job, connexion,
-pilotage, actions de job."""
+"""Panneau machine sous les onglets : G-Code envoyé, connexion, pilotage,
+actions de job."""
 
 from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import QHBoxLayout, QProgressBar, QVBoxLayout, QWidget
@@ -8,34 +8,36 @@ from laser_studio.i18n import tr
 from laser_studio.ui.machine.connection import ConnectionPanel
 from laser_studio.ui.machine.controls import JogControlPanel
 from laser_studio.ui.machine.job_actions import JobActionsPanel
+from laser_studio.ui.machine.sent_gcode import SentGcodeLog
 
 
 class MachinePanel(QWidget):
     """Assemble les panneaux de la machine, sous les onglets.
 
-    Une rangée de quatre cadres (position du job, connexion, pilotage,
-    actions de job), puis la progression de la gravure. L'état GRBL et la
+    Une rangée de quatre cadres (G-Code envoyé, connexion, pilotage,
+    actions de job), puis la progression de la gravure. La position du job
+    sur le plateau est dans l'onglet « Visualisation 2D G-Code ». L'état GRBL et la
     console directe sont dans le cadre « Connexion », la position X / Y / Z
     en bas du pilotage.
 
     Il ne pilote pas la machine : chaque sous-panneau émet ses signaux,
     auxquels la fenêtre (plus tard un contrôleur) s'abonne directement :
 
-        panel = MachinePanel(job_position_box, ports_model, max_speed=6000)
+        panel = MachinePanel(ports_model, max_speed=6000)
         panel.connection_panel.connect_requested.connect(laser.toggle)
         panel.connection_panel.unlock_requested.connect(laser.unlock_alarm)
         panel.jog_panel.jog_requested.connect(laser.jog_move)
         panel.set_connected(False)
         panel.set_status("Idle", 12.5, 30.0, 0.0)
+        panel.sent_gcode_log.append_lines(["G21"])
 
-    `job_position_box` : cadre de la position du job, construit avec
-    l'onglet image, placé à gauche de la rangée. `ports_model` : modèle
-    de la liste des ports, partagé avec la page des matériaux.
+    `ports_model` : modèle de la liste des ports, partagé avec la page des
+    matériaux.
     """
 
-    def __init__(self, job_position_box, ports_model, max_speed, parent=None):
+    def __init__(self, ports_model, max_speed, parent=None):
         super().__init__(parent)
-        self.job_position_box = job_position_box
+        self.sent_gcode_log = SentGcodeLog()
         self.connection_panel = ConnectionPanel(ports_model)
         self.jog_panel = JogControlPanel(max_speed)
         self.job_actions_panel = JobActionsPanel()
@@ -53,8 +55,8 @@ class MachinePanel(QWidget):
     def set_connected(self, connected):
         """Verrouille les commandes tant que le graveur n'est pas connecté.
 
-        La position du job reste modifiable ; le bouton de connexion
-        affiche l'état, la console directe suit la connexion.
+        Le bouton de connexion affiche l'état, la console directe suit la
+        connexion ; le suivi du G-Code envoyé reste lisible.
         """
         for panel in (
             self.connection_panel,
@@ -77,21 +79,21 @@ class MachinePanel(QWidget):
     def _machine_row(self):
         """Quatre cadres côte à côte.
 
-        Position du job à gauche, puis la connexion, le pilotage et les
+        G-Code envoyé à gauche, puis la connexion, le pilotage et les
         actions de job. Le pilotage et les actions gardent leur taille
         naturelle (leurs boutons ne grandissent pas) ; la place libre est
-        partagée entre la position du job et la connexion (champ de la
+        partagée entre le G-Code envoyé et la connexion (champ de la
         console directe).
         """
         for box in (
-            self.job_position_box,
+            self.sent_gcode_log,
             self.connection_panel,
             self.jog_panel,
             self.job_actions_panel,
         ):
             self._fit_box_width(box)
         machine_row = QHBoxLayout()
-        machine_row.addWidget(self.job_position_box, 1)
+        machine_row.addWidget(self.sent_gcode_log, 1)
         machine_row.addWidget(self.connection_panel, 1)
         machine_row.addWidget(self.jog_panel, 0)
         machine_row.addWidget(self.job_actions_panel, 0)

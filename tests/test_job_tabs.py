@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtCore import QPointF, Qt
-    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+    from PyQt6.QtWidgets import QApplication, QGroupBox, QLabel, QPushButton
     from laser_studio.i18n import tr
     from laser_studio.ui.tabs.console import ConsoleTab
     from laser_studio.ui.tabs.job_queue import JobQueueTab
@@ -30,8 +30,8 @@ class _TabTest(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def make(self, cls):
-        tab = cls()
+    def make(self, cls, *args):
+        tab = cls(*args)
         self.addCleanup(tab.deleteLater)
         return tab
 
@@ -39,7 +39,7 @@ class _TabTest(unittest.TestCase):
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class Preview2DTabTests(_TabTest):
     def test_display_options_ask_for_a_redraw(self):
-        tab = self.make(Preview2DTab)
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
         received = record(tab.display_options_changed)
         for check in (
             tab.flip_check,
@@ -52,7 +52,7 @@ class Preview2DTabTests(_TabTest):
         self.assertEqual(len(received), 3)
 
     def test_click_is_emitted_in_bed_millimetres(self):
-        tab = self.make(Preview2DTab)
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
         tab.resize(400, 300)
         tab.show()
         view_box = tab.plot_widget.getPlotItem().vb
@@ -70,7 +70,7 @@ class Preview2DTabTests(_TabTest):
         self.assertAlmostEqual(y, 25.0, places=3)
 
     def test_fullscreen_is_relayed(self):
-        tab = self.make(Preview2DTab)
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
         received = record(tab.fullscreen_requested)
         tab._fullscreen_control.trigger()
         self.assertEqual(received, [()])
@@ -98,10 +98,22 @@ class TabCloseButtonTests(_TabTest):
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class JobStatsPanelTests(_TabTest):
-    def test_stats_are_on_the_right_of_the_2d_preview(self):
-        tab = self.make(Preview2DTab)
+    def test_job_position_then_stats_on_the_right_of_the_2d_preview(self):
+        box = QGroupBox("Position")
+        tab = self.make(Preview2DTab, box)
         self.assertEqual(tab.splitter.orientation(), Qt.Orientation.Horizontal)
-        self.assertEqual([tab.splitter.widget(i) for i in range(2)], [tab.plot_widget, tab.job_stats_panel])
+        self.assertEqual([tab.splitter.widget(i) for i in range(2)], [tab.plot_widget, tab.side_panel])
+        layout = tab.side_panel.layout()
+        self.assertEqual([layout.itemAt(i).widget() for i in range(2)], [box, tab.job_stats_panel])
+
+    def test_side_panel_is_as_narrow_as_possible(self):
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
+        tab.resize(1400, 600)
+        tab.show()
+        self.app.processEvents()
+        plot, side = tab.splitter.sizes()
+        self.assertEqual(side, tab.side_panel.minimumSizeHint().width())
+        self.assertGreater(plot, side)
 
     def test_set_stats(self):
         from laser_studio.ui.tabs.preview_2d import JobStatsPanel

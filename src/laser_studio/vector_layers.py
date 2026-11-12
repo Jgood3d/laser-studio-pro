@@ -106,12 +106,16 @@ class LayerManager:
 
     def __init__(self):
         # Gravure en première position : calque proposé par défaut pour la
-        # gravure des images (tramage / séparation couleur).
+        # gravure des images (tramage / séparation couleur). Puis la découpe,
+        # et le marquage (contour, vert).
         self.layers = [
             LaserLayer(name=tr("layers.default_name_engrave_text"), color=DEFAULT_LAYER_COLORS[2],
                        mode="Gravure Remplie", power=35, speed=2000, passes=1),
             LaserLayer(name=tr("layers.default_name_cut"), color=DEFAULT_LAYER_COLORS[0],
                        mode="Découpe", power=90, speed=250, passes=2),
+            LaserLayer(name=tr("layers.default_name_mark"), color=DEFAULT_LAYER_COLORS[1],
+                       mode="Marquage (Contour)", power=75, speed=2000, passes=1,
+                       line_interval=0.06),
         ]
 
     def add_layer(self, line_interval=None, line_interval_linked=False):

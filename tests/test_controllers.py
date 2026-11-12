@@ -189,10 +189,11 @@ class FakeQueueTab:
     def set_run_enabled(self, enabled):
         self.run_enabled = enabled
 
-    def clear_sent_gcode(self):
+    # Fait aussi office de suivi du G-Code envoyé (SentGcodeLog).
+    def clear_lines(self):
         self.sent = []
 
-    def append_sent_gcode(self, lines):
+    def append_lines(self, lines):
         self.sent += lines
 
 
@@ -247,6 +248,7 @@ class JobQueueControllerTests(_QtTest):
             fake.engraver(),
             current_gcode=lambda: console["text"],
             log_to_console=lambda text: None,
+            sent_log=tab,
         )
         for gcode in gcodes:
             console["text"] = gcode

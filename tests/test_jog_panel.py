@@ -165,8 +165,7 @@ class CommandsLockTests(unittest.TestCase):
     def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        box = QGroupBox("Position")
-        panel = MachinePanel(box, QStandardItemModel(), 6000)
+        panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
             panel.set_connected(connected)
@@ -176,12 +175,12 @@ class CommandsLockTests(unittest.TestCase):
             self.assertEqual(connection.connect_button.text(),
                              tr("laser.disconnect") if connected else tr("laser.connect"))
             self.assertTrue(connection.isEnabled() and connection.state_view.isEnabled())
-            self.assertTrue(box.isEnabled())
+            self.assertTrue(panel.sent_gcode_log.isEnabled())   # suivi d'envoi toujours lisible
 
     def test_status_goes_to_connection_and_jog_panels(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        panel = MachinePanel(QGroupBox("Position"), QStandardItemModel(), 6000)
+        panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.set_status("Idle", 1.0, 2.0, 3.0)
         self.assertEqual(panel.connection_panel.state_view.state_label.text(),
@@ -212,7 +211,7 @@ class CommandsLockTests(unittest.TestCase):
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        panel = MachinePanel(QGroupBox("Position"), QStandardItemModel(), 6000)
+        panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.progress_bar.setValue(42)
         self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
@@ -221,7 +220,7 @@ class CommandsLockTests(unittest.TestCase):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
-        order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.connection_panel",
+        order = [row.index(k) for k in ("addWidget(self.sent_gcode_log", "addWidget(self.connection_panel",
                                         "addWidget(self.jog_panel", "addWidget(self.job_actions_panel")]
         self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))

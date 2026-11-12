@@ -205,7 +205,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         contient le panneau, placée sous les onglets dans `center_v_splitter`.
         """
         self.machine_panel = MachinePanel(
-            self.job_position_box,
             self.combo_ports.model(),
             self.spin_machine_max_speed.value(),
         )
@@ -781,7 +780,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         La génération dessine dans son graphique (plot_widget) et y place
         la tête du laser (gcode_position_marker).
         """
-        tab = Preview2DTab()
+        tab = Preview2DTab(self.job_position_box)
         tab.display_options_changed.connect(
             self._on_preview_options_changed
         )
@@ -851,6 +850,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             engraver,
             current_gcode=self.txt_console.toPlainText,
             log_to_console=self.txt_console.append,
+            sent_log=self.machine_panel.sent_gcode_log,
         )
         tab.add_current_requested.connect(self.job_queue.add_current_gcode)
         tab.remove_selected_requested.connect(self.job_queue.remove_selected)
@@ -1170,12 +1170,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 sizes = self.center_v_splitter.sizes()
             if sizes and all(v > 0 for v in sizes):
                 settings.setValue("center_v_splitter_sizes", sizes)
-        # Aperçu 2D / statistiques du job : un côté peut être replié (0).
+        # Aperçu 2D / colonne de droite (position du job, statistiques) : un côté peut être replié.
         preview = getattr(self, "tab_vector_2d", None)
         if preview is not None:
             sizes = preview.splitter.sizes()
             if sum(sizes) > 0:
-                settings.setValue("preview_2d_splitter_sizes", sizes)
+                settings.setValue("preview_2d_side_sizes", sizes)
 
     def load_splitter_sizes(self):
         settings = QSettings("LaserStudioPro", "UIConfig")
@@ -1191,7 +1191,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                     self.center_v_splitter.setSizes(loaded_sizes)
             except (TypeError, ValueError):
                 pass
-        preview_sizes = settings.value("preview_2d_splitter_sizes", None)
+        # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.
+        settings.remove("preview_2d_splitter_sizes")
+        preview_sizes = settings.value("preview_2d_side_sizes", None)
         preview = getattr(self, "tab_vector_2d", None)
         if preview_sizes and preview is not None:
             try:

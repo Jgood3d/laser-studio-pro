@@ -146,7 +146,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
-- `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble la position du job, la connexion, le pilotage et les actions de job, puis la barre de progression ; `set_status(état, x, y, z)` répartit l’état (cadre Connexion) et la position (sous le pilotage)
+- `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble le G-Code envoyé, la connexion, le pilotage et les actions de job, puis la barre de progression ; `set_status(état, x, y, z)` répartit l’état (cadre Connexion) et la position (sous le pilotage)
 - `ui/machine/connection/` — panneau « Connexion » `ConnectionPanel` : port (modèle partagé avec la page des matériaux), actualisation, connexion, état GRBL et console directe (émet `refresh_requested`, `connect_requested`, `unlock_requested`, `command_submitted`)
 - `ui/machine/status/` — `MachineStateView` (état GRBL coloré, « Déverrouiller » en alarme) et `AxisPositionRow` (X / Y / Z sur une ligne, sous le pilotage)
 - `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux) ; les commandes temps réel et l’envoi du job sont `RealtimeCommands`
@@ -157,12 +157,13 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…) ; le cadre « Réglages GRBL complets » est `GrblSettingsBox`
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`) ; le cadre « Test à partir d’une image » est `ImageTestGroup`
 - `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
-- `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère), dans le panneau machine
+- `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère, `origin()` / `set_origin()`), à droite de l’aperçu 2D
+- `ui/machine/sent_gcode/` — suivi du G-Code envoyé `SentGcodeLog` (file et envoi direct), à gauche du panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
 - `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…)
-- `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
+- `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite une colonne étroite : `JobPositionBox`, puis `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code et des messages ; affiché ou masqué par le menu Affichage ou sa croix (`TabCloseButton`), choix mémorisé
-- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…) ; le suivi du G-Code envoyé est `SentGcodeLog`
+- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
@@ -201,7 +202,7 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
 | `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
 | `ConsoleTab` — Console / G-Code | `export_requested(extension)`, `fullscreen_requested` | `set_stats(lignes, puissance, temps)`, `console_edit` |
-| `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()`, `append_sent_gcode()`, `mark_sent_end()` |
+| `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()` |
 
 **Panneau machine** (sous les onglets, `ui/machine/`) :
 
@@ -211,7 +212,8 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `JobActionsPanel` — actions de job | `frame_requested`, `set_work_zero_requested`, `go_to_work_zero_requested`, `repeat_job_requested` | `set_connected(bool)`, `set_repeat_enabled(bool)` |
 | `ConnectionPanel` — connexion, état GRBL, console directe | `refresh_requested`, `connect_requested`, `unlock_requested`, `command_submitted(commande)` | `set_connected(bool)`, `set_state(état)`, `ports_combo` |
 | `DirectConsolePanel` — console directe (dans Connexion) | `command_submitted(commande)` | `set_connected(bool)` |
-| `JobPositionBox` — position du job | (aucun : l’origine est lue à la génération) | `origin_combo` |
+| `JobPositionBox` — position du job (à droite de l’aperçu 2D) | (aucun : l’origine est lue à la génération) | `origin()`, `set_origin(code)` |
+| `SentGcodeLog` — G-Code envoyé | (aucun) | `clear_lines()`, `append_lines(lignes)`, `mark_end(terminé)` |
 | `MachinePanel` — assemble les panneaux ci-dessus | (ceux de ses panneaux) | `set_connected(bool)`, `set_status(état, x, y, z)` |
 
 **Boîtes et fenêtres** (`ui/dialogs/`, `ui/widgets/`) :

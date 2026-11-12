@@ -18,7 +18,7 @@ try:
     from laser_studio.ui.settings.machine_params import MachineParamsPage
     from laser_studio.ui.settings.grbl_config.settings_box import GrblSettingsBox
     from laser_studio.ui.settings.test_matrix.image_test_group import ImageTestGroup
-    from laser_studio.ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
+    from laser_studio.ui.machine.sent_gcode import SentGcodeLog
 except ImportError:  # PyQt6 manquant
     GrblSettingsBox = None
 
