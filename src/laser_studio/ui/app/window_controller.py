@@ -16,6 +16,15 @@ from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.support import SupportDialog
 from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
 
+# Onglets facultatifs (menu Affichage) : clé de UIConfig qui mémorise s'ils
+# sont affichés, et état au premier démarrage.
+GCODE_CONSOLE_SETTING = "show_gcode_console"
+JOB_QUEUE_SETTING = "show_job_queue"
+OPTIONAL_TABS = {
+    "tab_console_gcode": (GCODE_CONSOLE_SETTING, False),
+    "tab_job_queue": (JOB_QUEUE_SETTING, True),
+}
+
 
 class WindowControllerMixin:
     def change_theme(self, theme_name):
@@ -66,6 +75,7 @@ class WindowControllerMixin:
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
         # Fichier
         actions.save_project_requested.connect(self.project.save)
+        actions.gcode_export_requested.connect(self.export_gcode_with_ext)
         actions.open_project_requested.connect(self.project.open)
         actions.recent_project_requested.connect(self.project.open_path)
         actions.quit_requested.connect(self.close)
@@ -77,6 +87,18 @@ class WindowControllerMixin:
             lambda: open_stencil_studio(self)
         )
         actions.main_tab_requested.connect(self.show_main_tab)
+        actions.vector_import_requested.connect(
+            lambda: self._run_in_vector_editor(self.import_svg_to_vector_editor)
+        )
+        actions.box_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_box_generator)
+        )
+        actions.puzzle_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_puzzle_generator)
+        )
+        # Affichage
+        actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
+        actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide
         actions.about_requested.connect(lambda: AboutDialog(self).exec())
         actions.support_requested.connect(lambda: SupportDialog(self).exec())
@@ -98,9 +120,6 @@ class WindowControllerMixin:
         actions.estimate_requested.connect(self.estimate_job_time)
         actions.generate_requested.connect(self.generate_job)
         actions.gcode_import_requested.connect(self.import_gcode_file)
-        # Connexion au graveur
-        actions.refresh_ports_requested.connect(self.refresh_com_ports)
-        actions.connection_toggle_requested.connect(self.toggle_connection)
 
     def show_main_tab(self, tab_attr):
         """Affiche l'onglet central `tab_attr` (ex. "tab_separation").
@@ -118,6 +137,49 @@ class WindowControllerMixin:
         else:
             tab.window().raise_()
             tab.window().activateWindow()
+
+    def _run_in_vector_editor(self, command):
+        """Affiche l'onglet « Graver une image vectorielle », puis lance
+        `command` (import SVG / DXF, générateur de boîte, puzzle)."""
+        self.show_main_tab("tab_vector_editor")
+        command()
+
+    def set_optional_tab_visible(self, tab_attr, visible):
+        """Affiche ou masque un onglet facultatif (OPTIONAL_TABS, menu
+        Affichage), et mémorise ce choix pour le prochain démarrage.
+
+        Ouvert en plein écran (sorti des onglets), il n'est pas touché. Le
+        réglage n'est écrit que s'il change.
+        """
+        index = self.main_tabs_view.indexOf(getattr(self, tab_attr))
+        if index != -1:
+            self.main_tabs_view.setTabVisible(index, visible)
+        if self.optional_tab_was_visible(tab_attr) != bool(visible):
+            settings = QSettings("LaserStudioPro", "UIConfig")
+            settings.setValue(OPTIONAL_TABS[tab_attr][0], bool(visible))
+            settings.sync()  # écriture immédiate sous Windows
+
+    @staticmethod
+    def optional_tab_was_visible(tab_attr):
+        """Onglet facultatif affiché à la dernière utilisation ? (au premier
+        démarrage : l'état par défaut de OPTIONAL_TABS)"""
+        key, default = OPTIONAL_TABS[tab_attr]
+        value = QSettings("LaserStudioPro", "UIConfig").value(key, default)
+        return value in (True, "true", "1", 1)
+
+    def set_gcode_console_visible(self, visible):
+        """Onglet « Console / G-Code » : masqué au premier démarrage."""
+        self.set_optional_tab_visible("tab_console_gcode", visible)
+
+    def gcode_console_was_visible(self):
+        return self.optional_tab_was_visible("tab_console_gcode")
+
+    def set_job_queue_visible(self, visible):
+        """Onglet « File d'attente » : affiché au premier démarrage."""
+        self.set_optional_tab_visible("tab_job_queue", visible)
+
+    def job_queue_was_visible(self):
+        return self.optional_tab_was_visible("tab_job_queue")
 
     def _image_tab_kind(self):
         """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
@@ -180,18 +242,17 @@ class WindowControllerMixin:
     def update_connection_widgets(self):
         """Met le bouton de connexion en accord avec l'état du port.
 
-        Page et barre d'outils : « Déconnecter » sur fond vert / pastille
-        verte si connecté, « Connecter GRBL » / pastille rouge sinon.
-        Verrouille ou déverrouille aussi les commandes de la machine.
+        Page des matériaux et panneau « Connexion » : « Déconnecter » sur
+        fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
+        rouge sinon. Verrouille ou déverrouille aussi les commandes de la
+        machine.
         """
         connected = self.usb.is_connected()
         page = getattr(self, "tab_machine_profiles", None)
         if page is not None:
             page.set_connected(connected)
-        actions = getattr(self, "app_actions", None)
-        if actions is not None:
-            actions.set_connected(connected)
-        # Pilotage, actions de job et console directe : verrouillés tant que
+        # Bouton de connexion, pilotage, actions de job et console directe :
+        # verrouillés tant que
         # le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
         machine_panel = getattr(self, "machine_panel", None)

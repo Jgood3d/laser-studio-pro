@@ -49,6 +49,7 @@ class SoftResetTests(unittest.TestCase):
         f.usb = _USB(state)
         f.streamer = _Streamer(streaming) if streaming is not None else None
         f.txt_console = _Console()
+        f.log_message = f.txt_console.append   # messages : barre d'état (log_message)
         f.has_homed_since_connect = homed
         return f
 

@@ -2,7 +2,6 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QComboBox,
     QPushButton,
     QSizePolicy,
     QToolBar,
@@ -14,12 +13,12 @@ from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
 
 
 class AppToolBar(QToolBar):
-    """Barre d'outils : raccourcis du menu, image, G-code et connexion.
+    """Barre d'outils : raccourcis du menu, image et G-code.
 
     Elle reprend les actions de AppActions (mêmes icône, libellé, raccourci
     et état que dans le menu) et y ajoute des widgets : le bouton
-    « Générer le G-code », la liste des ports du graveur (ports_combo) et,
-    tout à droite, le bouton de soutien ko-fi.
+    « Générer le G-code » et, tout à droite, le bouton de soutien ko-fi.
+    La connexion au graveur est dans le panneau machine (ConnectionPanel).
     """
 
     def __init__(self, actions, parent=None):
@@ -38,31 +37,18 @@ class AppToolBar(QToolBar):
         self.addAction(actions.machine_window)
         self.addAction(actions.grbl_window)
         self.addSeparator()
-        for action in actions.tool_actions:
+        # Toutes les entrées du menu Outils.
+        for action in (*actions.tool_actions, *actions.vector_tool_actions):
             self.addAction(action)
         self.addSeparator()
-        self.addAction(actions.image_undo)
-        self.addAction(actions.image_redo)
-        self.addSeparator()
-        for action in actions.image_actions:
-            self.addAction(action)
-        self.addAction(actions.mirror_h)
-        self.addAction(actions.mirror_v)
-        self.addAction(actions.image_reset)
-        self.addSeparator()
+        # Actions sur l'image (annuler, pivoter, miroirs, réinitialiser,
+        # supprimer) : barre flottante des aperçus d'image (FloatingToolBar,
+        # main_window._add_image_floating_toolbars).
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
-        self.addAction(actions.gcode_import)
         self.addSeparator()
-        self.ports_combo = self._ports_combo()
-        self.addWidget(self.ports_combo)
-        self.addAction(actions.refresh_ports)
-        self.addAction(actions.connection)
-        # Seul bouton avec son libellé : l'état de la connexion doit se lire
-        # d'un coup d'œil.
-        self.widgetForAction(actions.connection).setToolButtonStyle(
-            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
-        )
+        # Case à cocher : bouton enfoncé tant que la file d'attente est affichée.
+        self.addAction(actions.job_queue)
         # Soutien du projet, aligné à droite.
         self.addWidget(self._spacer())
         self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))
@@ -86,21 +72,3 @@ class AppToolBar(QToolBar):
         )
         button.clicked.connect(actions.generate_requested)
         return button
-
-    @staticmethod
-    def _ports_combo():
-        """Liste des ports du graveur.
-
-        Elle partage son modèle avec celle de la page « Matériaux et
-        connexion au graveur ». L'infobulle donne le port choisi.
-        """
-        combo = QComboBox()
-        combo.setSizeAdjustPolicy(
-            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
-        )
-        combo.setMinimumContentsLength(16)
-        combo.setToolTip(tr("usb.port"))
-        combo.currentTextChanged.connect(
-            lambda text: combo.setToolTip(text or tr("usb.port"))
-        )
-        return combo

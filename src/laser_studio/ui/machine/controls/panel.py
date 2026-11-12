@@ -20,6 +20,7 @@ from laser_studio.core.constants import (
 )
 from laser_studio.i18n import tr
 from laser_studio.ui.machine.controls.realtime_commands import RealtimeCommands
+from laser_studio.ui.machine.status import AxisPositionRow
 from laser_studio.ui.utils import painted_icon, themed_icon, tool_button
 
 # Flèches : (ligne, colonne, dx, dy, angle de la flèche en degrés), avec
@@ -47,7 +48,8 @@ class JogControlPanel(QGroupBox):
         panel.jog_requested.connect(laser.jog_move)
         panel.home_requested.connect(laser.home_machine)
 
-    Il reçoit l'état de la machine par set_connected() et set_max_speed().
+    Il reçoit l'état de la machine par set_connected(), set_max_speed() et
+    set_position() (X, Y, Z affichés sous les commandes).
     """
 
     # Déplacement relatif demandé : dx et dy en mm, vitesse en mm/min.
@@ -64,25 +66,34 @@ class JogControlPanel(QGroupBox):
         super().__init__(tr("ui.jog_box"), parent)
         self.step_slider = self._step_slider()
         self.speed_slider = self._speed_slider(max_speed)
-        layout = QHBoxLayout(self)
-        layout.addLayout(self._arrows())
-        layout.addLayout(
+        # Position de la machine (X, Y, Z) sous les commandes.
+        self.position_row = AxisPositionRow()
+        commands = QHBoxLayout()
+        commands.addLayout(self._arrows())
+        commands.addLayout(
             self._slider_column(
                 self.step_slider, "ui.jog_step_label", self._step_text
             )
         )
-        layout.addLayout(
+        commands.addLayout(
             self._slider_column(self.speed_slider, "ui.jog_speed_label", str)
         )
-        layout.addSpacing(12)
-        layout.addWidget(self._realtime_commands())
-        layout.addStretch()
+        commands.addSpacing(12)
+        commands.addWidget(self._realtime_commands())
+        commands.addStretch()
+        layout = QVBoxLayout(self)
+        layout.addLayout(commands)
+        layout.addWidget(self.position_row)
 
     # -- état reçu de la fenêtre / du contrôleur
 
     def set_connected(self, connected):
         """Déverrouille les commandes si le graveur est connecté."""
         self.setEnabled(connected)
+
+    def set_position(self, x, y=0.0, z=0.0):
+        """Position de la machine en mm ; `x` à None : inconnue (tirets)."""
+        self.position_row.set_position(x, y, z)
 
     def set_send_enabled(self, enabled):
         """Active l'envoi du job (désactivé pendant un envoi en cours)."""

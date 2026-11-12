@@ -5,11 +5,13 @@ panneaux et gère ses événements (fermeture, glisser-déposer) ; les mixins
 apportent le contenu des onglets et la logique.
 """
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabWidget,
+                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabBar, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
 
+from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
+from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.job_position import JobPositionBox
@@ -18,7 +20,7 @@ from laser_studio.ui.settings.machine_params import MachineParamsPage
 from laser_studio.ui.settings.machine_profiles import MachineProfilesPage
 from laser_studio.ui.settings.test_matrix import TestMatrixPage
 from laser_studio.ui.settings.window import SettingsWindow
-from laser_studio.ui.statusbar import StatusBar
+from laser_studio.ui.statusbar import StatusBar, status_text
 from laser_studio.ui.tabs.console import ConsoleTab
 from laser_studio.ui.tabs.image import ImageTab
 from laser_studio.ui.tabs.job_queue import JobQueueTab
@@ -27,7 +29,7 @@ from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
 from laser_studio.ui.utils import fullscreen_icon
-from laser_studio.ui.widgets import FullscreenWindow
+from laser_studio.ui.widgets import FloatingToolBar, FullscreenWindow, TabCloseButton
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
 from laser_studio.controllers.materials import DEFAULT_MATERIALS_DB, MaterialsController
@@ -46,6 +48,8 @@ from laser_studio.gcode_generation_mixin import GcodeGenerationMixin
 from laser_studio.laser_control_mixin import LaserControlMixin
 from laser_studio.separation_mixin import SeparationMixin
 
+
+log = get_logger()
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
@@ -104,7 +108,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             show_recent_projects=lambda paths: (
                 self.app_menu_bar.file_menu.set_recent_projects(paths)
             ),
-            log_to_console=lambda text: self.txt_console.append(text),
+            log_to_console=self.log_message,
         )
         self.autosave_timer = QTimer()
         self.autosave_timer.setInterval(5 * 60 * 1000)
@@ -176,11 +180,19 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
         self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
-        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
-        for tab in (self.tab_separation, self.tab_png2svg):
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab),
+        # ou Affichage pour la console G-Code et la file d'attente (set_optional_tab_visible).
+        for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
+        self._add_image_floating_toolbars()
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
+        # Console G-Code : affichée ou non comme à la dernière fermeture (masquée la première fois).
+        self.app_actions.gcode_console.setChecked(self.gcode_console_was_visible())
+        # File d'attente : affichée, sauf si elle a été masquée à la dernière utilisation.
+        self.app_actions.job_queue.setChecked(self.job_queue_was_visible())
+        if not self.app_actions.job_queue.isChecked():
+            self.set_job_queue_visible(False)
 
         # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
         # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
@@ -190,6 +202,25 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.center_v_splitter.splitterMoved.connect(self.save_splitter_sizes)
 
         main_layout.addWidget(center_widget)
+
+    def _add_image_floating_toolbars(self):
+        """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
+        barre d'outils (état actif / coché partagé, voir update_image_actions_state).
+
+        « Graver une image » : annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
+        Séparation : pivoter, miroirs, réinitialiser (réglages image et miroirs qu'elle reprend),
+        supprimer. PNG ⇒ SVG : pivoter, supprimer (miroirs et réglages image n'y servent pas)."""
+        a = self.app_actions
+        rotate = [a.image_rotate_left, a.image_rotate_right]
+        mirrors = [a.mirror_h, a.mirror_v]
+        self.image_floating_toolbar = FloatingToolBar(
+            [a.image_undo, a.image_redo, None, *rotate, None, *mirrors, None, a.image_reset, a.image_delete],
+            self.tab_previews.preview_area)
+        self.separation_floating_toolbar = FloatingToolBar(
+            [*rotate, None, *mirrors, None, a.image_reset, a.image_delete],
+            self.tab_separation.preview_tabs, top_margin=34)
+        self.png2svg_floating_toolbar = FloatingToolBar(
+            [*rotate, None, a.image_delete], self.png2svg_widget.splitter)
 
     def _build_machine_panel(self):
         """Panneau machine sous les onglets, abonné à la logique de la machine.
@@ -201,8 +232,15 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         contient le panneau, placée sous les onglets dans `center_v_splitter`.
         """
         self.machine_panel = MachinePanel(
-            self.job_position_box, self.spin_machine_max_speed.value()
+            self.combo_ports.model(),
+            self.spin_machine_max_speed.value(),
         )
+        connection = self.machine_panel.connection_panel
+        # Même port choisi dans le panneau et dans la page des matériaux.
+        connection.ports_combo.currentIndexChanged.connect(self.tab_machine_profiles.set_port_index)
+        self.tab_machine_profiles.port_selected.connect(connection.ports_combo.setCurrentIndex)
+        connection.refresh_requested.connect(self.refresh_com_ports)
+        connection.connect_requested.connect(self.toggle_connection)
         jog = self.machine_panel.jog_panel
         jog.jog_requested.connect(self.jog_move)
         jog.home_requested.connect(self.home_machine)
@@ -219,12 +257,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         job_actions.go_to_work_zero_requested.connect(self.go_to_work_zero)
         job_actions.repeat_job_requested.connect(self.repeat_last_job)
 
-        self.machine_panel.dro_panel.unlock_requested.connect(
-            self.unlock_alarm
-        )
-        self.machine_panel.console_panel.command_submitted.connect(
-            self.send_console_command
-        )
+        connection.unlock_requested.connect(self.unlock_alarm)
+        connection.command_submitted.connect(self.send_console_command)
         # Commandes verrouillées tant que non connecté
         self.update_connection_widgets()
 
@@ -282,12 +316,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
     def _build_machine_profiles_page(self):
         """Page « Matériaux et connexion au graveur », abonnée à la logique.
 
-        Sa liste des ports est celle de la barre d'outils (même modèle), et
-        le port choisi est le même des deux côtés.
+        Sa liste des ports est celle du panneau « Connexion » (même modèle,
+        voir _build_machine_panel), et le port choisi est le même des deux
+        côtés.
         """
-        ports = self.main_toolbar.ports_combo
         materials = dict(DEFAULT_MATERIALS_DB)
-        page = MachineProfilesPage(ports.model(), materials.keys())
+        page = MachineProfilesPage(QStandardItemModel(self), materials.keys())
         self.materials = MaterialsController(
             self,
             page.material_combo,
@@ -295,8 +329,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             current_settings=self._job_settings,
             apply_settings=self._apply_job_settings,
         )
-        page.port_selected.connect(ports.setCurrentIndex)
-        ports.currentIndexChanged.connect(page.set_port_index)
         page.refresh_ports_requested.connect(self.refresh_com_ports)
         page.connect_requested.connect(self.toggle_connection)
         page.material_selected.connect(self.materials.apply_selected)
@@ -470,9 +502,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.on_lmm_mode_changed(settings.resolution_mode_combo.currentIndex())
         tab.fit_settings_width()
 
+        # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
         self.job_position_box = JobPositionBox()
-        # Nom historique, lu par la génération, les projets et les profils.
-        self.combo_origin = self.job_position_box.origin_combo
 
     def _build_png2svg_tab(self):
         """Onglet « Vectorisation d'image », abonné à sa logique
@@ -776,11 +807,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         La génération dessine dans son graphique (plot_widget) et y place
         la tête du laser (gcode_position_marker).
         """
-        tab = Preview2DTab()
+        tab = Preview2DTab(self.job_position_box)
         tab.display_options_changed.connect(
             self._on_preview_options_changed
         )
         tab.plot_clicked.connect(self._on_plot_clicked)
+        # Séparateur aperçu / statistiques : position mémorisée (load_splitter_sizes).
+        tab.splitter.splitterMoved.connect(self.save_splitter_sizes)
         tab.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
                 "tab_vector_2d", "ui.tab_2d_preview"
@@ -798,19 +831,35 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.tab_vector_2d = tab
 
     def _build_console_tab(self):
-        """Onglet « Console / G-Code », abonné à l'export du G-Code."""
+        """Onglet « Console / G-Code », masqué au démarrage (menu Affichage)."""
         tab = ConsoleTab()
-        tab.export_requested.connect(self.export_gcode_with_ext)
         tab.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
-                "tab_console_gcode", "ui.tab_console_gcode"
+                "tab_console_gcode", "ui.tab_console_gcode",
+                on_restored=self._add_console_close_button,
             )
         )
-        # Nom historique de la console : toute l'application y écrit
-        # (G-Code généré, messages du graveur, Stencil Studio…).
+        # Nom historique de la console : le G-Code généré ou importé, seul (les messages vont dans
+        # la barre d'état, voir log_message).
         self.txt_console = tab.console_edit
         self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab
+        self._add_console_close_button()
+
+    def _add_console_close_button(self):
+        """Croix sur l'onglet Console. Remise au retour du plein écran : Qt supprime la croix quand
+        l'onglet sort de la barre."""
+        self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
+
+    def _add_tab_close_button(self, tab, action):
+        """Croix sur l'onglet `tab` : le ferme en décochant `action` (case du menu Affichage), qui
+        masque l'onglet et mémorise le choix."""
+        index = self.main_tabs_view.indexOf(tab)
+        if index == -1:
+            return
+        button = TabCloseButton()
+        button.clicked.connect(lambda: action.setChecked(False))
+        self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
 
     def _build_job_queue_tab(self):
         """Onglet « File d'attente », abonné à la file (JobQueueController),
@@ -831,7 +880,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self,
             engraver,
             current_gcode=self.txt_console.toPlainText,
-            log_to_console=self.txt_console.append,
+            log_to_console=self.log_message,
+            sent_log=self.machine_panel.sent_gcode_log,
         )
         tab.add_current_requested.connect(self.job_queue.add_current_gcode)
         tab.remove_selected_requested.connect(self.job_queue.remove_selected)
@@ -840,6 +890,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.reordered.connect(self.job_queue.on_reordered)
         self.main_tabs_view.addTab(tab, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab
+        self._add_tab_close_button(tab, self.app_actions.job_queue)
 
     # -- Réglages machine : démarrage et fermeture
 
@@ -965,7 +1016,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             "h_mm": self.spin_h.value(),
             "machine_bed_w_mm": self.spin_machine_w.value(),
             "machine_bed_h_mm": self.spin_machine_h.value(),
-            "origin_pos": self.combo_origin.currentText(),
+            "origin_pos": self.job_position_box.origin(),
             "offset_x": self.spin_off_x.value(),
             "offset_y": self.spin_off_y.value(),
             "bright": self.slider_bright.value(),
@@ -1009,7 +1060,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_h.setValue(data.get("h_mm", 100.0))
         self.spin_machine_w.setValue(data.get("machine_bed_w_mm", self.spin_machine_w.value()))
         self.spin_machine_h.setValue(data.get("machine_bed_h_mm", self.spin_machine_h.value()))
-        self.combo_origin.setCurrentText(data.get("origin_pos", "Bas-Gauche (0,0)"))
+        self.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
         self.spin_off_x.setValue(data.get("offset_x", 0.0))
         self.spin_off_y.setValue(data.get("offset_y", 0.0))
 
@@ -1151,6 +1202,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 sizes = self.center_v_splitter.sizes()
             if sizes and all(v > 0 for v in sizes):
                 settings.setValue("center_v_splitter_sizes", sizes)
+        # Aperçu 2D / colonne de droite (position du job, statistiques) : un côté peut être replié.
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview is not None:
+            sizes = preview.splitter.sizes()
+            if sum(sizes) > 0:
+                settings.setValue("preview_2d_side_sizes", sizes)
 
     def load_splitter_sizes(self):
         settings = QSettings("LaserStudioPro", "UIConfig")
@@ -1164,6 +1221,17 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 if all(v > 0 for v in loaded_sizes):
                     self._bottom_panel_sizes = loaded_sizes
                     self.center_v_splitter.setSizes(loaded_sizes)
+            except (TypeError, ValueError):
+                pass
+        # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.
+        settings.remove("preview_2d_splitter_sizes")
+        preview_sizes = settings.value("preview_2d_side_sizes", None)
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview_sizes and preview is not None:
+            try:
+                loaded_sizes = [int(s) for s in preview_sizes]
+                if len(loaded_sizes) == 2 and min(loaded_sizes) >= 0 and sum(loaded_sizes) > 0:
+                    preview.splitter.setSizes(loaded_sizes)
             except (TypeError, ValueError):
                 pass
 
@@ -1199,14 +1267,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         if control is not None:
             control.setVisible(visible)
 
-    def _toggle_fullscreen_tab(self, tab_attr, title_key):
+    def _toggle_fullscreen_tab(self, tab_attr, title_key, on_restored=None):
         """Plein écran d'un onglet, avec le titre de l'onglet."""
         tab_widget = getattr(self, tab_attr, None)
         if tab_widget is None:
             return
         self._open_tab_fullscreen(
             tab_widget, tr(title_key), tr("vector.close_fullscreen"),
-            tr(title_key))
+            tr(title_key), on_restored=on_restored)
 
     def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
                              on_restored=None):
@@ -1253,3 +1321,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
     def show_status_message(self, text, tooltip=None):
         """Raccourci vers StatusBar.show_info, utilisé par les mixins et Stencil Studio."""
         self.statusBar().show_info(text, tooltip)
+
+    def log_message(self, text):
+        """Message d'une action (connexion, GRBL, file, projet…) : barre d'état, et journal de
+        débogage pour l'historique. Jamais dans la console : elle ne contient que le G-Code
+        généré, relu par l'export et la file d'attente."""
+        text = str(text)
+        log.info("Message : %s", text.strip())
+        short = status_text(text)
+        if short:
+            self.show_status_message(short, text.strip())

@@ -5,16 +5,8 @@ coché) d'une commande. Le menu et la barre d'outils affichent les mêmes
 actions : un seul endroit les crée, et un seul endroit émet les signaux.
 """
 
-from PyQt6.QtCore import QObject, QSettings, Qt, pyqtSignal
-from PyQt6.QtGui import (
-    QAction,
-    QColor,
-    QIcon,
-    QKeySequence,
-    QPainter,
-    QPen,
-    QPixmap,
-)
+from PyQt6.QtCore import QObject, QSettings, pyqtSignal
+from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QStyle
 
 from laser_studio.core.paths import find_resource
@@ -31,17 +23,9 @@ def standard_icon(theme_icon, fallback=QStyle.StandardPixmap.SP_FileIcon):
     return icon
 
 
-def status_dot_icon(color):
-    """Pastille ronde de la couleur donnée (état de la connexion)."""
-    pixmap = QPixmap(16, 16)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setPen(QPen(QColor(color).darker(140), 1))
-    painter.setBrush(QColor(color))
-    painter.drawEllipse(2, 2, 12, 12)
-    painter.end()
-    return QIcon(pixmap)
+# Extensions proposées dans « Fichier > Enregistrer le G-Code », une par
+# entrée.
+GCODE_EXPORT_EXTENSIONS = (".gcode", ".nc", ".gc")
 
 
 class AppActions(QObject):
@@ -53,14 +37,18 @@ class AppActions(QObject):
         actions = AppActions(window)
         actions.save_project_requested.connect(window.project.save)
 
-    L'état passe par des méthodes set_… (connexion, langue, thème, actions
-    sur l'image) ; les miroirs se lisent sur mirror_h / mirror_v.
+    L'état passe par des méthodes set_… (langue, thème, actions sur
+    l'image, enregistrement du G-Code) ; les miroirs se lisent sur
+    mirror_h / mirror_v.
     """
 
     # Fichier
     save_project_requested = pyqtSignal()
     open_project_requested = pyqtSignal()
     recent_project_requested = pyqtSignal(str)  # chemin du projet
+    gcode_export_requested = pyqtSignal(str)  # extension : ".gcode"…
+    # Enregistrement du G-Code possible ou non (sous-menu du menu Fichier)
+    gcode_export_enabled_changed = pyqtSignal(bool)
     quit_requested = pyqtSignal()
     # Paramètres et outils : "machine_params", "machine", "grbl",
     # "test_matrix"
@@ -69,6 +57,13 @@ class AppActions(QObject):
     theme_selected = pyqtSignal(str)  # code de thème : "dark", "light"…
     stencil_studio_requested = pyqtSignal()
     main_tab_requested = pyqtSignal(str)  # "tab_separation", "tab_png2svg"
+    # Outils de l'onglet « Graver une image vectorielle »
+    vector_import_requested = pyqtSignal()
+    box_generator_requested = pyqtSignal()
+    puzzle_generator_requested = pyqtSignal()
+    # Affichage
+    gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
+    job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
     # Aide
     about_requested = pyqtSignal()
     support_requested = pyqtSignal()
@@ -84,31 +79,24 @@ class AppActions(QObject):
     estimate_requested = pyqtSignal()
     generate_requested = pyqtSignal()
     gcode_import_requested = pyqtSignal()
-    # Connexion au graveur
-    refresh_ports_requested = pyqtSignal()
-    connection_toggle_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._create_file_actions()
         self._create_settings_actions()
+        self._create_view_actions()
         self._create_tools_actions()
         self._create_help_actions(parent)
         self._create_image_actions()
         self._create_gcode_actions()
-        self._create_connection_actions()
 
     # -- état reçu de la fenêtre / du contrôleur
 
-    def set_connected(self, connected):
-        """Bouton de connexion : « Déconnecter » / pastille verte si
-        connecté, « Connecter GRBL » / pastille rouge sinon."""
-        self.connection.setText(
-            tr("laser.disconnect") if connected else tr("laser.connect")
-        )
-        self.connection.setIcon(
-            status_dot_icon("#27ae60" if connected else "#e74c3c")
-        )
+    def set_gcode_export_enabled(self, enabled):
+        """Enregistrement du G-Code : actif une fois le G-Code généré."""
+        for action in self.gcode_export_actions.values():
+            action.setEnabled(enabled)
+        self.gcode_export_enabled_changed.emit(enabled)
 
     def set_language(self, code):
         """Coche la langue `code` dans le menu."""
@@ -176,6 +164,41 @@ class AppActions(QObject):
             QKeySequence.keyBindings(QKeySequence.StandardKey.Quit)
             or [QKeySequence("Ctrl+Q")]
         )
+        self.gcode_export_icon = standard_icon(
+            QIcon.ThemeIcon.DocumentSaveAs,
+            QStyle.StandardPixmap.SP_DialogSaveButton,
+        )
+        self.gcode_export_actions = {
+            extension: self._action(
+                QIcon(), extension, self.gcode_export_requested, extension
+            )
+            for extension in GCODE_EXPORT_EXTENSIONS
+        }
+        # Rien à enregistrer avant la première génération.
+        for action in self.gcode_export_actions.values():
+            action.setEnabled(False)
+
+    def _create_view_actions(self):
+        # Console G-Code : onglet masqué au démarrage.
+        self.gcode_console = self._action(
+            standard_icon(
+                "utilities-terminal",
+                QStyle.StandardPixmap.SP_FileDialogContentsView,
+            ),
+            tr("menu.view.gcode_console"),
+        )
+        self.gcode_console.setCheckable(True)
+        self.gcode_console.toggled.connect(self.gcode_console_toggled)
+        # File d'attente : onglet affiché au démarrage, sauf s'il a été masqué.
+        self.job_queue = self._action(
+            standard_icon(
+                "view-list-details",
+                QStyle.StandardPixmap.SP_FileDialogDetailedView,
+            ),
+            tr("menu.view.job_queue"),
+        )
+        self.job_queue.setCheckable(True)
+        self.job_queue.toggled.connect(self.job_queue_toggled)
 
     def _create_settings_actions(self):
         # Pas d'entrée QIcon.ThemeIcon pour ces réglages : noms d'icônes
@@ -274,6 +297,33 @@ class AppActions(QObject):
             self.stencil_studio,
             self.separation_tab,
             self.png2svg_tab,
+        )
+        # Outils de l'éditeur vectoriel : ouvrent d'abord son onglet.
+        self.vector_import = self._action(
+            standard_icon(
+                "document-import", QStyle.StandardPixmap.SP_FileIcon
+            ),
+            tr("menu.tools.import_vector"),
+            self.vector_import_requested,
+        )
+        self.box_generator = self._action(
+            standard_icon(
+                "package-x-generic", QStyle.StandardPixmap.SP_DirIcon
+            ),
+            tr("menu.tools.box"),
+            self.box_generator_requested,
+        )
+        self.puzzle_generator = self._action(
+            standard_icon(
+                "applications-games", QStyle.StandardPixmap.SP_DesktopIcon
+            ),
+            tr("menu.tools.puzzle"),
+            self.puzzle_generator_requested,
+        )
+        self.vector_tool_actions = (
+            self.vector_import,
+            self.box_generator,
+            self.puzzle_generator,
         )
 
     def _create_help_actions(self, parent):
@@ -403,19 +453,6 @@ class AppActions(QObject):
             ),
             tr("gcode.import"),
             self.gcode_import_requested,
-        )
-
-    def _create_connection_actions(self):
-        self.refresh_ports = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.ViewRefresh,
-                QStyle.StandardPixmap.SP_BrowserReload,
-            ),
-            tr("usb.refresh_ports"),
-            self.refresh_ports_requested,
-        )
-        self.connection = self._action(
-            QIcon(), tr("laser.connect"), self.connection_toggle_requested
         )
 
     def _emit_mirror_changed(self, _checked=False):
