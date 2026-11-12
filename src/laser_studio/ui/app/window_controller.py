@@ -16,6 +16,9 @@ from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.support import SupportDialog
 from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
 
+# Clé de UIConfig : onglet « Console / G-Code » affiché (menu Affichage).
+GCODE_CONSOLE_SETTING = "show_gcode_console"
+
 
 class WindowControllerMixin:
     def change_theme(self, theme_name):
@@ -135,13 +138,23 @@ class WindowControllerMixin:
         command()
 
     def set_gcode_console_visible(self, visible):
-        """Affiche ou masque l'onglet « Console / G-Code » (menu Affichage).
+        """Affiche ou masque l'onglet « Console / G-Code » (menu Affichage),
+        et mémorise ce choix pour le prochain démarrage.
 
         Ouvert en plein écran (sorti des onglets), il n'est pas touché.
         """
         index = self.main_tabs_view.indexOf(self.tab_console_gcode)
         if index != -1:
             self.main_tabs_view.setTabVisible(index, visible)
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        settings.setValue(GCODE_CONSOLE_SETTING, bool(visible))
+        settings.sync()  # écriture immédiate sous Windows
+
+    @staticmethod
+    def gcode_console_was_visible():
+        """Console G-Code affichée à la dernière utilisation ? (non au premier démarrage)"""
+        value = QSettings("LaserStudioPro", "UIConfig").value(GCODE_CONSOLE_SETTING, False)
+        return value in (True, "true", "1", 1)
 
     def _image_tab_kind(self):
         """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),

@@ -182,6 +182,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
+        # Console G-Code : affichée ou non comme à la dernière fermeture (masquée la première fois).
+        self.app_actions.gcode_console.setChecked(self.gcode_console_was_visible())
 
         # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
         # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la

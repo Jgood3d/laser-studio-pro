@@ -437,17 +437,25 @@ class ShowWindowTests(unittest.TestCase):
         obj._run_in_vector_editor(lambda: calls.append("puzzle"))
         self.assertEqual(calls, ["tab_vector_editor", "puzzle"])
 
-    def test_gcode_console_visibility(self):
+    def test_gcode_console_visibility_is_remembered(self):
         obj = self.make()
         obj.tab_console_gcode = object()
         obj.main_tabs_view = mock.Mock()
         obj.main_tabs_view.indexOf.return_value = 7
-        obj.set_gcode_console_visible(True)
-        obj.main_tabs_view.setTabVisible.assert_called_with(7, True)
-        obj.main_tabs_view.indexOf.return_value = -1     # en plein écran : rien à faire
-        obj.main_tabs_view.setTabVisible.reset_mock()
-        obj.set_gcode_console_visible(False)
-        obj.main_tabs_view.setTabVisible.assert_not_called()
+        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
+        fake = mock.Mock()
+        fake.return_value.setValue.side_effect = stored.__setitem__
+        fake.return_value.value.side_effect = lambda key, default: stored.get(key, default)
+        with mock.patch.object(self.mod, "QSettings", fake):
+            self.assertFalse(obj.gcode_console_was_visible())     # masquée la première fois
+            obj.set_gcode_console_visible(True)
+            obj.main_tabs_view.setTabVisible.assert_called_with(7, True)
+            self.assertTrue(obj.gcode_console_was_visible())
+            obj.main_tabs_view.indexOf.return_value = -1          # en plein écran : onglet pas touché
+            obj.main_tabs_view.setTabVisible.reset_mock()
+            obj.set_gcode_console_visible(False)
+            obj.main_tabs_view.setTabVisible.assert_not_called()
+            self.assertFalse(obj.gcode_console_was_visible())
 
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()

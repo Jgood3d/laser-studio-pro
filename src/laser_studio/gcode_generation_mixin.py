@@ -378,6 +378,8 @@ class GcodeGenerationMixin:
                                                      tr("gen.stat_power_imported"),
                                                      tr("gen.stat_time_imported"))
         self.plot_gcode_preview(gcode_text)
+        # « Fichier > Enregistrer le G-Code » : le G-Code importé peut être réenregistré.
+        self.app_actions.set_gcode_export_enabled(True)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
         self.txt_console.append(
     tr("gcode.imported_from").format(path=path)
