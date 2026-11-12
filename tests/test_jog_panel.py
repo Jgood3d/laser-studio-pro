@@ -162,7 +162,7 @@ class CommandsLockTests(unittest.TestCase):
             f.update_connection_widgets()
             self.assertEqual(f.machine_panel.enabled, connected)
 
-    def test_machine_panel_locks_commands_but_not_the_dro(self):
+    def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
         box = QGroupBox("Position")
@@ -170,12 +170,44 @@ class CommandsLockTests(unittest.TestCase):
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
             panel.set_connected(connected)
+            connection = panel.connection_panel
             self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
-                              panel.console_panel.isEnabled()), (connected, connected, connected))
-            self.assertEqual(panel.connection_panel.connect_button.text(),
+                              connection.console.isEnabled()), (connected, connected, connected))
+            self.assertEqual(connection.connect_button.text(),
                              tr("laser.disconnect") if connected else tr("laser.connect"))
-            self.assertTrue(panel.dro_panel.isEnabled())
+            self.assertTrue(connection.isEnabled() and connection.state_view.isEnabled())
             self.assertTrue(box.isEnabled())
+
+    def test_status_goes_to_connection_and_jog_panels(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from PyQt6.QtWidgets import QGroupBox
+        panel = MachinePanel(QGroupBox("Position"), QStandardItemModel(), 6000)
+        self.addCleanup(panel.deleteLater)
+        panel.set_status("Idle", 1.0, 2.0, 3.0)
+        self.assertEqual(panel.connection_panel.state_view.state_label.text(),
+                         tr("ui.dro_state").format(value="Idle"))
+        self.assertEqual(panel.jog_panel.position_row.y_label.text(), tr("ui.dro_y").format(value="2.000"))
+        panel.set_status(None)                           # déconnecté : plus de position connue
+        self.assertEqual(panel.jog_panel.position_row.x_label.text(), tr("ui.dro_x").format(value="—"))
+
+    def test_connection_panel_order_and_signals(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from laser_studio.ui.machine.connection import ConnectionPanel
+        panel = ConnectionPanel(QStandardItemModel())
+        self.addCleanup(panel.deleteLater)
+        layout = panel.layout()
+        widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
+        # Bouton de connexion, puis l'état, puis la console directe, en dessous.
+        self.assertEqual([w for w in widgets if w is not None],
+                         [panel.connect_button, panel.state_view, panel.console])
+        commands, unlocks = [], []
+        panel.command_submitted.connect(commands.append)
+        panel.unlock_requested.connect(lambda: unlocks.append(True))
+        panel.console.command_edit.setText("$X")
+        panel.console.command_edit.returnPressed.emit()
+        panel.set_state("Alarm")
+        panel.state_view.unlock_button.click()
+        self.assertEqual((commands, unlocks), (["$X"], [True]))
 
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
@@ -185,13 +217,13 @@ class CommandsLockTests(unittest.TestCase):
         panel.progress_bar.setValue(42)
         self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
 
-    def test_layout_position_connection_jog_job_actions_dro_stats(self):
+    def test_layout_position_connection_jog_job_actions(self):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
         order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.connection_panel",
-                                        "addWidget(self.jog_panel", "addWidget(self.job_actions_panel",
-                                        "addWidget(self.dro_panel", "addWidget(self.job_stats_panel")]
+                                        "addWidget(self.jog_panel", "addWidget(self.job_actions_panel")]
+        self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 

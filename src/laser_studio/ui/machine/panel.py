@@ -1,34 +1,32 @@
-"""Panneau machine sous les onglets : connexion, pilotage, jobs, DRO,
-statistiques du job, console."""
+"""Panneau machine sous les onglets : position du job, connexion,
+pilotage, actions de job."""
 
 from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import QHBoxLayout, QProgressBar, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.machine.connection import ConnectionPanel
-from laser_studio.ui.machine.console import DirectConsolePanel
 from laser_studio.ui.machine.controls import JogControlPanel
-from laser_studio.ui.machine.dro import DroPanel
 from laser_studio.ui.machine.job_actions import JobActionsPanel
-from laser_studio.ui.machine.job_stats import JobStatsPanel
 
 
 class MachinePanel(QWidget):
     """Assemble les panneaux de la machine, sous les onglets.
 
-    Une rangée de six cadres (position du job, connexion, pilotage, actions
-    de job, DRO, statistiques du job), puis la progression de la gravure
-    et la console directe.
+    Une rangée de quatre cadres (position du job, connexion, pilotage,
+    actions de job), puis la progression de la gravure. L'état GRBL et la
+    console directe sont dans le cadre « Connexion », la position X / Y / Z
+    en bas du pilotage.
 
-    Il ne pilote pas la machine, et n'a pas de signaux à lui : chaque
-    sous-panneau émet les siens, auxquels la fenêtre (plus tard un
-    contrôleur) s'abonne directement :
+    Il ne pilote pas la machine : chaque sous-panneau émet ses signaux,
+    auxquels la fenêtre (plus tard un contrôleur) s'abonne directement :
 
         panel = MachinePanel(job_position_box, ports_model, max_speed=6000)
         panel.connection_panel.connect_requested.connect(laser.toggle)
+        panel.connection_panel.unlock_requested.connect(laser.unlock_alarm)
         panel.jog_panel.jog_requested.connect(laser.jog_move)
-        panel.dro_panel.unlock_requested.connect(laser.unlock_alarm)
         panel.set_connected(False)
+        panel.set_status("Idle", 12.5, 30.0, 0.0)
 
     `job_position_box` : cadre de la position du job, construit avec
     l'onglet image, placé à gauche de la rangée. `ports_model` : modèle
@@ -41,16 +39,12 @@ class MachinePanel(QWidget):
         self.connection_panel = ConnectionPanel(ports_model)
         self.jog_panel = JogControlPanel(max_speed)
         self.job_actions_panel = JobActionsPanel()
-        self.dro_panel = DroPanel()
-        self.job_stats_panel = JobStatsPanel()
         self.progress_bar = self._progress_bar()
-        self.console_panel = DirectConsolePanel()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self._machine_row())
         layout.addWidget(self.progress_bar)
-        layout.addWidget(self.console_panel)
         # Place libre en bas, pas dans les cadres
         layout.addStretch()
 
@@ -59,44 +53,48 @@ class MachinePanel(QWidget):
     def set_connected(self, connected):
         """Verrouille les commandes tant que le graveur n'est pas connecté.
 
-        Le DRO et la position du job restent lisibles ; le bouton de
-        connexion affiche l'état.
+        La position du job reste modifiable ; le bouton de connexion
+        affiche l'état, la console directe suit la connexion.
         """
-        self.connection_panel.set_connected(connected)
         for panel in (
+            self.connection_panel,
             self.jog_panel,
             self.job_actions_panel,
-            self.console_panel,
         ):
             panel.set_connected(connected)
+
+    def set_status(self, state, x=0.0, y=0.0, z=0.0):
+        """État GRBL (cadre Connexion) et position en mm (sous le pilotage).
+
+        `state` à None (graveur déconnecté) : plus d'état ni de position
+        connus, des tirets s'affichent.
+        """
+        self.connection_panel.set_state(state)
+        self.jog_panel.set_position(None if state is None else x, y, z)
 
     # -- construction
 
     def _machine_row(self):
-        """Six cadres côte à côte.
+        """Quatre cadres côte à côte.
 
         Position du job à gauche, puis la connexion, le pilotage et les
-        actions de job, et le DRO et les statistiques du job à droite. La
-        connexion, le pilotage et les actions gardent leur taille naturelle
-        (leurs boutons ne grandissent pas) ; la place libre est partagée
-        entre la position du job, le DRO, qui sinon serait coupé, et les
-        statistiques.
+        actions de job. Le pilotage et les actions gardent leur taille
+        naturelle (leurs boutons ne grandissent pas) ; la place libre est
+        partagée entre la position du job et la connexion (champ de la
+        console directe).
         """
-        self._fit_box_width(
-            self.dro_panel, self.dro_panel.minimum_content_width()
-        )
-        self._fit_box_width(self.job_position_box)
-        self._fit_box_width(self.connection_panel)
-        self._fit_box_width(self.jog_panel)
-        self._fit_box_width(self.job_actions_panel)
-        self._fit_box_width(self.job_stats_panel)
+        for box in (
+            self.job_position_box,
+            self.connection_panel,
+            self.jog_panel,
+            self.job_actions_panel,
+        ):
+            self._fit_box_width(box)
         machine_row = QHBoxLayout()
         machine_row.addWidget(self.job_position_box, 1)
-        machine_row.addWidget(self.connection_panel, 0)
+        machine_row.addWidget(self.connection_panel, 1)
         machine_row.addWidget(self.jog_panel, 0)
         machine_row.addWidget(self.job_actions_panel, 0)
-        machine_row.addWidget(self.dro_panel, 1)
-        machine_row.addWidget(self.job_stats_panel, 1)
         return machine_row
 
     @staticmethod
@@ -119,8 +117,7 @@ class MachinePanel(QWidget):
         `content_px` : largeur demandée par le contenu. Le thème met les
         titres de cadre en gras et les décale (marge gauche + marges
         internes), ce que Qt ne compte pas dans la taille minimale du cadre :
-        sans cette largeur, un cadre étroit (le DRO) voit son titre coupé à
-        droite.
+        sans cette largeur, un cadre étroit voit son titre coupé à droite.
         """
         font = QFont(box.font())
         font.setBold(True)

@@ -2791,10 +2791,6 @@ TRANSLATIONS = {
         "de": "Ebene:",
         "es": "Capa:",
     },
-    "ui.dro_box": {
-        "fr": "Position Machine (DRO)", "en": "Machine Position (DRO)",
-        "de": "Maschinenposition (DRO)", "es": "Posición de la máquina (DRO)",
-    },
     "ui.dro_state": {
         "fr": "État : {value}", "en": "State: {value}",
         "de": "Status: {value}", "es": "Estado: {value}",
@@ -2890,12 +2886,6 @@ TRANSLATIONS = {
     "ui.repeat_last_job": {
         "fr": "🔁 Répéter le dernier job", "en": "🔁 Repeat last job",
         "de": "🔁 Letzten Job wiederholen", "es": "🔁 Repetir el último trabajo",
-    },
-    "ui.direct_console_box": {
-        "fr": "Console de Commandes Directes GRBL",
-        "en": "GRBL Direct Commands Console",
-        "de": "GRBL-Direktbefehls-Konsole",
-        "es": "Consola de comandos directos GRBL",
     },
     "ui.burn_progress": {
         "fr": "Gravure : {pct}%",

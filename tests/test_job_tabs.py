@@ -9,7 +9,7 @@ ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
-    from PyQt6.QtCore import QPointF
+    from PyQt6.QtCore import QPointF, Qt
     from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
     from laser_studio.i18n import tr
     from laser_studio.ui.tabs.console import ConsoleTab
@@ -98,8 +98,13 @@ class TabCloseButtonTests(_TabTest):
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class JobStatsPanelTests(_TabTest):
+    def test_stats_are_on_the_right_of_the_2d_preview(self):
+        tab = self.make(Preview2DTab)
+        self.assertEqual(tab.splitter.orientation(), Qt.Orientation.Horizontal)
+        self.assertEqual([tab.splitter.widget(i) for i in range(2)], [tab.plot_widget, tab.job_stats_panel])
+
     def test_set_stats(self):
-        from laser_studio.ui.machine.job_stats import JobStatsPanel
+        from laser_studio.ui.tabs.preview_2d import JobStatsPanel
         panel = self.make(JobStatsPanel)
         self.assertEqual(panel.title(), tr("ui.job_stats_box"))
         panel.set_stats("Lignes : 4", "Puissance : 12 %", "Temps : 1 min")

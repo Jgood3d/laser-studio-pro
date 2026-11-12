@@ -1,14 +1,17 @@
 """Console directe : envoi d'une commande GRBL tapée à la main."""
 
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QGroupBox, QHBoxLayout, QPushButton
+from PyQt6.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.widgets import HistoryLineEdit
 
 
-class DirectConsolePanel(QGroupBox):
+class DirectConsolePanel(QWidget):
     """Champ de commande GRBL avec historique, et bouton « Envoyer ».
+
+    Sans cadre : il est placé dans le panneau « Connexion », sous l'état
+    de la machine.
 
     Il n'envoie rien à la machine : à l'appui sur Entrée ou au clic, il
     émet command_submitted avec la commande (sans espaces autour, jamais
@@ -21,11 +24,12 @@ class DirectConsolePanel(QGroupBox):
     command_submitted = pyqtSignal(str)
 
     def __init__(self, parent=None):
-        super().__init__(tr("ui.direct_console_box"), parent)
+        super().__init__(parent)
         self.command_edit = self._command_edit()
         send_button = QPushButton(tr("ui.manual_send"))
         send_button.clicked.connect(self._submit)
         layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(self.command_edit)
         layout.addWidget(send_button)
 

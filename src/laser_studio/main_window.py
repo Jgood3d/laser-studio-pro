@@ -231,12 +231,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         job_actions.go_to_work_zero_requested.connect(self.go_to_work_zero)
         job_actions.repeat_job_requested.connect(self.repeat_last_job)
 
-        self.machine_panel.dro_panel.unlock_requested.connect(
-            self.unlock_alarm
-        )
-        self.machine_panel.console_panel.command_submitted.connect(
-            self.send_console_command
-        )
+        connection.unlock_requested.connect(self.unlock_alarm)
+        connection.command_submitted.connect(self.send_console_command)
         # Commandes verrouillées tant que non connecté
         self.update_connection_widgets()
 

@@ -8,8 +8,8 @@ from laser_studio.i18n import tr
 class JobStatsPanel(QGroupBox):
     """Nombre de lignes, puissance moyenne et temps estimé du job.
 
-    Simple affichage : la fenêtre lui transmet les textes à chaque
-    génération ou import de G-Code :
+    Simple affichage, à droite de l'aperçu 2D : la fenêtre lui transmet les
+    textes à chaque génération ou import de G-Code :
 
         panel = JobStatsPanel()
         panel.set_stats("Lignes : 4", "Puissance : 12 %", "Temps : 1 min")

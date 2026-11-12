@@ -12,6 +12,8 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.ui.machine.console import DirectConsolePanel
+from laser_studio.ui.machine.status import MachineStateView
 
 CONNECTED_COLOR = "#27ae60"
 DISCONNECTED_COLOR = "#e74c3c"
@@ -31,16 +33,23 @@ def status_dot_icon(color):
 
 
 class ConnectionPanel(QGroupBox):
-    """Choix du port du graveur, actualisation de la liste, connexion.
+    """Port du graveur, connexion, état de la machine et console directe.
+
+    De haut en bas : la liste des ports et le bouton d'actualisation, le
+    bouton « Connecter GRBL », l'état GRBL (avec « Déverrouiller » en
+    alarme), puis le champ de commande GRBL et son bouton « Envoyer ».
 
     Il ne se connecte pas : ses boutons émettent des signaux, auxquels la
-    fenêtre (plus tard un contrôleur) s'abonne. L'état de la connexion lui
-    est transmis par set_connected() :
+    fenêtre (plus tard un contrôleur) s'abonne. L'état de la connexion et
+    celui de la machine lui sont transmis :
 
         panel = ConnectionPanel(ports_model)
         panel.refresh_requested.connect(laser.refresh_com_ports)
         panel.connect_requested.connect(laser.toggle_connection)
+        panel.unlock_requested.connect(laser.unlock_alarm)
+        panel.command_submitted.connect(laser.send_console_command)
         panel.set_connected(False)
+        panel.set_state("Idle")
 
     `ports_model` : modèle de la liste des ports (ports_combo), partagé
     avec la page « Matériaux et connexion au graveur » : la fenêtre
@@ -49,6 +58,8 @@ class ConnectionPanel(QGroupBox):
 
     refresh_requested = pyqtSignal()
     connect_requested = pyqtSignal()
+    unlock_requested = pyqtSignal()
+    command_submitted = pyqtSignal(str)  # commande GRBL tapée à la main
 
     def __init__(self, ports_model, parent=None):
         super().__init__(tr("ui.connection_box"), parent)
@@ -56,6 +67,10 @@ class ConnectionPanel(QGroupBox):
         self.refresh_button = self._refresh_button()
         self.connect_button = QPushButton()
         self.connect_button.clicked.connect(self.connect_requested)
+        self.state_view = MachineStateView()
+        self.state_view.unlock_requested.connect(self.unlock_requested)
+        self.console = DirectConsolePanel()
+        self.console.command_submitted.connect(self.command_submitted)
 
         ports_row = QHBoxLayout()
         ports_row.addWidget(self.ports_combo, 1)
@@ -63,6 +78,8 @@ class ConnectionPanel(QGroupBox):
         layout = QVBoxLayout(self)
         layout.addLayout(ports_row)
         layout.addWidget(self.connect_button)
+        layout.addWidget(self.state_view)
+        layout.addWidget(self.console)
         layout.addStretch()
         self.set_connected(False)
 
@@ -70,7 +87,8 @@ class ConnectionPanel(QGroupBox):
 
     def set_connected(self, connected):
         """« Déconnecter » / pastille verte si connecté, « Connecter GRBL »
-        / pastille rouge sinon."""
+        / pastille rouge sinon. La console n'est active que connectée."""
+        self.console.set_connected(connected)
         self.connect_button.setText(
             tr("laser.disconnect") if connected else tr("laser.connect")
         )
@@ -79,6 +97,11 @@ class ConnectionPanel(QGroupBox):
                 CONNECTED_COLOR if connected else DISCONNECTED_COLOR
             )
         )
+
+    def set_state(self, state):
+        """État GRBL reçu du graveur (« Idle », « Alarm »…), None si
+        déconnecté."""
+        self.state_view.set_state(state)
 
     # -- construction
 

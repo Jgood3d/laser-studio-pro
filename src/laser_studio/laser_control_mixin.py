@@ -127,11 +127,12 @@ class LaserControlMixin:
             streamer.lines_acked.connect(self.on_lines_acked)
 
     def _update_dro_display(self, state, x, y, z):
-        """Transmet l'état et la position au DRO (DroPanel.set_status)."""
+        """Transmet l'état (cadre Connexion) et la position (sous le pilotage)
+        au panneau machine (MachinePanel.set_status)."""
         machine_panel = getattr(self, "machine_panel", None)
         if machine_panel is None:
             return
-        machine_panel.dro_panel.set_status(state, x, y, z)
+        machine_panel.set_status(state, x, y, z)
         # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
         if state is None and hasattr(self, "gcode_position_marker"):
             self.gcode_position_marker.setData([], [])

@@ -375,7 +375,7 @@ class GcodeGenerationMixin:
 
         self.txt_console.setPlainText(gcode_text)
         num_lines = len([l for l in gcode_text.split('\n') if l.strip()])
-        self.machine_panel.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                      tr("gen.stat_power_imported"),
                                                      tr("gen.stat_time_imported"))
         self.plot_gcode_preview(gcode_text)
@@ -729,7 +729,7 @@ class GcodeGenerationMixin:
         self.statusBar().show_progress(100, tr("gen.done"))
         self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)
-        self.machine_panel.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                      tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
                                                      tr("gen.stat_time").format(value=time_str))
         # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
