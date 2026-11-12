@@ -51,7 +51,6 @@ class AppToolBar(QToolBar):
         self.addSeparator()
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
-        self.addAction(actions.gcode_import)
         # Soutien du projet, aligné à droite.
         self.addWidget(self._spacer())
         self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))

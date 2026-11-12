@@ -74,6 +74,15 @@ class AppMenusTests(unittest.TestCase):
         a.gcode_console.trigger()
         self.assertEqual(received, [(True,), (False,)])
 
+    def test_file_menu_order(self):
+        tr, fm = self.tr, self.menu_bar.file_menu
+        self.assertEqual(self.texts(fm), [tr("menu.file.save_project"), tr("menu.file.open_project"),
+                                          tr("menu.file.recent_projects"), tr("gcode.import"),
+                                          tr("menu.file.save_gcode"), tr("menu.file.quit")])
+        received = self.record(self.actions.gcode_import_requested)
+        self.actions.gcode_import.trigger()
+        self.assertEqual(received, [()])
+
     def test_save_gcode_submenu_is_enabled_after_generation(self):
         from laser_studio.ui.app.menu import AppActions, AppMenuBar
         a = AppActions()
@@ -116,8 +125,9 @@ class AppMenusTests(unittest.TestCase):
         widgets = [x for x in entries if isinstance(x, QWidgetAction)]
         order = [entries.index(x) for x in (a.quit, a.save_project, a.png2svg_tab, a.image_undo, a.image_redo,
                                             a.image_delete, a.mirror_v, a.image_reset, a.estimate)]
-        order += [entries.index(widgets[0]), entries.index(a.gcode_import)]
+        order += [entries.index(widgets[0])]
         self.assertEqual(order, sorted(order))
+        self.assertNotIn(a.gcode_import, entries)          # passé dans le menu Fichier
         self.assertEqual(widgets[0].defaultWidget().text(), self.tr("gcode.generate"))
         # La connexion au graveur est passée dans le panneau machine.
         self.assertFalse(hasattr(self.toolbar, "ports_combo"))
