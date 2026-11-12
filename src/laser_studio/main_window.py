@@ -207,16 +207,20 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
         barre d'outils (état actif / coché partagé, voir update_image_actions_state).
 
-        « Graver une image » : annuler / refaire, pivoter, miroirs. Séparation : pivoter, miroirs.
-        PNG ⇒ SVG : pivoter (les miroirs n'y servent pas)."""
+        « Graver une image » : annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
+        Séparation : pivoter, miroirs, réinitialiser (réglages image et miroirs qu'elle reprend),
+        supprimer. PNG ⇒ SVG : pivoter, supprimer (miroirs et réglages image n'y servent pas)."""
         a = self.app_actions
         rotate = [a.image_rotate_left, a.image_rotate_right]
         mirrors = [a.mirror_h, a.mirror_v]
         self.image_floating_toolbar = FloatingToolBar(
-            [a.image_undo, a.image_redo, None, *rotate, None, *mirrors], self.tab_previews.preview_area)
+            [a.image_undo, a.image_redo, None, *rotate, None, *mirrors, None, a.image_reset, a.image_delete],
+            self.tab_previews.preview_area)
         self.separation_floating_toolbar = FloatingToolBar(
-            [*rotate, None, *mirrors], self.tab_separation.preview_tabs, top_margin=34)
-        self.png2svg_floating_toolbar = FloatingToolBar(rotate, self.png2svg_widget.splitter)
+            [*rotate, None, *mirrors, None, a.image_reset, a.image_delete],
+            self.tab_separation.preview_tabs, top_margin=34)
+        self.png2svg_floating_toolbar = FloatingToolBar(
+            [*rotate, None, a.image_delete], self.png2svg_widget.splitter)
 
     def _build_machine_panel(self):
         """Panneau machine sous les onglets, abonné à la logique de la machine.
