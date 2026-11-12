@@ -10,6 +10,7 @@ from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
+from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
 
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
@@ -397,7 +398,7 @@ class GcodeGenerationMixin:
         return {
             'width_mm': self.spin_w.value(),
             'height_mm': self.spin_h.value(),
-            'origin_pos': self.combo_origin.currentText(),
+            'origin_pos': self.job_position_box.origin(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
@@ -431,7 +432,7 @@ class GcodeGenerationMixin:
         else:
             overscan = 0.0
         params = {
-            'origin_pos': self.combo_origin.currentText(),
+            'origin_pos': self.job_position_box.origin(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
@@ -585,7 +586,7 @@ class GcodeGenerationMixin:
                 if layer["mode"] != "Gravure Remplie" or not data["polygons"]:
                     continue
                 min_x = min(p[0] for poly in data["polygons"] for p in poly)
-                base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == "Centre" else params['offset_x']
+                base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == ORIGIN_CENTER else params['offset_x']
                 if base_x + min_x - vec_overscan_check < 0:
                     QMessageBox.critical(
                         self, tr("gen.overscan_vec_title"),

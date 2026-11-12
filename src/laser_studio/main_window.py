@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QH
 from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
 
+from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
 from laser_studio.i18n import tr
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.job_position import JobPositionBox
@@ -479,9 +480,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.on_lmm_mode_changed(settings.resolution_mode_combo.currentIndex())
         tab.fit_settings_width()
 
+        # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
         self.job_position_box = JobPositionBox()
-        # Nom historique, lu par la génération, les projets et les profils.
-        self.combo_origin = self.job_position_box.origin_combo
 
     def _build_png2svg_tab(self):
         """Onglet « Vectorisation d'image », abonné à sa logique
@@ -986,7 +986,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             "h_mm": self.spin_h.value(),
             "machine_bed_w_mm": self.spin_machine_w.value(),
             "machine_bed_h_mm": self.spin_machine_h.value(),
-            "origin_pos": self.combo_origin.currentText(),
+            "origin_pos": self.job_position_box.origin(),
             "offset_x": self.spin_off_x.value(),
             "offset_y": self.spin_off_y.value(),
             "bright": self.slider_bright.value(),
@@ -1030,7 +1030,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_h.setValue(data.get("h_mm", 100.0))
         self.spin_machine_w.setValue(data.get("machine_bed_w_mm", self.spin_machine_w.value()))
         self.spin_machine_h.setValue(data.get("machine_bed_h_mm", self.spin_machine_h.value()))
-        self.combo_origin.setCurrentText(data.get("origin_pos", "Bas-Gauche (0,0)"))
+        self.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
         self.spin_off_x.setValue(data.get("offset_x", 0.0))
         self.spin_off_y.setValue(data.get("offset_y", 0.0))
 

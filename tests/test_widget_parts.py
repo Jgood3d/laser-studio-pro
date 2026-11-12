@@ -120,11 +120,25 @@ class WidgetPartsTests(unittest.TestCase):
 
     def test_job_position_profile_round_trip(self):
         box = self.make(JobPositionBox)
-        center = box.origin_combo.itemText(1)
-        box.apply_profile_values({"origin": center})
-        self.assertEqual(box.profile_values(), {"origin": center})
+        box.apply_profile_values({"origin": "center"})
+        self.assertEqual(box.profile_values(), {"origin": "center"})
         box.apply_profile_values({"origin": "Inconnue"})  # gardée
-        self.assertEqual(box.profile_values(), {"origin": center})
+        self.assertEqual(box.profile_values(), {"origin": "center"})
+
+    def test_origin_is_a_code_whatever_the_language(self):
+        # Bug : la génération comparait le libellé affiché à « Centre » : en
+        # anglais, allemand ou espagnol, l'origine au centre restait sans effet.
+        box = self.make(JobPositionBox)
+        self.assertEqual(box.origin(), "bottom_left")
+        box.origin_combo.setCurrentIndex(1)
+        self.assertEqual(box.origin(), "center")
+        # Anciens profils / projets : libellé enregistré dans n'importe quelle langue.
+        for old_label in ("Bas-Gauche (0,0)", "Bottom-Left (0,0)", "Unten links (0,0)"):
+            box.set_origin(old_label)
+            self.assertEqual(box.origin(), "bottom_left", old_label)
+            box.set_origin("Centre" if old_label.startswith("Bas") else "Center" if old_label.startswith("Bot")
+                           else "Mitte")
+            self.assertEqual(box.origin(), "center", old_label)
 
 
 if __name__ == "__main__":

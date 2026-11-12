@@ -24,7 +24,7 @@ class _Params(dict):
 
 
 def _params(**kw):
-    p = _Params(width_mm=20.0, height_mm=10.0, origin_pos="Bas-Gauche (0,0)", offset_x=0.0, offset_y=0.0,
+    p = _Params(width_mm=20.0, height_mm=10.0, origin_pos="bottom_left", offset_x=0.0, offset_y=0.0,
                 power_engrave=100.0, speed_engrave=1000, enable_overscan=True, overscan_mode="mm",
                 overscan_dist=2.5, laser_cmd="M4", s_max=1000, algo="Seuil Simple (Binaire)", enable_cut=False)
     p.update(kw)
@@ -50,7 +50,7 @@ class ImageMarginTests(unittest.TestCase):
         self.assertEqual(workers.image_origin(_params()), (m, m))
         self.assertEqual(workers.image_origin(_params(offset_x=5.0, offset_y=-3.0)), (5.0 + m, -3.0 + m))
         # Origine « Centre » : le décalage désigne le centre de l'image, sans marge.
-        self.assertEqual(workers.image_origin(_params(origin_pos="Centre", offset_x=50.0, offset_y=40.0)),
+        self.assertEqual(workers.image_origin(_params(origin_pos="center", offset_x=50.0, offset_y=40.0)),
                          (40.0, 35.0))
 
     def test_overscan_stays_positive_with_a_zero_offset(self):

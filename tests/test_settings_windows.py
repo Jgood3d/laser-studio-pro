@@ -308,7 +308,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.spin_w = settings.width_spin", src)
         self.assertIn("machine_row.addWidget(self.job_position_box", src)
         self.assertIn('layout.addRow(tr("dim.origin"), self.origin_combo)', src)
-        self.assertIn("self.combo_origin = self.job_position_box.origin_combo", src)
+        self.assertIn('"origin_pos": self.job_position_box.origin()', src)   # code, pas le libellé traduit
         for widget in ("self.offset_x_spin", "self.offset_y_spin"):
             self.assertRegex(src, rf"layout\.addRow\(tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
         self.assertNotIn('tr("tab.dimensions")', src)

@@ -586,7 +586,7 @@ class LaserControlMixin:
 
         w = self.spin_w.value()
         h = self.spin_h.value()
-        ox, oy = image_origin({'origin_pos': self.combo_origin.currentText(),
+        ox, oy = image_origin({'origin_pos': self.job_position_box.origin(),
                                'offset_x': self.spin_off_x.value(), 'offset_y': self.spin_off_y.value(),
                                'width_mm': w, 'height_mm': h})
 
