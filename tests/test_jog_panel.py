@@ -89,6 +89,17 @@ class JogControlPanelTests(unittest.TestCase):
         self.button(panel, "X+").click()
         self.assertEqual(jogs, [(0.1, 0.0, 3000)])
 
+    def test_steps_include_5_20_and_50_mm(self):
+        self.assertEqual(JOG_STEPS_MM, (0.1, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0))
+        panel = self.make()
+        self.assertEqual(panel.step_mm(), 10.0)               # pas de départ inchangé
+        jogs = self.record(panel.jog_requested)
+        for step in (5.0, 20.0, 50.0):
+            panel.step_slider.setValue(JOG_STEPS_MM.index(step))
+            self.assertEqual(panel._step_text(panel.step_slider.value()), f"{step:g} mm")
+            self.button(panel, "Y+").click()
+        self.assertEqual(jogs, [(0.0, 5.0, 3000), (0.0, 20.0, 3000), (0.0, 50.0, 3000)])
+
     def test_commands_emit_their_signal(self):
         panel = self.make()
         for key, signal in (("ui.homing_cmd", panel.home_requested), ("ui.pause", panel.pause_requested),

@@ -27,7 +27,7 @@ SPLASH_SCREEN_SLEEP_INTERVAL = 0.02
 
 # Panneau de pilotage (jog) : pas proposés par le curseur « Pas », en mm,
 # et pas sélectionné au démarrage.
-JOG_STEPS_MM = (0.1, 1.0, 10.0, 100.0)
+JOG_STEPS_MM = (0.1, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0)
 JOG_DEFAULT_STEP_MM = 10.0
 
 # Panneau de pilotage : vitesse minimale du curseur « Vitesse » et vitesse
