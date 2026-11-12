@@ -4,7 +4,7 @@ Utilisation :
 
     from laser_studio.ui.machine import MachinePanel
 
-    panel = MachinePanel(job_position_box, max_speed=6000)
+    panel = MachinePanel(job_position_box, ports_model, max_speed=6000)
     panel.jog_panel.jog_requested.connect(self.jog_move)
 """
 

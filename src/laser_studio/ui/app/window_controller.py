@@ -66,6 +66,7 @@ class WindowControllerMixin:
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
         # Fichier
         actions.save_project_requested.connect(self.project.save)
+        actions.gcode_export_requested.connect(self.export_gcode_with_ext)
         actions.open_project_requested.connect(self.project.open)
         actions.recent_project_requested.connect(self.project.open_path)
         actions.quit_requested.connect(self.close)
@@ -77,6 +78,17 @@ class WindowControllerMixin:
             lambda: open_stencil_studio(self)
         )
         actions.main_tab_requested.connect(self.show_main_tab)
+        actions.vector_import_requested.connect(
+            lambda: self._run_in_vector_editor(self.import_svg_to_vector_editor)
+        )
+        actions.box_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_box_generator)
+        )
+        actions.puzzle_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_puzzle_generator)
+        )
+        # Affichage
+        actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
         # Aide
         actions.about_requested.connect(lambda: AboutDialog(self).exec())
         actions.support_requested.connect(lambda: SupportDialog(self).exec())
@@ -98,9 +110,6 @@ class WindowControllerMixin:
         actions.estimate_requested.connect(self.estimate_job_time)
         actions.generate_requested.connect(self.generate_job)
         actions.gcode_import_requested.connect(self.import_gcode_file)
-        # Connexion au graveur
-        actions.refresh_ports_requested.connect(self.refresh_com_ports)
-        actions.connection_toggle_requested.connect(self.toggle_connection)
 
     def show_main_tab(self, tab_attr):
         """Affiche l'onglet central `tab_attr` (ex. "tab_separation").
@@ -118,6 +127,21 @@ class WindowControllerMixin:
         else:
             tab.window().raise_()
             tab.window().activateWindow()
+
+    def _run_in_vector_editor(self, command):
+        """Affiche l'onglet « Graver une image vectorielle », puis lance
+        `command` (import SVG / DXF, générateur de boîte, puzzle)."""
+        self.show_main_tab("tab_vector_editor")
+        command()
+
+    def set_gcode_console_visible(self, visible):
+        """Affiche ou masque l'onglet « Console / G-Code » (menu Affichage).
+
+        Ouvert en plein écran (sorti des onglets), il n'est pas touché.
+        """
+        index = self.main_tabs_view.indexOf(self.tab_console_gcode)
+        if index != -1:
+            self.main_tabs_view.setTabVisible(index, visible)
 
     def _image_tab_kind(self):
         """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),
@@ -180,18 +204,17 @@ class WindowControllerMixin:
     def update_connection_widgets(self):
         """Met le bouton de connexion en accord avec l'état du port.
 
-        Page et barre d'outils : « Déconnecter » sur fond vert / pastille
-        verte si connecté, « Connecter GRBL » / pastille rouge sinon.
-        Verrouille ou déverrouille aussi les commandes de la machine.
+        Page des matériaux et panneau « Connexion » : « Déconnecter » sur
+        fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
+        rouge sinon. Verrouille ou déverrouille aussi les commandes de la
+        machine.
         """
         connected = self.usb.is_connected()
         page = getattr(self, "tab_machine_profiles", None)
         if page is not None:
             page.set_connected(connected)
-        actions = getattr(self, "app_actions", None)
-        if actions is not None:
-            actions.set_connected(connected)
-        # Pilotage, actions de job et console directe : verrouillés tant que
+        # Bouton de connexion, pilotage, actions de job et console directe :
+        # verrouillés tant que
         # le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
         machine_panel = getattr(self, "machine_panel", None)

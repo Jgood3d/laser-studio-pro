@@ -141,12 +141,14 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 ### Fenêtre principale découpée en mixins
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs, onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
-- `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Outils, Aide), `AppToolBar`
+- `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar`
 - `ui/app/window_controller.py` — contrôleur de la fenêtre : abonnement aux signaux du menu et de la barre d’outils, thème, langue, onglets annexes, état de la connexion
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
-- `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble la position du job, le pilotage, les actions de job, le DRO, la barre de progression et la console directe
+- `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble la position du job, la connexion, le pilotage, les actions de job, le DRO, les statistiques du job, la barre de progression et la console directe
+- `ui/machine/connection/` — panneau « Connexion » `ConnectionPanel` : port (modèle partagé avec la page des matériaux), actualisation, connexion (émet `refresh_requested`, `connect_requested`)
+- `ui/machine/job_stats/` — panneau `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
 - `ui/machine/controls/` — panneau de pilotage `JogControlPanel` : jog, homing, curseurs de pas et de vitesse, commandes temps réel, envoi du job (émet des signaux) ; les commandes temps réel et l’envoi du job sont `RealtimeCommands`
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
 - `ui/machine/dro/` — position de la machine `DroPanel` : état GRBL, X / Y / Z, bouton « Déverrouiller » en alarme (émet `unlock_requested`)
@@ -160,7 +162,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
 - `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`)
-- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : statistiques du job (`set_stats`), export (émet `export_requested`), console
+- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code et des messages, masqué au démarrage (menu Affichage)
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` : jobs à enchaîner et G-Code envoyé (émet `run_requested`, `reordered`…) ; le suivi du G-Code envoyé est `SentGcodeLog`
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
@@ -208,7 +210,9 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | --- | --- | --- |
 | `JogControlPanel` — pilotage | `jog_requested(dx_mm, dy_mm, vitesse_mm_min)`, `home_requested`, `pause_requested`, `resume_requested`, `reset_requested`, `emergency_stop_requested`, `send_job_requested` | `set_connected(bool)`, `set_send_enabled(bool)`, `set_max_speed(mm_min)` |
 | `JobActionsPanel` — actions de job | `frame_requested`, `set_work_zero_requested`, `go_to_work_zero_requested`, `repeat_job_requested` | `set_connected(bool)`, `set_repeat_enabled(bool)` |
+| `ConnectionPanel` — connexion au graveur | `refresh_requested`, `connect_requested` | `set_connected(bool)`, `ports_combo` |
 | `DroPanel` — position de la machine | `unlock_requested` | `set_status(état, x, y, z)` |
+| `JobStatsPanel` — statistiques du job | (aucun) | `set_stats(lignes, puissance, temps)` |
 | `DirectConsolePanel` — console directe | `command_submitted(commande)` | `set_connected(bool)` |
 | `JobPositionBox` — position du job | (aucun : l’origine est lue à la génération) | `origin_combo` |
 | `MachinePanel` — assemble les panneaux ci-dessus | (ceux de ses panneaux) | `set_connected(bool)` |
@@ -220,7 +224,7 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `DitherComparisonDialog` — comparaison des algorithmes de tramage | `algorithm_chosen(nom)` | vignettes tramées, à la construction |
 | `FullscreenWindow` — plein écran d’un onglet | `content_released` (le contenu retourne dans les onglets) | le contenu, à la construction ; `show_maximized()` |
 
-Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/menu/actions.py`), qui émet un signal par action : `save_project_requested`, `settings_window_requested(page)`, `theme_selected(code)`, `generate_requested`, `connection_toggle_requested`…
+Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/menu/actions.py`), qui émet un signal par action : `save_project_requested`, `settings_window_requested(page)`, `theme_selected(code)`, `generate_requested`, `gcode_export_requested(extension)`, `gcode_console_toggled(bool)`, `puzzle_generator_requested`…
 
 ### Qualité
 - `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)

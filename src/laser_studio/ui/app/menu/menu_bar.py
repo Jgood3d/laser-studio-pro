@@ -6,10 +6,11 @@ from laser_studio.ui.app.menu.file_menu import FileMenu
 from laser_studio.ui.app.menu.help_menu import HelpMenu
 from laser_studio.ui.app.menu.settings_menu import SettingsMenu
 from laser_studio.ui.app.menu.tools_menu import ToolsMenu
+from laser_studio.ui.app.menu.view_menu import ViewMenu
 
 
 class AppMenuBar(QMenuBar):
-    """Barre de menus : Fichier, Paramètres, Outils et Aide.
+    """Barre de menus : Fichier, Paramètres, Affichage, Outils et Aide.
 
     Elle ne fait que ranger les actions de AppActions, qui émet les signaux.
     """
@@ -18,11 +19,13 @@ class AppMenuBar(QMenuBar):
         super().__init__(parent)
         self.file_menu = FileMenu(actions, self)
         self.settings_menu = SettingsMenu(actions, self)
+        self.view_menu = ViewMenu(actions, self)
         self.tools_menu = ToolsMenu(actions, self)
         self.help_menu = HelpMenu(actions, self)
         for menu in (
             self.file_menu,
             self.settings_menu,
+            self.view_menu,
             self.tools_menu,
             self.help_menu,
         ):

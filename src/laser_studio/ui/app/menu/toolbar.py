@@ -2,7 +2,6 @@
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
-    QComboBox,
     QPushButton,
     QSizePolicy,
     QToolBar,
@@ -14,12 +13,12 @@ from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
 
 
 class AppToolBar(QToolBar):
-    """Barre d'outils : raccourcis du menu, image, G-code et connexion.
+    """Barre d'outils : raccourcis du menu, image et G-code.
 
     Elle reprend les actions de AppActions (mêmes icône, libellé, raccourci
     et état que dans le menu) et y ajoute des widgets : le bouton
-    « Générer le G-code », la liste des ports du graveur (ports_combo) et,
-    tout à droite, le bouton de soutien ko-fi.
+    « Générer le G-code » et, tout à droite, le bouton de soutien ko-fi.
+    La connexion au graveur est dans le panneau machine (ConnectionPanel).
     """
 
     def __init__(self, actions, parent=None):
@@ -53,16 +52,6 @@ class AppToolBar(QToolBar):
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
         self.addAction(actions.gcode_import)
-        self.addSeparator()
-        self.ports_combo = self._ports_combo()
-        self.addWidget(self.ports_combo)
-        self.addAction(actions.refresh_ports)
-        self.addAction(actions.connection)
-        # Seul bouton avec son libellé : l'état de la connexion doit se lire
-        # d'un coup d'œil.
-        self.widgetForAction(actions.connection).setToolButtonStyle(
-            Qt.ToolButtonStyle.ToolButtonTextBesideIcon
-        )
         # Soutien du projet, aligné à droite.
         self.addWidget(self._spacer())
         self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))
@@ -86,21 +75,3 @@ class AppToolBar(QToolBar):
         )
         button.clicked.connect(actions.generate_requested)
         return button
-
-    @staticmethod
-    def _ports_combo():
-        """Liste des ports du graveur.
-
-        Elle partage son modèle avec celle de la page « Matériaux et
-        connexion au graveur ». L'infobulle donne le port choisi.
-        """
-        combo = QComboBox()
-        combo.setSizeAdjustPolicy(
-            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
-        )
-        combo.setMinimumContentsLength(16)
-        combo.setToolTip(tr("usb.port"))
-        combo.currentTextChanged.connect(
-            lambda text: combo.setToolTip(text or tr("usb.port"))
-        )
-        return combo

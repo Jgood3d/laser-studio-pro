@@ -1,4 +1,5 @@
-"""Menu Fichier : projets (enregistrer, ouvrir, récents) et quitter."""
+"""Menu Fichier : projets (enregistrer, ouvrir, récents), enregistrement
+du G-Code et quitter."""
 
 import os
 
@@ -19,6 +20,18 @@ class FileMenu(QMenu):
             actions.recent_projects_icon, tr("menu.file.recent_projects")
         )
         self.set_recent_projects([])
+        self.addSeparator()
+        # Une entrée par extension ; le sous-menu reste grisé tant qu'aucun
+        # G-Code n'a été généré (AppActions.set_gcode_export_enabled).
+        self.gcode_export_menu = self.addMenu(
+            actions.gcode_export_icon, tr("menu.file.save_gcode")
+        )
+        for action in actions.gcode_export_actions.values():
+            self.gcode_export_menu.addAction(action)
+        self.gcode_export_menu.setEnabled(False)
+        actions.gcode_export_enabled_changed.connect(
+            self.gcode_export_menu.setEnabled
+        )
         self.addSeparator()
         self.addAction(actions.quit)
 

@@ -78,20 +78,56 @@ class Preview2DTabTests(_TabTest):
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class ConsoleTabTests(_TabTest):
-    def test_each_export_button_emits_its_extension(self):
+    def test_no_stats_nor_export_buttons_left(self):
+        # Statistiques : panneau machine ; export : menu Fichier.
         tab = self.make(ConsoleTab)
-        received = record(tab.export_requested)
-        for button in tab.findChildren(QPushButton):
-            button.click()
-        self.assertEqual(received, [(".gcode",), (".nc",), (".gc",)])
+        self.assertEqual(tab.findChildren(QPushButton), [])
+        self.assertFalse(hasattr(tab, "set_stats"))
 
+
+@unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
+class JobStatsPanelTests(_TabTest):
     def test_set_stats(self):
-        tab = self.make(ConsoleTab)
-        tab.set_stats("Lignes : 4", "Puissance : 12 %", "Temps : 1 min")
-        texts = [label.text() for label in tab.findChildren(QLabel)]
-        self.assertEqual(
-            texts[:3], ["Lignes : 4", "Puissance : 12 %", "Temps : 1 min"]
-        )
+        from laser_studio.ui.machine.job_stats import JobStatsPanel
+        panel = self.make(JobStatsPanel)
+        self.assertEqual(panel.title(), tr("ui.job_stats_box"))
+        panel.set_stats("Lignes : 4", "Puissance : 12 %", "Temps : 1 min")
+        texts = [label.text() for label in panel.findChildren(QLabel)]
+        self.assertEqual(texts, ["Lignes : 4", "Puissance : 12 %", "Temps : 1 min"])
+
+
+@unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
+class ConnectionPanelTests(_TabTest):
+    def make_panel(self):
+        from PyQt6.QtGui import QStandardItemModel
+        from laser_studio.ui.machine.connection import ConnectionPanel
+        model = QStandardItemModel()
+        panel = ConnectionPanel(model)
+        self.addCleanup(panel.deleteLater)
+        return panel, model
+
+    def test_ports_share_the_model(self):
+        from PyQt6.QtWidgets import QComboBox
+        panel, model = self.make_panel()
+        other = QComboBox()
+        other.setModel(model)
+        other.addItems(["COM1", "COM2"])
+        self.assertEqual(panel.ports_combo.count(), 2)
+
+    def test_buttons_emit_their_signal(self):
+        panel, _model = self.make_panel()
+        refresh, connect = record(panel.refresh_requested), record(panel.connect_requested)
+        panel.refresh_button.click()
+        panel.connect_button.click()
+        self.assertEqual((refresh, connect), ([()], [()]))
+        self.assertEqual(panel.refresh_button.toolTip(), tr("usb.refresh_ports"))
+
+    def test_connect_button_follows_the_state(self):
+        panel, _model = self.make_panel()
+        self.assertEqual(panel.title(), tr("ui.connection_box"))
+        self.assertEqual(panel.connect_button.text(), tr("laser.connect"))
+        panel.set_connected(True)
+        self.assertEqual(panel.connect_button.text(), tr("laser.disconnect"))
 
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")

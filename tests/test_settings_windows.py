@@ -56,10 +56,39 @@ class AppMenusTests(unittest.TestCase):
             last.click()
         self.assertEqual(open_url.call_args[0][0].toString(), button_module.KOFI_URL)
 
-    def test_menu_bar_order_is_file_settings_tools_help(self):
+    def test_menu_bar_order_is_file_settings_view_tools_help(self):
         tr = self.tr
         self.assertEqual(self.texts(self.menu_bar),
-                         [tr("menu.file"), tr("menu.settings"), tr("menu.tools"), tr("menu.help")])
+                         [tr("menu.file"), tr("menu.settings"), tr("menu.view"), tr("menu.tools"),
+                          tr("menu.help")])
+
+    def test_view_menu_toggles_the_gcode_console(self):
+        from laser_studio.ui.app.menu import AppActions, AppMenuBar
+        a = AppActions()                                 # instance neuve : état de départ
+        menu_bar = AppMenuBar(a)
+        self.assertEqual(menu_bar.view_menu.actions(), [a.gcode_console])
+        self.assertTrue(a.gcode_console.isCheckable())
+        self.assertFalse(a.gcode_console.isChecked())    # console masquée au démarrage
+        received = self.record(a.gcode_console_toggled)
+        a.gcode_console.trigger()
+        a.gcode_console.trigger()
+        self.assertEqual(received, [(True,), (False,)])
+
+    def test_save_gcode_submenu_is_enabled_after_generation(self):
+        from laser_studio.ui.app.menu import AppActions, AppMenuBar
+        a = AppActions()
+        menu_bar = AppMenuBar(a)                         # gardé : sinon ses menus sont détruits
+        submenu = menu_bar.file_menu.gcode_export_menu
+        self.assertEqual(submenu.title(), self.tr("menu.file.save_gcode"))
+        self.assertEqual(self.texts(submenu), [".gcode", ".nc", ".gc"])
+        self.assertFalse(submenu.isEnabled())
+        self.assertFalse(any(x.isEnabled() for x in submenu.actions()))
+        a.set_gcode_export_enabled(True)
+        self.assertTrue(submenu.isEnabled())
+        received = self.record(a.gcode_export_requested)
+        for action in submenu.actions():
+            action.trigger()
+        self.assertEqual(received, [(".gcode",), (".nc",), (".gc",)])
 
     def test_settings_and_tools_entries_are_in_their_menu(self):
         tr = self.tr
@@ -68,7 +97,8 @@ class AppMenusTests(unittest.TestCase):
                                     tr("menu.language"), tr("menu.theme")])
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
                          [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
-                          tr("png2svg.tab_title")])
+                          tr("png2svg.tab_title"), tr("menu.tools.import_vector"), tr("menu.tools.box"),
+                          tr("menu.tools.puzzle")])
 
     def test_toolbar_reuses_the_menu_actions(self):
         # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
@@ -79,18 +109,18 @@ class AppMenusTests(unittest.TestCase):
             self.assertIn(action, in_toolbar, action.text())
         self.assertIn(a.save_project, self.menu_bar.file_menu.actions())
 
-    def test_toolbar_order_undo_image_and_connection(self):
+    def test_toolbar_order_undo_image_and_gcode(self):
         from PyQt6.QtWidgets import QWidgetAction
         a = self.actions
         entries = [x for x in self.toolbar.actions() if not x.isSeparator()]
         widgets = [x for x in entries if isinstance(x, QWidgetAction)]
         order = [entries.index(x) for x in (a.quit, a.save_project, a.png2svg_tab, a.image_undo, a.image_redo,
                                             a.image_delete, a.mirror_v, a.image_reset, a.estimate)]
-        order += [entries.index(widgets[0]), entries.index(a.gcode_import), entries.index(widgets[1]),
-                  entries.index(a.refresh_ports), entries.index(a.connection)]
+        order += [entries.index(widgets[0]), entries.index(a.gcode_import)]
         self.assertEqual(order, sorted(order))
         self.assertEqual(widgets[0].defaultWidget().text(), self.tr("gcode.generate"))
-        self.assertIs(widgets[1].defaultWidget(), self.toolbar.ports_combo)
+        # La connexion au graveur est passée dans le panneau machine.
+        self.assertFalse(hasattr(self.toolbar, "ports_combo"))
 
     def test_image_actions_are_disabled_until_an_image_is_shown(self):
         from laser_studio.ui.app.menu import AppActions
@@ -122,7 +152,9 @@ class AppMenusTests(unittest.TestCase):
                 (a.language_actions["en"], a.language_selected, ("en",)),
                 (a.theme_actions["light"], a.theme_selected, ("light",)),
                 (a.image_rotate_right, a.image_rotate_requested, (True,)),
-                (a.connection, a.connection_toggle_requested, ())):
+                (a.vector_import, a.vector_import_requested, ()),
+                (a.box_generator, a.box_generator_requested, ()),
+                (a.puzzle_generator, a.puzzle_generator_requested, ())):
             received = self.record(signal)
             action.setEnabled(True)
             action.trigger()
@@ -140,12 +172,6 @@ class AppMenusTests(unittest.TestCase):
         entry.trigger()
         self.assertEqual(received, [("/tmp/projets/plaque.lsp",)])
 
-    def test_connection_state(self):
-        a = self.actions
-        a.set_connected(True)
-        self.assertEqual(a.connection.text(), self.tr("laser.disconnect"))
-        a.set_connected(False)
-        self.assertEqual(a.connection.text(), self.tr("laser.connect"))
 
 
 class MenuStructureTests(unittest.TestCase):
@@ -162,13 +188,13 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
         self.assertIn("settings.undo_requested.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("MachineProfilesPage(ports.model(), materials.keys())", src)
+        self.assertIn("MachineProfilesPage(QStandardItemModel(self), materials.keys())", src)
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
-    def test_separation_and_vectorization_tabs_are_hidden_at_startup(self):
+    def test_separation_vectorization_and_console_tabs_are_hidden_at_startup(self):
         src = ui_source()
-        self.assertIn("for tab in (self.tab_separation, self.tab_png2svg):\n"
+        self.assertIn("for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):\n"
                       "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
 
     def test_tab_toolbars_share_one_builder(self):
@@ -397,12 +423,31 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
-        obj.tab_machine_profiles, obj.app_actions = mock.Mock(), mock.Mock()
+        obj.tab_machine_profiles, obj.machine_panel = mock.Mock(), mock.Mock()
         for connected in (False, True):
             obj.usb = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
             obj.tab_machine_profiles.set_connected.assert_called_with(connected)
-            obj.app_actions.set_connected.assert_called_with(connected)
+            obj.machine_panel.set_connected.assert_called_with(connected)
+
+    def test_vector_tools_open_the_vector_editor_first(self):
+        obj = self.make()
+        calls = []
+        obj.show_main_tab = lambda attr: calls.append(attr)
+        obj._run_in_vector_editor(lambda: calls.append("puzzle"))
+        self.assertEqual(calls, ["tab_vector_editor", "puzzle"])
+
+    def test_gcode_console_visibility(self):
+        obj = self.make()
+        obj.tab_console_gcode = object()
+        obj.main_tabs_view = mock.Mock()
+        obj.main_tabs_view.indexOf.return_value = 7
+        obj.set_gcode_console_visible(True)
+        obj.main_tabs_view.setTabVisible.assert_called_with(7, True)
+        obj.main_tabs_view.indexOf.return_value = -1     # en plein écran : rien à faire
+        obj.main_tabs_view.setTabVisible.reset_mock()
+        obj.set_gcode_console_visible(False)
+        obj.main_tabs_view.setTabVisible.assert_not_called()
 
     def test_show_fullscreen_control(self):
         tab, control = mock.Mock(), mock.Mock()

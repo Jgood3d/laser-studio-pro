@@ -31,12 +31,43 @@ TRANSLATIONS = {
         "de": "Zuletzt verwendete Projekte", "es": "Proyectos recientes",
     },
     "menu.file.quit": {"fr": "Quitter", "en": "Quit", "de": "Beenden", "es": "Salir"},
+    "menu.file.save_gcode": {
+        "fr": "Enregistrer le G-Code", "en": "Save G-Code",
+        "de": "G-Code speichern", "es": "Guardar G-Code",
+    },
+
+    # --- Menu Affichage ---
+    "menu.view": {"fr": "Affichage", "en": "View", "de": "Ansicht", "es": "Ver"},
+    "menu.view.gcode_console": {
+        "fr": "Afficher/Masquer la console G-Code",
+        "en": "Show/Hide the G-Code console",
+        "de": "G-Code-Konsole ein-/ausblenden",
+        "es": "Mostrar/Ocultar la consola G-Code",
+    },
 
     # --- Menus Paramètres et Outils ---
     "menu.settings": {"fr": "Paramètres", "en": "Settings", "de": "Einstellungen", "es": "Ajustes"},
     "menu.tools": {"fr": "Outils", "en": "Tools", "de": "Werkzeuge", "es": "Herramientas"},
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
+    "menu.tools.import_vector": {
+        "fr": "Importer SVG / DXF…",
+        "en": "Import SVG / DXF…",
+        "de": "SVG / DXF importieren…",
+        "es": "Importar SVG / DXF…",
+    },
+    "menu.tools.box": {
+        "fr": "Générateur de boîte…",
+        "en": "Box Generator…",
+        "de": "Box-Generator…",
+        "es": "Generador de cajas…",
+    },
+    "ui.connection_box": {
+        "fr": "Connexion",
+        "en": "Connection",
+        "de": "Verbindung",
+        "es": "Conexión",
+    },
     "menu.tools.puzzle": {
         "fr": "Générateur de Puzzle…",
         "en": "Puzzle Generator…",

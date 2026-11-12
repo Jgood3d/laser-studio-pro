@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QH
                              QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
 
 from laser_studio.i18n import tr
 from laser_studio.ui.machine import MachinePanel
@@ -176,8 +176,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.currentChanged.connect(self._update_bottom_panel_visibility)
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
         self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
-        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab).
-        for tab in (self.tab_separation, self.tab_png2svg):
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab),
+        # ou Affichage pour la console G-Code (set_gcode_console_visible).
+        for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
@@ -201,8 +202,16 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         contient le panneau, placée sous les onglets dans `center_v_splitter`.
         """
         self.machine_panel = MachinePanel(
-            self.job_position_box, self.spin_machine_max_speed.value()
+            self.job_position_box,
+            self.combo_ports.model(),
+            self.spin_machine_max_speed.value(),
         )
+        connection = self.machine_panel.connection_panel
+        # Même port choisi dans le panneau et dans la page des matériaux.
+        connection.ports_combo.currentIndexChanged.connect(self.tab_machine_profiles.set_port_index)
+        self.tab_machine_profiles.port_selected.connect(connection.ports_combo.setCurrentIndex)
+        connection.refresh_requested.connect(self.refresh_com_ports)
+        connection.connect_requested.connect(self.toggle_connection)
         jog = self.machine_panel.jog_panel
         jog.jog_requested.connect(self.jog_move)
         jog.home_requested.connect(self.home_machine)
@@ -282,12 +291,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
     def _build_machine_profiles_page(self):
         """Page « Matériaux et connexion au graveur », abonnée à la logique.
 
-        Sa liste des ports est celle de la barre d'outils (même modèle), et
-        le port choisi est le même des deux côtés.
+        Sa liste des ports est celle du panneau « Connexion » (même modèle,
+        voir _build_machine_panel), et le port choisi est le même des deux
+        côtés.
         """
-        ports = self.main_toolbar.ports_combo
         materials = dict(DEFAULT_MATERIALS_DB)
-        page = MachineProfilesPage(ports.model(), materials.keys())
+        page = MachineProfilesPage(QStandardItemModel(self), materials.keys())
         self.materials = MaterialsController(
             self,
             page.material_combo,
@@ -295,8 +304,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             current_settings=self._job_settings,
             apply_settings=self._apply_job_settings,
         )
-        page.port_selected.connect(ports.setCurrentIndex)
-        ports.currentIndexChanged.connect(page.set_port_index)
         page.refresh_ports_requested.connect(self.refresh_com_ports)
         page.connect_requested.connect(self.toggle_connection)
         page.material_selected.connect(self.materials.apply_selected)
@@ -798,9 +805,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.tab_vector_2d = tab
 
     def _build_console_tab(self):
-        """Onglet « Console / G-Code », abonné à l'export du G-Code."""
+        """Onglet « Console / G-Code », masqué au démarrage (menu Affichage)."""
         tab = ConsoleTab()
-        tab.export_requested.connect(self.export_gcode_with_ext)
         tab.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
                 "tab_console_gcode", "ui.tab_console_gcode"

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
 try:
+    from PyQt6.QtGui import QStandardItemModel
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from laser_studio.laser_control_mixin import LaserControlMixin
     from laser_studio.ui.machine.controls import JogControlPanel
@@ -164,29 +165,32 @@ class CommandsLockTests(unittest.TestCase):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
         box = QGroupBox("Position")
-        panel = MachinePanel(box, 6000)
+        panel = MachinePanel(box, QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
             panel.set_connected(connected)
             self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
                               panel.console_panel.isEnabled()), (connected, connected, connected))
+            self.assertEqual(panel.connection_panel.connect_button.text(),
+                             tr("laser.disconnect") if connected else tr("laser.connect"))
             self.assertTrue(panel.dro_panel.isEnabled())
             self.assertTrue(box.isEnabled())
 
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        panel = MachinePanel(QGroupBox("Position"), 6000)
+        panel = MachinePanel(QGroupBox("Position"), QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.progress_bar.setValue(42)
         self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
 
-    def test_layout_position_jog_job_actions_dro(self):
+    def test_layout_position_connection_jog_job_actions_dro_stats(self):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
-        order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.jog_panel",
-                                        "addWidget(self.job_actions_panel", "addWidget(self.dro_panel")]
+        order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.connection_panel",
+                                        "addWidget(self.jog_panel", "addWidget(self.job_actions_panel",
+                                        "addWidget(self.dro_panel", "addWidget(self.job_stats_panel")]
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 
