@@ -62,6 +62,12 @@ TRANSLATIONS = {
         "de": "Box-Generator…",
         "es": "Generador de cajas…",
     },
+    "ui.close_tab": {
+        "fr": "Fermer l'onglet",
+        "en": "Close tab",
+        "de": "Tab schließen",
+        "es": "Cerrar pestaña",
+    },
     "ui.connection_box": {
         "fr": "Connexion",
         "en": "Connection",

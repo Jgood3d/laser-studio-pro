@@ -86,6 +86,17 @@ class ConsoleTabTests(_TabTest):
 
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
+class TabCloseButtonTests(_TabTest):
+    def test_close_button_emits_clicked(self):
+        from laser_studio.ui.widgets import TabCloseButton
+        button = self.make(TabCloseButton)
+        self.assertEqual(button.toolTip(), tr("ui.close_tab"))
+        received = record(button.clicked)
+        button.click()
+        self.assertEqual(len(received), 1)
+
+
+@unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class JobStatsPanelTests(_TabTest):
     def test_set_stats(self):
         from laser_studio.ui.machine.job_stats import JobStatsPanel

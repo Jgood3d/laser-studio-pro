@@ -5,7 +5,7 @@ panneaux et gère ses événements (fermeture, glisser-déposer) ; les mixins
 apportent le contenu des onglets et la logique.
 """
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabWidget,
+                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabBar, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
@@ -27,7 +27,7 @@ from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
 from laser_studio.ui.utils import fullscreen_icon
-from laser_studio.ui.widgets import FullscreenWindow
+from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
 from laser_studio.controllers.materials import DEFAULT_MATERIALS_DB, MaterialsController
@@ -811,7 +811,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab = ConsoleTab()
         tab.fullscreen_requested.connect(
             lambda: self._toggle_fullscreen_tab(
-                "tab_console_gcode", "ui.tab_console_gcode"
+                "tab_console_gcode", "ui.tab_console_gcode",
+                on_restored=self._add_console_close_button,
             )
         )
         # Nom historique de la console : toute l'application y écrit
@@ -819,6 +820,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.txt_console = tab.console_edit
         self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab
+        self._add_console_close_button()
+
+    def _add_console_close_button(self):
+        """Croix sur l'onglet Console : le ferme en décochant « Affichage > Afficher/Masquer la
+        console G-Code » (qui masque l'onglet et mémorise le choix). Remise au retour du plein
+        écran : Qt supprime la croix quand l'onglet sort de la barre."""
+        index = self.main_tabs_view.indexOf(self.tab_console_gcode)
+        if index == -1:
+            return
+        button = TabCloseButton()
+        button.clicked.connect(lambda: self.app_actions.gcode_console.setChecked(False))
+        self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
 
     def _build_job_queue_tab(self):
         """Onglet « File d'attente », abonné à la file (JobQueueController),
@@ -1207,14 +1220,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         if control is not None:
             control.setVisible(visible)
 
-    def _toggle_fullscreen_tab(self, tab_attr, title_key):
+    def _toggle_fullscreen_tab(self, tab_attr, title_key, on_restored=None):
         """Plein écran d'un onglet, avec le titre de l'onglet."""
         tab_widget = getattr(self, tab_attr, None)
         if tab_widget is None:
             return
         self._open_tab_fullscreen(
             tab_widget, tr(title_key), tr("vector.close_fullscreen"),
-            tr(title_key))
+            tr(title_key), on_restored=on_restored)
 
     def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
                              on_restored=None):
