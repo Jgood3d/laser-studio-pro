@@ -16,8 +16,14 @@ from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.support import SupportDialog
 from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
 
-# Clé de UIConfig : onglet « Console / G-Code » affiché (menu Affichage).
+# Onglets facultatifs (menu Affichage) : clé de UIConfig qui mémorise s'ils
+# sont affichés, et état au premier démarrage.
 GCODE_CONSOLE_SETTING = "show_gcode_console"
+JOB_QUEUE_SETTING = "show_job_queue"
+OPTIONAL_TABS = {
+    "tab_console_gcode": (GCODE_CONSOLE_SETTING, False),
+    "tab_job_queue": (JOB_QUEUE_SETTING, True),
+}
 
 
 class WindowControllerMixin:
@@ -92,6 +98,7 @@ class WindowControllerMixin:
         )
         # Affichage
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
+        actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide
         actions.about_requested.connect(lambda: AboutDialog(self).exec())
         actions.support_requested.connect(lambda: SupportDialog(self).exec())
@@ -137,24 +144,42 @@ class WindowControllerMixin:
         self.show_main_tab("tab_vector_editor")
         command()
 
-    def set_gcode_console_visible(self, visible):
-        """Affiche ou masque l'onglet « Console / G-Code » (menu Affichage),
-        et mémorise ce choix pour le prochain démarrage.
+    def set_optional_tab_visible(self, tab_attr, visible):
+        """Affiche ou masque un onglet facultatif (OPTIONAL_TABS, menu
+        Affichage), et mémorise ce choix pour le prochain démarrage.
 
-        Ouvert en plein écran (sorti des onglets), il n'est pas touché.
+        Ouvert en plein écran (sorti des onglets), il n'est pas touché. Le
+        réglage n'est écrit que s'il change.
         """
-        index = self.main_tabs_view.indexOf(self.tab_console_gcode)
+        index = self.main_tabs_view.indexOf(getattr(self, tab_attr))
         if index != -1:
             self.main_tabs_view.setTabVisible(index, visible)
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        settings.setValue(GCODE_CONSOLE_SETTING, bool(visible))
-        settings.sync()  # écriture immédiate sous Windows
+        if self.optional_tab_was_visible(tab_attr) != bool(visible):
+            settings = QSettings("LaserStudioPro", "UIConfig")
+            settings.setValue(OPTIONAL_TABS[tab_attr][0], bool(visible))
+            settings.sync()  # écriture immédiate sous Windows
 
     @staticmethod
-    def gcode_console_was_visible():
-        """Console G-Code affichée à la dernière utilisation ? (non au premier démarrage)"""
-        value = QSettings("LaserStudioPro", "UIConfig").value(GCODE_CONSOLE_SETTING, False)
+    def optional_tab_was_visible(tab_attr):
+        """Onglet facultatif affiché à la dernière utilisation ? (au premier
+        démarrage : l'état par défaut de OPTIONAL_TABS)"""
+        key, default = OPTIONAL_TABS[tab_attr]
+        value = QSettings("LaserStudioPro", "UIConfig").value(key, default)
         return value in (True, "true", "1", 1)
+
+    def set_gcode_console_visible(self, visible):
+        """Onglet « Console / G-Code » : masqué au premier démarrage."""
+        self.set_optional_tab_visible("tab_console_gcode", visible)
+
+    def gcode_console_was_visible(self):
+        return self.optional_tab_was_visible("tab_console_gcode")
+
+    def set_job_queue_visible(self, visible):
+        """Onglet « File d'attente » : affiché au premier démarrage."""
+        self.set_optional_tab_visible("tab_job_queue", visible)
+
+    def job_queue_was_visible(self):
+        return self.optional_tab_was_visible("tab_job_queue")
 
     def _image_tab_kind(self):
         """Onglet courant s'il affiche une image transformable : "previews" (Images & Tramage),

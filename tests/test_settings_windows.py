@@ -66,7 +66,7 @@ class AppMenusTests(unittest.TestCase):
         from laser_studio.ui.app.menu import AppActions, AppMenuBar
         a = AppActions()                                 # instance neuve : état de départ
         menu_bar = AppMenuBar(a)
-        self.assertEqual(menu_bar.view_menu.actions(), [a.gcode_console])
+        self.assertEqual(menu_bar.view_menu.actions(), [a.gcode_console, a.job_queue])
         self.assertTrue(a.gcode_console.isCheckable())
         self.assertFalse(a.gcode_console.isChecked())    # console masquée au démarrage
         received = self.record(a.gcode_console_toggled)
@@ -82,6 +82,16 @@ class AppMenusTests(unittest.TestCase):
         received = self.record(self.actions.gcode_import_requested)
         self.actions.gcode_import.trigger()
         self.assertEqual(received, [()])
+
+    def test_job_queue_toggle_in_view_menu_and_toolbar(self):
+        a = self.actions
+        self.assertIn(a.job_queue, self.toolbar.actions())
+        self.assertEqual(a.job_queue.text(), self.tr("menu.view.job_queue"))
+        self.assertTrue(a.job_queue.isCheckable())
+        received = self.record(a.job_queue_toggled)
+        a.job_queue.setChecked(True)
+        a.job_queue.setChecked(False)
+        self.assertEqual(received, [(True,), (False,)])
 
     def test_save_gcode_submenu_is_enabled_after_generation(self):
         from laser_studio.ui.app.menu import AppActions, AppMenuBar
@@ -459,6 +469,24 @@ class ShowWindowTests(unittest.TestCase):
             self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
             main.FullLaserStudio.load_splitter_sizes(obj)
         obj.tab_vector_2d.splitter.setSizes.assert_called_once_with([900, 0])
+
+    def test_job_queue_visibility_is_remembered_and_shown_by_default(self):
+        obj = self.make()
+        obj.tab_job_queue = object()
+        obj.main_tabs_view = mock.Mock()
+        obj.main_tabs_view.indexOf.return_value = 3
+        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
+        fake = mock.Mock()
+        fake.return_value.setValue.side_effect = stored.__setitem__
+        fake.return_value.value.side_effect = lambda key, default: stored.get(key, default)
+        with mock.patch.object(self.mod, "QSettings", fake):
+            self.assertTrue(obj.job_queue_was_visible())          # affichée au premier démarrage
+            obj.set_job_queue_visible(True)
+            self.assertEqual(stored, {})                          # inchangé : rien d'écrit
+            obj.set_job_queue_visible(False)
+            obj.main_tabs_view.setTabVisible.assert_called_with(3, False)
+            self.assertEqual(stored, {"show_job_queue": False})
+            self.assertFalse(obj.job_queue_was_visible())
 
     def test_gcode_console_visibility_is_remembered(self):
         obj = self.make()

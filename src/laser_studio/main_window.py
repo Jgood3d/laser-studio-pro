@@ -181,13 +181,17 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.currentChanged.connect(self._on_main_tab_changed)
         self.main_tabs_view.currentChanged.connect(self.update_image_actions_state)
         # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (show_main_tab),
-        # ou Affichage pour la console G-Code (set_gcode_console_visible).
+        # ou Affichage pour la console G-Code et la file d'attente (set_optional_tab_visible).
         for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
         self._update_bottom_panel_visibility()
         self.update_image_actions_state()
         # Console G-Code : affichée ou non comme à la dernière fermeture (masquée la première fois).
         self.app_actions.gcode_console.setChecked(self.gcode_console_was_visible())
+        # File d'attente : affichée, sauf si elle a été masquée à la dernière utilisation.
+        self.app_actions.job_queue.setChecked(self.job_queue_was_visible())
+        if not self.app_actions.job_queue.isChecked():
+            self.set_job_queue_visible(False)
 
         # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
         # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
@@ -823,14 +827,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self._add_console_close_button()
 
     def _add_console_close_button(self):
-        """Croix sur l'onglet Console : le ferme en décochant « Affichage > Afficher/Masquer la
-        console G-Code » (qui masque l'onglet et mémorise le choix). Remise au retour du plein
-        écran : Qt supprime la croix quand l'onglet sort de la barre."""
-        index = self.main_tabs_view.indexOf(self.tab_console_gcode)
+        """Croix sur l'onglet Console. Remise au retour du plein écran : Qt supprime la croix quand
+        l'onglet sort de la barre."""
+        self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
+
+    def _add_tab_close_button(self, tab, action):
+        """Croix sur l'onglet `tab` : le ferme en décochant `action` (case du menu Affichage), qui
+        masque l'onglet et mémorise le choix."""
+        index = self.main_tabs_view.indexOf(tab)
         if index == -1:
             return
         button = TabCloseButton()
-        button.clicked.connect(lambda: self.app_actions.gcode_console.setChecked(False))
+        button.clicked.connect(lambda: action.setChecked(False))
         self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
 
     def _build_job_queue_tab(self):
@@ -862,6 +870,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.reordered.connect(self.job_queue.on_reordered)
         self.main_tabs_view.addTab(tab, tr("ui.tab_job_queue"))
         self.tab_job_queue = tab
+        self._add_tab_close_button(tab, self.app_actions.job_queue)
 
     # -- Réglages machine : démarrage et fermeture
 

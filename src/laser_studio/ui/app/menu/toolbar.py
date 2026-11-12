@@ -51,6 +51,9 @@ class AppToolBar(QToolBar):
         self.addSeparator()
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
+        self.addSeparator()
+        # Case à cocher : bouton enfoncé tant que la file d'attente est affichée.
+        self.addAction(actions.job_queue)
         # Soutien du projet, aligné à droite.
         self.addWidget(self._spacer())
         self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))

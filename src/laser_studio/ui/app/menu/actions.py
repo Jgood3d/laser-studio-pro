@@ -63,6 +63,7 @@ class AppActions(QObject):
     puzzle_generator_requested = pyqtSignal()
     # Affichage
     gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
+    job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
     # Aide
     about_requested = pyqtSignal()
     support_requested = pyqtSignal()
@@ -188,6 +189,16 @@ class AppActions(QObject):
         )
         self.gcode_console.setCheckable(True)
         self.gcode_console.toggled.connect(self.gcode_console_toggled)
+        # File d'attente : onglet affiché au démarrage, sauf s'il a été masqué.
+        self.job_queue = self._action(
+            standard_icon(
+                "view-list-details",
+                QStyle.StandardPixmap.SP_FileDialogDetailedView,
+            ),
+            tr("menu.view.job_queue"),
+        )
+        self.job_queue.setCheckable(True)
+        self.job_queue.toggled.connect(self.job_queue_toggled)
 
     def _create_settings_actions(self):
         # Pas d'entrée QIcon.ThemeIcon pour ces réglages : noms d'icônes

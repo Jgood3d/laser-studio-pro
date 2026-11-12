@@ -38,6 +38,12 @@ TRANSLATIONS = {
 
     # --- Menu Affichage ---
     "menu.view": {"fr": "Affichage", "en": "View", "de": "Ansicht", "es": "Ver"},
+    "menu.view.job_queue": {
+        "fr": "Afficher/Masquer la file d'attente",
+        "en": "Show/Hide the job queue",
+        "de": "Warteschlange ein-/ausblenden",
+        "es": "Mostrar/Ocultar la cola de trabajos",
+    },
     "menu.view.gcode_console": {
         "fr": "Afficher/Masquer la console G-Code",
         "en": "Show/Hide the G-Code console",
