@@ -2,6 +2,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
@@ -207,6 +208,8 @@ class WindowWiringTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
             from laser_studio import main_window
             cls.app = QApplication.instance() or QApplication([])
+            # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
             cls.win = main_window.FullLaserStudio()
 
     def test_speed_slider_follows_the_machine_max_speed(self):

@@ -24,6 +24,8 @@ class StatusMessagesTests(unittest.TestCase):
         cls.env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": cls.tmp.name, "XDG_DATA_HOME": cls.tmp.name})
         cls.env.start()
         cls.app = QApplication.instance() or QApplication([])
+        # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+        mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
         cls.win = main_window.FullLaserStudio()
 
     @classmethod
