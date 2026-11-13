@@ -48,6 +48,10 @@ class Spin(W):
     def value(self): return self._v
 
 
+class IntSpin(Spin):
+    def value(self): return int(self._v)
+
+
 class Combo(W):
     def __init__(self, *a, **k):
         super().__init__()
@@ -127,6 +131,7 @@ def fake_widgets_module():
         setattr(m, name, type(name, (W,), {}))
     m.QDialog = Dialog
     m.QDoubleSpinBox = Spin
+    m.QSpinBox = IntSpin
     m.QComboBox = Combo
     m.QFontComboBox = FontCombo
     m.QCheckBox = Check
@@ -138,13 +143,24 @@ def fake_widgets_module():
     return m
 
 
+def fake_gui_module():
+    """QtGui factice : l'aperçu n'est jamais peint dans ces tests (pas de QPainter réel)."""
+    m = types.ModuleType("PyQt6.QtGui")
+    for name in ("QColor", "QFont", "QPainter", "QPainterPath", "QPen"):
+        setattr(m, name, type(name, (W,), {}))
+    return m
+
+
 def load_dialog_module():
-    with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
+    fakes = {"PyQt6.QtWidgets": fake_widgets_module(), "PyQt6.QtGui": fake_gui_module()}
+    with mock.patch.dict(sys.modules, fakes):
         # patch.dict remet sys.modules en l'état à la sortie : le module
         # « factice » (et son paquet) ne reste pas en cache.
-        for name in ("laser_studio.ui.dialogs.box_generator", "laser_studio.ui.dialogs.box_generator.dialog"):
+        for name in ("laser_studio.ui.dialogs.box_generator", "laser_studio.ui.dialogs.box_generator.dialog",
+                     "laser_studio.ui.dialogs.box_generator.preview"):
             sys.modules.pop(name, None)
         module = importlib.import_module("laser_studio.ui.dialogs.box_generator.dialog")
+        module.preview_module = sys.modules["laser_studio.ui.dialogs.box_generator.preview"]
     return module
 
 
@@ -198,7 +214,7 @@ class DialogSmokeTests(unittest.TestCase):
         d = self.make()
         d.spin_x.setValue(120)
         d.spin_thickness.setValue(4)
-        d.chk_lid.setChecked(False)
+        d.combo_lid.setCurrentIndex(d.combo_lid.findData("none"))
         d.combo_mode.setCurrentIndex(d.combo_mode.findData("inner"))
         d._refresh_summary()
         p = d.params()
@@ -260,7 +276,7 @@ class DialogSmokeTests(unittest.TestCase):
         d = self.make()
         d.spin_x.setValue(88)
         d.spin_kerf.setValue(0.15)
-        d.chk_lid.setChecked(False)
+        d.combo_lid.setCurrentIndex(d.combo_lid.findData("none"))
         d.edit_decor_text.setText("Salut")
         d._add_decor()
         saved = d.settings()
@@ -270,10 +286,104 @@ class DialogSmokeTests(unittest.TestCase):
         self.assertEqual([x.text for x in d2.decors()], ["Salut"])
         self.assertEqual((d2.cut_layer_id(), d2.engrave_layer_id()), ("c", "g"))
 
+    def test_new_option_defaults(self):
+        p = self.make().params()
+        self.assertEqual((p.lid_type, p.clearance, p.dividers_x, p.dividers_y), ("finger", 0.1, 0, 0))
+
+    def test_lid_choices_and_open_box(self):
+        d = self.make()
+        kinds = [data for _text, data in d.combo_lid.items]
+        self.assertEqual(sorted(kinds), sorted(["finger", "lip", "sliding", "none"]))
+        for kind in ("lip", "sliding"):
+            d.combo_lid.setCurrentIndex(d.combo_lid.findData(kind))
+            p = d.params()
+            self.assertEqual((p.lid, p.lid_type), (True, kind))
+        d.combo_lid.setCurrentIndex(d.combo_lid.findData("none"))
+        p = d.params()
+        self.assertFalse(p.lid)
+        self.assertEqual(len(bd.bg.build_box(p).panels), 5)
+
+    def test_dividers_are_passed_and_summarised(self):
+        d = self.make()
+        d.spin_div_x.setValue(2)
+        d.spin_div_y.setValue(1)
+        d._refresh_summary()
+        p = d.params()
+        self.assertEqual((p.dividers_x, p.dividers_y), (2, 1))
+        self.assertTrue(self.ok_enabled(d))
+        self.assertIn("6", d.lbl_summary.text())                            # 3 x 2 compartiments
+        self.assertEqual(d.preview._result.dividers, (2, 1))
+
+    def test_too_many_dividers_disable_ok(self):
+        d = self.make()
+        d.spin_div_x.setValue(10)
+        d._refresh_summary()
+        self.assertFalse(self.ok_enabled(d))
+        self.assertEqual(d.preview._result, None)
+        self.assertTrue(d.preview._error)
+        d.spin_div_x.setValue(1)
+        d._refresh_summary()
+        self.assertTrue(self.ok_enabled(d))
+        self.assertEqual(d.preview._error, "")
+
+    def test_preview_follows_the_parameters(self):
+        d = self.make()
+        self.assertEqual(len(d.preview._result.panels), 6)
+        d.combo_lid.setCurrentIndex(d.combo_lid.findData("lip"))
+        d._refresh_summary()
+        self.assertEqual(len(d.preview._result.panels), 7)                  # + rebord
+        d.spin_x.setValue(700)
+        d._refresh_summary()
+        self.assertTrue(d.preview._too_big)
+
+    def test_preview_receives_the_decors(self):
+        d = self.make()
+        d.edit_decor_text.setText("Hello")
+        d._add_decor()
+        self.assertEqual([x.text for x in d.preview._decors], ["Hello"])
+        d._remove_decor()
+        self.assertEqual(d.preview._decors, [])
+
+    def test_new_settings_round_trip(self):
+        d = self.make()
+        d.combo_lid.setCurrentIndex(d.combo_lid.findData("sliding"))
+        d.spin_clearance.setValue(0.25)
+        d.spin_div_x.setValue(3)
+        d.spin_div_y.setValue(2)
+        saved = d.settings()
+        p = self.make(initial=saved).params()
+        self.assertEqual((p.lid_type, p.clearance, p.dividers_x, p.dividers_y), ("sliding", 0.25, 3, 2))
+
+    def test_legacy_settings_without_lid_type(self):
+        legacy = {"width": 90.0, "lid": False}
+        self.assertFalse(self.make(initial=legacy).params().lid)
+        self.assertTrue(self.make(initial={"width": 90.0, "lid": True}).params().lid)
+        self.assertEqual(self.make(initial={"width": 90.0}).params().lid_type, "finger")
+
+    def test_fit_transform_centres_and_scales(self):
+        fit = bd.preview_module.fit_transform
+        scale, ox, oy = fit(200, 100, 428, 328, margin=14)                  # zone utile 400 x 300 : 2 px/mm
+        self.assertAlmostEqual(scale, 2.0)
+        self.assertAlmostEqual(ox, 14.0)
+        self.assertAlmostEqual(oy, (328 - 200) / 2)
+        self.assertEqual(fit(0, 0, 100, 100, margin=10), (1.0, 10, 10))
+
+    def test_panel_labels(self):
+        label = bd.preview_module.panel_label
+        self.assertNotIn("box.", label("front"))
+        self.assertIn("2", label("divider_x2"))
+        self.assertIn("3", label("divider_y3"))
+        self.assertNotIn("box.", label("lip"))
+        self.assertEqual(label("unknown"), "unknown")
+
     def test_error_messages_exist_for_each_error_code(self):
         from laser_studio.vector import box_generator as bg
         for code, info in (("thickness", {"value": 0}), ("kerf", {"value": 5}), ("too_small", {"axis": "X", "value": 5.0, "minimum": 9.0}),
                            ("finger_too_small", {"value": 1.0, "minimum": 3.0}), ("pinched_panel", {"point": (0, 0)}),
+                           ("lid_type", {"value": "x"}), ("clearance", {"value": 5.0}),
+                           ("dividers", {"value": 99, "maximum": 20}),
+                           ("compartment_too_small", {"axis": "X", "value": 5.0, "minimum": 9.0}),
+                           ("dividers_too_low", {"value": 5.0, "minimum": 9.0}),
                            ("unknown_code", {})):
             text = bd.error_message(bg.BoxError(code, **info))
             self.assertTrue(text and not text.startswith("box.err."), code)

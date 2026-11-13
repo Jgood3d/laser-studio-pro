@@ -1,20 +1,20 @@
 """Fenêtre du générateur de boîte à encoches : dimensions X/Y/Z, matériau, calques,
-et décor (texte ou SVG) à graver sur les faces. Les calculs sont dans vector/box_generator.py,
-la création des objets dans vector/importers.py."""
+couvercle, cloisons, et décor (texte ou SVG) à graver sur les faces, avec un aperçu qui suit les
+réglages. Les calculs sont dans vector/box_generator.py, la création des objets dans vector/importers.py."""
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFileDialog, QFontComboBox,
     QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem,
-    QPushButton, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
+    QPushButton, QScrollArea, QSpinBox, QStackedWidget, QVBoxLayout, QWidget,
 )
 
 from laser_studio.vector import box_generator as bg
 from laser_studio.vector.box_generator import BoxDecor
 from laser_studio.i18n import tr
+from laser_studio.ui.dialogs.box_generator.preview import FACE_LABEL_KEYS, BoxPreview
 
-FACE_LABEL_KEYS = {
-    "front": "box.face_front", "back": "box.face_back", "left": "box.face_left",
-    "right": "box.face_right", "top": "box.face_top", "bottom": "box.face_bottom",
+LID_LABEL_KEYS = {
+    "none": "box.lid_none", "finger": "box.lid_finger", "lip": "box.lid_lip", "sliding": "box.lid_sliding",
 }
 _ROLE = Qt.ItemDataRole.UserRole
 
@@ -29,6 +29,13 @@ def error_message(error):
         return text.format(**error.info)
     except (KeyError, IndexError, ValueError):
         return text
+
+
+def _count_spin(value, maximum=bg.MAX_DIVIDERS):
+    s = QSpinBox()
+    s.setRange(0, maximum)
+    s.setValue(int(value))
+    return s
 
 
 def _spin(minimum, maximum, value, decimals=1, step=1.0, suffix=" mm"):
@@ -64,7 +71,14 @@ class BoxGeneratorDialog(QDialog):
         content = QWidget()
         main = QVBoxLayout(content)
         self.scroll.setWidget(content)
-        outer.addWidget(self.scroll, 1)
+        body = QHBoxLayout()
+        body.addWidget(self.scroll, 1)
+        box_preview = QGroupBox(tr("box.group_preview"))
+        preview_layout = QVBoxLayout(box_preview)
+        self.preview = BoxPreview()
+        preview_layout.addWidget(self.preview, 1)
+        body.addWidget(box_preview, 1)
+        outer.addLayout(body, 1)
 
         # ---- Dimensions et matériau ----
         box_dims = QGroupBox(tr("box.group_dimensions"))
@@ -82,8 +96,15 @@ class BoxGeneratorDialog(QDialog):
         self.spin_finger = _spin(0.0, 200, init.get("finger_width", 0.0))
         self.spin_finger.setSpecialValueText(tr("box.finger_auto"))
         self.spin_finger.setToolTip(tr("box.finger_tip"))
-        self.chk_lid = QCheckBox(tr("box.lid"))
-        self.chk_lid.setChecked(init.get("lid", True))
+        self.combo_lid = QComboBox()
+        for kind in ("finger", "lip", "sliding", "none"):
+            self.combo_lid.addItem(tr(LID_LABEL_KEYS[kind]), kind)
+        # Les anciens réglages mémorisés n'ont qu'un booléen « lid » (sans dessus = boîte ouverte).
+        wanted_lid = init.get("lid_type", "finger") if init.get("lid", True) else "none"
+        self.combo_lid.setCurrentIndex(max(0, self.combo_lid.findData(wanted_lid)))
+        self.combo_lid.setToolTip(tr("box.lid_tip"))
+        self.spin_clearance = _spin(0.0, 2.0, init.get("clearance", 0.1), decimals=2, step=0.05)
+        self.spin_clearance.setToolTip(tr("box.clearance_tip"))
         self.spin_gap = _spin(0.5, 50, init.get("gap", 3.0))
         form.addRow(tr("box.dimensions_are"), self.combo_mode)
         form.addRow(tr("box.width_x"), self.spin_x)
@@ -92,9 +113,20 @@ class BoxGeneratorDialog(QDialog):
         form.addRow(tr("box.thickness"), self.spin_thickness)
         form.addRow(tr("box.kerf"), self.spin_kerf)
         form.addRow(tr("box.finger"), self.spin_finger)
-        form.addRow("", self.chk_lid)
+        form.addRow(tr("box.lid_type"), self.combo_lid)
+        form.addRow(tr("box.clearance"), self.spin_clearance)
         form.addRow(tr("box.gap"), self.spin_gap)
         main.addWidget(box_dims)
+
+        # ---- Cloisons ----
+        box_dividers = QGroupBox(tr("box.group_dividers"))
+        box_dividers.setToolTip(tr("box.dividers_tip"))
+        dform_div = QFormLayout(box_dividers)
+        self.spin_div_x = _count_spin(init.get("dividers_x", 0))
+        self.spin_div_y = _count_spin(init.get("dividers_y", 0))
+        dform_div.addRow(tr("box.dividers_x"), self.spin_div_x)
+        dform_div.addRow(tr("box.dividers_y"), self.spin_div_y)
+        main.addWidget(box_dividers)
 
         # ---- Calques ----
         box_layers = QGroupBox(tr("box.group_layers"))
@@ -194,10 +226,10 @@ class BoxGeneratorDialog(QDialog):
         outer.addWidget(self.buttons)
 
         for spin in (self.spin_x, self.spin_y, self.spin_z, self.spin_thickness, self.spin_kerf,
-                     self.spin_finger, self.spin_gap):
+                     self.spin_finger, self.spin_gap, self.spin_clearance, self.spin_div_x, self.spin_div_y):
             spin.valueChanged.connect(self._refresh_summary)
         self.combo_mode.currentIndexChanged.connect(self._refresh_summary)
-        self.chk_lid.toggled.connect(self._refresh_summary)
+        self.combo_lid.currentIndexChanged.connect(self._refresh_summary)
         self._refresh_summary()
 
     # ------------------------------------------------------------------
@@ -207,7 +239,11 @@ class BoxGeneratorDialog(QDialog):
             height = int(self.screen().availableGeometry().height() * 0.85)
         except (AttributeError, TypeError):
             height = 700
-        self.resize(560, min(max(height, 420), 900))
+        try:
+            width = int(self.screen().availableGeometry().width() * 0.85)
+        except (AttributeError, TypeError):
+            width = 1000
+        self.resize(min(max(width, 700), 1100), min(max(height, 420), 900))
 
     def _default_layer_index(self, wanted_id, mode_names):
         for i, layer in enumerate(self._layers):
@@ -223,9 +259,15 @@ class BoxGeneratorDialog(QDialog):
             width=self.spin_x.value(), depth=self.spin_y.value(), height=self.spin_z.value(),
             thickness=self.spin_thickness.value(), kerf=self.spin_kerf.value(),
             finger_width=self.spin_finger.value(), dimensions=self.combo_mode.currentData(),
-            lid=self.chk_lid.isChecked(), gap=self.spin_gap.value(),
-            max_width=max(self._bed_w - 20.0, 0.0),
+            lid=self.combo_lid.currentData() != "none", lid_type=self._lid_type(), gap=self.spin_gap.value(),
+            max_width=max(self._bed_w - 20.0, 0.0), clearance=self.spin_clearance.value(),
+            dividers_x=self.spin_div_x.value(), dividers_y=self.spin_div_y.value(),
         )
+
+    def _lid_type(self):
+        """Type de couvercle choisi ; « finger » (valeur neutre) quand la boîte est ouverte."""
+        kind = self.combo_lid.currentData()
+        return "finger" if kind == "none" else kind
 
     def cut_layer_id(self):
         return self.combo_cut_layer.currentData()
@@ -241,7 +283,9 @@ class BoxGeneratorDialog(QDialog):
         p = self.params()
         return {"width": p.width, "depth": p.depth, "height": p.height, "thickness": p.thickness,
                 "kerf": p.kerf, "finger_width": p.finger_width, "dimensions": p.dimensions,
-                "lid": p.lid, "gap": p.gap, "cut_layer": self.cut_layer_id(),
+                "lid": p.lid, "lid_type": self.combo_lid.currentData(), "clearance": p.clearance,
+                "dividers_x": p.dividers_x, "dividers_y": p.dividers_y, "gap": p.gap,
+                "cut_layer": self.cut_layer_id(),
                 "engrave_layer": self.engrave_layer_id(), "decors": self.decors()}
 
     # ------------------------------------------------------------------
@@ -249,7 +293,9 @@ class BoxGeneratorDialog(QDialog):
         try:
             result = bg.build_box(self.params())
         except bg.BoxError as exc:
-            self.lbl_summary.setText(f"<span style='color:#d9534f'>{error_message(exc)}</span>")
+            message = error_message(exc)
+            self.lbl_summary.setText(f"<span style='color:#d9534f'>{message}</span>")
+            self.preview.set_error(message)
             self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
             return
         W, D, H = result.outer
@@ -257,7 +303,13 @@ class BoxGeneratorDialog(QDialog):
         text = tr("box.summary").format(
             w=W, d=D, h=H, n=len(result.panels), fx=counts["W"], fy=counts["D"], fz=counts["H"],
             fw=result.width, fh=result.height)
+        if sum(result.dividers):
+            nx, ny = result.dividers
+            t = result.thickness
+            text += " " + tr("box.summary_dividers").format(
+                count=(nx + 1) * (ny + 1), cw=((W - 2 * t) - nx * t) / (nx + 1), cd=((D - 2 * t) - ny * t) / (ny + 1))
         too_big = result.width > self._bed_w - 20.0 + 1e-6 or result.height > self._bed_h - 20.0 + 1e-6
+        self.preview.set_result(result, self.decors(), too_big)
         if too_big:
             text += "<br><span style='color:#f0ad4e'>" + tr("box.too_big").format(bed_w=self._bed_w, bed_h=self._bed_h) + "</span>"
         self.lbl_summary.setText(text)
@@ -287,6 +339,7 @@ class BoxGeneratorDialog(QDialog):
         decor = self._current_decor()
         if decor is not None:
             self._append_decor_item(decor)
+            self._refresh_summary()
 
     def _append_decor_item(self, decor):
         face = tr(FACE_LABEL_KEYS[decor.face])
@@ -299,3 +352,4 @@ class BoxGeneratorDialog(QDialog):
         row = self.list_decor.currentRow()
         if row >= 0:
             self.list_decor.takeItem(row)
+            self._refresh_summary()
