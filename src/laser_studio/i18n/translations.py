@@ -2869,6 +2869,39 @@ TRANSLATIONS = {
         "de": "Ausrichtung / Verteilung",
         "es": "Alineación / Distribución",
     },
+    # Infobulles de la barre d'alignement (boutons à pictogramme seul).
+    "ui.vector_align_left_tip": {
+        "fr": "Aligner à gauche", "en": "Align left",
+        "de": "Links ausrichten", "es": "Alinear a la izquierda",
+    },
+    "ui.vector_align_center_h_tip": {
+        "fr": "Centrer horizontalement", "en": "Center horizontally",
+        "de": "Horizontal zentrieren", "es": "Centrar horizontalmente",
+    },
+    "ui.vector_align_right_tip": {
+        "fr": "Aligner à droite", "en": "Align right",
+        "de": "Rechts ausrichten", "es": "Alinear a la derecha",
+    },
+    "ui.vector_align_top_tip": {
+        "fr": "Aligner en haut", "en": "Align top",
+        "de": "Oben ausrichten", "es": "Alinear arriba",
+    },
+    "ui.vector_align_middle_v_tip": {
+        "fr": "Centrer verticalement", "en": "Center vertically",
+        "de": "Vertikal zentrieren", "es": "Centrar verticalmente",
+    },
+    "ui.vector_align_bottom_tip": {
+        "fr": "Aligner en bas", "en": "Align bottom",
+        "de": "Unten ausrichten", "es": "Alinear abajo",
+    },
+    "ui.vector_distribute_h_tip": {
+        "fr": "Répartir horizontalement", "en": "Distribute horizontally",
+        "de": "Horizontal verteilen", "es": "Distribuir horizontalmente",
+    },
+    "ui.vector_distribute_v_tip": {
+        "fr": "Répartir verticalement", "en": "Distribute vertically",
+        "de": "Vertikal verteilen", "es": "Distribuir verticalmente",
+    },
     "ui.vector_align_left": {
         "fr": "⊢ Gauche", "en": "⊢ Left", "de": "⊢ Links", "es": "⊢ Izquierda",
     },
@@ -3629,6 +3662,14 @@ TRANSLATIONS = {
         "en": "✕ Exit full screen (return to normal window)",
         "de": "✕ Vollbild schließen (zum normalen Fenster zurückkehren)",
         "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
+    },
+    "layers.add_tip": {
+        "fr": "Ajouter un calque", "en": "Add a layer",
+        "de": "Ebene hinzufügen", "es": "Añadir una capa",
+    },
+    "layers.remove_tip": {
+        "fr": "Supprimer le calque sélectionné", "en": "Delete the selected layer",
+        "de": "Ausgewählte Ebene löschen", "es": "Eliminar la capa seleccionada",
     },
     "layers.add": {
         "fr": "+ Calque",
@@ -4449,5 +4490,36 @@ TRANSLATIONS = {
         "en": "Measure a distance: click and drag on the canvas.",
         "de": "Abstand messen: auf der Zeichenfläche klicken und ziehen.",
         "es": "Medir una distancia: haga clic y arrastre en el lienzo.",
+    },
+
+    "startup.safety.title": {
+        "fr": "Avertissement de sécurité",
+        "en": "Safety warning",
+        "de": "Sicherheitshinweis",
+        "es": "Advertencia de seguridad",
+    },
+    "startup.safety.body": {
+        "fr": "Un graveur laser est une machine dangereuse qui ne doit jamais fonctionner sans surveillance.",
+        "en": "A laser engraver is a dangerous machine and must never run unattended.",
+        "de": "Ein Lasergravierer ist eine gefährliche Maschine und darf niemals unbeaufsichtigt laufen.",
+        "es": "Un grabador láser es una máquina peligrosa y nunca debe funcionar sin supervisión.",
+    },
+    "startup.safety.detail": {
+        "fr": "L'utilisateur reste seul responsable des fichiers envoyés à sa machine.",
+        "en": "You remain solely responsible for the files sent to your machine.",
+        "de": "Du bleibst allein verantwortlich für die Dateien, die an deine Maschine gesendet werden.",
+        "es": "El usuario es el único responsable de los archivos enviados a su máquina.",
+    },
+    "startup.safety.ok": {
+        "fr": "OK",
+        "en": "OK",
+        "de": "OK",
+        "es": "Aceptar",
+    },
+    "startup.safety.cancel": {
+        "fr": "Annuler",
+        "en": "Cancel",
+        "de": "Abbrechen",
+        "es": "Cancelar",
     },
 }
