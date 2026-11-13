@@ -646,7 +646,7 @@ class VectorEditingMixin:
         new_items += [self.vector_canvas.add_object(obj) for obj in decor_objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         self.vector_canvas.request_recenter(new_items)
-        message = tr("box.done").format(count=len(panels), decor=len(decor_objects),
+        message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
         if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())

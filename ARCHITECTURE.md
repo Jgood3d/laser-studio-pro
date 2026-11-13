@@ -100,23 +100,25 @@ laser-studio-pro/
 ├── ui/app/theme.py                   # thèmes UI : dark / light / dusk / warm, pack d'icônes Breeze
 ├── ui/widgets/                       # petits widgets (ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar, FullscreenWindow, SliderWithButtons)
 ├── ui/utils.py                       # icônes dessinées, images haute résolution
+├── ui/machine/connection/            # connexion (ConnectionPanel : port, connecter, état GRBL, console directe)
+├── ui/machine/status/                # état GRBL (MachineStateView) et position X / Y / Z (AxisPositionRow)
 ├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, commandes RealtimeCommands)
 ├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
-├── ui/machine/dro/                   # position de la machine (DroPanel : set_status, unlock_requested)
-├── ui/machine/console/               # console directe (DirectConsolePanel : command_submitted)
+├── ui/machine/console/               # console directe, dans Connexion (DirectConsolePanel : command_submitted)
 ├── ui/tabs/layers/                   # onglet Calques (LayersTab : layers_changed)
 ├── ui/tabs/image/                    # onglet Graver une image (ImageTab, ImageSettingsPanel, MaterialComboBox, ResolutionBox)
-├── ui/machine/job_position/          # cadre Position du job (JobPositionBox)
+├── ui/machine/job_position/          # cadre Position du job (JobPositionBox), à droite de l'aperçu 2D
+├── ui/machine/sent_gcode/            # suivi du G-Code envoyé (SentGcodeLog), à gauche du panneau machine
 ├── ui/tabs/separation/               # onglet Séparation Couleur / Verre (SeparationTab)
 ├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
-├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab : plot_clicked, display_options_changed)
+├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab ; à droite JobPositionBox puis JobStatsPanel)
 ├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
-├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab, suivi SentGcodeLog)
+├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab)
 ├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
 ├── ui/settings/machine_profiles/     # page Matériaux et connexion (MachineProfilesPage)
 ├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, cadre ImageTestGroup, aperçu TilePicker)
 ├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
-├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog)
+├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog) + aperçu live (preview.py : BoxPreview)
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
@@ -157,24 +159,25 @@ laser-studio-pro/
 | Mixin / fichier | Rôle | Dépend de / appelle |
 |-----------------|------|---------------------|
 | **main_window.py** | `FullLaserStudio` : mixins + USB + `LayerManager` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages, onglet « Éditeur vectoriel » (`_build_vector_editor_tab`, partira dans `ui/tabs/`) | Tous les mixins, `ui/machine`, `ui/statusbar`, `ui/settings/window` |
-| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Outils, Aide), `AppToolBar` (mêmes actions + ports, « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
+| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar` (mêmes actions + « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
 | **ui/app/window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, actions de la barre d'outils sur l'image de l'onglet courant, ouverture Stencil Studio | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog` |
 | **ui/tabs/image/** | `ImageTab` : onglet « Graver une image », réglages à gauche (`ImageSettingsPanel` : taille + offset, réglages photo, matière, tramage, résolution), aperçus originale / tramé côte à côte. Émet `compare_requested`, `fullscreen_requested` ; le panneau émet `processing_changed`, `size_changed`, `material_changed`, `resolution_mode_changed`… | Construit et abonné dans `main_window._build_image_tab`, qui garde les anciens noms des champs (`spin_w`, `slider_bright`, `combo_algo`, `spin_lmm`…) |
-| **ui/machine/job_position/** | `JobPositionBox` : cadre « Position du job » du panneau machine (origine du repère, `origin_combo`) | Construit dans `main_window._build_image_tab` (nom historique `combo_origin`), placé par `MachinePanel` |
-| **ui/machine/** | `MachinePanel` : assemble sous les onglets la rangée position du job / pilotage / actions de job / DRO, la barre de progression du job et la console directe. Pas de signaux à lui : la fenêtre s'abonne à ceux de ses sous-panneaux ; `set_connected()` verrouille les commandes | Construit et abonné dans `main_window._build_machine_panel` |
+| **ui/machine/job_position/** | `JobPositionBox` : cadre « Position du job » (origine du repère, lue par code : `origin()` / `set_origin()`) | Construit dans `main_window._build_image_tab`, placé en haut de la colonne de droite de `Preview2DTab` |
+| **ui/machine/sent_gcode/** | `SentGcodeLog` : suivi du G-Code envoyé (`clear_lines`, `append_lines`, `mark_end`) | Placé à gauche par `MachinePanel` ; alimenté par `JobQueueController` (`sent_log`) et l'envoi direct (`LaserControlMixin`) |
+| **ui/machine/** | `MachinePanel` : assemble sous les onglets la rangée G-Code envoyé / connexion / pilotage / actions de job, et la barre de progression du job. Pas de signaux à lui : la fenêtre s'abonne à ceux de ses sous-panneaux ; `set_connected()` verrouille les commandes, `set_status()` répartit l'état GRBL (Connexion) et la position (sous le pilotage) | Construit et abonné dans `main_window._build_machine_panel` |
 | **ui/machine/controls/** | `JogControlPanel` : jog, homing, pas, vitesse, commandes temps réel, envoi du job. Émet des signaux (`jog_requested`…), sans logique machine | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
 | **ui/machine/job_actions/** | `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition. Émet des signaux, construit depuis une liste d'actions (futures macros) | Abonné : `LaserControlMixin` (via `main_window._build_machine_panel`) |
-| **ui/machine/dro/** | `DroPanel` : état GRBL coloré, position X / Y / Z, « Déverrouiller » visible seulement en alarme. Reçoit l'état par `set_status()`, émet `unlock_requested` | Alimenté par `LaserControlMixin._update_dro_display` |
-| **ui/machine/console/** | `DirectConsolePanel` : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_console_command` |
+| **ui/machine/status/** | `MachineStateView` : état GRBL coloré, « Déverrouiller » visible seulement en alarme (émet `unlock_requested`), dans `ConnectionPanel`. `AxisPositionRow` : X / Y / Z à parts égales, en bas de `JogControlPanel` | Alimentés par `LaserControlMixin._update_dro_display` → `MachinePanel.set_status` |
+| **ui/machine/console/** | `DirectConsolePanel` (sans cadre, dans `ConnectionPanel`) : champ de commande GRBL avec historique (flèches) et bouton « Envoyer ». Émet `command_submitted(commande)` | Abonné : `LaserControlMixin.send_console_command` |
 | **ui/settings/machine_params/** | `MachineParamsPage` (QScrollArea) : profils machine, dimensions du lit, spot, limites. Émet `profile_selected`, `new/update/delete_profile_requested`, `bed_size_changed(l, p)`, `focal_changed(mm)`, `max_speed_changed` | Construite et abonnée dans `main_window._build_machine_params_page` ; ses champs gardent leurs anciens noms dans la fenêtre (`spin_machine_w`…) |
-| **ui/settings/machine_profiles/** | `MachineProfilesPage` : port (modèle partagé avec la barre d'outils), connexion, profils de matériaux. Émet `connect_requested`, `material_selected`, `save/new/delete_material_requested`…, reçoit `set_connected()` | Construite et abonnée dans `main_window._build_machine_profiles_page` (`combo_ports`, `combo_mat` gardent leurs noms) |
+| **ui/settings/machine_profiles/** | `MachineProfilesPage` : port (modèle partagé avec le panneau « Connexion »), connexion, profils de matériaux. Émet `connect_requested`, `material_selected`, `save/new/delete_material_requested`…, reçoit `set_connected()` | Construite et abonnée dans `main_window._build_machine_profiles_page` (`combo_ports`, `combo_mat` gardent leurs noms) |
 | **ui/settings/test_matrix/** | `TestMatrixPage` : réglages de la matrice (puissances, passes, vitesses, cases), affichage selon le mode gravure / découpe, test à partir d'une image (aperçu `TilePicker`). Émet `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled` ; fournit `matrix_params()`, `tile_settings()` ; reçoit `set_lines_mm()`, `set_source_image()` | Construite et abonnée dans `main_window._build_test_matrix_page` ; lue par `GcodeGenerationMixin.generate_test_matrix` |
 | **ui/settings/grbl_config/** | `GrblConfigPage` : commande laser, S-Max, homing, surbalayage (la page affiche la distance ou le pourcentage selon le mode), ordre de découpe sûr, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets ($$). Émet `bidir_test_requested`, `scan_offset_changed`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | Construite et abonnée dans `main_window._build_grbl_config_page`, qui garde les anciens noms des champs (`combo_laser_cmd`, `chk_overscan`, `txt_grbl_settings`…) lus par la génération, les profils, les projets et la connexion |
 | **controllers/** | Contrôleurs : objets Python ordinaires, construits par la fenêtre avec ce dont ils ont besoin, sur lesquels elle branche les signaux de l'interface. `Png2SvgController` (SVG de l'onglet PNG→SVG → objets de l'éditeur vectoriel), `MatrixImageController` (matrice à partir d'une image : fichier ou image de « Graver une image », zone gravée de chaque case), `JobQueueController` (liste des jobs, sauvegarde, enchaînement des envois par l'interface `Engraver`), `ProjectController` (fichier du projet : format JSON et image en base64, boîtes Enregistrer / Ouvrir, projets récents, sauvegarde automatique et récupération ; l'état est fourni et réappliqué par `main_window._capture_project` / `_restore_project`) | Construits dans `main_window` (`_build_png2svg_tab`, `_build_test_matrix_page`, `_build_job_queue_tab`) ; testés seuls (`tests/test_controllers.py`) |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`), relaie `layers_changed`, `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
-| **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
-| **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code ». Statistiques du job (`set_stats`), boutons d'export (émet `export_requested(extension)`), console `console_edit` | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
-| **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons, suivi du G-Code envoyé. Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
+| **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). À droite, séparateur réglable (position mémorisée) : colonne étroite avec `JobPositionBox` puis `JobStatsPanel` (`set_stats`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
+| **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code », masqué au démarrage (menu Affichage). Console `console_edit` ; les statistiques sont dans `JobStatsPanel` (à droite de l'aperçu 2D), l'export dans « Fichier > Enregistrer le G-Code » | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
+| **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons (le G-Code envoyé est suivi dans le panneau machine). Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé (`SentGcodeLog`, panneau machine) sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
@@ -189,6 +192,19 @@ laser-studio-pro/
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
 | **vector/box_generator.py** / **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
+
+#### Générateur de boîte (`vector/box_generator.py`)
+
+| Élément | Description |
+|---------|-------------|
+| `BoxParams` | Dimensions, épaisseur, kerf, doigts, **`lid_type`** (`none` / `finger` / `lip` / `sliding`), **`clearance`** (jeu des assemblages libres), **`dividers_x` / `dividers_y`** |
+| `build_box()` | Parois à doigts + couvercle selon le type + cloisons ; renvoie des `Panel` (contour `cut`, trous `holes`) |
+| `rectilinear_loops()` | Union / différence de rectangles → contours (extérieur anti-horaire, trous horaires) ; `rectilinear_outline()` en est l'enveloppe à un seul contour |
+| Couvercles | `lip` : plaque + rebord (`top`, `lip`) ; `sliding` : façade abaissée, rainure dans `left` / `right`, plaque `top` plus petite |
+| Cloisons | `divider_x<n>` / `divider_y<n>` ; fentes ajoutées en trous dans `front`/`back`/`left`/`right`/`bottom` ; emboîtement à mi-hauteur au croisement |
+| `importers.box_to_objects` | Un objet par trou puis un par contour ; la même `Panel` peut donc apparaître plusieurs fois |
+| `tests/test_box_generator.py` | Contrôle 3D : aucune collision entre pièces, volume exact avec jeu nul |
+
 
 #### Capacités du canevas (`VectorCanvasView`)
 

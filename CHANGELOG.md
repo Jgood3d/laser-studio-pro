@@ -4,6 +4,18 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [Non publié]
+
+### Ajouté
+Générateur de boîte :
+- Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.
+- Types de couvercle : à doigts (comme avant), posé avec rebord intérieur, coulissant (rainure dans les parois gauche et droite, façade abaissée), ou aucun (boîte ouverte).
+- Cloisons : nombre réglable dans la largeur (X) et la profondeur (Y), compartiments égaux, languettes dans des fentes des parois et du fond, emboîtement à mi-hauteur quand elles se croisent.
+- Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
+
+### Modifié
+La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
+
 ## [2.5.0] — 2026-11-01
 
 ### Ajouté

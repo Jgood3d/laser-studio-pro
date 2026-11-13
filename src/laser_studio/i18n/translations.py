@@ -31,12 +31,55 @@ TRANSLATIONS = {
         "de": "Zuletzt verwendete Projekte", "es": "Proyectos recientes",
     },
     "menu.file.quit": {"fr": "Quitter", "en": "Quit", "de": "Beenden", "es": "Salir"},
+    "menu.file.save_gcode": {
+        "fr": "Enregistrer le G-Code", "en": "Save G-Code",
+        "de": "G-Code speichern", "es": "Guardar G-Code",
+    },
+
+    # --- Menu Affichage ---
+    "menu.view": {"fr": "Affichage", "en": "View", "de": "Ansicht", "es": "Ver"},
+    "menu.view.job_queue": {
+        "fr": "Afficher/Masquer la file d'attente",
+        "en": "Show/Hide the job queue",
+        "de": "Warteschlange ein-/ausblenden",
+        "es": "Mostrar/Ocultar la cola de trabajos",
+    },
+    "menu.view.gcode_console": {
+        "fr": "Afficher/Masquer la console G-Code",
+        "en": "Show/Hide the G-Code console",
+        "de": "G-Code-Konsole ein-/ausblenden",
+        "es": "Mostrar/Ocultar la consola G-Code",
+    },
 
     # --- Menus Paramètres et Outils ---
     "menu.settings": {"fr": "Paramètres", "en": "Settings", "de": "Einstellungen", "es": "Ajustes"},
     "menu.tools": {"fr": "Outils", "en": "Tools", "de": "Werkzeuge", "es": "Herramientas"},
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
+    "menu.tools.import_vector": {
+        "fr": "Importer SVG / DXF…",
+        "en": "Import SVG / DXF…",
+        "de": "SVG / DXF importieren…",
+        "es": "Importar SVG / DXF…",
+    },
+    "menu.tools.box": {
+        "fr": "Générateur de boîte…",
+        "en": "Box Generator…",
+        "de": "Box-Generator…",
+        "es": "Generador de cajas…",
+    },
+    "ui.close_tab": {
+        "fr": "Fermer l'onglet",
+        "en": "Close tab",
+        "de": "Tab schließen",
+        "es": "Cerrar pestaña",
+    },
+    "ui.connection_box": {
+        "fr": "Connexion",
+        "en": "Connection",
+        "de": "Verbindung",
+        "es": "Conexión",
+    },
     "menu.tools.puzzle": {
         "fr": "Générateur de Puzzle…",
         "en": "Puzzle Generator…",
@@ -635,11 +678,113 @@ TRANSLATIONS = {
         "de": "Gewünschte Fingerbreite, die so angepasst wird, dass jede Kante eine ungerade Anzahl gleich breiter Finger erhält (nie schmaler als die Materialstärke).",
         "es": "Ancho deseado de los dedos. Se ajusta para que cada arista tenga un número impar de dedos iguales, nunca más estrechos que el grosor del material.",
     },
-    "box.lid": {
-        "fr": "Avec couvercle (dessus)",
-        "en": "With lid (top panel)",
-        "de": "Mit Deckel (Oberseite)",
-        "es": "Con tapa (parte superior)",
+    "box.lid_type": {
+        "fr": "Couvercle :",
+        "en": "Lid:",
+        "de": "Deckel:",
+        "es": "Tapa:",
+    },
+    "box.lid_none": {
+        "fr": "Aucun (boîte ouverte)",
+        "en": "None (open box)",
+        "de": "Keiner (offene Box)",
+        "es": "Ninguna (caja abierta)",
+    },
+    "box.lid_finger": {
+        "fr": "À doigts (dessus assemblé)",
+        "en": "Finger joints (top panel)",
+        "de": "Mit Fingerzinken (Oberseite)",
+        "es": "Con dedos (parte superior ensamblada)",
+    },
+    "box.lid_lip": {
+        "fr": "Posé, avec rebord",
+        "en": "Lay-on, with inner lip",
+        "de": "Aufgelegt, mit Innenrand",
+        "es": "Apoyada, con reborde interior",
+    },
+    "box.lid_sliding": {
+        "fr": "Coulissant",
+        "en": "Sliding",
+        "de": "Schiebedeckel",
+        "es": "Corredera",
+    },
+    "box.lid_tip": {
+        "fr": "À doigts : le dessus s'assemble comme les autres faces.\nPosé : plaque de la taille de la boîte + petit rebord à coller dessous, qui la centre.\nCoulissant : la plaque glisse par l'avant dans une rainure des parois gauche et droite ; la façade est plus basse. Réglable avec le jeu d'ajustement.",
+        "en": "Finger joints: the top is assembled like the other faces.\nLay-on: a box-sized plate plus a small lip to glue underneath, which centres it.\nSliding: the plate slides in from the front through a groove in the left and right walls; the front wall is lower. Adjustable with the clearance.",
+        "de": "Fingerzinken: Die Oberseite wird wie die anderen Seiten verbunden.\nAufgelegt: Platte in Boxgröße plus ein kleiner Innenrand zum Daruntersetzen, der sie zentriert.\nSchiebedeckel: Die Platte gleitet von vorn durch eine Nut in der linken und rechten Wand; die Vorderwand ist niedriger. Einstellbar über das Spiel.",
+        "es": "Con dedos: la parte superior se ensambla como las demás caras.\nApoyada: placa del tamaño de la caja y un pequeño reborde para pegar debajo, que la centra.\nCorredera: la placa se desliza desde delante por una ranura de las paredes izquierda y derecha; la parte frontal es más baja. Se ajusta con la holgura.",
+    },
+    "box.clearance": {
+        "fr": "Jeu d'ajustement",
+        "en": "Fit clearance",
+        "de": "Passungsspiel",
+        "es": "Holgura de ajuste",
+    },
+    "box.clearance_tip": {
+        "fr": "Jeu ajouté aux assemblages libres : rainure et plaque du couvercle, fentes et encoches des cloisons. Les doigts des angles ne sont pas concernés (ils restent serrés ; voir le kerf). 0,1 mm convient à la plupart des matériaux.",
+        "en": "Clearance added to the loose joints: lid groove and plate, divider slots and notches. Corner fingers are not affected (they stay tight; see the kerf). 0.1 mm suits most materials.",
+        "de": "Spiel für die losen Verbindungen: Deckelnut und -platte, Schlitze und Aussparungen der Trennwände. Die Eckfinger bleiben unberührt (sie sitzen fest; siehe Schnittfuge). 0,1 mm passt für die meisten Materialien.",
+        "es": "Holgura añadida a los ensambles libres: ranura y placa de la tapa, ranuras y muescas de los tabiques. Los dedos de las esquinas no se ven afectados (quedan ajustados; véase el kerf). 0,1 mm sirve para la mayoría de materiales.",
+    },
+    "box.group_dividers": {
+        "fr": "Cloisons (compartiments)",
+        "en": "Dividers (compartments)",
+        "de": "Trennwände (Fächer)",
+        "es": "Tabiques (compartimentos)",
+    },
+    "box.dividers_x": {
+        "fr": "Cloisons dans la largeur (X)",
+        "en": "Dividers across the width (X)",
+        "de": "Trennwände in der Breite (X)",
+        "es": "Tabiques a lo ancho (X)",
+    },
+    "box.dividers_y": {
+        "fr": "Cloisons dans la profondeur (Y)",
+        "en": "Dividers across the depth (Y)",
+        "de": "Trennwände in der Tiefe (Y)",
+        "es": "Tabiques a lo largo (Y)",
+    },
+    "box.dividers_tip": {
+        "fr": "Plaques verticales qui partagent l'intérieur en compartiments égaux. Leurs languettes passent dans des fentes découpées dans les parois et le fond ; croisées, elles s'emboîtent à mi-hauteur.",
+        "en": "Vertical plates that split the inside into equal compartments. Their tabs go through slots cut in the walls and the bottom; when they cross, they interlock at mid-height.",
+        "de": "Senkrechte Platten, die den Innenraum in gleich große Fächer teilen. Ihre Laschen stecken in Schlitzen der Wände und des Bodens; wo sie sich kreuzen, greifen sie auf halber Höhe ineinander.",
+        "es": "Placas verticales que dividen el interior en compartimentos iguales. Sus lengüetas pasan por ranuras cortadas en las paredes y el fondo; al cruzarse, encajan a media altura.",
+    },
+    "box.summary_dividers": {
+        "fr": "{count} compartiment(s) de {cw:.1f} x {cd:.1f} mm (intérieur).",
+        "en": "{count} compartment(s) of {cw:.1f} x {cd:.1f} mm (inside).",
+        "de": "{count} Fach/Fächer von {cw:.1f} x {cd:.1f} mm (innen).",
+        "es": "{count} compartimento(s) de {cw:.1f} x {cd:.1f} mm (interior).",
+    },
+    "box.group_preview": {
+        "fr": "Aperçu",
+        "en": "Preview",
+        "de": "Vorschau",
+        "es": "Vista previa",
+    },
+    "box.preview_footprint": {
+        "fr": "Emprise : {fw:.0f} x {fh:.0f} mm",
+        "en": "Footprint: {fw:.0f} x {fh:.0f} mm",
+        "de": "Fläche: {fw:.0f} x {fh:.0f} mm",
+        "es": "Superficie: {fw:.0f} x {fh:.0f} mm",
+    },
+    "box.panel_lip": {
+        "fr": "Rebord",
+        "en": "Lip",
+        "de": "Innenrand",
+        "es": "Reborde",
+    },
+    "box.panel_divider_x": {
+        "fr": "Cloison X{n}",
+        "en": "Divider X{n}",
+        "de": "Trennwand X{n}",
+        "es": "Tabique X{n}",
+    },
+    "box.panel_divider_y": {
+        "fr": "Cloison Y{n}",
+        "en": "Divider Y{n}",
+        "de": "Trennwand Y{n}",
+        "es": "Tabique Y{n}",
     },
     "box.gap": {
         "fr": "Espace entre les pièces :",
@@ -880,6 +1025,36 @@ TRANSLATIONS = {
         "en": "The outline of a panel could not be computed with these dimensions: change the dimensions or the finger width slightly.",
         "de": "Die Kontur eines Teils konnte mit diesen Maßen nicht berechnet werden: Ändere die Maße oder die Fingerbreite leicht.",
         "es": "No se pudo calcular el contorno de un panel con estas dimensiones: modifica un poco las dimensiones o el ancho de los dedos.",
+    },
+    "box.err.lid_type": {
+        "fr": "Type de couvercle inconnu : {value}.",
+        "en": "Unknown lid type: {value}.",
+        "de": "Unbekannter Deckeltyp: {value}.",
+        "es": "Tipo de tapa desconocido: {value}.",
+    },
+    "box.err.clearance": {
+        "fr": "Le jeu d'ajustement ({value:.2f} mm) doit être positif et inférieur à l'épaisseur du matériau.",
+        "en": "The fit clearance ({value:.2f} mm) must be positive and smaller than the material thickness.",
+        "de": "Das Passungsspiel ({value:.2f} mm) muss positiv und kleiner als die Materialstärke sein.",
+        "es": "La holgura de ajuste ({value:.2f} mm) debe ser positiva y menor que el grosor del material.",
+    },
+    "box.err.dividers": {
+        "fr": "Nombre de cloisons invalide ({value}) : entre 0 et {maximum}.",
+        "en": "Invalid number of dividers ({value}): between 0 and {maximum}.",
+        "de": "Ungültige Anzahl Trennwände ({value}): zwischen 0 und {maximum}.",
+        "es": "Número de tabiques no válido ({value}): entre 0 y {maximum}.",
+    },
+    "box.err.compartment_too_small": {
+        "fr": "Les compartiments en {axis} seraient trop étroits ({value:.1f} mm, minimum {minimum:.1f} mm) : réduis le nombre de cloisons ou agrandis la boîte.",
+        "en": "The compartments along {axis} would be too narrow ({value:.1f} mm, minimum {minimum:.1f} mm): use fewer dividers or a bigger box.",
+        "de": "Die Fächer in {axis} wären zu schmal ({value:.1f} mm, mindestens {minimum:.1f} mm): weniger Trennwände oder eine größere Box wählen.",
+        "es": "Los compartimentos en {axis} serían demasiado estrechos ({value:.1f} mm, mínimo {minimum:.1f} mm): usa menos tabiques o una caja más grande.",
+    },
+    "box.err.dividers_too_low": {
+        "fr": "Les cloisons seraient trop basses ({value:.1f} mm, minimum {minimum:.1f} mm) : augmente la hauteur ou choisis un autre couvercle.",
+        "en": "The dividers would be too low ({value:.1f} mm, minimum {minimum:.1f} mm): increase the height or choose another lid.",
+        "de": "Die Trennwände wären zu niedrig ({value:.1f} mm, mindestens {minimum:.1f} mm): Höhe erhöhen oder einen anderen Deckel wählen.",
+        "es": "Los tabiques serían demasiado bajos ({value:.1f} mm, mínimo {minimum:.1f} mm): aumenta la altura o elige otra tapa.",
     },
     "box.err.several_outlines": {
         "fr": "Le contour d'un panneau n'a pas pu être calculé avec ces dimensions : modifie légèrement les dimensions ou la largeur des doigts.",
@@ -2754,10 +2929,6 @@ TRANSLATIONS = {
         "de": "Ebene:",
         "es": "Capa:",
     },
-    "ui.dro_box": {
-        "fr": "Position Machine (DRO)", "en": "Machine Position (DRO)",
-        "de": "Maschinenposition (DRO)", "es": "Posición de la máquina (DRO)",
-    },
     "ui.dro_state": {
         "fr": "État : {value}", "en": "State: {value}",
         "de": "Status: {value}", "es": "Estado: {value}",
@@ -2853,12 +3024,6 @@ TRANSLATIONS = {
     "ui.repeat_last_job": {
         "fr": "🔁 Répéter le dernier job", "en": "🔁 Repeat last job",
         "de": "🔁 Letzten Job wiederholen", "es": "🔁 Repetir el último trabajo",
-    },
-    "ui.direct_console_box": {
-        "fr": "Console de Commandes Directes GRBL",
-        "en": "GRBL Direct Commands Console",
-        "de": "GRBL-Direktbefehls-Konsole",
-        "es": "Consola de comandos directos GRBL",
     },
     "ui.burn_progress": {
         "fr": "Gravure : {pct}%",
@@ -3554,6 +3719,9 @@ TRANSLATIONS = {
         "en": "Cut",
         "de": "Schneiden",
         "es": "Corte",
+    },
+    "layers.default_name_mark": {
+        "fr": "Marquage", "en": "Marking", "de": "Markierung", "es": "Marcado",
     },
     "layers.default_name_cut": {
         "fr": "Découpe", "en": "Cut", "de": "Schneiden", "es": "Corte",

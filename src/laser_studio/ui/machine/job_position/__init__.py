@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.machine.job_position import JobPositionBox
 
     box = JobPositionBox()
-    origin = box.origin_combo.currentIndex()
+    origin = box.origin()  # "bottom_left" ou "center"
 """
 
 from laser_studio.ui.machine.job_position.box import JobPositionBox

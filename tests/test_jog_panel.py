@@ -2,6 +2,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
@@ -10,6 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
 try:
+    from PyQt6.QtGui import QStandardItemModel
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from laser_studio.laser_control_mixin import LaserControlMixin
     from laser_studio.ui.machine.controls import JogControlPanel
@@ -87,6 +89,17 @@ class JogControlPanelTests(unittest.TestCase):
         self.button(panel, "X+").click()
         self.assertEqual(jogs, [(0.1, 0.0, 3000)])
 
+    def test_steps_include_5_20_and_50_mm(self):
+        self.assertEqual(JOG_STEPS_MM, (0.1, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0))
+        panel = self.make()
+        self.assertEqual(panel.step_mm(), 10.0)               # pas de départ inchangé
+        jogs = self.record(panel.jog_requested)
+        for step in (5.0, 20.0, 50.0):
+            panel.step_slider.setValue(JOG_STEPS_MM.index(step))
+            self.assertEqual(panel._step_text(panel.step_slider.value()), f"{step:g} mm")
+            self.button(panel, "Y+").click()
+        self.assertEqual(jogs, [(0.0, 5.0, 3000), (0.0, 20.0, 3000), (0.0, 50.0, 3000)])
+
     def test_commands_emit_their_signal(self):
         panel = self.make()
         for key, signal in (("ui.homing_cmd", panel.home_requested), ("ui.pause", panel.pause_requested),
@@ -160,33 +173,67 @@ class CommandsLockTests(unittest.TestCase):
             f.update_connection_widgets()
             self.assertEqual(f.machine_panel.enabled, connected)
 
-    def test_machine_panel_locks_commands_but_not_the_dro(self):
+    def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        box = QGroupBox("Position")
-        panel = MachinePanel(box, 6000)
+        panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
             panel.set_connected(connected)
+            connection = panel.connection_panel
             self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
-                              panel.console_panel.isEnabled()), (connected, connected, connected))
-            self.assertTrue(panel.dro_panel.isEnabled())
-            self.assertTrue(box.isEnabled())
+                              connection.console.isEnabled()), (connected, connected, connected))
+            self.assertEqual(connection.connect_button.text(),
+                             tr("laser.disconnect") if connected else tr("laser.connect"))
+            self.assertTrue(connection.isEnabled() and connection.state_view.isEnabled())
+            self.assertTrue(panel.sent_gcode_log.isEnabled())   # suivi d'envoi toujours lisible
+
+    def test_status_goes_to_connection_and_jog_panels(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from PyQt6.QtWidgets import QGroupBox
+        panel = MachinePanel(QStandardItemModel(), 6000)
+        self.addCleanup(panel.deleteLater)
+        panel.set_status("Idle", 1.0, 2.0, 3.0)
+        self.assertEqual(panel.connection_panel.state_view.state_label.text(),
+                         tr("ui.dro_state").format(value="Idle"))
+        self.assertEqual(panel.jog_panel.position_row.y_label.text(), tr("ui.dro_y").format(value="2.000"))
+        panel.set_status(None)                           # déconnecté : plus de position connue
+        self.assertEqual(panel.jog_panel.position_row.x_label.text(), tr("ui.dro_x").format(value="—"))
+
+    def test_connection_panel_order_and_signals(self):
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from laser_studio.ui.machine.connection import ConnectionPanel
+        panel = ConnectionPanel(QStandardItemModel())
+        self.addCleanup(panel.deleteLater)
+        layout = panel.layout()
+        widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
+        # Bouton de connexion, puis l'état, puis la console directe, en dessous.
+        self.assertEqual([w for w in widgets if w is not None],
+                         [panel.connect_button, panel.state_view, panel.console])
+        commands, unlocks = [], []
+        panel.command_submitted.connect(commands.append)
+        panel.unlock_requested.connect(lambda: unlocks.append(True))
+        panel.console.command_edit.setText("$X")
+        panel.console.command_edit.returnPressed.emit()
+        panel.set_state("Alarm")
+        panel.state_view.unlock_button.click()
+        self.assertEqual((commands, unlocks), (["$X"], [True]))
 
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         from PyQt6.QtWidgets import QGroupBox
-        panel = MachinePanel(QGroupBox("Position"), 6000)
+        panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.progress_bar.setValue(42)
         self.assertEqual(panel.progress_bar.text(), tr("ui.burn_progress").format(pct=42))
 
-    def test_layout_position_jog_job_actions_dro(self):
+    def test_layout_position_connection_jog_job_actions(self):
         src = ui_source()
         row = src[src.index("machine_row = QHBoxLayout()"):src.index("return machine_row")]
         # Le facteur d'étirement (place partagée) peut suivre chaque widget.
-        order = [row.index(k) for k in ("addWidget(self.job_position_box", "addWidget(self.jog_panel",
-                                        "addWidget(self.job_actions_panel", "addWidget(self.dro_panel")]
+        order = [row.index(k) for k in ("addWidget(self.sent_gcode_log", "addWidget(self.connection_panel",
+                                        "addWidget(self.jog_panel", "addWidget(self.job_actions_panel")]
+        self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
 
@@ -203,6 +250,8 @@ class WindowWiringTests(unittest.TestCase):
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
             from laser_studio import main_window
             cls.app = QApplication.instance() or QApplication([])
+            # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
             cls.win = main_window.FullLaserStudio()
 
     def test_speed_slider_follows_the_machine_max_speed(self):

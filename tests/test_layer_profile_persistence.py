@@ -16,6 +16,7 @@ try:
     from laser_studio.controllers.layer_memory import apply_saved_layers
     from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
     from laser_studio.vector_layers import LayerManager
+    from laser_studio.i18n import tr
 except ImportError:  # PyQt6 manquant
     MachineProfilesController = None
 
@@ -93,8 +94,14 @@ class LayerProfileTests(unittest.TestCase):
         self.assertEqual([layer.id for layer in other.layers], ids)
         self.assertEqual((other.layers[0].name, other.layers[0].power, other.layers[0].speed),
                          ("Mon calque", 55.0, 1234))
-        self.assertEqual(len(other.layers), 3)
-        self.assertEqual(other.layers[2].passes, 4)
+        self.assertEqual(len(other.layers), 4)       # gravure, découpe, marquage + le calque ajouté
+        self.assertEqual(other.layers[3].passes, 4)
+
+    def test_default_marking_layer(self):
+        mark = LayerManager().layers[2]
+        self.assertEqual((mark.name, mark.mode, mark.power, mark.speed, mark.passes, mark.line_interval,
+                          mark.color),
+                         (tr("layers.default_name_mark"), "Marquage (Contour)", 75.0, 2000, 1, 0.06, "#34c759"))
 
     def test_load_applies_the_last_profile_fully(self):
         c = self.make([])
