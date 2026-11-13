@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import QSplitter, QToolBar, QWidget
 DEFAULT_TOP_MARGIN = 26
 DEFAULT_MARGIN = 8
 
-ANCHORS = ("top", "bottom", "right")
+ANCHORS = ("top", "bottom", "left", "right")
 
 
 class FloatingToolBar(QToolBar):
@@ -16,7 +16,8 @@ class FloatingToolBar(QToolBar):
     déplacements et changements de taille.
 
     `anchor` : "top" (centrée en haut, par défaut), "bottom" (centrée en
-    bas) ou "right" (verticale, centrée sur le bord droit).
+    bas), "left" ou "right" (verticale, centrée sur le bord gauche ou
+    droit).
 
     `items` : des QAction existantes (même icône, libellé, infobulle et état
     actif / coché que partout ailleurs), des widgets (cases à cocher…), ou
@@ -54,7 +55,7 @@ class FloatingToolBar(QToolBar):
         self.setObjectName("floating_toolbar")
         self.setOrientation(
             Qt.Orientation.Vertical
-            if anchor == "right"
+            if anchor in ("left", "right")
             else Qt.Orientation.Horizontal
         )
         self.setToolButtonStyle(button_style)
@@ -84,8 +85,11 @@ class FloatingToolBar(QToolBar):
         self.adjustSize()
         origin = self._host.mapTo(self.parentWidget(), QPoint(0, 0))
         width, height = self._host.width(), self._host.height()
-        if self._anchor == "right":
-            x = origin.x() + width - self.width() - self._margin
+        if self._anchor in ("left", "right"):
+            if self._anchor == "left":
+                x = origin.x() + self._margin
+            else:
+                x = origin.x() + width - self.width() - self._margin
             y = origin.y() + max(0, (height - self.height()) // 2)
         else:
             x = origin.x() + max(0, (width - self.width()) // 2)

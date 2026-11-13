@@ -135,8 +135,12 @@ class VectorToolbarTests(unittest.TestCase):
                     "ui.vector_align_top", "ui.vector_align_middle_v", "ui.vector_align_bottom",
                     "ui.vector_distribute_h", "ui.vector_distribute_v"):
             self.assertIn(f'("{key}"', align, key)
-        self.assertIn("FloatingToolBar(\n            vector_edit_actions, self.vector_canvas", src)
+        self.assertIn("FloatingToolBar(vector_edit_actions, self.vector_canvas", src)
         self.assertIn('vector_align_actions, self.vector_canvas, anchor="right"', src)
+        # Alignement : pictogramme seul sur le bouton, action complète en infobulle (4 langues).
+        self.assertIn('tr(key).split(" ", 1)[0], tr(f"{key}_tip")', src)
+        for key in ("ui.vector_align_left", "ui.vector_distribute_v"):
+            self.assertEqual(sorted(i18n.TRANSLATIONS[f"{key}_tip"]), ["de", "en", "es", "fr"])
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():

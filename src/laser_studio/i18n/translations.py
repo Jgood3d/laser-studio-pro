@@ -2737,6 +2737,39 @@ TRANSLATIONS = {
         "de": "Ausrichtung / Verteilung",
         "es": "Alineación / Distribución",
     },
+    # Infobulles de la barre d'alignement (boutons à pictogramme seul).
+    "ui.vector_align_left_tip": {
+        "fr": "Aligner à gauche", "en": "Align left",
+        "de": "Links ausrichten", "es": "Alinear a la izquierda",
+    },
+    "ui.vector_align_center_h_tip": {
+        "fr": "Centrer horizontalement", "en": "Center horizontally",
+        "de": "Horizontal zentrieren", "es": "Centrar horizontalmente",
+    },
+    "ui.vector_align_right_tip": {
+        "fr": "Aligner à droite", "en": "Align right",
+        "de": "Rechts ausrichten", "es": "Alinear a la derecha",
+    },
+    "ui.vector_align_top_tip": {
+        "fr": "Aligner en haut", "en": "Align top",
+        "de": "Oben ausrichten", "es": "Alinear arriba",
+    },
+    "ui.vector_align_middle_v_tip": {
+        "fr": "Centrer verticalement", "en": "Center vertically",
+        "de": "Vertikal zentrieren", "es": "Centrar verticalmente",
+    },
+    "ui.vector_align_bottom_tip": {
+        "fr": "Aligner en bas", "en": "Align bottom",
+        "de": "Unten ausrichten", "es": "Alinear abajo",
+    },
+    "ui.vector_distribute_h_tip": {
+        "fr": "Répartir horizontalement", "en": "Distribute horizontally",
+        "de": "Horizontal verteilen", "es": "Distribuir horizontalmente",
+    },
+    "ui.vector_distribute_v_tip": {
+        "fr": "Répartir verticalement", "en": "Distribute vertically",
+        "de": "Vertikal verteilen", "es": "Distribuir verticalmente",
+    },
     "ui.vector_align_left": {
         "fr": "⊢ Gauche", "en": "⊢ Left", "de": "⊢ Links", "es": "⊢ Izquierda",
     },
@@ -3497,6 +3530,14 @@ TRANSLATIONS = {
         "en": "✕ Exit full screen (return to normal window)",
         "de": "✕ Vollbild schließen (zum normalen Fenster zurückkehren)",
         "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
+    },
+    "layers.add_tip": {
+        "fr": "Ajouter un calque", "en": "Add a layer",
+        "de": "Ebene hinzufügen", "es": "Añadir una capa",
+    },
+    "layers.remove_tip": {
+        "fr": "Supprimer le calque sélectionné", "en": "Delete the selected layer",
+        "de": "Ausgewählte Ebene löschen", "es": "Eliminar la capa seleccionada",
     },
     "layers.add": {
         "fr": "+ Calque",

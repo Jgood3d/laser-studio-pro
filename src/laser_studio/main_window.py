@@ -28,7 +28,7 @@ from laser_studio.ui.tabs.layers import LayersTab
 from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
-from laser_studio.ui.utils import fullscreen_icon
+from laser_studio.ui.utils import fullscreen_icon, palette_icon
 from laser_studio.ui.widgets import FloatingToolBar, FullscreenWindow, TabCloseButton
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
@@ -581,20 +581,21 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
         btn_nesting.clicked.connect(self.open_nesting)
-        # Édition de la sélection : barre flottante en haut du canevas (voir plus bas).
+        # Édition de la sélection : barre flottante d'icônes en haut du canevas (voir plus bas), le
+        # libellé en infobulle. Icônes du pack Breeze embarqué (palette_icon).
         vector_edit_actions = [
-            self._vector_action(key, slot) if key else None
-            for key, slot in (
-                ("ui.vector_edit_selection", self.edit_selected_vector_object),
-                ("ui.vector_rotate_90", self.rotate_selected_vector_object),
-                ("ui.vector_duplicate", self.duplicate_selected_vector_object),
-                ("ui.vector_delete", self.delete_selected_vector_object),
-                (None, None),
-                ("vector.explode_path", lambda: self.vector_canvas.explode_selected()),
-                ("vector.edit_nodes", lambda: self.vector_canvas.enter_node_edit()),
-                (None, None),
-                ("ui.vector_undo", lambda: self.vector_canvas.undo()),
-                ("ui.vector_redo", lambda: self.vector_canvas.redo()),
+            self._vector_action(tr(key), tr(key).lstrip("↻↶↷ "), slot, icon) if key else None
+            for key, icon, slot in (
+                ("ui.vector_edit_selection", "document-edit", self.edit_selected_vector_object),
+                ("ui.vector_rotate_90", "object-rotate-right", self.rotate_selected_vector_object),
+                ("ui.vector_duplicate", "edit-duplicate", self.duplicate_selected_vector_object),
+                ("ui.vector_delete", "edit-delete", self.delete_selected_vector_object),
+                (None, None, None),
+                ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
+                ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
+                (None, None, None),
+                ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
+                ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
             )
         ]
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
@@ -669,9 +670,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         toolbar_vector_tools.addWidget(self.spin_vector_snap_step)
         layout_vector_editor.addLayout(toolbar_vector_tools)
 
-        # Alignement / distribution : barre flottante verticale à droite du canevas.
+        # Alignement / distribution : barre flottante verticale à droite du canevas. Le bouton ne
+        # garde que le pictogramme du libellé (« ⊢ ») ; l'infobulle dit l'action (« Aligner à gauche »).
         vector_align_actions = [
-            self._vector_action(key, slot) if key else None
+            self._vector_action(tr(key).split(" ", 1)[0], tr(f"{key}_tip"), slot) if key else None
             for key, slot in (
                 ("ui.vector_align_left", lambda: self.align_vector_selection("left")),
                 ("ui.vector_align_center_h", lambda: self.align_vector_selection("center_h")),
@@ -688,11 +690,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
-        text_buttons = Qt.ToolButtonStyle.ToolButtonTextOnly
-        self.vector_edit_toolbar = FloatingToolBar(
-            vector_edit_actions, self.vector_canvas, top_margin=8, button_style=text_buttons)
+        self.vector_edit_toolbar = FloatingToolBar(vector_edit_actions, self.vector_canvas, top_margin=8)
         self.vector_align_toolbar = FloatingToolBar(
-            vector_align_actions, self.vector_canvas, anchor="right", button_style=text_buttons)
+            vector_align_actions, self.vector_canvas, anchor="right",
+            button_style=Qt.ToolButtonStyle.ToolButtonTextOnly)
+        # Pictogrammes plus grands que le texte courant, pour rester lisibles.
+        self.vector_align_toolbar.setStyleSheet(
+            self.vector_align_toolbar.styleSheet() + " QToolButton { font-size: 16px; min-width: 24px; }")
         self.vector_align_toolbar.setToolTip(tr("ui.vector_align_box"))
 
         # Propriétés compactes : 1 rangée position+calque ; 1 rangée taille/ancrage (formes uniquement)
@@ -783,9 +787,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
 
-    def _vector_action(self, key, slot):
-        """Action de l'éditeur vectoriel (barres flottantes du canevas) : libellé `key` traduit."""
-        action = QAction(tr(key), self)
+    def _vector_action(self, text, tooltip, slot, icon_name=None):
+        """Action de l'éditeur vectoriel (barres flottantes du canevas) : `text`, infobulle
+        `tooltip`, icône `icon_name` du pack Breeze embarqué dans la couleur du thème."""
+        action = QAction(text, self)
+        action.setToolTip(tooltip)
+        if icon_name:
+            action.setIcon(palette_icon(icon_name, self.palette()))
         action.triggered.connect(lambda _checked=False: slot())
         return action
 

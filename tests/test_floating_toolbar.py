@@ -89,9 +89,51 @@ class FloatingToolBarTests(unittest.TestCase):
         self.assertEqual(bar.geometry().bottom(), bottom - 8)
         self.assertIs(check.parentWidget(), bar)
 
+    def test_left_anchor_is_vertical_against_the_left_edge(self):
+        from PyQt6.QtCore import Qt
+        page = QWidget()
+        self.addCleanup(page.deleteLater)
+        area = QWidget()
+        QHBoxLayout(page).addWidget(area)
+        bar = FloatingToolBar([QAction("Ajouter", page)], area, anchor="left", margin=8)
+        page.resize(800, 400)
+        page.show()
+        self.app.processEvents()
+        self.assertEqual(bar.orientation(), Qt.Orientation.Vertical)
+        self.assertEqual(bar.x(), area.x() + 8)
+
     def test_unknown_anchor_is_refused(self):
         with self.assertRaises(ValueError):
-            FloatingToolBar([], QWidget(), anchor="left")
+            FloatingToolBar([], QWidget(), anchor="middle")
+
+
+@unittest.skipIf(FloatingToolBar is None, "PyQt6 non importable ici")
+class PaletteIconTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_bundled_icon_is_drawn_in_the_text_colour(self):
+        from PyQt6.QtGui import QColor, QPalette
+        from laser_studio.ui.utils import palette_icon
+        palette = QPalette()
+        palette.setColor(QPalette.ColorRole.WindowText, QColor("#ff00ff"))
+        image = palette_icon("list-add", palette).pixmap(22, 22).toImage()
+        colours = {image.pixelColor(x, y).name() for x in range(22) for y in range(22)
+                   if image.pixelColor(x, y).alpha() == 255}
+        self.assertEqual(colours, {"#ff00ff"})          # le gris Breeze est remplacé
+
+    def test_every_floating_bar_icon_is_bundled(self):
+        from laser_studio.core.paths import find_resource
+        for name in ("document-edit", "object-rotate-right", "edit-duplicate", "edit-delete", "object-ungroup",
+                     "format-node-curve", "edit-undo", "edit-redo", "list-add", "list-remove", "go-up", "go-down"):
+            self.assertIsNotNone(find_resource(os.path.join("icons", "breeze", "22x22", "actions", f"{name}.svg")), name)
+
+    def test_missing_icon_gives_the_fallback(self):
+        from PyQt6.QtGui import QIcon, QPalette
+        from laser_studio.ui.utils import palette_icon
+        fallback = QIcon()
+        self.assertIs(palette_icon("n-existe-pas", QPalette(), fallback), fallback)
 
 
 if __name__ == "__main__":
