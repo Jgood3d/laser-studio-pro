@@ -4491,4 +4491,35 @@ TRANSLATIONS = {
         "de": "Abstand messen: auf der Zeichenfläche klicken und ziehen.",
         "es": "Medir una distancia: haga clic y arrastre en el lienzo.",
     },
+
+    "startup.safety.title": {
+        "fr": "Avertissement de sécurité",
+        "en": "Safety warning",
+        "de": "Sicherheitshinweis",
+        "es": "Advertencia de seguridad",
+    },
+    "startup.safety.body": {
+        "fr": "Un graveur laser est une machine dangereuse qui ne doit jamais fonctionner sans surveillance.",
+        "en": "A laser engraver is a dangerous machine and must never run unattended.",
+        "de": "Ein Lasergravierer ist eine gefährliche Maschine und darf niemals unbeaufsichtigt laufen.",
+        "es": "Un grabador láser es una máquina peligrosa y nunca debe funcionar sin supervisión.",
+    },
+    "startup.safety.detail": {
+        "fr": "L'utilisateur reste seul responsable des fichiers envoyés à sa machine.",
+        "en": "You remain solely responsible for the files sent to your machine.",
+        "de": "Du bleibst allein verantwortlich für die Dateien, die an deine Maschine gesendet werden.",
+        "es": "El usuario es el único responsable de los archivos enviados a su máquina.",
+    },
+    "startup.safety.ok": {
+        "fr": "OK",
+        "en": "OK",
+        "de": "OK",
+        "es": "Aceptar",
+    },
+    "startup.safety.cancel": {
+        "fr": "Annuler",
+        "en": "Cancel",
+        "de": "Abbrechen",
+        "es": "Cancelar",
+    },
 }
