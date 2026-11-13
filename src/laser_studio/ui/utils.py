@@ -1,10 +1,18 @@
 """Petits utilitaires partagés par les éléments d'interface."""
 
-from PyQt6.QtCore import QSize, Qt
+import os
+
+from PyQt6.QtCore import QByteArray, QSize, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPalette, QPixmap
+from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QStyle, QToolButton
 
 from laser_studio.core.constants import JOG_BUTTON_SIZE
+from laser_studio.core.paths import find_resource
+
+# Couleur du texte dans les icônes Breeze (classe ColorScheme-Text).
+BREEZE_TEXT_COLOR = "#232629"
+BREEZE_ACTIONS_DIR = os.path.join("icons", "breeze", "22x22", "actions")
 
 
 def painted_icon(palette, draw):
@@ -52,6 +60,33 @@ def fullscreen_icon(widget):
     return QIcon.fromTheme(
         QIcon.ThemeIcon.ViewFullscreen, widget.style().standardIcon(fallback)
     )
+
+
+def palette_icon(name, palette, fallback=None):
+    """Icône `name` du pack Breeze embarqué (resources/icons/breeze),
+    dessinée dans la couleur du texte de `palette`.
+
+    Elle reste ainsi lisible sur les thèmes clair et sombre de
+    l'application, quel que soit le thème d'icônes du bureau (Adwaita n'a
+    pas les icônes de nœuds, de dégroupage…). Les parties colorées de
+    l'icône (rouge, bleu) sont gardées. `fallback` si l'icône manque.
+    """
+    path = find_resource(os.path.join(BREEZE_ACTIONS_DIR, f"{name}.svg"))
+    if path is None:
+        return fallback if fallback is not None else QIcon()
+    with open(path, encoding="utf-8") as f:
+        svg = f.read()
+    color = palette.color(QPalette.ColorRole.WindowText).name()
+    renderer = QSvgRenderer(QByteArray(svg.replace(BREEZE_TEXT_COLOR, color).encode("utf-8")))
+    icon = QIcon()
+    for size in (22, 44):  # 44 : écrans haute résolution
+        pixmap = QPixmap(size, size)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        renderer.render(painter)
+        painter.end()
+        icon.addPixmap(pixmap)
+    return icon
 
 
 def themed_icon(widget, theme_icon, fallback):

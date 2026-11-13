@@ -97,7 +97,8 @@ class SplitterTests(unittest.TestCase):
 
 @unittest.skipIf(i18n is None, "i18n non importable ici")
 class VectorToolbarTests(unittest.TestCase):
-    """Barre d'outils de l'éditeur vectoriel : deux lignes, libellés entièrement visibles."""
+    """Barre d'outils de l'éditeur vectoriel : deux lignes, libellés entièrement visibles.
+    L'édition de la sélection et l'alignement sont dans des barres flottantes du canevas."""
 
     def rows(self):
         with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
@@ -116,11 +117,30 @@ class VectorToolbarTests(unittest.TestCase):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
-    def test_two_rows_with_all_twenty_buttons(self):
+    def test_two_rows_with_all_twelve_buttons(self):
         rows = self.rows()
         self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_tools"])
-        self.assertEqual(sum(len(v) for v in rows.values()), 20)
-        self.assertEqual(len(set(k for v in rows.values() for k in v)), 20)
+        self.assertEqual(sum(len(v) for v in rows.values()), 12)
+        self.assertEqual(len(set(k for v in rows.values() for k in v)), 12)
+
+    def test_edit_and_align_actions_float_over_the_canvas(self):
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            src = f.read()
+        edit = src[src.index("vector_edit_actions = ["):src.index("# Rangée 1")]
+        for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
+                    "vector.explode_path", "vector.edit_nodes", "ui.vector_undo", "ui.vector_redo"):
+            self.assertIn(f'("{key}"', edit, key)
+        align = src[src.index("vector_align_actions = ["):src.index("self.vector_canvas = VectorCanvasView(")]
+        for key in ("ui.vector_align_left", "ui.vector_align_center_h", "ui.vector_align_right",
+                    "ui.vector_align_top", "ui.vector_align_middle_v", "ui.vector_align_bottom",
+                    "ui.vector_distribute_h", "ui.vector_distribute_v"):
+            self.assertIn(f'("{key}"', align, key)
+        self.assertIn("FloatingToolBar(vector_edit_actions, self.vector_canvas", src)
+        self.assertIn('vector_align_actions, self.vector_canvas, anchor="right"', src)
+        # Alignement : pictogramme seul sur le bouton, action complète en infobulle (4 langues).
+        self.assertIn('tr(key).split(" ", 1)[0], tr(f"{key}_tip")', src)
+        for key in ("ui.vector_align_left", "ui.vector_distribute_v"):
+            self.assertEqual(sorted(i18n.TRANSLATIONS[f"{key}_tip"]), ["de", "en", "es", "fr"])
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():

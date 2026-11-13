@@ -258,11 +258,11 @@ class MenuStructureTests(unittest.TestCase):
             self.assertIn("_show_fullscreen_control(", restore, func)
             self.assertIn(", True)", restore, func)
 
-    def test_preview_options_are_in_the_2d_tab_toolbar(self):
+    def test_preview_options_are_in_the_2d_floating_toolbar(self):
         src = ui_source()
         tab = read(os.path.join("ui", "tabs", "preview_2d", "tab.py"))
-        bar = tab[tab.index("toolbar = TabToolBar("):]
-        bar = bar[:bar.index("toolbar.fullscreen_requested")]
+        bar = tab[tab.index("self.options_toolbar = FloatingToolBar("):]
+        bar = bar[:bar.index("self.plot_widget,")]
         for check, name in (("flip_check", "chk_flip_raster_preview"),
                             ("negative_check", "chk_negative_raster_preview"),
                             ("hide_rapid_check", "chk_hide_rapid_moves"),
