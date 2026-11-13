@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QH
                              QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabBar, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QStandardItemModel
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QStandardItemModel
 
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
 from laser_studio.core.debug_log import get_logger
@@ -581,22 +581,22 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
         btn_nesting.clicked.connect(self.open_nesting)
-        btn_edit_selected = QPushButton(tr("ui.vector_edit_selection"))
-        btn_edit_selected.clicked.connect(self.edit_selected_vector_object)
-        btn_rotate_selected = QPushButton(tr("ui.vector_rotate_90"))
-        btn_rotate_selected.clicked.connect(self.rotate_selected_vector_object)
-        btn_dup_selected = QPushButton(tr("ui.vector_duplicate"))
-        btn_dup_selected.clicked.connect(self.duplicate_selected_vector_object)
-        btn_del_selected = QPushButton(tr("ui.vector_delete"))
-        btn_del_selected.clicked.connect(self.delete_selected_vector_object)
-        btn_explode_path = QPushButton(tr("vector.explode_path"))
-        btn_explode_path.clicked.connect(lambda: self.vector_canvas.explode_selected())
-        btn_edit_nodes = QPushButton(tr("vector.edit_nodes"))
-        btn_edit_nodes.clicked.connect(lambda: self.vector_canvas.enter_node_edit())
-        btn_undo_vector = QPushButton(tr("ui.vector_undo"))
-        btn_undo_vector.clicked.connect(lambda: self.vector_canvas.undo())
-        btn_redo_vector = QPushButton(tr("ui.vector_redo"))
-        btn_redo_vector.clicked.connect(lambda: self.vector_canvas.redo())
+        # Édition de la sélection : barre flottante en haut du canevas (voir plus bas).
+        vector_edit_actions = [
+            self._vector_action(key, slot) if key else None
+            for key, slot in (
+                ("ui.vector_edit_selection", self.edit_selected_vector_object),
+                ("ui.vector_rotate_90", self.rotate_selected_vector_object),
+                ("ui.vector_duplicate", self.duplicate_selected_vector_object),
+                ("ui.vector_delete", self.delete_selected_vector_object),
+                (None, None),
+                ("vector.explode_path", lambda: self.vector_canvas.explode_selected()),
+                ("vector.edit_nodes", lambda: self.vector_canvas.enter_node_edit()),
+                (None, None),
+                ("ui.vector_undo", lambda: self.vector_canvas.undo()),
+                ("ui.vector_redo", lambda: self.vector_canvas.redo()),
+            )
+        ]
         btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
         btn_fullscreen_vector.setIcon(fullscreen_icon(self))
         btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
@@ -649,69 +649,51 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         toolbar_vector.addWidget(btn_fullscreen_vector)
         layout_vector_editor.addLayout(toolbar_vector)
 
-        # Rangée 2 : dessin + édition (une seule ligne)
+        # Rangée 2 : outils de dessin, puis la grille magnétique à droite. L'édition de la sélection
+        # et l'alignement sont dans des barres flottantes sur le canevas.
         toolbar_vector_tools = QHBoxLayout()
         toolbar_vector_tools.setSpacing(4)
         for w in (
             btn_draw_select, btn_draw_line, btn_draw_rect, btn_draw_ellipse, btn_draw_measure,
         ):
             toolbar_vector_tools.addWidget(w)
-        sep = QWidget()
-        sep.setFixedWidth(8)
-        toolbar_vector_tools.addWidget(sep)
-        for w in (
-            btn_edit_selected, btn_rotate_selected, btn_dup_selected, btn_del_selected,
-            btn_explode_path, btn_edit_nodes, btn_undo_vector, btn_redo_vector,
-        ):
-            toolbar_vector_tools.addWidget(w)
         toolbar_vector_tools.addStretch()
-        layout_vector_editor.addLayout(toolbar_vector_tools)
-
-
-        align_box = QGroupBox(tr("ui.vector_align_box"))
-        align_layout = QHBoxLayout()
-
-        btn_align_left = QPushButton(tr("ui.vector_align_left"))
-        btn_align_left.clicked.connect(lambda: self.align_vector_selection("left"))
-        btn_align_center_h = QPushButton(tr("ui.vector_align_center_h"))
-        btn_align_center_h.clicked.connect(lambda: self.align_vector_selection("center_h"))
-        btn_align_right = QPushButton(tr("ui.vector_align_right"))
-        btn_align_right.clicked.connect(lambda: self.align_vector_selection("right"))
-        btn_align_top = QPushButton(tr("ui.vector_align_top"))
-        btn_align_top.clicked.connect(lambda: self.align_vector_selection("top"))
-        btn_align_middle_v = QPushButton(tr("ui.vector_align_middle_v"))
-        btn_align_middle_v.clicked.connect(lambda: self.align_vector_selection("middle_v"))
-        btn_align_bottom = QPushButton(tr("ui.vector_align_bottom"))
-        btn_align_bottom.clicked.connect(lambda: self.align_vector_selection("bottom"))
-        btn_distribute_h = QPushButton(tr("ui.vector_distribute_h"))
-        btn_distribute_h.clicked.connect(lambda: self.distribute_vector_selection("h"))
-        btn_distribute_v = QPushButton(tr("ui.vector_distribute_v"))
-        btn_distribute_v.clicked.connect(lambda: self.distribute_vector_selection("v"))
-
-        for b in (btn_align_left, btn_align_center_h, btn_align_right,
-                  btn_align_top, btn_align_middle_v, btn_align_bottom,
-                  btn_distribute_h, btn_distribute_v):
-            align_layout.addWidget(b)
-
-        align_layout.addStretch()
-
         self.chk_vector_snap = QCheckBox(tr("ui.vector_snap_enable"))
         self.chk_vector_snap.toggled.connect(self.set_vector_snap_enabled)
-        align_layout.addWidget(self.chk_vector_snap)
+        toolbar_vector_tools.addWidget(self.chk_vector_snap)
         self.spin_vector_snap_step = QDoubleSpinBox()
         self.spin_vector_snap_step.setRange(0.1, 100.0)
         self.spin_vector_snap_step.setValue(5.0)
         self.spin_vector_snap_step.setSuffix(" mm")
         self.spin_vector_snap_step.valueChanged.connect(self.set_vector_snap_step)
-        align_layout.addWidget(self.spin_vector_snap_step)
+        toolbar_vector_tools.addWidget(self.spin_vector_snap_step)
+        layout_vector_editor.addLayout(toolbar_vector_tools)
 
-        align_box.setLayout(align_layout)
-        align_box.setStyleSheet("QGroupBox { padding-top: 8px; margin-top: 4px; }")
-        layout_vector_editor.addWidget(align_box)
-
+        # Alignement / distribution : barre flottante verticale à droite du canevas.
+        vector_align_actions = [
+            self._vector_action(key, slot) if key else None
+            for key, slot in (
+                ("ui.vector_align_left", lambda: self.align_vector_selection("left")),
+                ("ui.vector_align_center_h", lambda: self.align_vector_selection("center_h")),
+                ("ui.vector_align_right", lambda: self.align_vector_selection("right")),
+                (None, None),
+                ("ui.vector_align_top", lambda: self.align_vector_selection("top")),
+                ("ui.vector_align_middle_v", lambda: self.align_vector_selection("middle_v")),
+                ("ui.vector_align_bottom", lambda: self.align_vector_selection("bottom")),
+                (None, None),
+                ("ui.vector_distribute_h", lambda: self.distribute_vector_selection("h")),
+                ("ui.vector_distribute_v", lambda: self.distribute_vector_selection("v")),
+            )
+        ]
 
         self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
+        text_buttons = Qt.ToolButtonStyle.ToolButtonTextOnly
+        self.vector_edit_toolbar = FloatingToolBar(
+            vector_edit_actions, self.vector_canvas, top_margin=8, button_style=text_buttons)
+        self.vector_align_toolbar = FloatingToolBar(
+            vector_align_actions, self.vector_canvas, anchor="right", button_style=text_buttons)
+        self.vector_align_toolbar.setToolTip(tr("ui.vector_align_box"))
 
         # Propriétés compactes : 1 rangée position+calque ; 1 rangée taille/ancrage (formes uniquement)
         pos_box = QGroupBox(tr("ui.selection_props_box"))
@@ -800,6 +782,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
+
+    def _vector_action(self, key, slot):
+        """Action de l'éditeur vectoriel (barres flottantes du canevas) : libellé `key` traduit."""
+        action = QAction(tr(key), self)
+        action.triggered.connect(lambda _checked=False: slot())
+        return action
 
     def _build_2d_preview_tab(self):
         """Onglet « Visualisation 2D G-Code », abonné à la génération.

@@ -6,11 +6,12 @@ from PyQt6.QtWidgets import QCheckBox, QSplitter, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
-from laser_studio.ui.widgets import TabToolBar
+from laser_studio.ui.widgets import FloatingToolBar, TabToolBar
 
 
 class Preview2DTab(QWidget):
-    """Aperçu 2D du G-Code, avec ses options dans la barre d'outils. À sa
+    """Aperçu 2D du G-Code, avec ses options dans une barre flottante en
+    haut du graphique (options_toolbar). À sa
     droite, de l'autre côté d'un séparateur réglable, une colonne étroite :
     la position du job sur le plateau, puis les statistiques du job
     (job_stats_panel).
@@ -56,6 +57,18 @@ class Preview2DTab(QWidget):
         layout = QVBoxLayout(self)
         layout.addWidget(self._toolbar())
         layout.addWidget(self.splitter)
+        # Options de l'aperçu : barre flottante sous le titre du graphique.
+        self.options_toolbar = FloatingToolBar(
+            [
+                self.flip_check,
+                self.negative_check,
+                self.hide_rapid_check,
+                None,
+                self.optimize_path_check,
+            ],
+            self.plot_widget,
+            top_margin=30,
+        )
 
     # -- construction
 
@@ -70,7 +83,8 @@ class Preview2DTab(QWidget):
         return panel
 
     def _toolbar(self):
-        """Barre d'outils : les options de l'aperçu, et le plein écran."""
+        """Barre d'outils : le plein écran. Les options de l'aperçu, créées
+        ici, vont dans la barre flottante (options_toolbar)."""
         self.flip_check = self._option(
             "preview.flip", "preview.flip_tip", checked=False
         )
@@ -89,15 +103,7 @@ class Preview2DTab(QWidget):
         self.optimize_path_check = self._option(
             "ui.optimize_path", "ui.optimize_path_tip"
         )
-        toolbar = TabToolBar(
-            self,
-            left_widgets=[
-                self.flip_check,
-                self.negative_check,
-                self.hide_rapid_check,
-                self.optimize_path_check,
-            ],
-        )
+        toolbar = TabToolBar(self)
         toolbar.fullscreen_requested.connect(self.fullscreen_requested)
         self._fullscreen_control = toolbar.fullscreen_action
         return toolbar

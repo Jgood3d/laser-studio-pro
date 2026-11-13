@@ -1,8 +1,9 @@
 """Onglet « Calques » : liste des calques et de leurs réglages laser."""
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
+from laser_studio.ui.widgets import FloatingToolBar
 from laser_studio.vector_layers import LayerManagerWidget
 
 
@@ -18,6 +19,9 @@ class LayersTab(QWidget):
 
     `focal_getter` : fonction qui renvoie la taille du spot du laser, en mm.
     Les calques s'en servent pour leur intervalle de lignes.
+
+    Ajouter / supprimer / monter / descendre un calque : barre flottante en
+    bas de la table (actions_toolbar).
     """
 
     layers_changed = pyqtSignal()
@@ -31,6 +35,12 @@ class LayersTab(QWidget):
         self.layer_widget.layers_changed.connect(self.layers_changed)
         layout = QVBoxLayout(self)
         layout.addWidget(self.layer_widget)
+        self.actions_toolbar = FloatingToolBar(
+            self.layer_widget.layer_actions,
+            self.layer_widget.table,
+            anchor="bottom",
+            button_style=Qt.ToolButtonStyle.ToolButtonTextOnly,
+        )
 
     # -- état reçu de la fenêtre / du contrôleur
 

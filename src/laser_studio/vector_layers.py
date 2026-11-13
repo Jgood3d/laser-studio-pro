@@ -37,7 +37,7 @@ from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import (QColor, QFont, QFontMetricsF, QPainterPath, QPen,
-                          QBrush, QTransform, QPolygonF, QPainter, QKeySequence)
+                          QBrush, QTransform, QPolygonF, QPainter, QKeySequence, QAction)
 from PyQt6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPathItem, QGraphicsItem,
     QGraphicsRectItem, QGraphicsEllipseItem, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
@@ -193,23 +193,20 @@ class LayerManagerWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        btn_row = QHBoxLayout()
-        btn_add = QPushButton(tr("layers.add"))
-        btn_add.clicked.connect(self.on_add)
-        btn_del = QPushButton(tr("layers.remove"))
-        btn_del.clicked.connect(self.on_remove)
-        btn_up = QPushButton(tr("layers.move_up"))
-        btn_up.setToolTip(tr("layers.move_up_tip"))
-        btn_up.clicked.connect(lambda: self.on_move(-1))
-        btn_down = QPushButton(tr("layers.move_down"))
-        btn_down.setToolTip(tr("layers.move_down_tip"))
-        btn_down.clicked.connect(lambda: self.on_move(1))
-        btn_row.addWidget(btn_add)
-        btn_row.addWidget(btn_del)
-        btn_row.addWidget(btn_up)
-        btn_row.addWidget(btn_down)
-        btn_row.addStretch()
-        layout.addLayout(btn_row)
+        # Ajouter / supprimer / monter / descendre : des actions, affichées par
+        # l'onglet Calques dans une barre flottante sur la table (LayersTab).
+        self.layer_actions = []
+        for key, tip_key, slot in (
+            ("layers.add", None, self.on_add),
+            ("layers.remove", None, self.on_remove),
+            ("layers.move_up", "layers.move_up_tip", lambda: self.on_move(-1)),
+            ("layers.move_down", "layers.move_down_tip", lambda: self.on_move(1)),
+        ):
+            action = QAction(tr(key), self)
+            if tip_key:
+                action.setToolTip(tr(tip_key))
+            action.triggered.connect(lambda _checked=False, s=slot: s())
+            self.layer_actions.append(action)
 
         self.table = QTableWidget(0, len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
