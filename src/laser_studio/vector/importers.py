@@ -69,9 +69,14 @@ def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungrou
 
 
 def box_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
-    """[(panneau, objet)] : un contour de découpe fermé par panneau, posé selon la disposition calculée."""
+    """[(panneau, objet)] : les trous (fentes de cloison) puis le contour de découpe de chaque panneau,
+    posés selon la disposition calculée. Un panneau peut donc apparaître plusieurs fois."""
     out = []
     for panel in result.panels:
+        for hole in panel.placed_holes():
+            obj = _path_object(hole, True, f"box:{panel.name}:hole", layer_id, offset_x_mm, offset_y_mm)
+            if obj is not None:
+                out.append((panel, obj))
         obj = _path_object(panel.placed(), True, f"box:{panel.name}", layer_id, offset_x_mm, offset_y_mm)
         if obj is not None:
             out.append((panel, obj))
