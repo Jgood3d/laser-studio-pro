@@ -4,7 +4,6 @@ name: Build macOS
 # architecture (pas d'universal2 — voir LaserStudioPro.spec).
 #
 # Déclenché :
-# - sur un tag "v*" : build + publication en release (comme avant) ;
 # - sur une Pull Request vers main qui touche du code Python ou les
 #   fichiers macOS : build de validation (sans release), pour détecter
 #   immédiatement sur la PR une dépendance ou un import cassé côté
@@ -12,10 +11,10 @@ name: Build macOS
 #   l'ajouter à packaging/macos/requirements-macos.txt), au lieu de le découvrir
 #   seulement à la prochaine sortie de version ;
 # - manuellement (build + artefact seulement, sans release).
+#
+# Les versions (tag "v*") sont compilées et publiées par release.yml, avec
+# Linux et Windows, dans une seule release en brouillon.
 on:
-  push:
-    tags:
-      - "v*"
   pull_request:
     branches: [main]
     paths:
@@ -25,12 +24,8 @@ on:
       - ".github/workflows/macos-build.yml"
   workflow_dispatch: {}
 
-# Nécessaire pour que l'étape "Publier en release" (softprops/action-gh-release)
-# puisse créer/mettre à jour une release avec le token par défaut du workflow —
-# sans ça, GitHub renvoie 403 "Resource not accessible by integration" à la
-# création de la release, même si le job de compilation lui-même réussit.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -111,13 +106,3 @@ jobs:
           name: LaserStudioPro-macos-${{ matrix.arch }}
           path: dist/${{ env.DMG_NAME }}
           retention-days: 30
-
-      - name: Publier en release
-        if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/${{ env.DMG_NAME }}
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
