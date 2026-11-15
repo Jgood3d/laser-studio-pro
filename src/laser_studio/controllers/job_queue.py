@@ -50,18 +50,21 @@ class JobQueueController:
         queue = JobQueueController(
             tab, self, engraver,
             current_gcode=self.txt_console.toPlainText,
-            log_to_console=self.txt_console.append,
+            log_to_console=self.log_message,
+            sent_log=machine_panel.sent_gcode_log,
         )
         tab.run_requested.connect(queue.run)
 
     `tab` : l'onglet File d'attente (JobQueueTab). `parent` : fenêtre des
     messages. `engraver` : voir Engraver. `current_gcode()` : G-Code
     affiché dans la console, ajouté par « Ajouter le G-Code actuel ».
-    `log_to_console(text)` : écrit dans la console.
+    `log_to_console(text)` : message pour l'utilisateur (barre d'état). `sent_log` : suivi du
+    G-Code envoyé (SentGcodeLog : clear_lines, append_lines).
     """
 
-    def __init__(self, tab, parent, engraver, current_gcode, log_to_console):
+    def __init__(self, tab, parent, engraver, current_gcode, log_to_console, sent_log):
         self._tab = tab
+        self._sent_log = sent_log
         self._parent = parent
         self._engraver = engraver
         self._current_gcode = current_gcode
@@ -218,7 +221,7 @@ class JobQueueController:
             engraver.last_state(),
         )
         self._running_index = 0
-        self._tab.clear_sent_gcode()
+        self._sent_log.clear_lines()
         self._tab.set_run_enabled(False)
         engraver.pause_status_poll()
         self._run_next()
@@ -252,7 +255,7 @@ class JobQueueController:
                 name=job["name"], index=index, total=total
             )
         )
-        self._tab.append_sent_gcode(
+        self._sent_log.append_lines(
             [
                 tr("queue.sent_log_job").format(
                     index=index, total=total, name=job["name"]

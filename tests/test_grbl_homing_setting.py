@@ -54,6 +54,7 @@ class GrblHomingSettingTests(unittest.TestCase):
                 pass
             f = Fake.__new__(Fake)
             f.txt_console = _Console()
+            f.log_message = f.txt_console.append   # messages : barre d'état (log_message)
             f.chk_homing = _Check(True)
             f.chk_mat_homing = _Check(True)
         f.usb = _USB(response)

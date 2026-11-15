@@ -1,22 +1,21 @@
 """Onglet « File d'attente »."""
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QListWidget,
     QPushButton,
-    QSplitter,
     QVBoxLayout,
     QWidget,
 )
 
 from laser_studio.i18n import tr
-from laser_studio.ui.tabs.job_queue.sent_gcode_log import SentGcodeLog
 
 
 class JobQueueTab(QWidget):
-    """File d'attente des jobs à gauche, G-Code envoyé à droite.
+    """File d'attente des jobs. Le G-Code envoyé est suivi dans le panneau
+    machine (SentGcodeLog), sous les onglets.
 
     Elle ne gère pas la file : ses boutons et le glisser-déposer émettent
     des signaux, auxquels la fenêtre (plus tard un contrôleur) s'abonne :
@@ -26,9 +25,8 @@ class JobQueueTab(QWidget):
         tab.reordered.connect(queue.on_reordered)
 
     Son état se règle par des méthodes : liste des jobs (add_job,
-    remove_job, set_jobs...), texte d'état, bouton « Lancer », et suivi du
-    G-Code envoyé (append_sent_gcode, mark_sent_end). Les éléments restent
-    accessibles (queue_list, run_button, status_label, sent_gcode_edit).
+    remove_job, set_jobs...), texte d'état, bouton « Lancer ». Les éléments
+    restent accessibles (queue_list, run_button, status_label).
     """
 
     add_current_requested = pyqtSignal()
@@ -42,19 +40,7 @@ class JobQueueTab(QWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(6, 6, 6, 6)
-        # Deux moitiés réglables : la file à gauche, le G-Code envoyé à droite.
-        queue_splitter = QSplitter(Qt.Orientation.Horizontal)
-        layout.addWidget(queue_splitter)
-        queue_left = self._queue_panel()
-        queue_splitter.addWidget(queue_left)
-        sent_box = self._sent_box()
-        queue_splitter.addWidget(sent_box)
-        # Moitié / moitié au départ, puis à chaque redimensionnement de la
-        # fenêtre. Des tailles égales et grandes : Qt les ramène à la largeur
-        # réelle en gardant la proportion.
-        queue_splitter.setStretchFactor(0, 1)
-        queue_splitter.setStretchFactor(1, 1)
-        queue_splitter.setSizes([100000, 100000])
+        layout.addWidget(self._queue_panel())
 
     # -- construction
 
@@ -92,12 +78,6 @@ class JobQueueTab(QWidget):
         layout.addWidget(self.status_label)
         return panel
 
-    def _sent_box(self):
-        """Suivi du G-Code envoyé (voir SentGcodeLog)."""
-        self.sent_log = SentGcodeLog()
-        self.sent_gcode_edit = self.sent_log.text_edit
-        return self.sent_log
-
     # -- liste des jobs
 
     def add_job(self, name):
@@ -133,17 +113,3 @@ class JobQueueTab(QWidget):
 
     def set_run_enabled(self, enabled):
         self.run_button.setEnabled(enabled)
-
-    # -- G-Code envoyé
-
-    def clear_sent_gcode(self):
-        self.sent_log.clear_lines()
-
-    def append_sent_gcode(self, lines):
-        """Ajoute des lignes au suivi d'envoi (lignes du G-Code au moment où
-        elles partent vers la machine, ou repères de début et de fin)."""
-        self.sent_log.append_lines(lines)
-
-    def mark_sent_end(self, clean_finish):
-        """Repère de fin d'envoi : terminé, ou interrompu."""
-        self.sent_log.mark_end(clean_finish)

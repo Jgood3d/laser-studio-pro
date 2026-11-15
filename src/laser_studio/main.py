@@ -48,6 +48,17 @@ def main():
     if icon_path:
         app.setWindowIcon(QIcon(icon_path))
 
+    # Avertissement de sécurité AVANT FullLaserStudio : « Annuler » quitte
+    # sans closeEvent → pas de demande d'enregistrement de projet.
+    from laser_studio.ui.dialogs.startup_safety import confirm_startup_safety
+    splash.hide()
+    accepted = confirm_startup_safety(None)
+    if not accepted:
+        splash.close()
+        sys.exit(0)
+    splash.show()
+    splash.show_progress(tr("splash.ready"))
+
     # Importé ici et non en tête de fichier : ce module charge la
     # quasi-totalité de l'application (pyqtgraph, numba, scipy, OpenCV…).
     # C'est l'étape la plus longue du démarrage, pendant laquelle le splash

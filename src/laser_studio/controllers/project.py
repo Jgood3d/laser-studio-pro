@@ -35,7 +35,7 @@ class ProjectController:
     `capture()` : (état du projet en dictionnaire, image source PIL ou
     None). `restore(data, image)` : réapplique un projet ouvert (image PIL
     ou None). `show_recent_projects(paths)` : met à jour le menu Fichier.
-    `log_to_console(text)` : écrit dans la console.
+    `log_to_console(text)` : message pour l'utilisateur (barre d'état).
     """
 
     def __init__(

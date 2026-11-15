@@ -8,6 +8,6 @@ Utilisation :
     self.statusBar().show_info("Image chargée")
 """
 
-from laser_studio.ui.statusbar.status_bar import StatusBar
+from laser_studio.ui.statusbar.status_bar import StatusBar, status_text
 
-__all__ = ["StatusBar"]
+__all__ = ["StatusBar", "status_text"]

@@ -234,8 +234,9 @@ def _cleanup_temp(path):
 
 
 def _say(window, text):
+    """Message pour l'utilisateur : barre d'état de Laser Studio (log_message)."""
     try:
-        window.txt_console.append(text)
+        window.log_message(text)
     except Exception:
         pass
 

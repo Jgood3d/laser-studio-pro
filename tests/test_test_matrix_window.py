@@ -26,6 +26,8 @@ class TestMatrixWindowTests(unittest.TestCase):
             from laser_studio import gcode_generation_mixin
             cls.gen = gcode_generation_mixin
             cls.app = QApplication.instance() or QApplication([])
+            # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
             cls.win = main_window.FullLaserStudio()
             cls.win.show()
 

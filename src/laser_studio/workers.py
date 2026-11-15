@@ -12,6 +12,7 @@ from svg.path import parse_path
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.core.debug_log import get_logger
 
 log = get_logger()
@@ -68,7 +69,7 @@ def image_origin(params):
     """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
     décalage du job désigne le centre de l'image, sans marge ; sinon, décalage + IMAGE_MARGIN_MM.
     Les calques vectoriels ne sont pas concernés : leurs objets ont déjà leur marge à l'import."""
-    if params['origin_pos'] == "Centre":
+    if params['origin_pos'] == ORIGIN_CENTER:
         return (params['offset_x'] - params['width_mm'] / 2.0,
                 params['offset_y'] - params['height_mm'] / 2.0)
     return params['offset_x'] + IMAGE_MARGIN_MM, params['offset_y'] + IMAGE_MARGIN_MM
@@ -691,7 +692,7 @@ class AdvancedGCodeWorker(QThread):
             gcode.append(f"{laser_cmd} S0 ; Mode laser dynamique activé pour tout le job")
         
         w_mm, h_mm = self.params['width_mm'], self.params['height_mm']
-        if self.params['origin_pos'] == "Centre":
+        if self.params['origin_pos'] == ORIGIN_CENTER:
             base_offset_x = self.params['offset_x'] - (w_mm / 2.0)
             base_offset_y = self.params['offset_y'] - (h_mm / 2.0)
         else:
@@ -1277,7 +1278,7 @@ def bidir_test_gcode(params):
     bars_h = (rows - 1) * pitch
     label_gap = 2.0
     total_h = bars_h + label_gap + label_h
-    if params.get("origin_pos") == "Centre":
+    if params.get("origin_pos") == ORIGIN_CENTER:
         base_x = params.get("offset_x", 0.0) - total_w / 2.0
         base_y = params.get("offset_y", 0.0) - total_h / 2.0
     else:

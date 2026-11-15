@@ -32,7 +32,9 @@ class ImageTab(QWidget):
         tab.settings.processing_changed.connect(self.update_image_processing)
         tab.compare_requested.connect(show_comparison)
 
-    La fenêtre dessine dans source_view et dither_view.
+    La fenêtre dessine dans source_view et dither_view. `preview_area`
+    (les deux aperçus) accueille la barre flottante annuler / refaire /
+    pivoter / miroirs (FloatingToolBar), posée par la fenêtre.
     """
 
     compare_requested = pyqtSignal()
@@ -100,6 +102,7 @@ class ImageTab(QWidget):
         # Image originale masquée par défaut : le rendu tramé prend toute
         # la place.
         self._source_box.setVisible(False)
+        self.preview_area = self._splitter
         return self._splitter
 
     @staticmethod

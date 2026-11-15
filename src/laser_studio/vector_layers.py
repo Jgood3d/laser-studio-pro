@@ -37,7 +37,7 @@ from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier
 
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import (QColor, QFont, QFontMetricsF, QPainterPath, QPen,
-                          QBrush, QTransform, QPolygonF, QPainter, QKeySequence)
+                          QBrush, QTransform, QPolygonF, QPainter, QKeySequence, QAction)
 from PyQt6.QtWidgets import (
     QGraphicsView, QGraphicsScene, QGraphicsPathItem, QGraphicsItem,
     QGraphicsRectItem, QGraphicsEllipseItem, QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
@@ -57,6 +57,9 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 # ============================================================================
 
 LAYER_MODES = ["Gravure Remplie", "Découpe", "Marquage (Contour)"]
+# Modes qui ne tracent que le contour : le pas de remplissage n'y sert pas, il
+# n'est donc pas lié à la taille du spot (voir link_all_to_focal).
+CONTOUR_MODES = ("Découpe", "Marquage (Contour)")
 # Les valeurs de LAYER_MODES sont des identifiants internes (sauvegardés dans
 # les projets, testés dans le générateur de G-Code) : elles ne changent jamais.
 # Seul leur AFFICHAGE est traduit, via ces clés.
@@ -106,12 +109,16 @@ class LayerManager:
 
     def __init__(self):
         # Gravure en première position : calque proposé par défaut pour la
-        # gravure des images (tramage / séparation couleur).
+        # gravure des images (tramage / séparation couleur). Puis la découpe,
+        # et le marquage (contour, vert).
         self.layers = [
             LaserLayer(name=tr("layers.default_name_engrave_text"), color=DEFAULT_LAYER_COLORS[2],
                        mode="Gravure Remplie", power=35, speed=2000, passes=1),
             LaserLayer(name=tr("layers.default_name_cut"), color=DEFAULT_LAYER_COLORS[0],
                        mode="Découpe", power=90, speed=250, passes=2),
+            LaserLayer(name=tr("layers.default_name_mark"), color=DEFAULT_LAYER_COLORS[1],
+                       mode="Marquage (Contour)", power=75, speed=2000, passes=1,
+                       line_interval=0.06),
         ]
 
     def add_layer(self, line_interval=None, line_interval_linked=False):
@@ -186,23 +193,20 @@ class LayerManagerWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        btn_row = QHBoxLayout()
-        btn_add = QPushButton(tr("layers.add"))
-        btn_add.clicked.connect(self.on_add)
-        btn_del = QPushButton(tr("layers.remove"))
-        btn_del.clicked.connect(self.on_remove)
-        btn_up = QPushButton(tr("layers.move_up"))
-        btn_up.setToolTip(tr("layers.move_up_tip"))
-        btn_up.clicked.connect(lambda: self.on_move(-1))
-        btn_down = QPushButton(tr("layers.move_down"))
-        btn_down.setToolTip(tr("layers.move_down_tip"))
-        btn_down.clicked.connect(lambda: self.on_move(1))
-        btn_row.addWidget(btn_add)
-        btn_row.addWidget(btn_del)
-        btn_row.addWidget(btn_up)
-        btn_row.addWidget(btn_down)
-        btn_row.addStretch()
-        layout.addLayout(btn_row)
+        # Ajouter / supprimer / monter / descendre : des actions, affichées par
+        # l'onglet Calques dans une barre flottante sur la table (LayersTab).
+        self.layer_actions = []
+        for key, tip_key, slot in (
+            ("layers.add", None, self.on_add),
+            ("layers.remove", None, self.on_remove),
+            ("layers.move_up", "layers.move_up_tip", lambda: self.on_move(-1)),
+            ("layers.move_down", "layers.move_down_tip", lambda: self.on_move(1)),
+        ):
+            action = QAction(tr(key), self)
+            if tip_key:
+                action.setToolTip(tr(tip_key))
+            action.triggered.connect(lambda _checked=False, s=slot: s())
+            self.layer_actions.append(action)
 
         self.table = QTableWidget(0, len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
@@ -375,11 +379,17 @@ class LayerManagerWidget(QWidget):
         un. Avant, seul le drapeau 'lié' était posé (icône verte) sans
         jamais recalculer line_interval : un calque encore à sa valeur par
         défaut (0.10 mm, celle de LaserLayer) restait affiché tel quel,
-        avec un lien vert trompeur ne correspondant pas à la focale réelle."""
+        avec un lien vert trompeur ne correspondant pas à la focale réelle.
+
+        Les calques de contour (Découpe, Marquage) ne sont pas liés : ils
+        gardent leur propre pas (ex. 0,06 mm pour le calque Marquage)."""
         if self.focal_getter is None:
             return
         focal = self.focal_getter()
         for layer in self.mgr.layers:
+            if layer.mode in CONTOUR_MODES:
+                layer.line_interval_linked = False
+                continue
             layer.line_interval_linked = True
             if focal and focal > 0:
                 layer.line_interval = focal

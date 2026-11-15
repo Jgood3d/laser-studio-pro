@@ -25,7 +25,7 @@ class LaserControlMixin:
             self._stop_status_poll()
             self.usb.disconnect()
             self.update_connection_widgets()
-            self.txt_console.append(tr("laser.disconnected"))
+            self.log_message(tr("laser.disconnected"))
             self._update_dro_display(None, None, None, None)
             self.has_homed_since_connect = False
         else:
@@ -40,7 +40,7 @@ class LaserControlMixin:
             port = selected.split(" - ")[0]
             if self.usb.connect(port):
                 self.update_connection_widgets()
-                self.txt_console.append(
+                self.log_message(
     tr("laser.connected").format(port=port)
 )
                 self.has_homed_since_connect = False
@@ -127,11 +127,12 @@ class LaserControlMixin:
             streamer.lines_acked.connect(self.on_lines_acked)
 
     def _update_dro_display(self, state, x, y, z):
-        """Transmet l'état et la position au DRO (DroPanel.set_status)."""
+        """Transmet l'état (cadre Connexion) et la position (sous le pilotage)
+        au panneau machine (MachinePanel.set_status)."""
         machine_panel = getattr(self, "machine_panel", None)
         if machine_panel is None:
             return
-        machine_panel.dro_panel.set_status(state, x, y, z)
+        machine_panel.set_status(state, x, y, z)
         # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
         if state is None and hasattr(self, "gcode_position_marker"):
             self.gcode_position_marker.setData([], [])
@@ -159,7 +160,7 @@ class LaserControlMixin:
             )
             return
         self.txt_grbl_settings.setPlainText("\n".join(lines))
-        self.txt_console.append(tr("ui.grbl_read_success").format(count=len(lines)))
+        self.log_message(tr("ui.grbl_read_success").format(count=len(lines)))
 
     def send_grbl_settings(self):
         """Envoie à la machine chaque ligne $N=valeur actuellement affichée
@@ -198,13 +199,13 @@ class LaserControlMixin:
             if "error" in resp.lower():
                 errors.append(f"{line}: {resp.strip()}")
         if errors:
-            self.txt_console.append(tr("ui.grbl_send_errors").format(errors="\n".join(errors)))
+            self.log_message(tr("ui.grbl_send_errors").format(errors="\n".join(errors)))
             QMessageBox.warning(
                 self, tr("ui.grbl_settings_box"),
                 tr("ui.grbl_send_partial").format(count=len(lines) - len(errors), total=len(lines)),
             )
         else:
-            self.txt_console.append(tr("ui.grbl_send_success").format(count=len(lines)))
+            self.log_message(tr("ui.grbl_send_success").format(count=len(lines)))
             QMessageBox.information(
                 self, tr("ui.grbl_settings_box"),
                 tr("ui.grbl_send_all_success").format(count=len(lines)),
@@ -256,9 +257,9 @@ class LaserControlMixin:
         self._apply_grbl_homing_setting(grbl_settings)
         value = grbl_settings.get("$32")
         if value is None:
-            self.txt_console.append(tr("laser.grbl_mode_unknown"))
+            self.log_message(tr("laser.grbl_mode_unknown"))
             return
-        self.txt_console.append(
+        self.log_message(
     tr("laser.grbl_mode_status").format(value=value)
 )
         if value != "1":
@@ -300,13 +301,13 @@ class LaserControlMixin:
             checkbox.setEnabled(not homing_off)
             checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
         if unchecked:
-            self.txt_console.append(tr("laser.grbl_homing_disabled"))
+            self.log_message(tr("laser.grbl_homing_disabled"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
             return
         self.cmd_thread = CommandThread(self.usb, commands)
-        self.cmd_thread.log_signal.connect(self.txt_console.append)
+        self.cmd_thread.log_signal.connect(self.log_message)
         self.cmd_thread.start()
 
     def jog_move(self, dx_mm, dy_mm, speed):
@@ -394,8 +395,8 @@ class LaserControlMixin:
         self._last_sent_gcode = gcode_text
         if hasattr(self, "machine_panel"):
             self.machine_panel.job_actions_panel.set_repeat_enabled(True)
-        self.tab_job_queue.clear_sent_gcode()
-        self.tab_job_queue.append_sent_gcode([tr("queue.sent_log_direct")])
+        self.machine_panel.sent_gcode_log.clear_lines()
+        self.machine_panel.sent_gcode_log.append_lines([tr("queue.sent_log_direct")])
         self._start_stream(gcode_text, self.on_stream_finished)
 
     def _start_stream(self, gcode_text, on_finished):
@@ -411,11 +412,11 @@ class LaserControlMixin:
         self._prepare_burn_overlay(gcode_text)
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self._connect_burn_overlay(self.streamer)
-        self.streamer.lines_sent.connect(self.tab_job_queue.append_sent_gcode)
+        self.streamer.lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)
         self.streamer.progress.connect(
             lambda current, total: self.machine_panel.progress_bar.setValue(
                 int((current / total) * 100) if total else 0))
-        self.streamer.log_signal.connect(self.txt_console.append)
+        self.streamer.log_signal.connect(self.log_message)
         self.streamer.status_updated.connect(self._on_status_updated)
         self.streamer.finished_signal.connect(on_finished)
         self.streamer.connection_lost.connect(self._on_job_connection_lost)
@@ -424,7 +425,7 @@ class LaserControlMixin:
     def _stream_ended(self, clean_finish):
         """Fin d'un envoi (direct ou job de la file) : repère de fin dans le
         suivi, contrôle de la position, aperçu 2D."""
-        self.tab_job_queue.mark_sent_end(clean_finish)
+        self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self._check_position_after_stream()
         if hasattr(self, "finish_burn_overlay"):
             self.finish_burn_overlay(clean_finish)
@@ -447,7 +448,7 @@ class LaserControlMixin:
         port = getattr(self.usb, "last_port", None)
         if not port:
             return
-        self.txt_console.append(tr("laser.reconnecting"))
+        self.log_message(tr("laser.reconnecting"))
         self._reconnect_thread = ReconnectThread(self.usb, port, getattr(self.usb, "last_baudrate", 115200))
         self._reconnect_thread.reconnected.connect(self._on_reconnect_result)
         self._reconnect_thread.start()
@@ -457,12 +458,12 @@ class LaserControlMixin:
         if success:
             self.has_homed_since_connect = False
             self._start_status_poll()
-            self.txt_console.append(tr("laser.reconnect_success"))
+            self.log_message(tr("laser.reconnect_success"))
             QMessageBox.warning(
                 self, tr("laser.reconnect_success_title"), tr("laser.reconnect_success_body")
             )
         else:
-            self.txt_console.append(tr("laser.reconnect_failed"))
+            self.log_message(tr("laser.reconnect_failed"))
             QMessageBox.critical(
                 self, tr("laser.reconnect_failed_title"), tr("laser.reconnect_failed_body")
             )
@@ -488,7 +489,7 @@ class LaserControlMixin:
         if not self.usb.is_connected():
             return
         self._run_commands_async("$X")
-        self.txt_console.append(tr("laser.unlock_log"))
+        self.log_message(tr("laser.unlock_log"))
 
     def _notify_job_finished(self):
         """Signal sonore de fin de job (2 bips espacés) — en plus du
@@ -504,7 +505,7 @@ class LaserControlMixin:
         streamer = getattr(self, "streamer", None)
         if streamer is not None and getattr(streamer, "position_lost", False):
             self.has_homed_since_connect = False
-            self.txt_console.append(tr("laser.position_lost_log"))
+            self.log_message(tr("laser.position_lost_log"))
 
     def on_stream_finished(self, clean_finish):
         log.info("Envoi : terminé, fin propre=%s", clean_finish)
@@ -527,11 +528,11 @@ class LaserControlMixin:
 
     def send_pause(self):
         self.usb.send_raw_byte(b'!')
-        self.txt_console.append(tr("laser.pause_log"))
+        self.log_message(tr("laser.pause_log"))
 
     def send_resume(self):
         self.usb.send_raw_byte(b'~')
-        self.txt_console.append(tr("laser.resume_log"))
+        self.log_message(tr("laser.resume_log"))
 
     def _soft_reset(self, log_key):
         """Reset logiciel GRBL (0x18), commun à RESET et KILL : arrête
@@ -548,10 +549,10 @@ class LaserControlMixin:
         if streaming:
             self.streamer.stop()
         self.usb.send_raw_byte(b'\x18')
-        self.txt_console.append(tr(log_key))
+        self.log_message(tr(log_key))
         if not was_idle:
             self.has_homed_since_connect = False
-            self.txt_console.append(tr("laser.position_lost_log"))
+            self.log_message(tr("laser.position_lost_log"))
 
     def send_reset(self):
         self._soft_reset("laser.reset_log")
@@ -586,7 +587,7 @@ class LaserControlMixin:
 
         w = self.spin_w.value()
         h = self.spin_h.value()
-        ox, oy = image_origin({'origin_pos': self.combo_origin.currentText(),
+        ox, oy = image_origin({'origin_pos': self.job_position_box.origin(),
                                'offset_x': self.spin_off_x.value(), 'offset_y': self.spin_off_y.value(),
                                'width_mm': w, 'height_mm': h})
 

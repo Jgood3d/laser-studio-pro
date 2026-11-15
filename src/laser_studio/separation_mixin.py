@@ -227,8 +227,6 @@ class SeparationMixin:
                    f"(couleur {tm.get('couleur', 0):.0f}, simulation {tm.get('simulation', 0):.0f}, "
                    f"affichage {tm.get('affichage', 0):.0f})")
             print(msg)
-            if hasattr(self, "txt_console"):
-                self.txt_console.append(msg)
             self._sep_t0 = None
 
     def separation_refresh_if_dirty(self):

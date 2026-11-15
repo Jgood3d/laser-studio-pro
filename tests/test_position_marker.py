@@ -2,6 +2,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -17,6 +18,8 @@ class PositionMarkerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
+        # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+        mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
         cls.win = main_window.FullLaserStudio()
 
     def marker_shown(self):

@@ -10,7 +10,8 @@ from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
 from laser_studio.ui.dialogs.puzzle import PuzzleGeneratorDialog
 from laser_studio.vector import puzzle_generator
-from laser_studio.vector.importers import box_to_objects, decor_to_objects, dxf_to_objects, puzzle_to_objects
+from laser_studio.vector.importers import (box_to_objects, decor_to_objects, dxf_to_objects, index_to_objects,
+                                          motif_to_objects, puzzle_to_objects)
 from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
@@ -630,7 +631,7 @@ class VectorEditingMixin:
             return
         offset = 10.0
         panels = box_to_objects(result, dialog.cut_layer_id(), offset, offset)
-        by_name = {panel.name: panel for panel, _ in panels}
+        by_name = result.face_panels()          # y compris le couvercle d'une charnière (porté par l'arrière)
         decor_objects = []
         bed_h = self.spin_machine_h.value()
         for decor in dialog.decors():
@@ -641,12 +642,14 @@ class VectorEditingMixin:
                 decor_objects += decor_to_objects(decor, panel, dialog.engrave_layer_id(), bed_h, offset, offset)
             except Exception as e:
                 QMessageBox.warning(self, tr("box.title"), tr("box.decor_error").format(error=e))
+        decor_objects += motif_to_objects(result, dialog.engrave_layer_id(), offset, offset)
+        decor_objects += index_to_objects(result, dialog.engrave_layer_id(), offset, offset)
         self.vector_canvas.push_undo_snapshot()
         new_items = [self.vector_canvas.add_object(obj) for _, obj in panels]
         new_items += [self.vector_canvas.add_object(obj) for obj in decor_objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         self.vector_canvas.request_recenter(new_items)
-        message = tr("box.done").format(count=len(panels), decor=len(decor_objects),
+        message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
         if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
@@ -683,6 +686,18 @@ class VectorEditingMixin:
         try:
             params = dialog.params()
             result = puzzle_generator.build_puzzle(params)
+        except puzzle_generator.PuzzleError as e:
+            key = f"puzzle.err.{e.code}"
+            text = tr(key)
+            if text == key:
+                text = tr("puzzle.error") + f" ({e.code})"
+            else:
+                try:
+                    text = text.format(**e.info)
+                except Exception:
+                    pass
+            QMessageBox.warning(self, tr("puzzle.title"), text)
+            return
         except Exception as e:
             QMessageBox.warning(self, tr("puzzle.error"), str(e))
             return

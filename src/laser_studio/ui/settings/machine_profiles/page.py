@@ -29,8 +29,8 @@ class MachineProfilesPage(QWidget):
         page.connect_requested.connect(laser.toggle_connection)
         page.set_connected(True)
 
-    `ports_model` : modèle de la liste des ports, partagé avec la barre
-    d'outils (même liste). Les listes restent lisibles directement
+    `ports_model` : modèle de la liste des ports, partagé avec le panneau
+    « Connexion » sous les onglets (même liste). Les listes restent lisibles directement
     (ports_combo, material_combo).
     """
 
@@ -61,7 +61,7 @@ class MachineProfilesPage(QWidget):
         self.connect_button.setStyleSheet(CONNECTED_STYLE if connected else "")
 
     def set_port_index(self, index):
-        """Sélectionne le port `index` (choisi dans la barre d'outils)."""
+        """Sélectionne le port `index` (choisi dans le panneau Connexion)."""
         self.ports_combo.setCurrentIndex(index)
 
     # -- construction

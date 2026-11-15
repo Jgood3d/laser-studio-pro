@@ -1,4 +1,4 @@
-"""Suivi du G-Code envoyé au graveur (onglet « File d'attente »)."""
+"""Suivi du G-Code envoyé au graveur (panneau machine, à gauche)."""
 
 from PyQt6.QtWidgets import QGroupBox, QPlainTextEdit, QVBoxLayout
 

@@ -10,6 +10,7 @@ from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
+from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
 
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
@@ -241,7 +242,7 @@ class GcodeGenerationMixin:
             image_item.setAutoDownsample(True)
             self.plot_widget.addItem(image_item)
         except Exception as e:
-            self.txt_console.append(f"; Aperçu image raster indisponible : {e}")
+            self.log_message(f"; Aperçu image raster indisponible : {e}")
 
     def _format_duration(self, seconds):
         seconds = max(0, int(seconds))
@@ -374,12 +375,14 @@ class GcodeGenerationMixin:
 
         self.txt_console.setPlainText(gcode_text)
         num_lines = len([l for l in gcode_text.split('\n') if l.strip()])
-        self.tab_console_gcode.set_stats(tr("gen.stat_lines").format(n=num_lines),
-                                         tr("gen.stat_power_imported"),
-                                         tr("gen.stat_time_imported"))
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                                     tr("gen.stat_power_imported"),
+                                                     tr("gen.stat_time_imported"))
         self.plot_gcode_preview(gcode_text)
+        # « Fichier > Enregistrer le G-Code » : le G-Code importé peut être réenregistré.
+        self.app_actions.set_gcode_export_enabled(True)
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
-        self.txt_console.append(
+        self.log_message(
     tr("gcode.imported_from").format(path=path)
 )
 
@@ -395,7 +398,7 @@ class GcodeGenerationMixin:
         return {
             'width_mm': self.spin_w.value(),
             'height_mm': self.spin_h.value(),
-            'origin_pos': self.combo_origin.currentText(),
+            'origin_pos': self.job_position_box.origin(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
@@ -429,7 +432,7 @@ class GcodeGenerationMixin:
         else:
             overscan = 0.0
         params = {
-            'origin_pos': self.combo_origin.currentText(),
+            'origin_pos': self.job_position_box.origin(),
             'offset_x': self.spin_off_x.value(),
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
@@ -475,7 +478,7 @@ class GcodeGenerationMixin:
             import traceback
             error_text = f"{e}\n\n{traceback.format_exc()}"
             self.statusBar().hide_progress()
-            self.txt_console.append(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
+            self.log_message(f"\n; ERREUR AVANT GÉNÉRATION :\n; {error_text}")
             QMessageBox.critical(self, tr("laser.error"), tr("gen.start_failed").format(error=error_text))
 
     def _generate_job_impl(self):
@@ -583,7 +586,7 @@ class GcodeGenerationMixin:
                 if layer["mode"] != "Gravure Remplie" or not data["polygons"]:
                     continue
                 min_x = min(p[0] for poly in data["polygons"] for p in poly)
-                base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == "Centre" else params['offset_x']
+                base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == ORIGIN_CENTER else params['offset_x']
                 if base_x + min_x - vec_overscan_check < 0:
                     QMessageBox.critical(
                         self, tr("gen.overscan_vec_title"),
@@ -626,7 +629,7 @@ class GcodeGenerationMixin:
 
     def on_gcode_generation_error(self, error_text):
         self.statusBar().hide_progress()
-        self.txt_console.append(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
+        self.log_message(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
     def on_gcode_generation_progress(self, pct):
@@ -714,11 +717,11 @@ class GcodeGenerationMixin:
             if mode == "Gravure":
                 power_val = round(float(col_values[col]))
                 self.set_engrave_settings(speed_val, power_val)
-                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
+                self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
             else:
                 passes_val = int(col_values[col])
                 self.set_cut_settings(speed_val, round(params.get('single_power', self.cut_power)), passes_val)
-                self.txt_console.append(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
+                self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {passes_val} passe(s) (découpe)")
         except Exception:
             pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
 
@@ -726,9 +729,11 @@ class GcodeGenerationMixin:
         self.statusBar().show_progress(100, tr("gen.done"))
         self.statusBar().hide_progress(delay_ms=1500)
         self.txt_console.setPlainText(gcode_str)
-        self.tab_console_gcode.set_stats(tr("gen.stat_lines").format(n=num_lines),
-                                         tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
-                                         tr("gen.stat_time").format(value=time_str))
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                                     tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
+                                                     tr("gen.stat_time").format(value=time_str))
+        # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
+        self.app_actions.set_gcode_export_enabled(True)
         self.plot_gcode_preview(gcode_str)
         
         self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
@@ -838,7 +843,7 @@ class GcodeGenerationMixin:
             # (notamment un fichier importé d'un autre outil) contient une
             # ligne inattendue qui fait planter l'analyse, on le signale
             # clairement dans la console plutôt que d'afficher un graphique vide.
-            self.txt_console.append(f"\n; ERREUR aperçu 2D : {e}")
+            self.log_message(f"\n; ERREUR aperçu 2D : {e}")
             QMessageBox.warning(self, tr("gen.preview_error_title"),
                                  tr("gen.preview_error_body").format(error=e))
 
