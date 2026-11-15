@@ -1519,10 +1519,10 @@ TRANSLATIONS = {
         "es": "Perfiles de materiales",
     },
     "material.select": {
-        "fr": "Sélection Profil:",
-        "en": "Select Profile:",
-        "de": "Profil auswählen:",
-        "es": "Seleccionar perfil:",
+        "fr": "Profil matériau :",
+        "en": "Material profile:",
+        "de": "Materialprofil:",
+        "es": "Perfil de material:",
     },
     "material.save": {
         "fr": "Sauvegarder les modifications",
