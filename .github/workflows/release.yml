@@ -78,7 +78,11 @@ jobs:
 
       # L'application doit démarrer et rester ouverte : `timeout` l'arrête au
       # bout de 30 s (code 124). Tout autre code = plantage au démarrage.
+      # NOWARNING : pas d'avertissement de sécurité modal, la fenêtre
+      # principale se charge vraiment.
       - name: Vérifier que l'AppImage démarre
+        env:
+          NOWARNING: "1"
         run: |
           set +e
           xvfb-run -a timeout 30 "dist/LaserStudioPro-$VERSION-x86_64.AppImage" --appimage-extract-and-run
