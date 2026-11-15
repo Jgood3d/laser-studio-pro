@@ -112,5 +112,19 @@ class MainWiringTests(unittest.TestCase):
         self.assertLess(block.index("sys.exit(0)"), block.index("safety.record(hide)"))   # Annuler : rien d'enregistré
 
 
+class LaunchConfirmationTests(unittest.TestCase):
+    def test_launch_confirmation_starts_with_the_safety_warning(self):
+        try:
+            from laser_studio.laser_control_mixin import LaserControlMixin
+            from laser_studio.i18n import tr
+        except ImportError:
+            self.skipTest("laser_control_mixin non importable ici")
+        text = LaserControlMixin._launch_confirmation_text()
+        self.assertTrue(text.startswith(tr("startup.safety.body") + "\n" + tr("startup.safety.detail")))
+        self.assertTrue(text.endswith(tr("laser.confirm_body")))    # vérifications et question à la fin
+        with open(os.path.join(REPO, "src", "laser_studio", "laser_control_mixin.py"), encoding="utf-8") as f:
+            self.assertIn('tr("laser.confirm_title"),\n    self._launch_confirmation_text(),', f.read())
+
+
 if __name__ == "__main__":
     unittest.main()
