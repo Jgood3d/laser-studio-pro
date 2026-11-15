@@ -255,7 +255,14 @@ class LayerManagerWidget(QWidget):
 
         self.table = QTableWidget(0, len(self.COLUMNS))
         self.table.setHorizontalHeaderLabels(self.COLUMNS)
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        # Chaque cellule contient un composant (setCellWidget) : sans réglage, les colonnes
+        # gardent la largeur par défaut de Qt (100 px), plus étroite que leur contenu (en-têtes
+        # coupés, champs qui débordent sur la colonne voisine). Chaque colonne prend donc la
+        # largeur de son contenu, en-tête compris ; le nom prend la place restante.
+        header = self.table.horizontalHeader()
+        for col in range(len(self.COLUMNS)):
+            header.setSectionResizeMode(
+                col, QHeaderView.ResizeMode.Stretch if col == 1 else QHeaderView.ResizeMode.ResizeToContents)
         self.table.verticalHeader().setVisible(False)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         layout.addWidget(self.table)
@@ -280,7 +287,7 @@ class LayerManagerWidget(QWidget):
         btn_color.setStyleSheet(f"background-color:{layer.color}; border:1px solid #222;")
         btn_color.setFixedSize(28, 22)
         btn_color.clicked.connect(lambda _, l=layer, b=btn_color: self._pick_color(l, b))
-        self.table.setCellWidget(row, 0, btn_color)
+        self.table.setCellWidget(row, 0, self._centered(btn_color))
 
         name_edit = QLineEdit(layer.name)
         if self.mgr.is_base_layer(layer):
@@ -343,10 +350,19 @@ class LayerManagerWidget(QWidget):
 
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, l=layer: self._set(l, "enabled", bool(v)))
-        self.table.setCellWidget(row, 7, chk_enabled)
+        self.table.setCellWidget(row, 7, self._centered(chk_enabled))
 
         self.table.setRowHeight(row, 30)
         self.table.setProperty(f"row_layer_{row}", layer.id)
+
+    @staticmethod
+    def _centered(widget):
+        """Cellule qui centre `widget` (pastille de couleur, case « Actif »)."""
+        cell = QWidget()
+        layout = QHBoxLayout(cell)
+        layout.setContentsMargins(4, 0, 4, 0)
+        layout.addWidget(widget, 0, Qt.AlignmentFlag.AlignCenter)
+        return cell
 
     def _pick_color(self, layer, button):
         color = QColorDialog.getColor(QColor(layer.color), self, tr("layers.color_dialog_title"))

@@ -106,6 +106,27 @@ class BaseLayersTests(unittest.TestCase):
 
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+class LayerTableColumnsTests(unittest.TestCase):
+    """Colonnes du tableau des calques assez larges pour leur contenu (bug : largeur par défaut
+    de 100 px, en-têtes coupés et champs qui débordaient sur la colonne voisine)."""
+
+    def test_every_column_fits_its_header_and_widgets(self):
+        app = QApplication.instance() or QApplication([])
+        from laser_studio.vector_layers import LayerManagerWidget
+        widget = LayerManagerWidget(LayerManager(), focal_getter=lambda: 0.1)
+        self.addCleanup(widget.deleteLater)
+        widget.resize(1500, 300)
+        widget.show()
+        app.processEvents()
+        table, header = widget.table, widget.table.horizontalHeader()
+        for col in range(table.columnCount()):
+            title = table.horizontalHeaderItem(col).text()
+            need = max([header.fontMetrics().horizontalAdvance(title)] +
+                       [table.cellWidget(r, col).sizeHint().width() for r in range(table.rowCount())])
+            self.assertGreaterEqual(table.columnWidth(col), need, title)
+
+
+@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
 class MaterialCompletionTests(unittest.TestCase):
     def test_old_material_gets_the_three_base_entries(self):
         from laser_studio.controllers.materials import complete_material
