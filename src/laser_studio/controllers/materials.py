@@ -5,7 +5,15 @@ import json
 
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
+from laser_studio.controllers.layer_memory import coerce_layer_settings
 from laser_studio.i18n import tr
+
+# Réglages d'un calque qui dépendent du matériau (et non de la structure du
+# job : le mode, le nom et l'activation des calques ne changent pas avec la
+# matière).
+MATERIAL_LAYER_KEYS = ("power", "speed", "passes", "line_interval", "line_interval_linked")
+ENGRAVE_MODE = "Gravure Remplie"
+CUT_MODE = "Découpe"
 
 # Base de matériaux utilisée (1) au tout premier lancement de l'application,
 # avant tout profil machine, et (2) comme repli pour un ancien profil machine
@@ -62,22 +70,69 @@ DEFAULT_MATERIALS_DB = {
 DEFAULT_MATERIAL = "Personnalisé"
 
 
+def capture_material_layers(layer_manager):
+    """Réglages de chaque calque à mémoriser dans un matériau (clé "layers"),
+    avec l'identifiant et le nom du calque pour le retrouver."""
+    return [
+        {"id": layer.id, "name": layer.name,
+         **{key: getattr(layer, key) for key in MATERIAL_LAYER_KEYS}}
+        for layer in layer_manager.layers
+    ]
+
+
+def apply_material_to_layers(layer_manager, material):
+    """Applique un matériau au tableau des calques. Renvoie True si un calque
+    a changé.
+
+    Matériau avec "layers" : chaque calque reprend les réglages enregistrés
+    pour lui, retrouvé par identifiant puis, à défaut, par position (matériau
+    enregistré avec d'autres calques). Seuls les réglages de MATERIAL_LAYER_KEYS
+    sont repris ; aucun calque n'est ajouté ni supprimé.
+
+    Ancien matériau (sp_e / pw_e / sp_c / pw_c / pass_c seulement) : la gravure
+    va aux calques « Gravure Remplie », la découpe aux calques « Découpe »
+    (sauf 0 passe : matière qu'on ne découpe pas).
+    """
+    layers = layer_manager.layers
+    saved = [d for d in material.get("layers") or [] if isinstance(d, dict)]
+    if saved:
+        by_id = {d.get("id"): d for d in saved}
+        changed = False
+        for i, layer in enumerate(layers):
+            d = by_id.get(layer.id) or (saved[i] if i < len(saved) else None)
+            if d:
+                coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
+                changed = True
+        return changed
+    changed = False
+    for layer in layers:
+        if layer.mode == ENGRAVE_MODE and "sp_e" in material and "pw_e" in material:
+            coerce_layer_settings(layer, {"speed": material["sp_e"], "power": material["pw_e"]})
+            changed = True
+        elif layer.mode == CUT_MODE and int(material.get("pass_c", 0) or 0) > 0:
+            coerce_layer_settings(layer, {"speed": material.get("sp_c"), "power": material.get("pw_c"),
+                                          "passes": material["pass_c"]})
+            changed = True
+    return changed
+
+
 class MaterialsController:
     """Liste des matériaux (`materials` : nom -> réglages) et ses actions :
     appliquer, enregistrer, créer, supprimer, exporter, importer.
 
-    Un matériau garde ses réglages sous les clés sp_e / pw_e (gravure :
-    vitesse, puissance), sp_c / pw_c / pass_c (découpe : vitesse,
+    Un matériau garde les réglages de chaque calque (clé "layers", voir
+    capture_material_layers), et sous les clés sp_e / pw_e (gravure image :
+    vitesse, puissance), sp_c / pw_c / pass_c (ancienne découpe SVG : vitesse,
     puissance, passes).
 
         materials = MaterialsController(
             self, page.material_combo, dict(DEFAULT_MATERIALS_DB),
             current_settings=..., apply_settings=...,
         )
-        page.material_selected.connect(materials.apply_selected)
+        layers_tab.material_selected.connect(materials.apply_selected)
 
-    `combo` : la liste déroulante des matériaux (page Matériaux et
-    connexion). `current_settings()` : réglages en cours, au format d'un
+    `combo` : la liste déroulante des matériaux (barre d'outils de l'onglet
+    Calques). `current_settings()` : réglages en cours, au format d'un
     matériau. `apply_settings(material)` : les applique.
     """
 

@@ -9,6 +9,7 @@ Utilisation :
     panel.set_connected(True)
 """
 
+from laser_studio.ui.machine.connection.help_dialog import port_help_dialog
 from laser_studio.ui.machine.connection.panel import ConnectionPanel
 
-__all__ = ["ConnectionPanel"]
+__all__ = ["ConnectionPanel", "port_help_dialog"]

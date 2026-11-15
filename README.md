@@ -115,7 +115,6 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/machine/job_actions/` — panneau `JobActionsPanel` : cadrage, zéro, aller au zéro, répétition (émet des signaux ; accueillera les macros)
 - `ui/machine/console/` — console directe `DirectConsolePanel` (sans cadre, dans le panneau Connexion) : commande GRBL tapée à la main, historique (émet `command_submitted`)
 - `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
-- `ui/settings/machine_profiles/` — page « Matériaux et connexion au graveur » `MachineProfilesPage` : port, connexion, matériaux (émet `connect_requested`…, reçoit `set_connected`)
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…) ; le cadre « Réglages GRBL complets » est `GrblSettingsBox`
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`) ; le cadre « Test à partir d’une image » est `ImageTestGroup`
 - `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
@@ -126,7 +125,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique où la génération dessine le G-Code, point de position de la tête, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite une colonne étroite : `JobPositionBox`, puis `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code généré ou importé (les messages vont dans la barre d’état) ; affiché ou masqué par le menu Affichage ou sa croix (`TabCloseButton`), choix mémorisé
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (affiché ou masqué par le menu Affichage, le bouton de la barre d’outils ou sa croix, choix mémorisé) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
-- `ui/tabs/layers/` — onglet « Calques » `LayersTab` : enveloppe la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`) et relaie `layers_changed`
+- `ui/tabs/layers/` — onglet « Calques » `LayersTab` : barre des profils matériaux (liste, enregistrer, nouveau, supprimer, exporter, importer ; un matériau mémorise les réglages des calques, voir `controllers/materials.py`), puis la liste des calques (`LayerManagerWidget`, encore dans `vector_layers.py`), dont il relaie `layers_changed`
 - `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `vector_editing_mixin.py` — éditeur vectoriel et SVG
 - `gcode_generation_mixin.py` — génération, aperçu et export G-Code
@@ -136,7 +135,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
 - `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)
-- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
+- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Configuration GRBL » et « Matrice de test » ouvertes depuis les menus
 
 ### Signaux des pages et des panneaux
 
@@ -149,7 +148,6 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | Page | Signaux émis | État reçu / lu |
 | --- | --- | --- |
 | `MachineParamsPage` — Paramètres du graveur | `profile_selected(int)`, `new_profile_requested`, `update_profile_requested`, `delete_profile_requested`, `bed_size_changed(largeur_mm, profondeur_mm)`, `focal_changed(spot_mm)`, `max_speed_changed(mm_min)` | champs `profile_combo`, `bed_width_spin`, `bed_height_spin`, `focal_spin`, `max_speed_spin`, `accel_spin` |
-| `MachineProfilesPage` — Matériaux et connexion au graveur | `port_selected(int)`, `refresh_ports_requested`, `connect_requested`, `material_selected(int)`, `save_material_requested`, `new_material_requested`, `delete_material_requested`, `export_materials_requested`, `import_materials_requested` | `set_connected(bool)`, `set_port_index(int)` |
 | `TestMatrixPage` — Matrice de test | `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled(bool)` | `set_lines_mm()`, `set_source_image()`, `set_image_test_checked()` ; fournit `matrix_params()`, `tile_settings()`, `is_engraving()`, `image_test_enabled()` |
 | `GrblConfigPage` — Configuration GRBL | `bidir_test_requested`, `scan_offset_changed(mm)`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | champs `laser_cmd_combo`, `smax_spin`, `homing_check`, `overscan_check`, `overscan_mode_combo`, `scan_offset_spin`, `grbl_settings_edit`… |
 
@@ -373,10 +371,6 @@ Images produites par `tools/screenshots.py` (avec une image d’exemple chargée
 **Paramètres du graveur :**
 
 ![Paramètres du graveur](docs/screenshots/10-page-parametres-du-graveur.png)
-
-**Matériaux et connexion au graveur :**
-
-![Matériaux et connexion au graveur](docs/screenshots/11-page-materiaux-et-connexion-au-graveur.png)
 
 **Configuration GRBL :**
 

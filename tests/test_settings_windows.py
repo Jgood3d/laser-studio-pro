@@ -127,7 +127,7 @@ class AppMenusTests(unittest.TestCase):
     def test_settings_and_tools_entries_are_in_their_menu(self):
         tr = self.tr
         settings = self.texts(self.menu_bar.settings_menu)
-        self.assertEqual(settings, [tr("tab.machine_params"), tr("tab.machine_profiles"), tr("tab.grbl_config"),
+        self.assertEqual(settings, [tr("tab.machine_params"), tr("tab.grbl_config"),
                                     tr("menu.language"), tr("menu.theme")])
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
                          [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
@@ -138,7 +138,7 @@ class AppMenusTests(unittest.TestCase):
         # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
         a = self.actions
         in_toolbar = set(self.toolbar.actions())
-        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window, a.machine_window,
+        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window,
                        a.grbl_window, *a.tool_actions, *a.vector_tool_actions):
             self.assertIn(action, in_toolbar, action.text())
         # Le menu Outils, sans séparateur, est repris en entier dans la barre.
@@ -188,7 +188,7 @@ class AppMenusTests(unittest.TestCase):
                 (a.save_project, a.save_project_requested, ()),
                 (a.open_project, a.open_project_requested, ()),
                 (a.quit, a.quit_requested, ()),
-                (a.machine_window, a.settings_window_requested, ("machine",)),
+                (a.grbl_window, a.settings_window_requested, ("grbl",)),
                 (a.test_matrix_window, a.settings_window_requested, ("test_matrix",)),
                 (a.separation_tab, a.main_tab_requested, ("tab_separation",)),
                 (a.language_actions["en"], a.language_selected, ("en",)),
@@ -230,7 +230,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
         self.assertIn("settings.undo_requested.connect(self.undo_image_settings)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
-        self.assertIn("MachineProfilesPage(QStandardItemModel(self), materials.keys())", src)
+        self.assertNotIn("MachineProfilesPage", src)            # fenêtre Matériaux et connexion supprimée
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
@@ -324,7 +324,6 @@ class MenuStructureTests(unittest.TestCase):
         src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
-        self.assertIn("self.tab_machine_profiles = page", src)
         self.assertIn("self.tab_grbl_config = page", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
@@ -370,7 +369,7 @@ class ShowWindowTests(unittest.TestCase):
                    {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
         obj = cls.__new__(cls)
         if with_pages:
-            obj.tab_machine_profiles = object()
+            obj.tab_machine_params = object()
             obj.tab_grbl_config = object()
         return obj
 
@@ -389,26 +388,26 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make()
         with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
-            obj.show_settings_window("machine")
-            obj.show_settings_window("machine")
+            obj.show_settings_window("machine_params")
+            obj.show_settings_window("machine_params")
             obj.show_settings_window("grbl")
         self.assertEqual(len(self.Recorder.created), 2)
         machine, grbl = self.Recorder.created
         self.assertEqual(machine.fronted, 2)
         self.assertEqual(grbl.fronted, 1)
-        self.assertIs(machine.args[1], obj.tab_machine_profiles)
+        self.assertIs(machine.args[1], obj.tab_machine_params)
         self.assertIs(grbl.args[1], obj.tab_grbl_config)
-        self.assertEqual((machine.args[2], grbl.args[2]), ("machine", "grbl"))
+        self.assertEqual((machine.args[2], grbl.args[2]), ("machine_params", "grbl"))
 
-    def test_all_four_menu_windows_are_wired_to_their_pages(self):
+    def test_all_three_menu_windows_are_wired_to_their_pages(self):
         self.Recorder.created = []
         obj = self.make()
         obj.tab_machine_params, obj.tab_matrix = object(), object()
         with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
-            for kind in ("machine_params", "machine", "grbl", "test_matrix"):
+            for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
         pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
-        self.assertEqual(sorted(pages), ["grbl", "machine", "machine_params", "test_matrix"])
+        self.assertEqual(sorted(pages), ["grbl", "machine_params", "test_matrix"])
         self.assertIs(pages["machine_params"], obj.tab_machine_params)
         self.assertIs(pages["test_matrix"], obj.tab_matrix)
 
@@ -457,11 +456,10 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
-        obj.tab_machine_profiles, obj.machine_panel = mock.Mock(), mock.Mock()
+        obj.machine_panel = mock.Mock()
         for connected in (False, True):
             obj.usb = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
-            obj.tab_machine_profiles.set_connected.assert_called_with(connected)
             obj.machine_panel.set_connected.assert_called_with(connected)
 
     def test_dithering_algorithm_is_remembered(self):
@@ -577,7 +575,7 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make(with_pages=False)
         with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
-            obj.show_settings_window("machine")
+            obj.show_settings_window("grbl")
         self.assertEqual(self.Recorder.created, [])
 
 

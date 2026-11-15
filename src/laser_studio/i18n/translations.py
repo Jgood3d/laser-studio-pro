@@ -151,10 +151,6 @@ TRANSLATIONS = {
         "fr": "Paramètres du graveur", "en": "Engraver Settings",
         "de": "Gravierer-Einstellungen", "es": "Ajustes del grabador",
     },
-    "tab.machine_profiles": {
-        "fr": "Matériaux et connexion au graveur", "en": "Materials and Engraver Connection",
-        "de": "Materialien und Verbindung zum Gravierer", "es": "Materiales y conexión al grabador",
-    },
     "tab.test_matrix": {
         "fr": "Matrice de Test", "en": "Test Matrix",
         "de": "Testmatrix", "es": "Matriz de prueba",
@@ -1497,12 +1493,6 @@ TRANSLATIONS = {
         "es": "Desplazamiento Y (mm):",
     },
 
-    "usb.box_title": {
-        "fr": "Connexion USB Laser",
-        "en": "Laser USB Connection",
-        "de": "USB-Laserverbindung",
-        "es": "Conexión USB del láser",
-    },
     "usb.simulated_port": {
         "fr": "Graveur simulé (LASER_STUDIO_SIMULATION)",
         "en": "Simulated engraver (LASER_STUDIO_SIMULATION)",
@@ -1514,12 +1504,6 @@ TRANSLATIONS = {
         "en": "Refresh Ports",
         "de": "Ports aktualisieren",
         "es": "Actualizar puertos",
-    },
-    "usb.connect": {
-        "fr": "Connecter GRBL",
-        "en": "Connect GRBL",
-        "de": "GRBL verbinden",
-        "es": "Conectar GRBL",
     },
     "usb.port": {
         "fr": "Port COM:",
@@ -4179,6 +4163,10 @@ TRANSLATIONS = {
         "en": "{label} ({n} segments)",
         "de": "{label} ({n} Segmente)",
         "es": "{label} ({n} segmentos)",
+    },
+    "usb.help_title": {
+        "fr": "Port introuvable ?", "en": "Port not showing up?",
+        "de": "Port nicht gefunden?", "es": "¿No aparece el puerto?",
     },
     "usb.driver_hint": {
         "fr": "Port introuvable ? Installe le driver USB de ton contrôleur (le plus courant : CH340) : <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Sous Linux, aucun driver à installer, mais ton utilisateur doit être dans le groupe « dialout ».",

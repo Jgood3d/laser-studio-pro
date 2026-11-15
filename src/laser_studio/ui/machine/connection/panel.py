@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import (
 from laser_studio.i18n import tr
 from laser_studio.ui.machine.console import DirectConsolePanel
 from laser_studio.ui.machine.status import MachineStateView
+from laser_studio.ui.utils import palette_icon
 
 CONNECTED_COLOR = "#27ae60"
 DISCONNECTED_COLOR = "#e74c3c"
@@ -45,18 +46,20 @@ class ConnectionPanel(QGroupBox):
 
         panel = ConnectionPanel(ports_model)
         panel.refresh_requested.connect(laser.refresh_com_ports)
+        panel.help_requested.connect(show_port_help)
         panel.connect_requested.connect(laser.toggle_connection)
         panel.unlock_requested.connect(laser.unlock_alarm)
         panel.command_submitted.connect(laser.send_console_command)
         panel.set_connected(False)
         panel.set_state("Idle")
 
-    `ports_model` : modèle de la liste des ports (ports_combo), partagé
-    avec la page « Matériaux et connexion au graveur » : la fenêtre
-    remplit l'une, les deux affichent les mêmes ports.
+    `ports_model` : modèle de la liste des ports (ports_combo), rempli par
+    la fenêtre. Le bouton « ? » à côté demande l'aide « Port introuvable ? »
+    (help_requested ; voir help_dialog.port_help_dialog).
     """
 
     refresh_requested = pyqtSignal()
+    help_requested = pyqtSignal()
     connect_requested = pyqtSignal()
     unlock_requested = pyqtSignal()
     command_submitted = pyqtSignal(str)  # commande GRBL tapée à la main
@@ -75,6 +78,8 @@ class ConnectionPanel(QGroupBox):
         ports_row = QHBoxLayout()
         ports_row.addWidget(self.ports_combo, 1)
         ports_row.addWidget(self.refresh_button)
+        self.help_button = self._help_button()
+        ports_row.addWidget(self.help_button)
         layout = QVBoxLayout(self)
         layout.addLayout(ports_row)
         layout.addWidget(self.connect_button)
@@ -130,4 +135,15 @@ class ConnectionPanel(QGroupBox):
         button = QPushButton(icon, "")
         button.setToolTip(tr("usb.refresh_ports"))
         button.clicked.connect(self.refresh_requested)
+        return button
+
+    def _help_button(self):
+        """Bouton « ? » : aide si le port du graveur n'apparaît pas."""
+        icon = palette_icon(
+            "help-contextual", self.palette(),
+            self.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxQuestion),
+        )
+        button = QPushButton(icon, "")
+        button.setToolTip(tr("usb.help_title"))
+        button.clicked.connect(self.help_requested)
         return button

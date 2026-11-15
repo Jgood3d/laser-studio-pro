@@ -59,7 +59,7 @@ class AppActions(QObject):
     # Enregistrement du G-Code possible ou non (sous-menu du menu Fichier)
     gcode_export_enabled_changed = pyqtSignal(bool)
     quit_requested = pyqtSignal()
-    # Paramètres et outils : "machine_params", "machine", "grbl",
+    # Paramètres et outils : "machine_params", "grbl",
     # "test_matrix"
     settings_window_requested = pyqtSignal(str)
     language_selected = pyqtSignal(str)  # code de langue : "fr", "en"…
@@ -228,14 +228,6 @@ class AppActions(QObject):
             tr("tab.machine_params"),
             self.settings_window_requested,
             "machine_params",
-        )
-        self.machine_window = self._action(
-            standard_icon(
-                "network-wired", QStyle.StandardPixmap.SP_DriveNetIcon
-            ),
-            tr("tab.machine_profiles"),
-            self.settings_window_requested,
-            "machine",
         )
         self.grbl_window = self._action(
             standard_icon(

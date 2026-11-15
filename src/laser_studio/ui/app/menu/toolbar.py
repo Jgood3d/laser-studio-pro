@@ -34,7 +34,6 @@ class AppToolBar(QToolBar):
         self.addAction(actions.open_project)
         self.addSeparator()
         self.addAction(actions.machine_params_window)
-        self.addAction(actions.machine_window)
         self.addAction(actions.grbl_window)
         self.addSeparator()
         # Toutes les entrées du menu Outils.
