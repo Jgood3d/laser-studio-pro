@@ -157,13 +157,13 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 
 | Onglet | Signaux émis | État reçu / lu |
 | --- | --- | --- |
-| `TabToolBar` — barre d’outils d’un onglet | `fullscreen_requested` | `fullscreen_action` (bouton masqué en plein écran) |
-| `ImageTab` — Graver une image | `compare_requested`, `fullscreen_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` |
+| `TabToolBar` — barre d’outils d’un onglet (« Graver une image ») | (ceux de ses actions) | — ; le plein écran, commun à tous les onglets, est dans la barre principale (`AppActions.fullscreen`, F11) |
+| `ImageTab` — Graver une image | `compare_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` |
 | `ImageSettingsPanel` — réglages de « Graver une image » | `load_requested`, `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
-| `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed`, `fullscreen_requested` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
+| `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
-| `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
-| `ConsoleTab` — Console / G-Code | `export_requested(extension)`, `fullscreen_requested` | `set_stats(lignes, puissance, temps)`, `console_edit` |
+| `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
+| `ConsoleTab` — Console / G-Code | (aucun) | `console_edit` |
 | `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()` |
 
 **Panneau machine** (sous les onglets, `ui/machine/`) :

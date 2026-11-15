@@ -97,6 +97,7 @@ class WindowControllerMixin:
             lambda: self._run_in_vector_editor(self.open_puzzle_generator)
         )
         # Affichage
+        actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
         actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide

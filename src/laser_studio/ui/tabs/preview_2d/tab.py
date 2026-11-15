@@ -6,7 +6,10 @@ from PyQt6.QtWidgets import QCheckBox, QSplitter, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
-from laser_studio.ui.widgets import FloatingToolBar, TabToolBar
+from laser_studio.ui.widgets import FloatingToolBar
+
+# Écart entre la poignée du séparateur et les cadres de la colonne de droite.
+SIDE_PANEL_LEFT_MARGIN = 6
 
 
 class Preview2DTab(QWidget):
@@ -38,7 +41,6 @@ class Preview2DTab(QWidget):
     display_options_changed = pyqtSignal()
     # Clic sur l'aperçu, en mm dans le repère du lit.
     plot_clicked = pyqtSignal(float, float)
-    fullscreen_requested = pyqtSignal()
 
     def __init__(self, job_position_box, parent=None):
         super().__init__(parent)
@@ -55,7 +57,7 @@ class Preview2DTab(QWidget):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setSizes([100000, 1])
         layout = QVBoxLayout(self)
-        layout.addWidget(self._toolbar())
+        self._create_options()
         layout.addWidget(self.splitter)
         # Options de l'aperçu : barre flottante sous le titre du graphique.
         self.options_toolbar = FloatingToolBar(
@@ -76,15 +78,16 @@ class Preview2DTab(QWidget):
         """Position du job sur le plateau, puis statistiques du job."""
         panel = QWidget()
         layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
+        # Marge à gauche : les cadres ne touchent pas la poignée du séparateur.
+        layout.setContentsMargins(SIDE_PANEL_LEFT_MARGIN, 0, 0, 0)
         layout.addWidget(self.job_position_box)
         layout.addWidget(self.job_stats_panel)
         layout.addStretch()
         return panel
 
-    def _toolbar(self):
-        """Barre d'outils : le plein écran. Les options de l'aperçu, créées
-        ici, vont dans la barre flottante (options_toolbar)."""
+    def _create_options(self):
+        """Options de l'aperçu, affichées dans la barre flottante
+        (options_toolbar)."""
         self.flip_check = self._option(
             "preview.flip", "preview.flip_tip", checked=False
         )
@@ -103,10 +106,6 @@ class Preview2DTab(QWidget):
         self.optimize_path_check = self._option(
             "ui.optimize_path", "ui.optimize_path_tip"
         )
-        toolbar = TabToolBar(self)
-        toolbar.fullscreen_requested.connect(self.fullscreen_requested)
-        self._fullscreen_control = toolbar.fullscreen_action
-        return toolbar
 
     @staticmethod
     def _option(key, tip_key, checked=True):

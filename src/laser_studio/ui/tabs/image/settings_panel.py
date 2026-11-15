@@ -63,7 +63,6 @@ class ImageSettingsPanel(QWidget):
     lines_per_mm_changed = pyqtSignal(float)
     dpi_changed = pyqtSignal(float)
     configure_focal_requested = pyqtSignal()
-    save_as_focal_requested = pyqtSignal()
     undo_requested = pyqtSignal()
     redo_requested = pyqtSignal()
 
@@ -157,7 +156,6 @@ class ImageSettingsPanel(QWidget):
         box.mode_changed.connect(self.resolution_mode_changed)
         box.dpi_changed.connect(self.dpi_changed)
         box.configure_focal_requested.connect(self.configure_focal_requested)
-        box.save_as_focal_requested.connect(self.save_as_focal_requested)
         self.resolution_box = box
         self.lines_per_mm_spin = box.lines_per_mm_spin
         self.resolution_mode_combo = box.mode_combo

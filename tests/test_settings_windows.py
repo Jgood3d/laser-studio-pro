@@ -74,6 +74,21 @@ class AppMenusTests(unittest.TestCase):
         a.gcode_console.trigger()
         self.assertEqual(received, [(True,), (False,)])
 
+    def test_fullscreen_sits_just_before_kofi(self):
+        from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
+        entries = self.toolbar.actions()
+        index = entries.index(self.actions.fullscreen)
+        self.assertIsInstance(self.toolbar.widgetForAction(entries[index + 1]), BuyMeACoffeeButton)
+        self.assertEqual(self.actions.fullscreen.shortcut().toString(), "F11")
+        received = self.record(self.actions.fullscreen_requested)
+        self.actions.fullscreen.trigger()
+        self.assertEqual(received, [()])
+
+    def test_tool_icons_come_from_the_bundled_pack(self):
+        a = self.actions
+        for action in (*a.tool_actions, *a.vector_tool_actions, a.fullscreen):
+            self.assertFalse(action.icon().isNull(), action.text())
+
     def test_file_menu_order(self):
         tr, fm = self.tr, self.menu_bar.file_menu
         self.assertEqual(self.texts(fm), [tr("menu.file.save_project"), tr("menu.file.open_project"),
@@ -227,36 +242,29 @@ class MenuStructureTests(unittest.TestCase):
     def test_tab_toolbars_share_one_builder(self):
         src = ui_source()
         builder = read(os.path.join("ui", "widgets", "tab_toolbar.py"))
-        order = [builder.index(k) for k in ("left_actions:", "self._spacer()",
-                                            "right_widgets:", 'tr("ui.vector_fullscreen")')]
-        self.assertEqual(order, sorted(order))             # actions à gauche, plein écran à droite
+        order = [builder.index(k) for k in ("left_actions:", "self._spacer()", "right_widgets:")]
+        self.assertEqual(order, sorted(order))             # actions à gauche, widgets à droite
+        for name in ("fullscreen_action", "fullscreen_requested"):      # plus de plein écran par onglet
+            self.assertNotIn(name, builder)
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
         self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
         uses = src.count(" = TabToolBar(") + read("separation_mixin.py").count(" = TabToolBar(")
-        self.assertEqual(uses, 5)                          # Images, PNG→SVG, Séparation, 2D, Console
-        controls = src.count("._fullscreen_control = ") + read("separation_mixin.py").count("._fullscreen_control = ")
-        self.assertEqual(controls, 6)                      # les 5 barres et l'éditeur vectoriel
+        self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
+        self.assertEqual(src.count("._fullscreen_control"), 0)
 
-    def test_every_fullscreen_mode_hides_then_restores_its_button(self):
-        # Plein écran commun (FullscreenWindow) : tous les onglets sauf l'éditeur
-        # vectoriel, qui garde le sien pour l'instant.
-        for func in ("def _toggle_fullscreen_tab", "def _toggle_fullscreen_png2svg"):
-            src = read("main_window.py")
-            body = src[src.index(func):]
-            self.assertIn("self._open_tab_fullscreen(", body[:body.index("\n    def ", 10)], func)
-        for name, func, end in (("main_window.py", "def _open_tab_fullscreen", "window.content_released.connect(restore)"),
-                                ("vector_editing_mixin.py", "def toggle_fullscreen_vector_editor",
-                                 "dialog.finished.connect(restore)")):
-            src = read(name)
-            body = src[src.index(func):]
-            body = body[:body.index(end)]
-            hide = body.index("_show_fullscreen_control(")
-            self.assertIn(", False)", body[hide:hide + 80], func)
-            restore = body[body.index("def restore"):]
-            self.assertIn("_show_fullscreen_control(", restore, func)
-            self.assertIn(", True)", restore, func)
+    def test_one_fullscreen_button_for_every_tab(self):
+        # Un seul « Plein écran », dans la barre principale à côté de ko-fi, pour l'onglet affiché.
+        src = read("main_window.py")
+        body = src[src.index("def toggle_current_tab_fullscreen"):]
+        body = body[:body.index("\n    def ", 10)]
+        for call in ("self.toggle_fullscreen_vector_editor()", "self._toggle_fullscreen_png2svg()",
+                     "self._open_tab_fullscreen(", "_restore_tab_close_button(tab)"):
+            self.assertIn(call, body)
+        self.assertIn("actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)",
+                      read(os.path.join("ui", "app", "window_controller.py")))
+        self.assertNotIn("fullscreen_requested.connect", src)          # plus de bouton par onglet
 
     def test_preview_options_are_in_the_2d_floating_toolbar(self):
         src = ui_source()
@@ -456,6 +464,29 @@ class ShowWindowTests(unittest.TestCase):
             obj.tab_machine_profiles.set_connected.assert_called_with(connected)
             obj.machine_panel.set_connected.assert_called_with(connected)
 
+    def test_dithering_algorithm_is_remembered(self):
+        mixin = importlib.import_module("laser_studio.image_processing_mixin")
+        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
+        fake = mock.Mock()
+        fake.return_value.setValue.side_effect = stored.__setitem__
+        fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
+        combo = mock.Mock()
+        combo.findText.side_effect = lambda text: 0 if text == "Atkinson" else -1
+        obj = types.SimpleNamespace(combo_algo=combo)
+        with mock.patch.object(mixin, "QSettings", fake):
+            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+            combo.setCurrentText.assert_not_called()                 # rien de mémorisé : défaut
+            mixin.ImageProcessingMixin.remember_algorithm(obj, "Atkinson")
+            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+            combo.setCurrentText.assert_called_once_with("Atkinson")
+            stored[mixin.ALGORITHM_SETTING] = "Algorithme disparu"    # plus dans la liste : ignoré
+            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+            self.assertEqual(combo.setCurrentText.call_count, 1)
+        src = read("main_window.py")
+        self.assertIn("settings.algorithm_combo.textActivated.connect(self.remember_algorithm)", src)
+        self.assertIn("self.restore_remembered_algorithm()", src)
+        self.assertIn("dialog.algorithm_chosen.connect(self.remember_algorithm)", read("image_processing_mixin.py"))
+
     def test_vector_tools_open_the_vector_editor_first(self):
         obj = self.make()
         calls = []
@@ -515,13 +546,19 @@ class ShowWindowTests(unittest.TestCase):
             obj.main_tabs_view.setTabVisible.assert_not_called()
             self.assertFalse(obj.gcode_console_was_visible())
 
-    def test_show_fullscreen_control(self):
-        tab, control = mock.Mock(), mock.Mock()
-        tab._fullscreen_control = control
-        show = importlib.import_module("laser_studio.main_window").FullLaserStudio._show_fullscreen_control
-        show(tab, False)
-        control.setVisible.assert_called_with(False)
-        show(object(), True)                                             # onglet sans bouton : ignoré
+    def test_current_tab_fullscreen_dispatch(self):
+        main = importlib.import_module("laser_studio.main_window").FullLaserStudio
+        obj = types.SimpleNamespace(tab_vector_editor=object(), tab_png2svg=object(), main_tabs_view=mock.Mock())
+        calls = []
+        obj.toggle_fullscreen_vector_editor = lambda: calls.append("vectoriel")
+        obj._toggle_fullscreen_png2svg = lambda: calls.append("png2svg")
+        obj._open_tab_fullscreen = lambda tab, title, close, tab_title, on_restored: calls.append(title)
+        obj._restore_tab_close_button = lambda tab: None
+        obj.main_tabs_view.tabText.return_value = "Visualisation 2D"
+        for tab in (obj.tab_vector_editor, obj.tab_png2svg, object()):
+            obj.main_tabs_view.currentWidget.return_value = tab
+            main.toggle_current_tab_fullscreen(obj)
+        self.assertEqual(calls, ["vectoriel", "png2svg", "Visualisation 2D"])
 
     def test_show_main_tab_selects_or_raises_the_fullscreen_window(self):
         obj = self.make()

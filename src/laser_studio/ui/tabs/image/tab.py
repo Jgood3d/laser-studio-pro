@@ -24,7 +24,7 @@ class ImageTab(QWidget):
 
     Les réglages sont dans `settings` (ImageSettingsPanel), qui émet ses
     propres signaux. La barre d'outils émet compare_requested
-    (comparaison des algorithmes de tramage) et fullscreen_requested.
+    (comparaison des algorithmes de tramage).
     L'image originale est masquée par défaut ; la case « Afficher
     l'originale » la montre, à côté du rendu tramé et de même largeur.
 
@@ -38,7 +38,6 @@ class ImageTab(QWidget):
     """
 
     compare_requested = pyqtSignal()
-    fullscreen_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,8 +56,7 @@ class ImageTab(QWidget):
     # -- construction
 
     def _toolbar(self):
-        """Comparaison des algorithmes et « Afficher l'originale » à
-        gauche, plein écran à droite."""
+        """Comparaison des algorithmes et « Afficher l'originale »."""
         compare_icon = QIcon.fromTheme(
             "view-app-grid",
             QIcon.fromTheme(
@@ -83,8 +81,6 @@ class ImageTab(QWidget):
             ],
             left_widgets=[self.show_original_check],
         )
-        toolbar.fullscreen_requested.connect(self.fullscreen_requested)
-        self._fullscreen_control = toolbar.fullscreen_action
         return toolbar
 
     def _previews(self):

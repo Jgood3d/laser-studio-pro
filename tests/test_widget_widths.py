@@ -97,14 +97,16 @@ class SplitterTests(unittest.TestCase):
 
 @unittest.skipIf(i18n is None, "i18n non importable ici")
 class VectorToolbarTests(unittest.TestCase):
-    """Barre d'outils de l'éditeur vectoriel : deux lignes, libellés entièrement visibles.
-    L'édition de la sélection et l'alignement sont dans des barres flottantes du canevas."""
+    """Barre d'outils de l'éditeur vectoriel : une rangée (importer et outils), libellés
+    entièrement visibles. Créer / dessiner, édition et alignement sont dans des barres
+    flottantes du canevas."""
 
     def rows(self):
         with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
             src = f.read().replace("\r\n", "\n")
-        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector_tools)")]
-        keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', block))
+        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector)")]
+        # Boutons créés avant la rangée (leurs icônes sont posées entre-temps).
+        keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', src))
         rows = {}
         for layout, button in re.findall(r"(toolbar_vector\w*)\.addWidget\((btn_\w+)\)", block):
             rows.setdefault(layout, []).append(keys[button])
@@ -117,16 +119,28 @@ class VectorToolbarTests(unittest.TestCase):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
-    def test_two_rows_with_all_twelve_buttons(self):
+    def test_one_row_with_import_and_tools(self):
         rows = self.rows()
-        self.assertEqual(sorted(rows), ["toolbar_vector", "toolbar_vector_tools"])
-        self.assertEqual(sum(len(v) for v in rows.values()), 12)
-        self.assertEqual(len(set(k for v in rows.values() for k in v)), 12)
+        self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg", "ui.vector_box_generator",
+                                                   "ui.vector_puzzle_generator", "ui.vector_nesting"]})
+
+    def test_create_and_draw_tools_float_on_the_left_with_icons(self):
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            src = f.read()
+        create = src[src.index("vector_create_actions = ["):src.index("# Une seule rangée en haut")]
+        for key, icon in (("ui.vector_add_text", "insert-text"), ("ui.vector_add_shape", "shape-choose"),
+                          ("ui.vector_tool_select", "tool-pointer"), ("ui.vector_tool_line", "draw-line"),
+                          ("ui.vector_tool_rect", "draw-rectangle"), ("ui.vector_tool_ellipse", "draw-ellipse"),
+                          ("ui.vector_tool_measure", "measure")):
+            self.assertIn(f'"{key}", "{icon}"', create, key)
+        self.assertIn('self.vector_canvas, anchor="left")', src)
+        for icon in ("document-import", "draw-cuboid", "games-config-board", "object-group"):
+            self.assertIn(f'"{icon}"', src[src.index("# Boutons d'outils"):src.index("vector_create_actions")], icon)
 
     def test_edit_and_align_actions_float_over_the_canvas(self):
         with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
             src = f.read()
-        edit = src[src.index("vector_edit_actions = ["):src.index("# Rangée 1")]
+        edit = src[src.index("vector_edit_actions = ["):src.index("# Créer et dessiner")]
         for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
                     "vector.explode_path", "vector.edit_nodes", "ui.vector_undo", "ui.vector_redo"):
             self.assertIn(f'("{key}"', edit, key)

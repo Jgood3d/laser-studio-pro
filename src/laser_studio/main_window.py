@@ -28,7 +28,7 @@ from laser_studio.ui.tabs.layers import LayersTab
 from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
-from laser_studio.ui.utils import fullscreen_icon, palette_icon
+from laser_studio.ui.utils import palette_icon
 from laser_studio.ui.widgets import FloatingToolBar, FullscreenWindow, TabCloseButton
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
@@ -118,6 +118,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.init_ui()
         self.load_machine_settings()
         self.load_splitter_sizes()
+        self.restore_remembered_algorithm()
         self.update_vector_work_area()
         self._refresh_engrave_layer()
         self.refresh_com_ports()
@@ -467,13 +468,11 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         settings.configure_focal_requested.connect(
             self.goto_laser_focal_settings
         )
-        settings.save_as_focal_requested.connect(
-            self.save_current_lmm_as_focal
-        )
+        # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
+        settings.algorithm_combo.textActivated.connect(self.remember_algorithm)
         settings.undo_requested.connect(self.undo_image_settings)
         settings.redo_requested.connect(self.redo_image_settings)
         tab.compare_requested.connect(self.compare_dither_algorithms)
-        tab.fullscreen_requested.connect(self._toggle_fullscreen_image_tab)
         # Noms historiques des champs, lus par la logique (traitement de
         # l'image, génération, projets, profils, séparation, matrice).
         self.spin_w = settings.width_spin
@@ -519,7 +518,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.update_image_actions_state)
-        tab.fullscreen_requested.connect(self._toggle_fullscreen_png2svg)
         # Nom historique du widget de conversion, lu par les actions de la
         # barre d'outils sur l'image (rotation, suppression).
         self.png2svg_widget = tab.converter
@@ -539,8 +537,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.gain_test_requested.connect(self.separation_gain_test)
         tab.export_requested.connect(self.separation_export)
         tab.preview_tab_changed.connect(lambda _index: self._sep_render_current())
-        tab.fullscreen_requested.connect(
-            lambda: self._toggle_fullscreen_tab("tab_separation", "sep.tab_title"))
         # Noms historiques, lus par la logique de la séparation.
         self.sep_w = tab.plate_width_spin
         self.sep_h = tab.plate_height_spin
@@ -564,11 +560,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 
-        toolbar_vector = QHBoxLayout()
-        btn_add_text = QPushButton(tr("ui.vector_add_text"))
-        btn_add_text.clicked.connect(self.insert_text_object)
-        btn_add_shape = QPushButton(tr("ui.vector_add_shape"))
-        btn_add_shape.clicked.connect(self.insert_shape_object)
+        # Boutons d'outils (rangée du haut), avec une icône du pack Breeze embarqué.
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
         btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
@@ -581,6 +573,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
         btn_nesting.clicked.connect(self.open_nesting)
+        for button, icon in ((btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
+                             (btn_puzzle_generator, "games-config-board"), (btn_nesting, "object-group")):
+            button.setIcon(palette_icon(icon, self.palette()))
+            # L'emoji du libellé (📥, 📦, 🧩) ferait doublon avec l'icône.
+            label = button.text()
+            if label and not label[0].isalnum():
+                button.setText(label.split(" ", 1)[-1])
         # Édition de la sélection : barre flottante d'icônes en haut du canevas (voir plus bas), le
         # libellé en infobulle. Icônes du pack Breeze embarqué (palette_icon).
         vector_edit_actions = [
@@ -598,77 +597,53 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
             )
         ]
-        btn_fullscreen_vector = QPushButton(tr("ui.vector_fullscreen"))
-        btn_fullscreen_vector.setIcon(fullscreen_icon(self))
-        btn_fullscreen_vector.clicked.connect(self.toggle_fullscreen_vector_editor)
-        tab_vector_editor._fullscreen_control = btn_fullscreen_vector   # voir _show_fullscreen_control
-        # Outils de dessin à la souris (ligne / rectangle / ellipse) + sélection
+        # Créer et dessiner : barre flottante d'icônes à gauche du canevas (voir plus bas). Texte et
+        # forme ajoutent un objet ; sélection, ligne, rectangle, ellipse et mesure sont les outils de
+        # la souris, un seul coché à la fois (set_vector_draw_tool).
+        vector_create_actions = [
+            self._vector_action(tr(key), tr(key).lstrip("+ "), slot, icon)
+            for key, icon, slot in (
+                ("ui.vector_add_text", "insert-text", self.insert_text_object),
+                ("ui.vector_add_shape", "shape-choose", self.insert_shape_object),
+            )
+        ]
         self._vector_draw_buttons = {}
-        btn_draw_select = QPushButton(tr("ui.vector_tool_select"))
-        btn_draw_select.setCheckable(True)
-        btn_draw_select.setChecked(True)
-        btn_draw_select.setToolTip(tr("ui.vector_tool_select_tip"))
-        btn_draw_select.clicked.connect(lambda: self.set_vector_draw_tool(None))
-        btn_draw_line = QPushButton(tr("ui.vector_tool_line"))
-        btn_draw_line.setCheckable(True)
-        btn_draw_line.setToolTip(tr("ui.vector_tool_line_tip"))
-        btn_draw_line.clicked.connect(lambda: self.set_vector_draw_tool("line"))
-        btn_draw_rect = QPushButton(tr("ui.vector_tool_rect"))
-        btn_draw_rect.setCheckable(True)
-        btn_draw_rect.setToolTip(tr("ui.vector_tool_rect_tip"))
-        btn_draw_rect.clicked.connect(lambda: self.set_vector_draw_tool("rect"))
-        btn_draw_ellipse = QPushButton(tr("ui.vector_tool_ellipse"))
-        btn_draw_ellipse.setCheckable(True)
-        btn_draw_ellipse.setToolTip(tr("ui.vector_tool_ellipse_tip"))
-        btn_draw_ellipse.clicked.connect(lambda: self.set_vector_draw_tool("ellipse"))
-        btn_draw_measure = QPushButton(tr("ui.vector_tool_measure"))
-        btn_draw_measure.setCheckable(True)
-        btn_draw_measure.setToolTip(tr("ui.vector_tool_measure_tip"))
-        btn_draw_measure.clicked.connect(lambda: self.set_vector_draw_tool("measure"))
-        self._vector_draw_buttons = {
-            None: btn_draw_select,
-            "line": btn_draw_line,
-            "rect": btn_draw_rect,
-            "ellipse": btn_draw_ellipse,
-            "measure": btn_draw_measure,
-        }
+        for tool, key, icon in (
+            (None, "ui.vector_tool_select", "tool-pointer"),
+            ("line", "ui.vector_tool_line", "draw-line"),
+            ("rect", "ui.vector_tool_rect", "draw-rectangle"),
+            ("ellipse", "ui.vector_tool_ellipse", "draw-ellipse"),
+            ("measure", "ui.vector_tool_measure", "measure"),
+        ):
+            action = self._vector_action(
+                tr(key), f"{tr(key)} — {tr(key + '_tip')}", lambda t=tool: self.set_vector_draw_tool(t), icon)
+            action.setCheckable(True)
+            self._vector_draw_buttons[tool] = action
+        self._vector_draw_buttons[None].setChecked(True)
 
-        # Barres compactes : 2 rangées au lieu de 3 + marges réduites pour le canevas
+        # Une seule rangée en haut : marges réduites pour le canevas
         layout_vector_editor.setContentsMargins(4, 4, 4, 4)
         layout_vector_editor.setSpacing(4)
 
-        # Rangée 1 : créer / importer / outils spéciaux + plein écran
+        # Rangée du haut : importer et outils (boîte, puzzle, imbrication), puis la grille
+        # magnétique à droite. Le plein écran est celui de la barre d'outils principale.
         toolbar_vector = QHBoxLayout()
         toolbar_vector.setSpacing(4)
-        toolbar_vector.addWidget(btn_add_text)
-        toolbar_vector.addWidget(btn_add_shape)
         toolbar_vector.addWidget(btn_import_svg_vector)
         toolbar_vector.addWidget(btn_box_generator)
         toolbar_vector.addWidget(btn_puzzle_generator)
         toolbar_vector.addWidget(btn_nesting)
         toolbar_vector.addStretch()
-        toolbar_vector.addWidget(btn_fullscreen_vector)
-        layout_vector_editor.addLayout(toolbar_vector)
-
-        # Rangée 2 : outils de dessin, puis la grille magnétique à droite. L'édition de la sélection
-        # et l'alignement sont dans des barres flottantes sur le canevas.
-        toolbar_vector_tools = QHBoxLayout()
-        toolbar_vector_tools.setSpacing(4)
-        for w in (
-            btn_draw_select, btn_draw_line, btn_draw_rect, btn_draw_ellipse, btn_draw_measure,
-        ):
-            toolbar_vector_tools.addWidget(w)
-        toolbar_vector_tools.addStretch()
         self.chk_vector_snap = QCheckBox(tr("ui.vector_snap_enable"))
         self.chk_vector_snap.toggled.connect(self.set_vector_snap_enabled)
-        toolbar_vector_tools.addWidget(self.chk_vector_snap)
+        toolbar_vector.addWidget(self.chk_vector_snap)
         self.spin_vector_snap_step = QDoubleSpinBox()
         self.spin_vector_snap_step.setRange(0.1, 100.0)
         self.spin_vector_snap_step.setValue(5.0)
         self.spin_vector_snap_step.setSuffix(" mm")
         self.spin_vector_snap_step.valueChanged.connect(self.set_vector_snap_step)
-        toolbar_vector_tools.addWidget(self.spin_vector_snap_step)
-        layout_vector_editor.addLayout(toolbar_vector_tools)
+        toolbar_vector.addWidget(self.spin_vector_snap_step)
+        layout_vector_editor.addLayout(toolbar_vector)
 
         # Alignement / distribution : barre flottante verticale à droite du canevas. Le bouton ne
         # garde que le pictogramme du libellé (« ⊢ ») ; l'infobulle dit l'action (« Aligner à gauche »).
@@ -690,6 +665,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
+        self.vector_create_toolbar = FloatingToolBar(
+            [*vector_create_actions, None, *self._vector_draw_buttons.values()],
+            self.vector_canvas, anchor="left")
         self.vector_edit_toolbar = FloatingToolBar(vector_edit_actions, self.vector_canvas, top_margin=8)
         self.vector_align_toolbar = FloatingToolBar(
             vector_align_actions, self.vector_canvas, anchor="right",
@@ -810,11 +788,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.plot_clicked.connect(self._on_plot_clicked)
         # Séparateur aperçu / statistiques : position mémorisée (load_splitter_sizes).
         tab.splitter.splitterMoved.connect(self.save_splitter_sizes)
-        tab.fullscreen_requested.connect(
-            lambda: self._toggle_fullscreen_tab(
-                "tab_vector_2d", "ui.tab_2d_preview"
-            )
-        )
         # Noms historiques, lus par la génération et la connexion au graveur.
         self.chk_flip_raster_preview = tab.flip_check
         self.chk_negative_raster_preview = tab.negative_check
@@ -829,12 +802,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
     def _build_console_tab(self):
         """Onglet « Console / G-Code », masqué au démarrage (menu Affichage)."""
         tab = ConsoleTab()
-        tab.fullscreen_requested.connect(
-            lambda: self._toggle_fullscreen_tab(
-                "tab_console_gcode", "ui.tab_console_gcode",
-                on_restored=self._add_console_close_button,
-            )
-        )
         # Nom historique de la console : le G-Code généré ou importé, seul (les messages vont dans
         # la barre d'état, voir log_message).
         self.txt_console = tab.console_edit
@@ -843,9 +810,16 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self._add_console_close_button()
 
     def _add_console_close_button(self):
-        """Croix sur l'onglet Console. Remise au retour du plein écran : Qt supprime la croix quand
-        l'onglet sort de la barre."""
+        """Croix sur l'onglet Console."""
         self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
+
+    def _restore_tab_close_button(self, tab):
+        """Remet la croix d'un onglet masquable (Console, File d'attente) au retour du plein écran :
+        Qt la supprime quand l'onglet sort de la barre."""
+        for optional_tab, action in ((self.tab_console_gcode, self.app_actions.gcode_console),
+                                     (self.tab_job_queue, self.app_actions.job_queue)):
+            if tab is optional_tab:
+                self._add_tab_close_button(tab, action)
 
     def _add_tab_close_button(self, tab, action):
         """Croix sur l'onglet `tab` : le ferme en décochant `action` (case du menu Affichage), qui
@@ -1250,27 +1224,23 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         self.vector_canvas.request_recenter(new_items)
 
-    def _toggle_fullscreen_image_tab(self):
-        """Plein écran de « Graver une image ». Ses réglages (ancien onglet Image & Filtres) sont
-        maintenant dans l'onglet lui-même : le plein écran commun suffit."""
-        self._toggle_fullscreen_tab("tab_previews", "ui.tab_image_tracing")
+    def toggle_current_tab_fullscreen(self):
+        """Plein écran de l'onglet affiché (bouton « Plein écran » de la barre d'outils, F11).
 
-    @staticmethod
-    def _show_fullscreen_control(tab_widget, visible):
-        """Masque le bouton « Plein écran » d'un onglet pendant qu'il est affiché en plein écran,
-        et le réaffiche quand il revient dans les onglets (voir les fonctions *fullscreen*)."""
-        control = getattr(tab_widget, "_fullscreen_control", None)
-        if control is not None:
-            control.setVisible(visible)
-
-    def _toggle_fullscreen_tab(self, tab_attr, title_key, on_restored=None):
-        """Plein écran d'un onglet, avec le titre de l'onglet."""
-        tab_widget = getattr(self, tab_attr, None)
-        if tab_widget is None:
+        L'éditeur vectoriel garde sa propre fenêtre (toggle_fullscreen_vector_editor), la
+        vectorisation son titre ; les autres onglets passent par la fenêtre commune, avec le titre
+        de l'onglet."""
+        tab = self.main_tabs_view.currentWidget()
+        if tab is None:
             return
-        self._open_tab_fullscreen(
-            tab_widget, tr(title_key), tr("vector.close_fullscreen"),
-            tr(title_key), on_restored=on_restored)
+        if tab is self.tab_vector_editor:
+            self.toggle_fullscreen_vector_editor()
+        elif tab is self.tab_png2svg:
+            self._toggle_fullscreen_png2svg()
+        else:
+            title = self.main_tabs_view.tabText(self.main_tabs_view.indexOf(tab))
+            self._open_tab_fullscreen(tab, title, tr("vector.close_fullscreen"), title,
+                                      on_restored=lambda: self._restore_tab_close_button(tab))
 
     def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
                              on_restored=None):
@@ -1281,10 +1251,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         if index == -1:
             return
         window = FullscreenWindow(self, tab_widget, window_title, close_text)
-        self._show_fullscreen_control(tab_widget, False)
 
         def restore():
-            self._show_fullscreen_control(tab_widget, True)
             self.main_tabs_view.insertTab(index, tab_widget, tab_title)
             self.main_tabs_view.setCurrentWidget(tab_widget)
             tab_widget.setVisible(True)
