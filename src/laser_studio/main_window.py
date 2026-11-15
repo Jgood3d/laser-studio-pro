@@ -396,6 +396,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.set_engrave_settings(material["sp_e"], material["pw_e"])
         self.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
         if layers and apply_material_to_layers(self.layer_manager, material):
+            # Redessin explicite du tableau : on_layers_changed ne le fait pas quand le signal vient
+            # de l'onglet Calques (pour ne pas interrompre une saisie), or le choix du matériau part
+            # justement de sa barre d'outils.
+            self.layers_tab.refresh()
             self.on_layers_changed()
             self.machines.schedule_persist()
 

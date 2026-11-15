@@ -129,5 +129,47 @@ class WindowWiringTests(unittest.TestCase):
         self.assertIn("self._apply_job_settings(material, layers=False)", src)
 
 
+@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+class MaterialChoiceRefreshesTheTableTests(unittest.TestCase):
+    """Dans la vraie fenêtre : choisir un matériau redessine les cases du tableau (bug : les
+    calques changeaient en mémoire, mais le tableau gardait les anciennes valeurs).
+
+    Lancé dans un processus à part : le bug dépend de QObject.sender(), donc de ce que les
+    autres tests ont émis avant dans le même processus."""
+
+    SCRIPT = """
+import os, sys, tempfile
+os.environ["XDG_CONFIG_HOME"] = os.environ["XDG_DATA_HOME"] = tempfile.mkdtemp()
+sys.path.insert(0, {src!r})
+from unittest import mock
+from PyQt6.QtWidgets import QApplication, QAbstractSpinBox
+app = QApplication([])
+mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+from laser_studio.main_window import FullLaserStudio
+win = FullLaserStudio()
+combo = win.layers_tab.material_combo
+combo.setCurrentText("MDF 4mm")
+combo.activated.emit(combo.currentIndex())
+table = win.layers_tab.layer_widget.table
+values = []
+for col in (3, 4):
+    cell = table.cellWidget(0, col)
+    spin = cell if isinstance(cell, QAbstractSpinBox) else cell.findChild(QAbstractSpinBox)
+    values.append(spin.value())
+print("AFFICHÉ", values[0], values[1], flush=True)
+win.deleteLater(); app.processEvents()
+"""
+
+    def test_choosing_a_material_updates_the_displayed_table(self):
+        import subprocess
+        script = self.SCRIPT.format(src=os.path.join(REPO, "src"))
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+        result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True,
+                                env=env, timeout=120)
+        line = next((l for l in result.stdout.splitlines() if l.startswith("AFFICHÉ")), None)
+        self.assertIsNotNone(line, result.stderr[-2000:])
+        mdf = DEFAULT_MATERIALS_DB["MDF 4mm"]
+        self.assertEqual(line.split()[1:], [str(float(mdf["pw_e"])), str(mdf["sp_e"])])
+
 if __name__ == "__main__":
     unittest.main()
