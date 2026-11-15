@@ -72,48 +72,78 @@ DEFAULT_MATERIAL = "Personnalisé"
 
 def capture_material_layers(layer_manager):
     """Réglages de chaque calque à mémoriser dans un matériau (clé "layers"),
-    avec l'identifiant et le nom du calque pour le retrouver."""
+    avec le rôle (calques de base), l'identifiant et le nom du calque pour
+    le retrouver."""
     return [
-        {"id": layer.id, "name": layer.name,
+        {"role": getattr(layer, "role", None), "id": layer.id, "name": layer.name,
          **{key: getattr(layer, key) for key in MATERIAL_LAYER_KEYS}}
         for layer in layer_manager.layers
     ]
+
+
+def _base_entry(role, power=None, speed=None, passes=None):
+    """Entrée de matériau pour le calque de base `role` : valeurs données, ou
+    celles par défaut du calque de base."""
+    from laser_studio.vector_layers import BASE_LAYER_DEFAULTS
+    _key, _color, _mode, d_power, d_speed, d_passes, d_interval = BASE_LAYER_DEFAULTS[role]
+    return {"role": role,
+            "power": float(d_power if power is None else power),
+            "speed": int(d_speed if speed is None else speed),
+            "passes": int(d_passes if passes is None else passes),
+            "line_interval": d_interval}
+
+
+def complete_material(material):
+    """Matériau avec, au minimum, une entrée pour chacun des trois calques de
+    base (gravure, découpe, marquage). Renvoie un nouveau dictionnaire.
+
+    Ancien matériau (sp_e / pw_e / sp_c / pw_c / pass_c) : la gravure reprend
+    sp_e / pw_e, la découpe sp_c / pw_c / pass_c (valeurs par défaut si 0
+    passe : matière qu'on ne découpe pas), le marquage ses valeurs par défaut.
+    Entrée de base manquante : valeurs par défaut. Les autres entrées (calques
+    ajoutés) sont gardées."""
+    from laser_studio.vector_layers import BASE_LAYER_ROLES
+    material = dict(material)
+    entries = [dict(d) for d in material.get("layers") or [] if isinstance(d, dict)]
+    roles = {d.get("role") for d in entries}
+    for role in BASE_LAYER_ROLES:
+        if role in roles:
+            continue
+        if role == "engrave" and "sp_e" in material and "pw_e" in material:
+            entry = _base_entry(role, material["pw_e"], material["sp_e"])
+        elif role == "cut" and int(material.get("pass_c", 0) or 0) > 0:
+            entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), material["pass_c"])
+        else:
+            entry = _base_entry(role)
+        entries.append(entry)
+    material["layers"] = entries
+    return material
 
 
 def apply_material_to_layers(layer_manager, material):
     """Applique un matériau au tableau des calques. Renvoie True si un calque
     a changé.
 
-    Matériau avec "layers" : chaque calque reprend les réglages enregistrés
-    pour lui, retrouvé par identifiant puis, à défaut, par position (matériau
-    enregistré avec d'autres calques). Seuls les réglages de MATERIAL_LAYER_KEYS
-    sont repris ; aucun calque n'est ajouté ni supprimé.
-
-    Ancien matériau (sp_e / pw_e / sp_c / pw_c / pass_c seulement) : la gravure
-    va aux calques « Gravure Remplie », la découpe aux calques « Découpe »
-    (sauf 0 passe : matière qu'on ne découpe pas).
-    """
-    layers = layer_manager.layers
-    saved = [d for d in material.get("layers") or [] if isinstance(d, dict)]
-    if saved:
-        by_id = {d.get("id"): d for d in saved}
-        changed = False
-        for i, layer in enumerate(layers):
-            d = by_id.get(layer.id) or (saved[i] if i < len(saved) else None)
-            if d:
-                coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
-                changed = True
-        return changed
+    Les calques de base reprennent l'entrée de leur rôle ; les autres calques,
+    l'entrée de même identifiant. Seuls les réglages de MATERIAL_LAYER_KEYS
+    sont repris ; aucun calque n'est ajouté ni supprimé. Un ancien matériau
+    est d'abord complété (complete_material)."""
+    entries = complete_material(material)["layers"]
+    by_role = {d["role"]: d for d in entries if d.get("role")}
+    by_id = {d.get("id"): d for d in entries if d.get("id")}
     changed = False
-    for layer in layers:
-        if layer.mode == ENGRAVE_MODE and "sp_e" in material and "pw_e" in material:
-            coerce_layer_settings(layer, {"speed": material["sp_e"], "power": material["pw_e"]})
-            changed = True
-        elif layer.mode == CUT_MODE and int(material.get("pass_c", 0) or 0) > 0:
-            coerce_layer_settings(layer, {"speed": material.get("sp_c"), "power": material.get("pw_c"),
-                                          "passes": material["pass_c"]})
+    for layer in layer_manager.layers:
+        role = getattr(layer, "role", None)
+        d = by_role.get(role) if role else by_id.get(layer.id)
+        if d:
+            coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
             changed = True
     return changed
+
+
+def complete_materials(materials):
+    """Tous les matériaux complétés (complete_material), dans le même ordre."""
+    return {name: complete_material(m) for name, m in materials.items()}
 
 
 class MaterialsController:
@@ -141,7 +171,7 @@ class MaterialsController:
     ):
         self._parent = parent
         self._combo = combo
-        self.materials = materials
+        self.materials = complete_materials(materials)
         self._current_settings = current_settings
         self._apply_settings = apply_settings
 
@@ -149,8 +179,9 @@ class MaterialsController:
         """Remplace toute la liste (projet ouvert, profil machine choisi).
 
         Sans block_signals, le premier matériau de la liste est aussitôt
-        appliqué (signal de la liste déroulante)."""
-        self.materials = materials
+        appliqué (signal de la liste déroulante). Chaque matériau est complété
+        avec les trois calques de base (complete_material)."""
+        self.materials = complete_materials(materials)
         self._fill_combo(block_signals)
 
     def _fill_combo(self, block_signals):
@@ -260,7 +291,7 @@ class MaterialsController:
                     updated += 1
                 else:
                     added += 1
-                self.materials[name] = material
+                self.materials[name] = complete_material(material)
             self._fill_combo(block_signals=True)
             QMessageBox.information(
                 self._parent,

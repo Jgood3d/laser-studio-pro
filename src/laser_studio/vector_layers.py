@@ -75,13 +75,34 @@ DEFAULT_LAYER_COLORS = [
 ]
 
 
+# Calques de base, toujours présents (voir LayerManager.ensure_base_layers) :
+# rôle -> (clé du nom, couleur, mode, puissance, vitesse, passes, pas de
+# remplissage). Leur nom est fixe (traduit) et ils ne peuvent pas être
+# supprimés ; chaque profil matériau a une entrée pour chacun.
+BASE_LAYER_ROLES = ("engrave", "cut", "mark")
+BASE_LAYER_DEFAULTS = {
+    "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], "Gravure Remplie", 35.0, 2000, 1, 0.10),
+    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], "Découpe", 90.0, 250, 2, 0.10),
+    "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], "Marquage (Contour)", 75.0, 2000, 1, 0.06),
+}
+
+
+def base_layer_name(role):
+    """Nom fixe (traduit) du calque de base `role`."""
+    return tr(BASE_LAYER_DEFAULTS[role][0])
+
+
 class LaserLayer:
-    """Un calque = une couleur + un jeu de réglages laser, comme dans LightBurn."""
+    """Un calque = une couleur + un jeu de réglages laser, comme dans LightBurn.
+
+    `role` : "engrave", "cut" ou "mark" pour les trois calques de base (nom
+    fixe, non supprimables), None pour un calque ajouté."""
 
     def __init__(self, name="Calque", color="#ff3b30", mode="Découpe",
                  power=80.0, speed=300, passes=1, line_interval=0.10,
-                 enabled=True, layer_id=None, line_interval_linked=False):
+                 enabled=True, layer_id=None, line_interval_linked=False, role=None):
         self.id = layer_id or uuid.uuid4().hex[:8]
+        self.role = role
         self.name = name
         self.color = color
         self.mode = mode                    # cf. LAYER_MODES
@@ -108,18 +129,41 @@ class LayerManager:
     """Conteneur ordonné de LaserLayer, avec un signal Qt-free (callbacks simples)."""
 
     def __init__(self):
-        # Gravure en première position : calque proposé par défaut pour la
-        # gravure des images (tramage / séparation couleur). Puis la découpe,
-        # et le marquage (contour, vert).
-        self.layers = [
-            LaserLayer(name=tr("layers.default_name_engrave_text"), color=DEFAULT_LAYER_COLORS[2],
-                       mode="Gravure Remplie", power=35, speed=2000, passes=1),
-            LaserLayer(name=tr("layers.default_name_cut"), color=DEFAULT_LAYER_COLORS[0],
-                       mode="Découpe", power=90, speed=250, passes=2),
-            LaserLayer(name=tr("layers.default_name_mark"), color=DEFAULT_LAYER_COLORS[1],
-                       mode="Marquage (Contour)", power=75, speed=2000, passes=1,
-                       line_interval=0.06),
-        ]
+        # Les trois calques de base : la gravure (mode remplissage) en première
+        # position, calque proposé par défaut pour la gravure des images
+        # (tramage / séparation couleur), puis la découpe et le marquage.
+        self.layers = [self.new_base_layer(role) for role in BASE_LAYER_ROLES]
+
+    @staticmethod
+    def new_base_layer(role):
+        """Calque de base `role` avec ses réglages par défaut."""
+        key, color, mode, power, speed, passes, interval = BASE_LAYER_DEFAULTS[role]
+        return LaserLayer(name=tr(key), color=color, mode=mode, power=power, speed=speed,
+                          passes=passes, line_interval=interval, role=role)
+
+    def ensure_base_layers(self):
+        """Garantit les trois calques de base (gravure, découpe, marquage),
+        avec leur nom fixe.
+
+        Calques enregistrés avant les rôles (projet, profil machine) : le
+        premier calque sans rôle du bon mode devient le calque de base, et
+        prend son nom fixe (son identifiant ne change pas : les objets du
+        canevas qui y sont rattachés le gardent). S'il n'y en a pas, le
+        calque de base est ajouté avec ses réglages par défaut."""
+        for role in BASE_LAYER_ROLES:
+            layer = next((l for l in self.layers if getattr(l, "role", None) == role), None)
+            if layer is None:
+                mode = BASE_LAYER_DEFAULTS[role][2]
+                layer = next((l for l in self.layers
+                              if getattr(l, "role", None) is None and l.mode == mode), None)
+                if layer is None:
+                    layer = self.new_base_layer(role)
+                    self.layers.append(layer)
+                layer.role = role
+            layer.name = base_layer_name(role)
+
+    def is_base_layer(self, layer):
+        return getattr(layer, "role", None) in BASE_LAYER_ROLES
 
     def add_layer(self, line_interval=None, line_interval_linked=False):
         idx = len(self.layers)
@@ -167,6 +211,7 @@ class LayerManager:
 
     def load_list(self, data):
         self.layers = [LaserLayer.from_dict(d) for d in data] if data else []
+        self.ensure_base_layers()
 
 
 class LayerManagerWidget(QWidget):
@@ -238,7 +283,12 @@ class LayerManagerWidget(QWidget):
         self.table.setCellWidget(row, 0, btn_color)
 
         name_edit = QLineEdit(layer.name)
-        name_edit.textChanged.connect(lambda t, l=layer: self._set(l, "name", t))
+        if self.mgr.is_base_layer(layer):
+            # Calque de base : nom fixe (voir LayerManager.ensure_base_layers).
+            name_edit.setReadOnly(True)
+            name_edit.setToolTip(tr("layers.base_name_tip"))
+        else:
+            name_edit.textChanged.connect(lambda t, l=layer: self._set(l, "name", t))
         self.table.setCellWidget(row, 1, name_edit)
 
         combo_mode = QComboBox()
@@ -408,6 +458,10 @@ class LayerManagerWidget(QWidget):
         if row < 0 or row >= len(self.mgr.layers):
             return
         layer = self.mgr.layers[row]
+        if self.mgr.is_base_layer(layer):
+            QMessageBox.information(self, tr("layers.base_title"), tr("layers.base_cannot_delete")
+                                    .format(name=layer.name))
+            return
         self.mgr.remove_layer(layer.id)
         self.refresh()
         self.layers_changed.emit()

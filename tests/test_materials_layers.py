@@ -60,6 +60,90 @@ class MaterialLayersTests(unittest.TestCase):
 
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+class BaseLayersTests(unittest.TestCase):
+    """Trois calques de base (gravure, découpe, marquage) : toujours présents, nom fixe."""
+
+    def test_new_manager_has_the_three_base_layers(self):
+        manager = LayerManager()
+        self.assertEqual([(l.role, l.name, l.mode) for l in manager.layers],
+                         [("engrave", tr("layers.default_name_engrave"), "Gravure Remplie"),
+                          ("cut", tr("layers.default_name_cut"), "Découpe"),
+                          ("mark", tr("layers.default_name_mark"), "Marquage (Contour)")])
+
+    def test_old_saved_layers_are_adopted_or_completed(self):
+        manager = LayerManager()
+        # Calques enregistrés avant les rôles : une gravure renommée, un calque libre.
+        manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "Gravure Remplie", "power": 20.0},
+                           {"id": "b2", "name": "Logo", "mode": "Gravure Remplie"}])
+        roles = {l.role: l for l in manager.layers}
+        self.assertEqual(sorted(r for r in roles if r), ["cut", "engrave", "mark"])
+        self.assertEqual((roles["engrave"].id, roles["engrave"].name, roles["engrave"].power),
+                         ("a1", tr("layers.default_name_engrave"), 20.0))     # repris, renommé
+        logo = next(l for l in manager.layers if l.id == "b2")
+        self.assertEqual((logo.role, logo.name), (None, "Logo"))              # calque libre inchangé
+        self.assertEqual(len(manager.layers), 4)                             # découpe et marquage ajoutés
+
+    def test_base_layer_name_is_read_only_and_cannot_be_deleted(self):
+        from unittest import mock
+        from PyQt6.QtWidgets import QMessageBox
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        from laser_studio.vector_layers import LayerManagerWidget
+        manager = LayerManager()
+        manager.add_layer()
+        widget = LayerManagerWidget(manager)
+        self.addCleanup(widget.deleteLater)
+        table = widget.table
+        self.assertTrue(table.cellWidget(0, 1).isReadOnly())
+        self.assertFalse(table.cellWidget(3, 1).isReadOnly())                 # calque ajouté
+        table.setCurrentCell(0, 1)
+        with mock.patch.object(QMessageBox, "information") as info:
+            widget.on_remove()
+        info.assert_called_once()
+        self.assertEqual(len(manager.layers), 4)
+        table.setCurrentCell(3, 1)
+        widget.on_remove()
+        self.assertEqual(len(manager.layers), 3)
+
+
+@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+class MaterialCompletionTests(unittest.TestCase):
+    def test_old_material_gets_the_three_base_entries(self):
+        from laser_studio.controllers.materials import complete_material
+        mdf = DEFAULT_MATERIALS_DB["MDF 4mm"]
+        done = complete_material(mdf)
+        entries = {d["role"]: d for d in done["layers"]}
+        self.assertEqual(sorted(entries), ["cut", "engrave", "mark"])
+        self.assertEqual((entries["engrave"]["power"], entries["engrave"]["speed"]), (float(mdf["pw_e"]), mdf["sp_e"]))
+        self.assertEqual((entries["cut"]["speed"], entries["cut"]["passes"]), (mdf["sp_c"], mdf["pass_c"]))
+        self.assertEqual((entries["mark"]["power"], entries["mark"]["line_interval"]), (75.0, 0.06))
+        self.assertNotIn("layers", mdf)                                       # l'original n'est pas modifié
+
+    def test_material_without_cut_gets_default_cut(self):
+        from laser_studio.controllers.materials import complete_material
+        entries = {d["role"]: d for d in complete_material(DEFAULT_MATERIALS_DB["Ardoise / Carrelage"])["layers"]}
+        self.assertEqual((entries["cut"]["power"], entries["cut"]["passes"]), (90.0, 2))
+
+    def test_missing_base_entry_is_added_and_others_kept(self):
+        from laser_studio.controllers.materials import complete_material
+        material = {"layers": [{"role": "engrave", "power": 11.0, "speed": 900},
+                               {"id": "libre", "power": 5.0}]}
+        done = complete_material(material)
+        self.assertEqual(len(done["layers"]), 4)
+        self.assertEqual(done["layers"][0]["power"], 11.0)
+        self.assertEqual(sorted(d.get("role") or "-" for d in done["layers"]), ["-", "cut", "engrave", "mark"])
+
+    def test_controller_completes_every_material(self):
+        from laser_studio.controllers.materials import MaterialsController
+        from PyQt6.QtWidgets import QComboBox
+        app = QApplication.instance() or QApplication([])  # noqa: F841
+        combo = QComboBox()
+        controller = MaterialsController(None, combo, dict(DEFAULT_MATERIALS_DB), dict, lambda m: None)
+        for name, material in controller.materials.items():
+            self.assertEqual(sorted(d["role"] for d in material["layers"] if d.get("role")),
+                             ["cut", "engrave", "mark"], name)
+
+
+@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
 class LayersTabMaterialsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

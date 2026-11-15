@@ -83,8 +83,9 @@ class LayerProfileTests(unittest.TestCase):
     def test_startup_restores_layers_completely(self):
         c = self.make([{"name": "M1"}])
         first = self.manager.layers[0]
-        first.power, first.speed, first.name = 55.0, 1234, "Mon calque"
-        self.manager.add_layer().passes = 4
+        first.power, first.speed = 55.0, 1234
+        added = self.manager.add_layer()
+        added.passes, added.name = 4, "Mon calque"
         c.store_memory()
         saved = json.loads(c.to_json())  # aller-retour disque
         ids = [layer.id for layer in self.manager.layers]
@@ -93,9 +94,9 @@ class LayerProfileTests(unittest.TestCase):
         self.assertTrue(apply_saved_layers(other, saved[0]["layers"], full=True))
         self.assertEqual([layer.id for layer in other.layers], ids)
         self.assertEqual((other.layers[0].name, other.layers[0].power, other.layers[0].speed),
-                         ("Mon calque", 55.0, 1234))
+                         (tr("layers.default_name_engrave"), 55.0, 1234))     # calque de base : nom fixe
         self.assertEqual(len(other.layers), 4)       # gravure, découpe, marquage + le calque ajouté
-        self.assertEqual(other.layers[3].passes, 4)
+        self.assertEqual((other.layers[3].name, other.layers[3].passes), ("Mon calque", 4))
 
     def test_default_marking_layer(self):
         mark = LayerManager().layers[2]
@@ -182,8 +183,11 @@ class LayerProfileTests(unittest.TestCase):
             self.assertIsInstance(layer.power, float)
             self.assertIsInstance(layer.speed, int)
             self.assertIsInstance(layer.passes, int)
-            self.assertEqual(layer.mode, "Découpe")  # mode inconnu -> valeur par défaut
-            self.assertFalse(layer.enabled)  # valeur valide reprise
+        loaded = manager.layers[0]
+        self.assertEqual(loaded.mode, "Découpe")  # mode inconnu -> valeur par défaut
+        self.assertFalse(loaded.enabled)  # valeur valide reprise
+        # Les trois calques de base sont garantis (ajoutés au besoin).
+        self.assertEqual(sorted(l.role for l in manager.layers if l.role), ["cut", "engrave", "mark"])
 
     # -- actions sur les profils
 

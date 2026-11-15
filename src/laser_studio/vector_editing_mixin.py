@@ -55,7 +55,7 @@ class VectorEditingMixin:
         return None
 
     def _engrave_layer_label(self):
-        """Nom et mode du calque de la gravure image, ex. « Gravure Texte  [Gravure Remplie] »."""
+        """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
         layer = self.layer_manager.get(self.engrave_layer_id)
         return f"{layer.name}  [{layer.mode}]" if layer else ""
 

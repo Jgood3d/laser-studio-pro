@@ -3715,9 +3715,23 @@ TRANSLATIONS = {
     "layers.default_name_cut": {
         "fr": "Découpe", "en": "Cut", "de": "Schneiden", "es": "Corte",
     },
-    "layers.default_name_engrave_text": {
-        "fr": "Gravure Texte", "en": "Text Engraving",
-        "de": "Textgravur", "es": "Grabado de texto",
+    "layers.default_name_engrave": {
+        "fr": "Gravure", "en": "Engraving", "de": "Gravur", "es": "Grabado",
+    },
+    "layers.base_title": {
+        "fr": "Calque de base", "en": "Base layer", "de": "Basisebene", "es": "Capa base",
+    },
+    "layers.base_name_tip": {
+        "fr": "Calque de base : nom fixe, présent dans chaque profil matériau.",
+        "en": "Base layer: fixed name, present in every material profile.",
+        "de": "Basisebene: fester Name, in jedem Materialprofil vorhanden.",
+        "es": "Capa base: nombre fijo, presente en cada perfil de material.",
+    },
+    "layers.base_cannot_delete": {
+        "fr": "« {name} » est un calque de base (gravure, découpe, marquage) : il ne peut pas être supprimé. Désactivez-le s'il ne sert pas.",
+        "en": "\"{name}\" is a base layer (engraving, cut, marking): it cannot be deleted. Disable it if you don't need it.",
+        "de": "„{name}“ ist eine Basisebene (Gravur, Schneiden, Markierung): Sie kann nicht gelöscht werden. Deaktiviere sie, wenn du sie nicht brauchst.",
+        "es": "«{name}» es una capa base (grabado, corte, marcado): no se puede eliminar. Desactívala si no la necesitas.",
     },
     "vector.n_objects": {
         "fr": " ({n} objets)", "en": " ({n} objects)",
