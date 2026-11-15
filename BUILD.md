@@ -31,7 +31,7 @@ aussi par le `.spec` macOS). Voir [Taille de l'exécutable](#taille-de-lexécuta
 ## Windows
 
 ### 1. Installer Python
-Télécharger Python 3.11 ou 3.12 depuis [python.org](https://www.python.org/downloads/)
+Télécharger Python 3.12 (ou plus récent, jusqu'à 3.14) depuis [python.org](https://www.python.org/downloads/)
 et cocher **"Add Python to PATH"** pendant l'installation.
 
 ### 2. Créer un environnement virtuel (recommandé)
@@ -44,7 +44,7 @@ venv\Scripts\activate
 ## Windows
 
 ### 1. Installer Python
-Télécharger Python 3.11 ou 3.12 depuis [python.org](https://www.python.org/downloads/)
+Télécharger Python 3.12 (ou plus récent, jusqu'à 3.14) depuis [python.org](https://www.python.org/downloads/)
 et cocher "Add Python to PATH" pendant l'installation.
 
 ### 2. Créer un environnement virtuel (recommandé)
