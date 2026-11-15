@@ -276,5 +276,53 @@ win.deleteLater(); app.processEvents()
         mdf = DEFAULT_MATERIALS_DB["MDF 4mm"]
         self.assertEqual(line.split()[1:], [str(float(mdf["pw_e"])), str(mdf["sp_e"])])
 
+@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+class MaterialPersistenceTests(unittest.TestCase):
+    """Matériau choisi et réglages enregistrés (« Enregistrer ») retrouvés au démarrage suivant.
+    Deux fenêtres successives dans un processus à part, avec une configuration temporaire."""
+
+    SCRIPT = """
+import os, sys, tempfile
+os.environ["XDG_CONFIG_HOME"] = os.environ["XDG_DATA_HOME"] = tempfile.mkdtemp()
+sys.path.insert(0, {src!r})
+from unittest import mock
+from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtTest import QTest
+app = QApplication([])
+mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+from laser_studio.main_window import FullLaserStudio
+w = FullLaserStudio(); tab = w.layers_tab; combo = tab.material_combo
+combo.setCurrentText("Acrylique 3mm"); combo.activated.emit(combo.currentIndex())
+w.layer_manager.layers[2].power = 42.0
+with mock.patch.object(QMessageBox, "information"):
+    tab.material_actions["save_material_requested"].trigger()
+QTest.qWait(1500)
+w.deleteLater(); app.processEvents()
+w2 = FullLaserStudio()
+mark = next(d for d in w2.materials.materials["Acrylique 3mm"]["layers"] if d.get("role") == "mark")
+print("RÉSULTAT", w2.layers_tab.material_combo.currentText().replace(" ", "_"), mark["power"], flush=True)
+w2.deleteLater(); app.processEvents()
+"""
+
+    def test_selected_material_and_saved_settings_survive_a_restart(self):
+        import subprocess
+        script = self.SCRIPT.format(src=os.path.join(REPO, "src"))
+        env = dict(os.environ, QT_QPA_PLATFORM="offscreen")
+        result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True,
+                                env=env, timeout=180)
+        line = next((l for l in result.stdout.splitlines() if l.startswith("RÉSULTAT")), None)
+        self.assertIsNotNone(line, result.stderr[-2000:])
+        self.assertEqual(line.split()[1:], ["Acrylique_3mm", "42.0"])
+
+
+class TableHeaderThemeTests(unittest.TestCase):
+    def test_tables_and_headers_have_no_inner_padding(self):
+        with open(os.path.join(REPO, "src", "laser_studio", "ui", "app", "theme.py"), encoding="utf-8") as f:
+            theme = f.read()
+        for selector in ("QTableView, QTreeView {{", "QHeaderView {{"):
+            block = theme[theme.index(selector):]
+            self.assertIn("padding: 0px;", block[:block.index("}}")], selector)
+
+
 if __name__ == "__main__":
     unittest.main()

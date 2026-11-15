@@ -443,6 +443,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.delete_material_requested.connect(self.materials.delete_selected)
         tab.export_materials_requested.connect(self.materials.export_materials)
         tab.import_materials_requested.connect(self.materials.import_materials)
+        # Matériaux et matériau choisi : rangés dans le profil de la machine active et écrits sur
+        # disque (voir _machine_memory), pour les retrouver au prochain démarrage. Connecté après
+        # le contrôleur : enregistré une fois la liste à jour.
+        for signal in (tab.material_selected, tab.save_material_requested, tab.new_material_requested,
+                       tab.delete_material_requested, tab.import_materials_requested):
+            signal.connect(self.machines.schedule_persist)
         # Mémorise les réglages des calques dans le profil de la machine active.
         self.layers_tab.layers_changed.connect(self.machines.schedule_persist)
 
@@ -938,6 +944,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             **self.job_position_box.profile_values(),
             **self.tab_grbl_config.profile_values(),
             "materials_db": dict(self.materials.materials),
+            "material": self.layers_tab.material_combo.currentText(),
             "layers": self.layer_manager.to_list(),
         }
 
@@ -951,15 +958,23 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.materials.set_materials(
             dict(profile.get("materials_db", DEFAULT_MATERIALS_DB)),
             block_signals=True)
+        # Matériau choisi à la dernière utilisation de cette machine (sélectionné sans être appliqué).
+        combo = self.layers_tab.material_combo
+        if profile.get("material") in self.materials.materials:
+            combo.blockSignals(True)
+            combo.setCurrentText(profile["material"])
+            combo.blockSignals(False)
         # Calques : ceux mémorisés dans le profil, déjà appliqués ; le matériau ne les écrase pas.
-        material = self.materials.materials.get(self.layers_tab.material_combo.currentText())
+        material = self.materials.materials.get(combo.currentText())
         if material is not None:
             self._apply_job_settings(material, layers=False)
 
     def _machine_memory(self):
-        """Mémorisé en continu dans le profil actif : calques et réglages
-        mécaniques (décalage des lignes retour, surbalayage)."""
+        """Mémorisé en continu dans le profil actif : calques, matériaux (avec les réglages de leurs
+        calques) et matériau choisi, réglages mécaniques (décalage des lignes retour, surbalayage)."""
         return {"layers": self.layer_manager.to_list(),
+                "materials_db": dict(self.materials.materials),
+                "material": self.layers_tab.material_combo.currentText(),
                 **self.tab_grbl_config.mechanical_values()}
 
     def _apply_profile_layers(self, saved_layers, full=False):
