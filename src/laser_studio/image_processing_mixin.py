@@ -1,5 +1,6 @@
 """Chargement, transformations et traitement (tramage) de l'image source."""
 import os
+from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QFileDialog, QMessageBox
 from PyQt6.QtGui import QImage
 import numpy as np
@@ -10,8 +11,28 @@ from laser_studio.image.size import natural_size_mm, read_dpi
 from laser_studio.i18n import tr
 from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 
+# Clé de UIConfig : dernier algorithme de tramage choisi par l'utilisateur.
+ALGORITHM_SETTING = "image_algorithm"
+
 
 class ImageProcessingMixin:
+    def remember_algorithm(self, algorithm):
+        """Mémorise l'algorithme de tramage choisi par l'utilisateur (liste « Algorithme » ou
+        comparaison des algorithmes) : il est resélectionné au prochain démarrage, donc pour
+        les images chargées ensuite. Les changements faits par programme (ouverture d'un projet,
+        séparation couleur) ne passent pas par ici."""
+        if not algorithm:
+            return
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        settings.setValue(ALGORITHM_SETTING, algorithm)
+        settings.sync()  # écriture immédiate sous Windows
+
+    def restore_remembered_algorithm(self):
+        """Resélectionne le dernier algorithme choisi, s'il existe encore dans la liste."""
+        algorithm = QSettings("LaserStudioPro", "UIConfig").value(ALGORITHM_SETTING, "")
+        if algorithm and self.combo_algo.findText(algorithm) >= 0:
+            self.combo_algo.setCurrentText(algorithm)
+
     def reset_image_settings(self):
         # Réinitialisation explicite : plus rien à restaurer depuis Séparation.
         self._sep_glass_settings_active = False
@@ -213,36 +234,6 @@ class ImageProcessingMixin:
             self.show_settings_window("machine_params")
         if hasattr(self, "spin_machine_focal"):
             self.spin_machine_focal.setFocus()
-
-    def save_current_lmm_as_focal(self):
-        """Synchronisation dans l'autre sens : enregistre l'écart de lignes
-        actuellement réglé (mode Lignes/mm ou DPI) comme focale du laser
-        dans les Paramètres Machine, après confirmation, puis sauvegarde ce
-        réglage machine tout de suite."""
-        if not hasattr(self, "spin_machine_focal"):
-            return
-        lmm = self.spin_lmm.value()
-        if lmm <= 0:
-            return
-        new_focal = 1.0 / lmm
-        current_focal = self.spin_machine_focal.value()
-        reply = QMessageBox.question(
-            self, tr("image.save_focal_title"),
-            tr("image.save_focal_question").format(
-                current=current_focal,
-                new=new_focal
-            ),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        self.spin_machine_focal.setValue(new_focal)
-        self.save_machine_settings()
-        QMessageBox.information(
-    self,
-    tr("image.focal_saved_title"),
-    tr("image.focal_saved").format(focal=new_focal)
-)
 
     def rotate_image_left(self):
         if self.raw_image:
@@ -545,6 +536,7 @@ class ImageProcessingMixin:
 
         dialog = DitherComparisonDialog(self, thumbnails)
         dialog.algorithm_chosen.connect(self.combo_algo.setCurrentText)
+        dialog.algorithm_chosen.connect(self.remember_algorithm)
         dialog.exec()
 
     def _on_preview_options_changed(self, *_args):

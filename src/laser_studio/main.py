@@ -7,7 +7,7 @@ if "--stencil-studio" in sys.argv:
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QElapsedTimer, QSettings, QTimer
+from PyQt6.QtCore import QElapsedTimer, QEvent, QSettings, QTimer
 from PyQt6 import QtWebEngineWidgets
 
 from laser_studio.core.constants import SPLASH_SCREEN_DURATION
@@ -101,4 +101,11 @@ def main():
         print(f"Erreur critique au lancement : {e}")
         sys.exit(1)
 
-    sys.exit(app.exec())
+    exit_code = app.exec()
+    # Fenêtre détruite AVANT la fermeture de Python : sinon le nettoyage de
+    # PyQt à la sortie (cleanup_on_exit) peut tomber sur un objet Qt déjà
+    # détruit et planter (erreur de segmentation) juste après la fermeture
+    # de la fenêtre.
+    window.deleteLater()
+    app.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    sys.exit(exit_code)

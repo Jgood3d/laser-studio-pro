@@ -30,20 +30,22 @@ class ProjectRoundTripTests(unittest.TestCase):
 
     def test_saved_project_reopens_with_its_layers(self):
         win = self.win
-        win.layer_manager.layers[0].name = "Calque du projet"
+        win.layer_manager.add_layer()                  # calque ajouté : nom libre
+        win.layer_manager.layers[3].name = "Calque du projet"
         win.layer_manager.layers[0].speed = 1234
         path = os.path.join(self.tmp, "projet.lsp")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(win.project.data(encode_image=False), f)
 
-        win.layer_manager.layers[0].name = "Autre nom"
+        win.layer_manager.layers[3].name = "Autre nom"
+        win.layer_manager.layers[0].speed = 500
         win.layers_tab.refresh()
         with mock.patch.object(QMessageBox, "critical") as critical, \
                 mock.patch.object(QMessageBox, "information") as information:
             win.project.open_path(path)
         critical.assert_not_called()                  # ex. AttributeError sur un widget renommé
         information.assert_called_once()
-        self.assertEqual(win.layer_manager.layers[0].name, "Calque du projet")
+        self.assertEqual(win.layer_manager.layers[3].name, "Calque du projet")
         self.assertEqual(win.layer_manager.layers[0].speed, 1234)
 
 

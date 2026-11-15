@@ -42,11 +42,10 @@ class Png2SvgTabTests(unittest.TestCase):
         self.assertEqual(sent, [("<svg/>",)])
         self.assertEqual(changed, [()])
 
-    def test_fullscreen_is_relayed(self):
+    def test_no_fullscreen_button_in_the_tab(self):
+        # Plein écran : celui de la barre d'outils principale.
         tab = self.make()
-        received = record(tab.fullscreen_requested)
-        tab._fullscreen_control.trigger()
-        self.assertEqual(received, [()])
+        self.assertFalse(hasattr(tab, "fullscreen_requested"))
 
 
 if __name__ == "__main__":

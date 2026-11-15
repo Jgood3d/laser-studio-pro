@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
-from laser_studio.ui.widgets import TabToolBar, ZoomableGraphicsView
+from laser_studio.ui.widgets import ZoomableGraphicsView
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
 HINT_STYLE = "color: #888888;"
@@ -64,7 +64,6 @@ class SeparationTab(QWidget):
     export_requested = pyqtSignal()
     # Onglet d'aperçu affiché (index de PREVIEW_KEYS).
     preview_tab_changed = pyqtSignal(int)
-    fullscreen_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,11 +72,6 @@ class SeparationTab(QWidget):
         self.setAcceptDrops(True)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(4, 4, 4, 4)
-
-        toolbar = TabToolBar(self)
-        toolbar.fullscreen_requested.connect(self.fullscreen_requested)
-        self._fullscreen_control = toolbar.fullscreen_action
-        outer.addWidget(toolbar)
 
         body = QHBoxLayout()
         outer.addLayout(body, 1)

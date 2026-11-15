@@ -12,7 +12,8 @@ from laser_studio.core.paths import find_resource
 
 # Couleur du texte dans les icônes Breeze (classe ColorScheme-Text).
 BREEZE_TEXT_COLOR = "#232629"
-BREEZE_ACTIONS_DIR = os.path.join("icons", "breeze", "22x22", "actions")
+BREEZE_DIR = os.path.join("icons", "breeze", "22x22")
+BREEZE_CONTEXTS = ("actions", "categories", "apps", "devices", "preferences")
 
 
 def painted_icon(palette, draw):
@@ -71,7 +72,11 @@ def palette_icon(name, palette, fallback=None):
     pas les icônes de nœuds, de dégroupage…). Les parties colorées de
     l'icône (rouge, bleu) sont gardées. `fallback` si l'icône manque.
     """
-    path = find_resource(os.path.join(BREEZE_ACTIONS_DIR, f"{name}.svg"))
+    path = next(
+        (p for p in (find_resource(os.path.join(BREEZE_DIR, ctx, f"{name}.svg"))
+                     for ctx in BREEZE_CONTEXTS) if p),
+        None,
+    )
     if path is None:
         return fallback if fallback is not None else QIcon()
     with open(path, encoding="utf-8") as f:

@@ -97,6 +97,7 @@ class WindowControllerMixin:
             lambda: self._run_in_vector_editor(self.open_puzzle_generator)
         )
         # Affichage
+        actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
         actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide
@@ -242,18 +243,13 @@ class WindowControllerMixin:
     def update_connection_widgets(self):
         """Met le bouton de connexion en accord avec l'état du port.
 
-        Page des matériaux et panneau « Connexion » : « Déconnecter » sur
-        fond vert / pastille verte si connecté, « Connecter GRBL » / pastille
-        rouge sinon. Verrouille ou déverrouille aussi les commandes de la
-        machine.
+        Panneau « Connexion » : « Déconnecter » / pastille verte si connecté,
+        « Connecter GRBL » / pastille rouge sinon. Verrouille ou déverrouille
+        aussi les commandes de la machine.
         """
         connected = self.usb.is_connected()
-        page = getattr(self, "tab_machine_profiles", None)
-        if page is not None:
-            page.set_connected(connected)
         # Bouton de connexion, pilotage, actions de job et console directe :
-        # verrouillés tant que
-        # le graveur n'est pas connecté. La position du job reste modifiable
+        # verrouillés tant que le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
         machine_panel = getattr(self, "machine_panel", None)
         if machine_panel is not None:

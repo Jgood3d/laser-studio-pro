@@ -151,10 +151,6 @@ TRANSLATIONS = {
         "fr": "Paramètres du graveur", "en": "Engraver Settings",
         "de": "Gravierer-Einstellungen", "es": "Ajustes del grabador",
     },
-    "tab.machine_profiles": {
-        "fr": "Matériaux et connexion au graveur", "en": "Materials and Engraver Connection",
-        "de": "Materialien und Verbindung zum Gravierer", "es": "Materiales y conexión al grabador",
-    },
     "tab.test_matrix": {
         "fr": "Matrice de Test", "en": "Test Matrix",
         "de": "Testmatrix", "es": "Matriz de prueba",
@@ -1338,10 +1334,6 @@ TRANSLATIONS = {
         "fr": "Focale laser (spot)", "en": "Laser Focal (spot)",
         "de": "Laserfokus (Spot)", "es": "Focal láser (spot)",
     },
-    "img.save_as_focal": {
-        "fr": "→ Enregistrer comme focale machine", "en": "→ Save as machine focal",
-        "de": "→ Als Maschinenfokus speichern", "es": "→ Guardar como focal de la máquina",
-    },
     "img.configure_focal": {
         "fr": "Configurer la focale du laser >", "en": "Configure laser focal >",
         "de": "Laserfokus konfigurieren >", "es": "Configurar focal del láser >",
@@ -1501,12 +1493,6 @@ TRANSLATIONS = {
         "es": "Desplazamiento Y (mm):",
     },
 
-    "usb.box_title": {
-        "fr": "Connexion USB Laser",
-        "en": "Laser USB Connection",
-        "de": "USB-Laserverbindung",
-        "es": "Conexión USB del láser",
-    },
     "usb.simulated_port": {
         "fr": "Graveur simulé (LASER_STUDIO_SIMULATION)",
         "en": "Simulated engraver (LASER_STUDIO_SIMULATION)",
@@ -1518,12 +1504,6 @@ TRANSLATIONS = {
         "en": "Refresh Ports",
         "de": "Ports aktualisieren",
         "es": "Actualizar puertos",
-    },
-    "usb.connect": {
-        "fr": "Connecter GRBL",
-        "en": "Connect GRBL",
-        "de": "GRBL verbinden",
-        "es": "Conectar GRBL",
     },
     "usb.port": {
         "fr": "Port COM:",
@@ -1539,10 +1519,10 @@ TRANSLATIONS = {
         "es": "Perfiles de materiales",
     },
     "material.select": {
-        "fr": "Sélection Profil:",
-        "en": "Select Profile:",
-        "de": "Profil auswählen:",
-        "es": "Seleccionar perfil:",
+        "fr": "Profil matériau :",
+        "en": "Material profile:",
+        "de": "Materialprofil:",
+        "es": "Perfil de material:",
     },
     "material.save": {
         "fr": "Sauvegarder les modifications",
@@ -2370,38 +2350,6 @@ TRANSLATIONS = {
         "en": "Spacing: {spacing:.3f} mm ({ratio:.1f}× focal length) — {quality}",
         "de": "Abstand: {spacing:.3f} mm ({ratio:.1f}× Fokus) — {quality}",
         "es": "Separación: {spacing:.3f} mm ({ratio:.1f}× el focal) — {quality}",
-    },
-    "image.save_focal_title": {
-        "fr": "Enregistrer la focale machine",
-        "en": "Save Machine Focal Length",
-        "de": "Maschinenfokus speichern",
-        "es": "Guardar focal de la máquina",
-    },
-    "image.save_focal_question": {
-        "fr": "Mettre à jour la focale du laser (Paramètres du graveur) :\n"
-              "{current:.3f} mm  →  {new:.3f} mm\n\n"
-              "et sauvegarder ce réglage machine maintenant ?",
-        "en": "Update the laser focal length (Engraver Settings):\n"
-              "{current:.3f} mm  →  {new:.3f} mm\n\n"
-              "and save this machine setting now?",
-        "de": "Lasfokus aktualisieren (Gravierer-Einstellungen):\n"
-              "{current:.3f} mm  →  {new:.3f} mm\n\n"
-              "und diese Maschineneinstellung jetzt speichern?",
-        "es": "¿Actualizar la focal del láser (Ajustes del grabador):\n"
-              "{current:.3f} mm  →  {new:.3f} mm\n\n"
-              "y guardar ahora este ajuste?",
-    },
-    "image.focal_saved_title": {
-        "fr": "Focale enregistrée",
-        "en": "Focal Length Saved",
-        "de": "Fokus gespeichert",
-        "es": "Focal guardado",
-    },
-    "image.focal_saved": {
-        "fr": "La focale machine a été mise à jour à {focal:.3f} mm et sauvegardée.",
-        "en": "The machine focal length was updated to {focal:.3f} mm and saved.",
-        "de": "Der Maschinenfokus wurde auf {focal:.3f} mm aktualisiert und gespeichert.",
-        "es": "La focal de la máquina se actualizó a {focal:.3f} mm y se guardó.",
     },
     "image.open_title": {
         "fr": "Ouvrir une image",
@@ -3767,9 +3715,23 @@ TRANSLATIONS = {
     "layers.default_name_cut": {
         "fr": "Découpe", "en": "Cut", "de": "Schneiden", "es": "Corte",
     },
-    "layers.default_name_engrave_text": {
-        "fr": "Gravure Texte", "en": "Text Engraving",
-        "de": "Textgravur", "es": "Grabado de texto",
+    "layers.default_name_engrave": {
+        "fr": "Gravure", "en": "Engraving", "de": "Gravur", "es": "Grabado",
+    },
+    "layers.base_title": {
+        "fr": "Calque de base", "en": "Base layer", "de": "Basisebene", "es": "Capa base",
+    },
+    "layers.base_name_tip": {
+        "fr": "Calque de base : nom fixe, présent dans chaque profil matériau.",
+        "en": "Base layer: fixed name, present in every material profile.",
+        "de": "Basisebene: fester Name, in jedem Materialprofil vorhanden.",
+        "es": "Capa base: nombre fijo, presente en cada perfil de material.",
+    },
+    "layers.base_cannot_delete": {
+        "fr": "« {name} » est un calque de base (gravure, découpe, marquage) : il ne peut pas être supprimé. Désactivez-le s'il ne sert pas.",
+        "en": "\"{name}\" is a base layer (engraving, cut, marking): it cannot be deleted. Disable it if you don't need it.",
+        "de": "„{name}“ ist eine Basisebene (Gravur, Schneiden, Markierung): Sie kann nicht gelöscht werden. Deaktiviere sie, wenn du sie nicht brauchst.",
+        "es": "«{name}» es una capa base (grabado, corte, marcado): no se puede eliminar. Desactívala si no la necesitas.",
     },
     "vector.n_objects": {
         "fr": " ({n} objets)", "en": " ({n} objects)",
@@ -4215,6 +4177,10 @@ TRANSLATIONS = {
         "en": "{label} ({n} segments)",
         "de": "{label} ({n} Segmente)",
         "es": "{label} ({n} segmentos)",
+    },
+    "usb.help_title": {
+        "fr": "Port introuvable ?", "en": "Port not showing up?",
+        "de": "Port nicht gefunden?", "es": "¿No aparece el puerto?",
     },
     "usb.driver_hint": {
         "fr": "Port introuvable ? Installe le driver USB de ton contrôleur (le plus courant : CH340) : <a href='https://www.wch-ic.com/downloads/CH341SER_EXE.html'>CH340</a> · <a href='https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers'>CP210x</a> · <a href='https://ftdichip.com/drivers/vcp-drivers/'>FTDI</a>. Sous Linux, aucun driver à installer, mais ton utilisateur doit être dans le groupe « dialout ».",

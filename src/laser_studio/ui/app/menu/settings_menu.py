@@ -14,7 +14,6 @@ class SettingsMenu(QMenu):
     def __init__(self, actions, parent=None):
         super().__init__(tr("menu.settings"), parent)
         self.addAction(actions.machine_params_window)
-        self.addAction(actions.machine_window)
         self.addAction(actions.grbl_window)
         self.addSeparator()
         language_menu = self.addMenu(
