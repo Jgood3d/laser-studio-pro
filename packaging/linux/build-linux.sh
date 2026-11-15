@@ -6,7 +6,12 @@
 #
 # Résultat : dist/LaserStudioPro, un exécutable unique (--onefile).
 # Options :
-#   --onedir   dossier dist/LaserStudioPro/ (démarrage plus rapide)
+#   --onedir   dossier dist/LaserStudioPro/ (démarrage plus rapide, base de
+#              l'AppImage : voir build-appimage.sh)
+#
+# Les réglages de compilation (fichiers embarqués, modules, filtre des
+# fichiers inutiles) sont dans packaging/pyinstaller/LaserStudioPro.spec,
+# partagé avec Windows.
 #
 # Le script utilise l'environnement virtuel du projet (.venv/ ou venv/)
 # s'il existe, sinon le python3 du système. PyInstaller doit y être
@@ -21,8 +26,10 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
 MODE="--onefile"
+export LSP_ONEFILE=1
 if [ "${1:-}" = "--onedir" ]; then
     MODE="--onedir"
+    export LSP_ONEFILE=0
 fi
 
 echo "=========================================="
@@ -50,26 +57,7 @@ rm -rf build dist
 echo "=========================================="
 echo "Compilation de Laser Studio Pro ($MODE)..."
 echo "=========================================="
-# Stencil Studio : le dossier est copié en données (studio.html, locales,
-# polices...) ET ses modules sont déclarés en hidden-import, pour que
-# PyInstaller embarque aussi cv2 / numpy / scipy / Pillow qu'ils utilisent.
-# QtWebEngine est embarqué automatiquement (main.py l'importe en tête).
-# Le .spec généré va dans build/ : la racine du dépôt reste propre.
-python3 -m PyInstaller --noconfirm "$MODE" --windowed --name LaserStudioPro \
-    --icon "$REPO_ROOT/src/laser_studio/resources/laser_studio_pro.ico" \
-    --specpath build \
-    --paths "$REPO_ROOT/src" \
-    --add-data "$REPO_ROOT/src/laser_studio/resources:resources" \
-    --add-data "$REPO_ROOT/stencil_studio:stencil_studio" \
-    --collect-submodules serial --hidden-import serial \
-    --hidden-import PyQt6.QtWebEngineWidgets --hidden-import PyQt6.QtWebEngineCore \
-    --hidden-import stencil_studio.studio_dialog --hidden-import stencil_studio.studio_window \
-    --hidden-import stencil_studio.studio --hidden-import stencil_studio.core \
-    --hidden-import stencil_studio.engrave --hidden-import stencil_studio.lightbox \
-    --hidden-import stencil_studio.lsp_bridge --hidden-import stencil_studio.subject_ai \
-    --hidden-import stencil_studio.i18n \
-    --hidden-import scipy.spatial --hidden-import scipy.ndimage \
-    main.py
+python3 -m PyInstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec
 
 echo "=========================================="
 if [ "$MODE" = "--onefile" ]; then

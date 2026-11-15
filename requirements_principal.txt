@@ -5,7 +5,7 @@ llvmlite==0.50.0
 networkx==3.7
 numba==0.68.1
 numpy==1.26.4
-opencv-python==4.11.0.86
+opencv-python-headless==4.11.0.86
 packaging==26.3
 pillow==13.0.0
 PyQt6==6.12.0

@@ -16,11 +16,15 @@ système :
 |---|---|---|
 | Windows | `packaging\windows\build.bat`, puis `packaging\windows\setup.iss` (Inno Setup) pour l'installateur | `dist\LaserStudioPro\` |
 | Linux | `packaging/linux/build-linux.sh` (`--onedir` pour un dossier) | `dist/LaserStudioPro` |
+| Windows et Linux | `packaging/pyinstaller/LaserStudioPro.spec` (réglages communs, utilisés par les deux scripts) | |
 | macOS | `packaging/macos/build_macos.sh` (voir `packaging/macos/README.md`) | `dist/LaserStudioPro.app` |
 
 Ils se lancent depuis n'importe quel dossier et travaillent à la racine du
-dépôt. Les commandes détaillées ci-dessous restent utiles pour comprendre
-ce qu'ils font, ou compiler à la main.
+dépôt. Windows et Linux partagent les mêmes réglages de compilation,
+dans `packaging/pyinstaller/LaserStudioPro.spec` : fichiers embarqués
+(`src/laser_studio/resources/`, Stencil Studio), modules déclarés, et filtre
+des fichiers inutiles (`packaging/pyinstaller/bundle_filter.py`, utilisé
+aussi par le `.spec` macOS). Voir [Taille de l'exécutable](#taille-de-lexécutable).
 
 ---
 
@@ -57,20 +61,13 @@ pip install pyinstaller
 
 ### 4. Compiler
 Le plus simple : `packaging\windows\build.bat` (Stencil Studio compris).
-À la main, depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
-être présents), avec le dossier `resources/` (icône, bannière, logo,
-image « Buy me a coffee », pack d'icônes Breeze dans `resources/icons/`) :
+À la main, depuis la racine du projet :
 ```powershell
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" main.py
-Avec Stencil Studio :
-
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources\laser_studio_pro.ico --add-data "resources;resources" --add-data "stencil_studio;stencil_studio" main.py
-
+pyinstaller --noconfirm packaging\pyinstaller\LaserStudioPro.spec
 ```
-Sous Windows, `--add-data` sépare source et destination par `;`. Le code
-(`core.paths.find_resource`) cherche ces images dans `resources/` à côté de
-l'exécutable, puis dans le bundle PyInstaller, donc `--add-data` suffit — pas
-besoin de copier les images manuellement dans `dist\` après coup.
+Le code (`core.paths.find_resource`) cherche les images dans `resources/` à
+côté de l'exécutable, puis dans le bundle PyInstaller, où le `.spec` les a
+embarquées : pas besoin de les copier dans `dist\` après coup.
 
 > Une image absente de `resources/` n'empêche pas la compilation : pour
 > l'icône, le code passe au suivant dans sa liste de repli (`.ico` →
@@ -78,7 +75,8 @@ besoin de copier les images manuellement dans `dist\` après coup.
 > n'est trouvée du tout.
 
 ### 5. Résultat
-L'exécutable `LaserStudioPro.exe` se trouve dans le dossier `dist\`.
+Le dossier `dist\LaserStudioPro\`, avec `LaserStudioPro.exe` (base de
+l'installeur Inno Setup).
 
 ---
 
@@ -108,22 +106,49 @@ pip install pyinstaller
 ```
 
 ### 4. Compiler
-Le plus simple : `packaging/linux/build-linux.sh` (Stencil Studio compris).
-À la main :
+Le plus simple : `packaging/linux/build-linux.sh` (Stencil Studio compris ;
+`--onedir` pour un dossier). À la main, depuis la racine du projet :
 ```bash
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" main.py
-
-Avec Stencil studio
-
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=resources/laser_studio_pro.ico --add-data "resources:resources" --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
+pyinstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec               # dossier
+LSP_ONEFILE=1 pyinstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec # exécutable unique
 ```
-Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
-Comme sous Windows, `core.paths.find_resource` retrouve ces images aussi bien
-embarquées via `--add-data` que placées à côté de l'exécutable.
 
 ### 5. Résultat
 L'exécutable se trouve dans le dossier `dist/` sous le nom `LaserStudioPro`
 (à rendre exécutable si besoin : `chmod +x dist/LaserStudioPro`).
+
+---
+
+## Taille de l'exécutable
+
+Mesures du 2026-11-15, compilation Linux en dossier : **1 065 Mo → 894 Mo**
+décompressés (environ 464 → 395 Mo compressés). Notre code et nos images
+pèsent moins de 10 Mo : tout le reste vient des bibliothèques.
+
+Ce qui est retiré :
+
+- **les fichiers inutilisés** (`bundle_filter.py`) : les modules Qt QML
+  (Quick 3D, styles QML, multimédia, synthèse vocale… ; l'application
+  n'utilise que des widgets), le dossier `qml/`, les outils de développement
+  de Chromium, et les traductions de Qt et de QtWebEngine autres que
+  français, anglais, allemand et espagnol ;
+- **`opencv-python-headless`** au lieu d'`opencv-python` : le même OpenCV,
+  sans ses fenêtres (`cv2.imshow`…), que le code n'utilise pas. Il évite
+  d'embarquer une deuxième copie de Qt (Qt5) avec OpenCV.
+
+Ce qui reste, et pourquoi :
+
+- **numba** (llvmlite, ~170 Mo décompressés) : sans lui, le tramage d'une
+  image de 100 × 100 mm passe de 5–8 ms à 0,5–1,1 s, et de 12–20 ms à
+  1–2,4 s pour 150 × 150 mm. Il se recalcule à chaque réglage de l'onglet
+  « Graver une image » : on le garde ;
+- **QtWebEngine** (~200 Mo décompressés), un navigateur Chromium complet,
+  qui ne sert qu'à l'interface HTML de Stencil Studio ;
+- **OpenCV**, scipy, numpy, scikit-image, et Qt lui-même.
+
+**À éviter : UPX**, souvent proposé pour compresser les exécutables : il
+casse régulièrement les bibliothèques Qt et déclenche de fausses alertes
+d'antivirus.
 
 ---
 
@@ -133,19 +158,14 @@ L'exécutable se trouve dans le dossier `dist/` sous le nom `LaserStudioPro`
   de la compilation précédente pour être sûr que PyInstaller reparte propre :
   ```powershell
   rmdir /s /q build dist
-  del LaserStudioPro.spec
   ```
-  (sous Linux : `rm -rf build dist LaserStudioPro.spec`)
-- Le fichier `--onefile` génère un exécutable unique mais plus lent à
-  démarrer (extraction dans un dossier temporaire à chaque lancement).
-  Retirer cette option pour obtenir un dossier avec l'exécutable et ses
-  dépendances à côté (démarrage plus rapide, mais moins pratique à distribuer).
-- Un fichier `LaserStudioPro.spec` est généré à la première compilation :
-  le conserver et relancer `pyinstaller LaserStudioPro.spec` (au lieu de la
-  commande complète) accélère les recompilations suivantes.
+  (sous Linux : `rm -rf build dist` ; les scripts le font eux-mêmes)
+- L'exécutable unique (`LSP_ONEFILE=1`) est plus lent à démarrer : il se
+  décompresse dans un dossier temporaire à chaque lancement. Le dossier
+  (par défaut) démarre bien plus vite.
 - Si `numba` (optionnel) échoue à l'installation ou pendant la compilation,
-  le retirer de `requirements-*.txt` : l'application fonctionne sans, avec un
-  tramage d'image simplement plus lent.
+  le retirer de `requirements-*.txt` : l'application fonctionne sans, mais le
+  tramage devient environ cent fois plus lent (voir ci-dessous).
 - **Bannière/icône introuvable dans la boîte "À propos"** : vérifier que
   `--add-data` a bien été utilisé à la compilation (voir ci-dessus), *ou* que
   le fichier image est copié directement dans le dossier `dist/` à côté de

@@ -30,6 +30,11 @@ REPO_ROOT = os.path.dirname(os.path.dirname(SPECPATH))  # SPECPATH = packaging/m
 sys.path.insert(0, os.path.join(REPO_ROOT, 'src'))
 from laser_studio.core.version import APP_VERSION
 
+# Fichiers que l'application n'utilise pas (modules Qt QML, traductions
+# d'autres langues…) : filtre partagé avec Windows et Linux.
+sys.path.insert(0, os.path.join(REPO_ROOT, 'packaging', 'pyinstaller'))
+from bundle_filter import prune
+
 # Ressources embarquées dans le bundle, dans resources/ (retrouvées au
 # runtime par core.paths.find_resource()). Ce dossier est partagé avec les
 # builds Windows/Linux.
@@ -64,6 +69,9 @@ a = Analysis(
     cipher=block_cipher,
     noarchive=False,
 )
+
+a.binaries = prune(a.binaries)
+a.datas = prune(a.datas)
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
