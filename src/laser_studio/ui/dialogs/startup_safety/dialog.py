@@ -1,18 +1,26 @@
 """Boîte de dialogue d'avertissement laser au démarrage."""
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QMessageBox, QWidget
+from PyQt6.QtWidgets import QCheckBox, QMessageBox, QWidget
 
+from laser_studio.controllers.startup_safety import REMINDER_EVERY
 from laser_studio.i18n import tr
 
 
-def confirm_startup_safety(parent: QWidget | None = None) -> bool:
-    """Affiche l'avertissement de sécurité.
+def confirm_startup_safety(
+    parent: QWidget | None = None, hide_checked: bool = False
+) -> tuple[bool, bool]:
+    """Affiche l'avertissement de sécurité, avec une case « Ne plus afficher
+    à chaque démarrage » (comme les astuces du jour), cochée si
+    `hide_checked`.
+
+    Quand afficher la fenêtre : voir controllers.startup_safety.
 
     Returns
     -------
-    bool
-        True si l'utilisateur valide (OK), False s'il annule.
+    tuple[bool, bool]
+        (validé, case cochée) : validé est True si l'utilisateur clique sur
+        OK, False s'il annule.
     """
     box = QMessageBox(parent)
     box.setIcon(QMessageBox.Icon.Warning)
@@ -31,4 +39,9 @@ def confirm_startup_safety(parent: QWidget | None = None) -> bool:
     if cancel_btn is not None:
         cancel_btn.setText(tr("startup.safety.cancel"))
 
-    return box.exec() == QMessageBox.StandardButton.Ok
+    hide_check = QCheckBox(tr("startup.safety.dont_show").format(n=REMINDER_EVERY))
+    hide_check.setChecked(hide_checked)
+    box.setCheckBox(hide_check)
+
+    accepted = box.exec() == QMessageBox.StandardButton.Ok
+    return accepted, hide_check.isChecked()

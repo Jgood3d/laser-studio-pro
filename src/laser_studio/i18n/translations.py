@@ -4510,6 +4510,12 @@ TRANSLATIONS = {
         "de": "Du bleibst allein verantwortlich für die Dateien, die an deine Maschine gesendet werden.",
         "es": "El usuario es el único responsable de los archivos enviados a su máquina.",
     },
+    "startup.safety.dont_show": {
+        "fr": "Ne plus afficher à chaque démarrage (rappel tous les {n} démarrages)",
+        "en": "Don't show at every startup (reminder every {n} startups)",
+        "de": "Nicht bei jedem Start anzeigen (Erinnerung alle {n} Starts)",
+        "es": "No mostrar en cada inicio (recordatorio cada {n} inicios)",
+    },
     "startup.safety.ok": {
         "fr": "OK",
         "en": "OK",

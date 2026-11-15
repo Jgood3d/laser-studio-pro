@@ -104,6 +104,12 @@ source .venv/bin/activate
 python main.py
 ```
 
+Au démarrage, un avertissement de sécurité demande une confirmation. Sa case « Ne plus afficher à chaque démarrage » le limite à un rappel tous les 30 démarrages. Pour les tests et le développement, la variable d’environnement `NOWARNING` le désactive complètement :
+
+```bash
+NOWARNING=1 python main.py
+```
+
 ## Structure du projet
 
 Le code suit la disposition `src/` recommandée pour les projets Python (voir `pyproject.toml`) :
