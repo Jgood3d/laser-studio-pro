@@ -12,7 +12,9 @@ Pillow>=10.0
 svg.path>=6.3
 
 # Traitement d'image & vectorisation (PNG -> SVG)
-opencv-python>=4.8
+# « headless » : sans les fenêtres OpenCV (cv2.imshow…), que le code n'utilise pas ;
+# évite aussi d'embarquer une deuxième copie de Qt (Qt5) dans l'exécutable.
+opencv-python-headless>=4.8
 scikit-image>=0.22
 
 # Optionnel : accélère le tramage (dithering) d'image.

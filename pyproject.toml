@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 # Versions exactes des builds : requirements_principal.txt.
 dependencies = [
     "numpy",
-    "opencv-python",
+    "opencv-python-headless",
     "pillow",
     "PyQt6",
     "PyQt6-WebEngine",
