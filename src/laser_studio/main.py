@@ -7,7 +7,7 @@ if "--stencil-studio" in sys.argv:
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QElapsedTimer, QTimer
+from PyQt6.QtCore import QElapsedTimer, QSettings, QTimer
 from PyQt6 import QtWebEngineWidgets
 
 from laser_studio.core.constants import SPLASH_SCREEN_DURATION
@@ -49,15 +49,22 @@ def main():
         app.setWindowIcon(QIcon(icon_path))
 
     # Avertissement de sécurité AVANT FullLaserStudio : « Annuler » quitte
-    # sans closeEvent → pas de demande d'enregistrement de projet.
+    # sans closeEvent → pas de demande d'enregistrement de projet. À chaque
+    # démarrage, ou tous les 30 si « Ne plus afficher » est coché ; jamais
+    # avec la variable d'environnement NOWARNING (voir
+    # controllers.startup_safety).
+    from laser_studio.controllers.startup_safety import StartupSafetyPolicy
     from laser_studio.ui.dialogs.startup_safety import confirm_startup_safety
-    splash.hide()
-    accepted = confirm_startup_safety(None)
-    if not accepted:
-        splash.close()
-        sys.exit(0)
-    splash.show()
-    splash.show_progress(tr("splash.ready"))
+    safety = StartupSafetyPolicy(QSettings("LaserStudioPro", "UIConfig"))
+    if safety.should_show_at_launch():
+        splash.hide()
+        accepted, hide = confirm_startup_safety(None, safety.hidden())
+        if not accepted:
+            splash.close()
+            sys.exit(0)
+        safety.record(hide)
+        splash.show()
+        splash.show_progress(tr("splash.ready"))
 
     # Importé ici et non en tête de fichier : ce module charge la
     # quasi-totalité de l'application (pyqtgraph, numba, scipy, OpenCV…).
