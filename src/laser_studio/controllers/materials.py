@@ -103,6 +103,8 @@ def complete_material(material):
     Entrée de base manquante : valeurs par défaut. Les autres entrées (calques
     ajoutés) sont gardées."""
     from laser_studio.vector_layers import BASE_LAYER_ROLES
+    if not material:
+        material = {}
     material = dict(material)
     entries = [dict(d) for d in material.get("layers") or [] if isinstance(d, dict)]
     roles = {d.get("role") for d in entries}
@@ -121,6 +123,8 @@ def complete_material(material):
         else:
             entry = _base_entry(role)
         entries.append(entry)
+    material["layers"] = entries
+    return material
 
 
 def apply_material_to_layers(layer_manager, material):
@@ -146,6 +150,8 @@ def apply_material_to_layers(layer_manager, material):
 
 def complete_materials(materials):
     """Tous les matériaux complétés (complete_material), dans le même ordre."""
+    if not materials:
+        return {}
     return {name: complete_material(m) for name, m in materials.items()}
 
 
