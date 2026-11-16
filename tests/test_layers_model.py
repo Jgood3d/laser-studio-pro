@@ -100,6 +100,47 @@ class LayersModelTests(unittest.TestCase):
 
 
 @unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
+class EngraveLayerChoiceTests(unittest.TestCase):
+    """Calque de la gravure des images choisi dans l'onglet image : c'est lui
+    que lit la génération (engrave_layer)."""
+
+    def make(self):
+        model = LayersModel()
+        photo = model.add_layer()
+        model.update(photo.id, mode="engrave_fill", power=60)
+        chosen = []
+        model.engrave_layer_selected.connect(chosen.append)
+        return model, photo, chosen
+
+    def test_chosen_layer_is_the_engrave_layer(self):
+        model, photo, chosen = self.make()
+        self.assertIs(model.engrave_layer(), model.layers[0])      # par défaut : le premier
+        with self.assertLogs(LOGGER, "INFO"):
+            self.assertTrue(model.select_engrave_layer(photo.id))
+        self.assertIs(model.engrave_layer(), photo)
+        self.assertEqual(chosen, [photo.id])
+        self.assertFalse(model.select_engrave_layer(photo.id))      # déjà choisi : rien
+        self.assertEqual(chosen, [photo.id])
+
+    def test_a_layer_that_does_not_engrave_cannot_be_chosen(self):
+        model, _photo, chosen = self.make()
+        cut = next(l for l in model.layers if l.mode == "cut")
+        with self.assertLogs(LOGGER, "WARNING"):
+            self.assertFalse(model.select_engrave_layer(cut.id))
+        self.assertEqual(chosen, [])
+
+    def test_back_to_the_first_engrave_layer_when_the_choice_disappears(self):
+        model, photo, _chosen = self.make()
+        model.select_engrave_layer(photo.id)
+        model.update(photo.id, mode="cut")                         # ne grave plus
+        self.assertIs(model.engrave_layer(), model.layers[0])
+        model.update(photo.id, mode="engrave_fill")
+        self.assertIs(model.engrave_layer(), photo)
+        model.remove_layer(photo.id)
+        self.assertIs(model.engrave_layer(), model.layers[0])
+
+
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class LayerModeCodeTests(unittest.TestCase):
     """Modes : des codes indépendants de la langue ; les anciens libellés
     français (projets, profils, matériaux d'avant 2.6) sont convertis."""
