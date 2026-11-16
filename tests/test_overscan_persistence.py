@@ -95,6 +95,25 @@ class OverscanPersistenceTests(unittest.TestCase):
         apply = src[src.index("def _apply_machine_profile"):src.index("def _machine_memory")]
         self.assertIn("self.tab_grbl_config.apply_profile_values(profile)", apply)  # changement, démarrage
 
+    def test_homing_choice_survives_a_restart(self):
+        """« Inclure $H » décoché (graveur sans homing) : décoché au prochain
+        démarrage, et le décochage déclenche la mémorisation du profil."""
+        a = self.page()
+        changes = []
+        a.homing_changed.connect(changes.append)
+        a.homing_check.setChecked(False)
+        self.assertEqual(changes, [False])
+        c = self.controller(a, [{"name": "Phecda"}])
+        c.store_memory()
+        saved = json.loads(c.to_json())
+        b = self.page()                                 # case cochée par défaut
+        b.apply_profile_values(saved[0])
+        self.assertFalse(b.homing_check.isChecked())
+        b.apply_profile_values({"name": "Ancien"})      # profil sans la clé : inchangé
+        self.assertFalse(b.homing_check.isChecked())
+        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+            self.assertIn("page.homing_changed.connect(self.machines.schedule_persist)", f.read())
+
 
 if __name__ == "__main__":
     unittest.main()

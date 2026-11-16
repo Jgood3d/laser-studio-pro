@@ -323,6 +323,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         page.bidir_test_requested.connect(self.generate_bidir_test)
         # Décalage aller/retour : mémorisé dans le profil de la machine.
         page.scan_offset_changed.connect(self.machines.schedule_persist)
+        # « Inclure $H » : mémorisé aussi (décoché d'office pour un graveur
+        # sans homing, il le reste aux démarrages suivants).
+        page.homing_changed.connect(self.machines.schedule_persist)
         page.read_settings_requested.connect(self.read_grbl_settings)
         page.send_settings_requested.connect(self.send_grbl_settings)
         page.export_settings_requested.connect(self.export_grbl_settings)
@@ -971,7 +974,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
     def _machine_memory(self):
         """Mémorisé en continu dans le profil actif : calques, matériaux (avec les réglages de leurs
-        calques) et matériau choisi, réglages mécaniques (décalage des lignes retour, surbalayage)."""
+        calques) et matériau choisi, réglages mécaniques (décalage des lignes retour, surbalayage,
+        homing)."""
         return {"layers": self.layer_manager.to_list(),
                 "materials_db": dict(self.materials.materials),
                 "material": self.layers_tab.material_combo.currentText(),

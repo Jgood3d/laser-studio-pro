@@ -1856,6 +1856,60 @@ TRANSLATIONS = {
         "de": "Homing ist an der verbundenen Maschine deaktiviert ($22=0): sie würde $H ablehnen.",
         "es": "El homing está desactivado en la máquina conectada ($22=0): rechazaría $H.",
     },
+    "ui.homing_unsupported_tip": {
+        "fr": "Le graveur connecté ne renvoie pas le réglage $32 : homing considéré comme non supporté.",
+        "en": "The connected engraver does not report the $32 setting: homing is considered unsupported.",
+        "de": "Der verbundene Graveur meldet die Einstellung $32 nicht: Homing gilt als nicht unterstützt.",
+        "es": "El grabador conectado no devuelve el ajuste $32: el homing se considera no compatible.",
+    },
+    "laser.homing_unsupported_title": {
+        "fr": "Homing non supporté",
+        "en": "Homing not supported",
+        "de": "Homing nicht unterstützt",
+        "es": "Homing no compatible",
+    },
+    "laser.homing_unsupported": {
+        "fr": "Le graveur n'a pas renvoyé le réglage $32 dans sa configuration ($$) : "
+              "le homing n'est pas supporté par ce graveur.\n\n"
+              "« Inclure $H » a été désactivé par défaut, et ce choix est enregistré "
+              "dans le profil de la machine.",
+        "en": "The engraver did not report the $32 setting in its configuration ($$): "
+              "homing is not supported by this engraver.\n\n"
+              "\"Include $H\" has been disabled by default, and this choice is saved "
+              "in the machine profile.",
+        "de": "Der Graveur hat die Einstellung $32 in seiner Konfiguration ($$) nicht gemeldet: "
+              "Homing wird von diesem Graveur nicht unterstützt.\n\n"
+              "„$H einbeziehen“ wurde standardmäßig deaktiviert, und diese Wahl ist "
+              "im Maschinenprofil gespeichert.",
+        "es": "El grabador no ha devuelto el ajuste $32 en su configuración ($$): "
+              "este grabador no admite el homing.\n\n"
+              "«Incluir $H» se ha desactivado por defecto y esta elección se guarda "
+              "en el perfil de la máquina.",
+    },
+    "laser.grbl_no_answer_title": {
+        "fr": "Le graveur ne répond pas",
+        "en": "The engraver does not answer",
+        "de": "Der Graveur antwortet nicht",
+        "es": "El grabador no responde",
+    },
+    "laser.grbl_no_answer": {
+        "fr": "Le port {port} est ouvert, mais aucun graveur GRBL n'y répond.\n\n"
+              "Vérifie que le graveur est allumé et branché, et que le bon port est "
+              "choisi dans la liste (en général /dev/ttyUSB… ou /dev/ttyACM… sous "
+              "Linux, COM… sous Windows). Rien ne sera gravé tant qu'il ne répond pas.",
+        "en": "Port {port} is open, but no GRBL engraver answers on it.\n\n"
+              "Check that the engraver is switched on and plugged in, and that the right "
+              "port is selected in the list (usually /dev/ttyUSB… or /dev/ttyACM… on "
+              "Linux, COM… on Windows). Nothing will be engraved until it answers.",
+        "de": "Der Port {port} ist geöffnet, aber kein GRBL-Graveur antwortet.\n\n"
+              "Prüfe, ob der Graveur eingeschaltet und angeschlossen ist und der richtige "
+              "Port in der Liste gewählt ist (meist /dev/ttyUSB… oder /dev/ttyACM… unter "
+              "Linux, COM… unter Windows). Solange er nicht antwortet, wird nichts graviert.",
+        "es": "El puerto {port} está abierto, pero ningún grabador GRBL responde.\n\n"
+              "Comprueba que el grabador está encendido y conectado, y que el puerto "
+              "elegido en la lista es el correcto (normalmente /dev/ttyUSB… o /dev/ttyACM… "
+              "en Linux, COM… en Windows). No se grabará nada mientras no responda.",
+    },
     "laser.grbl_mode_status": {
         "fr": ">>> Mode laser GRBL ($32) : {value}",
         "en": ">>> GRBL laser mode ($32): {value}",

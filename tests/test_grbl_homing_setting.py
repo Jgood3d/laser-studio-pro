@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
+    from laser_studio.i18n import tr
     from laser_studio.laser_control_mixin import LaserControlMixin
 except ImportError:  # PyQt6, pyserial... manquants
     LaserControlMixin = None
@@ -39,6 +40,8 @@ class _Console:
 
 
 class _USB:
+    last_port = "/dev/ttyUSB0"
+
     def __init__(self, response):
         self.response = response
 
@@ -57,6 +60,8 @@ class GrblHomingSettingTests(unittest.TestCase):
             f.log_message = f.txt_console.append   # messages : barre d'état (log_message)
             f.chk_homing = _Check(True)
             f.chk_mat_homing = _Check(True)
+            f.warnings = []
+            f._warn = lambda title, body: f.warnings.append(title)
         f.usb = _USB(response)
         f._check_grbl_laser_mode()
         return f
@@ -92,9 +97,27 @@ class GrblHomingSettingTests(unittest.TestCase):
         parsed = LaserControlMixin._parse_grbl_settings("Grbl 1.1h\n$22 = 0 (homing)\n$32=1\nerror:9\nok")
         self.assertEqual(parsed, {"$22": "0", "$32": "1"})
 
-    def test_laser_mode_check_still_reports_missing_32(self):
+    def test_missing_32_disables_homing_with_a_message(self):
         f = self.connect_with("$22=1\nok")
         self.assertEqual(len(f.txt_console.lines), 1)       # « $32 introuvable »
+        self.assertEqual(f.warnings, [tr("laser.homing_unsupported_title")])
+        for check in (f.chk_homing, f.chk_mat_homing):
+            self.assertFalse(check.checked)
+            self.assertFalse(check.enabled)
+            self.assertTrue(check.tooltip)
+
+    def test_missing_32_warns_only_while_homing_was_checked(self):
+        f = self.connect_with("$22=1\nok")
+        self.connect_with("$22=1\nok", f)                  # reconnexion : déjà décoché
+        self.assertEqual(len(f.warnings), 1)
+
+    def test_no_answer_warns_and_keeps_homing(self):
+        """Mauvais port (rien ne répond à $$) : on ne désactive pas le homing
+        d'un graveur qu'on n'a pas pu interroger."""
+        f = self.connect_with("")
+        self.assertEqual(f.warnings, [tr("laser.grbl_no_answer_title")])
+        self.assertTrue(f.chk_homing.checked)
+        self.assertTrue(f.chk_homing.enabled)
 
 
 if __name__ == "__main__":
