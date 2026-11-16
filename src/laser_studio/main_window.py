@@ -772,6 +772,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.vector_canvas.selection_changed.connect(self.on_vector_selection_changed)
         self.vector_canvas.object_moved.connect(self.on_vector_object_moved)
         self.vector_canvas.edit_requested.connect(self.edit_vector_object)
+        self.vector_canvas.insert_text_requested.connect(self.insert_text_object)
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor

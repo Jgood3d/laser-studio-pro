@@ -1103,6 +1103,7 @@ class VectorCanvasView(QGraphicsView):
     selection_changed = pyqtSignal(object)  # VectorObject ou None
     object_moved = pyqtSignal(object)       # VectorObject déplacé à la souris
     edit_requested = pyqtSignal(object)     # double-clic sur un objet
+    insert_text_requested = pyqtSignal(float, float)  # clic droit > Texte (x_mm, y_mm)
 
     def __init__(self, layer_manager: LayerManager, parent=None):
         super().__init__(parent)
@@ -1504,6 +1505,7 @@ class VectorCanvasView(QGraphicsView):
 
         # Clic droit en mode dessin : annule l'outil et revient à la sélection.
         if event.button() == Qt.MouseButton.RightButton and self._draw_tool:
+            self._ctx_menu_block_until = time.monotonic() + 0.6
             self.set_draw_tool(None)
             event.accept()
             return
@@ -2891,19 +2893,31 @@ class VectorCanvasView(QGraphicsView):
         self._restore_snapshot(snapshot)
 
     def contextMenuEvent(self, event):
-        """Clic droit : assigner un calque (découpe/gravure) ou redimensionner
-        toute la sélection courante en une seule action — fonctionne aussi
-        bien sur un seul objet que sur plusieurs (Ctrl+A ou rubber-band)."""
+        """Clic droit : actions sur la sélection (calque, taille, groupe...) et,
+        toujours, sous-menu « Ajouter une forme » (texte, ligne, carré, cercle)
+        à l'endroit cliqué — y compris sur un canevas vide."""
+        if time.monotonic() < getattr(self, "_ctx_menu_block_until", 0.0):
+            # Le clic droit vient d'annuler un outil de dessin : pas de menu.
+            return
+
         selected = [it for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)]
         if not selected:
             item_at = self.itemAt(event.pos())
             if isinstance(item_at, VectorGraphicsItem):
                 item_at.setSelected(True)
                 selected = [item_at]
-        if not selected:
-            return
 
         menu = QMenu(self)
+        if selected:
+            self._populate_selection_menu(menu, selected)
+            menu.addSeparator()
+
+        click_mm = self.scene_to_mm(self.mapToScene(event.pos()))
+        self._populate_insert_menu(menu, click_mm)
+        menu.exec(event.globalPos())
+
+    def _populate_selection_menu(self, menu, selected):
+        """Entrées du clic droit qui agissent sur la sélection courante."""
         n = len(selected)
         label_suffix = tr("vector.n_objects").format(n=n) if n > 1 else ""
 
@@ -2948,7 +2962,41 @@ class VectorCanvasView(QGraphicsView):
         del_action = menu.addAction(tr("ui.vector_delete"))
         del_action.triggered.connect(self.remove_selected)
 
-        menu.exec(event.globalPos())
+    def _populate_insert_menu(self, menu, click_mm):
+        """Sous-menu « Ajouter une forme » : texte, ligne, carré, cercle,
+        centrés sur le point cliqué (coordonnées monde, mm)."""
+        add_menu = menu.addMenu(tr("vector.ctx_add_shape"))
+        x_mm, y_mm = click_mm
+        add_menu.addAction(tr("vector.ctx_text")).triggered.connect(
+            lambda checked=False: self.insert_text_requested.emit(x_mm, y_mm))
+        add_menu.addAction(tr("vector.ctx_line")).triggered.connect(
+            lambda checked=False: self.add_basic_shape("Ligne", x_mm, y_mm))
+        add_menu.addAction(tr("vector.ctx_square")).triggered.connect(
+            lambda checked=False: self.add_basic_shape("Carré", x_mm, y_mm))
+        add_menu.addAction(tr("vector.ctx_circle")).triggered.connect(
+            lambda checked=False: self.add_basic_shape("Cercle", x_mm, y_mm))
+
+    def add_basic_shape(self, kind, cx_mm, cy_mm, size_mm=20.0):
+        """Ajoute une ligne / un carré / un cercle centré sur (cx_mm, cy_mm),
+        sur le calque par défaut, et le sélectionne (taille modifiable ensuite
+        via le panneau de position/taille ou « Redimensionner »)."""
+        layer_id = self._default_draw_layer_id()
+        if not layer_id:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return None
+        if kind == "Ligne":
+            obj = ShapeObject(shape_type="Ligne", width_mm=size_mm * 1.5, height_mm=0.1,
+                              layer_id=layer_id, x_mm=cx_mm - size_mm * 0.75, y_mm=cy_mm)
+        else:
+            shape_type = "Ellipse" if kind == "Cercle" else "Rectangle"
+            obj = ShapeObject(shape_type=shape_type, width_mm=size_mm, height_mm=size_mm,
+                              layer_id=layer_id, x_mm=cx_mm - size_mm / 2.0, y_mm=cy_mm - size_mm / 2.0)
+        self.push_undo_snapshot()
+        item = self.add_object(obj)
+        self.scene_obj.clearSelection()
+        item.setSelected(True)
+        self.selection_changed.emit(obj)
+        return item
 
     def _bulk_assign_layer(self, items, layer_id):
         self.push_undo_snapshot()
