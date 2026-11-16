@@ -111,13 +111,16 @@ def complete_material(material):
             continue
         if role == "engrave" and "sp_e" in material and "pw_e" in material:
             entry = _base_entry(role, material["pw_e"], material["sp_e"])
-        elif role == "cut" and int(material.get("pass_c", 0) or 0) > 0:
-            entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), material["pass_c"])
+        elif role == "cut":
+            passes = int(material.get("pass_c", 0) or 0)
+            if passes > 0:
+                entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), passes)
+            else:
+                # Pas de découpe configurée : restaurer le réglage de découpe par défaut.
+                entry = _base_entry(role, power=90.0, passes=2)
         else:
             entry = _base_entry(role)
         entries.append(entry)
-    material["layers"] = entries
-    return material
 
 
 def apply_material_to_layers(layer_manager, material):
