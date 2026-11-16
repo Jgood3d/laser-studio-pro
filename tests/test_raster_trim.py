@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # test_gcode_burn_map
 
 from test_gcode_burn_map import generate_gcode, power_map, workers  # noqa: E402
+from laser_studio.models.layers import LayersModel  # noqa: E402
 
 try:
     import laser_studio.gcode_generation_mixin as ggm
@@ -106,7 +107,9 @@ class QuickEstimateTests(unittest.TestCase):
         arr = np.full((10, 60), 255, np.uint8)
         arr[[2, 7], 10:40] = 0                      # 2 lignes de 30 px (30 mm), 8 lignes vides
         app.processed_array = arr
-        app.spin_w, app.engrave_speed = _Spin(60.0), 600
+        app.spin_w = _Spin(60.0)
+        app.layer_manager = LayersModel()
+        app.layer_manager.update(app.layer_manager.engrave_layer().id, speed=600)
         app.chk_overscan = types.SimpleNamespace(isChecked=lambda: False)
         app.loaded_svg_path = None
         with mock.patch.object(ggm.QMessageBox, "information") as box:

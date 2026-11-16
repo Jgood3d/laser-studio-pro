@@ -9,6 +9,7 @@ from svg.path import parse_path
 from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
+from laser_studio.models.layers import BASE_LAYER_DEFAULTS
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
@@ -451,14 +452,41 @@ class GcodeGenerationMixin:
         self.on_gcode_generated(gcode, n_lines, avg_power, time_str)
         QMessageBox.information(self, tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
 
-    def set_engrave_settings(self, speed, power):
-        """Vitesse (mm/min) et puissance (%) de la gravure d'une image.
+    # La gravure d'une image (tramage, séparation couleur) utilise la vitesse
+    # et la puissance du calque de gravure (LayersModel.engrave_layer). Elles
+    # sont LUES dans le calque à chaque usage : il n'en existe plus de copie
+    # qui pourrait diverger du calque affiché.
 
-        Valeurs entières, ramenées dans ENGRAVE_SPEED_RANGE et
-        ENGRAVE_POWER_RANGE.
-        """
-        self.engrave_speed = _clamp(speed, ENGRAVE_SPEED_RANGE)
-        self.engrave_power = _clamp(power, ENGRAVE_POWER_RANGE)
+    @property
+    def engrave_speed(self):
+        """Vitesse (mm/min) de la gravure d'une image, entière, ramenée dans
+        ENGRAVE_SPEED_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        speed = layer.speed if layer else BASE_LAYER_DEFAULTS["engrave"][4]
+        return _clamp(speed, ENGRAVE_SPEED_RANGE)
+
+    @property
+    def engrave_power(self):
+        """Puissance (%) de la gravure d'une image, entière, ramenée dans
+        ENGRAVE_POWER_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        power = layer.power if layer else BASE_LAYER_DEFAULTS["engrave"][3]
+        return _clamp(power, ENGRAVE_POWER_RANGE)
+
+    def set_engrave_settings(self, speed, power):
+        """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
+        image dans le calque de gravure (ex. case de la matrice de test,
+        ancien projet sans calques). Valeurs entières, ramenées dans
+        ENGRAVE_SPEED_RANGE et ENGRAVE_POWER_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        if layer is not None:
+            self.layer_manager.update(layer.id, speed=_clamp(speed, ENGRAVE_SPEED_RANGE),
+                                      power=_clamp(power, ENGRAVE_POWER_RANGE))
+
+    def _engrave_layer_label(self):
+        """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
+        layer = self.layer_manager.engrave_layer()
+        return f"{layer.name}  [{layer.mode}]" if layer else ""
 
     def set_cut_settings(self, speed, power, passes):
         """Vitesse (mm/min), puissance (%) et passes de la découpe de

@@ -5,7 +5,7 @@ import json
 
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
-from laser_studio.controllers.layer_memory import coerce_layer_settings
+from laser_studio.controllers.layer_memory import settings_from
 from laser_studio.i18n import tr
 
 # Réglages d'un calque qui dépendent du matériau (et non de la structure du
@@ -84,7 +84,7 @@ def capture_material_layers(layer_manager):
 def _base_entry(role, power=None, speed=None, passes=None):
     """Entrée de matériau pour le calque de base `role` : valeurs données, ou
     celles par défaut du calque de base."""
-    from laser_studio.vector_layers import BASE_LAYER_DEFAULTS
+    from laser_studio.models.layers import BASE_LAYER_DEFAULTS
     _key, _color, _mode, d_power, d_speed, d_passes, d_interval = BASE_LAYER_DEFAULTS[role]
     return {"role": role,
             "power": float(d_power if power is None else power),
@@ -102,7 +102,7 @@ def complete_material(material):
     passe : matière qu'on ne découpe pas), le marquage ses valeurs par défaut.
     Entrée de base manquante : valeurs par défaut. Les autres entrées (calques
     ajoutés) sont gardées."""
-    from laser_studio.vector_layers import BASE_LAYER_ROLES
+    from laser_studio.models.layers import BASE_LAYER_ROLES
     if not material:
         material = {}
     material = dict(material)
@@ -118,8 +118,8 @@ def complete_material(material):
             if passes > 0:
                 entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), passes)
             else:
-                # Pas de découpe configurée : restaurer le réglage de découpe par défaut.
-                entry = _base_entry(role, power=90.0, passes=2)
+                # Pas de découpe configurée : réglage de découpe par défaut (BASE_LAYER_DEFAULTS).
+                entry = _base_entry(role)
         else:
             entry = _base_entry(role)
         entries.append(entry)
@@ -143,7 +143,7 @@ def apply_material_to_layers(layer_manager, material):
         role = getattr(layer, "role", None)
         d = by_role.get(role) if role else by_id.get(layer.id)
         if d:
-            coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
+            layer_manager.update(layer.id, **settings_from({k: d[k] for k in MATERIAL_LAYER_KEYS if k in d}))
             changed = True
     return changed
 

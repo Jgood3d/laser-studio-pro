@@ -141,8 +141,10 @@ class MaterialCompletionTests(unittest.TestCase):
 
     def test_material_without_cut_gets_default_cut(self):
         from laser_studio.controllers.materials import complete_material
+        from laser_studio.models.layers import BASE_LAYER_DEFAULTS
         entries = {d["role"]: d for d in complete_material(DEFAULT_MATERIALS_DB["Ardoise / Carrelage"])["layers"]}
-        self.assertEqual((entries["cut"]["power"], entries["cut"]["passes"]), (90.0, 2))
+        _key, _color, _mode, power, _speed, passes, _interval = BASE_LAYER_DEFAULTS["cut"]
+        self.assertEqual((entries["cut"]["power"], entries["cut"]["passes"]), (power, passes))
 
     def test_missing_base_entry_is_added_and_others_kept(self):
         from laser_studio.controllers.materials import complete_material

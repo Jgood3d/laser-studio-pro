@@ -5,9 +5,8 @@ from PyQt6.QtGui import QColor, QIcon, QPixmap
 from PyQt6.QtWidgets import QComboBox
 
 from laser_studio.i18n import tr
-
-# Mode des calques qui peuvent graver une image (même valeur que dans vector_layers).
-ENGRAVE_MODE = "Gravure Remplie"
+# Mode des calques qui peuvent graver une image.
+from laser_studio.models.layers import ENGRAVE_MODE
 
 
 def _swatch(color):

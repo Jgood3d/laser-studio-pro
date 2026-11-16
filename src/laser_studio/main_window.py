@@ -40,7 +40,8 @@ from laser_studio.controllers.matrix_image import MatrixImageController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.grbl.connection import LaserUSBController
-from laser_studio.vector_layers import LayerManager, VectorCanvasView
+from laser_studio.vector_layers import VectorCanvasView
+from laser_studio.models.layers import LayersModel
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
@@ -67,7 +68,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.raw_image = None
         self.processed_array = None
         self.loaded_svg_path = None
-        self.layer_manager = LayerManager()
+        # Modèle des calques (models/layers.py) : seule source des réglages des calques.
+        self.layer_manager = LayersModel(self)
         self.block_aspect_signal = False
         self.streamer = None
         self.cmd_thread = None
@@ -79,11 +81,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self._img_redo_stack = []
         self._img_last_undo_push_time = 0.0
 
-        # Gravure d'une image : vitesse (mm/min) et puissance (%), reprises du
-        # calque de gravure (engrave_layer_id, voir _on_engrave_layer_selected).
-        self.engrave_speed = 2000
-        self.engrave_power = 30
-        self.engrave_layer_id = None
+        # Gravure d'une image : vitesse et puissance lues dans le calque de
+        # gravure (engrave_speed / engrave_power, voir GcodeGenerationMixin).
         # Ancien mode SVG : découpe d'un SVG entier (loaded_svg_path), avec un
         # seul réglage. Plus accessible depuis l'interface, mais encore lu dans
         # les anciens projets et les profils matériaux (voir set_cut_settings).
@@ -121,7 +120,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.load_splitter_sizes()
         self.restore_remembered_algorithm()
         self.update_vector_work_area()
-        self._refresh_engrave_layer()
         self.refresh_com_ports()
         # Différé (au lieu d'un appel direct ici) : à ce stade du __init__,
         # la fenêtre n'est pas encore affichée (main.py appelle showMaximized()
@@ -393,18 +391,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         }
 
     def _apply_job_settings(self, material, layers=True):
-        """Applique un matériau : gravure image et découpe SVG, puis (layers=True) les réglages des
-        calques, et rafraîchit le tableau. layers=False : profil machine qui vient de restaurer
-        ses propres calques, à ne pas écraser."""
-        self.set_engrave_settings(material["sp_e"], material["pw_e"])
+        """Applique un matériau : découpe de l'ancien mode SVG, puis (layers=True) les réglages
+        des calques. La gravure image n'a plus de réglage à part : elle suit le calque de gravure
+        (un ancien matériau sp_e / pw_e est repris dans ce calque, voir complete_material).
+        layers=False : profil machine qui vient de restaurer ses propres calques, à ne pas
+        écraser. Le tableau, le canevas et le profil suivent le modèle des calques."""
         self.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
-        if layers and apply_material_to_layers(self.layer_manager, material):
-            # Redessin explicite du tableau : on_layers_changed ne le fait pas quand le signal vient
-            # de l'onglet Calques (pour ne pas interrompre une saisie), or le choix du matériau part
-            # justement de sa barre d'outils.
-            self.layers_tab.refresh()
-            self.on_layers_changed()
-            self.machines.schedule_persist()
+        if layers:
+            apply_material_to_layers(self.layer_manager, material)
 
     def _generate_test_matrix_and_show(self):
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
@@ -429,7 +423,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             materials.keys(),
             focal_getter=lambda: self.spin_machine_focal.value(),
         )
-        self.layers_tab.layers_changed.connect(self.on_layers_changed)
+        self.layer_manager.changed.connect(self.on_layers_changed)
         # Profils matériaux (barre d'outils de l'onglet) : un matériau mémorise les réglages des
         # calques ; le choisir dans la liste met le tableau à jour (_apply_job_settings).
         self.materials = MaterialsController(
@@ -453,7 +447,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        tab.delete_material_requested, tab.import_materials_requested):
             signal.connect(self.machines.schedule_persist)
         # Mémorise les réglages des calques dans le profil de la machine active.
-        self.layers_tab.layers_changed.connect(self.machines.schedule_persist)
+        self.layer_manager.changed.connect(self.machines.schedule_persist)
 
     def _build_image_tab(self):
         """Onglet « Graver une image » et cadre « Position du job », abonnés
@@ -989,7 +983,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         met l'onglet Calques à jour."""
         if not apply_saved_layers(self.layer_manager, saved_layers, full):
             return
-        self.layers_tab.refresh()
         # Les calques liés à la focale suivent la focale de CETTE machine.
         self.layers_tab.link_all_to_focal()
 
@@ -1072,7 +1065,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.combo_algo.setCurrentText(data.get("algo", "Floyd-Steinberg"))
         self.spin_lmm.setValue(data.get("lmm", 10.0))
 
-        self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
+        # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque
+        # de gravure. Avec des calques, ce sont eux qui font foi (rechargés plus bas).
+        if "layers" not in data:
+            self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
         self.cut_enabled = bool(data.get("enable_cut", False))
         self.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
                               data.get("passes_cut", 2))
@@ -1088,8 +1084,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         if "layers" in data:
             self.layer_manager.load_list(data["layers"])
-            self.layers_tab.refresh()
-            self._refresh_engrave_layer()
             self._refresh_engrave_layer_combo()
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.load_objects(data.get("vector_objects"))

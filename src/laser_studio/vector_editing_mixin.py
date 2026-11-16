@@ -5,6 +5,7 @@ from laser_studio.vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
 from laser_studio.i18n import tr
+from laser_studio.models.layers import ENGRAVE_MODE
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
@@ -25,84 +26,35 @@ class VectorEditingMixin:
             self.vector_canvas.set_work_area(self.spin_machine_w.value(), self.spin_machine_h.value())
 
     def on_layers_changed(self):
-        """Un calque a changé (couleur, mode, puissance, ajout/suppression...) :
-        on rafraîchit les couleurs des objets du canevas et la table de
-        l'onglet 'Calques' (sauf si c'est elle-même qui vient d'émettre le
-        changement, pour ne pas interrompre une saisie en cours, ex: en train
-        de taper un nom)."""
+        """Les calques ont changé (LayersModel.changed : couleur, mode,
+        puissance, ajout/suppression...) : on rafraîchit les couleurs des
+        objets du canevas et la liste « Calque de gravure » de l'onglet image.
+        Le tableau de l'onglet Calques se met à jour seul, abonné au modèle."""
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.refresh_all()
-        sender = self.sender()
-        if hasattr(self, "layers_tab") and sender is not self.layers_tab:
-            self.layers_tab.refresh()
-        self._refresh_engrave_layer()
         self._refresh_engrave_layer_combo()
-        self._on_engrave_layer_selected()
 
     def _refresh_engrave_layer_combo(self):
         """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés, supprimés,
         renommés ou changés de mode). Sans effet tant que l'onglet n'est pas construit."""
         combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None), "engrave_layer_combo", None)
         if combo is not None:
-            combo.set_layers(self.layer_manager.layers, self.engrave_layer_id)
+            layer = self.layer_manager.engrave_layer()
+            combo.set_layers(self.layer_manager.layers, layer.id if layer else None)
 
     def _on_engrave_layer_chosen(self, layer_id):
         """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
-        deviennent celles de la gravure."""
-        if self.layer_manager.get(layer_id) is None:
-            return
-        self.engrave_layer_id = layer_id
-        self._on_engrave_layer_selected()
-
-    def _refresh_engrave_layer(self):
-        """Calque de la gravure image (engrave_layer_id) : garde le calque
-        choisi s'il existe encore. Sinon (démarrage, calque supprimé), prend
-        le premier calque en mode gravure, à défaut le premier calque."""
-        if self.layer_manager.get(self.engrave_layer_id) is not None:
-            return
-        layers = self.layer_manager.layers
-        self.engrave_layer_id = self._first_engrave_layer_id() or (layers[0].id if layers else None)
-
-    def _first_engrave_layer_id(self):
-        """Identifiant du premier calque en mode Gravure Remplie, ou None
-        s'il n'y en a aucun."""
-        for layer in self.layer_manager.layers:
-            if layer.mode == "Gravure Remplie":
-                return layer.id
-        return None
-
-    def _engrave_layer_label(self):
-        """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        return f"{layer.name}  [{layer.mode}]" if layer else ""
+        deviennent celles de la gravure (LayersModel.engrave_layer)."""
+        self.layer_manager.select_engrave_layer(layer_id)
 
     def _ensure_engrave_layer_for_image(self):
         """Appelé avant la génération du G-Code d'une image (Image Tramage /
-        Séparation couleur) : si le calque sélectionné n'est pas en mode
-        gravure, bascule sur le premier calque de gravure. Dans tous les cas,
-        la puissance et la vitesse du calque sont relues juste avant de
-        générer : un profil machine, un projet ou un matériau a pu réécrire
-        engrave_power/engrave_speed depuis le dernier réglage du calque.
-        Sans calque de gravure, ne change rien."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        if layer and layer.mode == "Gravure Remplie":
-            self._on_engrave_layer_selected()
-            return
-        layer_id = self._first_engrave_layer_id()
-        if layer_id is None:
+        Séparation couleur) : la gravure utilise le calque de gravure
+        (LayersModel.engrave_layer). S'il n'y a aucun calque en mode Gravure
+        Remplie, le premier calque sert, et un message le signale."""
+        layer = self.layer_manager.engrave_layer()
+        if layer is None or layer.mode != ENGRAVE_MODE:
             self.show_status_message(tr("vector.no_engrave_layer"))
-            return
-        self.engrave_layer_id = layer_id
-        self._refresh_engrave_layer_combo()
-        self._on_engrave_layer_selected()
-        self.show_status_message(tr("vector.engrave_layer_auto").format(name=self._engrave_layer_label()))
-
-    def _on_engrave_layer_selected(self, *_args):
-        """La gravure image utilise toujours la puissance/vitesse du calque
-        de gravure (plus de saisie manuelle séparée)."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        if layer:
-            self.set_engrave_settings(layer.speed, layer.power)
 
     def insert_text_object(self, x_mm=None, y_mm=None):
         """Insère un texte. Si x_mm/y_mm sont donnés (clic droit sur le canevas),

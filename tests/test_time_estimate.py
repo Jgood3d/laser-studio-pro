@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     import laser_studio.gcode_generation_mixin as ggm
+    from laser_studio.models.layers import LayersModel
 except ImportError:  # PyQt6 manquant
     ggm = None
 
@@ -38,7 +39,8 @@ class TimeEstimateOverscanTests(unittest.TestCase):
         app.processed_array = np.zeros((10, 100), np.uint8) if array is None else array
         # 10 lignes de 100 mm à 600 mm/min : 100 s sans surbalayage.
         app.spin_w, app.spin_h, app.spin_lmm = _Widget(100.0), _Widget(10.0), _Widget(1.0)
-        app.engrave_speed = 600
+        app.layer_manager = LayersModel()
+        app.layer_manager.update(app.layer_manager.engrave_layer().id, speed=600)
         app.chk_overscan = _Widget(checked=enabled)
         app.combo_overscan_mode = _Widget(index=mode_index)       # 0 : distance fixe, 1 : pourcentage
         app.spin_overscan_dist, app.spin_overscan_pct = _Widget(dist), _Widget(pct)
