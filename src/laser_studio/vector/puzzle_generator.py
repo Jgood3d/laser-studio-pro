@@ -32,12 +32,23 @@ class PuzzlePiece:
 
 
 class PuzzleResult:
-    def __init__(self, pieces, width, height, x_offset, y_offset):
+    """Résultat d'un puzzle.
+
+    `pieces` : un contour fermé par pièce (nominal, sans kerf) — sert à l'aperçu. Deux pièces voisines y
+    partagent leur frontière : NE PAS les envoyer telles quelles au laser, chaque arête interne serait
+    découpée deux fois.
+    `outline` : contour extérieur fermé du puzzle (rectangle, agrandi de kerf/2 par `apply_kerf`).
+    `edges` : arêtes internes, chacune UNE seule fois, en tracés ouverts. C'est ce que le laser découpe
+    (avec `outline`)."""
+
+    def __init__(self, pieces, width, height, x_offset, y_offset, outline=None, edges=None):
         self.pieces = pieces
         self.width = width
         self.height = height
         self.x_offset = x_offset
         self.y_offset = y_offset
+        self.outline = outline if outline is not None else []
+        self.edges = edges if edges is not None else []
 
 
 class PuzzleParams:
@@ -178,13 +189,30 @@ def offset_closed_polygon(pts: Sequence[Point], delta: float) -> List[Point]:
 
 
 def apply_kerf(result: PuzzleResult, kerf: float) -> PuzzleResult:
-    """Rétrécit chaque pièce de kerf/2 pour compenser la largeur du trait laser."""
+    """Compense la largeur du trait laser.
+
+    Une arête interne n'est découpée qu'une fois : le trait enlève kerf/2 à chacune des deux pièces qui
+    la bordent, donc aucune correction n'est à faire. Seul le contour extérieur est agrandi de kerf/2,
+    pour que le puzzle fini ait les dimensions demandées. (Les arêtes internes s'arrêtent sur la
+    frontière nominale : l'écart de kerf/2 est couvert par la largeur du trait.)"""
     if kerf is None or kerf <= 0:
         return result
-    d = -0.5 * float(kerf)  # intérieur
-    for piece in result.pieces:
-        piece.cut = offset_closed_polygon(_close_contour(piece.cut), d)
+    h = 0.5 * float(kerf)
+    result.outline = _outline_rect(
+        result.x_offset - h, result.y_offset - h,
+        result.x_offset + result.width + h, result.y_offset + result.height + h,
+    )
     return result
+
+
+def _outline_rect(x0, y0, x1, y1) -> List[Point]:
+    """Contour extérieur : rectangle fermé, sens anti-horaire."""
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0, y0)]
+
+
+def _unique_edges(H_edges, V_edges) -> List[List[Point]]:
+    """Arêtes internes à plat, chacune une seule fois (en tracés ouverts)."""
+    return [list(e) for row in H_edges for e in row] + [list(e) for row in V_edges for e in row]
 
 
 def build_puzzle(params: PuzzleParams) -> PuzzleResult:
@@ -207,7 +235,7 @@ def build_puzzle(params: PuzzleParams) -> PuzzleResult:
             pos_random=getattr(params, "pos_random", 0.60),
             jitter_amt=getattr(params, "jitter", 0.10),
         )
-    # Fermeture + kerf
+    # Fermeture des pièces (aperçu) ; le kerf ne s'applique qu'au contour extérieur (voir apply_kerf)
     for piece in result.pieces:
         piece.cut = _close_contour(piece.cut)
     return apply_kerf(result, params.kerf)
@@ -440,7 +468,11 @@ def generate_classic_jigsaw_puzzle(
                 start = 0 if not contour else 1
                 contour.extend(edge[start:])
             pieces.append(PuzzlePiece(c, r, contour))
-    return PuzzleResult(pieces, width_mm, height_mm, x_offset, y_offset)
+    return PuzzleResult(
+        pieces, width_mm, height_mm, x_offset, y_offset,
+        outline=_outline_rect(x_offset, y_offset, x_offset + width_mm, y_offset + height_mm),
+        edges=_unique_edges(H_edges, V_edges),
+    )
 
 
 def _wave_edge(p0, p1, amplitude, sign, steps=24):
@@ -503,4 +535,8 @@ def generate_wavy_grid_puzzle(
                 start = 0 if not contour else 1
                 contour.extend(edge[start:])
             pieces.append(PuzzlePiece(c, r, contour))
-    return PuzzleResult(pieces, width_mm, height_mm, x_offset, y_offset)
+    return PuzzleResult(
+        pieces, width_mm, height_mm, x_offset, y_offset,
+        outline=_outline_rect(x_offset, y_offset, x_offset + width_mm, y_offset + height_mm),
+        edges=_unique_edges(H_edges, V_edges),
+    )

@@ -82,7 +82,7 @@ DEFAULT_LAYER_COLORS = [
 BASE_LAYER_ROLES = ("engrave", "cut", "mark")
 BASE_LAYER_DEFAULTS = {
     "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], "Gravure Remplie", 35.0, 2000, 1, 0.10),
-    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], "Découpe", 90.0, 250, 2, 0.10),
+    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], "Découpe", 90.0, 250, 1, 0.10),
     "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], "Marquage (Contour)", 75.0, 2000, 1, 0.06),
 }
 
@@ -3354,6 +3354,10 @@ def _optimize_polygon_order(polygons):
 # puisque extract_vector_layer_data s'exécute dans le thread principal Qt.
 MAX_POLYGONS_FOR_PATH_OPTIMIZATION = 1500
 
+# Écart (mm) sous lequel un tracé dont le dernier point n'est pas exactement le premier est tout de même
+# considéré comme fermé (arrondis). Au-delà, c'est un vrai tracé ouvert, parcouru une seule fois.
+CLOSE_GAP_MM = 0.01
+
 
 def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_path=True):
     """À appeler dans le thread principal (Qt). Convertit chaque VectorObject en
@@ -3572,7 +3576,14 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
                     gcode.append(f"{laser_cmd} S{power_val}")
                     cx, cy = sx, sy
-                    pts = poly + [poly[0]] if poly[0] != poly[-1] else poly
+                    # Un tracé ouvert (ligne, fente, arête de puzzle) reste ouvert : le refermer faisait
+                    # repasser le laser sur tout le tracé, en sens inverse. On ne ferme que les tracés
+                    # quasi fermés (écart d'arrondi, moins de CLOSE_GAP_MM).
+                    if poly[0] != poly[-1] and math.hypot(poly[0][0] - poly[-1][0],
+                                                          poly[0][1] - poly[-1][1]) <= CLOSE_GAP_MM:
+                        pts = poly + [poly[0]]
+                    else:
+                        pts = poly
                     for (px, py) in pts[1:]:
                         nx, ny = to_gcode_xy(px, py)
                         gcode.append(f"G1 X{nx:.3f} Y{ny:.3f}")
