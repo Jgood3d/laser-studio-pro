@@ -266,11 +266,11 @@ class GcodeGenerationMixin:
             speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
-            if self.chk_overscan.isChecked():
+            if self.grbl.overscan_enabled:
                 if self._overscan_mode_value() == "Pourcentage (%)":
-                    overscan = w_mm * self.spin_overscan_pct.value() / 100.0
+                    overscan = w_mm * self.grbl.overscan_pct / 100.0
                 else:
-                    overscan = self.spin_overscan_dist.value()
+                    overscan = self.grbl.overscan_dist_mm
             else:
                 overscan = 0.0
             # Comme la génération : lignes vides sautées, chaque ligne balayée de son premier à son
@@ -392,7 +392,7 @@ class GcodeGenerationMixin:
         libellés du menu sont traduits, alors que le générateur de G-Code
         compare à « Pourcentage (%) » (avant, le mode pourcentage n'était pas
         reconnu en anglais, allemand et espagnol)."""
-        return "Pourcentage (%)" if self.combo_overscan_mode.currentIndex() == 1 else "Distance Fixe (mm)"
+        return "Pourcentage (%)" if self.grbl.overscan_mode == 1 else "Distance Fixe (mm)"
 
     def _build_gcode_params(self):
         """Paramètres de génération du G-Code, lus depuis l'interface."""
@@ -408,28 +408,28 @@ class GcodeGenerationMixin:
             'speed_cut': self.cut_speed,
             'power_cut': self.cut_power,
             'passes_cut': self.cut_passes,
-            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
+            'laser_cmd': self.grbl.laser_cmd,
             'algo': self.combo_algo.currentText(),
-            's_max': self.spin_smax.value(),
-            'homing': self.chk_homing.isChecked(),
-            'enable_overscan': self.chk_overscan.isChecked(),
+            's_max': self.grbl.smax,
+            'homing': self.grbl.homing_enabled,
+            'enable_overscan': self.grbl.overscan_enabled,
             'overscan_mode': self._overscan_mode_value(),
-            'overscan_dist': self.spin_overscan_dist.value(),
-            'overscan_pct': self.spin_overscan_pct.value(),
-            'start_gcode': self.txt_start_gcode.toPlainText(),
-            'end_gcode': self.txt_end_gcode.toPlainText(),
+            'overscan_dist': self.grbl.overscan_dist_mm,
+            'overscan_pct': self.grbl.overscan_pct,
+            'start_gcode': self.grbl.start_gcode,
+            'end_gcode': self.grbl.end_gcode,
             # Décalage des lignes retour (mm), propre à la machine : voir workers.py.
-            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            'scan_offset_mm': self.grbl.scan_offset_mm if hasattr(self, "spin_scan_offset") else 0.0,
             # Graver avant de découper ; intérieurs avant extérieurs (voir vector/order.py).
-            'safe_cut_order': self.chk_safe_cut_order.isChecked() if hasattr(self, "chk_safe_cut_order") else True,
+            'safe_cut_order': self.grbl.safe_cut_order if hasattr(self, "chk_safe_cut_order") else True,
         }
 
     def generate_bidir_test(self):
         """Génère le motif de calibrage du décalage aller/retour (voir
         workers.bidir_test_gcode) avec la vitesse, la puissance et la résolution
         actuelles, puis l'affiche comme n'importe quel G-Code généré."""
-        if self.chk_overscan.isChecked():
-            overscan = self.spin_overscan_dist.value() if self.combo_overscan_mode.currentIndex() == 0 else 2.5
+        if self.grbl.overscan_enabled:
+            overscan = self.grbl.overscan_dist_mm if self.grbl.overscan_mode == 0 else 2.5
         else:
             overscan = 0.0
         params = {
@@ -438,11 +438,11 @@ class GcodeGenerationMixin:
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
             'power_engrave': self.engrave_power,
-            's_max': self.spin_smax.value(),
-            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
-            'homing': self.chk_homing.isChecked(),
-            'start_gcode': self.txt_start_gcode.toPlainText(),
-            'end_gcode': self.txt_end_gcode.toPlainText(),
+            's_max': self.grbl.smax,
+            'laser_cmd': self.grbl.laser_cmd,
+            'homing': self.grbl.homing_enabled,
+            'start_gcode': self.grbl.start_gcode,
+            'end_gcode': self.grbl.end_gcode,
             'overscan_dist': overscan,
             'line_pitch_mm': 1.0 / max(self.spin_lmm.value(), 0.1),
         }
@@ -516,8 +516,8 @@ class GcodeGenerationMixin:
             self._ensure_engrave_layer_for_image()
         job_w = self.spin_w.value()
         job_h = self.spin_h.value()
-        bed_w = self.spin_machine_w.value()
-        bed_h = self.spin_machine_h.value()
+        bed_w = self.machine.bed_w
+        bed_h = self.machine.bed_h
         if job_w > bed_w or job_h > bed_h:
             QMessageBox.warning(
                 self, tr("gen.too_big_title"),
@@ -528,7 +528,7 @@ class GcodeGenerationMixin:
             )
             return
 
-        max_speed_limit = self.spin_machine_max_speed.value()
+        max_speed_limit = self.machine.max_speed
         speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
         if self.cut_enabled:
             speeds_to_check.append((tr("gen.speed_row_cut_old"), self.cut_speed))
@@ -675,13 +675,13 @@ class GcodeGenerationMixin:
         params = page.matrix_params()
         params.update({
             'mode': "Gravure" if engraving else "Découpe",
-            's_max': self.spin_smax.value(),
-            'enable_overscan': self.chk_overscan.isChecked(),
+            's_max': self.grbl.smax,
+            'enable_overscan': self.grbl.overscan_enabled,
             'overscan_mode': self._overscan_mode_value(),
-            'overscan_dist': self.spin_overscan_dist.value(),
-            'overscan_pct': self.spin_overscan_pct.value(),
+            'overscan_dist': self.grbl.overscan_dist_mm,
+            'overscan_pct': self.grbl.overscan_pct,
             # Décalage des lignes retour (réglage machine), comme pour une gravure d'image.
-            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            'scan_offset_mm': self.grbl.scan_offset_mm if hasattr(self, "spin_scan_offset") else 0.0,
         })
         # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
         if engraving and page.image_test_enabled():

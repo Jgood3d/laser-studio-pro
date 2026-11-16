@@ -343,7 +343,7 @@ class SeparationMixin:
         au clair, et on règle le curseur sur la valeur écrite à gauche."""
         mirror = self.app_actions.mirror_h.isChecked()
         arr, w_mm, h_mm = build_gain_test_array(self.spin_lmm.value(), mirror=mirror)
-        bed_w, bed_h = self.spin_machine_w.value(), self.spin_machine_h.value()
+        bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if w_mm > bed_w or h_mm > bed_h:
             QMessageBox.warning(
                 self, tr("sep.gain_test_title"),

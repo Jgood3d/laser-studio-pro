@@ -8,6 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio.image_processing_mixin import ImageProcessingMixin
+    from laser_studio.models.machine import MachineConfig
     from laser_studio.separation_mixin import SeparationMixin
 except ImportError:
     ImageProcessingMixin = None
@@ -73,7 +74,8 @@ class ResolutionSyncTests(unittest.TestCase):
         f.pushes = 0
         f.spin_lmm = Spin(10.0)                    # valeur par défaut, comme au démarrage
         f.spin_dpi = Spin(254.0, 10.0, 2000.0)
-        f.spin_machine_focal = Spin(0.13, 0.01, 1.0)
+        f.machine = MachineConfig()
+        f.machine.update(focal=0.13)
         f.stack_lmm_input = Stack()
         f.lbl_focal_info = Label()
         if with_separation:

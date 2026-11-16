@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # test_gcode_bu
 
 from test_gcode_burn_map import generate_gcode, power_map, workers  # noqa: E402
 from laser_studio.models.layers import LayersModel  # noqa: E402
+from laser_studio.models.grbl import GrblConfig  # noqa: E402
 
 try:
     import laser_studio.gcode_generation_mixin as ggm
@@ -110,7 +111,8 @@ class QuickEstimateTests(unittest.TestCase):
         app.spin_w = _Spin(60.0)
         app.layer_manager = LayersModel()
         app.layer_manager.update(app.layer_manager.engrave_layer().id, speed=600)
-        app.chk_overscan = types.SimpleNamespace(isChecked=lambda: False)
+        app.grbl = GrblConfig()
+        app.grbl.update(overscan_enabled=False)
         app.loaded_svg_path = None
         with mock.patch.object(ggm.QMessageBox, "information") as box:
             app.estimate_job_time()

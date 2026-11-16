@@ -83,7 +83,7 @@ class LayerManagerWidget(QWidget):
     def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
         self.mgr = layer_manager
-        # Callable optionnel (ex. lambda: self.spin_machine_focal.value())
+        # Callable optionnel (ex. lambda: self.machine.focal)
         # renvoyant la taille du spot laser (mm) réglée dans Paramètres
         # Machine — même logique de lien que l'onglet Image & Filtres
         # (mode "Focale laser" pour l'intervalle de lignes du tramage).

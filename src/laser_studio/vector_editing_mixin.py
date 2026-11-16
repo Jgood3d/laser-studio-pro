@@ -22,8 +22,8 @@ class VectorEditingMixin:
         """Synchronise la zone de travail de l'éditeur vectoriel avec les
         dimensions physiques du graveur (onglet 'Paramètres Machine'), et non
         plus avec les dimensions du job en cours."""
-        if hasattr(self, "vector_canvas") and hasattr(self, "spin_machine_w"):
-            self.vector_canvas.set_work_area(self.spin_machine_w.value(), self.spin_machine_h.value())
+        if hasattr(self, "vector_canvas") and hasattr(self, "machine"):
+            self.vector_canvas.set_work_area(self.machine.bed_w, self.machine.bed_h)
 
     def on_layers_changed(self):
         """Les calques ont changé (LayersModel.changed : couleur, mode,
@@ -483,7 +483,7 @@ class VectorEditingMixin:
             self._import_dxf_file(path, default_layer)
             return
         try:
-            objects = extract_svg_objects(path, default_layer_id, self.spin_machine_h.value())
+            objects = extract_svg_objects(path, default_layer_id, self.machine.bed_h)
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -557,7 +557,7 @@ class VectorEditingMixin:
         if not candidates:
             QMessageBox.information(self, tr("nest.title"), tr("nest.no_objects"))
             return
-        dialog = NestingDialog(self, self.spin_machine_w.value(), self.spin_machine_h.value(),
+        dialog = NestingDialog(self, self.machine.bed_w, self.machine.bed_h,
                                len(selected), len(candidates), getattr(self, "_nesting_settings", None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -595,7 +595,7 @@ class VectorEditingMixin:
             QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         dialog = BoxGeneratorDialog(
-            self, self.layer_manager.layers, self.spin_machine_w.value(), self.spin_machine_h.value(),
+            self, self.layer_manager.layers, self.machine.bed_w, self.machine.bed_h,
             getattr(self, "_box_settings", None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -609,7 +609,7 @@ class VectorEditingMixin:
         panels = box_to_objects(result, dialog.cut_layer_id(), offset, offset)
         by_name = result.face_panels()          # y compris le couvercle d'une charnière (porté par l'arrière)
         decor_objects = []
-        bed_h = self.spin_machine_h.value()
+        bed_h = self.machine.bed_h
         for decor in dialog.decors():
             panel = by_name.get(decor.face)
             if panel is None:
@@ -627,8 +627,8 @@ class VectorEditingMixin:
         self.vector_canvas.request_recenter(new_items)
         message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
-        if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
-            message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
+        if result.width > self.machine.bed_w - 2 * offset or result.height > self.machine.bed_h - 2 * offset:
+            message += "\n\n" + tr("box.too_big").format(bed_w=self.machine.bed_w, bed_h=self.machine.bed_h)
         QMessageBox.information(self, tr("box.title"), message)
 
 
@@ -650,8 +650,8 @@ class VectorEditingMixin:
         dialog = PuzzleGeneratorDialog(
             parent=self,
             layers=self.layer_manager.layers,
-            bed_w=self.spin_machine_w.value(),
-            bed_h=self.spin_machine_h.value(),
+            bed_w=self.machine.bed_w,
+            bed_h=self.machine.bed_h,
             saved_settings=getattr(self, "_puzzle_settings", None),
             target_image_rect=target_rect,
         )

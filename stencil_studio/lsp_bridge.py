@@ -312,7 +312,7 @@ def _import_svg_routed(window, path):
     default_layer = window.layer_manager.default_svg_layer()
     bed_h = 300.0
     try:
-        bed_h = float(window.spin_machine_h.value())
+        bed_h = float(window.machine.bed_h)
     except Exception:
         pass
     objects = extract_svg_objects(

@@ -18,7 +18,7 @@ class Png2SvgController:
 
         png2svg = Png2SvgController(
             self, self.layer_manager,
-            bed_height=lambda: self.spin_machine_h.value(),
+            bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
         )
         tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)

@@ -77,6 +77,7 @@ class NaturalSizeTests(unittest.TestCase):
 
 try:
     import laser_studio.image_processing_mixin as ipm
+    from laser_studio.models.machine import MachineConfig
 except ImportError:
     ipm = None
 
@@ -97,7 +98,8 @@ class LoadImageTests(unittest.TestCase):
             def update_image_processing(self, *a): pass
         f = Fake.__new__(Fake)
         f.spin_w, f.spin_h = Spin(100.0), Spin(100.0)
-        f.spin_machine_w, f.spin_machine_h = Spin(bed[0]), Spin(bed[1])
+        f.machine = MachineConfig()
+        f.machine.update(bed_w=bed[0], bed_h=bed[1])
         f.block_aspect_signal = False
         f.console = []
         f.txt_console = types_ns(append=f.console.append)

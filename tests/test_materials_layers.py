@@ -180,7 +180,8 @@ class LayersTabMaterialsTests(unittest.TestCase):
 
     def test_toolbar_actions_emit_their_signal(self):
         tab = self.make()
-        for name in ("save_material_requested", "new_material_requested", "delete_material_requested",
+        self.assertNotIn("save_material_requested", tab.material_actions)   # enregistrement automatique
+        for name in ("new_material_requested", "delete_material_requested",
                      "export_materials_requested", "import_materials_requested"):
             received = []
             getattr(tab, name).connect(lambda: received.append(True))
@@ -280,7 +281,8 @@ win.deleteLater(); app.processEvents()
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
 class MaterialPersistenceTests(unittest.TestCase):
-    """Matériau choisi et réglages enregistrés (« Enregistrer ») retrouvés au démarrage suivant.
+    """Matériau choisi et réglages recopiés automatiquement dans le matériau, retrouvés au démarrage
+    suivant.
     Deux fenêtres successives dans un processus à part, avec une configuration temporaire."""
 
     SCRIPT = """
@@ -295,9 +297,7 @@ mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start
 from laser_studio.main_window import FullLaserStudio
 w = FullLaserStudio(); tab = w.layers_tab; combo = tab.material_combo
 combo.setCurrentText("Acrylique 3mm"); combo.activated.emit(combo.currentIndex())
-w.layer_manager.layers[2].power = 42.0
-with mock.patch.object(QMessageBox, "information"):
-    tab.material_actions["save_material_requested"].trigger()
+w.layer_manager.update(w.layer_manager.layers[2].id, power=42.0)   # recopié dans le matériau
 QTest.qWait(1500)
 w.deleteLater(); app.processEvents()
 w2 = FullLaserStudio()

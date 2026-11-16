@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 try:
     import laser_studio.gcode_generation_mixin as ggm
     from laser_studio.models.layers import LayersModel
+    from laser_studio.models.grbl import GrblConfig
 except ImportError:  # PyQt6 manquant
     ggm = None
 
@@ -41,9 +42,9 @@ class TimeEstimateOverscanTests(unittest.TestCase):
         app.spin_w, app.spin_h, app.spin_lmm = _Widget(100.0), _Widget(10.0), _Widget(1.0)
         app.layer_manager = LayersModel()
         app.layer_manager.update(app.layer_manager.engrave_layer().id, speed=600)
-        app.chk_overscan = _Widget(checked=enabled)
-        app.combo_overscan_mode = _Widget(index=mode_index)       # 0 : distance fixe, 1 : pourcentage
-        app.spin_overscan_dist, app.spin_overscan_pct = _Widget(dist), _Widget(pct)
+        app.grbl = GrblConfig()
+        app.grbl.update(overscan_enabled=enabled, overscan_mode=mode_index,   # 0 : distance fixe, 1 : %
+                        overscan_dist_mm=dist, overscan_pct=pct)
         app.loaded_svg_path = None
         with mock.patch.object(ggm.QMessageBox, "information") as box:
             app.estimate_job_time()

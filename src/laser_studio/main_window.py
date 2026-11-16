@@ -4,6 +4,7 @@ FullLaserStudio construit la fenêtre (init_ui), branche les signaux de ses
 panneaux et gère ses événements (fermeture, glisser-déposer) ; les mixins
 apportent le contenu des onglets et la logique.
 """
+from contextlib import contextmanager
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
                              QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabBar, QTabWidget,
                              QVBoxLayout, QWidget)
@@ -42,6 +43,9 @@ from laser_studio.controllers.project import ProjectController
 from laser_studio.grbl.connection import LaserUSBController
 from laser_studio.vector_layers import VectorCanvasView
 from laser_studio.models.layers import LayersModel
+from laser_studio.models.machine import MachineConfig
+from laser_studio.models.grbl import LASER_COMMANDS, GrblConfig
+from laser_studio.ui.binding import bind
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
@@ -70,6 +74,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.loaded_svg_path = None
         # Modèle des calques (models/layers.py) : seule source des réglages des calques.
         self.layer_manager = LayersModel(self)
+        # Réglages de la machine (plateau, spot, limites) et configuration GRBL : les pages de
+        # réglages y sont liées (ui/binding.py), la logique les lit ici.
+        self.machine = MachineConfig(self)
+        self.grbl = GrblConfig(self)
+        # > 0 : les changements de calques ne sont pas recopiés dans le matériau choisi (profil
+        # machine, projet ou matériau en cours d'application, voir _store_layers_in_material).
+        self._material_autosave_pause = 0
         self.block_aspect_signal = False
         self.streamer = None
         self.cmd_thread = None
@@ -232,7 +243,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """
         self.machine_panel = MachinePanel(
             QStandardItemModel(self),
-            self.spin_machine_max_speed.value(),
+            self.machine.max_speed,
         )
         connection = self.machine_panel.connection_panel
         # Nom historique de la liste des ports, remplie et lue par la logique (LaserControlMixin).
@@ -302,8 +313,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         page.delete_profile_requested.connect(self.machines.delete_profile)
         page.bed_size_changed.connect(self.update_vector_work_area)
         page.focal_changed.connect(self._on_machine_focal_changed)
-        # Noms historiques des champs, lus par la logique (profils,
-        # génération, éditeur vectoriel, Stencil Studio…).
+        # Champs liés au modèle des réglages machine (self.machine), que lit la logique.
+        for widget, field in ((page.bed_width_spin, "bed_w"), (page.bed_height_spin, "bed_h"),
+                              (page.focal_spin, "focal"), (page.max_speed_spin, "max_speed"),
+                              (page.accel_spin, "accel")):
+            bind(widget, self.machine, field)
+        # Noms historiques des champs (Stencil Studio, focus sur le spot…).
         self.combo_machine_profile = page.profile_combo
         self.spin_machine_w = page.bed_width_spin
         self.spin_machine_h = page.bed_height_spin
@@ -331,8 +346,21 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         page.link_settings_to_profile_requested.connect(
             self.machines.update_profile
         )
-        # Noms historiques des champs, lus par la logique (génération,
-        # profils machine, projets, connexion au graveur).
+        # Champs liés au modèle de la configuration GRBL (self.grbl), que lit la logique.
+        bind(page.laser_cmd_combo, self.grbl, "laser_cmd",
+             to_widget=LASER_COMMANDS.index, from_widget=lambda i: LASER_COMMANDS[max(i, 0)])
+        for widget, field in ((page.smax_spin, "smax"), (page.homing_check, "homing_enabled"),
+                              (page.overscan_check, "overscan_enabled"),
+                              (page.safe_cut_order_check, "safe_cut_order"),
+                              (page.overscan_mode_combo, "overscan_mode"),
+                              (page.overscan_dist_spin, "overscan_dist_mm"),
+                              (page.overscan_pct_spin, "overscan_pct"),
+                              (page.scan_offset_spin, "scan_offset_mm"),
+                              (page.start_gcode_edit, "start_gcode"),
+                              (page.end_gcode_edit, "end_gcode"),
+                              (page.grbl_settings_edit, "grbl_settings")):
+            bind(widget, self.grbl, field)
+        # Noms historiques des champs (homing grisé selon $22, chargement de projet…).
         self.combo_laser_cmd = page.laser_cmd_combo
         self.spin_smax = page.smax_spin
         self.chk_homing = page.homing_check
@@ -398,7 +426,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         écraser. Le tableau, le canevas et le profil suivent le modèle des calques."""
         self.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
         if layers:
-            apply_material_to_layers(self.layer_manager, material)
+            with self._material_autosave_paused():
+                apply_material_to_layers(self.layer_manager, material)
 
     def _generate_test_matrix_and_show(self):
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
@@ -421,7 +450,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.layers_tab = LayersTab(
             self.layer_manager,
             materials.keys(),
-            focal_getter=lambda: self.spin_machine_focal.value(),
+            focal_getter=lambda: self.machine.focal,
         )
         self.layer_manager.changed.connect(self.on_layers_changed)
         # Profils matériaux (barre d'outils de l'onglet) : un matériau mémorise les réglages des
@@ -435,7 +464,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         )
         tab = self.layers_tab
         tab.material_selected.connect(self.materials.apply_selected)
-        tab.save_material_requested.connect(self.materials.save_selected)
         tab.new_material_requested.connect(self.materials.new_material)
         tab.delete_material_requested.connect(self.materials.delete_selected)
         tab.export_materials_requested.connect(self.materials.export_materials)
@@ -443,11 +471,31 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # Matériaux et matériau choisi : rangés dans le profil de la machine active et écrits sur
         # disque (voir _machine_memory), pour les retrouver au prochain démarrage. Connecté après
         # le contrôleur : enregistré une fois la liste à jour.
-        for signal in (tab.material_selected, tab.save_material_requested, tab.new_material_requested,
+        for signal in (tab.material_selected, tab.new_material_requested,
                        tab.delete_material_requested, tab.import_materials_requested):
             signal.connect(self.machines.schedule_persist)
-        # Mémorise les réglages des calques dans le profil de la machine active.
+        # Chaque changement de calque est aussitôt recopié dans le matériau choisi (plus de bouton
+        # « Enregistrer »), PUIS les calques et les matériaux sont rangés dans le profil de la
+        # machine active.
+        self.layer_manager.changed.connect(self._store_layers_in_material)
         self.layer_manager.changed.connect(self.machines.schedule_persist)
+
+    @contextmanager
+    def _material_autosave_paused(self):
+        """Pendant le bloc, les changements de calques ne sont pas recopiés dans le matériau
+        choisi : ils viennent d'un profil machine, d'un projet ou du matériau lui-même."""
+        self._material_autosave_pause += 1
+        try:
+            yield
+        finally:
+            self._material_autosave_pause -= 1
+
+    def _store_layers_in_material(self):
+        """Un calque a changé : le matériau choisi reprend les réglages en cours (une fois le
+        démarrage terminé, et hors chargement d'un profil, d'un projet ou d'un matériau)."""
+        if self._material_autosave_pause or not self.machines.persist_ready:
+            return
+        self.materials.store_current_settings()
 
     def _build_image_tab(self):
         """Onglet « Graver une image » et cadre « Position du job », abonnés
@@ -518,7 +566,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.png2svg = Png2SvgController(
             self,
             self.layer_manager,
-            bed_height=lambda: self.spin_machine_h.value(),
+            bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
@@ -875,9 +923,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         l'image) pour les retrouver au prochain lancement, sans recharger de
         projet. Les calques sont rangés dans le profil de la machine active."""
         settings = QSettings("LaserStudioPro", "MachineConfig")
-        settings.setValue("machine_bed_w_mm", self.spin_machine_w.value())
-        settings.setValue("machine_bed_h_mm", self.spin_machine_h.value())
-        settings.setValue("machine_focal_mm", self.spin_machine_focal.value())
+        settings.setValue("machine_bed_w_mm", self.machine.bed_w)
+        settings.setValue("machine_bed_h_mm", self.machine.bed_h)
+        settings.setValue("machine_focal_mm", self.machine.focal)
         self.machines.store_memory()
         settings.setValue("machine_profiles_json", self.machines.to_json())
         name = self.machines.current_name()
@@ -891,15 +939,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Restaure au démarrage les réglages mémorisés par
         save_machine_settings."""
         settings = QSettings("LaserStudioPro", "MachineConfig")
-        for key, spin in (("machine_bed_w_mm", self.spin_machine_w),
-                          ("machine_bed_h_mm", self.spin_machine_h),
-                          ("machine_focal_mm", self.spin_machine_focal)):
+        for key, field in (("machine_bed_w_mm", "bed_w"),
+                           ("machine_bed_h_mm", "bed_h"),
+                           ("machine_focal_mm", "focal")):
             value = settings.value(key, None)
             if value is not None:
-                try:
-                    spin.setValue(float(value))
-                except (TypeError, ValueError):
-                    pass
+                self.machine.update(**{field: value})   # valeur illisible : ignorée
         # Comme à chaque validation de profil : les calques suivent la focale
         # dès le démarrage.
         self.layers_tab.link_all_to_focal()
@@ -907,8 +952,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.machines.load(
             settings.value("machine_profiles_json", ""),
             settings.value("last_machine_profile", None),
-            {"name": "Machine par défaut", "w": self.spin_machine_w.value(),
-             "h": self.spin_machine_h.value()},
+            {"name": "Machine par défaut", "w": self.machine.bed_w,
+             "h": self.machine.bed_h},
         )
 
         lmm_value = settings.value("lmm_value", None)
@@ -940,34 +985,30 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         Configuration GRBL, position du job, matériaux (une copie, pour que
         modifier ceux d'un profil n'affecte pas les autres) et calques."""
         return {
-            **self.tab_machine_params.profile_values(),
+            **self.machine.to_profile(),
             **self.job_position_box.profile_values(),
             **self.tab_grbl_config.profile_values(),
             "materials_db": dict(self.materials.materials),
-            "material": self.layers_tab.material_combo.currentText(),
+            "material": self.materials.model.current or "",
             "layers": self.layer_manager.to_list(),
         }
 
     def _apply_machine_profile(self, profile):
         """Réapplique les champs d'un profil (les calques à part)."""
-        self.tab_machine_params.apply_profile_values(profile)
-        self.job_position_box.apply_profile_values(profile)
-        self.tab_grbl_config.apply_profile_values(profile)
-        # Matériaux propres à cette machine (repli sur la base par défaut
-        # pour un profil enregistré avant cette liaison).
-        self.materials.set_materials(
-            dict(profile.get("materials_db", DEFAULT_MATERIALS_DB)),
-            block_signals=True)
-        # Matériau choisi à la dernière utilisation de cette machine (sélectionné sans être appliqué).
-        combo = self.layers_tab.material_combo
-        if profile.get("material") in self.materials.materials:
-            combo.blockSignals(True)
-            combo.setCurrentText(profile["material"])
-            combo.blockSignals(False)
-        # Calques : ceux mémorisés dans le profil, déjà appliqués ; le matériau ne les écrase pas.
-        material = self.materials.materials.get(combo.currentText())
-        if material is not None:
-            self._apply_job_settings(material, layers=False)
+        with self._material_autosave_paused():
+            self.machine.apply_profile(profile)
+            self.job_position_box.apply_profile_values(profile)
+            self.tab_grbl_config.apply_profile_values(profile)
+            # Matériaux propres à cette machine (repli sur la base par défaut pour un profil
+            # enregistré avant cette liaison), et matériau choisi à sa dernière utilisation
+            # (sélectionné sans être appliqué).
+            self.materials.model.set_materials(
+                dict(profile.get("materials_db", DEFAULT_MATERIALS_DB)),
+                current=profile.get("material"))
+            # Calques : ceux mémorisés dans le profil, déjà appliqués ; le matériau ne les écrase pas.
+            material = self.materials.model.current_material()
+            if material is not None:
+                self._apply_job_settings(material, layers=False)
 
     def _machine_memory(self):
         """Mémorisé en continu dans le profil actif : calques, matériaux (avec les réglages de leurs
@@ -975,23 +1016,25 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         homing)."""
         return {"layers": self.layer_manager.to_list(),
                 "materials_db": dict(self.materials.materials),
-                "material": self.layers_tab.material_combo.currentText(),
+                "material": self.materials.model.current or "",
                 **self.tab_grbl_config.mechanical_values()}
 
     def _apply_profile_layers(self, saved_layers, full=False):
         """Réapplique les calques mémorisés (voir apply_saved_layers), puis
         met l'onglet Calques à jour."""
-        if not apply_saved_layers(self.layer_manager, saved_layers, full):
-            return
-        # Les calques liés à la focale suivent la focale de CETTE machine.
-        self.layers_tab.link_all_to_focal()
+        with self._material_autosave_paused():
+            if not apply_saved_layers(self.layer_manager, saved_layers, full):
+                return
+            # Les calques liés à la focale suivent la focale de CETTE machine.
+            self.layers_tab.link_all_to_focal()
 
     def _after_machine_profile_selected(self):
         """Après un changement de profil : lignes/mm et DPI suivent la focale
         (même si elle n'a pas changé, ou si le profil n'en a pas), et la
         qualité des calques est recalculée."""
         self._apply_focal_to_lmm()
-        self.layers_tab.refresh_focal_quality()
+        with self._material_autosave_paused():
+            self.layers_tab.refresh_focal_quality()
 
     # -- Projet : état de la fenêtre
 
@@ -1002,8 +1045,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         data = {
             "w_mm": self.spin_w.value(),
             "h_mm": self.spin_h.value(),
-            "machine_bed_w_mm": self.spin_machine_w.value(),
-            "machine_bed_h_mm": self.spin_machine_h.value(),
+            "machine_bed_w_mm": self.machine.bed_w,
+            "machine_bed_h_mm": self.machine.bed_h,
             "origin_pos": self.job_position_box.origin(),
             "offset_x": self.spin_off_x.value(),
             "offset_y": self.spin_off_y.value(),
@@ -1011,7 +1054,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             "contrast": self.slider_contrast.value(),
             "gamma": self.slider_gamma.value(),
             "sharp": self.slider_sharp.value(),
-            "safe_cut_order": self.chk_safe_cut_order.isChecked(),
+            "safe_cut_order": self.grbl.safe_cut_order,
             "invert": self.chk_invert.isChecked(),
             "material_bg": self.get_material_bg(),
             "mirror_h": self.app_actions.mirror_h.isChecked(),
@@ -1036,6 +1079,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         return data, self.raw_image
 
     def _restore_project(self, data, image):
+        """Réapplique un projet ouvert (voir _restore_project_state), sans recopier ses calques
+        dans le matériau choisi."""
+        with self._material_autosave_paused():
+            self._restore_project_state(data, image)
+
+    def _restore_project_state(self, data, image):
         """Réapplique un projet ouvert (voir _capture_project). Les clés
         absentes (anciens projets) prennent leur valeur par défaut."""
         # Le projet impose ses propres réglages matière / négatif / miroir :
@@ -1046,8 +1095,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         self.spin_w.setValue(data.get("w_mm", 100.0))
         self.spin_h.setValue(data.get("h_mm", 100.0))
-        self.spin_machine_w.setValue(data.get("machine_bed_w_mm", self.spin_machine_w.value()))
-        self.spin_machine_h.setValue(data.get("machine_bed_h_mm", self.spin_machine_h.value()))
+        self.machine.update(bed_w=data.get("machine_bed_w_mm", self.machine.bed_w))
+        self.machine.update(bed_h=data.get("machine_bed_h_mm", self.machine.bed_h))
         self.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
         self.spin_off_x.setValue(data.get("offset_x", 0.0))
         self.spin_off_y.setValue(data.get("offset_y", 0.0))
@@ -1056,7 +1105,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.slider_contrast.setValue(data.get("contrast", 0))
         self.slider_gamma.setValue(data.get("gamma", 100))
         self.slider_sharp.setValue(data.get("sharp", 0))
-        self.chk_safe_cut_order.setChecked(data.get("safe_cut_order", True))
+        self.grbl.update(safe_cut_order=data.get("safe_cut_order", True))
         # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
         self.set_material_bg(data.get("material_bg", "dark" if data.get("invert", False) else "light"))
         self.chk_invert.setChecked(data.get("invert", False))
