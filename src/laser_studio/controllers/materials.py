@@ -108,6 +108,7 @@ def complete_material(material):
     material = dict(material)
     entries = [dict(d) for d in material.get("layers") or [] if isinstance(d, dict)]
     roles = {d.get("role") for d in entries}
+    
     for role in BASE_LAYER_ROLES:
         if role in roles:
             continue
@@ -123,6 +124,7 @@ def complete_material(material):
         else:
             entry = _base_entry(role)
         entries.append(entry)
+        
     material["layers"] = entries
     return material
 
