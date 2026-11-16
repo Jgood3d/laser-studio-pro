@@ -75,7 +75,7 @@ class GrblHomingSettingTests(unittest.TestCase):
         self.assertEqual(len(f.txt_console.lines), 2)       # case décochée + mode laser ($32)
 
     def test_homing_enabled_or_unknown_keeps_the_default(self):
-        for response in ("$22=1\n$32=1\nok", "$32=1\nok", "Pas de réponse"):
+        for response in ("$22=1\n$32=1\nok", "$22=abc\n$32=1\nok", "Pas de réponse"):
             f = self.connect_with(response)
             self.assertTrue(f.chk_homing.checked, response)
             self.assertTrue(f.chk_homing.enabled, response)
@@ -97,19 +97,26 @@ class GrblHomingSettingTests(unittest.TestCase):
         parsed = LaserControlMixin._parse_grbl_settings("Grbl 1.1h\n$22 = 0 (homing)\n$32=1\nerror:9\nok")
         self.assertEqual(parsed, {"$22": "0", "$32": "1"})
 
-    def test_missing_32_disables_homing_with_a_message(self):
-        f = self.connect_with("$22=1\nok")
-        self.assertEqual(len(f.txt_console.lines), 1)       # « $32 introuvable »
+    def test_homing_off_shows_the_message_once(self):
+        f = self.connect_with("$22=0\n$32=1\nok")
+        self.assertEqual(f.warnings, [tr("laser.homing_unsupported_title")])
+        self.connect_with("$22=0\n$32=1\nok", f)          # reconnexion : déjà décoché
+        self.assertEqual(len(f.warnings), 1)
+
+    def test_missing_22_means_homing_unsupported(self):
+        f = self.connect_with("$32=1\nok")
         self.assertEqual(f.warnings, [tr("laser.homing_unsupported_title")])
         for check in (f.chk_homing, f.chk_mat_homing):
             self.assertFalse(check.checked)
             self.assertFalse(check.enabled)
-            self.assertTrue(check.tooltip)
+            self.assertEqual(check.tooltip, tr("ui.homing_unsupported_tip"))
 
-    def test_missing_32_warns_only_while_homing_was_checked(self):
+    def test_missing_32_warns_about_laser_mode_and_keeps_homing(self):
         f = self.connect_with("$22=1\nok")
-        self.connect_with("$22=1\nok", f)                  # reconnexion : déjà décoché
-        self.assertEqual(len(f.warnings), 1)
+        self.assertEqual(len(f.txt_console.lines), 1)       # « $32 introuvable »
+        self.assertEqual(f.warnings, [tr("laser.grbl_mode_missing_title")])
+        self.assertTrue(f.chk_homing.checked)
+        self.assertTrue(f.chk_homing.enabled)
 
     def test_no_answer_warns_and_keeps_homing(self):
         """Mauvais port (rien ne répond à $$) : on ne désactive pas le homing

@@ -269,14 +269,13 @@ class LaserControlMixin:
 
         - Aucune réponse : le graveur ne répond pas sur ce port (mauvais
           port choisi ?) ; on prévient, sans rien changer aux réglages.
-        - $22=0 : homing désactivé sur la machine (voir
-          _apply_grbl_homing_setting).
-        - $32 absent : ce graveur ne gère pas les réglages attendus ; le
-          homing est désactivé d'office (voir _disable_unsupported_homing).
-        - $32 différent de 1 : le mode laser dynamique est coupé. Les
-          optimisations du G-Code généré en mode M4 (pas de coupure laser
-          renvoyée à chaque ligne, en comptant sur la coupure automatique de
-          GRBL pendant les déplacements rapides G0) supposent ce réglage.
+        - $22 (homing) : voir _apply_grbl_homing_setting.
+        - $32 (mode laser) absent : impossible de vérifier le mode laser,
+          on prévient. Différent de 1 : le mode laser dynamique est coupé.
+          Les optimisations du G-Code généré en mode M4 (pas de coupure
+          laser renvoyée à chaque ligne, en comptant sur la coupure
+          automatique de GRBL pendant les déplacements rapides G0)
+          supposent ce réglage.
         """
         try:
             response = self.usb.send_command("$$")
@@ -295,7 +294,8 @@ class LaserControlMixin:
         value = grbl_settings.get("$32")
         if value is None:
             self.log_message(tr("laser.grbl_mode_unknown"))
-            self._disable_unsupported_homing()
+            self._warn(tr("laser.grbl_mode_missing_title"),
+                       tr("laser.grbl_mode_missing"))
             return
         self.log_message(
     tr("laser.grbl_mode_status").format(value=value)
@@ -310,27 +310,6 @@ class LaserControlMixin:
         """Boîte d'avertissement (remplacée dans les tests)."""
         QMessageBox.warning(self, title, body)
 
-    def _homing_checks(self):
-        """Cases « Inclure $H » (job) et homing de la matrice de test."""
-        return [check for check in (getattr(self, "chk_homing", None),
-                                    getattr(self, "chk_mat_homing", None))
-                if check is not None]
-
-    def _disable_unsupported_homing(self):
-        """$32 absent de la réponse à $$ : le homing est considéré comme non
-        supporté. « Inclure $H » est décoché et grisé ; le décochage est
-        enregistré dans le profil de la machine (signal homing_changed de la
-        page Configuration GRBL), il reste donc décoché aux prochains
-        démarrages. Le message n'est affiché que si la case était cochée."""
-        was_checked = any(check.isChecked() for check in self._homing_checks())
-        for check in self._homing_checks():
-            check.setChecked(False)
-            check.setEnabled(False)
-            check.setToolTip(tr("ui.homing_unsupported_tip"))
-        if was_checked:
-            self._warn(tr("laser.homing_unsupported_title"),
-                       tr("laser.homing_unsupported"))
-
     @staticmethod
     def _parse_grbl_settings(response):
         """Réponse de « $$ » -> {"$32": "1", "$22": "0", ...} (commentaires « (...) » ignorés)."""
@@ -343,15 +322,28 @@ class LaserControlMixin:
         return grbl_settings
 
     def _apply_grbl_homing_setting(self, grbl_settings):
-        """Homing désactivé sur la machine ($22=0) : GRBL refuserait le « $H » en tête de job
-        (error:5). « Inclure $H » et le homing de la matrice de test sont donc décochés ET
-        grisés, avec une infobulle qui explique pourquoi. Machine avec homing ($22 non nul) :
-        les cases redeviennent utilisables, sans être recochées. Réglage inconnu (pas de
-        réponse à « $$ ») : rien ne change, la case reste cochée d'office."""
+        """Homing ($22) d'après la réponse à « $$ ».
+
+        - $22=0 (homing désactivé) ou $22 absent (homing non supporté) :
+          GRBL refuserait le « $H » en tête de job (error:5). « Inclure $H »
+          et le homing de la matrice de test sont décochés ET grisés, avec
+          une infobulle qui explique pourquoi. Le décochage est enregistré
+          dans le profil de la machine (signal homing_changed de la page
+          Configuration GRBL) : la case reste décochée aux prochains
+          démarrages. Message « Homing non supporté » seulement si une case
+          était encore cochée (pas à chaque connexion).
+        - $22 non nul : les cases redeviennent utilisables, sans être
+          recochées.
+        - Valeur illisible : rien ne change.
+        """
         value = grbl_settings.get("$22")
-        if value is None or not value.isdigit():
+        if value is not None and not value.isdigit():
             return
-        homing_off = value == "0"
+        homing_off = value is None or value == "0"
+        tip = ""
+        if homing_off:
+            tip = tr("ui.homing_unavailable_tip" if value == "0"
+                     else "ui.homing_unsupported_tip")
         unchecked = False
         for name in ("chk_homing", "chk_mat_homing"):
             checkbox = getattr(self, name, None)
@@ -361,9 +353,11 @@ class LaserControlMixin:
                 checkbox.setChecked(False)
                 unchecked = True
             checkbox.setEnabled(not homing_off)
-            checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
+            checkbox.setToolTip(tip)
         if unchecked:
             self.log_message(tr("laser.grbl_homing_disabled"))
+            self._warn(tr("laser.homing_unsupported_title"),
+                       tr("laser.homing_unsupported"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
