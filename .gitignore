@@ -15,6 +15,9 @@ dist/
 # Exception : spec macOS volontairement versionné (dans packaging/macos/,
 # voir packaging/macos/README.md), contrairement aux .spec auto-générés.
 !packaging/macos/LaserStudioPro.spec
+# Idem pour le spec partagé Windows / Linux (packaging/windows/build.bat,
+# packaging/linux/build-linux.sh, CI release.yml).
+!packaging/pyinstaller/LaserStudioPro.spec
 build_venv/
 
 # Projets utilisateur (sauvegardes .json de Laser Studio Pro)
