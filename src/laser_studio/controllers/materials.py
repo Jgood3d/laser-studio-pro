@@ -120,7 +120,7 @@ def complete_material(material):
                 entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), passes)
             else:
                 # Pas de découpe configurée : restaurer le réglage de découpe par défaut.
-                entry = _base_entry(role, power=90.0, passes=2)
+                entry = _base_entry(role, power=90.0)
         else:
             entry = _base_entry(role)
         entries.append(entry)
@@ -317,3 +317,4 @@ class MaterialsController:
                 tr("laser.error"),
                 tr("material.error_import").format(error=e),
             )
+```[cite: 3]
