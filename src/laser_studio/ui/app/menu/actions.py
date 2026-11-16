@@ -5,13 +5,14 @@ coché) d'une commande. Le menu et la barre d'outils affichent les mêmes
 actions : un seul endroit les crée, et un seul endroit émet les signaux.
 """
 
-from PyQt6.QtCore import QObject, QSettings, pyqtSignal
+from PyQt6.QtCore import QObject, QSettings, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QStyle
 
 from laser_studio.core.paths import find_resource
 from laser_studio.core.version import APP_VERSION
 from laser_studio.i18n import SUPPORTED_LANGUAGES, get_current_language, tr
+from laser_studio.ui.utils import palette_icon
 
 
 def standard_icon(theme_icon, fallback=QStyle.StandardPixmap.SP_FileIcon):
@@ -21,6 +22,14 @@ def standard_icon(theme_icon, fallback=QStyle.StandardPixmap.SP_FileIcon):
     if icon.isNull():
         icon = QApplication.style().standardIcon(fallback)
     return icon
+
+
+def bundled_icon(name, fallback):
+    """Icône `name` du pack Breeze embarqué, dans la couleur du texte du
+    thème (voir ui.utils.palette_icon), sinon l'icône standard `fallback`."""
+    return palette_icon(
+        name, QApplication.palette(), QApplication.style().standardIcon(fallback)
+    )
 
 
 # Extensions proposées dans « Fichier > Enregistrer le G-Code », une par
@@ -50,7 +59,7 @@ class AppActions(QObject):
     # Enregistrement du G-Code possible ou non (sous-menu du menu Fichier)
     gcode_export_enabled_changed = pyqtSignal(bool)
     quit_requested = pyqtSignal()
-    # Paramètres et outils : "machine_params", "machine", "grbl",
+    # Paramètres et outils : "machine_params", "grbl",
     # "test_matrix"
     settings_window_requested = pyqtSignal(str)
     language_selected = pyqtSignal(str)  # code de langue : "fr", "en"…
@@ -62,6 +71,7 @@ class AppActions(QObject):
     box_generator_requested = pyqtSignal()
     puzzle_generator_requested = pyqtSignal()
     # Affichage
+    fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
     gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
     job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
     # Aide
@@ -179,6 +189,14 @@ class AppActions(QObject):
             action.setEnabled(False)
 
     def _create_view_actions(self):
+        # Plein écran de l'onglet affiché, quel qu'il soit (barre d'outils,
+        # à côté du bouton ko-fi ; F11).
+        self.fullscreen = self._action(
+            bundled_icon("view-fullscreen", QStyle.StandardPixmap.SP_TitleBarMaxButton),
+            tr("ui.vector_fullscreen"),
+            self.fullscreen_requested,
+        )
+        self.fullscreen.setShortcut(QKeySequence(Qt.Key.Key_F11))
         # Console G-Code : onglet masqué au démarrage.
         self.gcode_console = self._action(
             standard_icon(
@@ -210,14 +228,6 @@ class AppActions(QObject):
             tr("tab.machine_params"),
             self.settings_window_requested,
             "machine_params",
-        )
-        self.machine_window = self._action(
-            standard_icon(
-                "network-wired", QStyle.StandardPixmap.SP_DriveNetIcon
-            ),
-            tr("tab.machine_profiles"),
-            self.settings_window_requested,
-            "machine",
         )
         self.grbl_window = self._action(
             standard_icon(
@@ -257,37 +267,30 @@ class AppActions(QObject):
             self.theme_actions[code] = action
 
     def _create_tools_actions(self):
+        # Icônes du pack Breeze embarqué, dans la couleur du thème : le thème
+        # d'icônes du bureau (Adwaita…) n'a pas la plupart d'entre elles.
         # Grille de carrés de test ; « -symbolic » : seule variante présente
         # dans Adwaita.
         self.test_matrix_window = self._action(
-            standard_icon(
-                "view-grid-symbolic",
-                QStyle.StandardPixmap.SP_FileDialogListView,
-            ),
+            bundled_icon("view-grid-symbolic", QStyle.StandardPixmap.SP_FileDialogListView),
             tr("tab.test_matrix"),
             self.settings_window_requested,
             "test_matrix",
         )
         self.stencil_studio = self._action(
-            standard_icon(
-                "applications-graphics", QStyle.StandardPixmap.SP_DesktopIcon
-            ),
+            bundled_icon("applications-graphics", QStyle.StandardPixmap.SP_DesktopIcon),
             tr("menu.tools.stencil_studio"),
             self.stencil_studio_requested,
         )
         # Raccourcis vers deux onglets centraux (voir show_main_tab).
         self.separation_tab = self._action(
-            standard_icon(
-                "color-management", QStyle.StandardPixmap.SP_DriveNetIcon
-            ),
+            bundled_icon("color-management", QStyle.StandardPixmap.SP_DriveNetIcon),
             tr("sep.tab_title"),
             self.main_tab_requested,
             "tab_separation",
         )
         self.png2svg_tab = self._action(
-            standard_icon(
-                "draw-bezier-curves", QStyle.StandardPixmap.SP_FileIcon
-            ),
+            bundled_icon("draw-bezier-curves", QStyle.StandardPixmap.SP_FileIcon),
             tr("png2svg.tab_title"),
             self.main_tab_requested,
             "tab_png2svg",
@@ -300,23 +303,17 @@ class AppActions(QObject):
         )
         # Outils de l'éditeur vectoriel : ouvrent d'abord son onglet.
         self.vector_import = self._action(
-            standard_icon(
-                "document-import", QStyle.StandardPixmap.SP_FileIcon
-            ),
+            bundled_icon("document-import", QStyle.StandardPixmap.SP_FileIcon),
             tr("menu.tools.import_vector"),
             self.vector_import_requested,
         )
         self.box_generator = self._action(
-            standard_icon(
-                "package-x-generic", QStyle.StandardPixmap.SP_DirIcon
-            ),
+            bundled_icon("draw-cuboid", QStyle.StandardPixmap.SP_DirIcon),
             tr("menu.tools.box"),
             self.box_generator_requested,
         )
         self.puzzle_generator = self._action(
-            standard_icon(
-                "applications-games", QStyle.StandardPixmap.SP_DesktopIcon
-            ),
+            bundled_icon("games-config-board", QStyle.StandardPixmap.SP_DesktopIcon),
             tr("menu.tools.puzzle"),
             self.puzzle_generator_requested,
         )

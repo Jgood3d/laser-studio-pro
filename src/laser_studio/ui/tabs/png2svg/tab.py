@@ -4,7 +4,6 @@ from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import QVBoxLayout, QWidget
 
 from laser_studio.ui.tabs.png2svg.widget import PngToSvgWidget
-from laser_studio.ui.widgets import TabToolBar
 
 
 class Png2SvgTab(QWidget):
@@ -22,17 +21,11 @@ class Png2SvgTab(QWidget):
     send_to_vector_requested = pyqtSignal(str)
     # Une image a été chargée ou retirée.
     image_changed = pyqtSignal()
-    fullscreen_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-
-        toolbar = TabToolBar(self)
-        toolbar.fullscreen_requested.connect(self.fullscreen_requested)
-        self._fullscreen_control = toolbar.fullscreen_action
-        layout.addWidget(toolbar)
 
         self.converter = PngToSvgWidget()
         self.converter.sendToVectorEditor.connect(

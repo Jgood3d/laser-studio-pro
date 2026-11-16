@@ -357,6 +357,18 @@ def _build_stylesheet(c: dict) -> str:
         selection-background-color: {c["menu_sel"]};
         selection-color: {c["text"]};
     }}
+    QTableView, QTreeView {{
+        /* Pas de marge intérieure : elle décalerait les cellules par rapport
+           à la ligne d'en-tête. */
+        padding: 0px;
+    }}
+    QHeaderView {{
+        /* L'en-tête est aussi un QAbstractItemView : sans ceci, il reçoit la
+           marge et la bordure des champs de saisie et se décale par rapport
+           aux colonnes. */
+        padding: 0px;
+        border: none;
+    }}
     QHeaderView::section {{
         background-color: {c["alt"]};
         color: {c["text"]};

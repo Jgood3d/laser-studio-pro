@@ -29,9 +29,11 @@ class LayersTabTests(unittest.TestCase):
 
     def test_editing_a_layer_emits_layers_changed(self):
         tab, manager = self.make()
+        manager.add_layer()                            # calque ajouté : nom modifiable
+        tab.refresh()
         received = []
-        tab.layers_changed.connect(lambda: received.append(manager.layers[0].name))
-        edit = tab.layer_widget.findChildren(QLineEdit)[0]
+        tab.layers_changed.connect(lambda: received.append(manager.layers[3].name))
+        edit = tab.layer_widget.table.cellWidget(3, 1)
         edit.setText("Mon calque")
         edit.textEdited.emit("Mon calque")
         edit.editingFinished.emit()

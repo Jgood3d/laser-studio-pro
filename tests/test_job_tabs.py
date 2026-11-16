@@ -69,11 +69,16 @@ class Preview2DTabTests(_TabTest):
         self.assertAlmostEqual(x, 40.0, places=3)
         self.assertAlmostEqual(y, 25.0, places=3)
 
-    def test_fullscreen_is_relayed(self):
+    def test_no_toolbar_above_the_preview(self):
+        # Plus de bandeau : les options flottent sur le graphique, le plein écran est dans la
+        # barre principale ; la colonne de droite ne touche pas la poignée du séparateur.
+        from laser_studio.ui.widgets import TabToolBar
+        from laser_studio.ui.tabs.preview_2d.tab import SIDE_PANEL_LEFT_MARGIN
         tab = self.make(Preview2DTab, QGroupBox("Position"))
-        received = record(tab.fullscreen_requested)
-        tab._fullscreen_control.trigger()
-        self.assertEqual(received, [()])
+        self.assertEqual(tab.findChildren(TabToolBar), [])
+        self.assertFalse(hasattr(tab, "fullscreen_requested"))
+        self.assertGreater(SIDE_PANEL_LEFT_MARGIN, 0)
+        self.assertEqual(tab.side_panel.layout().contentsMargins().left(), SIDE_PANEL_LEFT_MARGIN)
 
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")

@@ -415,7 +415,10 @@ class MaterialsControllerTests(_QtTest):
         controller, combo = self.make()
         combo.setCurrentText("Bois")
         controller.apply_selected()
-        self.assertEqual(self.applied, [{"sp_e": 8}])
+        # Matériau complété avec les trois calques de base (gravure, découpe, marquage).
+        (applied,) = self.applied
+        self.assertEqual(applied["sp_e"], 8)
+        self.assertEqual(sorted(d["role"] for d in applied["layers"]), ["cut", "engrave", "mark"])
         controller.save_selected()
         self.assertEqual(controller.materials["Bois"], self.current)
 

@@ -41,7 +41,6 @@ class ResolutionBox(QWidget):
     lines_per_mm_changed = pyqtSignal(float)
     dpi_changed = pyqtSignal(float)
     configure_focal_requested = pyqtSignal()
-    save_as_focal_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -66,17 +65,13 @@ class ResolutionBox(QWidget):
 
         self.stack = QStackedWidget()
         # Hauteur de son contenu, sans s'étirer : sinon la place libre de
-        # l'onglet allait dans la pile et écartait la liste « Résolution »,
-        # le champ DPI et « Enregistrer comme focale ».
+        # l'onglet allait dans la pile et écartait la liste « Résolution »
+        # et le champ DPI.
         self.stack.setSizePolicy(
             QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum
         )
-        self.stack.addWidget(
-            self._page(self.lines_per_mm_spin, self._save_as_focal_button())
-        )
-        self.stack.addWidget(
-            self._page(self.dpi_spin, self._save_as_focal_button())
-        )
+        self.stack.addWidget(self._page(self.lines_per_mm_spin))
+        self.stack.addWidget(self._page(self.dpi_spin))
         self.stack.addWidget(
             self._page(self.focal_info_label, configure_button)
         )
@@ -92,11 +87,6 @@ class ResolutionBox(QWidget):
 
         self.mode_combo.setCurrentIndex(RESOLUTION_FOCAL)
         self.stack.setCurrentIndex(RESOLUTION_FOCAL)
-
-    def _save_as_focal_button(self):
-        button = QPushButton(tr("img.save_as_focal"))
-        button.clicked.connect(self.save_as_focal_requested)
-        return button
 
     @staticmethod
     def _page(*widgets):

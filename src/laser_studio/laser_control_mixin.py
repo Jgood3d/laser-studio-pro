@@ -244,6 +244,18 @@ class LaserControlMixin:
         lines = [l.strip() for l in content.splitlines() if l.strip().startswith("$") and "=" in l]
         self.txt_grbl_settings.setPlainText("\n".join(lines))
 
+    @staticmethod
+    def _launch_confirmation_text():
+        """Texte de « Confirmer le lancement » : l'avertissement de sécurité du
+        démarrage (mêmes traductions), puis la liste des vérifications et la
+        question."""
+        return "\n".join((
+            tr("startup.safety.body"),
+            tr("startup.safety.detail"),
+            "",
+            tr("laser.confirm_body"),
+        ))
+
     def _check_grbl_laser_mode(self):
         """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
         optimisations du G-Code généré en mode M4 (pas de coupure laser
@@ -378,7 +390,7 @@ class LaserControlMixin:
         reply = QMessageBox.question(
     self,
     tr("laser.confirm_title"),
-    tr("laser.confirm_body"),
+    self._launch_confirmation_text(),
     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
     QMessageBox.StandardButton.No
 )

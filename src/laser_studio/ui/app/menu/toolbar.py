@@ -34,7 +34,6 @@ class AppToolBar(QToolBar):
         self.addAction(actions.open_project)
         self.addSeparator()
         self.addAction(actions.machine_params_window)
-        self.addAction(actions.machine_window)
         self.addAction(actions.grbl_window)
         self.addSeparator()
         # Toutes les entrées du menu Outils.
@@ -49,8 +48,10 @@ class AppToolBar(QToolBar):
         self.addSeparator()
         # Case à cocher : bouton enfoncé tant que la file d'attente est affichée.
         self.addAction(actions.job_queue)
-        # Soutien du projet, aligné à droite.
+        # Plein écran de l'onglet affiché et soutien du projet, alignés à
+        # droite.
         self.addWidget(self._spacer())
+        self.addAction(actions.fullscreen)
         self.addWidget(BuyMeACoffeeButton(self.iconSize().height()))
 
     @staticmethod

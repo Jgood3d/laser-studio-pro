@@ -1,4 +1,4 @@
-"""Pages de réglages (MachineParamsPage, MachineProfilesPage, TestMatrixPage, GrblConfigPage) : signaux et état."""
+"""Pages de réglages (MachineParamsPage, TestMatrixPage, GrblConfigPage) : signaux et état."""
 import os
 import sys
 import unittest
@@ -13,7 +13,6 @@ try:
     from laser_studio.i18n import tr
     from laser_studio.ui.settings.grbl_config import GrblConfigPage
     from laser_studio.ui.settings.machine_params import MachineParamsPage
-    from laser_studio.ui.settings.machine_profiles import MachineProfilesPage
     from laser_studio.ui.settings.test_matrix import TestMatrixPage
     from laser_studio.ui.settings.test_matrix.tile_picker import TilePicker
     from PyQt6.QtCore import QPoint, Qt
@@ -80,58 +79,6 @@ class MachineParamsPageTests(unittest.TestCase):
         received = self.record(page.profile_selected)
         page.profile_combo.setCurrentIndex(1)
         self.assertEqual(received, [(1,)])
-
-
-@unittest.skipIf(MachineParamsPage is None, "PyQt6 non importable ici")
-class MachineProfilesPageTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.app = QApplication.instance() or QApplication([])
-
-    def make(self):
-        model = QStandardItemModel()
-        for port in ("COM1", "COM2"):
-            model.appendRow(QStandardItem(port))
-        page = MachineProfilesPage(model, ["MDF 4mm", "Cuir 2mm"])
-        self.addCleanup(page.deleteLater)
-        return page
-
-    def record(self, signal):
-        return _Recorder(self).record(signal)
-
-    def button(self, page, key):
-        return next(b for b in page.findChildren(QPushButton) if b.text() == tr(key))
-
-    def test_buttons_emit_their_signal(self):
-        page = self.make()
-        for key, signal in (("usb.refresh_ports", page.refresh_ports_requested),
-                            ("usb.connect", page.connect_requested),
-                            ("material.save", page.save_material_requested),
-                            ("material.new", page.new_material_requested),
-                            ("material.delete", page.delete_material_requested),
-                            ("material.export", page.export_materials_requested),
-                            ("material.import", page.import_materials_requested)):
-            received = self.record(signal)
-            self.button(page, key).click()
-            self.assertEqual(received, [()], key)
-
-    def test_lists_emit_the_selected_index(self):
-        page = self.make()
-        ports, materials = self.record(page.port_selected), self.record(page.material_selected)
-        page.ports_combo.setCurrentIndex(1)
-        page.material_combo.setCurrentIndex(1)
-        self.assertEqual((ports, materials), ([(1,)], [(1,)]))
-        page.set_port_index(0)
-        self.assertEqual(page.ports_combo.currentText(), "COM1")
-
-    def test_connect_button_follows_the_connection(self):
-        page = self.make()
-        page.set_connected(True)
-        self.assertEqual(page.connect_button.text(), tr("laser.disconnect"))
-        self.assertIn("#27ae60", page.connect_button.styleSheet())
-        page.set_connected(False)
-        self.assertEqual((page.connect_button.text(), page.connect_button.styleSheet()),
-                         (tr("laser.connect"), ""))
 
 
 @unittest.skipIf(MachineParamsPage is None, "PyQt6 non importable ici")

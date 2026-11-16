@@ -22,6 +22,11 @@ except ImportError:  # PyQt6 manquant
     ImageTab = None
 
 
+def i18n_keys():
+    from laser_studio.i18n import TRANSLATIONS
+    return TRANSLATIONS
+
+
 def record(signal):
     received = []
     signal.connect(lambda *args: received.append(args))
@@ -95,11 +100,9 @@ class ImageSettingsPanelTests(_QtTest):
             received = record(signal)
             self.button(panel, key).click()
             self.assertEqual(received, [()], key)
-        saved = record(panel.save_as_focal_requested)
-        for b in panel.findChildren(QPushButton):
-            if b.text() == tr("img.save_as_focal"):
-                b.click()
-        self.assertEqual(len(saved), 2)  # pages lignes/mm et DPI
+        # Plus de bouton « Enregistrer comme focale machine ».
+        self.assertFalse(hasattr(panel, "save_as_focal_requested"))
+        self.assertNotIn("img.save_as_focal", i18n_keys())
         undo, redo = record(panel.undo_requested), record(panel.redo_requested)
         for shortcut in panel.findChildren(QShortcut):
             shortcut.activated.emit()
@@ -117,17 +120,14 @@ class ImageTabTests(_QtTest):
         self.assertTrue(tab.source_view.isVisible())
 
     def test_toolbar_requests(self):
+        from PyQt6.QtGui import QAction
         tab = self.make(ImageTab)
         compare = record(tab.compare_requested)
-        fullscreen = record(tab.fullscreen_requested)
-        toolbar_actions = [
-            a
-            for a in tab.findChildren(type(tab._fullscreen_control))
-            if a.text() == tr("img.compare_algos")
-        ]
+        toolbar_actions = [a for a in tab.findChildren(QAction) if a.text() == tr("img.compare_algos")]
         toolbar_actions[0].trigger()
-        tab._fullscreen_control.trigger()
-        self.assertEqual((compare, fullscreen), ([()], [()]))
+        self.assertEqual(compare, [()])
+        # Plein écran : celui de la barre d'outils principale, plus de bouton dans l'onglet.
+        self.assertFalse(hasattr(tab, "fullscreen_requested"))
 
     def test_settings_width_follows_longer_texts(self):
         tab = self.make(ImageTab)

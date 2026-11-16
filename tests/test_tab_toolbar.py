@@ -1,4 +1,5 @@
-"""Barre d'outils d'un onglet (TabToolBar) : ordre, bouton « Plein écran »."""
+"""Barre d'outils d'un onglet (TabToolBar) : ordre des éléments (le plein
+écran est dans la barre d'outils principale)."""
 
 import os
 import sys
@@ -22,7 +23,7 @@ class TabToolBarTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_left_items_then_spacer_then_right_items_then_fullscreen(self):
+    def test_left_items_then_spacer_then_right_items(self):
         calls = []
         left, right = QCheckBox("gauche"), QLabel("droite")
         bar = TabToolBar(
@@ -34,22 +35,15 @@ class TabToolBarTests(unittest.TestCase):
         )
         self.addCleanup(bar.deleteLater)
         actions = bar.actions()
-        self.assertEqual(len(actions), 5)
+        self.assertEqual(len(actions), 4)
         self.assertEqual(actions[0].text(), "Action")
         self.assertEqual(actions[0].toolTip(), "Infobulle")
         self.assertIs(bar.widgetForAction(actions[1]), left)
         self.assertIs(bar.widgetForAction(actions[3]), right)
-        self.assertIs(actions[4], bar.fullscreen_action)
+        self.assertFalse(hasattr(bar, "fullscreen_action"))
         actions[0].trigger()
         self.assertEqual(calls, [1])
 
-    def test_fullscreen_button_emits_fullscreen_requested(self):
-        bar = TabToolBar()
-        self.addCleanup(bar.deleteLater)
-        received = []
-        bar.fullscreen_requested.connect(lambda: received.append(True))
-        bar.fullscreen_action.trigger()
-        self.assertEqual(received, [True])
 
 
 if __name__ == "__main__":

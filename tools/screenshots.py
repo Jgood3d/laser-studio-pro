@@ -33,7 +33,7 @@ SAMPLE_IMAGE = os.path.join(REPO, "docs", "gravure-test-original.jpg")
 SEPARATION_IMAGE = os.path.join(REPO, "docs", "result-color-layer.jpg")
 WINDOW_SIZE = (1600, 980)
 # Pages du menu Paramètres (clés de show_settings_window).
-SETTINGS_PAGES = ("machine_params", "machine", "grbl", "test_matrix")
+SETTINGS_PAGES = ("machine_params", "grbl", "test_matrix")
 
 
 def slug(text):
