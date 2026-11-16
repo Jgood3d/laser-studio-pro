@@ -317,4 +317,3 @@ class MaterialsController:
                 tr("laser.error"),
                 tr("material.error_import").format(error=e),
             )
-```[cite: 3]
