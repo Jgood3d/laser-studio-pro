@@ -67,7 +67,8 @@ class ImageMarginTests(unittest.TestCase):
 
     def test_every_image_position_uses_the_margin(self):
         def source(name):
-            return open(os.path.join(ROOT, name), encoding="utf-8").read()
+            with open(os.path.join(ROOT, name), encoding="utf-8") as f:
+                return f.read()
         gen = source("gcode_generation_mixin.py")
         check = gen[gen.index("if params['enable_overscan'] and self.processed_array is not None"):]
         self.assertIn("image_origin(params)", check[:check.index("QMessageBox.critical")])  # contrôle

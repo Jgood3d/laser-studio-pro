@@ -214,7 +214,16 @@ Interface en anglais et en allemand :
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
-## Nouveautés de la version 2.4.0
+## Nouveautés de la version 2.5.0
+
+- **Stencil Studio** : un nouvel espace de travail pour créer et optimiser des pochoirs et des designs vectoriels ou matriciels, accessible par un bouton de la barre de menus :
+  - **trame par point et par ligne** : les images deviennent des motifs de points ou de lignes prêts à graver ;
+  - **effet Low Poly** : les images deviennent des compositions de polygones ;
+  - **générateur de boîte avec éclairage** : boîtier sur mesure avec logements pour les LED et l'alimentation, assemblé par encoches ;
+  - export direct vers Laser Studio Pro.
+- **Barre de menus réorganisée** pour accéder rapidement aux différents studios et aux réglages.
+
+Précédemment, dans la version 2.4.0 :
 
 - **Imbrication automatique** : range les pièces sur une feuille pour gaspiller le moins de matière possible (rotations, écart, marge, emboîtement dans les creux ; les trous et détails suivent leur pièce).
 - **Ordre de découpe sûr** : graver avant de découper, et couper l’intérieur avant l’extérieur, pour qu’une pièce ne bouge pas avant que ses détails soient faits.
