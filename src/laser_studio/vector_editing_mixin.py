@@ -5,7 +5,7 @@ from laser_studio.vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
 from laser_studio.i18n import tr
-from laser_studio.models.layers import ENGRAVE_MODE
+from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
@@ -261,7 +261,7 @@ class VectorEditingMixin:
 
         for layer in self.layer_manager.layers:
             self.combo_vec_layer.addItem(
-                f"{layer.name}  [{layer.mode}]",
+                layer_label(layer),
                 layer.id
             )
 

@@ -12,14 +12,9 @@ import logging
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import LOGGER_NAME
+from laser_studio.models.change_log import ChangeLog, short as _short
 
 log = logging.getLogger(f"{LOGGER_NAME}.modeles")
-
-
-def _short(value, limit=60):
-    """Valeur lisible dans le journal (les longs textes sont coupés)."""
-    text = repr(value)
-    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 class SettingsModel(QObject):
@@ -27,6 +22,8 @@ class SettingsModel(QObject):
 
     FIELDS : {nom: (type, valeur par défaut)}.
     CHOICES : {nom: valeurs permises} (facultatif).
+    TYPED_FIELDS : réglages saisis au clavier (textes), écrits dans le
+    journal une seule fois à la fin de la saisie (voir change_log.py).
     LABEL : préfixe des lignes du journal.
 
     Signal changed({nom: nouvelle valeur}) : seulement ce qui a changé.
@@ -34,6 +31,7 @@ class SettingsModel(QObject):
 
     FIELDS = {}
     CHOICES = {}
+    TYPED_FIELDS = ()
     LABEL = "Réglages"
 
     changed = pyqtSignal(dict)
@@ -41,6 +39,7 @@ class SettingsModel(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._values = {name: default for name, (_cast, default) in self.FIELDS.items()}
+        self._log = ChangeLog(self)
 
     def __getattr__(self, name):
         # Appelé seulement si l'attribut n'existe pas normalement.
@@ -86,10 +85,18 @@ class SettingsModel(QObject):
                 self._values[name] = value
                 changes[name] = value
         if changes:
-            log.info("%s : %s", self.LABEL,
-                     ", ".join(f"{k} {_short(before[k])} -> {_short(v)}" for k, v in changes.items()))
+            prefix = f"{self.LABEL} :"
+            self._log.now(prefix, {k: v for k, v in changes.items() if k not in self.TYPED_FIELDS},
+                          before)
+            for name in self.TYPED_FIELDS:
+                if name in changes:
+                    self._log.later(name, lambda: prefix, name, before[name], changes[name])
             self.changed.emit(changes)
         return changes
+
+    def flush_log(self):
+        """Écrit tout de suite les saisies en cours dans le journal."""
+        self._log.flush()
 
     def load(self, data):
         """Reprend les réglages connus de `data` (dictionnaire d'un profil, d'un

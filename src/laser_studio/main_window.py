@@ -987,7 +987,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         return {
             **self.machine.to_profile(),
             **self.job_position_box.profile_values(),
-            **self.tab_grbl_config.profile_values(),
+            **self.grbl.profile_values(),
             "materials_db": dict(self.materials.materials),
             "material": self.materials.model.current or "",
             "layers": self.layer_manager.to_list(),
@@ -998,7 +998,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         with self._material_autosave_paused():
             self.machine.apply_profile(profile)
             self.job_position_box.apply_profile_values(profile)
-            self.tab_grbl_config.apply_profile_values(profile)
+            self.grbl.apply_profile(profile)
             # Matériaux propres à cette machine (repli sur la base par défaut pour un profil
             # enregistré avant cette liaison), et matériau choisi à sa dernière utilisation
             # (sélectionné sans être appliqué).
@@ -1017,7 +1017,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         return {"layers": self.layer_manager.to_list(),
                 "materials_db": dict(self.materials.materials),
                 "material": self.materials.model.current or "",
-                **self.tab_grbl_config.mechanical_values()}
+                **self.grbl.mechanical_values()}
 
     def _apply_profile_layers(self, saved_layers, full=False):
         """Réapplique les calques mémorisés (voir apply_saved_layers), puis

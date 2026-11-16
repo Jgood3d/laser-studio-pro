@@ -102,7 +102,7 @@ class LayerProfileTests(unittest.TestCase):
         mark = LayerManager().layers[2]
         self.assertEqual((mark.name, mark.mode, mark.power, mark.speed, mark.passes, mark.line_interval,
                           mark.color),
-                         (tr("layers.default_name_mark"), "Marquage (Contour)", 75.0, 2000, 1, 0.06, "#34c759"))
+                         (tr("layers.default_name_mark"), "mark", 75.0, 2000, 1, 0.06, "#34c759"))
 
     def test_load_applies_the_last_profile_fully(self):
         c = self.make([])
@@ -184,7 +184,7 @@ class LayerProfileTests(unittest.TestCase):
             self.assertIsInstance(layer.speed, int)
             self.assertIsInstance(layer.passes, int)
         loaded = manager.layers[0]
-        self.assertEqual(loaded.mode, "Découpe")  # mode inconnu -> valeur par défaut
+        self.assertEqual(loaded.mode, "cut")  # mode inconnu -> valeur par défaut
         self.assertFalse(loaded.enabled)  # valeur valide reprise
         # Les trois calques de base sont garantis (ajoutés au besoin).
         self.assertEqual(sorted(l.role for l in manager.layers if l.role), ["cut", "engrave", "mark"])

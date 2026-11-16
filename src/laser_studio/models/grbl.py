@@ -41,7 +41,42 @@ class GrblConfig(SettingsModel):
         "end_gcode": (str, DEFAULT_END_GCODE),
         "grbl_settings": (str, ""),
     }
+    TYPED_FIELDS = ("start_gcode", "end_gcode", "grbl_settings")
     CHOICES = {
         "laser_cmd": LASER_COMMANDS,
         "overscan_mode": (OVERSCAN_FIXED, OVERSCAN_PERCENT),
     }
+
+    # Réglages propres à la mécanique de la machine, mémorisés EN CONTINU
+    # dans son profil (voir MachineProfilesController.store_memory). Le mode
+    # du surbalayage est enregistré par son code (0 = distance fixe,
+    # 1 = pourcentage).
+    MECHANICAL_FIELDS = ("homing_enabled", "scan_offset_mm", "overscan_enabled",
+                         "overscan_mode", "overscan_dist_mm", "overscan_pct")
+    # Enregistrés quand le profil est mis à jour (« Mettre à jour »).
+    PROFILE_FIELDS = ("start_gcode", "end_gcode", "grbl_settings") + MECHANICAL_FIELDS
+
+    def mechanical_values(self):
+        """Réglages mécaniques, au format d'un profil machine."""
+        return {name: self._values[name] for name in self.MECHANICAL_FIELDS}
+
+    def profile_values(self):
+        """Réglages enregistrés dans un profil machine : G-Code de début et de
+        fin, réglages GRBL complets ($$) et réglages mécaniques."""
+        return {name: self._values[name] for name in self.PROFILE_FIELDS}
+
+    def apply_profile(self, profile):
+        """Réapplique un profil machine enregistré. Un réglage absent (profil
+        enregistré avant son ajout) garde sa valeur, sauf le décalage
+        aller/retour qui revient à 0 ; une valeur illisible est ignorée (un
+        décalage illisible revient à 0). Les réglages GRBL ne sont jamais
+        envoyés à la machine ici. Renvoie ce qui a changé."""
+        fields = {name: profile[name] for name in self.PROFILE_FIELDS
+                  if name in profile and name not in ("overscan_mode", "scan_offset_mm")}
+        if profile.get("overscan_mode") in self.CHOICES["overscan_mode"]:
+            fields["overscan_mode"] = profile["overscan_mode"]
+        try:
+            fields["scan_offset_mm"] = float(profile.get("scan_offset_mm", 0.0))
+        except (TypeError, ValueError):
+            fields["scan_offset_mm"] = 0.0
+        return self.update(**fields)

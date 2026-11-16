@@ -9,7 +9,9 @@ from svg.path import parse_path
 from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
-from laser_studio.models.layers import BASE_LAYER_DEFAULTS
+from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
+from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
+from laser_studio.workers import MATRIX_CUT, MATRIX_ENGRAVE
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
@@ -317,7 +319,7 @@ class GcodeGenerationMixin:
                 objs = [o for o in self.vector_canvas.objects if o.layer_id == layer.id]
                 if not objs:
                     continue
-                if layer.mode == "Gravure Remplie":
+                if layer.mode == MODE_FILL:
                     total_area = sum(o.world_path().boundingRect().width() *
                                       o.world_path().boundingRect().height() for o in objs)
                     length_est = total_area / max(layer.line_interval, 0.02)
@@ -486,7 +488,7 @@ class GcodeGenerationMixin:
     def _engrave_layer_label(self):
         """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
         layer = self.layer_manager.engrave_layer()
-        return f"{layer.name}  [{layer.mode}]" if layer else ""
+        return layer_label(layer) if layer else ""
 
     def set_cut_settings(self, speed, power, passes):
         """Vitesse (mm/min), puissance (%) et passes de la découpe de
@@ -611,7 +613,7 @@ class GcodeGenerationMixin:
 
             for layer_id, data in vector_layers_data.items():
                 layer = data["layer"]
-                if layer["mode"] != "Gravure Remplie" or not data["polygons"]:
+                if layer["mode"] != MODE_FILL or not data["polygons"]:
                     continue
                 min_x = min(p[0] for poly in data["polygons"] for p in poly)
                 base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == ORIGIN_CENTER else params['offset_x']
@@ -669,12 +671,12 @@ class GcodeGenerationMixin:
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
         self._sync_matrix_lmm_from_image()
         # Mode indépendant de la langue : currentText() est traduit (« Engraving », « Gravur »…),
-        # alors que le générateur et _on_plot_clicked comparent à « Gravure ».
+        # le générateur et _on_plot_clicked comparent un code (MATRIX_ENGRAVE / MATRIX_CUT).
         page = self.tab_matrix
         engraving = page.is_engraving()
         params = page.matrix_params()
         params.update({
-            'mode': "Gravure" if engraving else "Découpe",
+            'mode': MATRIX_ENGRAVE if engraving else MATRIX_CUT,
             's_max': self.grbl.smax,
             'enable_overscan': self.grbl.overscan_enabled,
             'overscan_mode': self._overscan_mode_value(),
@@ -724,8 +726,8 @@ class GcodeGenerationMixin:
             min_s, max_s, steps_s = params['min_speed'], params['max_speed'], int(params['steps_speed'])
             speeds = np.linspace(min_s, max_s, steps_s)
 
-            mode = params.get('mode', 'Gravure')
-            if mode == "Gravure":
+            mode = params.get('mode', MATRIX_ENGRAVE)
+            if mode == MATRIX_ENGRAVE:
                 min_p, max_p, steps_p = params['min_power'], params['max_power'], int(params['steps_power'])
                 col_values = np.linspace(min_p, max_p, steps_p)
             else:
@@ -742,7 +744,7 @@ class GcodeGenerationMixin:
                 return  # clic dans l'espace entre les cases, pas dans une case
 
             speed_val = round(float(speeds[row]))
-            if mode == "Gravure":
+            if mode == MATRIX_ENGRAVE:
                 power_val = round(float(col_values[col]))
                 self.set_engrave_settings(speed_val, power_val)
                 self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
@@ -924,22 +926,23 @@ class GcodeGenerationMixin:
                 if raw_line.startswith(';'):
                     if 'PHASE 1' in raw_line and 'GRAVURE IMAGE' in raw_line:
                         current_label, current_color = RASTER_LABEL, "#ffaa00"
-                        current_layer_mode = "Gravure Remplie"
+                        current_layer_mode = MODE_FILL
                         current_is_test_matrix = False
                     elif 'PHASE 2' in raw_line and 'DÉCOUPE VECTORIELLE SVG' in raw_line:
                         current_label, current_color = tr("gen.legend_svg_cut"), DEFAULT_SVG_COLOR
-                        current_layer_mode = "Découpe"
+                        current_layer_mode = MODE_CUT
                         current_is_test_matrix = False
                     elif raw_line.startswith('; --- MATRICE DE TEST LASER'):
                         current_label = tr("gen.legend_test_matrix")
                         current_color = "#00ff88"
-                        current_layer_mode = "Matrice"
+                        current_layer_mode = "matrix"
                         current_is_test_matrix = True
                     elif raw_line.startswith('; --- CALQUE'):
                         m = re.match(r"; --- CALQUE '(.+)' \[(.+)\] ---", raw_line)
                         if m:
                             layer_name = m.group(1)
-                            layer_mode = m.group(2)
+                            # Code du mode ; ancien libellé français dans un G-Code d'avant 2.6.
+                            layer_mode = normalize_mode(m.group(2))
                             layer = next((l for l in self.layer_manager.layers if l.name == layer_name), None)
                             current_label = tr("gen.legend_layer").format(name=layer_name)
                             current_color = layer.color if layer else DEFAULT_LAYER_COLOR
@@ -1028,7 +1031,7 @@ class GcodeGenerationMixin:
         # Décision du mode d'affichage.
         #
         # - Gravure Image interne       -> toujours raster
-        # - Calque "Gravure Remplie"    -> raster
+        # - Calque en gravure remplie   -> raster
         # - G-Code importé non identifié -> heuristique raster
         # - SVG en découpe              -> vectoriel
         # - Matrice de test (Gravure)   -> raster, comme la gravure image
@@ -1051,21 +1054,21 @@ class GcodeGenerationMixin:
                 # reste lisible). En mode Découpe (ou matrice d'origine inconnue, ex. G-Code
                 # rechargé), on garde l'affichage vectoriel.
                 matrix_params = getattr(self, "last_test_matrix_params", None) or {}
-                is_raster = matrix_params.get("mode") == "Gravure"
+                is_raster = matrix_params.get("mode") == MATRIX_ENGRAVE
 
             elif label == tr("gen.legend_svg_cut"):
                 # Un SVG de découpe doit rester affiché comme des contours.
                 is_raster = False
 
-            elif layer_mode == "Découpe":
+            elif layer_mode == MODE_CUT:
                 # Contour vectoriel : jamais de reconstruction raster.
                 is_raster = False
 
-            elif layer_mode == "Marquage (Contour)":
+            elif layer_mode == MODE_MARK:
                 # Contour vectoriel : jamais de reconstruction raster.
                 is_raster = False
 
-            elif layer_mode == "Gravure Remplie":
+            elif layer_mode == MODE_FILL:
                 # Remplissage vectoriel par balayage.
                 is_raster = True
 

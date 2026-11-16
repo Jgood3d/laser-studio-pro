@@ -29,7 +29,7 @@ class EngraveSettingsTests(unittest.TestCase):
         return f
 
     def fill_layer(self, f):
-        return next(l for l in f.layer_manager.layers if l.mode == "Gravure Remplie")
+        return next(l for l in f.layer_manager.layers if l.mode == "engrave_fill")
 
     def test_values_are_whole_numbers_within_bounds(self):
         f = self.make()
@@ -73,7 +73,7 @@ class EngraveSettingsTests(unittest.TestCase):
 
     def test_without_engrave_layer_the_first_layer_is_used(self):
         f = self.make()
-        for layer in [l for l in f.layer_manager.layers if l.mode == "Gravure Remplie"]:
+        for layer in [l for l in f.layer_manager.layers if l.mode == "engrave_fill"]:
             f.layer_manager.remove_layer(layer.id)
         self.assertEqual(f.layer_manager.engrave_layer(), f.layer_manager.layers[0])
         f._ensure_engrave_layer_for_image()             # simple message

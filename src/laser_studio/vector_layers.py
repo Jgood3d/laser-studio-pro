@@ -60,7 +60,7 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 # d'ici pour le code existant ; LayerManager est l'ancien nom de LayersModel.
 from laser_studio.models.layers import (  # noqa: E402,F401
     BASE_LAYER_DEFAULTS, BASE_LAYER_ROLES, CONTOUR_MODES, DEFAULT_LAYER_COLORS, ENGRAVE_MODE,
-    LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel, base_layer_name,
+    LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel, base_layer_name, layer_label,
 )
 
 LayerManager = LayersModel
@@ -2837,7 +2837,7 @@ class VectorCanvasView(QGraphicsView):
 
         layer_menu = menu.addMenu(tr("vector.assign_to_layer") + label_suffix)
         for layer in self.layer_manager.layers:
-            action = layer_menu.addAction(f"{layer.name}  [{layer.mode}]")
+            action = layer_menu.addAction(layer_label(layer))
             action.triggered.connect(lambda checked=False, lid=layer.id, items=selected: self._bulk_assign_layer(items, lid))
 
         resize_action = menu.addAction(tr("vector.resize_ellipsis") + label_suffix)
@@ -3084,7 +3084,7 @@ class TextInsertDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         if text_obj and text_obj.layer_id:
             idx = self.combo_layer.findData(text_obj.layer_id)
             if idx >= 0:
@@ -3144,7 +3144,7 @@ class AssignLayerDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         lid = current_layer_id if current_layer_id is not None else (svg_obj.layer_id if svg_obj else None)
         if lid:
             idx = self.combo_layer.findData(lid)
@@ -3237,7 +3237,7 @@ class ShapeInsertDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         if shape_obj and shape_obj.layer_id:
             idx = self.combo_layer.findData(shape_obj.layer_id)
             if idx >= 0:
@@ -3356,7 +3356,7 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_pat
 
     if optimize_path:
         for layer_id, data in layers_data.items():
-            if data["layer"].get("mode") == "Gravure Remplie":
+            if data["layer"].get("mode") == ENGRAVE_MODE:
                 continue  # balayage scanline : l'ordre des tracés n'a pas d'effet
             polys = data["polygons"]
             if 1 < len(polys) <= MAX_POLYGONS_FOR_PATH_OPTIMIZATION:
@@ -3419,7 +3419,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
     qui restent en haut-gauche/Y descendant).
 
     overscan_dist (mm) : distance de surbalayage appliquée aux lignes de
-    remplissage (mode 'Gravure Remplie'), comme pour la gravure image —
+    remplissage (mode ENGRAVE_MODE, gravure remplie), comme pour la gravure image —
     le laser reste éteint pendant le dépassement de part et d'autre.
 
     safe_cut_order : graver avant de découper (les calques de découpe passent après les autres) et, dans
@@ -3454,7 +3454,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
         power_val = int(round((layer["power"] / 100.0) * s_max))
         gcode.append(f"F{speed}")
 
-        if layer["mode"] == "Gravure Remplie":
+        if layer["mode"] == ENGRAVE_MODE:
             ys = [p[1] for poly in polygons for p in poly]
             if not ys:
                 continue

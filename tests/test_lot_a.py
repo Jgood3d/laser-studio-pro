@@ -37,8 +37,6 @@ class HomingTests(unittest.TestCase):
         window = read("main_window.py")
         profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
         self.assertNotIn("chk_homing", profiles)
-        self.assertNotIn("homing", read(os.path.join("ui", "settings", "grbl_config", "page.py"))
-                         .split("def profile_values")[1].split("def apply_profile_values")[0])
         self.assertNotIn("chk_homing", project_state_source())
 
 

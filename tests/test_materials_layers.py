@@ -28,10 +28,10 @@ class MaterialLayersTests(unittest.TestCase):
         engrave.power, engrave.speed, mark.line_interval = 12.0, 3456, 0.05
         material = {"layers": capture_material_layers(manager)}
         engrave.power, engrave.speed, mark.line_interval = 99.0, 100, 0.2
-        engrave.mode = "Découpe"                       # le mode n'est pas un réglage de matériau
+        engrave.mode = "cut"                       # le mode n'est pas un réglage de matériau
         self.assertTrue(apply_material_to_layers(manager, material))
         self.assertEqual((engrave.power, engrave.speed, mark.line_interval), (12.0, 3456, 0.05))
-        self.assertEqual(engrave.mode, "Découpe")
+        self.assertEqual(engrave.mode, "cut")
 
     def test_layers_found_by_position_when_ids_differ(self):
         source, target = LayerManager(), LayerManager()
@@ -66,15 +66,15 @@ class BaseLayersTests(unittest.TestCase):
     def test_new_manager_has_the_three_base_layers(self):
         manager = LayerManager()
         self.assertEqual([(l.role, l.name, l.mode) for l in manager.layers],
-                         [("engrave", tr("layers.default_name_engrave"), "Gravure Remplie"),
-                          ("cut", tr("layers.default_name_cut"), "Découpe"),
-                          ("mark", tr("layers.default_name_mark"), "Marquage (Contour)")])
+                         [("engrave", tr("layers.default_name_engrave"), "engrave_fill"),
+                          ("cut", tr("layers.default_name_cut"), "cut"),
+                          ("mark", tr("layers.default_name_mark"), "mark")])
 
     def test_old_saved_layers_are_adopted_or_completed(self):
         manager = LayerManager()
         # Calques enregistrés avant les rôles : une gravure renommée, un calque libre.
-        manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "Gravure Remplie", "power": 20.0},
-                           {"id": "b2", "name": "Logo", "mode": "Gravure Remplie"}])
+        manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "engrave_fill", "power": 20.0},
+                           {"id": "b2", "name": "Logo", "mode": "engrave_fill"}])
         roles = {l.role: l for l in manager.layers}
         self.assertEqual(sorted(r for r in roles if r), ["cut", "engrave", "mark"])
         self.assertEqual((roles["engrave"].id, roles["engrave"].name, roles["engrave"].power),

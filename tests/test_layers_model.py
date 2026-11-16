@@ -52,7 +52,7 @@ class LayersModelTests(unittest.TestCase):
         model.update(engrave.id, speed="1200", power="abc", mode="Inconnu")
         self.assertEqual(engrave.speed, 1200)
         self.assertEqual(engrave.power, 35.0)
-        self.assertEqual(engrave.mode, "Gravure Remplie")
+        self.assertEqual(engrave.mode, "engrave_fill")
 
     def test_unknown_setting_is_a_programming_error(self):
         model, _events = self.make()
@@ -94,9 +94,69 @@ class LayersModelTests(unittest.TestCase):
 
     def test_engrave_layer_is_the_first_fill_layer(self):
         model, _events = self.make()
-        self.assertEqual(model.engrave_layer().mode, "Gravure Remplie")
-        model.update(model.engrave_layer().id, mode="Découpe")
+        self.assertEqual(model.engrave_layer().mode, "engrave_fill")
+        model.update(model.engrave_layer().id, mode="cut")
         self.assertIs(model.engrave_layer(), model.layers[0])   # plus de remplissage : le premier
+
+
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
+class LayerModeCodeTests(unittest.TestCase):
+    """Modes : des codes indépendants de la langue ; les anciens libellés
+    français (projets, profils, matériaux d'avant 2.6) sont convertis."""
+
+    def test_base_layers_use_codes(self):
+        self.assertEqual([l.mode for l in LayersModel().layers], ["engrave_fill", "cut", "mark"])
+
+    def test_old_french_labels_are_converted_when_loading(self):
+        model = LayersModel()
+        model.load_list([{"id": "a", "name": "A", "mode": "Gravure Remplie"},
+                         {"id": "b", "name": "B", "mode": "Découpe"},
+                         {"id": "c", "name": "C", "mode": "Marquage (Contour)"}])
+        self.assertEqual([model.get(i).mode for i in "abc"], ["engrave_fill", "cut", "mark"])
+
+    def test_old_french_label_is_converted_by_update(self):
+        model = LayersModel()
+        model.update(model.layers[0].id, mode="Découpe")
+        self.assertEqual(model.layers[0].mode, "cut")
+
+    def test_mode_is_shown_translated(self):
+        from laser_studio.i18n import tr
+        from laser_studio.models.layers import layer_label
+        engrave = LayersModel().engrave_layer()
+        self.assertEqual(layer_label(engrave), f"{engrave.name}  [{tr('layers.mode.fill')}]")
+
+
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
+class TypedFieldLogTests(unittest.TestCase):
+    """Un texte saisi au clavier : le modèle suit chaque frappe, le journal
+    n'écrit qu'une ligne à la fin de la saisie."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_typing_a_layer_name_gives_one_log_line(self):
+        model = LayersModel()
+        layer = model.add_layer()
+        with self.assertLogs(LOGGER, "INFO") as logs:
+            for text in ("L", "Lo", "Log", "Logo"):
+                model.update(layer.id, name=text)
+            self.assertEqual(layer.name, "Logo")          # le modèle suit chaque frappe
+            model.flush_log()                              # fin de la saisie
+        name_lines = [l for l in logs.output if " name " in l]
+        self.assertEqual(len(name_lines), 1)
+        self.assertIn("name 'Calque 4' -> 'Logo'", name_lines[0])
+
+    def test_typing_start_gcode_gives_one_log_line(self):
+        from laser_studio.models.grbl import GrblConfig
+        grbl = GrblConfig()
+        with self.assertLogs(LOGGER, "INFO") as logs:
+            for text in ("G", "G2", "G21"):
+                grbl.update(start_gcode=text)
+            grbl.update(smax=500)                          # réglage ordinaire : tout de suite
+            grbl.flush_log()
+        self.assertEqual(len([l for l in logs.output if "start_gcode" in l]), 1)
+        self.assertTrue(any("smax 1000 -> 500" in l for l in logs.output))
 
 
 @unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
@@ -128,7 +188,7 @@ class LayerTableFollowsModelTests(unittest.TestCase):
 
     def test_reload_rebuilds_the_rows(self):
         model, widget = self.make()
-        model.load_list(model.to_list() + [{"id": "zz", "name": "Extra", "mode": "Découpe"}])
+        model.load_list(model.to_list() + [{"id": "zz", "name": "Extra", "mode": "cut"}])
         self.assertEqual(widget.table.rowCount(), 4)
         self.assertIn("zz", widget._editors)
 

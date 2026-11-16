@@ -16,22 +16,18 @@ from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import LOGGER_NAME
 from laser_studio.i18n import tr
+from laser_studio.models.change_log import ChangeLog
 
 log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 
-LAYER_MODES = ["Gravure Remplie", "Découpe", "Marquage (Contour)"]
-ENGRAVE_MODE = "Gravure Remplie"
-# Modes qui ne tracent que le contour : le pas de remplissage n'y sert pas, il
-# n'est donc pas lié à la taille du spot (voir link_all_to_focal).
-CONTOUR_MODES = ("Découpe", "Marquage (Contour)")
-# Les valeurs de LAYER_MODES sont des identifiants internes (sauvegardés dans
-# les projets, testés dans le générateur de G-Code) : elles ne changent jamais.
-# Seul leur AFFICHAGE est traduit, via ces clés.
-LAYER_MODE_TR_KEYS = {
-    "Découpe": "layers.mode.cut",
-    "Gravure Remplie": "layers.mode.fill",
-    "Marquage (Contour)": "layers.mode.mark",
-}
+# Modes des calques : codes indépendants de la langue (voir layer_modes.py).
+# ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
+from laser_studio.models.layer_modes import (  # noqa: E402
+    CONTOUR_MODES, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT, MODE_FILL,
+    MODE_MARK, normalize_mode,
+)
+
+ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
 
 DEFAULT_LAYER_COLORS = [
     "#ff3b30", "#34c759", "#0a84ff", "#ff9f0a",
@@ -44,9 +40,9 @@ DEFAULT_LAYER_COLORS = [
 # supprimés ; chaque profil matériau a une entrée pour chacun.
 BASE_LAYER_ROLES = ("engrave", "cut", "mark")
 BASE_LAYER_DEFAULTS = {
-    "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], "Gravure Remplie", 35.0, 2000, 1, 0.10),
-    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], "Découpe", 90.0, 250, 1, 0.10),
-    "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], "Marquage (Contour)", 75.0, 2000, 1, 0.06),
+    "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], MODE_FILL, 35.0, 2000, 1, 0.10),
+    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], MODE_CUT, 90.0, 250, 1, 0.10),
+    "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], MODE_MARK, 75.0, 2000, 1, 0.06),
 }
 
 # Réglages modifiables d'un calque, avec leur type. L'identifiant et le rôle
@@ -69,6 +65,17 @@ def base_layer_name(role):
     return tr(BASE_LAYER_DEFAULTS[role][0])
 
 
+def mode_label(mode):
+    """Libellé traduit du mode `mode` (code), à afficher."""
+    key = LAYER_MODE_TR_KEYS.get(normalize_mode(mode))
+    return tr(key) if key else str(mode)
+
+
+def layer_label(layer):
+    """« Nom  [mode traduit] » d'un calque, pour les listes et les messages."""
+    return f"{layer.name}  [{mode_label(layer.mode)}]"
+
+
 def validated_settings(source, defaults=None):
     """Réglages de `source` (dictionnaire) convertis dans leur type.
 
@@ -81,8 +88,10 @@ def validated_settings(source, defaults=None):
             continue
         try:
             value = cast(source[key])
-            if key == "mode" and value not in LAYER_MODES:
-                raise ValueError(value)
+            if key == "mode":
+                value = normalize_mode(value)       # ancien libellé français -> code
+                if value not in LAYER_MODES:
+                    raise ValueError(value)
         except (TypeError, ValueError):
             if defaults is not None:
                 values[key] = getattr(defaults, key)
@@ -100,14 +109,14 @@ class LaserLayer:
     Un LaserLayer se lit librement ; il ne se modifie qu'à travers
     LayersModel.update, pour que chaque changement soit signalé."""
 
-    def __init__(self, name="Calque", color="#ff3b30", mode="Découpe",
+    def __init__(self, name="Calque", color="#ff3b30", mode=MODE_CUT,
                  power=80.0, speed=300, passes=1, line_interval=0.10,
                  enabled=True, layer_id=None, line_interval_linked=False, role=None):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.role = role
         self.name = name
         self.color = color
-        self.mode = mode                    # cf. LAYER_MODES
+        self.mode = normalize_mode(mode)    # cf. LAYER_MODES (codes)
         self.power = float(power)           # %
         self.speed = int(speed)             # mm/min
         self.passes = int(passes)
@@ -163,6 +172,14 @@ class LayersModel(QObject):
         # position, calque proposé par défaut pour la gravure des images
         # (tramage / séparation couleur), puis la découpe et le marquage.
         self.layers = [self.new_base_layer(role) for role in BASE_LAYER_ROLES]
+        self._log = ChangeLog(self)
+
+    # Réglages saisis au clavier : une ligne de journal à la fin de la saisie.
+    TYPED_FIELDS = ("name",)
+
+    def flush_log(self):
+        """Écrit tout de suite les saisies en cours dans le journal."""
+        self._log.flush()
 
     # -- lecture -----------------------------------------------------------
 
@@ -214,7 +231,7 @@ class LayersModel(QObject):
         """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
         le premier calque en mode Découpe. À défaut, le premier calque."""
         for l in self.layers:
-            if l.mode == "Découpe":
+            if l.mode == MODE_CUT:
                 return l
         return self.layers[0] if self.layers else None
 
@@ -243,8 +260,12 @@ class LayersModel(QObject):
                 setattr(layer, key, value)
                 changes[key] = value
         if changes:
-            log.info("Calques : %s %s", _describe(layer),
-                     ", ".join(f"{k} {before[k]!r} -> {v!r}" for k, v in changes.items()))
+            self._log.now(f"Calques : {_describe(layer)}",
+                          {k: v for k, v in changes.items() if k not in self.TYPED_FIELDS}, before)
+            for key in self.TYPED_FIELDS:
+                if key in changes:
+                    self._log.later((layer.id, key), lambda l=layer: f"Calques : {_describe(l)}",
+                                    key, before[key], changes[key])
             self.layer_changed.emit(layer.id, changes)
             self.changed.emit()
         return changes

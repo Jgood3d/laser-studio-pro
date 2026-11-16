@@ -7,7 +7,7 @@ encore être gravé ou découpé À L'INTÉRIEUR (détails, trous) doit donc l'�
   2. dans un calque de découpe, un contour contenu dans un autre est coupé avant lui (les plus
      imbriqués d'abord).
 """
-CUT_MODE = "Découpe"
+from laser_studio.models.layer_modes import MODE_CUT as CUT_MODE  # noqa: E402
 
 
 def polygon_area(poly):
