@@ -69,10 +69,15 @@ def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungrou
 
 
 def box_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
-    """[(panneau, objet)] : les trous (fentes de cloison) puis le contour de découpe de chaque panneau,
-    posés selon la disposition calculée. Un panneau peut donc apparaître plusieurs fois."""
+    """[(panneau, objet)] : les fentes de charnière (traits ouverts), les trous (fentes de cloison) puis le
+    contour de découpe de chaque panneau, posés selon la disposition calculée. Un panneau peut donc
+    apparaître plusieurs fois."""
     out = []
     for panel in result.panels:
+        for slit in panel.placed_slits():
+            obj = _path_object(slit, False, f"box:{panel.name}:hinge", layer_id, offset_x_mm, offset_y_mm)
+            if obj is not None:
+                out.append((panel, obj))
         for hole in panel.placed_holes():
             obj = _path_object(hole, True, f"box:{panel.name}:hole", layer_id, offset_x_mm, offset_y_mm)
             if obj is not None:
@@ -80,6 +85,26 @@ def box_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
         obj = _path_object(panel.placed(), True, f"box:{panel.name}", layer_id, offset_x_mm, offset_y_mm)
         if obj is not None:
             out.append((panel, obj))
+    return out
+
+
+def motif_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
+    """Contours gravés du papillon (un objet fermé par contour)."""
+    out = []
+    for loop in result.motif:
+        obj = _path_object(loop, True, "box:motif", layer_id, offset_x_mm, offset_y_mm)
+        if obj is not None:
+            out.append(obj)
+    return out
+
+
+def index_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
+    """Numéros de pièce gravés : un texte centré sur chaque emplacement trouvé par le générateur."""
+    out = []
+    for text, x, y, size in result.index:
+        obj = TextObject(text=text, font_family="Arial", size_mm=size, bold=False, italic=False,
+                         layer_id=layer_id, x_mm=0.0, y_mm=0.0)
+        out += center_group([obj], x + offset_x_mm, y + offset_y_mm)
     return out
 
 

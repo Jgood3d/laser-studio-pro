@@ -14,6 +14,7 @@ FACE_LABEL_KEYS = {
     "right": "box.face_right", "top": "box.face_top", "bottom": "box.face_bottom",
 }
 _MARGIN = 14.0
+_MIN_LABEL_PX = 46.0
 _DEFAULT_SVG_MM = 20.0
 
 
@@ -23,6 +24,15 @@ def panel_label(name):
         return tr(FACE_LABEL_KEYS[name])
     if name == "lip":
         return tr("box.panel_lip")
+    for prefix, key in (("magnet_lid", "box.panel_magnet_lid"), ("magnet_wall", "box.panel_magnet_wall")):
+        if name.startswith(prefix):
+            return tr(key).format(n=name[len(prefix):])
+    if name.startswith("foot"):                        # « foot2_1 » : pied 2, plaque 1
+        foot, _, layer = name[len("foot"):].partition("_")
+        return tr("box.panel_foot").format(n=foot, j=layer)
+    if name.startswith("hinge"):                       # « hinge2_3 » : charnière 2, plaque 3
+        hinge, _, plate = name[len("hinge"):].partition("_")
+        return tr("box.panel_hinge").format(n=hinge, j=plate)
     for prefix, key in (("divider_x", "box.panel_divider_x"), ("divider_y", "box.panel_divider_y")):
         if name.startswith(prefix):
             return tr(key).format(n=name[len(prefix):])
@@ -94,11 +104,31 @@ class BoxPreview(QWidget):
             painter.setPen(QPen(ink, 1.2))
             painter.setBrush(fill)
             painter.drawPath(path)
+            painter.setPen(QPen(ink, 0.8))
+            for slit in panel.placed_slits():            # fentes de la charnière vivante
+                painter.drawLine(screen(*slit[0]), screen(*slit[1]))
             x0, y0, x1, y1 = panel.bounds()
             painter.setFont(label_font)
             painter.setPen(ink)
-            painter.drawText(QRectF(screen(x0, y1), screen(x1, y0)).adjusted(5, 3, -3, -3),
-                             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, panel_label(panel.name))
+            if (x1 - x0) * scale >= _MIN_LABEL_PX:          # pas d'étiquette sur les petites plaques de charnière
+                painter.drawText(QRectF(screen(x0, y1), screen(x1, y0)).adjusted(5, 3, -3, -3),
+                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, panel_label(panel.name))
+            for face, (u0, v0, u1, v1) in panel.faces.items():     # face portée (couvercle à charnière)
+                painter.setPen(ink)
+                painter.drawText(QRectF(screen(u0 + panel.x, v1 + panel.y), screen(u1 + panel.x, v0 + panel.y))
+                                 .adjusted(5, 3, -3, -3),
+                                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop, panel_label(face))
+        accent = QColor(217, 119, 6)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(accent, 1.0))
+        for loop in result.motif:                                # papillon gravé
+            painter.drawPath(polygon(loop))
+        painter.setFont(label_font)
+        for text, x, y, size in result.index:                    # numéros de pièce gravés
+            centre = screen(x, y)
+            half = size * scale
+            painter.drawText(QRectF(centre.x() - half * 2, centre.y() - half, half * 4, half * 2),
+                             Qt.AlignmentFlag.AlignCenter, text)
         self._paint_decors(painter, result, scale, screen)
         if self._too_big:
             painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -112,7 +142,7 @@ class BoxPreview(QWidget):
 
     def _paint_decors(self, painter, result, scale, screen):
         accent = QColor(217, 119, 6)
-        by_name = {panel.name: panel for panel in result.panels}
+        by_name = result.face_panels()
         for decor in self._decors:
             panel = by_name.get(decor.face)
             if panel is None:
