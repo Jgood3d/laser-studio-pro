@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
 from laser_studio.ui.widgets import SliderWithButtons
@@ -55,6 +56,9 @@ class ImageSettingsPanel(QWidget):
     processing_changed = pyqtSignal()
     # Matière choisie : "dark" (fond noir) ou "light" (fond clair).
     material_changed = pyqtSignal(str)
+    # Calque de gravure choisi par l'utilisateur : son identifiant (jamais émis quand la fenêtre
+    # remplit la liste, voir EngraveLayerComboBox).
+    engrave_layer_changed = pyqtSignal(str)
     # Taille de l'image modifiée : axe ("w" ou "h") et valeur en mm.
     size_changed = pyqtSignal(str, float)
     # Mode de saisie de la résolution (voir ResolutionBox).
@@ -88,6 +92,7 @@ class ImageSettingsPanel(QWidget):
         layout.addRow("", self.invert_check)
         layout.addRow(tr("img.algorithm"), self._algorithm_combo())
         layout.addRow(tr("img.resolution"), self._resolution_box())
+        layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
         self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
 
@@ -138,6 +143,11 @@ class ImageSettingsPanel(QWidget):
         self.material_combo = MaterialComboBox()
         self.material_combo.material_changed.connect(self.material_changed)
         return self.material_combo
+
+    def _engrave_layer_combo(self):
+        self.engrave_layer_combo = EngraveLayerComboBox()
+        self.engrave_layer_combo.layer_selected.connect(self.engrave_layer_changed)
+        return self.engrave_layer_combo
 
     def _algorithm_combo(self):
         self.algorithm_combo = QComboBox()

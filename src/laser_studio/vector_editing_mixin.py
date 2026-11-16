@@ -36,6 +36,22 @@ class VectorEditingMixin:
         if hasattr(self, "layers_tab") and sender is not self.layers_tab:
             self.layers_tab.refresh()
         self._refresh_engrave_layer()
+        self._refresh_engrave_layer_combo()
+        self._on_engrave_layer_selected()
+
+    def _refresh_engrave_layer_combo(self):
+        """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés, supprimés,
+        renommés ou changés de mode). Sans effet tant que l'onglet n'est pas construit."""
+        combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None), "engrave_layer_combo", None)
+        if combo is not None:
+            combo.set_layers(self.layer_manager.layers, self.engrave_layer_id)
+
+    def _on_engrave_layer_chosen(self, layer_id):
+        """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
+        deviennent celles de la gravure."""
+        if self.layer_manager.get(layer_id) is None:
+            return
+        self.engrave_layer_id = layer_id
         self._on_engrave_layer_selected()
 
     def _refresh_engrave_layer(self):
@@ -73,6 +89,7 @@ class VectorEditingMixin:
             self.show_status_message(tr("vector.no_engrave_layer"))
             return
         self.engrave_layer_id = layer_id
+        self._refresh_engrave_layer_combo()
         self._on_engrave_layer_selected()
         self.show_status_message(tr("vector.engrave_layer_auto").format(name=self._engrave_layer_label()))
 

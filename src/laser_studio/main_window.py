@@ -468,6 +468,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         settings.load_requested.connect(self.load_image)
         settings.processing_changed.connect(self.update_image_processing)
         settings.material_changed.connect(self._on_material_bg_changed)
+        settings.engrave_layer_changed.connect(self._on_engrave_layer_chosen)
         settings.size_changed.connect(self.on_dimension_changed)
         settings.resolution_mode_changed.connect(self.on_lmm_mode_changed)
         settings.lines_per_mm_changed.connect(
@@ -509,6 +510,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # panneau d'après ses textes (dont l'information sur la focale).
         self.on_lmm_mode_changed(settings.resolution_mode_combo.currentIndex())
         tab.fit_settings_width()
+        self._refresh_engrave_layer_combo()
 
         # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
         self.job_position_box = JobPositionBox()
@@ -1086,6 +1088,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         if "layers" in data:
             self.layer_manager.load_list(data["layers"])
             self.layers_tab.refresh()
+            self._refresh_engrave_layer()
+            self._refresh_engrave_layer_combo()
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.load_objects(data.get("vector_objects"))
             self.update_vector_work_area()

@@ -299,6 +299,20 @@ TRANSLATIONS = {
         "fr": "Matière :", "en": "Material:",
         "de": "Material:", "es": "Material:",
     },
+    "img.engrave_layer": {
+        "fr": "Calque de gravure :", "en": "Engraving layer:",
+        "de": "Gravurebene:", "es": "Capa de grabado:",
+    },
+    "img.engrave_layer_tip": {
+        "fr": "Calque dont la vitesse et la puissance servent à graver l'image. Seuls les calques en mode « Gravure Remplie » sont proposés ; ses réglages se modifient dans l'onglet Calques.",
+        "en": "Layer whose speed and power are used to engrave the image. Only layers in \"Fill Engraving\" mode are listed; edit its settings in the Layers tab.",
+        "de": "Ebene, deren Geschwindigkeit und Leistung zum Gravieren des Bildes dienen. Nur Ebenen im Modus „Gefüllte Gravur“ werden angeboten; ihre Einstellungen ändern Sie im Reiter Ebenen.",
+        "es": "Capa cuya velocidad y potencia se usan para grabar la imagen. Solo se ofrecen las capas en modo «Grabado relleno»; sus ajustes se cambian en la pestaña Capas.",
+    },
+    "img.engrave_layer_none": {
+        "fr": "(aucun calque de gravure)", "en": "(no engraving layer)",
+        "de": "(keine Gravurebene)", "es": "(ninguna capa de grabado)",
+    },
     "img.bg_dark": {
         "fr": "Fond noir (alu anodisé, verre peint, ardoise, acrylique noir)",
         "en": "Dark background (anodized aluminium, painted glass, slate, black acrylic)",
