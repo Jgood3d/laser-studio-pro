@@ -93,15 +93,33 @@ def _base_entry(role, power=None, speed=None, passes=None):
             "line_interval": d_interval}
 
 
+def _material_has_meaningful_cut(material):
+    """True si le matériau fournit des réglages de découpe utilisables.
+
+    On regarde d'abord les clés plates (format ancien ou _job_settings) :
+    pass_c > 0. Sinon on regarde l'entrée cut dans "layers".
+
+    Les matériaux type Ardoise (pass_c=0) sont considérés sans découpe :
+    on ne doit pas écraser les calques cut existants ni enregistrer des
+    zéros. Même après complete_material (qui met des défauts 90/2 dans
+    layers), le pass_c=0 plat reste prioritaire.
+    """
+    if not material:
+        return False
+    # Clés plates prioritaires (même si "layers" est déjà présent).
+    if "pass_c" in material or "sp_c" in material or "pw_c" in material:
+        return int(material.get("pass_c", 0) or 0) > 0
+    if "layers" in material:
+        for d in material.get("layers") or []:
+            if isinstance(d, dict) and d.get("role") == "cut":
+                return int(d.get("passes") or 0) > 0
+        return False
+    return False
+
+
 def complete_material(material):
     """Matériau avec, au minimum, une entrée pour chacun des trois calques de
-    base (gravure, découpe, marquage). Renvoie un nouveau dictionnaire.
-
-    Ancien matériau (sp_e / pw_e / sp_c / pw_c / pass_c) : la gravure reprend
-    sp_e / pw_e, la découpe sp_c / pw_c / pass_c (valeurs par défaut si 0
-    passe : matière qu'on ne découpe pas), le marquage ses valeurs par défaut.
-    Entrée de base manquante : valeurs par défaut. Les autres entrées (calques
-    ajoutés) sont gardées."""
+    base (gravure, découpe, marquage). Renvoie un nouveau dictionnaire."""
     from laser_studio.vector_layers import BASE_LAYER_ROLES
     if not material:
         material = {}
@@ -115,12 +133,15 @@ def complete_material(material):
         if role == "engrave" and "sp_e" in material and "pw_e" in material:
             entry = _base_entry(role, material["pw_e"], material["sp_e"])
         elif role == "cut":
-            passes = int(material.get("pass_c", 0) or 0)
-            if passes > 0:
-                entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), passes)
+            # pass_c == 0 (Ardoise, etc.) ou absence de clés cut → défauts
+            # sensés plutôt que des zéros inutilisables.
+            if _material_has_meaningful_cut(material):
+                passes = int(material.get("pass_c", 0) or 0)
+                entry = _base_entry(
+                    role, material.get("pw_c"), material.get("sp_c"), passes
+                )
             else:
-                # Pas de découpe configurée : restaurer le réglage de découpe par défaut.
-                entry = _base_entry(role, power=90.0)
+                entry = _base_entry(role, power=90.0, passes=2)
         else:
             entry = _base_entry(role)
         entries.append(entry)
@@ -133,20 +154,45 @@ def apply_material_to_layers(layer_manager, material):
     """Applique un matériau au tableau des calques. Renvoie True si un calque
     a changé.
 
-    Les calques de base reprennent l'entrée de leur rôle ; les autres calques,
-    l'entrée de même identifiant. Seuls les réglages de MATERIAL_LAYER_KEYS
-    sont repris ; aucun calque n'est ajouté ni supprimé. Un ancien matériau
-    est d'abord complété (complete_material)."""
+    Les matériaux sans découpe utile (pass_c=0, ex. Ardoise / Carrelage) ne
+    touchent pas aux calques de découpe déjà présents.
+
+    Si le matériau a encore les clés plates (sp_e/pw_e/sp_c/...), elles
+    priment pour les calques de base engrave/cut (fiable pour les profils
+    DEFAULT et _job_settings).
+    """
+    material = material or {}
+    has_cut = _material_has_meaningful_cut(material)
     entries = complete_material(material)["layers"]
     by_role = {d["role"]: d for d in entries if d.get("role")}
     by_id = {d.get("id"): d for d in entries if d.get("id")}
+
+    # Clés plates prioritaires pour les calques de base (évite d'appliquer
+    # par erreur les défauts mark 75/2000 à l'engrave).
+    if "pw_e" in material and "sp_e" in material:
+        by_role["engrave"] = {
+            **(by_role.get("engrave") or {"role": "engrave"}),
+            "power": float(material["pw_e"]),
+            "speed": int(material["sp_e"]),
+        }
+    if has_cut and ("pw_c" in material or "sp_c" in material or "pass_c" in material):
+        by_role["cut"] = {
+            **(by_role.get("cut") or {"role": "cut"}),
+            "power": float(material.get("pw_c") or 0),
+            "speed": int(material.get("sp_c") or 250),
+            "passes": int(material.get("pass_c") or 1),
+        }
+
     changed = False
     for layer in layer_manager.layers:
         role = getattr(layer, "role", None)
         d = by_role.get(role) if role else by_id.get(layer.id)
-        if d:
-            coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
-            changed = True
+        if d is None:
+            continue
+        if role == "cut" and not has_cut:
+            continue
+        coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
+        changed = True
     return changed
 
 
@@ -159,23 +205,7 @@ def complete_materials(materials):
 
 class MaterialsController:
     """Liste des matériaux (`materials` : nom -> réglages) et ses actions :
-    appliquer, enregistrer, créer, supprimer, exporter, importer.
-
-    Un matériau garde les réglages de chaque calque (clé "layers", voir
-    capture_material_layers), et sous les clés sp_e / pw_e (gravure image :
-    vitesse, puissance), sp_c / pw_c / pass_c (ancienne découpe SVG : vitesse,
-    puissance, passes).
-
-        materials = MaterialsController(
-            self, page.material_combo, dict(DEFAULT_MATERIALS_DB),
-            current_settings=..., apply_settings=...,
-        )
-        layers_tab.material_selected.connect(materials.apply_selected)
-
-    `combo` : la liste déroulante des matériaux (barre d'outils de l'onglet
-    Calques). `current_settings()` : réglages en cours, au format d'un
-    matériau. `apply_settings(material)` : les applique.
-    """
+    appliquer, enregistrer, créer, supprimer, exporter, importer."""
 
     def __init__(
         self, parent, combo, materials, current_settings, apply_settings
@@ -187,11 +217,6 @@ class MaterialsController:
         self._apply_settings = apply_settings
 
     def set_materials(self, materials, block_signals=False):
-        """Remplace toute la liste (projet ouvert, profil machine choisi).
-
-        Sans block_signals, le premier matériau de la liste est aussitôt
-        appliqué (signal de la liste déroulante). Chaque matériau est complété
-        avec les trois calques de base (complete_material)."""
         self.materials = complete_materials(materials)
         self._fill_combo(block_signals)
 
@@ -203,16 +228,12 @@ class MaterialsController:
         if block_signals:
             self._combo.blockSignals(False)
 
-    # -- actions de la page
-
     def apply_selected(self, *_args):
-        """Applique les réglages du matériau choisi."""
         material = self.materials.get(self._combo.currentText())
         if material is not None:
             self._apply_settings(material)
 
     def save_selected(self):
-        """Enregistre les réglages en cours dans le matériau choisi."""
         name = self._combo.currentText()
         self.materials[name] = self._current_settings()
         QMessageBox.information(
@@ -222,7 +243,6 @@ class MaterialsController:
         )
 
     def new_material(self):
-        """Nouveau matériau, avec les réglages en cours."""
         name, ok = QInputDialog.getText(
             self._parent,
             tr("material.new_profile_title"),
@@ -254,8 +274,6 @@ class MaterialsController:
             self._combo.removeItem(self._combo.currentIndex())
 
     def export_materials(self):
-        """Exporte tous les matériaux dans un fichier .json, partageable
-        avec d'autres utilisateurs (même machine, par exemple)."""
         path, _ = QFileDialog.getSaveFileName(
             self._parent,
             tr("material.export_title"),
@@ -282,8 +300,6 @@ class MaterialsController:
             )
 
     def import_materials(self):
-        """Importe des matériaux d'un fichier .json exporté : ceux du même
-        nom sont mis à jour, les nouveaux sont ajoutés."""
         path, _ = QFileDialog.getOpenFileName(
             self._parent, tr("material.import_title"), "", "JSON (*.json)"
         )
