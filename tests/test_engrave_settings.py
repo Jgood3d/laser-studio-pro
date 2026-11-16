@@ -63,6 +63,18 @@ class EngraveSettingsTests(unittest.TestCase):
         f._ensure_engrave_layer_for_image()             # rien à basculer : simple message
         self.assertEqual(len(f.messages), 1)
 
+    def test_generation_rereads_the_engrave_layer(self):
+        """Profil machine, projet ou matériau qui réécrit la puissance après le
+        réglage du calque : la génération reprend quand même celle du calque."""
+        f = self.make()
+        fill = next(l for l in f.layer_manager.layers if l.mode == "Gravure Remplie")
+        f._refresh_engrave_layer()
+        fill.speed, fill.power = 1800, 80
+        f._on_engrave_layer_selected()
+        f.set_engrave_settings(2000, 30)                # ancienne valeur réécrite
+        f._ensure_engrave_layer_for_image()
+        self.assertEqual((f.engrave_speed, f.engrave_power), (1800, 80))
+
     def test_ensure_switches_to_an_engrave_layer(self):
         f = self.make()
         cut = next(l for l in f.layer_manager.layers if l.mode == "Découpe")

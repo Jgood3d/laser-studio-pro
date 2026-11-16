@@ -79,10 +79,14 @@ class VectorEditingMixin:
     def _ensure_engrave_layer_for_image(self):
         """Appelé avant la génération du G-Code d'une image (Image Tramage /
         Séparation couleur) : si le calque sélectionné n'est pas en mode
-        gravure, bascule sur le premier calque de gravure et applique sa
-        puissance/vitesse. Sans calque de gravure, ne change rien."""
+        gravure, bascule sur le premier calque de gravure. Dans tous les cas,
+        la puissance et la vitesse du calque sont relues juste avant de
+        générer : un profil machine, un projet ou un matériau a pu réécrire
+        engrave_power/engrave_speed depuis le dernier réglage du calque.
+        Sans calque de gravure, ne change rien."""
         layer = self.layer_manager.get(self.engrave_layer_id)
         if layer and layer.mode == "Gravure Remplie":
+            self._on_engrave_layer_selected()
             return
         layer_id = self._first_engrave_layer_id()
         if layer_id is None:
