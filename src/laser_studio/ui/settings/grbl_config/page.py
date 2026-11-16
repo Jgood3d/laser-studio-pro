@@ -39,6 +39,9 @@ class GrblConfigPage(QWidget):
     bidir_test_requested = pyqtSignal()
     # Décalage des lignes retour, en mm.
     scan_offset_changed = pyqtSignal(float)
+    # « Inclure $H » coché / décoché (à la main, ou d'office à la connexion
+    # d'un graveur sans homing) : à mémoriser dans le profil de la machine.
+    homing_changed = pyqtSignal(bool)
     read_settings_requested = pyqtSignal()
     send_settings_requested = pyqtSignal()
     export_settings_requested = pyqtSignal()
@@ -66,10 +69,12 @@ class GrblConfigPage(QWidget):
 
     def mechanical_values(self):
         """Réglages propres à la mécanique de la machine, mémorisés en
-        continu dans son profil : décalage des lignes retour (mm) et
-        surbalayage. Le mode est enregistré par son index (0 = distance
-        fixe, 1 = pourcentage), les libellés étant traduits."""
+        continu dans son profil : décalage des lignes retour (mm),
+        surbalayage et « Inclure $H » (décoché pour un graveur sans homing).
+        Le mode est enregistré par son index (0 = distance fixe,
+        1 = pourcentage), les libellés étant traduits."""
         return {
+            "homing_enabled": self.homing_check.isChecked(),
             "scan_offset_mm": self.scan_offset_spin.value(),
             "overscan_enabled": self.overscan_check.isChecked(),
             "overscan_mode": self.overscan_mode_combo.currentIndex(),
@@ -105,6 +110,8 @@ class GrblConfigPage(QWidget):
             )
         except (TypeError, ValueError):
             self.scan_offset_spin.setValue(0.0)
+        if "homing_enabled" in profile:
+            self.homing_check.setChecked(bool(profile["homing_enabled"]))
         try:
             if "overscan_enabled" in profile:
                 self.overscan_check.setChecked(
@@ -138,6 +145,7 @@ class GrblConfigPage(QWidget):
         self.homing_check = QCheckBox(tr("ui.grbl_homing"))
         # Homing automatique au démarrage du job : activé d'office.
         self.homing_check.setChecked(True)
+        self.homing_check.toggled.connect(self.homing_changed)
         self.overscan_check = QCheckBox(tr("ui.overscan_enabled"))
         self.overscan_check.setChecked(True)
 

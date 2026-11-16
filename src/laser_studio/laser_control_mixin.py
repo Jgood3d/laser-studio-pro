@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
 from laser_studio.workers import GCodeStreamerThread, CommandThread, StatusPollThread, ReconnectThread, image_origin
 from laser_studio.i18n import tr
+from laser_studio.grbl.ports import load_last_port, port_labels, port_of, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
 from laser_studio.core.debug_log import get_logger, log_gcode_summary
 
@@ -13,12 +14,18 @@ log = get_logger()
 
 class LaserControlMixin:
     def refresh_com_ports(self):
+        """Liste les ports utilisables (sans les ports « n/a » sans matériel),
+        les ports USB en tête, et resélectionne le port affiché avant
+        l'actualisation, sinon le dernier port auquel on s'est connecté."""
+        wanted = port_of(self.combo_ports.currentText()) or load_last_port()
         self.combo_ports.clear()
         if simulation_enabled():
             self.combo_ports.addItem(f"{SIMULATED_PORT} - {tr('usb.simulated_port')}")
-        ports = serial.tools.list_ports.comports()
-        for p in ports:
-            self.combo_ports.addItem(f"{p.device} - {p.description}")
+        self.combo_ports.addItems(port_labels(serial.tools.list_ports.comports()))
+        for index in range(self.combo_ports.count()):
+            if wanted and port_of(self.combo_ports.itemText(index)) == wanted:
+                self.combo_ports.setCurrentIndex(index)
+                break
 
     def toggle_connection(self):
         if self.usb.is_connected():
@@ -37,8 +44,9 @@ class LaserControlMixin:
     tr("laser.no_port")
 )
                 return
-            port = selected.split(" - ")[0]
+            port = port_of(selected)
             if self.usb.connect(port):
+                save_last_port(port)
                 self.update_connection_widgets()
                 self.log_message(
     tr("laser.connected").format(port=port)
@@ -257,29 +265,50 @@ class LaserControlMixin:
         ))
 
     def _check_grbl_laser_mode(self):
-        """Vérifie que le mode laser dynamique GRBL ($32=1) est actif : les
-        optimisations du G-Code généré en mode M4 (pas de coupure laser
-        renvoyée à chaque ligne, en comptant sur la coupure automatique de
-        GRBL pendant les déplacements rapides G0) supposent ce réglage."""
+        """Lit les réglages du graveur ($$) juste après la connexion.
+
+        - Aucune réponse : le graveur ne répond pas sur ce port (mauvais
+          port choisi ?) ; on prévient, sans rien changer aux réglages.
+        - $22 (homing) : voir _apply_grbl_homing_setting.
+        - $32 (mode laser) absent : impossible de vérifier le mode laser,
+          on prévient. Différent de 1 : le mode laser dynamique est coupé.
+          Les optimisations du G-Code généré en mode M4 (pas de coupure
+          laser renvoyée à chaque ligne, en comptant sur la coupure
+          automatique de GRBL pendant les déplacements rapides G0)
+          supposent ce réglage.
+        """
         try:
             response = self.usb.send_command("$$")
         except Exception:
             return
         grbl_settings = self._parse_grbl_settings(response)
+        if not grbl_settings:
+            log.info("Connexion : aucune réponse à $$ (%r)", response)
+            self._warn(
+                tr("laser.grbl_no_answer_title"),
+                tr("laser.grbl_no_answer").format(
+                    port=getattr(self.usb, "last_port", None) or "?"),
+            )
+            return
         self._apply_grbl_homing_setting(grbl_settings)
         value = grbl_settings.get("$32")
         if value is None:
             self.log_message(tr("laser.grbl_mode_unknown"))
+            self._warn(tr("laser.grbl_mode_missing_title"),
+                       tr("laser.grbl_mode_missing"))
             return
         self.log_message(
     tr("laser.grbl_mode_status").format(value=value)
 )
         if value != "1":
-            QMessageBox.warning(
-    self,
+            self._warn(
     tr("laser.grbl_dynamic_off_title"),
     tr("laser.grbl_dynamic_off").format(value=value)
 )
+
+    def _warn(self, title, body):
+        """Boîte d'avertissement (remplacée dans les tests)."""
+        QMessageBox.warning(self, title, body)
 
     @staticmethod
     def _parse_grbl_settings(response):
@@ -293,15 +322,28 @@ class LaserControlMixin:
         return grbl_settings
 
     def _apply_grbl_homing_setting(self, grbl_settings):
-        """Homing désactivé sur la machine ($22=0) : GRBL refuserait le « $H » en tête de job
-        (error:5). « Inclure $H » et le homing de la matrice de test sont donc décochés ET
-        grisés, avec une infobulle qui explique pourquoi. Machine avec homing ($22 non nul) :
-        les cases redeviennent utilisables, sans être recochées. Réglage inconnu (pas de
-        réponse à « $$ ») : rien ne change, la case reste cochée d'office."""
+        """Homing ($22) d'après la réponse à « $$ ».
+
+        - $22=0 (homing désactivé) ou $22 absent (homing non supporté) :
+          GRBL refuserait le « $H » en tête de job (error:5). « Inclure $H »
+          et le homing de la matrice de test sont décochés ET grisés, avec
+          une infobulle qui explique pourquoi. Le décochage est enregistré
+          dans le profil de la machine (signal homing_changed de la page
+          Configuration GRBL) : la case reste décochée aux prochains
+          démarrages. Message « Homing non supporté » seulement si une case
+          était encore cochée (pas à chaque connexion).
+        - $22 non nul : les cases redeviennent utilisables, sans être
+          recochées.
+        - Valeur illisible : rien ne change.
+        """
         value = grbl_settings.get("$22")
-        if value is None or not value.isdigit():
+        if value is not None and not value.isdigit():
             return
-        homing_off = value == "0"
+        homing_off = value is None or value == "0"
+        tip = ""
+        if homing_off:
+            tip = tr("ui.homing_unavailable_tip" if value == "0"
+                     else "ui.homing_unsupported_tip")
         unchecked = False
         for name in ("chk_homing", "chk_mat_homing"):
             checkbox = getattr(self, name, None)
@@ -311,9 +353,11 @@ class LaserControlMixin:
                 checkbox.setChecked(False)
                 unchecked = True
             checkbox.setEnabled(not homing_off)
-            checkbox.setToolTip(tr("ui.homing_unavailable_tip") if homing_off else "")
+            checkbox.setToolTip(tip)
         if unchecked:
             self.log_message(tr("laser.grbl_homing_disabled"))
+            self._warn(tr("laser.homing_unsupported_title"),
+                       tr("laser.homing_unsupported"))
 
     def _run_commands_async(self, commands):
         if self.cmd_thread and self.cmd_thread.isRunning():
