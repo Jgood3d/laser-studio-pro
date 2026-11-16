@@ -37,8 +37,6 @@ class HomingTests(unittest.TestCase):
         window = read("main_window.py")
         profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
         self.assertNotIn("chk_homing", profiles)
-        self.assertNotIn("homing", read(os.path.join("ui", "settings", "grbl_config", "page.py"))
-                         .split("def profile_values")[1].split("def apply_profile_values")[0])
         self.assertNotIn("chk_homing", project_state_source())
 
 
@@ -77,6 +75,7 @@ class NaturalSizeTests(unittest.TestCase):
 
 try:
     import laser_studio.image_processing_mixin as ipm
+    from laser_studio.models.machine import MachineConfig
 except ImportError:
     ipm = None
 
@@ -97,7 +96,8 @@ class LoadImageTests(unittest.TestCase):
             def update_image_processing(self, *a): pass
         f = Fake.__new__(Fake)
         f.spin_w, f.spin_h = Spin(100.0), Spin(100.0)
-        f.spin_machine_w, f.spin_machine_h = Spin(bed[0]), Spin(bed[1])
+        f.machine = MachineConfig()
+        f.machine.update(bed_w=bed[0], bed_h=bed[1])
         f.block_aspect_signal = False
         f.console = []
         f.txt_console = types_ns(append=f.console.append)

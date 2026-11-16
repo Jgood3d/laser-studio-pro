@@ -1,5 +1,8 @@
 """Mémoire des calques par machine : réglages (vitesse, puissance,
-passes...) enregistrés dans chaque profil machine et réappliqués, sans Qt."""
+passes...) enregistrés dans chaque profil machine et réappliqués au modèle
+des calques (models/layers.py)."""
+
+from laser_studio.models.layers import validated_settings
 
 # Réglages repris d'un profil machine quand on CHANGE de machine en cours de
 # session (le nom, la couleur et l'identité des calques ne bougent pas : les
@@ -17,41 +20,32 @@ LAYER_SETTING_CASTS = (
 
 def coerce_layer_settings(layer, source, reset_invalid=False):
     """Copie les réglages de `source` (dictionnaire) vers `layer` en forçant
-    le bon type.
+    le bon type, SANS passer par le modèle (aucun signal) : réservé à un
+    calque isolé. Pour un calque du modèle, utiliser
+    `layers.update(layer.id, **settings_from(source))`.
 
     Une valeur inutilisable est ignorée (le calque garde sa valeur) ; avec
-    reset_invalid=True (calque tout juste chargé, dont la valeur corrompue
-    est déjà en place), elle est remplacée par la valeur par défaut d'un
+    reset_invalid=True, elle est remplacée par la valeur par défaut d'un
     calque neuf.
     """
-    try:
-        from laser_studio.vector_layers import LAYER_MODES
-    except ImportError:
-        LAYER_MODES = None
     defaults = type(layer)() if reset_invalid else None
-    for key, cast in LAYER_SETTING_CASTS:
-        if key not in source:
-            continue
-        try:
-            value = cast(source[key])
-            if (
-                key == "mode"
-                and LAYER_MODES is not None
-                and value not in LAYER_MODES
-            ):
-                raise ValueError(value)
-        except (TypeError, ValueError):
-            if defaults is not None:
-                setattr(layer, key, getattr(defaults, key))
-            continue
+    for key, value in settings_from(source, defaults).items():
         setattr(layer, key, value)
+
+
+def settings_from(source, defaults=None):
+    """Réglages de LAYER_SETTING_CASTS présents dans `source`, convertis dans
+    leur type (voir models.layers.validated_settings)."""
+    keys = {key for key, _cast in LAYER_SETTING_CASTS}
+    return validated_settings({k: v for k, v in source.items() if k in keys}, defaults)
 
 
 def apply_saved_layers(layer_manager, saved_layers, full=False):
     """Applique les calques mémorisés dans un profil machine. Renvoie True
     s'il y en avait (False : rien n'a changé).
 
-    full=True (démarrage) : remplace entièrement la liste des calques.
+    full=True (démarrage) : remplace entièrement la liste des calques
+    (LayersModel.load_list, qui remplace les valeurs corrompues).
     full=False (changement de machine en cours de session) : ne reprend que
     les réglages, appliqués aux calques existants, retrouvés par
     identifiant puis, à défaut, par position. Les calques ne sont ni
@@ -66,16 +60,12 @@ def apply_saved_layers(layer_manager, saved_layers, full=False):
         return False
     if full:
         layer_manager.load_list(saved_layers)
-        # Valeurs corrompues dans les réglages enregistrés : on retombe sur un
-        # type valide plutôt que de planter à l'ouverture.
-        for layer in layer_manager.layers:
-            coerce_layer_settings(layer, layer.to_dict(), reset_invalid=True)
     else:
         by_id = {d.get("id"): d for d in saved_layers}
-        for i, layer in enumerate(layer_manager.layers):
+        for i, layer in enumerate(list(layer_manager.layers)):
             d = by_id.get(layer.id) or (
                 saved_layers[i] if i < len(saved_layers) else None
             )
             if d:
-                coerce_layer_settings(layer, d)
+                layer_manager.update(layer.id, **settings_from(d))
     return True

@@ -5,15 +5,15 @@ import json
 
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
-from laser_studio.controllers.layer_memory import coerce_layer_settings
+from laser_studio.controllers.layer_memory import settings_from
+from laser_studio.models.materials import MaterialsModel
 from laser_studio.i18n import tr
 
 # Réglages d'un calque qui dépendent du matériau (et non de la structure du
 # job : le mode, le nom et l'activation des calques ne changent pas avec la
 # matière).
 MATERIAL_LAYER_KEYS = ("power", "speed", "passes", "line_interval", "line_interval_linked")
-ENGRAVE_MODE = "Gravure Remplie"
-CUT_MODE = "Découpe"
+from laser_studio.models.layer_modes import MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE
 
 # Base de matériaux utilisée (1) au tout premier lancement de l'application,
 # avant tout profil machine, et (2) comme repli pour un ancien profil machine
@@ -84,7 +84,7 @@ def capture_material_layers(layer_manager):
 def _base_entry(role, power=None, speed=None, passes=None):
     """Entrée de matériau pour le calque de base `role` : valeurs données, ou
     celles par défaut du calque de base."""
-    from laser_studio.vector_layers import BASE_LAYER_DEFAULTS
+    from laser_studio.models.layers import BASE_LAYER_DEFAULTS
     _key, _color, _mode, d_power, d_speed, d_passes, d_interval = BASE_LAYER_DEFAULTS[role]
     return {"role": role,
             "power": float(d_power if power is None else power),
@@ -102,7 +102,7 @@ def complete_material(material):
     passe : matière qu'on ne découpe pas), le marquage ses valeurs par défaut.
     Entrée de base manquante : valeurs par défaut. Les autres entrées (calques
     ajoutés) sont gardées."""
-    from laser_studio.vector_layers import BASE_LAYER_ROLES
+    from laser_studio.models.layers import BASE_LAYER_ROLES
     if not material:
         material = {}
     material = dict(material)
@@ -118,8 +118,8 @@ def complete_material(material):
             if passes > 0:
                 entry = _base_entry(role, material.get("pw_c"), material.get("sp_c"), passes)
             else:
-                # Pas de découpe configurée : restaurer le réglage de découpe par défaut.
-                entry = _base_entry(role, power=90.0, passes=2)
+                # Pas de découpe configurée : réglage de découpe par défaut (BASE_LAYER_DEFAULTS).
+                entry = _base_entry(role)
         else:
             entry = _base_entry(role)
         entries.append(entry)
@@ -143,7 +143,7 @@ def apply_material_to_layers(layer_manager, material):
         role = getattr(layer, "role", None)
         d = by_role.get(role) if role else by_id.get(layer.id)
         if d:
-            coerce_layer_settings(layer, {k: d[k] for k in MATERIAL_LAYER_KEYS if k in d})
+            layer_manager.update(layer.id, **settings_from({k: d[k] for k in MATERIAL_LAYER_KEYS if k in d}))
             changed = True
     return changed
 
@@ -156,13 +156,17 @@ def complete_materials(materials):
 
 
 class MaterialsController:
-    """Liste des matériaux (`materials` : nom -> réglages) et ses actions :
-    appliquer, enregistrer, créer, supprimer, exporter, importer.
+    """Profils matériaux : le modèle (MaterialsModel, `model`) et les actions de
+    la barre d'outils : appliquer, créer, supprimer, exporter, importer.
 
     Un matériau garde les réglages de chaque calque (clé "layers", voir
     capture_material_layers), et sous les clés sp_e / pw_e (gravure image :
     vitesse, puissance), sp_c / pw_c / pass_c (ancienne découpe SVG : vitesse,
     puissance, passes).
+
+    Plus de bouton « Enregistrer » : la fenêtre appelle
+    store_current_settings() à chaque changement de calque, et le matériau
+    choisi suit aussitôt.
 
         materials = MaterialsController(
             self, page.material_combo, dict(DEFAULT_MATERIALS_DB),
@@ -171,8 +175,9 @@ class MaterialsController:
         layers_tab.material_selected.connect(materials.apply_selected)
 
     `combo` : la liste déroulante des matériaux (barre d'outils de l'onglet
-    Calques). `current_settings()` : réglages en cours, au format d'un
-    matériau. `apply_settings(material)` : les applique.
+    Calques), tenue à jour à partir des signaux du modèle.
+    `current_settings()` : réglages en cours, au format d'un matériau.
+    `apply_settings(material)` : les applique.
     """
 
     def __init__(
@@ -180,44 +185,75 @@ class MaterialsController:
     ):
         self._parent = parent
         self._combo = combo
-        self.materials = complete_materials(materials)
         self._current_settings = current_settings
         self._apply_settings = apply_settings
+        self.model = MaterialsModel(complete=complete_material)
+        self.model.materials_reset.connect(lambda: self._fill_combo(block_signals=True))
+        self.model.material_added.connect(self._on_added)
+        self.model.material_removed.connect(self._on_removed)
+        self.model.current_changed.connect(self._show_current)
+        self.model.set_materials(materials, current=combo.currentText() or None)
 
-    def set_materials(self, materials, block_signals=False):
-        """Remplace toute la liste (projet ouvert, profil machine choisi).
+    @property
+    def materials(self):
+        """Matériaux (nom -> réglages) du modèle."""
+        return self.model.materials
 
-        Sans block_signals, le premier matériau de la liste est aussitôt
-        appliqué (signal de la liste déroulante). Chaque matériau est complété
-        avec les trois calques de base (complete_material)."""
-        self.materials = complete_materials(materials)
-        self._fill_combo(block_signals)
+    def set_materials(self, materials, block_signals=True):
+        """Remplace toute la liste (projet ouvert, profil machine choisi), sans
+        appliquer de matériau : les calques du projet ou du profil font foi.
+        Chaque matériau est complété avec les trois calques de base
+        (complete_material). `block_signals` : gardé pour compatibilité, la
+        liste déroulante est toujours remplie sans émettre de signal."""
+        self.model.set_materials(materials)
 
-    def _fill_combo(self, block_signals):
+    # -- modèle -> liste déroulante
+
+    def _fill_combo(self, block_signals=True):
         if block_signals:
             self._combo.blockSignals(True)
         self._combo.clear()
-        self._combo.addItems(list(self.materials.keys()))
+        self._combo.addItems(self.model.names())
+        if self.model.current is not None:
+            self._combo.setCurrentText(self.model.current)
         if block_signals:
+            self._combo.blockSignals(False)
+
+    def _on_added(self, name):
+        self._combo.blockSignals(True)
+        self._combo.addItem(name)
+        self._combo.blockSignals(False)
+
+    def _on_removed(self, name):
+        index = self._combo.findText(name)
+        if index >= 0:
+            self._combo.blockSignals(True)
+            self._combo.removeItem(index)
+            self._combo.blockSignals(False)
+        self._show_current(self.model.current)
+
+    def _show_current(self, name):
+        if name is not None and self._combo.currentText() != name:
+            self._combo.blockSignals(True)
+            self._combo.setCurrentText(name)
             self._combo.blockSignals(False)
 
     # -- actions de la page
 
     def apply_selected(self, *_args):
-        """Applique les réglages du matériau choisi."""
-        material = self.materials.get(self._combo.currentText())
-        if material is not None:
-            self._apply_settings(material)
-
-    def save_selected(self):
-        """Enregistre les réglages en cours dans le matériau choisi."""
+        """Applique les réglages du matériau choisi dans la liste."""
         name = self._combo.currentText()
-        self.materials[name] = self._current_settings()
-        QMessageBox.information(
-            self._parent,
-            tr("material.saved_title"),
-            tr("material.saved_body").format(name=name),
-        )
+        if name in self.model.materials:
+            self.model.select(name)
+            self._apply_settings(self.model.get(name))
+
+    def store_current_settings(self):
+        """Enregistre les réglages en cours dans le matériau choisi (appelé à
+        chaque changement de calque). Renvoie True s'il a changé."""
+        name = self.model.current
+        if name is None:
+            return False
+        return self.model.store(name, self._current_settings())
 
     def new_material(self):
         """Nouveau matériau, avec les réglages en cours."""
@@ -228,9 +264,8 @@ class MaterialsController:
         )
         if ok and name.strip():
             name = name.strip()
-            self.materials[name] = self._current_settings()
-            self._combo.addItem(name)
-            self._combo.setCurrentText(name)
+            self.model.store(name, self._current_settings())
+            self.model.select(name)
 
     def delete_selected(self):
         name = self._combo.currentText()
@@ -248,8 +283,7 @@ class MaterialsController:
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply == QMessageBox.StandardButton.Yes:
-            del self.materials[name]
-            self._combo.removeItem(self._combo.currentIndex())
+            self.model.remove(name)
 
     def export_materials(self):
         """Exporte tous les matériaux dans un fichier .json, partageable
@@ -300,8 +334,7 @@ class MaterialsController:
                     updated += 1
                 else:
                     added += 1
-                self.materials[name] = complete_material(material)
-            self._fill_combo(block_signals=True)
+                self.model.store(name, material)
             QMessageBox.information(
                 self._parent,
                 tr("material.import_success_title"),

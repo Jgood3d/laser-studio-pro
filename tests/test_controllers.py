@@ -419,8 +419,11 @@ class MaterialsControllerTests(_QtTest):
         (applied,) = self.applied
         self.assertEqual(applied["sp_e"], 8)
         self.assertEqual(sorted(d["role"] for d in applied["layers"]), ["cut", "engrave", "mark"])
-        controller.save_selected()
-        self.assertEqual(controller.materials["Bois"], self.current)
+        # Plus de bouton « Enregistrer » : la fenêtre recopie les réglages en cours dans le
+        # matériau choisi à chaque changement de calque.
+        self.assertTrue(controller.store_current_settings())
+        self.assertEqual(controller.materials["Bois"]["sp_e"], self.current["sp_e"])
+        self.assertFalse(controller.store_current_settings())     # rien de nouveau
 
     def test_new_and_deleted_materials(self):
         controller, combo = self.make()

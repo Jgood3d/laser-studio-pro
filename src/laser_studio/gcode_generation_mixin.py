@@ -9,6 +9,9 @@ from svg.path import parse_path
 from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
+from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
+from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
+from laser_studio.workers import MATRIX_CUT, MATRIX_ENGRAVE
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
@@ -265,11 +268,11 @@ class GcodeGenerationMixin:
             speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
-            if self.chk_overscan.isChecked():
+            if self.grbl.overscan_enabled:
                 if self._overscan_mode_value() == "Pourcentage (%)":
-                    overscan = w_mm * self.spin_overscan_pct.value() / 100.0
+                    overscan = w_mm * self.grbl.overscan_pct / 100.0
                 else:
-                    overscan = self.spin_overscan_dist.value()
+                    overscan = self.grbl.overscan_dist_mm
             else:
                 overscan = 0.0
             # Comme la génération : lignes vides sautées, chaque ligne balayée de son premier à son
@@ -316,7 +319,7 @@ class GcodeGenerationMixin:
                 objs = [o for o in self.vector_canvas.objects if o.layer_id == layer.id]
                 if not objs:
                     continue
-                if layer.mode == "Gravure Remplie":
+                if layer.mode == MODE_FILL:
                     total_area = sum(o.world_path().boundingRect().width() *
                                       o.world_path().boundingRect().height() for o in objs)
                     length_est = total_area / max(layer.line_interval, 0.02)
@@ -391,7 +394,7 @@ class GcodeGenerationMixin:
         libellés du menu sont traduits, alors que le générateur de G-Code
         compare à « Pourcentage (%) » (avant, le mode pourcentage n'était pas
         reconnu en anglais, allemand et espagnol)."""
-        return "Pourcentage (%)" if self.combo_overscan_mode.currentIndex() == 1 else "Distance Fixe (mm)"
+        return "Pourcentage (%)" if self.grbl.overscan_mode == 1 else "Distance Fixe (mm)"
 
     def _build_gcode_params(self):
         """Paramètres de génération du G-Code, lus depuis l'interface."""
@@ -407,28 +410,28 @@ class GcodeGenerationMixin:
             'speed_cut': self.cut_speed,
             'power_cut': self.cut_power,
             'passes_cut': self.cut_passes,
-            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
+            'laser_cmd': self.grbl.laser_cmd,
             'algo': self.combo_algo.currentText(),
-            's_max': self.spin_smax.value(),
-            'homing': self.chk_homing.isChecked(),
-            'enable_overscan': self.chk_overscan.isChecked(),
+            's_max': self.grbl.smax,
+            'homing': self.grbl.homing_enabled,
+            'enable_overscan': self.grbl.overscan_enabled,
             'overscan_mode': self._overscan_mode_value(),
-            'overscan_dist': self.spin_overscan_dist.value(),
-            'overscan_pct': self.spin_overscan_pct.value(),
-            'start_gcode': self.txt_start_gcode.toPlainText(),
-            'end_gcode': self.txt_end_gcode.toPlainText(),
+            'overscan_dist': self.grbl.overscan_dist_mm,
+            'overscan_pct': self.grbl.overscan_pct,
+            'start_gcode': self.grbl.start_gcode,
+            'end_gcode': self.grbl.end_gcode,
             # Décalage des lignes retour (mm), propre à la machine : voir workers.py.
-            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            'scan_offset_mm': self.grbl.scan_offset_mm if hasattr(self, "spin_scan_offset") else 0.0,
             # Graver avant de découper ; intérieurs avant extérieurs (voir vector/order.py).
-            'safe_cut_order': self.chk_safe_cut_order.isChecked() if hasattr(self, "chk_safe_cut_order") else True,
+            'safe_cut_order': self.grbl.safe_cut_order if hasattr(self, "chk_safe_cut_order") else True,
         }
 
     def generate_bidir_test(self):
         """Génère le motif de calibrage du décalage aller/retour (voir
         workers.bidir_test_gcode) avec la vitesse, la puissance et la résolution
         actuelles, puis l'affiche comme n'importe quel G-Code généré."""
-        if self.chk_overscan.isChecked():
-            overscan = self.spin_overscan_dist.value() if self.combo_overscan_mode.currentIndex() == 0 else 2.5
+        if self.grbl.overscan_enabled:
+            overscan = self.grbl.overscan_dist_mm if self.grbl.overscan_mode == 0 else 2.5
         else:
             overscan = 0.0
         params = {
@@ -437,11 +440,11 @@ class GcodeGenerationMixin:
             'offset_y': self.spin_off_y.value(),
             'speed_engrave': self.engrave_speed,
             'power_engrave': self.engrave_power,
-            's_max': self.spin_smax.value(),
-            'laser_cmd': self.combo_laser_cmd.currentText().split()[0],
-            'homing': self.chk_homing.isChecked(),
-            'start_gcode': self.txt_start_gcode.toPlainText(),
-            'end_gcode': self.txt_end_gcode.toPlainText(),
+            's_max': self.grbl.smax,
+            'laser_cmd': self.grbl.laser_cmd,
+            'homing': self.grbl.homing_enabled,
+            'start_gcode': self.grbl.start_gcode,
+            'end_gcode': self.grbl.end_gcode,
             'overscan_dist': overscan,
             'line_pitch_mm': 1.0 / max(self.spin_lmm.value(), 0.1),
         }
@@ -451,14 +454,41 @@ class GcodeGenerationMixin:
         self.on_gcode_generated(gcode, n_lines, avg_power, time_str)
         QMessageBox.information(self, tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
 
-    def set_engrave_settings(self, speed, power):
-        """Vitesse (mm/min) et puissance (%) de la gravure d'une image.
+    # La gravure d'une image (tramage, séparation couleur) utilise la vitesse
+    # et la puissance du calque de gravure (LayersModel.engrave_layer). Elles
+    # sont LUES dans le calque à chaque usage : il n'en existe plus de copie
+    # qui pourrait diverger du calque affiché.
 
-        Valeurs entières, ramenées dans ENGRAVE_SPEED_RANGE et
-        ENGRAVE_POWER_RANGE.
-        """
-        self.engrave_speed = _clamp(speed, ENGRAVE_SPEED_RANGE)
-        self.engrave_power = _clamp(power, ENGRAVE_POWER_RANGE)
+    @property
+    def engrave_speed(self):
+        """Vitesse (mm/min) de la gravure d'une image, entière, ramenée dans
+        ENGRAVE_SPEED_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        speed = layer.speed if layer else BASE_LAYER_DEFAULTS["engrave"][4]
+        return _clamp(speed, ENGRAVE_SPEED_RANGE)
+
+    @property
+    def engrave_power(self):
+        """Puissance (%) de la gravure d'une image, entière, ramenée dans
+        ENGRAVE_POWER_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        power = layer.power if layer else BASE_LAYER_DEFAULTS["engrave"][3]
+        return _clamp(power, ENGRAVE_POWER_RANGE)
+
+    def set_engrave_settings(self, speed, power):
+        """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
+        image dans le calque de gravure (ex. case de la matrice de test,
+        ancien projet sans calques). Valeurs entières, ramenées dans
+        ENGRAVE_SPEED_RANGE et ENGRAVE_POWER_RANGE."""
+        layer = self.layer_manager.engrave_layer()
+        if layer is not None:
+            self.layer_manager.update(layer.id, speed=_clamp(speed, ENGRAVE_SPEED_RANGE),
+                                      power=_clamp(power, ENGRAVE_POWER_RANGE))
+
+    def _engrave_layer_label(self):
+        """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
+        layer = self.layer_manager.engrave_layer()
+        return layer_label(layer) if layer else ""
 
     def set_cut_settings(self, speed, power, passes):
         """Vitesse (mm/min), puissance (%) et passes de la découpe de
@@ -488,8 +518,8 @@ class GcodeGenerationMixin:
             self._ensure_engrave_layer_for_image()
         job_w = self.spin_w.value()
         job_h = self.spin_h.value()
-        bed_w = self.spin_machine_w.value()
-        bed_h = self.spin_machine_h.value()
+        bed_w = self.machine.bed_w
+        bed_h = self.machine.bed_h
         if job_w > bed_w or job_h > bed_h:
             QMessageBox.warning(
                 self, tr("gen.too_big_title"),
@@ -500,7 +530,7 @@ class GcodeGenerationMixin:
             )
             return
 
-        max_speed_limit = self.spin_machine_max_speed.value()
+        max_speed_limit = self.machine.max_speed
         speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
         if self.cut_enabled:
             speeds_to_check.append((tr("gen.speed_row_cut_old"), self.cut_speed))
@@ -583,7 +613,7 @@ class GcodeGenerationMixin:
 
             for layer_id, data in vector_layers_data.items():
                 layer = data["layer"]
-                if layer["mode"] != "Gravure Remplie" or not data["polygons"]:
+                if layer["mode"] != MODE_FILL or not data["polygons"]:
                     continue
                 min_x = min(p[0] for poly in data["polygons"] for p in poly)
                 base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == ORIGIN_CENTER else params['offset_x']
@@ -641,19 +671,19 @@ class GcodeGenerationMixin:
         # Sécurité : lignes/mm toujours identique à l'onglet Image / Filtre.
         self._sync_matrix_lmm_from_image()
         # Mode indépendant de la langue : currentText() est traduit (« Engraving », « Gravur »…),
-        # alors que le générateur et _on_plot_clicked comparent à « Gravure ».
+        # le générateur et _on_plot_clicked comparent un code (MATRIX_ENGRAVE / MATRIX_CUT).
         page = self.tab_matrix
         engraving = page.is_engraving()
         params = page.matrix_params()
         params.update({
-            'mode': "Gravure" if engraving else "Découpe",
-            's_max': self.spin_smax.value(),
-            'enable_overscan': self.chk_overscan.isChecked(),
+            'mode': MATRIX_ENGRAVE if engraving else MATRIX_CUT,
+            's_max': self.grbl.smax,
+            'enable_overscan': self.grbl.overscan_enabled,
             'overscan_mode': self._overscan_mode_value(),
-            'overscan_dist': self.spin_overscan_dist.value(),
-            'overscan_pct': self.spin_overscan_pct.value(),
+            'overscan_dist': self.grbl.overscan_dist_mm,
+            'overscan_pct': self.grbl.overscan_pct,
             # Décalage des lignes retour (réglage machine), comme pour une gravure d'image.
-            'scan_offset_mm': self.spin_scan_offset.value() if hasattr(self, "spin_scan_offset") else 0.0,
+            'scan_offset_mm': self.grbl.scan_offset_mm if hasattr(self, "spin_scan_offset") else 0.0,
         })
         # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
         if engraving and page.image_test_enabled():
@@ -696,8 +726,8 @@ class GcodeGenerationMixin:
             min_s, max_s, steps_s = params['min_speed'], params['max_speed'], int(params['steps_speed'])
             speeds = np.linspace(min_s, max_s, steps_s)
 
-            mode = params.get('mode', 'Gravure')
-            if mode == "Gravure":
+            mode = params.get('mode', MATRIX_ENGRAVE)
+            if mode == MATRIX_ENGRAVE:
                 min_p, max_p, steps_p = params['min_power'], params['max_power'], int(params['steps_power'])
                 col_values = np.linspace(min_p, max_p, steps_p)
             else:
@@ -714,7 +744,7 @@ class GcodeGenerationMixin:
                 return  # clic dans l'espace entre les cases, pas dans une case
 
             speed_val = round(float(speeds[row]))
-            if mode == "Gravure":
+            if mode == MATRIX_ENGRAVE:
                 power_val = round(float(col_values[col]))
                 self.set_engrave_settings(speed_val, power_val)
                 self.log_message(f">>> Case matrice appliquée : {speed_val} mm/min, {power_val}% (gravure)")
@@ -896,22 +926,23 @@ class GcodeGenerationMixin:
                 if raw_line.startswith(';'):
                     if 'PHASE 1' in raw_line and 'GRAVURE IMAGE' in raw_line:
                         current_label, current_color = RASTER_LABEL, "#ffaa00"
-                        current_layer_mode = "Gravure Remplie"
+                        current_layer_mode = MODE_FILL
                         current_is_test_matrix = False
                     elif 'PHASE 2' in raw_line and 'DÉCOUPE VECTORIELLE SVG' in raw_line:
                         current_label, current_color = tr("gen.legend_svg_cut"), DEFAULT_SVG_COLOR
-                        current_layer_mode = "Découpe"
+                        current_layer_mode = MODE_CUT
                         current_is_test_matrix = False
                     elif raw_line.startswith('; --- MATRICE DE TEST LASER'):
                         current_label = tr("gen.legend_test_matrix")
                         current_color = "#00ff88"
-                        current_layer_mode = "Matrice"
+                        current_layer_mode = "matrix"
                         current_is_test_matrix = True
                     elif raw_line.startswith('; --- CALQUE'):
                         m = re.match(r"; --- CALQUE '(.+)' \[(.+)\] ---", raw_line)
                         if m:
                             layer_name = m.group(1)
-                            layer_mode = m.group(2)
+                            # Code du mode ; ancien libellé français dans un G-Code d'avant 2.6.
+                            layer_mode = normalize_mode(m.group(2))
                             layer = next((l for l in self.layer_manager.layers if l.name == layer_name), None)
                             current_label = tr("gen.legend_layer").format(name=layer_name)
                             current_color = layer.color if layer else DEFAULT_LAYER_COLOR
@@ -1000,7 +1031,7 @@ class GcodeGenerationMixin:
         # Décision du mode d'affichage.
         #
         # - Gravure Image interne       -> toujours raster
-        # - Calque "Gravure Remplie"    -> raster
+        # - Calque en gravure remplie   -> raster
         # - G-Code importé non identifié -> heuristique raster
         # - SVG en découpe              -> vectoriel
         # - Matrice de test (Gravure)   -> raster, comme la gravure image
@@ -1023,21 +1054,21 @@ class GcodeGenerationMixin:
                 # reste lisible). En mode Découpe (ou matrice d'origine inconnue, ex. G-Code
                 # rechargé), on garde l'affichage vectoriel.
                 matrix_params = getattr(self, "last_test_matrix_params", None) or {}
-                is_raster = matrix_params.get("mode") == "Gravure"
+                is_raster = matrix_params.get("mode") == MATRIX_ENGRAVE
 
             elif label == tr("gen.legend_svg_cut"):
                 # Un SVG de découpe doit rester affiché comme des contours.
                 is_raster = False
 
-            elif layer_mode == "Découpe":
+            elif layer_mode == MODE_CUT:
                 # Contour vectoriel : jamais de reconstruction raster.
                 is_raster = False
 
-            elif layer_mode == "Marquage (Contour)":
+            elif layer_mode == MODE_MARK:
                 # Contour vectoriel : jamais de reconstruction raster.
                 is_raster = False
 
-            elif layer_mode == "Gravure Remplie":
+            elif layer_mode == MODE_FILL:
                 # Remplissage vectoriel par balayage.
                 is_raster = True
 

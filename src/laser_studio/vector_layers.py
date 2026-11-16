@@ -56,166 +56,23 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 # 1) CALQUES (LAYERS)
 # ============================================================================
 
-LAYER_MODES = ["Gravure Remplie", "Découpe", "Marquage (Contour)"]
-# Modes qui ne tracent que le contour : le pas de remplissage n'y sert pas, il
-# n'est donc pas lié à la taille du spot (voir link_all_to_focal).
-CONTOUR_MODES = ("Découpe", "Marquage (Contour)")
-# Les valeurs de LAYER_MODES sont des identifiants internes (sauvegardés dans
-# les projets, testés dans le générateur de G-Code) : elles ne changent jamais.
-# Seul leur AFFICHAGE est traduit, via ces clés.
-LAYER_MODE_TR_KEYS = {
-    "Découpe": "layers.mode.cut",
-    "Gravure Remplie": "layers.mode.fill",
-    "Marquage (Contour)": "layers.mode.mark",
-}
+# Le modèle des calques vit dans models/layers.py. Ces noms restent importables
+# d'ici pour le code existant ; LayerManager est l'ancien nom de LayersModel.
+from laser_studio.models.layers import (  # noqa: E402,F401
+    BASE_LAYER_DEFAULTS, BASE_LAYER_ROLES, CONTOUR_MODES, DEFAULT_LAYER_COLORS, ENGRAVE_MODE,
+    LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel, base_layer_name, layer_label,
+)
 
-DEFAULT_LAYER_COLORS = [
-    "#ff3b30", "#34c759", "#0a84ff", "#ff9f0a",
-    "#bf5af2", "#64d2ff", "#ffd60a", "#ff375f",
-]
-
-
-# Calques de base, toujours présents (voir LayerManager.ensure_base_layers) :
-# rôle -> (clé du nom, couleur, mode, puissance, vitesse, passes, pas de
-# remplissage). Leur nom est fixe (traduit) et ils ne peuvent pas être
-# supprimés ; chaque profil matériau a une entrée pour chacun.
-BASE_LAYER_ROLES = ("engrave", "cut", "mark")
-BASE_LAYER_DEFAULTS = {
-    "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], "Gravure Remplie", 35.0, 2000, 1, 0.10),
-    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], "Découpe", 90.0, 250, 1, 0.10),
-    "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], "Marquage (Contour)", 75.0, 2000, 1, 0.06),
-}
-
-
-def base_layer_name(role):
-    """Nom fixe (traduit) du calque de base `role`."""
-    return tr(BASE_LAYER_DEFAULTS[role][0])
-
-
-class LaserLayer:
-    """Un calque = une couleur + un jeu de réglages laser, comme dans LightBurn.
-
-    `role` : "engrave", "cut" ou "mark" pour les trois calques de base (nom
-    fixe, non supprimables), None pour un calque ajouté."""
-
-    def __init__(self, name="Calque", color="#ff3b30", mode="Découpe",
-                 power=80.0, speed=300, passes=1, line_interval=0.10,
-                 enabled=True, layer_id=None, line_interval_linked=False, role=None):
-        self.id = layer_id or uuid.uuid4().hex[:8]
-        self.role = role
-        self.name = name
-        self.color = color
-        self.mode = mode                    # cf. LAYER_MODES
-        self.power = float(power)           # %
-        self.speed = int(speed)             # mm/min
-        self.passes = int(passes)
-        self.line_interval = float(line_interval)  # mm (pas du remplissage)
-        # Si True, line_interval suit automatiquement la taille du spot
-        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
-        self.line_interval_linked = bool(line_interval_linked)
-        self.enabled = bool(enabled)
-
-    def to_dict(self):
-        return dict(self.__dict__)
-
-    @staticmethod
-    def from_dict(d):
-        layer = LaserLayer()
-        layer.__dict__.update(d)
-        return layer
-
-
-class LayerManager:
-    """Conteneur ordonné de LaserLayer, avec un signal Qt-free (callbacks simples)."""
-
-    def __init__(self):
-        # Les trois calques de base : la gravure (mode remplissage) en première
-        # position, calque proposé par défaut pour la gravure des images
-        # (tramage / séparation couleur), puis la découpe et le marquage.
-        self.layers = [self.new_base_layer(role) for role in BASE_LAYER_ROLES]
-
-    @staticmethod
-    def new_base_layer(role):
-        """Calque de base `role` avec ses réglages par défaut."""
-        key, color, mode, power, speed, passes, interval = BASE_LAYER_DEFAULTS[role]
-        return LaserLayer(name=tr(key), color=color, mode=mode, power=power, speed=speed,
-                          passes=passes, line_interval=interval, role=role)
-
-    def ensure_base_layers(self):
-        """Garantit les trois calques de base (gravure, découpe, marquage),
-        avec leur nom fixe.
-
-        Calques enregistrés avant les rôles (projet, profil machine) : le
-        premier calque sans rôle du bon mode devient le calque de base, et
-        prend son nom fixe (son identifiant ne change pas : les objets du
-        canevas qui y sont rattachés le gardent). S'il n'y en a pas, le
-        calque de base est ajouté avec ses réglages par défaut."""
-        for role in BASE_LAYER_ROLES:
-            layer = next((l for l in self.layers if getattr(l, "role", None) == role), None)
-            if layer is None:
-                mode = BASE_LAYER_DEFAULTS[role][2]
-                layer = next((l for l in self.layers
-                              if getattr(l, "role", None) is None and l.mode == mode), None)
-                if layer is None:
-                    layer = self.new_base_layer(role)
-                    self.layers.append(layer)
-                layer.role = role
-            layer.name = base_layer_name(role)
-
-    def is_base_layer(self, layer):
-        return getattr(layer, "role", None) in BASE_LAYER_ROLES
-
-    def add_layer(self, line_interval=None, line_interval_linked=False):
-        idx = len(self.layers)
-        color = DEFAULT_LAYER_COLORS[idx % len(DEFAULT_LAYER_COLORS)]
-        kwargs = {"line_interval_linked": line_interval_linked}
-        if line_interval is not None:
-            kwargs["line_interval"] = line_interval
-        layer = LaserLayer(name=f"Calque {idx + 1}", color=color, **kwargs)
-        self.layers.append(layer)
-        return layer
-
-    def remove_layer(self, layer_id):
-        self.layers = [l for l in self.layers if l.id != layer_id]
-
-    def move_layer(self, layer_id, delta):
-        """Décale un calque de `delta` positions dans la liste (-1 = monter,
-        +1 = descendre). L'ordre de la liste est aussi l'ordre d'exécution
-        des calques dans le G-Code. Renvoie le nouvel index, ou None si le
-        calque est introuvable / déjà en butée."""
-        idx = next((i for i, l in enumerate(self.layers) if l.id == layer_id), None)
-        if idx is None:
-            return None
-        new_idx = idx + delta
-        if new_idx < 0 or new_idx >= len(self.layers):
-            return None
-        self.layers.insert(new_idx, self.layers.pop(idx))
-        return new_idx
-
-    def get(self, layer_id):
-        for l in self.layers:
-            if l.id == layer_id:
-                return l
-        return None
-
-    def default_svg_layer(self):
-        """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
-        le premier calque en mode Découpe. À défaut, le premier calque."""
-        for l in self.layers:
-            if l.mode == "Découpe":
-                return l
-        return self.layers[0] if self.layers else None
-
-    def to_list(self):
-        return [l.to_dict() for l in self.layers]
-
-    def load_list(self, data):
-        self.layers = [LaserLayer.from_dict(d) for d in data] if data else []
-        self.ensure_base_layers()
+LayerManager = LayersModel
 
 
 class LayerManagerWidget(QWidget):
-    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Actif"""
+    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Actif
+
+    Vue du modèle des calques (LayersModel) : chaque saisie appelle
+    `mgr.update(...)`, et la table se met à jour à partir des signaux du
+    modèle, quelle que soit l'origine du changement (saisie, matériau,
+    profil machine, projet). `layers_changed` relaie `mgr.changed`."""
 
     layers_changed = pyqtSignal()
 
@@ -223,15 +80,16 @@ class LayerManagerWidget(QWidget):
                    "layers.col.power", "layers.col.speed", "layers.col.passes",
                    "layers.col.fill_step", "layers.col.active"]
 
-    def __init__(self, layer_manager: LayerManager, parent=None, focal_getter=None):
+    def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
         self.mgr = layer_manager
-        # Callable optionnel (ex. lambda: self.spin_machine_focal.value())
+        # Callable optionnel (ex. lambda: self.machine.focal)
         # renvoyant la taille du spot laser (mm) réglée dans Paramètres
         # Machine — même logique de lien que l'onglet Image & Filtres
         # (mode "Focale laser" pour l'intervalle de lignes du tramage).
         self.focal_getter = focal_getter
-        self._fill_spins = []  # [(spin_fill, layer), ...] pour refresh_focal_quality()
+        # Éditeurs de chaque ligne, par identifiant de calque : {réglage: widget}.
+        self._editors = {}
 
         self.COLUMNS = [tr(k) for k in self.COLUMN_KEYS]
 
@@ -267,36 +125,53 @@ class LayerManagerWidget(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         layout.addWidget(self.table)
 
+        # Abonnement au modèle.
+        for signal in (self.mgr.layers_reset, self.mgr.layer_added,
+                       self.mgr.layer_removed, self.mgr.layers_reordered):
+            signal.connect(self.refresh)
+        self.mgr.layer_changed.connect(self._sync_row)
+        self.mgr.changed.connect(self.layers_changed)
+
         self.refresh()
 
     # -- construction des lignes -------------------------------------------------
-    def refresh(self):
+    def refresh(self, *_args):
+        """Reconstruit toutes les lignes à partir du modèle."""
         self.table.blockSignals(True)
         self.table.setRowCount(0)
-        self._fill_spins = []
+        self._editors = {}
         for layer in self.mgr.layers:
             self._add_row(layer)
         self.table.blockSignals(False)
 
+    @property
+    def _fill_spins(self):
+        """[(champ du pas de remplissage, calque), ...] (compatibilité)."""
+        return [(e["line_interval"], self.mgr.get(i)) for i, e in self._editors.items()]
+
     def _add_row(self, layer: LaserLayer):
         row = self.table.rowCount()
         self.table.insertRow(row)
+        lid = layer.id
+        editors = {}
 
         # Couleur (bouton pastille)
         btn_color = QToolButton()
-        btn_color.setStyleSheet(f"background-color:{layer.color}; border:1px solid #222;")
         btn_color.setFixedSize(28, 22)
-        btn_color.clicked.connect(lambda _, l=layer, b=btn_color: self._pick_color(l, b))
+        self._style_color_button(btn_color, layer.color)
+        btn_color.clicked.connect(lambda _=False, i=lid: self._pick_color(i))
         self.table.setCellWidget(row, 0, self._centered(btn_color))
+        editors["color"] = btn_color
 
         name_edit = QLineEdit(layer.name)
         if self.mgr.is_base_layer(layer):
-            # Calque de base : nom fixe (voir LayerManager.ensure_base_layers).
+            # Calque de base : nom fixe (voir LayersModel.ensure_base_layers).
             name_edit.setReadOnly(True)
             name_edit.setToolTip(tr("layers.base_name_tip"))
         else:
-            name_edit.textChanged.connect(lambda t, l=layer: self._set(l, "name", t))
+            name_edit.textChanged.connect(lambda t, i=lid: self._set(i, "name", t))
         self.table.setCellWidget(row, 1, name_edit)
+        editors["name"] = name_edit
 
         combo_mode = QComboBox()
         for mode_id in LAYER_MODES:
@@ -305,21 +180,25 @@ class LayerManagerWidget(QWidget):
         if idx_mode >= 0:
             combo_mode.setCurrentIndex(idx_mode)
         combo_mode.currentIndexChanged.connect(
-            lambda i, l=layer, c=combo_mode: self._set(l, "mode", c.itemData(i))
+            lambda idx, i=lid, c=combo_mode: self._set(i, "mode", c.itemData(idx))
         )
         self.table.setCellWidget(row, 2, combo_mode)
+        editors["mode"] = combo_mode
 
         spin_power = QDoubleSpinBox(); spin_power.setRange(0, 100); spin_power.setValue(layer.power)
-        spin_power.valueChanged.connect(lambda v, l=layer: self._set(l, "power", v))
+        spin_power.valueChanged.connect(lambda v, i=lid: self._set(i, "power", v))
         self.table.setCellWidget(row, 3, spin_power)
+        editors["power"] = spin_power
 
         spin_speed = QSpinBox(); spin_speed.setRange(1, 20000); spin_speed.setValue(layer.speed)
-        spin_speed.valueChanged.connect(lambda v, l=layer: self._set(l, "speed", v))
+        spin_speed.valueChanged.connect(lambda v, i=lid: self._set(i, "speed", v))
         self.table.setCellWidget(row, 4, spin_speed)
+        editors["speed"] = spin_speed
 
         spin_passes = QSpinBox(); spin_passes.setRange(1, 50); spin_passes.setValue(layer.passes)
-        spin_passes.valueChanged.connect(lambda v, l=layer: self._set(l, "passes", v))
+        spin_passes.valueChanged.connect(lambda v, i=lid: self._set(i, "passes", v))
         self.table.setCellWidget(row, 5, spin_passes)
+        editors["passes"] = spin_passes
 
         fill_cell = QWidget()
         fill_layout = QHBoxLayout(fill_cell)
@@ -328,9 +207,10 @@ class LayerManagerWidget(QWidget):
 
         spin_fill = QDoubleSpinBox(); spin_fill.setRange(0.02, 5.0); spin_fill.setSingleStep(0.02)
         spin_fill.setDecimals(2); spin_fill.setValue(layer.line_interval)
-        spin_fill.valueChanged.connect(lambda v, l=layer: self._set(l, "line_interval", v))
+        spin_fill.valueChanged.connect(lambda v, i=lid: self._set(i, "line_interval", v))
         spin_fill.valueChanged.connect(lambda _v, s=spin_fill: self._update_fill_quality(s))
         fill_layout.addWidget(spin_fill)
+        editors["line_interval"] = spin_fill
 
         btn_focal = QToolButton()
         btn_focal.setCheckable(True)
@@ -338,22 +218,22 @@ class LayerManagerWidget(QWidget):
         btn_focal.setFixedSize(24, 22)
         btn_focal.setEnabled(self.focal_getter is not None)
         self._style_link_button(btn_focal, layer.line_interval_linked)
-        btn_focal.toggled.connect(
-            lambda checked, l=layer, s=spin_fill, b=btn_focal: self._on_link_toggled(checked, l, s, b)
-        )
+        btn_focal.toggled.connect(lambda checked, i=lid: self._on_link_toggled(checked, i))
         fill_layout.addWidget(btn_focal)
         spin_fill.setEnabled(not layer.line_interval_linked)
+        editors["line_interval_linked"] = btn_focal
 
         self.table.setCellWidget(row, 6, fill_cell)
-        self._fill_spins.append((spin_fill, layer))
         self._update_fill_quality(spin_fill)
 
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
-        chk_enabled.stateChanged.connect(lambda v, l=layer: self._set(l, "enabled", bool(v)))
+        chk_enabled.stateChanged.connect(lambda v, i=lid: self._set(i, "enabled", bool(v)))
         self.table.setCellWidget(row, 7, self._centered(chk_enabled))
+        editors["enabled"] = chk_enabled
 
+        self._editors[lid] = editors
         self.table.setRowHeight(row, 30)
-        self.table.setProperty(f"row_layer_{row}", layer.id)
+        self.table.setProperty(f"row_layer_{row}", lid)
 
     @staticmethod
     def _centered(widget):
@@ -364,26 +244,71 @@ class LayerManagerWidget(QWidget):
         layout.addWidget(widget, 0, Qt.AlignmentFlag.AlignCenter)
         return cell
 
-    def _pick_color(self, layer, button):
+    @staticmethod
+    def _style_color_button(button, color):
+        button.setStyleSheet(f"background-color:{color}; border:1px solid #222;")
+
+    # -- modèle -> vue -----------------------------------------------------------
+    def _sync_row(self, layer_id, changes):
+        """Un calque a changé dans le modèle : met à jour sa ligne, sans
+        réémettre de saisie (signaux bloqués) et sans toucher à un champ qui
+        affiche déjà la bonne valeur (une saisie en cours n'est pas perturbée)."""
+        editors = self._editors.get(layer_id)
+        layer = self.mgr.get(layer_id)
+        if editors is None or layer is None:
+            return
+        for key in changes:
+            widget = editors.get(key)
+            if widget is None:
+                continue
+            value = getattr(layer, key)
+            widget.blockSignals(True)
+            try:
+                if key == "color":
+                    self._style_color_button(widget, value)
+                elif key == "name":
+                    if widget.text() != value:
+                        widget.setText(value)
+                elif key == "mode":
+                    idx = widget.findData(value)
+                    if idx >= 0 and idx != widget.currentIndex():
+                        widget.setCurrentIndex(idx)
+                elif key in ("line_interval_linked", "enabled"):
+                    if widget.isChecked() != value:
+                        widget.setChecked(value)
+                elif widget.value() != value:
+                    widget.setValue(value)
+            finally:
+                widget.blockSignals(False)
+            if key == "line_interval_linked":
+                self._style_link_button(widget, value)
+                editors["line_interval"].setEnabled(not value)
+            if key == "line_interval":
+                self._update_fill_quality(editors["line_interval"])
+
+    # -- vue -> modèle -----------------------------------------------------------
+    def _set(self, layer_id, attr, value):
+        self.mgr.update(layer_id, **{attr: value})
+
+    def _pick_color(self, layer_id):
+        layer = self.mgr.get(layer_id)
+        if layer is None:
+            return
         color = QColorDialog.getColor(QColor(layer.color), self, tr("layers.color_dialog_title"))
         if color.isValid():
-            layer.color = color.name()
-            button.setStyleSheet(f"background-color:{layer.color}; border:1px solid #222;")
-            self.layers_changed.emit()
+            self.mgr.update(layer_id, color=color.name())
 
-    def _set(self, layer, attr, value):
-        setattr(layer, attr, value)
-        self.layers_changed.emit()
-
-    def _apply_focal_to_fill(self, spin_fill):
-        """Cale le pas de remplissage sur la taille du spot laser configurée
-        dans Paramètres Machine (même principe que le mode 'Focale laser' de
-        l'onglet Image & Filtres)."""
+    def _focal_interval(self, spin_fill=None):
+        """Taille du spot laser (mm), ramenée dans les bornes du champ du pas
+        de remplissage ; None si elle n'est pas connue."""
         if self.focal_getter is None:
-            return
+            return None
         focal = self.focal_getter()
-        if focal and focal > 0:
-            spin_fill.setValue(max(spin_fill.minimum(), min(spin_fill.maximum(), focal)))
+        if not focal or focal <= 0:
+            return None
+        if spin_fill is None:
+            return focal
+        return max(spin_fill.minimum(), min(spin_fill.maximum(), focal))
 
     def _style_link_button(self, button, linked):
         if linked:
@@ -395,24 +320,21 @@ class LayerManagerWidget(QWidget):
             button.setToolTip(tr("layers.link_tip_unlinked"))
             button.setStyleSheet("")
 
-    def _on_link_toggled(self, checked, layer, spin_fill, button):
-        layer.line_interval_linked = checked
-        spin_fill.setEnabled(not checked)
-        self._style_link_button(button, checked)
+    def _on_link_toggled(self, checked, layer_id):
+        fields = {"line_interval_linked": checked}
         if checked:
-            self._apply_focal_to_fill(spin_fill)  # déclenche aussi _set + pastille
-        else:
-            self.layers_changed.emit()
+            spin_fill = self._editors.get(layer_id, {}).get("line_interval")
+            interval = self._focal_interval(spin_fill)
+            if interval is not None:
+                fields["line_interval"] = interval
+        self.mgr.update(layer_id, **fields)
 
     def _update_fill_quality(self, spin_fill):
         """Colore la bordure du champ selon l'adéquation du pas choisi avec
         la taille du spot laser — mêmes seuils que la pastille de qualité de
         l'onglet Image & Filtres (ratio pas/focale)."""
-        if self.focal_getter is None:
-            spin_fill.setStyleSheet("")
-            return
-        focal = self.focal_getter()
-        if not focal or focal <= 0:
+        focal = self._focal_interval()
+        if focal is None:
             spin_fill.setStyleSheet("")
             return
         ratio = spin_fill.value() / focal
@@ -431,43 +353,39 @@ class LayerManagerWidget(QWidget):
         Les calques 'liés' voient leur pas remplissage recalculé
         automatiquement ; les autres n'ont que leur pastille de qualité
         rafraîchie."""
-        for spin_fill, layer in self._fill_spins:
-            if layer.line_interval_linked:
-                self._apply_focal_to_fill(spin_fill)
-            else:
-                self._update_fill_quality(spin_fill)
+        for layer_id, editors in list(self._editors.items()):
+            layer = self.mgr.get(layer_id)
+            spin_fill = editors["line_interval"]
+            interval = self._focal_interval(spin_fill)
+            if layer is not None and layer.line_interval_linked and interval is not None:
+                self.mgr.update(layer_id, line_interval=interval)
+            self._update_fill_quality(spin_fill)
 
     def link_all_to_focal(self):
         """Lie tous les calques à la taille du spot en une fois ET applique
         immédiatement la valeur de la focale à chacun — appelé
         automatiquement au démarrage et à la validation des Paramètres
         Machine, pour éviter d'avoir à cocher le 🔗 sur chaque calque un par
-        un. Avant, seul le drapeau 'lié' était posé (icône verte) sans
-        jamais recalculer line_interval : un calque encore à sa valeur par
-        défaut (0.10 mm, celle de LaserLayer) restait affiché tel quel,
-        avec un lien vert trompeur ne correspondant pas à la focale réelle.
+        un.
 
         Les calques de contour (Découpe, Marquage) ne sont pas liés : ils
         gardent leur propre pas (ex. 0,06 mm pour le calque Marquage)."""
         if self.focal_getter is None:
             return
-        focal = self.focal_getter()
-        for layer in self.mgr.layers:
+        focal = self._focal_interval()
+        for layer in list(self.mgr.layers):
             if layer.mode in CONTOUR_MODES:
-                layer.line_interval_linked = False
+                self.mgr.update(layer.id, line_interval_linked=False)
                 continue
-            layer.line_interval_linked = True
-            if focal and focal > 0:
-                layer.line_interval = focal
-        self.refresh()
-        self.layers_changed.emit()
+            fields = {"line_interval_linked": True}
+            if focal is not None:
+                fields["line_interval"] = focal
+            self.mgr.update(layer.id, **fields)
 
     def on_add(self):
         linked = self.focal_getter is not None
         default_interval = self.focal_getter() if linked else None
         self.mgr.add_layer(line_interval=default_interval, line_interval_linked=linked)
-        self.refresh()
-        self.layers_changed.emit()
 
     def on_remove(self):
         row = self.table.currentRow()
@@ -479,8 +397,6 @@ class LayerManagerWidget(QWidget):
                                     .format(name=layer.name))
             return
         self.mgr.remove_layer(layer.id)
-        self.refresh()
-        self.layers_changed.emit()
 
     def on_move(self, delta):
         """Monte (-1) ou descend (+1) le calque sélectionné, puis garde la
@@ -491,10 +407,8 @@ class LayerManagerWidget(QWidget):
         new_row = self.mgr.move_layer(self.mgr.layers[row].id, delta)
         if new_row is None:
             return
-        self.refresh()
         self.table.setCurrentCell(new_row, 1)
         self.table.selectRow(new_row)
-        self.layers_changed.emit()
 
     def current_layer_id(self):
         row = self.table.currentRow()
@@ -2923,7 +2837,7 @@ class VectorCanvasView(QGraphicsView):
 
         layer_menu = menu.addMenu(tr("vector.assign_to_layer") + label_suffix)
         for layer in self.layer_manager.layers:
-            action = layer_menu.addAction(f"{layer.name}  [{layer.mode}]")
+            action = layer_menu.addAction(layer_label(layer))
             action.triggered.connect(lambda checked=False, lid=layer.id, items=selected: self._bulk_assign_layer(items, lid))
 
         resize_action = menu.addAction(tr("vector.resize_ellipsis") + label_suffix)
@@ -3170,7 +3084,7 @@ class TextInsertDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         if text_obj and text_obj.layer_id:
             idx = self.combo_layer.findData(text_obj.layer_id)
             if idx >= 0:
@@ -3230,7 +3144,7 @@ class AssignLayerDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         lid = current_layer_id if current_layer_id is not None else (svg_obj.layer_id if svg_obj else None)
         if lid:
             idx = self.combo_layer.findData(lid)
@@ -3323,7 +3237,7 @@ class ShapeInsertDialog(QDialog):
 
         self.combo_layer = QComboBox()
         for l in self.layer_manager.layers:
-            self.combo_layer.addItem(f"{l.name}  [{l.mode}]", l.id)
+            self.combo_layer.addItem(layer_label(l), l.id)
         if shape_obj and shape_obj.layer_id:
             idx = self.combo_layer.findData(shape_obj.layer_id)
             if idx >= 0:
@@ -3442,7 +3356,7 @@ def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_pat
 
     if optimize_path:
         for layer_id, data in layers_data.items():
-            if data["layer"].get("mode") == "Gravure Remplie":
+            if data["layer"].get("mode") == ENGRAVE_MODE:
                 continue  # balayage scanline : l'ordre des tracés n'a pas d'effet
             polys = data["polygons"]
             if 1 < len(polys) <= MAX_POLYGONS_FOR_PATH_OPTIMIZATION:
@@ -3505,7 +3419,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
     qui restent en haut-gauche/Y descendant).
 
     overscan_dist (mm) : distance de surbalayage appliquée aux lignes de
-    remplissage (mode 'Gravure Remplie'), comme pour la gravure image —
+    remplissage (mode ENGRAVE_MODE, gravure remplie), comme pour la gravure image —
     le laser reste éteint pendant le dépassement de part et d'autre.
 
     safe_cut_order : graver avant de découper (les calques de découpe passent après les autres) et, dans
@@ -3540,7 +3454,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
         power_val = int(round((layer["power"] / 100.0) * s_max))
         gcode.append(f"F{speed}")
 
-        if layer["mode"] == "Gravure Remplie":
+        if layer["mode"] == ENGRAVE_MODE:
             ys = [p[1] for poly in polygons for p in poly]
             if not ys:
                 continue

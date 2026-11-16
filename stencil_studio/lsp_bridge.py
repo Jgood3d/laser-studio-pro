@@ -13,10 +13,10 @@ import os
 import re
 import unicodedata
 
-# Identifiants internes LSP (vector_layers.LAYER_MODES) — ne pas traduire ici.
-MODE_CUT = "Découpe"
-MODE_MARK = "Marquage (Contour)"  # attention : pas « Marquage » seul
-MODE_ENGRAVE = "Gravure Remplie"
+# Codes des modes de calque LSP (models/layer_modes.py), indépendants de la langue.
+from laser_studio.models.layer_modes import (  # noqa: E402
+    MODE_CUT, MODE_FILL as MODE_ENGRAVE, MODE_MARK,
+)
 
 _LAYER_N_RE = re.compile(r"^layer[_\s-]*(\d+)$", re.I)
 
@@ -312,7 +312,7 @@ def _import_svg_routed(window, path):
     default_layer = window.layer_manager.default_svg_layer()
     bed_h = 300.0
     try:
-        bed_h = float(window.spin_machine_h.value())
+        bed_h = float(window.machine.bed_h)
     except Exception:
         pass
     objects = extract_svg_objects(

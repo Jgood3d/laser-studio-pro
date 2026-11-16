@@ -28,10 +28,10 @@ class MaterialLayersTests(unittest.TestCase):
         engrave.power, engrave.speed, mark.line_interval = 12.0, 3456, 0.05
         material = {"layers": capture_material_layers(manager)}
         engrave.power, engrave.speed, mark.line_interval = 99.0, 100, 0.2
-        engrave.mode = "Découpe"                       # le mode n'est pas un réglage de matériau
+        engrave.mode = "cut"                       # le mode n'est pas un réglage de matériau
         self.assertTrue(apply_material_to_layers(manager, material))
         self.assertEqual((engrave.power, engrave.speed, mark.line_interval), (12.0, 3456, 0.05))
-        self.assertEqual(engrave.mode, "Découpe")
+        self.assertEqual(engrave.mode, "cut")
 
     def test_layers_found_by_position_when_ids_differ(self):
         source, target = LayerManager(), LayerManager()
@@ -66,15 +66,15 @@ class BaseLayersTests(unittest.TestCase):
     def test_new_manager_has_the_three_base_layers(self):
         manager = LayerManager()
         self.assertEqual([(l.role, l.name, l.mode) for l in manager.layers],
-                         [("engrave", tr("layers.default_name_engrave"), "Gravure Remplie"),
-                          ("cut", tr("layers.default_name_cut"), "Découpe"),
-                          ("mark", tr("layers.default_name_mark"), "Marquage (Contour)")])
+                         [("engrave", tr("layers.default_name_engrave"), "engrave_fill"),
+                          ("cut", tr("layers.default_name_cut"), "cut"),
+                          ("mark", tr("layers.default_name_mark"), "mark")])
 
     def test_old_saved_layers_are_adopted_or_completed(self):
         manager = LayerManager()
         # Calques enregistrés avant les rôles : une gravure renommée, un calque libre.
-        manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "Gravure Remplie", "power": 20.0},
-                           {"id": "b2", "name": "Logo", "mode": "Gravure Remplie"}])
+        manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "engrave_fill", "power": 20.0},
+                           {"id": "b2", "name": "Logo", "mode": "engrave_fill"}])
         roles = {l.role: l for l in manager.layers}
         self.assertEqual(sorted(r for r in roles if r), ["cut", "engrave", "mark"])
         self.assertEqual((roles["engrave"].id, roles["engrave"].name, roles["engrave"].power),
@@ -141,8 +141,10 @@ class MaterialCompletionTests(unittest.TestCase):
 
     def test_material_without_cut_gets_default_cut(self):
         from laser_studio.controllers.materials import complete_material
+        from laser_studio.models.layers import BASE_LAYER_DEFAULTS
         entries = {d["role"]: d for d in complete_material(DEFAULT_MATERIALS_DB["Ardoise / Carrelage"])["layers"]}
-        self.assertEqual((entries["cut"]["power"], entries["cut"]["passes"]), (90.0, 2))
+        _key, _color, _mode, power, _speed, passes, _interval = BASE_LAYER_DEFAULTS["cut"]
+        self.assertEqual((entries["cut"]["power"], entries["cut"]["passes"]), (power, passes))
 
     def test_missing_base_entry_is_added_and_others_kept(self):
         from laser_studio.controllers.materials import complete_material
@@ -178,7 +180,8 @@ class LayersTabMaterialsTests(unittest.TestCase):
 
     def test_toolbar_actions_emit_their_signal(self):
         tab = self.make()
-        for name in ("save_material_requested", "new_material_requested", "delete_material_requested",
+        self.assertNotIn("save_material_requested", tab.material_actions)   # enregistrement automatique
+        for name in ("new_material_requested", "delete_material_requested",
                      "export_materials_requested", "import_materials_requested"):
             received = []
             getattr(tab, name).connect(lambda: received.append(True))
@@ -278,7 +281,8 @@ win.deleteLater(); app.processEvents()
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
 class MaterialPersistenceTests(unittest.TestCase):
-    """Matériau choisi et réglages enregistrés (« Enregistrer ») retrouvés au démarrage suivant.
+    """Matériau choisi et réglages recopiés automatiquement dans le matériau, retrouvés au démarrage
+    suivant.
     Deux fenêtres successives dans un processus à part, avec une configuration temporaire."""
 
     SCRIPT = """
@@ -293,9 +297,7 @@ mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start
 from laser_studio.main_window import FullLaserStudio
 w = FullLaserStudio(); tab = w.layers_tab; combo = tab.material_combo
 combo.setCurrentText("Acrylique 3mm"); combo.activated.emit(combo.currentIndex())
-w.layer_manager.layers[2].power = 42.0
-with mock.patch.object(QMessageBox, "information"):
-    tab.material_actions["save_material_requested"].trigger()
+w.layer_manager.update(w.layer_manager.layers[2].id, power=42.0)   # recopié dans le matériau
 QTest.qWait(1500)
 w.deleteLater(); app.processEvents()
 w2 = FullLaserStudio()

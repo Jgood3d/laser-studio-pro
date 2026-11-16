@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QScrollArea, QSlider, QSpinBox, QStackedWidget, QTabWidget, QVBoxLayout, QWidget,
 )
 
+from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL
 from laser_studio.vector import box_generator as bg
 from laser_studio.vector.box_generator import BoxDecor
 from laser_studio.i18n import tr
@@ -303,8 +304,8 @@ class BoxGeneratorDialog(QDialog):
         for layer in self._layers:
             self.combo_cut_layer.addItem(layer.name, layer.id)
             self.combo_engrave_layer.addItem(layer.name, layer.id)
-        self.combo_cut_layer.setCurrentIndex(self._default_layer_index(init.get("cut_layer"), ("Découpe", "Cut")))
-        self.combo_engrave_layer.setCurrentIndex(self._default_layer_index(init.get("engrave_layer"), ("Gravure Remplie", "Fill")))
+        self.combo_cut_layer.setCurrentIndex(self._default_layer_index(init.get("cut_layer"), (MODE_CUT,)))
+        self.combo_engrave_layer.setCurrentIndex(self._default_layer_index(init.get("engrave_layer"), (MODE_FILL,)))
         lform.addRow(tr("box.cut_layer"), self.combo_cut_layer)
         lform.addRow(tr("box.engrave_layer"), self.combo_engrave_layer)
         main.addWidget(box_layers)

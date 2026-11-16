@@ -1,0 +1,354 @@
+"""Modèle des calques : la liste ordonnée des LaserLayer et leurs réglages.
+
+Toute modification passe par LayersModel (update, add_layer, remove_layer,
+move_layer, load_list), qui émet le signal correspondant puis `changed`.
+Les vues (tableau des calques, canevas) et la génération lisent le modèle :
+il n'existe plus de copie des réglages ailleurs (ex. l'ancienne puissance de
+gravure image, recopiée dans la fenêtre et qui pouvait diverger du calque).
+
+Chaque changement est écrit dans le journal de débogage
+(LASER_STUDIO_DEBUG=1, voir core/debug_log.py) : ancienne et nouvelle valeur.
+"""
+import logging
+import uuid
+
+from PyQt6.QtCore import QObject, pyqtSignal
+
+from laser_studio.core.debug_log import LOGGER_NAME
+from laser_studio.i18n import tr
+from laser_studio.models.change_log import ChangeLog
+
+log = logging.getLogger(f"{LOGGER_NAME}.modeles")
+
+# Modes des calques : codes indépendants de la langue (voir layer_modes.py).
+# ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
+from laser_studio.models.layer_modes import (  # noqa: E402
+    CONTOUR_MODES, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT, MODE_FILL,
+    MODE_MARK, normalize_mode,
+)
+
+ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
+
+DEFAULT_LAYER_COLORS = [
+    "#ff3b30", "#34c759", "#0a84ff", "#ff9f0a",
+    "#bf5af2", "#64d2ff", "#ffd60a", "#ff375f",
+]
+
+# Calques de base, toujours présents (voir LayersModel.ensure_base_layers) :
+# rôle -> (clé du nom, couleur, mode, puissance, vitesse, passes, pas de
+# remplissage). Leur nom est fixe (traduit) et ils ne peuvent pas être
+# supprimés ; chaque profil matériau a une entrée pour chacun.
+BASE_LAYER_ROLES = ("engrave", "cut", "mark")
+BASE_LAYER_DEFAULTS = {
+    "engrave": ("layers.default_name_engrave", DEFAULT_LAYER_COLORS[2], MODE_FILL, 35.0, 2000, 1, 0.10),
+    "cut": ("layers.default_name_cut", DEFAULT_LAYER_COLORS[0], MODE_CUT, 90.0, 250, 1, 0.10),
+    "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], MODE_MARK, 75.0, 2000, 1, 0.06),
+}
+
+# Réglages modifiables d'un calque, avec leur type. L'identifiant et le rôle
+# ne se modifient pas (les objets du canevas sont rattachés par identifiant).
+LAYER_FIELD_CASTS = {
+    "name": str,
+    "color": str,
+    "mode": str,
+    "power": float,
+    "speed": int,
+    "passes": int,
+    "line_interval": float,
+    "line_interval_linked": bool,
+    "enabled": bool,
+}
+
+
+def base_layer_name(role):
+    """Nom fixe (traduit) du calque de base `role`."""
+    return tr(BASE_LAYER_DEFAULTS[role][0])
+
+
+def mode_label(mode):
+    """Libellé traduit du mode `mode` (code), à afficher."""
+    key = LAYER_MODE_TR_KEYS.get(normalize_mode(mode))
+    return tr(key) if key else str(mode)
+
+
+def layer_label(layer):
+    """« Nom  [mode traduit] » d'un calque, pour les listes et les messages."""
+    return f"{layer.name}  [{mode_label(layer.mode)}]"
+
+
+def validated_settings(source, defaults=None):
+    """Réglages de `source` (dictionnaire) convertis dans leur type.
+
+    Les clés qui ne sont pas des réglages (id, role...) sont ignorées. Une
+    valeur inutilisable (type, mode inconnu) est ignorée, ou remplacée par
+    celle de `defaults` (un LaserLayer) s'il est donné."""
+    values = {}
+    for key, cast in LAYER_FIELD_CASTS.items():
+        if key not in source:
+            continue
+        try:
+            value = cast(source[key])
+            if key == "mode":
+                value = normalize_mode(value)       # ancien libellé français -> code
+                if value not in LAYER_MODES:
+                    raise ValueError(value)
+        except (TypeError, ValueError):
+            if defaults is not None:
+                values[key] = getattr(defaults, key)
+            continue
+        values[key] = value
+    return values
+
+
+class LaserLayer:
+    """Un calque = une couleur + un jeu de réglages laser, comme dans LightBurn.
+
+    `role` : "engrave", "cut" ou "mark" pour les trois calques de base (nom
+    fixe, non supprimables), None pour un calque ajouté.
+
+    Un LaserLayer se lit librement ; il ne se modifie qu'à travers
+    LayersModel.update, pour que chaque changement soit signalé."""
+
+    def __init__(self, name="Calque", color="#ff3b30", mode=MODE_CUT,
+                 power=80.0, speed=300, passes=1, line_interval=0.10,
+                 enabled=True, layer_id=None, line_interval_linked=False, role=None):
+        self.id = layer_id or uuid.uuid4().hex[:8]
+        self.role = role
+        self.name = name
+        self.color = color
+        self.mode = normalize_mode(mode)    # cf. LAYER_MODES (codes)
+        self.power = float(power)           # %
+        self.speed = int(speed)             # mm/min
+        self.passes = int(passes)
+        self.line_interval = float(line_interval)  # mm (pas du remplissage)
+        # Si True, line_interval suit automatiquement la taille du spot
+        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
+        self.line_interval_linked = bool(line_interval_linked)
+        self.enabled = bool(enabled)
+
+    def to_dict(self):
+        return dict(self.__dict__)
+
+    @staticmethod
+    def from_dict(d):
+        layer = LaserLayer()
+        layer.__dict__.update(d)
+        return layer
+
+
+def _describe(layer):
+    return f"« {layer.name} » ({layer.id})"
+
+
+class LayersModel(QObject):
+    """Liste ordonnée des calques. L'ordre de la liste est aussi l'ordre
+    d'exécution des calques dans le G-Code.
+
+    Signaux, émis après la modification :
+    - layer_changed(id, {réglage: nouvelle valeur}) : seulement les réglages
+      qui ont vraiment changé (aucune émission si rien ne change) ;
+    - layer_added(id), layer_removed(id), layers_reordered() ;
+    - layers_reset() : liste entièrement rechargée (projet, profil machine) ;
+    - changed() : après chacun des signaux précédents, pour qui veut
+      seulement savoir que « les calques ont changé » ;
+    - engrave_layer_selected(id) : calque de la gravure des images choisi
+      (liste « Calque de gravure » de l'onglet image).
+    """
+
+    layer_changed = pyqtSignal(str, dict)
+    layer_added = pyqtSignal(str)
+    layer_removed = pyqtSignal(str)
+    layers_reordered = pyqtSignal()
+    layers_reset = pyqtSignal()
+    changed = pyqtSignal()
+    engrave_layer_selected = pyqtSignal(str)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Calque de la gravure des images choisi par l'utilisateur (None :
+        # le premier calque de gravure, voir engrave_layer).
+        self._engrave_layer_id = None
+        # Les trois calques de base : la gravure (mode remplissage) en première
+        # position, calque proposé par défaut pour la gravure des images
+        # (tramage / séparation couleur), puis la découpe et le marquage.
+        self.layers = [self.new_base_layer(role) for role in BASE_LAYER_ROLES]
+        self._log = ChangeLog(self)
+
+    # Réglages saisis au clavier : une ligne de journal à la fin de la saisie.
+    TYPED_FIELDS = ("name",)
+
+    def flush_log(self):
+        """Écrit tout de suite les saisies en cours dans le journal."""
+        self._log.flush()
+
+    # -- lecture -----------------------------------------------------------
+
+    @staticmethod
+    def new_base_layer(role):
+        """Calque de base `role` avec ses réglages par défaut."""
+        key, color, mode, power, speed, passes, interval = BASE_LAYER_DEFAULTS[role]
+        return LaserLayer(name=tr(key), color=color, mode=mode, power=power, speed=speed,
+                          passes=passes, line_interval=interval, role=role)
+
+    def is_base_layer(self, layer):
+        return getattr(layer, "role", None) in BASE_LAYER_ROLES
+
+    def get(self, layer_id):
+        for l in self.layers:
+            if l.id == layer_id:
+                return l
+        return None
+
+    def engrave_layer(self):
+        """Calque de la gravure des images (tramage, séparation couleur) : le
+        calque choisi (select_engrave_layer) s'il existe encore et grave
+        toujours (mode Gravure Remplie) ; sinon le premier calque en mode
+        Gravure Remplie, à défaut le premier calque, ou None s'il n'y a
+        aucun calque."""
+        chosen = self.get(self._engrave_layer_id)
+        if chosen is not None and chosen.mode == ENGRAVE_MODE:
+            return chosen
+        for l in self.layers:
+            if l.mode == ENGRAVE_MODE:
+                return l
+        return self.layers[0] if self.layers else None
+
+    def select_engrave_layer(self, layer_id):
+        """Choisit le calque de la gravure des images (un calque en mode
+        Gravure Remplie). Renvoie True si le choix a changé."""
+        layer = self.get(layer_id)
+        if layer is None or layer.mode != ENGRAVE_MODE:
+            log.warning("Calques : calque de gravure ignoré : %r", layer_id)
+            return False
+        if self.engrave_layer() is layer and self._engrave_layer_id == layer_id:
+            return False
+        self._engrave_layer_id = layer_id
+        log.info("Calques : calque de gravure des images -> %s", _describe(layer))
+        self.engrave_layer_selected.emit(layer_id)
+        return True
+
+    def default_svg_layer(self):
+        """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
+        le premier calque en mode Découpe. À défaut, le premier calque."""
+        for l in self.layers:
+            if l.mode == MODE_CUT:
+                return l
+        return self.layers[0] if self.layers else None
+
+    def to_list(self):
+        return [l.to_dict() for l in self.layers]
+
+    # -- modification ------------------------------------------------------
+
+    def update(self, layer_id, **fields):
+        """Modifie les réglages d'un calque. Les valeurs sont converties dans
+        leur type ; une valeur inutilisable est ignorée. Renvoie les réglages
+        qui ont changé ({réglage: nouvelle valeur}), vide si rien n'a changé
+        (aucun signal n'est alors émis)."""
+        unknown = set(fields) - set(LAYER_FIELD_CASTS)
+        if unknown:
+            raise KeyError(f"Réglages de calque inconnus : {sorted(unknown)}")
+        layer = self.get(layer_id)
+        if layer is None:
+            log.warning("Calques : calque %s introuvable, modification ignorée : %s", layer_id, fields)
+            return {}
+        changes, before = {}, {}
+        for key, value in validated_settings(fields).items():
+            old = getattr(layer, key, None)
+            if old != value:
+                before[key] = old
+                setattr(layer, key, value)
+                changes[key] = value
+        if changes:
+            self._log.now(f"Calques : {_describe(layer)}",
+                          {k: v for k, v in changes.items() if k not in self.TYPED_FIELDS}, before)
+            for key in self.TYPED_FIELDS:
+                if key in changes:
+                    self._log.later((layer.id, key), lambda l=layer: f"Calques : {_describe(l)}",
+                                    key, before[key], changes[key])
+            self.layer_changed.emit(layer.id, changes)
+            self.changed.emit()
+        return changes
+
+    def add_layer(self, line_interval=None, line_interval_linked=False):
+        idx = len(self.layers)
+        color = DEFAULT_LAYER_COLORS[idx % len(DEFAULT_LAYER_COLORS)]
+        kwargs = {"line_interval_linked": line_interval_linked}
+        if line_interval is not None:
+            kwargs["line_interval"] = line_interval
+        layer = LaserLayer(name=f"Calque {idx + 1}", color=color, **kwargs)
+        self.layers.append(layer)
+        log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
+        self.layer_added.emit(layer.id)
+        self.changed.emit()
+        return layer
+
+    def remove_layer(self, layer_id):
+        layer = self.get(layer_id)
+        if layer is None:
+            return
+        self.layers = [l for l in self.layers if l.id != layer_id]
+        log.info("Calques : suppression de %s", _describe(layer))
+        self.layer_removed.emit(layer_id)
+        self.changed.emit()
+
+    def move_layer(self, layer_id, delta):
+        """Décale un calque de `delta` positions dans la liste (-1 = monter,
+        +1 = descendre). Renvoie le nouvel index, ou None si le calque est
+        introuvable / déjà en butée."""
+        idx = next((i for i, l in enumerate(self.layers) if l.id == layer_id), None)
+        if idx is None:
+            return None
+        new_idx = idx + delta
+        if new_idx < 0 or new_idx >= len(self.layers):
+            return None
+        layer = self.layers.pop(idx)
+        self.layers.insert(new_idx, layer)
+        log.info("Calques : %s déplacé de la position %d à %d", _describe(layer), idx + 1, new_idx + 1)
+        self.layers_reordered.emit()
+        self.changed.emit()
+        return new_idx
+
+    def load_list(self, data):
+        """Remplace toute la liste (projet ouvert, profil machine au démarrage).
+
+        Une valeur corrompue est remplacée par celle d'un calque neuf, plutôt
+        que de planter à l'ouverture. Les trois calques de base sont ensuite
+        garantis (ensure_base_layers)."""
+        layers = []
+        for d in data or []:
+            if not isinstance(d, dict):
+                continue
+            layer = LaserLayer.from_dict(d)
+            for key, value in validated_settings(d, defaults=LaserLayer()).items():
+                setattr(layer, key, value)
+            layers.append(layer)
+        self.layers = layers
+        self.ensure_base_layers()
+        log.info("Calques : liste rechargée (%d calques)", len(self.layers))
+        for layer in self.layers:
+            log.info("Calques :   %s %s", _describe(layer),
+                     {k: getattr(layer, k) for k in LAYER_FIELD_CASTS if k != "name"})
+        self.layers_reset.emit()
+        self.changed.emit()
+
+    def ensure_base_layers(self):
+        """Garantit les trois calques de base (gravure, découpe, marquage),
+        avec leur nom fixe. Appelé par load_list, avant son signal.
+
+        Calques enregistrés avant les rôles (projet, profil machine) : le
+        premier calque sans rôle du bon mode devient le calque de base, et
+        prend son nom fixe (son identifiant ne change pas : les objets du
+        canevas qui y sont rattachés le gardent). S'il n'y en a pas, le
+        calque de base est ajouté avec ses réglages par défaut."""
+        for role in BASE_LAYER_ROLES:
+            layer = next((l for l in self.layers if getattr(l, "role", None) == role), None)
+            if layer is None:
+                mode = BASE_LAYER_DEFAULTS[role][2]
+                layer = next((l for l in self.layers
+                              if getattr(l, "role", None) is None and l.mode == mode), None)
+                if layer is None:
+                    layer = self.new_base_layer(role)
+                    self.layers.append(layer)
+                layer.role = role
+            layer.name = base_layer_name(role)

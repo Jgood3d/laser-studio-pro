@@ -120,7 +120,7 @@ class ImageProcessingMixin:
         """Calque l'intervalle de lignes sur la taille du spot laser
         configurée dans l'onglet Paramètres Machine (lignes/mm = 1/focale),
         et met aussi à jour le DPI équivalent en conséquence."""
-        focal = self.spin_machine_focal.value() if hasattr(self, "spin_machine_focal") else 0.1
+        focal = self.machine.focal if hasattr(self, "machine") else 0.1
         if focal <= 0:
             focal = 0.1
         lmm = 1.0 / focal
@@ -195,7 +195,7 @@ class ImageProcessingMixin:
         self._sync_separation_with_resolution()
         if not hasattr(self, "lbl_resolution_quality") or not hasattr(self, "spin_machine_focal"):
             return
-        focal = self.spin_machine_focal.value()
+        focal = self.machine.focal
         lmm = self.spin_lmm.value()
         if focal <= 0 or lmm <= 0:
             self.lbl_resolution_quality.setText("")
@@ -308,8 +308,8 @@ class ImageProcessingMixin:
             w, h = self.raw_image.size
             # Taille d'origine de l'image (d'après sa résolution enregistrée, 96 DPI à défaut), réduite
             # si besoin pour tenir dans la zone de travail de la machine — et non plus 100 mm d'office.
-            bed_w = self.spin_machine_w.value() if hasattr(self, "spin_machine_w") else None
-            bed_h = self.spin_machine_h.value() if hasattr(self, "spin_machine_h") else None
+            bed_w = self.machine.bed_w if hasattr(self, "machine") else None
+            bed_h = self.machine.bed_h if hasattr(self, "spin_machine_h") else None
             w_mm, h_mm, used_dpi, shrunk = natural_size_mm(w, h, file_dpi, bed_w, bed_h)
             self.block_aspect_signal = True
             self.spin_w.setValue(w_mm)
