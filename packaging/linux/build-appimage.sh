@@ -34,6 +34,27 @@ if [ ! -x "$DIST/$APP" ]; then
     exit 1
 fi
 
+# Bibliothèques xcb dont a besoin le module d'affichage X11 de Qt (libqxcb).
+# PyInstaller les embarque seulement si elles sont installées sur la machine
+# de compilation : sans elles, l'AppImage ne démarre pas chez un utilisateur
+# qui ne les a pas. Sous Debian / Ubuntu :
+#   sudo apt install libxcb-cursor0 libxcb-icccm4 libxcb-image0 \
+#     libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-shape0 \
+#     libxcb-xkb1 libxkbcommon-x11-0
+missing=""
+for lib in libxcb-cursor.so.0 libxcb-icccm.so.4 libxcb-image.so.0 \
+        libxcb-keysyms.so.1 libxcb-randr.so.0 libxcb-render-util.so.0 \
+        libxcb-shape.so.0 libxcb-xkb.so.1 libxkbcommon-x11.so.0; do
+    if [ -z "$(find "$DIST" -name "$lib" -print -quit)" ]; then
+        missing="$missing $lib"
+    fi
+done
+if [ -n "$missing" ]; then
+    echo "Bibliothèques xcb absentes de $DIST :$missing" >&2
+    echo "Installe-les (voir le commentaire de ce script) puis recompile avec build-linux.sh." >&2
+    exit 1
+fi
+
 echo "=========================================="
 echo "AppDir..."
 echo "=========================================="

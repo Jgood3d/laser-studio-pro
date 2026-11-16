@@ -56,6 +56,11 @@ jobs:
           cache: "pip"
           cache-dependency-path: requirements-linux.txt
 
+      # Bibliothèques xcb du module d'affichage X11 de Qt (libqxcb) : elles
+      # doivent être présentes ICI, à la compilation, pour que PyInstaller les
+      # embarque dans l'AppImage. Sinon l'AppImage ne démarre pas sur un
+      # système qui ne les a pas (« Could not load the Qt platform plugin
+      # "xcb" »). build-appimage.sh vérifie qu'elles ont bien été embarquées.
       - name: Dépendances système
         run: |
           sudo apt-get update
@@ -63,7 +68,11 @@ jobs:
             libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 \
             libdbus-1-3 libglib2.0-0 libnss3 libnspr4 libasound2 \
             libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 \
-            libxshmfence1 libgbm1 libdrm2 libxcb-cursor0 xvfb
+            libxshmfence1 libgbm1 libdrm2 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-render0 libxcb-shape0 \
+            libxcb-shm0 libxcb-sync1 libxcb-util1 libxcb-xfixes0 libxcb-xkb1 \
+            xvfb
 
       - name: Dépendances Python
         run: |
