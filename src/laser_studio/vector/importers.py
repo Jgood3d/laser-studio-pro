@@ -154,12 +154,21 @@ def decor_to_objects(decor, panel, layer_id, bed_h_mm, offset_x_mm=10.0, offset_
 
 
 def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
-    """Pièces de puzzle -> liste de SvgPathObject (contours fermés de découpe)."""
+    """Puzzle -> objets de découpe : le contour extérieur (fermé) et UN objet qui regroupe toutes les arêtes
+    internes (tracés ouverts, chacune une seule fois).
+
+    On ne crée surtout pas un contour fermé par pièce : deux pièces voisines partagent leur frontière, le
+    laser la découperait deux fois."""
+    from laser_studio.vector_layers import _merge_path_objects
+
     objects = []
-    for piece in result.pieces:
-        points = piece.placed() if hasattr(piece, "placed") else piece.cut
-        tag = f"puzzle:{piece.id[0]}_{piece.id[1]}" if hasattr(piece, "id") else "puzzle"
-        obj = _path_object(points, True, tag, layer_id, offset_x_mm, offset_y_mm)
-        if obj is not None:
-            objects.append(obj)
+    outline = _path_object(result.outline, True, "puzzle:outline", layer_id, offset_x_mm, offset_y_mm) \
+        if result.outline else None
+    if outline is not None:
+        objects.append(outline)
+    edges = [e for e in (_path_object(points, False, "puzzle:edge", layer_id, offset_x_mm, offset_y_mm)
+                         for points in result.edges) if e is not None]
+    if edges:
+        merged = _merge_path_objects(edges, source_tag="puzzle:edges")
+        objects.append(merged if merged is not None else edges[0])
     return objects

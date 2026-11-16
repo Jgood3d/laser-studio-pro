@@ -323,9 +323,9 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 
 | Fichier | Rôle |
 |---------|------|
-| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée ; validation ; **kerf** (rétrécit chaque pièce de kerf/2) |
+| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée ; validation ; `PuzzleResult` : `pieces` (aperçu seulement), **`outline`** (contour extérieur fermé, agrandi de kerf/2) et **`edges`** (arêtes internes, chacune une seule fois, tracés ouverts) |
 | **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme, calque de découpe) |
-| **vector/importers.puzzle_to_objects** | Pièces → `SvgPathObject` |
+| **vector/importers.puzzle_to_objects** | `outline` + `edges` → 2 `SvgPathObject` (contour fermé ; arêtes internes regroupées en un objet) |
 | **vector_editing_mixin.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
 | **main_window._build_vector_editor_tab** | Bouton toolbar « 🧩 Puzzle » |
 | **i18n/translations.py** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
@@ -342,6 +342,8 @@ Bouton éditeur / menu Outils
 ```
 
 Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de découpe, undo canevas).
+**Une arête = un passage de laser** : deux pièces voisines partagent leur frontière, donc on ne génère jamais un contour fermé par pièce pour la découpe (chaque arête interne serait coupée deux fois). `PuzzleResult.pieces` ne sert qu'à l'aperçu. Le kerf n'est pas compensé sur les arêtes internes (le trait enlève kerf/2 à chaque pièce voisine) ; seul le contour extérieur est agrandi de kerf/2.
+**Tracés ouverts** : `build_vector_layers_gcode` ne referme plus un tracé ouvert (sinon aller-retour = double passage) ; seuls les tracés quasi fermés (`CLOSE_GAP_MM`) le sont. Test : `tests/test_puzzle_cut_once.py`.
 `PuzzleError` → message traduit `puzzle.err.<code>`.
 
 ## 8.1 Stencil Studio → calques multiples (lsp_bridge)

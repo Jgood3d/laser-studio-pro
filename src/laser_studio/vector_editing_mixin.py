@@ -712,7 +712,7 @@ class VectorEditingMixin:
             self,
             tr("puzzle.title"),
             tr("puzzle.done").format(
-                nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(objects),
+                nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces),
             ),
         )
 
