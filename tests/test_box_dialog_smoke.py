@@ -199,7 +199,8 @@ class DialogSmokeTests(unittest.TestCase):
         """Écran peu haut : valider doit rester accessible (boutons et résumé hors de la zone qui défile)."""
         d = self.make()
         self.assertIsInstance(d.scroll, bd.QScrollArea)
-        src = open(bd.__file__, encoding="utf-8").read()
+        with open(bd.__file__, encoding="utf-8") as f:
+            src = f.read()
         self.assertIn("outer.addWidget(self.lbl_summary)", src)
         self.assertIn("outer.addWidget(self.buttons)", src)
         self.assertIn("self.scroll.setWidgetResizable(True)", src)
