@@ -100,7 +100,9 @@ class VectorEditingMixin:
         if layer:
             self.set_engrave_settings(layer.speed, layer.power)
 
-    def insert_text_object(self):
+    def insert_text_object(self, x_mm=None, y_mm=None):
+        """Insère un texte. Si x_mm/y_mm sont donnés (clic droit sur le canevas),
+        la boîte de dialogue est pré-remplie avec cette position."""
         if not self.layer_manager.layers:
             QMessageBox.warning(
     self,
@@ -109,6 +111,9 @@ class VectorEditingMixin:
 )
             return
         dialog = TextInsertDialog(self.layer_manager, parent=self)
+        if x_mm is not None and y_mm is not None:
+            dialog.spin_x.setValue(x_mm)
+            dialog.spin_y.setValue(y_mm)
         if dialog.exec():
             obj = dialog.get_object()
             self.vector_canvas.push_undo_snapshot()

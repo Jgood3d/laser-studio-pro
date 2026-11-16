@@ -4484,6 +4484,36 @@ TRANSLATIONS = {
         "es": "Desagrupar",
     },
 
+    "vector.ctx_add_shape": {
+        "fr": "Ajouter une forme",
+        "en": "Add shape",
+        "de": "Form hinzufügen",
+        "es": "Añadir forma",
+    },
+    "vector.ctx_text": {
+        "fr": "Texte",
+        "en": "Text",
+        "de": "Text",
+        "es": "Texto",
+    },
+    "vector.ctx_line": {
+        "fr": "Ligne",
+        "en": "Line",
+        "de": "Linie",
+        "es": "Línea",
+    },
+    "vector.ctx_square": {
+        "fr": "Carré",
+        "en": "Square",
+        "de": "Quadrat",
+        "es": "Cuadrado",
+    },
+    "vector.ctx_circle": {
+        "fr": "Cercle",
+        "en": "Circle",
+        "de": "Kreis",
+        "es": "Círculo",
+    },
     "vector.explode_path": {
         "fr": "Exploser en segments",
         "en": "Explode into segments",
