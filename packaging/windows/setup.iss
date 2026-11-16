@@ -1,6 +1,12 @@
-﻿[Setup]
+﻿; Version : passée par la compilation automatique (iscc /DAppVersion=2.6.0),
+; sinon la valeur ci-dessous.
+#ifndef AppVersion
+  #define AppVersion "2026.10"
+#endif
+
+[Setup]
 AppName=Laser Studio Pro
-AppVersion=2026.10
+AppVersion={#AppVersion}
 ; Propose par défaut le dossier dans Program Files, mais l'utilisateur pourra le changer
 DefaultDirName={autopf}\LaserStudioPro
 ; S'assure que la page de sélection du dossier s'affiche bien pendant l'installation

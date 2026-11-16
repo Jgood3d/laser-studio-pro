@@ -15,7 +15,7 @@ système :
 | Système | Script | Résultat |
 |---|---|---|
 | Windows | `packaging\windows\build.bat`, puis `packaging\windows\setup.iss` (Inno Setup) pour l'installateur | `dist\LaserStudioPro\` |
-| Linux | `packaging/linux/build-linux.sh` (`--onedir` pour un dossier) | `dist/LaserStudioPro` |
+| Linux | `packaging/linux/build-linux.sh` (`--onedir` pour un dossier), puis `packaging/linux/build-appimage.sh` pour l'AppImage | `dist/LaserStudioPro`, `dist/LaserStudioPro-VERSION-x86_64.AppImage` |
 | Windows et Linux | `packaging/pyinstaller/LaserStudioPro.spec` (réglages communs, utilisés par les deux scripts) | |
 | macOS | `packaging/macos/build_macos.sh` (voir `packaging/macos/README.md`) | `dist/LaserStudioPro.app` |
 
@@ -25,6 +25,40 @@ dans `packaging/pyinstaller/LaserStudioPro.spec` : fichiers embarqués
 (`src/laser_studio/resources/`, Stencil Studio), modules déclarés, et filtre
 des fichiers inutiles (`packaging/pyinstaller/bundle_filter.py`, utilisé
 aussi par le `.spec` macOS). Voir [Taille de l'exécutable](#taille-de-lexécutable).
+
+---
+
+## Publier une version (GitHub Actions)
+
+Les binaires des versions sont compilés par GitHub, pas à la main :
+
+- `.github/workflows/tests.yml` : tests sur chaque MR et chaque push vers
+  `Dev` et `main` ;
+- `.github/workflows/release.yml` : sur un tag `vX.Y.Z`, tests, puis
+  compilation Linux (AppImage), Windows (installeur Inno Setup) et macOS
+  (`.dmg` arm64 et x86_64), et **release en brouillon** avec ces fichiers.
+  Lancé à la main (onglet Actions), il compile sans publier : les fichiers
+  sont dans les artefacts du run ;
+- `.github/workflows/macos-build.yml` : compilation macOS de contrôle sur
+  les MR vers `main`.
+
+Pour sortir la version X.Y.Z :
+
+1. fusionner `Dev` dans `main` ;
+2. sur `main`, mettre la version partout (les tests vérifient qu'elles
+   concordent) : `APP_VERSION` dans `src/laser_studio/core/version.py`,
+   section `## [X.Y.Z] — date` en tête de `CHANGELOG.md`,
+   `## Nouveautés de la version X.Y.Z` dans `README.md`, et
+   `RELEASE_NOTES_X.Y.Z.md` (texte de la release) ;
+3. poser et pousser le tag : `git tag -a vX.Y.Z -m "Version X.Y.Z"` puis
+   `git push origin vX.Y.Z` (le tag doit être égal à `APP_VERSION`) ;
+4. attendre la fin du workflow Release, relire le brouillon dans
+   *Releases*, puis cliquer sur **Publish release**.
+
+L'AppImage est compilée sur Ubuntu 22.04 : elle tourne sur les
+distributions dont la glibc est au moins 2.35 (Ubuntu 22.04+, Debian 12,
+Fedora 36+). L'utilisateur doit être dans le groupe `dialout` pour accéder
+au port série.
 
 ---
 
@@ -116,6 +150,16 @@ LSP_ONEFILE=1 pyinstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec 
 ### 5. Résultat
 L'exécutable se trouve dans le dossier `dist/` sous le nom `LaserStudioPro`
 (à rendre exécutable si besoin : `chmod +x dist/LaserStudioPro`).
+
+### 6. AppImage (recommandé pour distribuer)
+```bash
+packaging/linux/build-linux.sh --onedir
+packaging/linux/build-appimage.sh            # version : APP_VERSION
+```
+Résultat : `dist/LaserStudioPro-VERSION-x86_64.AppImage`, un seul fichier,
+qui démarre sans décompression dans `/tmp`. Le script télécharge
+`appimagetool` dans `build/` (ou utilise celui indiqué par la variable
+`APPIMAGETOOL`).
 
 ---
 

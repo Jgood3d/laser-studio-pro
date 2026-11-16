@@ -9,10 +9,15 @@ if not exist main.py (
     exit /b 1
 )
 
+rem  --ci : compilation automatique (GitHub Actions) : Python deja installe, pas de pause finale.
 echo ==========================================
 echo Activation de l'environnement virtuel...
 echo ==========================================
-call venv\Scripts\activate.bat
+if exist venv\Scripts\activate.bat (
+    call venv\Scripts\activate.bat
+) else (
+    echo Pas de venv : Python du systeme.
+)
 
 echo ==========================================
 echo Nettoyage des anciens dossiers...
@@ -37,4 +42,4 @@ copy src\laser_studio\resources\laser_studio_pro.ico dist\LaserStudioPro\
 echo ==========================================
 echo Termine ! Le dossier dist\LaserStudioPro est pret.
 echo ==========================================
-pause
+if /i not "%~1"=="--ci" pause
