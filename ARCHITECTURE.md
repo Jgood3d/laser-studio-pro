@@ -189,7 +189,8 @@ laser-studio-pro/
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
-| **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
+| **laser_control_mixin.py** | Connexion au graveur côté interface : boîtes de dialogue, panneau machine, aperçu 2D, abonnés aux signaux de `MachineConnection` | `controllers/machine_connection` |
+| **controllers/machine_connection.py** | `MachineConnection` (`QObject`, sans boîte de dialogue) : port série, threads (sondage de l'état, envoi du job, commandes, reconnexion après coupure), état « référencé » (`homed`), dernier job envoyé, `read_settings()` ($$). Signaux : `connection_changed`, `status_updated`, `log`, `position_lost`, `stream_progress` / `stream_lines_sent` / `stream_lines_acked`, `reconnecting` / `reconnected` | `grbl.connection`, `workers` |
 | **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
 
 ### 3.3 Vectoriel (cœur édition)
