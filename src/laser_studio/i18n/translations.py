@@ -4609,6 +4609,48 @@ TRANSLATIONS = {
         "de": "Aktiv",
         "es": "Activo",
     },
+    "layers.col.overscan": {
+        "fr": "Surbalayage",
+        "en": "Overscan",
+        "de": "Overscan",
+        "es": "Overscan",
+    },
+    "layers.col.laser": {
+        "fr": "Laser",
+        "en": "Laser",
+        "de": "Laser",
+        "es": "Láser",
+    },
+    "layers.overscan_tip": {
+        "fr": "Surbalayage de ce calque (gravure remplie). Actif seulement si le surbalayage est activé dans Configuration GRBL, qui en donne le mode et la distance.",
+        "en": "Overscan for this layer (fill engraving). Only applies if overscan is enabled in GRBL Configuration, which sets its mode and distance.",
+        "de": "Overscan für diese Ebene (gefüllte Gravur). Gilt nur, wenn Overscan in der GRBL-Konfiguration aktiviert ist; dort werden Modus und Abstand festgelegt.",
+        "es": "Overscan de esta capa (grabado relleno). Solo se aplica si el overscan está activado en la Configuración GRBL, que fija su modo y distancia.",
+    },
+    "layers.laser_auto": {
+        "fr": "Auto (global)",
+        "en": "Auto (global)",
+        "de": "Auto (global)",
+        "es": "Auto (global)",
+    },
+    "layers.laser_m4": {
+        "fr": "M4 dynamique",
+        "en": "M4 dynamic",
+        "de": "M4 dynamisch",
+        "es": "M4 dinámico",
+    },
+    "layers.laser_m3": {
+        "fr": "M3 fixe",
+        "en": "M3 constant",
+        "de": "M3 konstant",
+        "es": "M3 constante",
+    },
+    "layers.laser_tip": {
+        "fr": "Commande laser de ce calque : Auto suit la Configuration GRBL ; M4 ajuste la puissance à la vitesse réelle (dynamique) ; M3 garde une puissance constante.",
+        "en": "Laser command for this layer: Auto follows GRBL Configuration; M4 scales power with the actual speed (dynamic); M3 keeps constant power.",
+        "de": "Laserbefehl dieser Ebene: Auto folgt der GRBL-Konfiguration; M4 passt die Leistung der tatsächlichen Geschwindigkeit an (dynamisch); M3 hält die Leistung konstant.",
+        "es": "Comando láser de esta capa: Auto sigue la Configuración GRBL; M4 ajusta la potencia a la velocidad real (dinámico); M3 mantiene la potencia constante.",
+    },
     "layers.mode.cut": {
         "fr": "Découpe",
         "en": "Cut",

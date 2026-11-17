@@ -9,7 +9,7 @@ from svg.path import parse_path
 from laser_studio.vector_layers import (
     extract_vector_layer_data
 )
-from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
+from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
 from laser_studio.workers import MATRIX_CUT, MATRIX_ENGRAVE
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
@@ -268,7 +268,7 @@ class GcodeGenerationMixin:
             speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération (AdvancedGCodeWorker) :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
-            if self.grbl.overscan_enabled:
+            if self.image_overscan_enabled:
                 if self._overscan_mode_value() == "Pourcentage (%)":
                     overscan = w_mm * self.grbl.overscan_pct / 100.0
                 else:
@@ -411,6 +411,9 @@ class GcodeGenerationMixin:
             'power_cut': self.cut_power,
             'passes_cut': self.cut_passes,
             'laser_cmd': self.grbl.laser_cmd,
+            # Gravure d'image : commande et surbalayage de son calque de gravure (voir workers.py).
+            'image_laser_cmd': self.image_laser_cmd,
+            'image_overscan': self.image_overscan_enabled,
             'algo': self.combo_algo.currentText(),
             's_max': self.grbl.smax,
             'homing': self.grbl.homing_enabled,
@@ -474,6 +477,18 @@ class GcodeGenerationMixin:
         layer = self.layer_manager.engrave_layer()
         power = layer.power if layer else BASE_LAYER_DEFAULTS["engrave"][3]
         return _clamp(power, ENGRAVE_POWER_RANGE)
+
+    @property
+    def image_overscan_enabled(self):
+        """True si le surbalayage s'applique à la gravure d'une image : activé dans Configuration GRBL
+        ET pour le calque de gravure."""
+        return layer_overscan_enabled(self.layer_manager.engrave_layer(), self.grbl.overscan_enabled)
+
+    @property
+    def image_laser_cmd(self):
+        """Commande laser ("M4" ou "M3") de la gravure d'une image : celle du calque de gravure, sinon
+        celle de Configuration GRBL."""
+        return layer_laser_cmd(self.layer_manager.engrave_layer(), self.grbl.laser_cmd)
 
     def set_engrave_settings(self, speed, power):
         """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
@@ -578,7 +593,7 @@ class GcodeGenerationMixin:
 
         params = self._build_gcode_params()
 
-        if params['enable_overscan'] and self.processed_array is not None:
+        if params['image_overscan'] and self.processed_array is not None:
             if params['overscan_mode'] == "Pourcentage (%)":
                 overscan_check = params['width_mm'] * (params['overscan_pct'] / 100.0)
             else:
@@ -613,7 +628,7 @@ class GcodeGenerationMixin:
 
             for layer_id, data in vector_layers_data.items():
                 layer = data["layer"]
-                if layer["mode"] != MODE_FILL or not data["polygons"]:
+                if layer["mode"] != MODE_FILL or not data["polygons"] or not layer_overscan_enabled(layer, True):
                     continue
                 min_x = min(p[0] for poly in data["polygons"] for p in poly)
                 base_x = params['offset_x'] - (params['width_mm'] / 2.0) if params['origin_pos'] == ORIGIN_CENTER else params['offset_x']
