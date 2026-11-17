@@ -2397,6 +2397,48 @@ TRANSLATIONS = {
         "de": "Vorhandenen G-Code importieren (.gcode/.nc/.txt)",
         "es": "Importar G-Code existente (.gcode/.nc/.txt)",
     },
+    "preview.material_label": {
+        "fr": "Matière :",
+        "en": "Material:",
+        "de": "Material:",
+        "es": "Material:",
+    },
+    "preview.material_tip": {
+        "fr": "Simule le rendu de la gravure sur différentes matières dans l'aperçu 2D (tons seulement, pas une simulation physique).",
+        "en": "Simulates how the engraving looks on different materials in the 2D preview (tones only, not a physical simulation).",
+        "de": "Simuliert die Gravur auf verschiedenen Materialien in der 2D-Vorschau (nur Töne, keine physikalische Simulation).",
+        "es": "Simula el aspecto del grabado sobre distintos materiales en la vista 2D (solo tonos, no es una simulación física).",
+    },
+    "preview.material.light": {
+        "fr": "Clair (papier / acrylique)",
+        "en": "Light (paper / acrylic)",
+        "de": "Hell (Papier / Acryl)",
+        "es": "Claro (papel / acrílico)",
+    },
+    "preview.material.wood": {
+        "fr": "Bois",
+        "en": "Wood",
+        "de": "Holz",
+        "es": "Madera",
+    },
+    "preview.material.bamboo": {
+        "fr": "Bambou",
+        "en": "Bamboo",
+        "de": "Bambus",
+        "es": "Bambú",
+    },
+    "preview.material.slate": {
+        "fr": "Ardoise",
+        "en": "Slate",
+        "de": "Schiefer",
+        "es": "Pizarra",
+    },
+    "preview.material.acrylic_black": {
+        "fr": "Acrylique noir",
+        "en": "Black acrylic",
+        "de": "Schwarzes Acryl",
+        "es": "Acrílico negro",
+    },
     "preview.flip": {
         "fr": "Inverser l'aperçu", "en": "Flip Preview",
         "de": "Vorschau spiegeln", "es": "Invertir vista previa",
