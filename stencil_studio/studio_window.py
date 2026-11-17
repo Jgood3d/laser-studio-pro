@@ -34,7 +34,7 @@ def main():
             app.quit()
 
     win = Win(None)
-    win.show()
+    win.showMaximized()  # ouverture en plein écran (fenêtre maximisée)
     return app.exec()
 
 

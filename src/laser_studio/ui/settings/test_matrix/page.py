@@ -85,6 +85,11 @@ class TestMatrixPage(QWidget):
         group = self._image_group
         return group.isEnabled() and group.isChecked()
 
+    def image_test_invert(self):
+        """Vrai si le test image doit être gravé en négatif (indépendant
+        de l'onglet « Graver une image »)."""
+        return self._image_group.invert_enabled()
+
     def tile_settings(self):
         """Zone d'image de chaque case : (largeur réelle de l'image en mm,
         largeur et hauteur de la zone en mm, centre choisi dans l'aperçu)."""
