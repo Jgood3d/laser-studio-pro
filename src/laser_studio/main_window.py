@@ -849,6 +849,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.chk_negative_raster_preview = tab.negative_check
         self.chk_hide_rapid_moves = tab.hide_rapid_check
         self.chk_optimize_path = tab.optimize_path_check
+        self.combo_preview_material = tab.material_combo
         self.plot_widget = tab.plot_widget
         self.gcode_position_marker = tab.position_marker
         self.info_text_item = tab.info_text_item

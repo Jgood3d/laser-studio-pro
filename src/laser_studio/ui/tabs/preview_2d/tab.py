@@ -1,8 +1,8 @@
 """Onglet « Visualisation 2D G-Code »."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtWidgets import QCheckBox, QSplitter, QVBoxLayout, QWidget
+from PyQt6.QtCore import Qt, QSettings, pyqtSignal
+from PyQt6.QtWidgets import QCheckBox, QComboBox, QLabel, QSplitter, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
@@ -10,6 +10,8 @@ from laser_studio.ui.widgets import FloatingToolBar
 
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
 SIDE_PANEL_LEFT_MARGIN = 6
+# Presets matière de l'aperçu (clés partagées avec gcode_generation_mixin).
+_PREVIEW_MATERIAL_KEYS = ("light", "wood", "bamboo", "slate", "acrylic_black")
 
 
 class Preview2DTab(QWidget):
@@ -62,6 +64,9 @@ class Preview2DTab(QWidget):
         # Options de l'aperçu : barre flottante sous le titre du graphique.
         self.options_toolbar = FloatingToolBar(
             [
+                self.material_label,
+                self.material_combo,
+                None,
                 self.flip_check,
                 self.negative_check,
                 self.hide_rapid_check,
@@ -88,6 +93,17 @@ class Preview2DTab(QWidget):
     def _create_options(self):
         """Options de l'aperçu, affichées dans la barre flottante
         (options_toolbar)."""
+        self.material_label = QLabel(tr("preview.material_label"))
+        self.material_combo = QComboBox()
+        self.material_combo.setToolTip(tr("preview.material_tip"))
+        for key in _PREVIEW_MATERIAL_KEYS:
+            self.material_combo.addItem(tr(f"preview.material.{key}"), key)
+        # Dernier choix mémorisé (sinon fond clair, comme avant).
+        saved = QSettings().value("preview_material", "light")
+        idx = self.material_combo.findData(saved)
+        self.material_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        self.material_combo.currentIndexChanged.connect(self._on_material_changed)
+
         self.flip_check = self._option(
             "preview.flip", "preview.flip_tip", checked=False
         )
@@ -106,6 +122,12 @@ class Preview2DTab(QWidget):
         self.optimize_path_check = self._option(
             "ui.optimize_path", "ui.optimize_path_tip"
         )
+
+    def _on_material_changed(self, *_args):
+        """Mémorise le preset et redessine l'aperçu."""
+        key = self.material_combo.currentData() or "light"
+        QSettings().setValue("preview_material", key)
+        self.display_options_changed.emit()
 
     @staticmethod
     def _option(key, tip_key, checked=True):

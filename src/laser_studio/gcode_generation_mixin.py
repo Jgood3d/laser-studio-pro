@@ -18,8 +18,39 @@ from laser_studio.i18n import tr
 
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job (aperçu 2D)
 
-# Couleur du "matériau" simulé sous la gravure dans l'aperçu 2D normal (non négatif).
-PREVIEW_MATERIAL_RGB = (225, 225, 225)
+# Presets d'aperçu 2D : fond matière + couleur de la zone gravée.
+# lightens=False : plus de puissance = plus sombre (bois, papier).
+# lightens=True  : plus de puissance = plus clair (ardoise, acrylique noir).
+PREVIEW_MATERIALS = {
+    "light": {
+        "material_rgb": (225, 225, 225),
+        "burn_rgb": (25, 25, 25),
+        "lightens": False,
+    },
+    "wood": {
+        "material_rgb": (194, 155, 105),
+        "burn_rgb": (55, 35, 20),
+        "lightens": False,
+    },
+    "bamboo": {
+        "material_rgb": (210, 180, 130),
+        "burn_rgb": (70, 45, 25),
+        "lightens": False,
+    },
+    "slate": {
+        "material_rgb": (40, 40, 45),
+        "burn_rgb": (230, 220, 200),
+        "lightens": True,
+    },
+    "acrylic_black": {
+        "material_rgb": (25, 25, 28),
+        "burn_rgb": (245, 245, 245),
+        "lightens": True,
+    },
+}
+# Rétrocompat : fond clair par défaut (comme avant).
+PREVIEW_MATERIAL_RGB = PREVIEW_MATERIALS["light"]["material_rgb"]
+PREVIEW_MATERIAL_ORDER = ("light", "wood", "bamboo", "slate", "acrylic_black")
 
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
@@ -81,6 +112,20 @@ class GcodeGenerationMixin:
                     tr("gcode.export_error_title"),
                     tr("gcode.export_error").format(error=e)
                 )
+
+    def _preview_material_preset(self):
+        """Preset matière de l'aperçu 2D (fond + couleur de brûlure).
+
+        Lu depuis le combo de l'onglet Visualisation 2D ; repli sur « light »
+        si absent ou clé inconnue.
+        """
+        key = "light"
+        combo = getattr(self, "combo_preview_material", None)
+        if combo is not None:
+            data = combo.currentData()
+            if data:
+                key = data
+        return PREVIEW_MATERIALS.get(key) or PREVIEW_MATERIALS["light"]
 
     def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
@@ -173,59 +218,26 @@ class GcodeGenerationMixin:
             if gamma != 1.0:
                 power_arr = np.power(power_arr, gamma, dtype=np.float32)
 
+            # Preset matière (clair / bois / ardoise…) : le couple
+            # fond + couleur de brûlure fixe le sens (assombrit ou éclaircit).
+            # La case « négatif » inverse encore les zones gravées / non gravées.
+            preset = self._preview_material_preset()
             negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
                                      and self.chk_negative_raster_preview.isChecked())
             if negative_preview:
-                power_arr = 1.0 - power_arr  # négatif : plus de puissance = plus clair
+                power_arr = 1.0 - power_arr
 
-            # Les zones sans puissance doivent rester transparentes.
-            # Sinon l'ImageItem crée un grand rectangle blanc autour de la
-            # gravure importée, ce qui masque le fond et les autres tracés.
-            #
-            # La puissance sert à la fois :
-            # - à déterminer l'intensité de la couleur ;
-            # - à déterminer l'opacité du pixel.
-            #
-            # Ainsi, seuls les déplacements réellement gravés sont visibles.
-
-            if negative_preview:
-                # En mode négatif, on conserve volontairement un rendu
-                # opaque pour que l'inversion reste lisible.
-                if tint_color:
-                    tint_rgb = pg.mkColor(tint_color).getRgb()[:3]
-                    white = np.array([255, 255, 255], dtype=np.float32)
-                    tint = np.array(tint_rgb, dtype=np.float32)
-                    blend = power_arr[..., None]
-                    rgb = white + blend * (tint - white)
-                    arr = np.clip(rgb, 0, 255).astype(np.uint8)
-                else:
-                    gray = 255 * (1.0 - power_arr)
-                    arr = np.clip(gray, 0, 255).astype(np.uint8)
-
-                pg_array = (
-                    arr.transpose(1, 0, 2)
-                    if tint_color
-                    else arr.T
-                )
-
+            material = np.array(preset["material_rgb"], dtype=np.float32)
+            if tint_color:
+                burn = np.array(pg.mkColor(tint_color).getRgb()[:3], dtype=np.float32)
             else:
-                # Rendu "normal" : la gravure est simulée sur un matériau
-                # clair (fond opaque gris clair, brûlure noire ou teintée).
-                # Avant, le rendu était transparent avec une gravure NOIRE
-                # posée sur le fond sombre du graphique : illisible. Le
-                # rectangle opaque reste sous les tracés (zValue -50), donc
-                # les découpes / contours restent visibles par-dessus.
-                material = np.array(PREVIEW_MATERIAL_RGB, dtype=np.float32)
-                if tint_color:
-                    burn = np.array(pg.mkColor(tint_color).getRgb()[:3], dtype=np.float32)
-                else:
-                    burn = np.zeros(3, dtype=np.float32)
-                blend = power_arr[..., None]
-                rgb = material + blend * (burn - material)
-                arr = np.clip(rgb, 0, 255).astype(np.uint8)
-                pg_array = arr.transpose(1, 0, 2)
+                burn = np.array(preset["burn_rgb"], dtype=np.float32)
+            blend = power_arr[..., None]
+            rgb = material + blend * (burn - material)
+            arr = np.clip(rgb, 0, 255).astype(np.uint8)
+            pg_array = arr.transpose(1, 0, 2)
             if getattr(self, "chk_flip_raster_preview", None) and self.chk_flip_raster_preview.isChecked():
-                pg_array = pg_array[:, ::-1] if not tint_color else pg_array[:, ::-1, :]
+                pg_array = pg_array[:, ::-1]
 
             image_item = pg.ImageItem(pg_array)
 
@@ -1124,17 +1136,11 @@ class GcodeGenerationMixin:
         )
         if g1_travel_x:
             legend_rows += f'<div><span style="color:#888888">■</span> {tr("gen.legend_g1_travel").format(n=len(g1_travel_x)//3)}</div>'
-        # Pastille de légende = couleur réellement affichée. La gravure image
-        # n'est jamais teintée (tint=None) : elle est dessinée en noir sur le
-        # matériau clair, ou en blanc sur noir si l'aperçu négatif est coché.
-        # La couleur interne de la phase (orange) ne sert qu'au regroupement.
-        negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
-                                and self.chk_negative_raster_preview.isChecked())
-        if negative_preview:
-            raster_swatch = '<span style="color:#ffffff; background-color:#000000">■</span>'
-        else:
-            material_hex = "#%02x%02x%02x" % PREVIEW_MATERIAL_RGB
-            raster_swatch = f'<span style="color:#000000; background-color:{material_hex}">■</span>'
+        # Pastille de légende = couleurs du preset matière (fond + brûlure).
+        preset = self._preview_material_preset()
+        mat_hex = "#%02x%02x%02x" % tuple(preset["material_rgb"])
+        burn_hex = "#%02x%02x%02x" % tuple(preset["burn_rgb"])
+        raster_swatch = f'<span style="color:{burn_hex}; background-color:{mat_hex}">■</span>'
 
         for label, color in seen_order:
             xs, ys = g1_segments[(label, color)]
