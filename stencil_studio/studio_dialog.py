@@ -110,6 +110,11 @@ LSP_THEME_RETRO80 = {
     "bg": "#12061f", "panel": "#1a0a2e", "panel2": "#2a1450", "line": "#7b2cbf",
     "fg": "#f0e6ff", "mut": "#b8a0d0", "acc": "#ff2a6d", "acc2": "#05d9e8", "onacc": "#1a0a2e",
 }
+# Jarvis — HUD cyan
+LSP_THEME_JARVIS = {
+    "bg": "#060d12", "panel": "#0a1218", "panel2": "#12202a", "line": "#1e4a5c",
+    "fg": "#d4eef5", "mut": "#6a9aab", "acc": "#00c8e0", "acc2": "#5de8f5", "onacc": "#061018",
+}
 # Alias rétrocompat : l'ancien LSP_THEME était toujours sombre.
 LSP_THEME = LSP_THEME_DARK
 
@@ -126,6 +131,9 @@ _STUDIO_THEMES = {
     "retro": LSP_THEME_RETRO80,
     "synthwave": LSP_THEME_RETRO80,
     "80s": LSP_THEME_RETRO80,
+    "jarvis": LSP_THEME_JARVIS,
+    "hud": LSP_THEME_JARVIS,
+    "ironman": LSP_THEME_JARVIS,
 }
 
 
@@ -175,7 +183,10 @@ def theme_for_lsp(theme_name=None):
         except Exception:
             theme_name = "dark"
     try:
-        from app_theme import THEMES, normalize_theme_name
+        try:
+            from laser_studio.ui.app.theme import THEMES, normalize_theme_name
+        except ImportError:
+            from app_theme import THEMES, normalize_theme_name
         key = normalize_theme_name(theme_name)
         c = THEMES[key]
         return {
