@@ -30,6 +30,9 @@ from laser_studio.image.filters import sharpen_image
 from laser_studio.image.matrix import tile_raster_gcode
 from laser_studio.i18n import tr
 
+# Mode de la matrice de test (params['mode']) : codes indépendants de la langue.
+MATRIX_ENGRAVE, MATRIX_CUT = "engrave", "cut"
+
 
 def _round_half_up(value):
     """Arrondi arithmétique standard (.5 arrondit toujours vers le haut),
@@ -960,7 +963,7 @@ class TestMatrixWorker(QThread):
         self.params = params
 
     def run(self):
-        mode = self.params.get('mode', 'Gravure')
+        mode = self.params.get('mode', MATRIX_ENGRAVE)
         gcode = [f"; --- MATRICE DE TEST LASER ({mode.upper()}) ---"]
         
         if self.params.get('homing', False):
@@ -982,7 +985,7 @@ class TestMatrixWorker(QThread):
         tile = self.params.get('image_tile')
 
         enable_overscan = self.params.get('enable_overscan', False)
-        if enable_overscan and mode == "Gravure":
+        if enable_overscan and mode == MATRIX_ENGRAVE:
             if self.params.get('overscan_mode') == "Pourcentage (%)":
                 pct = self.params.get('overscan_pct', 5.0)
                 overscan_dist = cell_w * (pct / 100.0)
@@ -1007,7 +1010,7 @@ class TestMatrixWorker(QThread):
 
         text_p_val = int((40.0 / 100.0) * s_max)
 
-        if mode == "Gravure":
+        if mode == MATRIX_ENGRAVE:
             min_p, max_p, steps_p = self.params['min_power'], self.params['max_power'], self.params['steps_power']
             lmm = self.params.get('lines_mm', 5.0)
             powers = np.linspace(min_p, max_p, steps_p)

@@ -91,28 +91,14 @@ class WidgetPartsTests(unittest.TestCase):
         self.assertFalse(commands.send_button.isEnabled())
 
     def test_machine_params_profile_round_trip(self):
-        page = self.make(MachineParamsPage)
-        page.apply_profile_values(
-            {
-                "w": 420.0,
-                "h": 310.0,
-                "focal": 0.08,
-                "max_speed": 7000.0,
-                "accel": 800.0,
-            }
-        )
-        self.assertEqual(
-            page.profile_values(),
-            {
-                "w": 420.0,
-                "h": 310.0,
-                "focal": 0.08,
-                "max_speed": 7000.0,
-                "accel": 800.0,
-            },
-        )
-        page.apply_profile_values({})  # ancien profil : défauts
-        values = page.profile_values()
+        """Profil machine : porté par le modèle MachineConfig, auquel la page est liée."""
+        from laser_studio.models.machine import MachineConfig
+        machine = MachineConfig()
+        profile = {"w": 420.0, "h": 310.0, "focal": 0.08, "max_speed": 7000.0, "accel": 800.0}
+        machine.apply_profile(profile)
+        self.assertEqual(machine.to_profile(), profile)
+        machine.apply_profile({})  # ancien profil : défauts
+        values = machine.to_profile()
         self.assertEqual(
             (values["w"], values["max_speed"], values["accel"]),
             (420.0, 6000.0, 500.0),

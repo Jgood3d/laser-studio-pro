@@ -20,7 +20,7 @@ class Layer:
         self.id, self.name, self.mode, self.color = id, name, mode, color
 
 
-FILL, CUT, MARK = "Gravure Remplie", "Découpe", "Marquage (Contour)"
+FILL, CUT, MARK = "engrave_fill", "cut", "mark"   # codes des modes (models/layer_modes.py)
 LAYERS = [Layer("c", "Coupe", CUT), Layer("e1", "Gravure", FILL), Layer("m", "Marque", MARK),
           Layer("e2", "Photo bois", FILL, "#00ff00")]
 

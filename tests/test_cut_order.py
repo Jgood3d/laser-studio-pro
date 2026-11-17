@@ -77,7 +77,7 @@ class OrderTests(unittest.TestCase):
 
     def test_layers_engraving_first_then_cutting_keeping_relative_order(self):
         mk = lambda name, mode: (name, {"layer": {"mode": mode}, "polygons": []})
-        items = [mk("cut1", "Découpe"), mk("fill", "Gravure Remplie"), mk("cut2", "Découpe"), mk("mark", "Marquage (Contour)")]
+        items = [mk("cut1", "cut"), mk("fill", "engrave_fill"), mk("cut2", "cut"), mk("mark", "mark")]
         self.assertEqual([i[0] for i in vo.order_layers_for_cutting(items)], ["fill", "mark", "cut1", "cut2"])
         self.assertEqual(vo.order_layers_for_cutting([]), [])
 
@@ -94,26 +94,26 @@ class GcodeOrderTests(unittest.TestCase):
         starts, take = [], False
         for line in gcode:
             if line.startswith("; --- CALQUE"):
-                take = "[Découpe]" in line
+                take = "[cut]" in line
             if take and line.startswith("G0 X"):
                 starts.append(line)
         return starts
 
     def test_holes_are_cut_before_the_outline_in_the_gcode(self):
-        layers = {"L": {"layer": self.layer("Découpe", "Découpe"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10)]}}
+        layers = {"L": {"layer": self.layer("Découpe", "cut"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10)]}}
         off, on = self.cut_starts(self.build(layers, False)), self.cut_starts(self.build(layers, True))
         self.assertEqual(len(off), 2)
         self.assertEqual(on, [off[1], off[0]])
 
     def test_engraving_runs_before_cutting_even_if_listed_after(self):
-        layers = {"C": {"layer": self.layer("Contour", "Découpe"), "polygons": [rect(0, 0, 50, 50)]},
-                  "G": {"layer": self.layer("Détails", "Marquage (Contour)"), "polygons": [rect(10, 10, 20, 20)]}}
+        layers = {"C": {"layer": self.layer("Contour", "cut"), "polygons": [rect(0, 0, 50, 50)]},
+                  "G": {"layer": self.layer("Détails", "mark"), "polygons": [rect(10, 10, 20, 20)]}}
         names = lambda g: [re.search(r"'([^']+)'", l).group(1) for l in g if l.startswith("; --- CALQUE")]
         self.assertEqual(names(self.build(layers, False)), ["Contour", "Détails"])
         self.assertEqual(names(self.build(layers, True)), ["Détails", "Contour"])
 
     def test_disabled_option_keeps_the_historic_gcode_and_all_geometry(self):
-        layers = {"L": {"layer": self.layer("Découpe", "Découpe"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10), rect(200, 0, 260, 60), rect(210, 10, 250, 50)]}}
+        layers = {"L": {"layer": self.layer("Découpe", "cut"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10), rect(200, 0, 260, 60), rect(210, 10, 250, 50)]}}
         old = build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000)
         off, on = self.build(layers, False), self.build(layers, True)
         self.assertEqual(old[0], off)
@@ -137,8 +137,8 @@ class WiringTests(unittest.TestCase):
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
         pj = project_state_source()
-        self.assertIn('"safe_cut_order": self.chk_safe_cut_order.isChecked()', pj)
-        self.assertIn('self.chk_safe_cut_order.setChecked(data.get("safe_cut_order", True))', pj)
+        self.assertIn('"safe_cut_order": self.grbl.safe_cut_order', pj)
+        self.assertIn('self.grbl.update(safe_cut_order=data.get("safe_cut_order", True))', pj)
 
 
 if __name__ == "__main__":

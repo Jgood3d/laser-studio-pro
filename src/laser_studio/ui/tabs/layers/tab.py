@@ -21,7 +21,6 @@ LAYER_ACTION_ICONS = (
 
 # Actions des profils matériaux : (nom du signal, icône, libellé en infobulle).
 MATERIAL_ACTIONS = (
-    ("save_material_requested", "document-save", "material.save"),
     ("new_material_requested", "document-new", "material.new"),
     ("delete_material_requested", "edit-delete", "material.delete"),
     ("export_materials_requested", "document-export", "material.export"),
@@ -33,10 +32,11 @@ class LayersTab(QWidget):
     """Page de l'onglet « Calques ».
 
     En haut, une barre d'outils des profils matériaux : la liste des
-    matériaux (material_combo), puis Enregistrer, Nouveau, Supprimer,
-    Exporter et Importer. Un matériau mémorise les réglages des calques :
-    en choisir un dans la liste émet material_selected, et la fenêtre (plus
-    tard un contrôleur) met le tableau à jour.
+    matériaux (material_combo), puis Nouveau, Supprimer, Exporter et
+    Importer. Un matériau mémorise les réglages des calques : en choisir un
+    dans la liste émet material_selected, et la fenêtre met le tableau à
+    jour. Il n'y a pas de bouton « Enregistrer » : le matériau choisi suit
+    chaque changement de calque (MaterialsController.store_current_settings).
 
     Dessous, la liste des calques (LayerManagerWidget, encore dans
     vector_layers.py), dont elle relaie le signal layers_changed, émis à
@@ -57,7 +57,6 @@ class LayersTab(QWidget):
     # Matériau choisi dans la liste PAR L'UTILISATEUR (pas quand la liste est
     # remplie par programme : projet ouvert, profil machine choisi).
     material_selected = pyqtSignal(int)
-    save_material_requested = pyqtSignal()
     new_material_requested = pyqtSignal()
     delete_material_requested = pyqtSignal()
     export_materials_requested = pyqtSignal()

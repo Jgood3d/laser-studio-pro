@@ -5,6 +5,7 @@ from laser_studio.vector_layers import (
     TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
 )
 from laser_studio.i18n import tr
+from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
@@ -24,84 +25,39 @@ class VectorEditingMixin:
         """Synchronise la zone de travail de l'éditeur vectoriel avec les
         dimensions physiques du graveur (onglet 'Paramètres Machine'), et non
         plus avec les dimensions du job en cours."""
-        if hasattr(self, "vector_canvas") and hasattr(self, "spin_machine_w"):
-            self.vector_canvas.set_work_area(self.spin_machine_w.value(), self.spin_machine_h.value())
+        if hasattr(self, "vector_canvas") and hasattr(self, "machine"):
+            self.vector_canvas.set_work_area(self.machine.bed_w, self.machine.bed_h)
 
     def on_layers_changed(self):
-        """Un calque a changé (couleur, mode, puissance, ajout/suppression...) :
-        on rafraîchit les couleurs des objets du canevas et la table de
-        l'onglet 'Calques' (sauf si c'est elle-même qui vient d'émettre le
-        changement, pour ne pas interrompre une saisie en cours, ex: en train
-        de taper un nom)."""
+        """Les calques ont changé (LayersModel.changed : couleur, mode,
+        puissance, ajout/suppression...) : on rafraîchit les couleurs des
+        objets du canevas et la liste « Calque de gravure » de l'onglet image.
+        Le tableau de l'onglet Calques se met à jour seul, abonné au modèle."""
         if hasattr(self, "vector_canvas"):
             self.vector_canvas.refresh_all()
-        sender = self.sender()
-        if hasattr(self, "layers_tab") and sender is not self.layers_tab:
-            self.layers_tab.refresh()
-        self._refresh_engrave_layer()
         self._refresh_engrave_layer_combo()
-        self._on_engrave_layer_selected()
 
     def _refresh_engrave_layer_combo(self):
         """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés, supprimés,
         renommés ou changés de mode). Sans effet tant que l'onglet n'est pas construit."""
         combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None), "engrave_layer_combo", None)
         if combo is not None:
-            combo.set_layers(self.layer_manager.layers, self.engrave_layer_id)
+            layer = self.layer_manager.engrave_layer()
+            combo.set_layers(self.layer_manager.layers, layer.id if layer else None)
 
     def _on_engrave_layer_chosen(self, layer_id):
         """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
-        deviennent celles de la gravure."""
-        if self.layer_manager.get(layer_id) is None:
-            return
-        self.engrave_layer_id = layer_id
-        self._on_engrave_layer_selected()
-
-    def _refresh_engrave_layer(self):
-        """Calque de la gravure image (engrave_layer_id) : garde le calque
-        choisi s'il existe encore. Sinon (démarrage, calque supprimé), prend
-        le premier calque en mode gravure, à défaut le premier calque."""
-        if self.layer_manager.get(self.engrave_layer_id) is not None:
-            return
-        layers = self.layer_manager.layers
-        self.engrave_layer_id = self._first_engrave_layer_id() or (layers[0].id if layers else None)
-
-    def _first_engrave_layer_id(self):
-        """Identifiant du premier calque en mode Gravure Remplie, ou None
-        s'il n'y en a aucun."""
-        for layer in self.layer_manager.layers:
-            if layer.mode == "Gravure Remplie":
-                return layer.id
-        return None
-
-    def _engrave_layer_label(self):
-        """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        return f"{layer.name}  [{layer.mode}]" if layer else ""
+        deviennent celles de la gravure (LayersModel.engrave_layer)."""
+        self.layer_manager.select_engrave_layer(layer_id)
 
     def _ensure_engrave_layer_for_image(self):
         """Appelé avant la génération du G-Code d'une image (Image Tramage /
-        Séparation couleur) : si le calque sélectionné n'est pas en mode
-        gravure, bascule sur le premier calque de gravure et applique sa
-        puissance/vitesse. Sans calque de gravure, ne change rien."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        if layer and layer.mode == "Gravure Remplie":
-            return
-        layer_id = self._first_engrave_layer_id()
-        if layer_id is None:
+        Séparation couleur) : la gravure utilise le calque de gravure
+        (LayersModel.engrave_layer). S'il n'y a aucun calque en mode Gravure
+        Remplie, le premier calque sert, et un message le signale."""
+        layer = self.layer_manager.engrave_layer()
+        if layer is None or layer.mode != ENGRAVE_MODE:
             self.show_status_message(tr("vector.no_engrave_layer"))
-            return
-        self.engrave_layer_id = layer_id
-        self._refresh_engrave_layer_combo()
-        self._on_engrave_layer_selected()
-        self.show_status_message(tr("vector.engrave_layer_auto").format(name=self._engrave_layer_label()))
-
-    def _on_engrave_layer_selected(self, *_args):
-        """La gravure image utilise toujours la puissance/vitesse du calque
-        de gravure (plus de saisie manuelle séparée)."""
-        layer = self.layer_manager.get(self.engrave_layer_id)
-        if layer:
-            self.set_engrave_settings(layer.speed, layer.power)
 
     def insert_text_object(self, x_mm=None, y_mm=None):
         """Insère un texte. Si x_mm/y_mm sont donnés (clic droit sur le canevas),
@@ -308,7 +264,7 @@ class VectorEditingMixin:
 
         for layer in self.layer_manager.layers:
             self.combo_vec_layer.addItem(
-                f"{layer.name}  [{layer.mode}]",
+                layer_label(layer),
                 layer.id
             )
 
@@ -530,7 +486,7 @@ class VectorEditingMixin:
             self._import_dxf_file(path, default_layer)
             return
         try:
-            objects = extract_svg_objects(path, default_layer_id, self.spin_machine_h.value())
+            objects = extract_svg_objects(path, default_layer_id, self.machine.bed_h)
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -604,7 +560,7 @@ class VectorEditingMixin:
         if not candidates:
             QMessageBox.information(self, tr("nest.title"), tr("nest.no_objects"))
             return
-        dialog = NestingDialog(self, self.spin_machine_w.value(), self.spin_machine_h.value(),
+        dialog = NestingDialog(self, self.machine.bed_w, self.machine.bed_h,
                                len(selected), len(candidates), getattr(self, "_nesting_settings", None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -680,7 +636,7 @@ class VectorEditingMixin:
             QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         dialog = BoxGeneratorDialog(
-            self, self.layer_manager.layers, self.spin_machine_w.value(), self.spin_machine_h.value(),
+            self, self.layer_manager.layers, self.machine.bed_w, self.machine.bed_h,
             getattr(self, "_box_settings", None))
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
@@ -694,7 +650,7 @@ class VectorEditingMixin:
         panels = box_to_objects(result, dialog.cut_layer_id(), offset, offset)
         by_name = result.face_panels()          # y compris le couvercle d'une charnière (porté par l'arrière)
         decor_objects = []
-        bed_h = self.spin_machine_h.value()
+        bed_h = self.machine.bed_h
         for decor in dialog.decors():
             panel = by_name.get(decor.face)
             if panel is None:
@@ -712,8 +668,8 @@ class VectorEditingMixin:
         self.vector_canvas.request_recenter(new_items)
         message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
-        if result.width > self.spin_machine_w.value() - 2 * offset or result.height > self.spin_machine_h.value() - 2 * offset:
-            message += "\n\n" + tr("box.too_big").format(bed_w=self.spin_machine_w.value(), bed_h=self.spin_machine_h.value())
+        if result.width > self.machine.bed_w - 2 * offset or result.height > self.machine.bed_h - 2 * offset:
+            message += "\n\n" + tr("box.too_big").format(bed_w=self.machine.bed_w, bed_h=self.machine.bed_h)
         QMessageBox.information(self, tr("box.title"), message)
 
 
@@ -735,8 +691,8 @@ class VectorEditingMixin:
         dialog = PuzzleGeneratorDialog(
             parent=self,
             layers=self.layer_manager.layers,
-            bed_w=self.spin_machine_w.value(),
-            bed_h=self.spin_machine_h.value(),
+            bed_w=self.machine.bed_w,
+            bed_h=self.machine.bed_h,
             saved_settings=getattr(self, "_puzzle_settings", None),
             target_image_rect=target_rect,
         )

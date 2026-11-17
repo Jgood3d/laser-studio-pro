@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (
     QSpinBox, QComboBox, QDialogButtonBox, QLabel, QWidget, QGroupBox,
     QToolButton,
 )
+from laser_studio.models.layers import layer_label
 from laser_studio.vector.puzzle_generator import PuzzleParams, build_puzzle, generate_jigsaw_edge
 from laser_studio.i18n import tr
 
@@ -219,7 +220,7 @@ class PuzzleGeneratorDialog(QDialog):
         self.combo_layer = QComboBox()
         default_index = 0
         for idx, layer in enumerate(self.layers):
-            self.combo_layer.addItem(f"{layer.name} [{layer.mode}]", layer.id)
+            self.combo_layer.addItem(layer_label(layer), layer.id)
             if "découpe" in layer.mode.lower() or "cut" in layer.mode.lower():
                 default_index = idx
         if self.combo_layer.count() > 0:

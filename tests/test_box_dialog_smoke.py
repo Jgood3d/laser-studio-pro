@@ -172,7 +172,7 @@ class Layer:
         self.id, self.name, self.mode = id_, name, mode
 
 
-LAYERS = [Layer("g", "Gravure", "Gravure Remplie"), Layer("c", "Découpe", "Découpe"), Layer("m", "Marquage", "Marquage (Contour)")]
+LAYERS = [Layer("g", "Gravure", "engrave_fill"), Layer("c", "Découpe", "cut"), Layer("m", "Marquage", "mark")]
 
 try:
     bd = load_dialog_module()

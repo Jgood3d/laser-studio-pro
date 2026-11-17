@@ -167,7 +167,7 @@ class LaserControlMixin:
                 self, tr("ui.grbl_settings_box"), tr("ui.grbl_read_empty")
             )
             return
-        self.txt_grbl_settings.setPlainText("\n".join(lines))
+        self.grbl.update(grbl_settings="\n".join(lines))
         self.log_message(tr("ui.grbl_read_success").format(count=len(lines)))
 
     def send_grbl_settings(self):
@@ -181,7 +181,7 @@ class LaserControlMixin:
             )
             return
         lines = [
-            l.strip() for l in self.txt_grbl_settings.toPlainText().splitlines()
+            l.strip() for l in self.grbl.grbl_settings.splitlines()
             if l.strip().startswith("$") and "=" in l
         ]
         if not lines:
@@ -220,7 +220,7 @@ class LaserControlMixin:
             )
 
     def export_grbl_settings(self):
-        text = self.txt_grbl_settings.toPlainText().strip()
+        text = self.grbl.grbl_settings.strip()
         if not text:
             QMessageBox.warning(
                 self, tr("ui.grbl_settings_box"), tr("ui.grbl_send_empty")
@@ -250,7 +250,7 @@ class LaserControlMixin:
             QMessageBox.critical(self, tr("laser.error"), str(e))
             return
         lines = [l.strip() for l in content.splitlines() if l.strip().startswith("$") and "=" in l]
-        self.txt_grbl_settings.setPlainText("\n".join(lines))
+        self.grbl.update(grbl_settings="\n".join(lines))
 
     @staticmethod
     def _launch_confirmation_text():

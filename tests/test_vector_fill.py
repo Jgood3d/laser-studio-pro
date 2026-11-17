@@ -26,7 +26,7 @@ def rect(x0, y0, x1, y1):
 
 def fill_layer(groups, interval=0.5, power=80.0):
     polys = [p for g in groups for p in g]
-    layer = {"name": "Remplissage", "mode": "Gravure Remplie", "power": power, "speed": 1000, "passes": 1,
+    layer = {"name": "Remplissage", "mode": "engrave_fill", "power": power, "speed": 1000, "passes": 1,
              "line_interval": interval}
     return {"L": {"layer": layer, "polygons": polys, "polygon_groups": groups}}
 

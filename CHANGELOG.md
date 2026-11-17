@@ -16,6 +16,13 @@ Générateur de boîte :
 ### Modifié
 La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
 
+Profils matériaux : plus de bouton « Enregistrer ». Le matériau choisi reprend aussitôt chaque modification d'un calque.
+
+Modes des calques : enregistrés sous un code indépendant de la langue (`engrave_fill`, `cut`, `mark`) dans les projets, les profils machine et les commentaires du G-Code, au lieu du libellé français. Les anciens projets, profils et G-Code sont relus et convertis. Un projet enregistré avec cette version n'est plus lu correctement par une version antérieure (les modes y reviennent à « Découpe »).
+
+### Corrigé
+La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
+
 Installation et compilation :
 - numpy 2 (au lieu de numpy 1.26) : l'application s'installe avec Python 3.10 à 3.14, donc avec le Python fourni par les distributions récentes (Debian 13, Fedora 41+, Ubuntu 25.04+), sans installer Python 3.12 à côté.
 - OpenCV sans interface graphique (`opencv-python-headless`) et fichiers Qt inutilisés retirés de l'exécutable : environ 170 Mo de moins une fois installé.
