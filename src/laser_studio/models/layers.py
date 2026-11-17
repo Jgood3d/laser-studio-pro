@@ -45,6 +45,10 @@ BASE_LAYER_DEFAULTS = {
     "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], MODE_MARK, 75.0, 2000, 1, 0.06),
 }
 
+# Commande laser d'un calque : "" = celle de Configuration GRBL (réglage global), sinon "M4" (puissance
+# dynamique) ou "M3" (puissance constante) pour ce calque seulement.
+LAYER_LASER_CMDS = ("", "M4", "M3")
+
 # Réglages modifiables d'un calque, avec leur type. L'identifiant et le rôle
 # ne se modifient pas (les objets du canevas sont rattachés par identifiant).
 LAYER_FIELD_CASTS = {
@@ -57,6 +61,8 @@ LAYER_FIELD_CASTS = {
     "line_interval": float,
     "line_interval_linked": bool,
     "enabled": bool,
+    "overscan": bool,
+    "laser_cmd": str,
 }
 
 
@@ -92,6 +98,10 @@ def validated_settings(source, defaults=None):
                 value = normalize_mode(value)       # ancien libellé français -> code
                 if value not in LAYER_MODES:
                     raise ValueError(value)
+            elif key == "laser_cmd":
+                value = value.strip().upper()
+                if value not in LAYER_LASER_CMDS:
+                    raise ValueError(value)
         except (TypeError, ValueError):
             if defaults is not None:
                 values[key] = getattr(defaults, key)
@@ -111,7 +121,8 @@ class LaserLayer:
 
     def __init__(self, name="Calque", color="#ff3b30", mode=MODE_CUT,
                  power=80.0, speed=300, passes=1, line_interval=0.10,
-                 enabled=True, layer_id=None, line_interval_linked=False, role=None):
+                 enabled=True, layer_id=None, line_interval_linked=False, role=None,
+                 overscan=True, laser_cmd=""):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.role = role
         self.name = name
@@ -125,6 +136,11 @@ class LaserLayer:
         # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
         self.line_interval_linked = bool(line_interval_linked)
         self.enabled = bool(enabled)
+        # Surbalayage : appliqué à ce calque seulement si l'option est aussi activée dans Configuration
+        # GRBL (réglage global : elle en donne le mode et la distance). Sans effet hors gravure remplie.
+        self.overscan = bool(overscan)
+        # Commande laser propre au calque ("" : celle de Configuration GRBL, voir LAYER_LASER_CMDS).
+        self.laser_cmd = laser_cmd if laser_cmd in LAYER_LASER_CMDS else ""
 
     def to_dict(self):
         return dict(self.__dict__)
@@ -134,6 +150,26 @@ class LaserLayer:
         layer = LaserLayer()
         layer.__dict__.update(d)
         return layer
+
+
+def _layer_value(layer, key, default):
+    """Réglage `key` d'un calque donné comme objet (LaserLayer) ou comme dictionnaire (to_dict) ;
+    `default` si le calque ne l'a pas (projet enregistré avant l'ajout du réglage)."""
+    if isinstance(layer, dict):
+        return layer.get(key, default)
+    return getattr(layer, key, default)
+
+
+def layer_overscan_enabled(layer, global_enabled):
+    """True si le surbalayage s'applique à ce calque : activé dans Configuration GRBL (`global_enabled`)
+    ET pour le calque. Un calque sans ce réglage (ancien projet) suit le réglage global."""
+    return bool(global_enabled) and bool(_layer_value(layer, "overscan", True))
+
+
+def layer_laser_cmd(layer, global_cmd):
+    """Commande laser ("M4" ou "M3") de ce calque : la sienne, sinon celle de Configuration GRBL."""
+    cmd = _layer_value(layer, "laser_cmd", "")
+    return cmd if cmd in ("M4", "M3") else global_cmd
 
 
 def _describe(layer):

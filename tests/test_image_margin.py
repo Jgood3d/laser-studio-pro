@@ -70,7 +70,7 @@ class ImageMarginTests(unittest.TestCase):
             with open(os.path.join(ROOT, name), encoding="utf-8") as f:
                 return f.read()
         gen = source("gcode_generation_mixin.py")
-        check = gen[gen.index("if params['enable_overscan'] and self.processed_array is not None"):]
+        check = gen[gen.index("if params['image_overscan'] and self.processed_array is not None"):]
         self.assertIn("image_origin(params)", check[:check.index("QMessageBox.critical")])  # contrôle
         frame = source("laser_control_mixin.py")
         frame = frame[frame.index("def run_frame"):]

@@ -683,6 +683,9 @@ class AdvancedGCodeWorker(QThread):
         total_power_samples = []
         total_time_seconds = 0.0
         laser_cmd = self.params['laser_cmd']
+        # Commande laser de la gravure d'image : celle de son calque de gravure (voir
+        # layer_laser_cmd), sinon la commande globale. Les calques vectoriels ont chacun la leur.
+        image_cmd = self.params.get('image_laser_cmd', laser_cmd) if self.processed_array is not None else laser_cmd
         s_max = self.params['s_max']
 
         # En mode M4 (laser dynamique), pas besoin de renvoyer M4 à chaque
@@ -691,8 +694,8 @@ class AdvancedGCodeWorker(QThread):
         # nettement le G-code sur une image de plusieurs centaines de lignes.
         # M3 reste inchangé (renvoyé à chaque ligne comme avant) : certains
         # firmwares/pilotes laser en dépendent en mode spindle classique.
-        if laser_cmd == "M4":
-            gcode.append(f"{laser_cmd} S0 ; Mode laser dynamique activé pour tout le job")
+        if image_cmd == "M4":
+            gcode.append(f"{image_cmd} S0 ; Mode laser dynamique activé pour tout le job")
         
         w_mm, h_mm = self.params['width_mm'], self.params['height_mm']
         if self.params['origin_pos'] == ORIGIN_CENTER:
@@ -717,7 +720,8 @@ class AdvancedGCodeWorker(QThread):
             power_engrave = self.params['power_engrave']
             algo = self.params.get('algo', '')
 
-            enable_overscan = self.params['enable_overscan']
+            # Surbalayage : réglage global ET calque de gravure (voir layer_overscan_enabled).
+            enable_overscan = self.params.get('image_overscan', self.params['enable_overscan'])
             if enable_overscan:
                 if self.params.get('overscan_mode') == "Pourcentage (%)":
                     pct = self.params.get('overscan_pct', 5.0)
@@ -785,8 +789,8 @@ class AdvancedGCodeWorker(QThread):
                 else:
                     gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f}")
 
-                if laser_cmd == "M3":
-                    gcode.append(f"{laser_cmd} S0")
+                if image_cmd == "M3":
+                    gcode.append(f"{image_cmd} S0")
                 else:
                     # Mode M4 déjà activé une fois en tête de job (voir plus
                     # haut) : ici on ne fait plus que remettre la puissance à
@@ -844,7 +848,7 @@ class AdvancedGCodeWorker(QThread):
                     gcode.append(f"G1 X{margin_end_x:.3f} F{speed_engrave} S0 ; OVERSCAN_END")
                     total_time_seconds += (abs(margin_end_x - cx) / max(speed_engrave, 1)) * 60.0
 
-                if laser_cmd == "M3":
+                if image_cmd == "M3":
                     gcode.append("M5")
                 elif overscan_dist == 0 and last_p_val != 0:
                     # Sécurité : sans surbalayage pour s'en charger, on

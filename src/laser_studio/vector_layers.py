@@ -60,14 +60,15 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 # d'ici pour le code existant ; LayerManager est l'ancien nom de LayersModel.
 from laser_studio.models.layers import (  # noqa: E402,F401
     BASE_LAYER_DEFAULTS, BASE_LAYER_ROLES, CONTOUR_MODES, DEFAULT_LAYER_COLORS, ENGRAVE_MODE,
-    LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel, base_layer_name, layer_label,
+    LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel, base_layer_name, layer_label,
+    layer_laser_cmd, layer_overscan_enabled,
 )
 
 LayerManager = LayersModel
 
 
 class LayerManagerWidget(QWidget):
-    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Actif
+    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Pas | Surbalayage | Laser | Actif
 
     Vue du modèle des calques (LayersModel) : chaque saisie appelle
     `mgr.update(...)`, et la table se met à jour à partir des signaux du
@@ -78,7 +79,7 @@ class LayerManagerWidget(QWidget):
 
     COLUMN_KEYS = ["layers.col.color", "layers.col.name", "layers.col.mode",
                    "layers.col.power", "layers.col.speed", "layers.col.passes",
-                   "layers.col.fill_step", "layers.col.active"]
+                   "layers.col.fill_step", "layers.col.overscan", "layers.col.laser", "layers.col.active"]
 
     def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
@@ -226,9 +227,30 @@ class LayerManagerWidget(QWidget):
         self.table.setCellWidget(row, 6, fill_cell)
         self._update_fill_quality(spin_fill)
 
+        # Surbalayage : propre à la gravure remplie (grisé pour les autres modes), et seulement si l'option
+        # est activée dans Configuration GRBL, qui en donne le mode et la distance.
+        chk_overscan = QCheckBox(); chk_overscan.setChecked(layer.overscan)
+        chk_overscan.setToolTip(tr("layers.overscan_tip"))
+        chk_overscan.setEnabled(layer.mode == ENGRAVE_MODE)
+        chk_overscan.stateChanged.connect(lambda v, i=lid: self._set(i, "overscan", bool(v)))
+        self.table.setCellWidget(row, 7, self._centered(chk_overscan))
+        editors["overscan"] = chk_overscan
+
+        # Commande laser du calque : celle de Configuration GRBL, ou M4 / M3 pour ce calque seulement.
+        combo_laser = QComboBox()
+        for cmd, key in (("", "layers.laser_auto"), ("M4", "layers.laser_m4"), ("M3", "layers.laser_m3")):
+            combo_laser.addItem(tr(key), cmd)
+        combo_laser.setCurrentIndex(max(0, combo_laser.findData(layer.laser_cmd)))
+        combo_laser.setToolTip(tr("layers.laser_tip"))
+        combo_laser.currentIndexChanged.connect(
+            lambda idx, i=lid, c=combo_laser: self._set(i, "laser_cmd", c.itemData(idx))
+        )
+        self.table.setCellWidget(row, 8, combo_laser)
+        editors["laser_cmd"] = combo_laser
+
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, i=lid: self._set(i, "enabled", bool(v)))
-        self.table.setCellWidget(row, 7, self._centered(chk_enabled))
+        self.table.setCellWidget(row, 9, self._centered(chk_enabled))
         editors["enabled"] = chk_enabled
 
         self._editors[lid] = editors
@@ -269,17 +291,19 @@ class LayerManagerWidget(QWidget):
                 elif key == "name":
                     if widget.text() != value:
                         widget.setText(value)
-                elif key == "mode":
+                elif key in ("mode", "laser_cmd"):
                     idx = widget.findData(value)
                     if idx >= 0 and idx != widget.currentIndex():
                         widget.setCurrentIndex(idx)
-                elif key in ("line_interval_linked", "enabled"):
+                elif key in ("line_interval_linked", "enabled", "overscan"):
                     if widget.isChecked() != value:
                         widget.setChecked(value)
                 elif widget.value() != value:
                     widget.setValue(value)
             finally:
                 widget.blockSignals(False)
+            if key == "mode" and "overscan" in editors:
+                editors["overscan"].setEnabled(value == ENGRAVE_MODE)
             if key == "line_interval_linked":
                 self._style_link_button(widget, value)
                 editors["line_interval"].setEnabled(not value)
@@ -3456,6 +3480,9 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
         speed = layer["speed"]
         power_val = int(round((layer["power"] / 100.0) * s_max))
         gcode.append(f"F{speed}")
+        # Commande laser et surbalayage de CE calque (réglages globaux si le calque n'a pas les siens).
+        cmd = layer_laser_cmd(layer, laser_cmd)
+        layer_overscan = overscan_dist if layer_overscan_enabled(layer, True) else 0.0
 
         if layer["mode"] == ENGRAVE_MODE:
             ys = [p[1] for poly in polygons for p in poly]
@@ -3477,31 +3504,31 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         real_sx, real_sy = to_gcode_xy(sx_mm, y)
                         real_ex, real_ey = to_gcode_xy(ex_mm, y)
 
-                        if overscan_dist > 0:
+                        if layer_overscan > 0:
                             pre_x, pre_y = to_gcode_xy(
-                                sx_mm - direction * overscan_dist, y
+                                sx_mm - direction * layer_overscan, y
                             )
                             post_x, post_y = to_gcode_xy(
-                                ex_mm + direction * overscan_dist, y
+                                ex_mm + direction * layer_overscan, y
                             )
 
                             # Déplacement avant balayage avec laser éteint.
                             gcode.append(
                                 f"G0 X{pre_x:.3f} Y{pre_y:.3f}"
                             )
-                            gcode.append(f"{laser_cmd} S0")
+                            gcode.append(f"{cmd} S0")
                             gcode.append(
                                 f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}"
                             )
 
                             # Gravure du segment réel.
-                            gcode.append(f"{laser_cmd} S{power_val}")
+                            gcode.append(f"{cmd} S{power_val}")
                             gcode.append(
                                 f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
                             )
 
                             # Sortie de balayage avec laser éteint.
-                            gcode.append(f"{laser_cmd} S0")
+                            gcode.append(f"{cmd} S0")
                             gcode.append(
                                 f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}"
                             )
@@ -3513,7 +3540,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                             gcode.append(
                                 f"G0 X{real_sx:.3f} Y{real_sy:.3f}"
                             )
-                            gcode.append(f"{laser_cmd} S{power_val}")
+                            gcode.append(f"{cmd} S{power_val}")
                             gcode.append(
                                 f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
                             )
@@ -3524,7 +3551,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
 
                             # Prépare le prochain déplacement avec le laser
                             # éteint, sans arrêter complètement le mode M4.
-                            gcode.append(f"{laser_cmd} S0")
+                            gcode.append(f"{cmd} S0")
 
                         power_samples.append(layer["power"])
                 y += step
@@ -3539,7 +3566,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         continue
                     sx, sy = to_gcode_xy(*poly[0])
                     gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
-                    gcode.append(f"{laser_cmd} S{power_val}")
+                    gcode.append(f"{cmd} S{power_val}")
                     cx, cy = sx, sy
                     # Un tracé ouvert (ligne, fente, arête de puzzle) reste ouvert : le refermer faisait
                     # repasser le laser sur tout le tracé, en sens inverse. On ne ferme que les tracés

@@ -15,6 +15,8 @@ LAYER_SETTING_CASTS = (
     ("line_interval", float),
     ("line_interval_linked", bool),
     ("enabled", bool),
+    ("overscan", bool),
+    ("laser_cmd", str),
 )
 
 
