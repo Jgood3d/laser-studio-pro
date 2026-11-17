@@ -86,10 +86,11 @@ def _base_entry(role, power=None, speed=None, passes=None):
     celles par défaut du calque de base."""
     from laser_studio.models.layers import BASE_LAYER_DEFAULTS
     _key, _color, _mode, d_power, d_speed, d_passes, d_interval = BASE_LAYER_DEFAULTS[role]
+    p = int(d_passes if passes is None else passes)
     return {"role": role,
             "power": float(d_power if power is None else power),
             "speed": int(d_speed if speed is None else speed),
-            "passes": int(d_passes if passes is None else passes),
+            "passes": max(1, p),  # 0 passe = aucune géométrie générée
             "line_interval": d_interval}
 
 
@@ -142,7 +143,7 @@ def complete_material(material):
             # pass_c == 0 (Ardoise, etc.) ou absence de clés cut → défauts
             # sensés plutôt que des zéros inutilisables.
             if _material_has_meaningful_cut(material):
-                passes = int(material.get("pass_c", 0) or 0)
+                passes = max(1, int(material.get("pass_c", 0) or 0))
                 entry = _base_entry(
                     role, material.get("pw_c"), material.get("sp_c"), passes
                 )
@@ -187,7 +188,7 @@ def apply_material_to_layers(layer_manager, material):
             **(by_role.get("cut") or {"role": "cut"}),
             "power": float(material.get("pw_c") or 0),
             "speed": int(material.get("sp_c") or 250),
-            "passes": int(material.get("pass_c") or 1),
+            "passes": max(1, int(material.get("pass_c") or 1)),
         }
 
     changed = False
