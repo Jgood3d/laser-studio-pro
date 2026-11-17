@@ -98,14 +98,13 @@ class SerialPortsTests(unittest.TestCase):
         f = self.window()
         self.refresh(f, SYSTEM_PORTS)
         f.combo_ports.setCurrentText("/dev/ttyUSB2 - USB Serial")
-        f.usb = mock.Mock()
-        f.usb.is_connected.return_value = False
-        f.usb.connect.return_value = True
-        for name in ("update_connection_widgets", "log_message",
-                     "_check_grbl_laser_mode", "_start_status_poll"):
+        f.connection = mock.Mock()
+        f.connection.is_connected.return_value = False
+        f.connection.connect.return_value = True
+        for name in ("log_message", "_check_grbl_laser_mode"):
             setattr(f, name, mock.Mock())
         f.toggle_connection()
-        f.usb.connect.assert_called_once_with("/dev/ttyUSB2")
+        f.connection.connect.assert_called_once_with("/dev/ttyUSB2")
         self.assertEqual(ports.load_last_port(), "/dev/ttyUSB2")
 
 

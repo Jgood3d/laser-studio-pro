@@ -301,8 +301,10 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.text_edit.setReadOnly(True)",
                       read(os.path.join("ui", "machine", "sent_gcode", "log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
-        self.assertIn("self.streamer.lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
+        self.assertIn("c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
                       read("laser_control_mixin.py"))
+        self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
+                      read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
         self.assertIn("start_stream=self._start_stream", ui_source())
 
@@ -459,7 +461,7 @@ class ShowWindowTests(unittest.TestCase):
         obj = self.make()
         obj.machine_panel = mock.Mock()
         for connected in (False, True):
-            obj.usb = mock.Mock(is_connected=lambda c=connected: c)
+            obj.connection = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
             obj.machine_panel.set_connected.assert_called_with(connected)
 

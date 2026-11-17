@@ -40,7 +40,7 @@ from laser_studio.controllers.machine_profiles import MachineProfilesController,
 from laser_studio.controllers.matrix_image import MatrixImageController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
-from laser_studio.grbl.connection import LaserUSBController
+from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.vector_layers import VectorCanvasView
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
@@ -68,7 +68,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         
         self.setAcceptDrops(True)
         
-        self.usb = LaserUSBController()
+        # Dialogue avec le graveur (port, threads, état « référencé ») : voir LaserControlMixin
+        # pour l'interface.
+        self.connection = MachineConnection(parent=self)
         self.raw_image = None
         self.processed_array = None
         self.loaded_svg_path = None
@@ -82,10 +84,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # machine, projet ou matériau en cours d'application, voir _store_layers_in_material).
         self._material_autosave_pause = 0
         self.block_aspect_signal = False
-        self.streamer = None
-        self.cmd_thread = None
-        self.status_poll_thread = None
-        self.has_homed_since_connect = False
         self.img_worker = None
         self.pending_reprocess = False
         self._img_undo_stack = []
@@ -127,6 +125,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.autosave_timer.start()
 
         self.init_ui()
+        self._connect_machine_signals()
         self.load_machine_settings()
         self.load_splitter_sizes()
         self.restore_remembered_algorithm()
@@ -900,8 +899,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         qui envoie ses jobs par la connexion au graveur (LaserControlMixin)."""
         tab = JobQueueTab()
         engraver = Engraver(
-            is_connected=self.usb.is_connected,
-            last_state=lambda: self.usb.last_state,
+            is_connected=self.connection.is_connected,
+            last_state=lambda: self.connection.last_state,
             confirm_homed=self._confirm_homed_before_job,
             start_stream=self._start_stream,
             stream_ended=self._stream_ended,
@@ -1159,8 +1158,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             QTimer.singleShot(0, self.project.offer_autosave_recovery)
 
     def closeEvent(self, event):
-        if hasattr(self, "_stop_status_poll"):
-            self._stop_status_poll()
         self.save_machine_settings()
         self.save_splitter_sizes()
         reply = QMessageBox.question(
@@ -1177,12 +1174,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 event.ignore()
                 return
             self._flush_background_writes()
+            self.connection.shutdown()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
             # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
             # doit pas être proposée en récupération au prochain démarrage.
             self.project.discard_autosave()
             self._flush_background_writes()
+            self.connection.shutdown()
             event.accept()
         else:
             event.ignore()
@@ -1218,11 +1217,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
           self.separation_refresh_if_dirty()
 
     def _job_in_progress(self):
-        streamer = getattr(self, "streamer", None)
-        try:
-            return bool(streamer is not None and streamer.isRunning())
-        except RuntimeError:
-            return False
+        connection = getattr(self, "connection", None)
+        return bool(connection is not None and connection.is_streaming())
 
     def _update_bottom_panel_visibility(self, *_args):
         panel = getattr(self, "center_bottom_widget", None)

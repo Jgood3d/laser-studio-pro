@@ -13,6 +13,7 @@ from ui_source import ui_source  # noqa: E402
 try:
     from PyQt6.QtGui import QStandardItemModel
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
+    from laser_studio.controllers.machine_connection import MachineConnection
     from laser_studio.laser_control_mixin import LaserControlMixin
     from laser_studio.ui.machine.controls import JogControlPanel
     from laser_studio.ui.machine import MachinePanel
@@ -23,11 +24,6 @@ except ImportError:  # PyQt6, pyserial... manquants
     JogControlPanel = None
 
 
-class _USB:
-    def is_connected(self):
-        return True
-
-
 @unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")
 class JogMoveTests(unittest.TestCase):
     """La logique reçoit des millimètres et fabrique la commande GRBL."""
@@ -36,9 +32,9 @@ class JogMoveTests(unittest.TestCase):
         class Fake(LaserControlMixin):
             pass
         f = Fake.__new__(Fake)
-        f.usb = _USB()
+        f.connection = MachineConnection(usb=mock.Mock(is_connected=lambda: True))
         f.sent = []
-        f._run_commands_async = f.sent.append
+        f.connection.run_commands = f.sent.append
         return f
 
     def test_millimetres_become_a_jog_command(self):
@@ -163,7 +159,7 @@ class CommandsLockTests(unittest.TestCase):
         class Fake(WindowControllerMixin):
             pass
         f = Fake.__new__(Fake)
-        f.usb = type("U", (), {"is_connected": lambda self: connected})()
+        f.connection = mock.Mock(is_connected=lambda: connected)
         f.machine_panel = _Box()
         return f
 

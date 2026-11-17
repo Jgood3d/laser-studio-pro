@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio.i18n import tr
+    from laser_studio.controllers.machine_connection import MachineConnection
     from laser_studio.laser_control_mixin import LaserControlMixin
 except ImportError:  # PyQt6, pyserial... manquants
     LaserControlMixin = None
@@ -62,7 +63,7 @@ class GrblHomingSettingTests(unittest.TestCase):
             f.chk_mat_homing = _Check(True)
             f.warnings = []
             f._warn = lambda title, body: f.warnings.append(title)
-        f.usb = _USB(response)
+        f.connection = MachineConnection(usb=_USB(response))
         f._check_grbl_laser_mode()
         return f
 

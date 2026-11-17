@@ -250,7 +250,7 @@ class WindowControllerMixin:
         « Connecter GRBL » / pastille rouge sinon. Verrouille ou déverrouille
         aussi les commandes de la machine.
         """
-        connected = self.usb.is_connected()
+        connected = self.connection.is_connected()
         # Bouton de connexion, pilotage, actions de job et console directe :
         # verrouillés tant que le graveur n'est pas connecté. La position du job reste modifiable
         # (elle sert aussi à générer le G-Code hors connexion).
