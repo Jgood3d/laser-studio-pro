@@ -15,6 +15,9 @@ from laser_studio.vector.importers import (box_to_objects, decor_to_objects, dxf
 from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
+from laser_studio.ui.dialogs.serial_duplicate import SerialDuplicateDialog
+from laser_studio.vector import serial_duplicate as serial_dup
+from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
 
 class VectorEditingMixin:
     def update_vector_work_area(self, *args):
@@ -631,6 +634,44 @@ class VectorEditingMixin:
         if result.unplaced:
             message += "\n\n" + tr("nest.unplaced").format(count=len(result.unplaced))
         QMessageBox.information(self, tr("nest.title"), message)
+
+    def open_serial_duplicate(self):
+        """Duplication en série : fabrique N exemplaires de la sélection (découpe + gravure + texte), avec un
+        texte (prénom) par exemplaire si on le souhaite, rangés en grille ou par imbrication automatique."""
+        canvas = self.vector_canvas
+        objects = [item.obj for item in canvas.selected_items_vector()]
+        if not objects:
+            QMessageBox.information(self, tr("serial.title"), tr("serial.no_selection"))
+            return
+        order = {id(o): i for i, o in enumerate(canvas.objects)}
+        objects.sort(key=lambda o: order.get(id(o), 0))
+        texts = [(o.text, i) for i, o in enumerate(objects) if isinstance(o, TextObject)]
+        box = serial_dup.union_bounds([object_bounds(o) for o in objects]) or (0.0, 0.0, 0.0, 0.0)
+        dialog = SerialDuplicateDialog(self, texts, len(objects), box[2] - box[0], box[3] - box[1],
+                                       self.spin_machine_w.value(), self.spin_machine_h.value(),
+                                       getattr(self, "_serial_settings", None))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._serial_settings = dialog.settings()
+        params = dialog.params()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            result = run_serial_duplicate(canvas, objects, params)
+        except Exception as e:
+            QApplication.restoreOverrideCursor()
+            QMessageBox.warning(self, tr("serial.title"), tr("serial.error").format(error=e))
+            return
+        QApplication.restoreOverrideCursor()
+        message = tr("serial.done").format(count=result.n_copies, w=f"{result.extent[0]:.0f}",
+                                           h=f"{result.extent[1]:.0f}")
+        if result.unplaced:
+            message += "\n\n" + tr("serial.unplaced").format(count=result.unplaced)
+        if result.overflow:
+            names = params["names"]
+            labels = [names[i] if i < len(names) else str(i + 1) for i in result.overflow]
+            shown = ", ".join(labels[:8]) + (", …" if len(labels) > 8 else "")
+            message += "\n\n" + tr("serial.overflow").format(names=shown)
+        QMessageBox.information(self, tr("serial.title"), message)
 
     def open_box_generator(self):
         """Fenêtre du générateur de boîte à encoches : crée les panneaux (calque de découpe) et le

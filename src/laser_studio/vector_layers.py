@@ -1104,6 +1104,7 @@ class VectorCanvasView(QGraphicsView):
     object_moved = pyqtSignal(object)       # VectorObject déplacé à la souris
     edit_requested = pyqtSignal(object)     # double-clic sur un objet
     insert_text_requested = pyqtSignal(float, float)  # clic droit > Texte (x_mm, y_mm)
+    serial_duplicate_requested = pyqtSignal()        # clic droit > Dupliquer en série...
 
     def __init__(self, layer_manager: LayerManager, parent=None):
         super().__init__(parent)
@@ -2959,6 +2960,8 @@ class VectorCanvasView(QGraphicsView):
         rotate_action.triggered.connect(lambda: self._bulk_rotate(selected))
         dup_action = menu.addAction(tr("ui.vector_duplicate"))
         dup_action.triggered.connect(self.duplicate_selected)
+        serial_action = menu.addAction(tr("ui.vector_serial_duplicate"))
+        serial_action.triggered.connect(lambda: self.serial_duplicate_requested.emit())
         del_action = menu.addAction(tr("ui.vector_delete"))
         del_action.triggered.connect(self.remove_selected)
 

@@ -119,13 +119,14 @@ laser-studio-pro/
 ├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
 ├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog) + aperçu live (preview.py : BoxPreview)
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
+├── ui/dialogs/serial_duplicate/      # fenêtre « Dupliquer en série » (SerialDuplicateDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── image_processing_mixin.py
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, importers
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, serial_duplicate, serial_apply, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -177,7 +178,7 @@ laser-studio-pro/
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code », masqué au démarrage (menu Affichage). Console `console_edit` ; les statistiques sont dans `JobStatsPanel` (à droite de l'aperçu 2D), l'export dans « Fichier > Enregistrer le G-Code » | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons (le G-Code envoyé est suivi dans le panneau machine). Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé (`SentGcodeLog`, panneau machine) sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
-| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*` |
+| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
 | **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
@@ -190,6 +191,7 @@ laser-studio-pro/
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
 | **vector/box_generator.py** / **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
+| **vector/serial_duplicate.py** / **vector/serial_apply.py** | Duplication en série : exemplaires, texte par exemplaire, grille (logique pure, testée sans Qt) ; passerelle vers le canevas et l'imbrication | `vector_editing_mixin`, `ui/dialogs/serial_duplicate` |
 
 #### Générateur de boîte (`vector/box_generator.py`)
 

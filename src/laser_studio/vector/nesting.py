@@ -160,12 +160,29 @@ class _Piece:
         return _dilate(np.array(img, dtype=bool), r), (x0, y0)
 
 
+def _obstacle_mask(obstacles, base_x, base_y, cell, r, W, H):
+    """Masque (H x W) des contours déjà présents sur la feuille, dilaté de r cellules comme celui d'une pièce.
+    Tous les contours sont remplis (un trou dans un obstacle reste donc interdit) ; les traits ouverts sont tracés."""
+    img = Image.new("1", (W, H), 0)
+    draw = ImageDraw.Draw(img)
+    for poly in obstacles:
+        if len(poly) < 2:
+            continue
+        pts = [((x - base_x) / cell + r, (y - base_y) / cell + r) for x, y in poly]
+        if len(pts) >= 3:
+            draw.polygon(pts, fill=1)
+        draw.line(pts + [pts[0]], fill=1, width=1)
+    return _dilate(np.array(img, dtype=bool), r)
+
+
 def nest(pieces, sheet_w, sheet_h, spacing=2.0, margin=0.0, angles=ANGLE_SETS["quarters"], cell=1.0,
-         origin=(0.0, 0.0), progress=None):
+         origin=(0.0, 0.0), progress=None, obstacles=None):
     """Place `pieces` (liste de listes de polygones en mm) sur une feuille sheet_w x sheet_h dont le coin
     bas-gauche est `origin`. Renvoie un NestResult ; pour chaque Placement, p' = pivot + R(angle)(p - pivot) + (tx, ty).
 
-    progress(done, total) est appelée après chaque pièce si fournie (renvoyer False l'interrompt)."""
+    progress(done, total) est appelée après chaque pièce si fournie (renvoyer False l'interrompt).
+    obstacles : contours (liste de polygones en mm) déjà présents sur la feuille et à ne pas recouvrir ; ils
+    respectent le même espacement que les pièces entre elles."""
     cell = float(cell)
     if cell <= 0:
         raise ValueError("cell")
@@ -182,6 +199,8 @@ def nest(pieces, sheet_w, sheet_h, spacing=2.0, margin=0.0, angles=ANGLE_SETS["q
     H = int(math.ceil(usable_h / cell)) + 2 * r
     occ = np.zeros((H, W), dtype=bool)
     base_x, base_y = origin[0] + margin, origin[1] + margin
+    if obstacles:
+        occ |= _obstacle_mask(obstacles, base_x, base_y, cell, r, W, H)
 
     order = sorted(prepared, key=lambda p: (-p.area, -(p.size[0] * p.size[1]), p.index))
     masks = {p.index: [(a,) + p.mask(a, cell, r) for a in angles] for p in order}
@@ -192,6 +211,12 @@ def nest(pieces, sheet_w, sheet_h, spacing=2.0, margin=0.0, angles=ANGLE_SETS["q
         return ((n + 15) // 16) * 16
 
     top_used = 0
+    if obstacles:
+        # La recherche ne regarde que les rangées jusqu'à `top_used` + la plus haute pièce : avec des obstacles,
+        # elle doit d'emblée aller au-dessus du plus haut d'entre eux, sinon une pièce ne trouverait pas la place libre.
+        filled_rows = np.nonzero(occ.any(axis=1))[0]
+        if filled_rows.size:
+            top_used = int(filled_rows.max()) + 1
     placed_boxes = []
     for done, piece in enumerate(order, 1):
         rows = min(H, top_used + hmax + 1)
