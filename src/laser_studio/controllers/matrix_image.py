@@ -142,6 +142,12 @@ class MatrixImageController:
             "mirror_v": False,
             **self._image_settings(),
         }
+        # Négatif propre à la matrice (case dans le cadre « Test à partir
+        # d'une image »), prioritaire sur celui de « Graver une image ».
+        # hasattr : fakes de tests / anciennes pages sans la méthode gardent
+        # le négatif des réglages image.
+        if hasattr(page, "image_test_invert"):
+            params["invert"] = page.image_test_invert()
         result = {}
         worker = ImageProcessingWorker(src.crop(box), params)
         worker.finished.connect(lambda arr, _img: result.update(arr=arr))

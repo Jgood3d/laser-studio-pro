@@ -99,6 +99,7 @@ class FakeMatrixPage:
         self.source_image = None
         self.source = None
         self.checked = False
+        self._invert = False
 
     def set_source_image(self, image, name, width_mm):
         self.source_image = image
@@ -109,6 +110,10 @@ class FakeMatrixPage:
 
     def tile_settings(self):
         return (100.0, 10.0, 10.0, 0.5, 0.5)
+
+    def image_test_invert(self):
+        """Négatif du test image (indépendant de « Graver une image »)."""
+        return self._invert
 
 
 @unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")

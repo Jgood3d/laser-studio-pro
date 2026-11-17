@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
@@ -63,6 +64,11 @@ class ImageTestGroup(QGroupBox):
         layout.addRow(tr("ui.mat_tile_width"), self.tile_width_spin)
         layout.addRow(tr("ui.mat_tile_height"), self.tile_height_spin)
 
+        # Négatif propre à la matrice (indépendant de l'onglet « Graver une image »).
+        self.invert_check = QCheckBox(tr("ui.mat_image_invert"))
+        self.invert_check.setToolTip(tr("ui.mat_image_invert_tip"))
+        layout.addRow("", self.invert_check)
+
         self.tile_picker = TilePicker()
         layout.addRow(self.tile_picker)
         self.tile_info_label = QLabel()
@@ -106,6 +112,11 @@ class ImageTestGroup(QGroupBox):
             self.tile_height_spin.value(),
             *self.tile_picker.center(),
         )
+
+    def invert_enabled(self):
+        """True si la zone d'image doit être gravée en négatif (indépendant
+        de la case « Inverser Couleurs » de l'onglet Graver une image)."""
+        return self.invert_check.isChecked()
 
     def _update_tile(self, *_args):
         """Cadre de la zone dans l'aperçu, et sa taille réelle."""

@@ -550,14 +550,15 @@ def open_stencil_studio(window, theme=None):
     if not dlg._opened_once:
         dlg._opened_once = True
         dlg.setWindowOpacity(0.0)    # invisible : ni flash blanc, ni page dessinée à moitié pendant le chargement
-        dlg.showMaximized()          # première ouverture : plein écran (fenêtre maximisée)
+        dlg.showMaximized()          # plein écran (fenêtre maximisée)
         QApplication.processEvents()
         if dlg._revealed:            # page déjà prête (préchargée) : on la montre après un court délai de rendu
             QTimer.singleShot(120, lambda: dlg.setWindowOpacity(1.0))
         else:
             dlg._show_splash()       # sinon message de chargement ; _reveal_view() rend la fenêtre visible
     else:
-        dlg.show()               # réouvertures : on garde l'état choisi par l'utilisateur
+        # Réouvertures : toujours maximisé (ouverture en plein écran).
+        dlg.showMaximized()
     dlg.raise_()
     dlg.activateWindow()
     if dlg.view is None:

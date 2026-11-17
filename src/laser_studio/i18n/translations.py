@@ -4768,10 +4768,22 @@ TRANSLATIONS = {
         "es": "Prueba a partir de una imagen",
     },
     "ui.mat_image_hint": {
-        "fr": "Chaque case de la matrice grave la même zone d'une image, à l'échelle réelle, avec les réglages d'image (luminosité, contraste, tramage, inversion…) de « Graver une image ». Clique ou glisse sur l'aperçu pour placer la zone.",
-        "en": "Every cell of the matrix engraves the same area of an image at real scale, using the image settings (brightness, contrast, dithering, invert…) of “Engrave an image”. Click or drag on the preview to place the area.",
-        "de": "Jede Zelle der Matrix graviert denselben Bildausschnitt in Originalgröße, mit den Bildeinstellungen (Helligkeit, Kontrast, Rasterung, Invertieren …) von „Bild gravieren“. Klicke oder ziehe in der Vorschau, um den Ausschnitt zu platzieren.",
-        "es": "Cada casilla de la matriz graba la misma zona de una imagen a escala real, con los ajustes de imagen (brillo, contraste, tramado, invertir…) de «Grabar una imagen». Haz clic o arrastra en la vista previa para colocar la zona.",
+        "fr": "Chaque case de la matrice grave la même zone d'une image, à l'échelle réelle, avec les réglages d'image (luminosité, contraste, tramage…) de « Graver une image ». Le négatif se règle ci-dessous. Clique ou glisse sur l'aperçu pour placer la zone.",
+        "en": "Every cell of the matrix engraves the same area of an image at real scale, using the image settings (brightness, contrast, dithering…) of “Engrave an image”. Negative is set below. Click or drag on the preview to place the area.",
+        "de": "Jede Zelle der Matrix graviert denselben Bildausschnitt in Originalgröße, mit den Bildeinstellungen (Helligkeit, Kontrast, Rasterung …) von „Bild gravieren“. Das Negativ wird unten eingestellt. Klicke oder ziehe in der Vorschau, um den Ausschnitt zu platzieren.",
+        "es": "Cada casilla de la matriz graba la misma zona de una imagen a escala real, con los ajustes de imagen (brillo, contraste, tramado…) de «Grabar una imagen». El negativo se elige abajo. Haz clic o arrastra en la vista previa para colocar la zona.",
+    },
+    "ui.mat_image_invert": {
+        "fr": "Négatif (inverser les couleurs)",
+        "en": "Negative (invert colors)",
+        "de": "Negativ (Farben invertieren)",
+        "es": "Negativo (invertir colores)",
+    },
+    "ui.mat_image_invert_tip": {
+        "fr": "Inverse les tons de la zone d'image pour ce test uniquement. Indépendant de la case « Inverser Couleurs » de l'onglet Graver une image. Utile pour les matières qui s'éclaircissent sous le laser.",
+        "en": "Inverts the tones of the image area for this test only. Independent of the “Invert Colors” checkbox on the Engrave an image tab. Useful for materials that lighten under the laser.",
+        "de": "Kehrt die Töne des Bildausschnitts nur für diesen Test um. Unabhängig von „Farben invertieren“ im Reiter Bild gravieren. Nützlich bei Materialien, die unter dem Laser heller werden.",
+        "es": "Invierte los tonos de la zona de imagen solo para esta prueba. Independiente de «Invertir colores» en la pestaña Grabar una imagen. Útil en materiales que se aclaran con el láser.",
     },
     "ui.mat_image_choose": {
         "fr": "Choisir une image…",
