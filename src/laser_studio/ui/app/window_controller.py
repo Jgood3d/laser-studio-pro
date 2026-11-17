@@ -201,7 +201,7 @@ class WindowControllerMixin:
         if kind == "png2svg":
             return bool(self.png2svg_widget.image_path)
         if kind == "separation":
-            return self.sep_src is not None
+            return self.separation.has_image()
         return False
 
     def update_image_actions_state(self, *_args):

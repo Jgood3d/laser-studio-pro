@@ -585,25 +585,17 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Onglet « Séparation Couleur / Verre », abonné à sa logique
         (SeparationMixin). Masqué au démarrage, ouvert depuis le menu Outils.
         """
-        self._init_separation_state()
         tab = SeparationTab()
+        self._init_separation(tab)
         tab.load_requested.connect(self.separation_load_image)
         tab.image_dropped.connect(self.separation_load_path)
-        tab.tone_changed.connect(self._sep_schedule_push)
-        tab.preview_changed.connect(self._sep_schedule_preview)
+        tab.tone_changed.connect(self.separation.schedule_push)
+        tab.preview_changed.connect(self.separation.schedule_previews)
         tab.gain_test_requested.connect(self.separation_gain_test)
         tab.export_requested.connect(self.separation_export)
         tab.preview_tab_changed.connect(lambda _index: self._sep_render_current())
-        # Noms historiques, lus par la logique de la séparation.
-        self.sep_w = tab.plate_width_spin
-        self.sep_h = tab.plate_height_spin
-        self.sep_dp = tab.print_dpi_spin
-        self.sep_gain = tab.gain_slider
-        self.sep_sat = tab.saturation_slider
-        self.sep_cla = tab.lightness_slider
-        self.sep_mir_print = tab.mirror_print_check
-        self.sep_dif = tab.diffusion_slider
-        self.sep_int = tab.intensity_slider
+        # Champs affichés par l'interface de la séparation (les réglages sont lus dans
+        # self.separation_settings).
         self.sep_lbl_file = tab.file_label
         self.sep_tabs = tab.preview_tabs
         self.sep_views = tab.preview_views
@@ -1096,8 +1088,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # Le projet impose ses propres réglages matière / négatif / miroir :
         # l'état mémorisé par l'onglet Séparation est oublié, sinon un
         # chargement d'image ultérieur le « rendrait » par-dessus.
-        self._sep_glass_settings_active = False
-        self._sep_prev_image_settings = None
+        self.separation.forget_glass_settings()
 
         self.spin_w.setValue(data.get("w_mm", 100.0))
         self.spin_h.setValue(data.get("h_mm", 100.0))

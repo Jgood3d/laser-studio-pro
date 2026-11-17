@@ -35,7 +35,7 @@ main.py
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
         ├─ GcodeGenerationMixin  (gcode_generation_mixin.py)
         ├─ LaserControlMixin     (laser_control_mixin.py)
-        └─ SeparationMixin       (separation_mixin.py)  logique de la séparation (vue : ui/tabs/separation/)
+        └─ SeparationMixin       (separation_mixin.py)  interface de la séparation (logique : controllers/separation.py, vue : ui/tabs/separation/)
         │
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
         │  qui reçoivent ce dont ils ont besoin :
@@ -193,7 +193,9 @@ laser-studio-pro/
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
 | **laser_control_mixin.py** | Connexion au graveur côté interface : boîtes de dialogue, panneau machine, aperçu 2D, abonnés aux signaux de `MachineConnection` | `controllers/machine_connection` |
 | **controllers/machine_connection.py** | `MachineConnection` (`QObject`, sans boîte de dialogue) : port série, threads (sondage de l'état, envoi du job, commandes, reconnexion après coupure), état « référencé » (`homed`), dernier job envoyé, `read_settings()` ($$). Signaux : `connection_changed`, `status_updated`, `log`, `position_lost`, `stream_progress` / `stream_lines_sent` / `stream_lines_acked`, `reconnecting` / `reconnected` | `grbl.connection`, `workers` |
-| **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
+| **separation_mixin.py** | Séparation couleur côté interface : boîtes de dialogue, aperçus affichés, test du gain ; abonné aux signaux de `SeparationController` | `controllers/separation`, `workers` |
+| **controllers/separation.py** | `SeparationController` (`QObject`, sans boîte de dialogue) : image source, tonalité cadrée sur la plaque envoyée à « Graver une image » (`tone_ready`), aperçus (original, gravure, impression, simulation) avec cache du calque couleur, export (PNG et PDF 1:1), réglages du verre appliqués à `ImageSettings` puis rendus (`apply_glass_settings` / `release_glass_settings`) | `image.separation`, `models/separation`, `models/image_settings` |
+| **models/separation.py** | `SeparationSettings` (`SettingsModel`) : plaque, résolution d'impression, gain de point, saturation, clarté, miroir d'impression, diffusion, intensité ; liés aux champs de `SeparationTab` (le cadrage reste lu par `SeparationTab.frame_args`) | `controllers/separation` |
 
 ### 3.3 Vectoriel (cœur édition)
 

@@ -65,7 +65,7 @@ class ImageProcessingMixin:
 
     def reset_image_settings(self):
         # Réinitialisation explicite : plus rien à restaurer depuis Séparation.
-        self._sep_glass_settings_active = False
+        self.separation.forget_glass_settings()
         self.image_settings.reset()
 
     def get_material_bg(self):
@@ -175,12 +175,13 @@ class ImageProcessingMixin:
         défaut (254 DPI), en désaccord avec le champ DPI d'ici.
         Appelée depuis _update_resolution_quality, point central de tous les
         changements de résolution."""
-        if hasattr(self, "tab_separation") and hasattr(self, "_sep_update_dpi_label"):
-            self._sep_update_dpi_label()
+        separation = getattr(self, "separation", None)
+        if separation is None:
+            return
+        self._sep_update_dpi_label()
         # Une image est chargée côté Séparation : sa tonalité est cadrée à une
         # densité de pixels qui dépend de la résolution de gravure — on la renvoie.
-        if getattr(self, "sep_src", None) is not None and hasattr(self, "_sep_schedule_push"):
-            self._sep_schedule_push()
+        separation.schedule_push()
 
     def _update_resolution_quality(self):
         """Pastille indiquant si l'écart de lignes actuellement réglé est

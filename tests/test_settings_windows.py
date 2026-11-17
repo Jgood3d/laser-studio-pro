@@ -419,7 +419,9 @@ class ShowWindowTests(unittest.TestCase):
         obj.app_actions = mock.Mock()
         obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
         obj.main_tabs_view = mock.Mock()
-        obj.raw_image = obj.sep_src = None
+        obj.raw_image = None
+        obj.separation = mock.Mock(has_image=lambda: obj._sep_image)
+        obj._sep_image = False
         obj.png2svg_widget = mock.Mock(image_path=None)
         return obj
 
@@ -437,7 +439,7 @@ class ShowWindowTests(unittest.TestCase):
         self.assert_enabled(obj, obj.tab_previews, True, True)
         self.assert_enabled(obj, obj.tab_separation, False, False)   # l'image d'un autre onglet ne compte pas
         self.assert_enabled(obj, object(), False, False)
-        obj.sep_src = "img"
+        obj._sep_image = True
         self.assert_enabled(obj, obj.tab_separation, True, True)
         obj.png2svg_widget.image_path = "/tmp/a.png"
         self.assert_enabled(obj, obj.tab_png2svg, True, False)       # pas de miroir de gravure en PNG ⇒ SVG
