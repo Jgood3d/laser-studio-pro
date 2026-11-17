@@ -102,6 +102,11 @@ def validated_settings(source, defaults=None):
                 value = value.strip().upper()
                 if value not in LAYER_LASER_CMDS:
                     raise ValueError(value)
+            elif key == "passes":
+                # 0 passe = aucune découpe/marquage généré. On refuse 0 et les
+                # négatifs (souvent issus d'un ancien matériau pass_c=0 ou d'un
+                # profil mal migré). Le spin UI est déjà borné à [1, 50].
+                value = max(1, int(value))
         except (TypeError, ValueError):
             if defaults is not None:
                 values[key] = getattr(defaults, key)
@@ -130,7 +135,7 @@ class LaserLayer:
         self.mode = normalize_mode(mode)    # cf. LAYER_MODES (codes)
         self.power = float(power)           # %
         self.speed = int(speed)             # mm/min
-        self.passes = int(passes)
+        self.passes = max(1, int(passes))   # 0 passe = aucune découpe générée
         self.line_interval = float(line_interval)  # mm (pas du remplissage)
         # Si True, line_interval suit automatiquement la taille du spot
         # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
@@ -149,6 +154,14 @@ class LaserLayer:
     def from_dict(d):
         layer = LaserLayer()
         layer.__dict__.update(d)
+        # Anciens projets / profils pouvaient avoir passes=0 (matériau sans
+        # découpe). On force au minimum 1 pour que la génération produise
+        # bien les contours si le calque est actif.
+        try:
+            layer.passes = max(1, int(layer.passes))
+        except (TypeError, ValueError):
+            layer.passes = 1
+        layer.mode = normalize_mode(getattr(layer, "mode", MODE_CUT))
         return layer
 
 

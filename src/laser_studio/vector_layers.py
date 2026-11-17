@@ -3558,9 +3558,13 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                 line_idx += 1
         else:
             # Découpe ou Marquage : contour(s) uniquement
-            for pass_num in range(layer["passes"]):
-                if layer["passes"] > 1:
-                    gcode.append(f"; Passe {pass_num + 1}/{layer['passes']}")
+            # Garde-fou : passes <= 0 (ancien matériau pass_c=0, profil mal
+            # migré…) produisait un calque « vide » alors que la géométrie
+            # était bien présente. On force au moins 1 passe.
+            n_passes = max(1, int(layer.get("passes") or 1))
+            for pass_num in range(n_passes):
+                if n_passes > 1:
+                    gcode.append(f"; Passe {pass_num + 1}/{n_passes}")
                 for poly in polygons:
                     if len(poly) < 2:
                         continue
