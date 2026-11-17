@@ -173,6 +173,33 @@ THEMES = {
         "scroll": "#7b2cbf",
         "disabled": "#6a5080",
     },
+    # Jarvis — HUD sombre, cyan froid type interface d'assistance
+    "jarvis": {
+        "label_key": "theme.jarvis",
+        "window": "#0a1218",
+        "base": "#060d12",
+        "alt": "#12202a",
+        "button": "#152836",
+        "button_hover": "#1c3548",
+        "border": "#1e4a5c",
+        "text": "#d4eef5",
+        "muted": "#6a9aab",
+        "accent": "#00c8e0",
+        "accent_hover": "#5de8f5",
+        "on_accent": "#061018",
+        "tooltip_bg": "#12202a",
+        "tooltip_fg": "#d4eef5",
+        "link": "#7fd4ff",
+        "group_bg": "#0f1a22",
+        "input_bg": "#060d12",
+        "toolbar_bg": "#0c1620",
+        "tab_bg": "#12202a",
+        "tab_selected": "#0a1218",
+        "menu_bg": "#0f1a22",
+        "menu_sel": "#1c3548",
+        "scroll": "#1e4a5c",
+        "disabled": "#4a6a78",
+    },
 }
 
 
@@ -552,6 +579,9 @@ def normalize_theme_name(theme_name) -> str:
         "retro": "retro80",
         "synthwave": "retro80",
         "80s": "retro80",
+        "jarvis": "jarvis",
+        "hud": "jarvis",
+        "ironman": "jarvis",
     }
     name = aliases.get(name, name)
     if name not in THEMES:
@@ -569,12 +599,14 @@ def apply_app_theme(app: QApplication, theme_name: str):
     app.setStyleSheet("")
     app.setPalette(_build_palette(colors))
     app.setStyleSheet(_build_stylesheet(colors))
+    # Icônes : pack Jarvis (cyan) uniquement pour ce thème ; sinon Breeze.
+    apply_icon_theme_for_ui(name)
     return name
 
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("dark", "light", "dusk", "warm", "neon", "retro80")
+    order = ("dark", "light", "dusk", "warm", "neon", "retro80", "jarvis")
     return [(code, THEMES[code]["label_key"]) for code in order]
 
 
@@ -590,24 +622,55 @@ def apply_saved_theme(app: QApplication):
     return apply_app_theme(app, name)
 
 
-def install_breeze_icon_theme():
-    """Active le thème d'icônes Breeze embarqué (surtout utile sous Windows/macOS).
-
-    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
-    Le pack minimal vit dans resources/icons/breeze/, cherché comme les
-    images de l'application (voir core.paths.resource_candidates) : à côté de
-    l'exécutable, puis dans le bundle PyInstaller (--add-data "resources;resources").
-    """
-    # Ne pas écraser un vrai thème desktop déjà choisi par l'utilisateur.
-    current = QIcon.themeName()
-    if current and current not in ("", "hicolor"):
-        return False
-
+def _ensure_icon_search_path():
+    """Ajoute resources/icons aux chemins de thèmes d'icônes Qt (une seule fois)."""
     for base in map(Path, resource_candidates("icons")):
-        index = base / "breeze" / "index.theme"
-        if index.is_file():
+        if (base / "breeze" / "index.theme").is_file() or (base / "jarvis" / "index.theme").is_file():
             paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
             QIcon.setThemeSearchPaths(paths)
-            QIcon.setThemeName("breeze")
             return True
     return False
+
+
+def apply_icon_theme_for_ui(theme_name: str) -> bool:
+    """Choisit le pack d'icônes selon le thème UI.
+
+    - jarvis → pack « jarvis » (icônes cyan HUD), s'il est présent ;
+    - sinon → « breeze » (pack par défaut).
+
+    Ne force rien si un vrai thème desktop (hors hicolor/breeze/jarvis) est
+    déjà actif : on laisse le choix de l'utilisateur Linux.
+    """
+    name = normalize_theme_name(theme_name)
+    wanted = "jarvis" if name == "jarvis" else "breeze"
+    current = QIcon.themeName() or ""
+    # Thème système utilisateur : ne pas l'écraser, sauf pour basculer
+    # entre nos packs embarqués breeze ↔ jarvis.
+    if current and current not in ("", "hicolor", "breeze", "jarvis"):
+        return False
+    if not _ensure_icon_search_path():
+        return False
+    for base in map(Path, resource_candidates("icons")):
+        if (base / wanted / "index.theme").is_file():
+            QIcon.setThemeName(wanted)
+            return True
+    # Repli : Breeze si jarvis absent
+    if wanted == "jarvis":
+        for base in map(Path, resource_candidates("icons")):
+            if (base / "breeze" / "index.theme").is_file():
+                QIcon.setThemeName("breeze")
+                return True
+    return False
+
+
+def install_breeze_icon_theme():
+    """Active le thème d'icônes embarqué au démarrage (Breeze, ou Jarvis si
+    le thème UI enregistré est jarvis).
+
+    Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
+    Le pack vit dans resources/icons/<breeze|jarvis>/, cherché comme les
+    images de l'application (voir core.paths.resource_candidates).
+    """
+    settings = QSettings("LaserStudioPro", "UIConfig")
+    ui = normalize_theme_name(settings.value("app_theme", "dark"))
+    return apply_icon_theme_for_ui(ui)

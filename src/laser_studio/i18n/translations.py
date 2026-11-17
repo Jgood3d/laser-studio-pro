@@ -117,6 +117,24 @@ TRANSLATIONS = {
         "de": "Warm dim (warmes Grau)",
         "es": "Warm dim (gris cálido)",
     },
+    "theme.neon": {
+        "fr": "Neon laser",
+        "en": "Neon laser",
+        "de": "Neon-Laser",
+        "es": "Neón láser",
+    },
+    "theme.retro80": {
+        "fr": "Rétro 80 (synthwave)",
+        "en": "Retro 80s (synthwave)",
+        "de": "Retro 80er (Synthwave)",
+        "es": "Retro 80 (synthwave)",
+    },
+    "theme.jarvis": {
+        "fr": "Jarvis (HUD cyan)",
+        "en": "Jarvis (cyan HUD)",
+        "de": "Jarvis (Cyan-HUD)",
+        "es": "Jarvis (HUD cian)",
+    },
 
 
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
