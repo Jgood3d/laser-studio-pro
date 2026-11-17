@@ -473,16 +473,16 @@ class ShowWindowTests(unittest.TestCase):
         fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
         combo = mock.Mock()
         combo.findText.side_effect = lambda text: 0 if text == "Atkinson" else -1
-        obj = types.SimpleNamespace(combo_algo=combo)
+        obj = types.SimpleNamespace(combo_algo=combo, image_settings=mock.Mock())
         with mock.patch.object(mixin, "QSettings", fake):
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            combo.setCurrentText.assert_not_called()                 # rien de mémorisé : défaut
+            obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
             mixin.ImageProcessingMixin.remember_algorithm(obj, "Atkinson")
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            combo.setCurrentText.assert_called_once_with("Atkinson")
+            obj.image_settings.update.assert_called_once_with(algorithm="Atkinson")
             stored[mixin.ALGORITHM_SETTING] = "Algorithme disparu"    # plus dans la liste : ignoré
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            self.assertEqual(combo.setCurrentText.call_count, 1)
+            self.assertEqual(obj.image_settings.update.call_count, 1)
         src = read("main_window.py")
         self.assertIn("settings.algorithm_combo.textActivated.connect(self.remember_algorithm)", src)
         self.assertIn("self.restore_remembered_algorithm()", src)

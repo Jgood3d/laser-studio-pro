@@ -40,7 +40,8 @@ class SeparationMixin:
         self._sep_view_sizes = {}
         self._sep_t0 = None          # diagnostic : instant du dernier changement de tramage
         self._sep_timing = {}
-        self.combo_algo.currentIndexChanged.connect(self._sep_mark_t0)
+        self.image_settings.changed.connect(
+            lambda changes: "algorithm" in changes and self._sep_mark_t0())
 
         self.sep_push_timer = QTimer()
         self.sep_push_timer.setSingleShot(True)
@@ -153,16 +154,14 @@ class SeparationMixin:
         l'état d'avant (une seule fois) pour le rendre quand une image est
         chargée côté Images Tramage (voir separation_release_image_settings)."""
         if not getattr(self, "_sep_glass_settings_active", False):
+            settings = self.image_settings
             self._sep_prev_image_settings = {
-                "material": self.get_material_bg() if hasattr(self, "get_material_bg") else None,
-                "invert": self.chk_invert.isChecked(),
-                "mirror_h": self.app_actions.mirror_h.isChecked(),
+                "material_bg": settings.material_bg,
+                "invert": settings.invert,
+                "mirror_h": settings.mirror_h,
             }
             self._sep_glass_settings_active = True
-        if hasattr(self, "set_material_bg"):
-            self.set_material_bg("dark")  # ne touche pas à la case, réglée juste après
-        self.chk_invert.setChecked(True)
-        self.app_actions.mirror_h.setChecked(True)
+        self.image_settings.update(material_bg="dark", invert=True, mirror_h=True)
 
     def separation_release_image_settings(self):
         """Appelé quand une image est chargée côté Images Tramage : rend les
@@ -174,10 +173,7 @@ class SeparationMixin:
         prev = getattr(self, "_sep_prev_image_settings", None)
         if not prev:
             return
-        if prev.get("material") and hasattr(self, "set_material_bg"):
-            self.set_material_bg(prev["material"])
-        self.chk_invert.setChecked(prev["invert"])
-        self.app_actions.mirror_h.setChecked(prev["mirror_h"])
+        self.image_settings.update(**prev)
 
     def separation_push_tone(self):
         """Envoie la tonalité (canal V, cadrée sur la plaque) à Image & Filtres
@@ -220,7 +216,7 @@ class SeparationMixin:
                 from laser_studio.workers import _HAS_NUMBA
             except Exception:
                 _HAS_NUMBA = "?"
-            msg = (f"[Séparation] {self.combo_algo.currentText()} | numba actif : {_HAS_NUMBA} | "
+            msg = (f"[Séparation] {self.image_settings.algorithm} | numba actif : {_HAS_NUMBA} | "
                    f"tableau {W}x{H} px ({W * H / 1e6:.1f} Mpx) | "
                    f"attente+traitement Image&Filtres : {avant} | "
                    f"aperçu : {(t_end - t_hook) * 1000:.0f} ms "
@@ -298,9 +294,9 @@ class SeparationMixin:
             t_b = time.perf_counter()
             grav = Image.fromarray(arr).resize((pw, ph), Image.BOX)
             lum = (255.0 - np.asarray(grav, dtype=np.float32)) / 255.0
-            if self.app_actions.mirror_h.isChecked():
+            if self.image_settings.mirror_h:
                 lum = lum[:, ::-1]
-            if self.app_actions.mirror_v.isChecked():
+            if self.image_settings.mirror_v:
                 lum = lum[::-1, :]
             lum = np.ascontiguousarray(lum)
             dpi_prev = pw / (self.sep_w.value() / 25.4)
@@ -341,7 +337,7 @@ class SeparationMixin:
         la résolution, la vitesse, la puissance et la machine actuelles. Une fois
         gravée, on repère la ligne dont les cases passent régulièrement du noir
         au clair, et on règle le curseur sur la valeur écrite à gauche."""
-        mirror = self.app_actions.mirror_h.isChecked()
+        mirror = self.image_settings.mirror_h
         arr, w_mm, h_mm = build_gain_test_array(self.spin_lmm.value(), mirror=mirror)
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if w_mm > bed_w or h_mm > bed_h:
@@ -387,7 +383,7 @@ class SeparationMixin:
             # Calque noir : exactement ce que reçoit le laser (miroir/négatif d'Image & Filtres inclus)
             f_grav = f"{base}_gravure.png"
             grav = Image.fromarray(self.processed_array)
-            if self.combo_algo.currentText() != "Niveaux de Gris":
+            if self.image_settings.algorithm != "Niveaux de Gris":
                 grav = grav.point(lambda x: 255 if x > 127 else 0, mode="1")
             grav.save(f_grav, dpi=(dpi_g, dpi_g))
 

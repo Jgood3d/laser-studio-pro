@@ -9,11 +9,12 @@ from laser_studio.i18n import tr
 class MaterialComboBox(QComboBox):
     """Matière : fond noir ("dark") ou fond clair ("light").
 
-    Elle ne fait que choisir ; la fenêtre coche ou décoche « Inverser
-    Couleurs » en conséquence (la case reste modifiable).
+    Elle ne fait que choisir ; liée au modèle ImageSettings (material_bg),
+    qui coche ou décoche le négatif quand l'utilisateur choisit une matière
+    (ImageSettings.choose_material ; la case reste modifiable).
 
         combo = MaterialComboBox()
-        combo.material_changed.connect(self._on_material_bg_changed)
+        combo.activated.connect(lambda _i: settings.choose_material(combo.material()))
     """
 
     # Matière choisie : "dark" ou "light".

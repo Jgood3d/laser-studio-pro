@@ -7,7 +7,11 @@ import numpy as np
 from PIL import Image, ImageEnhance
 from laser_studio.workers import ImageProcessingWorker
 from laser_studio.image.filters import sharpen_image
+from laser_studio.image.resolution import (
+    WARN_BELOW_RATIO, clamp, dpi_to_lmm, focal_to_lmm, lmm_to_dpi, resolution_quality,
+)
 from laser_studio.image.size import natural_size_mm, read_dpi
+from laser_studio.ui.binding import bind
 from laser_studio.i18n import tr
 from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 
@@ -16,6 +20,32 @@ ALGORITHM_SETTING = "image_algorithm"
 
 
 class ImageProcessingMixin:
+    def _bind_image_settings(self):
+        """Lie les champs du tramage (curseurs, négatif, matière, algorithme,
+        miroirs) au modèle self.image_settings : chaque changement, d'où
+        qu'il vienne (saisie, projet, annulation, Séparation), relance le
+        traitement de l'image."""
+        settings = self.image_settings
+        for widget, field in (
+            (self.slider_bright, "brightness"),
+            (self.slider_contrast, "contrast"),
+            (self.slider_gamma, "gamma"),
+            (self.slider_sharp, "sharpness"),
+            (self.chk_invert, "invert"),
+            (self.app_actions.mirror_h, "mirror_h"),
+            (self.app_actions.mirror_v, "mirror_v"),
+        ):
+            bind(widget, settings, field)
+        combo = self.combo_material_bg
+        bind(combo, settings, "material_bg",
+             to_widget=lambda key: combo.findData(key),
+             from_widget=lambda index: combo.itemData(index) or "light")
+        algo = self.combo_algo
+        bind(algo, settings, "algorithm",
+             to_widget=lambda name: algo.findText(name),
+             from_widget=lambda index: algo.itemText(index))
+        settings.changed.connect(self.update_image_processing)
+
     def remember_algorithm(self, algorithm):
         """Mémorise l'algorithme de tramage choisi par l'utilisateur (liste « Algorithme » ou
         comparaison des algorithmes) : il est resélectionné au prochain démarrage, donc pour
@@ -31,52 +61,29 @@ class ImageProcessingMixin:
         """Resélectionne le dernier algorithme choisi, s'il existe encore dans la liste."""
         algorithm = QSettings("LaserStudioPro", "UIConfig").value(ALGORITHM_SETTING, "")
         if algorithm and self.combo_algo.findText(algorithm) >= 0:
-            self.combo_algo.setCurrentText(algorithm)
+            self.image_settings.update(algorithm=algorithm)
 
     def reset_image_settings(self):
         # Réinitialisation explicite : plus rien à restaurer depuis Séparation.
         self._sep_glass_settings_active = False
-        self.slider_bright.setValue(0)
-        self.slider_contrast.setValue(0)
-        self.slider_gamma.setValue(100)
-        self.slider_sharp.setValue(0)
-        self.combo_material_bg.blockSignals(True)
-        self.combo_material_bg.setCurrentIndex(self.combo_material_bg.findData("light"))
-        self.combo_material_bg.blockSignals(False)
-        self.chk_invert.setChecked(False)
-        self.app_actions.mirror_h.setChecked(False)
-        self.app_actions.mirror_v.setChecked(False)
+        self.image_settings.reset()
 
     def get_material_bg(self):
         """Matière choisie : "dark" (fond noir) ou "light" (fond clair)."""
-        return self.combo_material_bg.currentData() or "light"
+        return self.image_settings.material_bg
 
     def set_material_bg(self, key):
-        """Positionne le sélecteur de matière SANS toucher à la case
-        « Inverser Couleurs » (utilisé au chargement d'un projet, où l'état
-        de la case est restauré séparément)."""
-        idx = self.combo_material_bg.findData(key)
-        if idx < 0:
-            idx = self.combo_material_bg.findData("light")
-        self.combo_material_bg.blockSignals(True)
-        self.combo_material_bg.setCurrentIndex(idx)
-        self.combo_material_bg.blockSignals(False)
-
-    def _on_material_bg_changed(self, index):
-        """Fond noir : le laser éclaircit ce qu'il brûle -> négatif activé.
-        Fond clair : le laser noircit ce qu'il brûle -> négatif désactivé.
-        Ne fait que cocher/décocher la case ; le miroir n'est pas touché."""
-        self.chk_invert.setChecked(self.get_material_bg() == "dark")
-        # Si la case était déjà dans le bon état, aucun signal n'est émis :
-        # on force la mise à jour pour que l'undo capture aussi le sélecteur.
-        self.update_image_processing()
+        """Choisit la matière SANS toucher au négatif (projet, Séparation) ;
+        une valeur inconnue revient au fond clair."""
+        self.image_settings.update(material_bg=key if key in ("dark", "light") else "light")
 
     def material_summary_text(self):
         """Ex. « Matière : fond noir (négatif activé) » — reflète l'état
-        RÉEL de la case, donc signale une incohérence si elle a été
-        modifiée à la main."""
-        bg_key = "gen.material_dark" if self.get_material_bg() == "dark" else "gen.material_light"
-        neg_key = "gen.negative_on" if self.chk_invert.isChecked() else "gen.negative_off"
+        RÉEL du négatif, donc signale une incohérence s'il a été modifié à
+        la main."""
+        settings = self.image_settings
+        bg_key = "gen.material_dark" if settings.material_bg == "dark" else "gen.material_light"
+        neg_key = "gen.negative_on" if settings.invert else "gen.negative_off"
         return tr("gen.material_summary").format(bg=tr(bg_key), negative=tr(neg_key))
 
     def on_lmm_mode_changed(self, index):
@@ -97,9 +104,8 @@ class ImageProcessingMixin:
             self._sync_dpi_and_quality_from_lmm(self.spin_lmm.value())
 
     def on_dpi_value_changed(self, dpi):
-        """1 pouce = 25.4 mm : lignes/mm = DPI / 25.4."""
-        lmm = dpi / 25.4
-        lmm = max(self.spin_lmm.minimum(), min(self.spin_lmm.maximum(), lmm))
+        """DPI saisis : lignes/mm correspondants (voir image.resolution)."""
+        lmm = clamp(dpi_to_lmm(dpi), self.spin_lmm.minimum(), self.spin_lmm.maximum())
         self.spin_lmm.blockSignals(True)
         self.spin_lmm.setValue(lmm)
         self.spin_lmm.blockSignals(False)
@@ -112,7 +118,7 @@ class ImageProcessingMixin:
         directe en mode 'Lignes / mm', ou calcul depuis la focale)."""
         if hasattr(self, "spin_dpi"):
             self.spin_dpi.blockSignals(True)
-            self.spin_dpi.setValue(lmm * 25.4)
+            self.spin_dpi.setValue(lmm_to_dpi(lmm))
             self.spin_dpi.blockSignals(False)
         self._update_resolution_quality()
 
@@ -123,13 +129,12 @@ class ImageProcessingMixin:
         focal = self.machine.focal if hasattr(self, "machine") else 0.1
         if focal <= 0:
             focal = 0.1
-        lmm = 1.0 / focal
-        lmm = max(self.spin_lmm.minimum(), min(self.spin_lmm.maximum(), lmm))
+        lmm = clamp(focal_to_lmm(focal), self.spin_lmm.minimum(), self.spin_lmm.maximum())
         self.spin_lmm.blockSignals(True)
         self.spin_lmm.setValue(lmm)
         self.spin_lmm.blockSignals(False)
         self._sync_dpi_and_quality_from_lmm(lmm)
-        dpi = lmm * 25.4
+        dpi = lmm_to_dpi(lmm)
         self.lbl_focal_info.setText(
     tr("image.focal_info").format(
         focal=focal,
@@ -195,36 +200,15 @@ class ImageProcessingMixin:
         self._sync_separation_with_resolution()
         if not hasattr(self, "lbl_resolution_quality") or not hasattr(self, "spin_machine_focal"):
             return
-        focal = self.machine.focal
-        lmm = self.spin_lmm.value()
-        if focal <= 0 or lmm <= 0:
+        quality = resolution_quality(self.machine.focal, self.spin_lmm.value())
+        # Écart correct ou recommandé : rien à signaler, la ligne ne sert qu'à
+        # prévenir d'un réglage trop fin (risque de surgravure / brûlure).
+        if quality is None or quality[1] >= WARN_BELOW_RATIO:
             self.lbl_resolution_quality.setText("")
             return
-        spacing = 1.0 / lmm
-        ratio = spacing / focal
-        if ratio >= 0.9:
-            # Écart correct ou recommandé : rien à signaler, on n'affiche
-            # pas la ligne (elle ne sert qu'à prévenir d'un réglage trop
-            # fin — risque de surgravure / brûlure).
-            self.lbl_resolution_quality.setText("")
-            return
-        if ratio < 0.6:
-            text, color = tr("image.quality_too_fine"), "#e05656"
-        elif ratio < 0.9:
-            text, color = tr("image.quality_fine"), "#e0a656"
-        elif ratio < 1.25:
-            text, color = tr("image.quality_fine_ok"), "#999999"
-        elif ratio <= 2.25:
-            text, color = tr("image.quality_recommended"), "#56c271"
-        else:
-            text, color = tr("image.quality_coarse"), "#999999"
+        spacing, ratio, key, color = quality
         self.lbl_resolution_quality.setText(
-    tr("image.quality_result").format(
-        spacing=spacing,
-        ratio=ratio,
-        quality=text
-    )
-)
+            tr("image.quality_result").format(spacing=spacing, ratio=ratio, quality=tr(key)))
         self.lbl_resolution_quality.setStyleSheet(f"color: {color};")
 
     def goto_laser_focal_settings(self):
@@ -355,89 +339,16 @@ class ImageProcessingMixin:
         # Chargement par fichier, projet ou onglet Séparation : tous passent par ici.
         self.update_image_actions_state()
 
-    def _capture_image_settings_snapshot(self):
-        """État des réglages de tramage proprement dits (pas les dimensions
-        ni la résolution, qui ont leur propre logique ailleurs) — utilisé
-        pour l'undo/redo dédié de cet onglet."""
-        return {
-            "bright": self.slider_bright.value(),
-            "contrast": self.slider_contrast.value(),
-            "gamma": self.slider_gamma.value(),
-            "sharp": self.slider_sharp.value(),
-            "invert": self.chk_invert.isChecked(),
-            "material_bg": self.get_material_bg(),
-            "mirror_h": self.app_actions.mirror_h.isChecked(),
-            "mirror_v": self.app_actions.mirror_v.isChecked(),
-            "algo": self.combo_algo.currentText(),
-        }
-
-    def _restore_image_settings_snapshot(self, snap):
-        for slider, key in (
-            (self.slider_bright, "bright"),
-            (self.slider_contrast, "contrast"),
-            (self.slider_gamma, "gamma"),
-            (self.slider_sharp, "sharp"),
-        ):
-            slider.blockSignals(True)
-            slider.setValue(snap[key])
-            slider.blockSignals(False)
-        self.set_material_bg(snap.get("material_bg", "light"))
-        for chk, key in (
-            (self.chk_invert, "invert"),
-            (self.app_actions.mirror_h, "mirror_h"),
-            (self.app_actions.mirror_v, "mirror_v"),
-        ):
-            chk.blockSignals(True)
-            chk.setChecked(snap[key])
-            chk.blockSignals(False)
-        self.combo_algo.blockSignals(True)
-        self.combo_algo.setCurrentText(snap["algo"])
-        self.combo_algo.blockSignals(False)
-        self._img_last_known_settings = snap
-        self.update_image_processing()
-
-    def _push_image_undo_if_changed(self):
-        """Appelé par update_image_processing (point d'entrée commun à TOUS
-        les contrôles de tramage) : empile l'état précédent dès qu'il
-        diffère du dernier connu. Les changements rapprochés dans le temps
-        (glissement continu d'un slider) sont regroupés en une seule étape
-        d'annulation — sinon défaire un glissement de slider demanderait
-        des dizaines de Ctrl+Z."""
-        current = self._capture_image_settings_snapshot()
-        last = getattr(self, "_img_last_known_settings", None)
-        if last is not None and last != current:
-            import time
-            now = time.time()
-            if now - self._img_last_undo_push_time > 0.6 or not self._img_undo_stack:
-                self._img_undo_stack.append(last)
-                if len(self._img_undo_stack) > 30:
-                    self._img_undo_stack.pop(0)
-                self._img_redo_stack.clear()
-            self._img_last_undo_push_time = now
-        self._img_last_known_settings = current
-
     def undo_image_settings(self):
-        if not self._img_undo_stack:
-            return
-        current = self._capture_image_settings_snapshot()
-        previous = self._img_undo_stack.pop()
-        self._img_redo_stack.append(current)
-        if len(self._img_redo_stack) > 30:
-            self._img_redo_stack.pop(0)
-        self._restore_image_settings_snapshot(previous)
+        """Ctrl+Z dans l'onglet : réglages de tramage d'avant le dernier changement."""
+        self.image_history.undo()
 
     def redo_image_settings(self):
-        if not self._img_redo_stack:
-            return
-        current = self._capture_image_settings_snapshot()
-        nxt = self._img_redo_stack.pop()
-        self._img_undo_stack.append(current)
-        if len(self._img_undo_stack) > 30:
-            self._img_undo_stack.pop(0)
-        self._restore_image_settings_snapshot(nxt)
+        self.image_history.redo()
 
     def update_image_processing(self, *args):
-        self._push_image_undo_if_changed()
+        """Retraite l'image peu après le dernier changement (plusieurs
+        changements rapprochés : un seul traitement)."""
         self.process_timer.start(150)
 
     def _do_update_image_processing(self):
@@ -457,14 +368,7 @@ class ImageProcessingMixin:
             'w_mm': self.spin_w.value(),
             'h_mm': self.spin_h.value(),
             'lmm': self.spin_lmm.value(),
-            'mirror_h': self.app_actions.mirror_h.isChecked(),
-            'mirror_v': self.app_actions.mirror_v.isChecked(),
-            'bright': self.slider_bright.value(),
-            'contrast': self.slider_contrast.value(),
-            'gamma': self.slider_gamma.value(),
-            'sharp': self.slider_sharp.value(),
-            'invert': self.chk_invert.isChecked(),
-            'algo': self.combo_algo.currentText()
+            **self.image_settings.processing_params(),
         }
 
         self.img_worker = ImageProcessingWorker(self.raw_image, params)
@@ -502,10 +406,11 @@ class ImageProcessingMixin:
         img = self.raw_image.copy()
         img.thumbnail((220, 220), Image.Resampling.LANCZOS)
 
-        bright = self.slider_bright.value()
-        contrast = self.slider_contrast.value()
-        gamma = self.slider_gamma.value() / 100.0
-        invert = self.chk_invert.isChecked()
+        settings = self.image_settings
+        bright = settings.brightness
+        contrast = settings.contrast
+        gamma = settings.gamma / 100.0
+        invert = settings.invert
 
         if bright != 0:
             img = ImageEnhance.Brightness(img).enhance(1.0 + bright / 100.0)
@@ -516,9 +421,9 @@ class ImageProcessingMixin:
         if gamma != 1.0:
             arr = 255.0 * ((arr / 255.0) ** (1.0 / gamma))
             arr = np.clip(arr, 0, 255)
-        if self.slider_sharp.value() > 0:
+        if settings.sharpness > 0:
             arr = np.array(sharpen_image(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)),
-                                         self.slider_sharp.value()), dtype=np.float32)
+                                         settings.sharpness), dtype=np.float32)
         if invert:
             arr = 255.0 - arr
 
@@ -535,7 +440,7 @@ class ImageProcessingMixin:
                 continue
 
         dialog = DitherComparisonDialog(self, thumbnails)
-        dialog.algorithm_chosen.connect(self.combo_algo.setCurrentText)
+        dialog.algorithm_chosen.connect(lambda name: self.image_settings.update(algorithm=name))
         dialog.algorithm_chosen.connect(self.remember_algorithm)
         dialog.exec()
 

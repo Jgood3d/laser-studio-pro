@@ -42,6 +42,7 @@ from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.vector_layers import VectorCanvasView
+from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
 from laser_studio.models.grbl import LASER_COMMANDS, GrblConfig
@@ -86,9 +87,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.block_aspect_signal = False
         self.img_worker = None
         self.pending_reprocess = False
-        self._img_undo_stack = []
-        self._img_redo_stack = []
-        self._img_last_undo_push_time = 0.0
+        # Réglages de tramage de « Graver une image » et leur annulation (Ctrl+Z / Ctrl+Y) : les
+        # champs de l'onglet y sont liés (_bind_image_settings), la logique les lit ici.
+        self.image_settings = ImageSettings(self)
+        self.image_history = ImageSettingsHistory(self.image_settings)
 
         # Gravure d'une image : vitesse et puissance lues dans le calque de
         # gravure (engrave_speed / engrave_power, voir GcodeGenerationMixin).
@@ -125,6 +127,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.autosave_timer.start()
 
         self.init_ui()
+        self._bind_image_settings()
         self._connect_machine_signals()
         self.load_machine_settings()
         self.load_splitter_sizes()
@@ -508,7 +511,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         settings = tab.settings
         settings.load_requested.connect(self.load_image)
         settings.processing_changed.connect(self.update_image_processing)
-        settings.material_changed.connect(self._on_material_bg_changed)
+        # Matière choisie par l'utilisateur (pas par programme) : coche ou décoche le négatif.
+        settings.material_combo.activated.connect(
+            lambda _index: self.image_settings.choose_material(settings.material_combo.material()))
         settings.engrave_layer_changed.connect(self._on_engrave_layer_chosen)
         settings.size_changed.connect(self.on_dimension_changed)
         settings.resolution_mode_changed.connect(self.on_lmm_mode_changed)
@@ -1059,16 +1064,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             "origin_pos": self.job_position_box.origin(),
             "offset_x": self.spin_off_x.value(),
             "offset_y": self.spin_off_y.value(),
-            "bright": self.slider_bright.value(),
-            "contrast": self.slider_contrast.value(),
-            "gamma": self.slider_gamma.value(),
-            "sharp": self.slider_sharp.value(),
+            **self.image_settings.to_project(),
             "safe_cut_order": self.grbl.safe_cut_order,
-            "invert": self.chk_invert.isChecked(),
-            "material_bg": self.get_material_bg(),
-            "mirror_h": self.app_actions.mirror_h.isChecked(),
-            "mirror_v": self.app_actions.mirror_v.isChecked(),
-            "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.engrave_speed,
             "power_engrave": self.engrave_power,
@@ -1110,17 +1107,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_off_x.setValue(data.get("offset_x", 0.0))
         self.spin_off_y.setValue(data.get("offset_y", 0.0))
 
-        self.slider_bright.setValue(data.get("bright", 0))
-        self.slider_contrast.setValue(data.get("contrast", 0))
-        self.slider_gamma.setValue(data.get("gamma", 100))
-        self.slider_sharp.setValue(data.get("sharp", 0))
+        # Réglages de tramage (anciens projets sans "material_bg" : déduite du négatif).
+        self.image_settings.load_project(data)
         self.grbl.update(safe_cut_order=data.get("safe_cut_order", True))
-        # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
-        self.set_material_bg(data.get("material_bg", "dark" if data.get("invert", False) else "light"))
-        self.chk_invert.setChecked(data.get("invert", False))
-        self.app_actions.mirror_h.setChecked(data.get("mirror_h", False))
-        self.app_actions.mirror_v.setChecked(data.get("mirror_v", False))
-        self.combo_algo.setCurrentText(data.get("algo", "Floyd-Steinberg"))
         self.spin_lmm.setValue(data.get("lmm", 10.0))
 
         # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque

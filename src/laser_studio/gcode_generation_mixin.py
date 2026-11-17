@@ -426,7 +426,7 @@ class GcodeGenerationMixin:
             # Gravure d'image : commande et surbalayage de son calque de gravure (voir workers.py).
             'image_laser_cmd': self.image_laser_cmd,
             'image_overscan': self.image_overscan_enabled,
-            'algo': self.combo_algo.currentText(),
+            'algo': self.image_settings.algorithm,
             's_max': self.grbl.smax,
             'homing': self.grbl.homing_enabled,
             'enable_overscan': self.grbl.overscan_enabled,

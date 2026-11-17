@@ -87,7 +87,7 @@ laser-studio-pro/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
 ├── core/                             # socle sans interface : version, paths (chemins, ressources), constants, debug_log
-├── models/                           # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), settings (base), change_log (journal)
+├── models/                           # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), settings (base), change_log (journal)
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
@@ -126,7 +126,7 @@ laser-studio-pro/
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── image_processing_mixin.py
-├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
+├── image/                            # traitement d'image sans Qt : filters, size, resolution, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
 ├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, ornament_generator, ornament_region, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
@@ -153,6 +153,8 @@ laser-studio-pro/
 | **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
 | **models/settings.py**, **machine.py**, **grbl.py** | `SettingsModel` : réglages nommés (`FIELDS` : type et défaut), lus comme des attributs, modifiés par `update()` qui convertit, n'émet `changed({nom: valeur})` que pour ce qui change et écrit l'ancienne et la nouvelle valeur dans le journal. `MachineConfig` (`machine`) : plateau, spot, vitesse et accélération max (`to_profile` / `apply_profile` pour les profils machine). `GrblConfig` (`grbl`) : commande laser (`M4` / `M3`), S-Max, homing, surbalayage, décalage aller/retour, ordre de découpe sûr, G-Code de début et de fin, réglages `$$` ; `profile_values` / `apply_profile` / `mechanical_values` pour les profils machine. Les pages Paramètres du graveur et Configuration GRBL ne sont plus que des vues liées à ces modèles | Créés par `main_window` ; lus par la génération, l'éditeur vectoriel, le traitement d'image, Stencil Studio (`lsp_bridge`) |
 | **models/layer_modes.py** | Codes des modes de calque (`engrave_fill`, `cut`, `mark`), indépendants de la langue, enregistrés dans les projets, les profils et les commentaires du G-Code ; seul leur affichage est traduit (`LAYER_MODE_TR_KEYS`, `models.layers.layer_label`). `normalize_mode()` convertit les anciens libellés français (« Gravure Remplie », « Découpe », « Marquage (Contour) ») à la lecture. Sans Qt | `models/layers`, `vector/order`, génération, Stencil Studio |
+| **models/image_settings.py** | `ImageSettings` (`SettingsModel`) : réglages de tramage de « Graver une image » (luminosité, contraste, gamma, netteté, négatif, matière, miroirs, algorithme), liés aux champs de l'onglet et aux miroirs de la barre d'outils (`ImageProcessingMixin._bind_image_settings`) ; `choose_material()` coche ou décoche le négatif, `to_project()` / `load_project()` pour les projets, `processing_params()` pour le traitement. `ImageSettingsHistory` : annuler / refaire, changements rapprochés regroupés en une étape | `main_window`, `image_processing_mixin`, `separation_mixin`, génération |
+| **image/resolution.py** | Lignes/mm, DPI, focale, et classement de l'écart entre les lignes par rapport au spot (`resolution_quality`). Sans Qt | `image_processing_mixin` |
 | **models/change_log.py** | Journal des changements des modèles : une ligne par changement, sauf pour les textes saisis au clavier (G-Code de début et de fin, `$$`, nom d'un calque), écrits une seule fois à la fin de la saisie | `models/` |
 | **models/materials.py** | `MaterialsModel` : les matériaux (nom -> réglages des calques) et le matériau choisi ; `store()` n'émet que si quelque chose change. Le matériau choisi suit chaque changement de calque (plus de bouton « Enregistrer »), sauf pendant le chargement d'un profil machine, d'un projet ou d'un matériau (`main_window._material_autosave_paused`) | `controllers/materials` (liste déroulante tenue à jour par ses signaux) |
 | **ui/binding.py** | `bind(champ, modèle, réglage)` : lie un champ (spinbox, case, liste, texte) à un réglage d'un modèle, dans les deux sens, sans boucle | Pages Paramètres du graveur et Configuration GRBL |
