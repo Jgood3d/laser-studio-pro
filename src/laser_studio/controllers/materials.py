@@ -194,9 +194,14 @@ def apply_material_to_layers(layer_manager, material):
     for layer in layer_manager.layers:
         role = getattr(layer, "role", None)
         d = by_role.get(role) if role else by_id.get(layer.id)
-        if d:
-            layer_manager.update(layer.id, **settings_from({k: d[k] for k in MATERIAL_LAYER_KEYS if k in d}))
-            changed = True
+        if d is None:
+            continue
+        # Matériau sans découpe utile (Ardoise : 0 passe) : le calque de découpe garde ses réglages,
+        # au lieu d'être remis aux valeurs par défaut que complete_material a ajoutées à ce matériau.
+        if role == "cut" and not has_cut:
+            continue
+        layer_manager.update(layer.id, **settings_from({k: d[k] for k in MATERIAL_LAYER_KEYS if k in d}))
+        changed = True
     return changed
 
 

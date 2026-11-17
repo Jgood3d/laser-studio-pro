@@ -54,9 +54,13 @@ class MaterialLayersTests(unittest.TestCase):
     def test_old_material_without_cut_leaves_cut_layers(self):
         manager = LayerManager()
         cut = manager.layers[1]
+        manager.update(cut.id, power=55.0, speed=123, passes=4)     # réglages de l'utilisateur, pas ceux par défaut
         before = (cut.speed, cut.power, cut.passes)
         apply_material_to_layers(manager, DEFAULT_MATERIALS_DB["Ardoise / Carrelage"])   # 0 passe
         self.assertEqual((cut.speed, cut.power, cut.passes), before)
+        engrave = manager.layers[0]                                  # la gravure, elle, est bien reprise
+        ardoise = DEFAULT_MATERIALS_DB["Ardoise / Carrelage"]
+        self.assertEqual((engrave.speed, engrave.power), (ardoise["sp_e"], float(ardoise["pw_e"])))
 
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
