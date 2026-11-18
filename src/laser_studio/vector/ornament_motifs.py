@@ -23,6 +23,7 @@ MIN_DETAIL_MM = 1.2
 
 STAR_STYLES = ("5 branches", "4 branches", "8 branches", "Mixte")
 TREE_STYLES = ("Classique", "Simple", "Fin")
+HOLLY_STYLES = ("Trio", "Duo")
 
 # Rapport rayon intérieur / rayon extérieur selon le nombre de branches : branches fines mais jamais filiformes.
 _STAR_INNER = {4: 0.32, 5: 0.42, 8: 0.50}
@@ -115,7 +116,7 @@ class MotifShape:
     def _scan(self, start, stop, steps=400):
         for i in range(steps + 1):
             y = start + (stop - start) * i / steps
-            if self.contains(0.0, y):
+            if self.contains(1e-6, y):  # à peine décalé de l'axe : un sommet exactement sur l'axe fausserait le test
                 return y
         return (self.ymax + self.ymin) / 2.0
 
@@ -219,9 +220,121 @@ def gift_shape(h) -> MotifShape:
     return MotifShape([box, lid, loop_l, loop_r, knot], cuts)
 
 
+# ---------------------------------------------------------------------------------------------------------
+# Croissant de lune, houx, bougie, cloche
+# ---------------------------------------------------------------------------------------------------------
+
+def _arc(cx, cy, r, a0, a1, n=40):
+    return [(cx + r * math.cos(math.radians(a0 + (a1 - a0) * i / n)),
+             cy + r * math.sin(math.radians(a0 + (a1 - a0) * i / n))) for i in range(n + 1)]
+
+
+def moon_shape(h) -> MotifShape:
+    """Croissant de lune de hauteur `h`, ouvert vers la droite, pied en (0, 0). Les deux pointes sont
+    émoussées (arrêtées avant le point de rencontre des cercles) pour ne pas casser."""
+    big = h / 2.0
+    inner, dx = 0.82 * big, 0.42 * big
+    # Les deux cercles se coupent en x = (R² - r² + dx²) / (2 dx).
+    x_cut = (big * big - inner * inner + dx * dx) / (2.0 * dx)
+    y_cut = math.sqrt(max(big * big - x_cut * x_cut, 0.0))
+    a_out = math.degrees(math.atan2(y_cut, x_cut))
+    a_in = math.degrees(math.atan2(y_cut, x_cut - dx))
+    outer_arc = _arc(0.0, big, big, a_out, 360.0 - a_out)        # grand arc, par la gauche
+    # Le petit arc s'arrête 5° avant les pointes : elles sont émoussées au lieu de finir en lame de 0 mm.
+    inner_arc = _arc(dx, big, inner, 360.0 - a_in + 5.0, a_in - 5.0)  # petit arc, retour par la gauche
+    return MotifShape([outer_arc + inner_arc])
+
+
+def _holly_leaf(length, width, lobes=3) -> Polygon:
+    """Feuille de houx le long de +Y : base en (0, 0), pointe en (0, length), `lobes` pointes de chaque côté."""
+    n = 36
+    side = []
+    for i in range(n + 1):
+        t = i / n
+        envelope = math.sin(math.pi * t) ** 0.75
+        teeth = 0.62 + 0.38 * (1.0 - abs(math.sin(lobes * math.pi * t)))   # pointes vives, creux arrondis
+        side.append((width / 2.0 * envelope * teeth, length * t))
+    return [(-x, y) for x, y in side] + [(x, y) for x, y in reversed(side[1:-1])]
+
+
+def holly_shape(h, style="Trio") -> MotifShape:
+    """Houx de hauteur `h`, baies en bas : trois feuilles (« Trio », la centrale droite) ou deux (« Duo »)."""
+    leaf_len, leaf_w = 0.82 * h, 0.34 * h
+    leaves = []
+    angles = (-42.0, 0.0, 42.0) if style != "Duo" else (-30.0, 30.0)
+    for a in angles:
+        scale = 1.0 if abs(a) < 1 else 0.82
+        leaf = _holly_leaf(leaf_len * scale, leaf_w * scale)
+        t = math.radians(a)
+        leaves.append([(x * math.cos(t) + y * math.sin(t), -x * math.sin(t) + y * math.cos(t) + 0.10 * h)
+                       for x, y in leaf])
+    r = 0.095 * h
+    berries = [circle(-0.8 * r, 0.10 * h, r), circle(0.8 * r, 0.10 * h, r), circle(0.0, 0.10 * h + 1.1 * r, r)]
+    shape = MotifShape(leaves + berries)
+    # Le bas des baies est le point le plus bas : on remet le pied en y = 0.
+    low = min(p[1] for poly in shape.solids for p in poly)
+    return shape.transformed(0.0, 0.0, -low)
+
+
+def candle_shape(h) -> MotifShape:
+    """Bougie de hauteur `h`, pied en (0, 0) : soucoupe, corps, flamme en goutte soudée au corps ; la flamme est
+    évidée quand elle est assez grande."""
+    s = h
+    body_w = max(0.22 * s, 2 * MIN_DETAIL_MM)
+    dish_h = max(0.06 * s, MIN_DETAIL_MM)
+    dish = rect(-0.18 * s, 0.0, 0.18 * s, dish_h)
+    body = rect(-body_w / 2.0, dish_h - 0.5, body_w / 2.0, 0.68 * s)
+    flame_r = 0.075 * s
+    cy = 0.74 * s
+    flame = [(0.0, 0.97 * s)]                                    # pointe
+    for i in range(1, 24):                                       # rond de la goutte : du côté droit au côté gauche, par le bas
+        a = math.radians(35.0 - 250.0 * i / 23)
+        flame.append((flame_r * 1.15 * math.cos(a), cy + flame_r * math.sin(a)))
+    cuts: List[Polygon] = []
+    if (flame_r * 1.15 - 0.45 * flame_r) * 2 >= MIN_DETAIL_MM and flame_r * 0.9 >= MIN_DETAIL_MM:
+        cuts.append(ellipse(0.0, cy + 0.12 * flame_r, 0.42 * flame_r, 0.55 * flame_r, 24))
+    return MotifShape([dish, body, flame], cuts)
+
+
+def _chaikin(points, iterations=2):
+    for _ in range(iterations):
+        out = [points[0]]
+        for (x0, y0), (x1, y1) in zip(points, points[1:]):
+            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
+        out.append(points[-1])
+        points = out
+    return points
+
+
+def bell_shape(h) -> MotifShape:
+    """Cloche de hauteur `h`, pied (bas du battant) en (0, 0) : bouton, dôme évasé, rebord, battant."""
+    s = h
+    half = [(0.0, 0.88), (0.07, 0.86), (0.12, 0.80), (0.15, 0.68), (0.17, 0.54), (0.20, 0.40), (0.25, 0.26),
+            (0.31, 0.17), (0.34, 0.14), (0.34, 0.10)]
+    half = _chaikin([(x * s, (y * 0.9 + 0.05) * s) for x, y in half], 2)
+    right = half + [(0.0, half[-1][1])]
+    body = right + [(-x, y) for x, y in reversed(right[1:-1])]
+    knob = circle(0.0, 0.93 * s, 0.05 * s, 24)
+    clapper = circle(0.0, 0.07 * s, 0.075 * s, 32)
+    # Une tige relie le battant à l'intérieur de la cloche : sans elle, il ne toucherait le rebord que d'un point.
+    stem_w = max(MIN_DETAIL_MM, 0.06 * s)
+    stem = rect(-stem_w / 2.0, 0.07 * s, stem_w / 2.0, 0.24 * s)
+    return MotifShape([body, knob, clapper, stem])
+
+
+def bulb_shape(h) -> MotifShape:
+    """Ampoule de guirlande de hauteur `h`, la douille en haut (point d'accroche), pied de l'ampoule en y = 0."""
+    s = h
+    return MotifShape([circle(0.0, 0.42 * s, 0.34 * s, 40), rect(-0.13 * s, 0.66 * s, 0.13 * s, s)])
+
+
 UPRIGHT_BUILDERS = {
     "Sapins": lambda h, style: tree_shape(h, style),
     "Père Noël": lambda h, style: santa_shape(h),
     "Bonhomme de neige": lambda h, style: snowman_shape(h),
     "Cadeaux": lambda h, style: gift_shape(h),
+    "Lune": lambda h, style: moon_shape(h),
+    "Houx": lambda h, style: holly_shape(h, style),
+    "Bougie": lambda h, style: candle_shape(h),
+    "Cloche": lambda h, style: bell_shape(h),
 }

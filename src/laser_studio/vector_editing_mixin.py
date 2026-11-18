@@ -14,7 +14,7 @@ from laser_studio.ui.dialogs.ornament.dialog import error_text as ornament_error
 from laser_studio.ui.dialogs.puzzle import PuzzleGeneratorDialog
 from laser_studio.vector import puzzle_generator
 from laser_studio.vector.importers import (box_to_objects, decor_to_objects, dxf_to_objects, index_to_objects,
-                                          motif_to_objects, ornament_to_objects, puzzle_to_objects)
+                                          keychain_to_objects, motif_to_objects, ornament_to_objects, puzzle_to_objects)
 from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
@@ -815,6 +815,49 @@ class VectorEditingMixin:
             tr("ornament.done").format(w=geometry.width, h=geometry.height, count=len(contours)),
         )
 
+    def open_keychain_generator(self):
+        """Fenêtre du générateur de porte-clés prénom : crée la base découpée et le texte gravé."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return
+        from laser_studio.ui.dialogs.keychain import KeychainGeneratorDialog
+        from laser_studio.ui.dialogs.keychain.dialog import error_text as keychain_error_text
+        from laser_studio.vector import keychain_generator
+
+        dialog = KeychainGeneratorDialog(
+            parent=self,
+            layers=self.layer_manager.layers,
+            saved_settings=getattr(self, "_keychain_settings", None),
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._keychain_settings = dialog.settings()
+        try:
+            family, bold, italic = dialog.font_options()
+            result = keychain_generator.build_keychain(dialog.params(), family, bold, italic)
+        except keychain_generator.KeychainError as e:
+            QMessageBox.warning(self, tr("keychain.title"), keychain_error_text(e))
+            return
+
+        objects = keychain_to_objects(
+            result,
+            cut_layer_id=dialog.cut_layer_id(),
+            engrave_layer_id=dialog.engrave_layer_id(),
+            offset_x_mm=10.0,
+            offset_y_mm=10.0,
+        )
+        if not objects:
+            return
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+        QMessageBox.information(
+            self,
+            tr("keychain.title"),
+            tr("keychain.done").format(w=result.width, h=result.height),
+        )
+    
     # ------------------------------------------------------------------
     # Alignement / distribution multi-objets
     # ------------------------------------------------------------------

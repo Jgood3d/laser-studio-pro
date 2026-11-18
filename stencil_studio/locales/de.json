@@ -555,5 +555,16 @@
  "{n} picked colours = {n} plates": "{n} gewählte Farben = {n} Platten",
  "Pick at least one more colour.": "Wähle mindestens eine weitere Farbe.",
  "No pick: the colours are found automatically.": "Keine Auswahl: die Farben werden automatisch gefunden.",
- "click to remove": "Klick zum Entfernen"
+ "click to remove": "Klick zum Entfernen",
+ "Stencil": "Schablone",
+ "Engravings": "Gravuren",
+ "Layered relief": "Reliefbild in Schichten",
+ "Cut sizes and tones": "Schnittgrößen und Töne",
+ "Cut-out shapes held by bridges (cartoons, silhouettes, portraits)": "Ausgeschnittene Formen mit Stegen (Cartoons, Silhouetten, Porträts)",
+ "Photo as a plate of holes whose size follows the tones": "Foto als Lochplatte, deren Lochgröße den Tönen folgt",
+ "Dithered photo engraved on the plate, with a cut outline": "Gerastertes Foto auf die Platte graviert, mit Schnittkontur",
+ "Photo as slots of varying width": "Foto als Schlitze unterschiedlicher Breite",
+ "Triangulated mesh, wall art": "Dreiecksnetz, Wanddeko",
+ "QR code engraved or cut out on a plate": "QR-Code auf eine Platte graviert oder ausgeschnitten",
+ "Stacked plates giving depth to a picture": "Gestapelte Platten, die einem Bild Tiefe geben"
 }

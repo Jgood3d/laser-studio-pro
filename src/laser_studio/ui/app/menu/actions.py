@@ -92,6 +92,7 @@ class AppActions(QObject):
     estimate_requested = pyqtSignal()
     generate_requested = pyqtSignal()
     gcode_import_requested = pyqtSignal()
+    keychain_generator_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -304,6 +305,13 @@ class AppActions(QObject):
             self.separation_tab,
             self.png2svg_tab,
         )
+
+        self.keychain_generator = self._action(
+            bundled_icon("keychain", QStyle.StandardPixmap.SP_FileIcon),
+            tr("menu.tools.keychain"),
+            self.keychain_generator_requested,
+        )
+
         # Outils de l'éditeur vectoriel : ouvrent d'abord son onglet.
         self.vector_import = self._action(
             bundled_icon("document-import", QStyle.StandardPixmap.SP_FileIcon),
@@ -335,13 +343,13 @@ class AppActions(QObject):
             self.box_generator,
             self.puzzle_generator,
             self.ornament_generator,
+            self.keychain_generator,
         )
         # Caméra : placée avec les outils généraux (pas seulement vectoriel).
         self.tool_actions = (
             *self.tool_actions,
             self.camera,
         )
-
 
     def _create_help_actions(self, parent):
         # Version : icône de l'application (définie dans main.py).

@@ -266,6 +266,8 @@ class OrnamentGeneratorDialog(QDialog):
         flakes = self.combo_motif.currentData() != "Aucun"
         for widget in (self.combo_layout, self.combo_style, self.spin_count, self.spin_flake):
             widget.setEnabled(flakes)
+        # La guirlande va toujours en haut, d'un côté à l'autre : la disposition ne s'applique pas.
+        self.combo_layout.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_hole.setEnabled(self.combo_hanger.currentData() != "Aucun")
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         try:

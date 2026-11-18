@@ -23,7 +23,7 @@ import random
 from typing import List, Optional, Sequence, Tuple
 
 from laser_studio.vector.ornament_motifs import (
-    STAR_STYLES, TREE_STYLES, UPRIGHT_BUILDERS, MotifShape, star_points_for, star_polygon,
+    HOLLY_STYLES, STAR_STYLES, TREE_STYLES, UPRIGHT_BUILDERS, MotifShape, bulb_shape, star_points_for, star_polygon,
 )
 
 Point = Tuple[float, float]
@@ -32,7 +32,9 @@ Polygon = List[Point]
 HANGERS = ("Anneau", "Bouchon", "Aucun")
 RADIAL_MOTIFS = ("Flocons", "Étoiles")                       # symétriques : une pointe vers l'anneau
 UPRIGHT_MOTIFS = tuple(UPRIGHT_BUILDERS)                    # ont un haut et un bas
-MOTIFS = ("Flocons", "Étoiles", "Sapins", "Père Noël", "Bonhomme de neige", "Cadeaux", "Aucun")
+GARLAND_MOTIFS = ("Guirlande",)                            # un fil d'ampoules d'un côté à l'autre du haut
+MOTIFS = ("Flocons", "Étoiles", "Sapins", "Père Noël", "Bonhomme de neige", "Cadeaux", "Lune", "Houx", "Bougie",
+          "Cloche", "Guirlande", "Aucun")
 FLAKE_LAYOUTS = ("Suspendus", "Haut et bas", "Haut", "Bas")
 FLAKE_STYLES = ("Classique", "Dentelle", "Étoile")
 # Styles proposés selon le motif.
@@ -43,11 +45,17 @@ MOTIF_STYLES = {
     "Père Noël": ("Classique",),
     "Bonhomme de neige": ("Classique",),
     "Cadeaux": ("Classique",),
+    "Lune": ("Classique",),
+    "Houx": HOLLY_STYLES,
+    "Bougie": ("Classique",),
+    "Cloche": ("Classique",),
+    "Guirlande": ("Classique",),
 }
 # Taille proposée par défaut selon le motif (mm).
 MOTIF_DEFAULT_SIZE = {"Flocons": 16.0, "Étoiles": 12.0, "Sapins": 20.0, "Père Noël": 26.0,
-                      "Bonhomme de neige": 24.0, "Cadeaux": 18.0}
-SUPPORTS = ("Barre", "Aucun")
+                      "Bonhomme de neige": 24.0, "Cadeaux": 18.0, "Lune": 16.0, "Houx": 18.0, "Bougie": 22.0,
+                      "Cloche": 18.0, "Guirlande": 10.0}
+SUPPORTS = ("Barre", "Bandeau", "Aucun")  # Bandeau : une barre sous le prénom ET une au niveau du haut des lettres
 
 # Précision des cercles : l'écart à un vrai cercle reste sous 0,01 mm jusqu'à 400 mm de diamètre.
 CIRCLE_POINTS = 180
@@ -145,7 +153,8 @@ class OrnamentGeometry:
         self.late: List[Polygon] = []   # formes pleines ajoutées après ces découpes (moustache, nez)
         self.flakes: List[Flake] = []
         self.text: Optional[TextPlacement] = None
-        self.bar: Optional[Polygon] = None
+        self.bar: Optional[Polygon] = None      # barre à la ligne de base
+        self.top_bar: Optional[Polygon] = None  # barre du haut (support « Bandeau »)
         self.hole_center: Optional[Point] = None
         # Limites verticales des motifs : bord bas de ceux du haut, bord haut de ceux du bas (None = aucun). Le prénom
         # se place entre les deux.
@@ -423,6 +432,44 @@ def _upright_motifs(params, geo):
             _add_shape(geo, placed, x, (placed.ymin + placed.ymax) / 2.0, radius, 0.0)
 
 
+def _garland(params, geo):
+    """Guirlande : un fil qui plonge d'un côté du haut de l'anneau à l'autre, avec `flake_count` ampoules qui
+    pendent. Le fil et ses deux extrémités s'enfoncent dans l'anneau ; chaque ampoule est soudée au fil."""
+    n, size, r_in = params.flake_count, params.flake_size, geo.inner_radius
+    string_w = max(MIN_STEM_MM, 0.03 * params.diameter)
+    end_angle = math.radians(36.0)
+    xe = (r_in + 1.5) * math.cos(end_angle)
+    ye = (r_in + 1.5) * math.sin(end_angle)
+    sag = 0.26 * 2.0 * xe
+
+    def y_at(x):
+        return ye - sag * (1.0 - (x / xe) ** 2)
+
+    def slope(x):
+        return 2.0 * sag * x / (xe * xe)
+
+    # Ruban du fil : points décalés de chaque côté de la courbe, perpendiculairement à elle.
+    steps = 48
+    left, right = [], []
+    for i in range(steps + 1):
+        x = -xe + 2.0 * xe * i / steps
+        norm = math.hypot(1.0, slope(x))
+        nx, ny = -slope(x) / norm, 1.0 / norm
+        left.append((x + nx * string_w / 2.0, y_at(x) + ny * string_w / 2.0))
+        right.append((x - nx * string_w / 2.0, y_at(x) - ny * string_w / 2.0))
+    geo.solids.append(left + list(reversed(right)))
+
+    bulb = bulb_shape(size)
+    a_top = bulb.axis_top()
+    reach = 0.74 * xe
+    for i in range(n):
+        x = 0.0 if n == 1 else -reach + 2.0 * reach * i / (n - 1)
+        # La douille remonte de 0,8 mm dans l'épaisseur du fil : l'ampoule est soudée.
+        placed = bulb.transformed(0.0, x, y_at(x) - string_w / 2.0 + 0.8 - a_top)
+        _add_shape(geo, placed, x, (placed.ymin + placed.ymax) / 2.0, size / 2.0, 0.0)
+        _note_edge(geo, upper=placed.ymin)
+
+
 # ---------------------------------------------------------------------------------------------------------
 # Prénom
 # ---------------------------------------------------------------------------------------------------------
@@ -484,8 +531,8 @@ def validate(params):
         raise OrnamentError("support", value=params.support)
     if len(params.name) > 40:
         raise OrnamentError("name_too_long", value=len(params.name))
-    if params.motif in RADIAL_MOTIFS + UPRIGHT_MOTIFS:
-        if params.flake_layout not in FLAKE_LAYOUTS:
+    if params.motif in RADIAL_MOTIFS + UPRIGHT_MOTIFS + GARLAND_MOTIFS:
+        if params.motif not in GARLAND_MOTIFS and params.flake_layout not in FLAKE_LAYOUTS:
             raise OrnamentError("layout", value=params.flake_layout)
         if params.flake_style not in MOTIF_STYLES[params.motif]:
             raise OrnamentError("style", value=params.flake_style)
@@ -493,7 +540,7 @@ def validate(params):
             raise OrnamentError("flake_count", value=params.flake_count)
         if not 8.0 <= params.flake_size <= d * 0.6:
             raise OrnamentError("flake_size", value=params.flake_size, lo=8.0, hi=d * 0.6)
-    if params.support == "Barre" and not 1.0 <= params.bar_thickness <= 6.0:
+    if params.support in ("Barre", "Bandeau") and not 1.0 <= params.bar_thickness <= 6.0:
         raise OrnamentError("bar", value=params.bar_thickness)
 
 
@@ -522,16 +569,23 @@ def build_ornament(params, text_bounds=None) -> OrnamentGeometry:
         geo.solids += [f.polygon for f in geo.flakes]
     elif params.motif in UPRIGHT_MOTIFS:
         _upright_motifs(params, geo)
+    elif params.motif in GARLAND_MOTIFS:
+        _garland(params, geo)
 
     if params.name.strip() and text_bounds is not None:
         geo.text = place_text(params, geo, text_bounds)
         if geo.text is not None:
             t = geo.text
-            if params.support == "Barre":
+            if params.support in ("Barre", "Bandeau"):
                 thick = params.bar_thickness
                 # La barre est à cheval sur la ligne de base : 70 % au-dessus, là où les lettres la croisent.
                 geo.bar = rect_polygon(-radius, t.baseline - 0.3 * thick, radius, t.baseline + 0.7 * thick)
                 geo.solids.append(geo.bar)
+                if params.support == "Bandeau":
+                    # Bandeau : une seconde barre au sommet du prénom, à cheval sur la ligne du haut des lettres.
+                    top = t.center_y + t.height / 2.0
+                    geo.top_bar = rect_polygon(-radius, top - 0.7 * thick, radius, top + 0.3 * thick)
+                    geo.solids.append(geo.top_bar)
             else:
                 # Sans barre, le prénom ne tient que s'il touche l'anneau des deux côtés.
                 chord = 2.0 * math.sqrt(max(geo.inner_radius ** 2 - t.center_y ** 2, 0.0))
