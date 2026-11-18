@@ -126,6 +126,9 @@ class WindowControllerMixin:
         actions.estimate_requested.connect(self.estimate_job_time)
         actions.generate_requested.connect(self.generate_job)
         actions.gcode_import_requested.connect(self.import_gcode_file)
+        actions.keychain_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_keychain_generator)
+        )
 
     def show_main_tab(self, tab_attr):
         """Affiche l'onglet central `tab_attr` (ex. "tab_separation").

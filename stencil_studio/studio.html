@@ -12,7 +12,8 @@
   *{ box-sizing:border-box; }
   html,body{ margin:0; height:100%; background:var(--bg); color:var(--fg);
     font:14px/1.4 system-ui,"Segoe UI",Roboto,sans-serif; }
-  header{ height:52px; display:flex; align-items:center; gap:8px; padding:0 14px;
+  body{ display:flex; flex-direction:column; }
+  header{ flex:none; height:52px; display:flex; align-items:center; gap:8px; padding:0 14px;
     background:var(--panel); border-bottom:1px solid var(--line); }
   header h1{ font-size:16px; margin:0 10px 0 0; letter-spacing:.3px; white-space:nowrap; }
   header h1 b{ color:var(--acc2); }
@@ -27,6 +28,18 @@
   .ddm button[hidden]{ display:none; }
   .ddm .dh{ font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px; padding:6px 10px 2px; }
   .ddm hr{ border:0; border-top:1px solid var(--line); margin:4px 0; }
+  .dd.right .ddm{ left:auto; right:0; }
+  #modebar{ flex:none; display:flex; gap:6px; align-items:center; padding:6px 14px; overflow-x:auto;
+    background:var(--bg); border-bottom:1px solid var(--line); }
+  #modebar button{ display:inline-flex; align-items:center; gap:7px; padding:6px 13px; white-space:nowrap; }
+  #modebar button svg{ width:17px; height:17px; flex:none; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+  #modebar button.on{ background:var(--acc); color:var(--onacc); border-color:var(--acc2); font-weight:600; }
+  .tools .srow{ flex-wrap:nowrap; }
+  .tools .srow input[type=search]{ flex:1 1 auto; min-width:0; }
+  .tools .trow.srow button{ flex:none; padding:4px 10px; }
+  #pToggle{ width:100%; text-align:left; }
+  #pToggle::after{ content:" \25BE"; opacity:.7; }
+  .row.modehide, details.modehide{ display:none !important; }
   .isoonly[hidden]{ display:none !important; }
   button,select,input[type=number],input[type=text],input[type=search]{
     background:var(--panel2); color:var(--fg); border:1px solid var(--line);
@@ -35,7 +48,7 @@
   button:hover{ border-color:var(--acc); }
   button.primary{ background:var(--acc); color:var(--onacc); border-color:var(--acc); font-weight:600; }
   button.primary:hover{ background:var(--acc2); }
-  main{ display:grid; grid-template-columns:330px 1fr 1fr; height:calc(100% - 52px); }
+  main{ display:grid; grid-template-columns:330px 1fr 1fr; flex:1; min-height:0; }
   aside{ overflow-y:auto; background:var(--panel); border-right:1px solid var(--line); padding:6px 0 30px; }
   details{ border-bottom:1px solid var(--line); }
   summary{ padding:10px 14px; cursor:pointer; font-weight:600; color:var(--acc2); user-select:none; }
@@ -100,8 +113,16 @@
 <body>
 <header>
   <h1><b>Laser</b> <span data-i18n="Stencil Studio">Stencil Studio</span></h1>
-  <button id="btnOpen" class="primary" data-i18n="Open image...">Open image...</button>
-  <div class="dd"><button id="mExport" data-i18n="Export">Export</button>
+  <button id="btnOpen" data-i18n="Open image...">Open image...</button>
+  <div class="dd"><button id="mFile" data-i18n="File">File</button>
+    <div class="ddm" hidden>
+      <button id="btnSave" data-i18n="Save settings">Save settings</button>
+      <button id="btnLoad" data-i18n="Load settings">Load settings</button>
+      <hr>
+      <button id="btnReset" data-i18n="Reset">Reset</button>
+    </div></div>
+  <span class="sp"></span>
+  <div class="dd right"><button id="mExport" class="primary" data-i18n="Export">Export</button>
     <div class="ddm" hidden>
       <div class="dh" data-i18n="Plate">Plate</div>
       <button id="btnSvg" data-i18n="Export SVG">Export SVG</button>
@@ -116,18 +137,11 @@
       <button id="btnFlexSvg" data-i18n="Flexibility test (SVG)">Flexibility test (SVG)</button>
       <button id="btnFlexDxf" data-i18n="Flexibility test (DXF)">Flexibility test (DXF)</button>
     </div></div>
-  <div class="dd"><button id="mFile" data-i18n="File">File</button>
-    <div class="ddm" hidden>
-      <button id="btnSave" data-i18n="Save settings">Save settings</button>
-      <button id="btnLoad" data-i18n="Load settings">Load settings</button>
-      <hr>
-      <button id="btnReset" data-i18n="Reset">Reset</button>
-    </div></div>
-  <span class="sp"></span>
   <select id="lang" title="Language"></select>
   <input type="file" id="fileImg" accept="image/*" hidden>
   <input type="file" id="fileCfg" accept=".json,application/json" hidden>
 </header>
+<nav id="modebar"></nav>
 
 <main>
   <aside id="controls"></aside>
@@ -257,89 +271,6 @@ const SPEC = [
   {k:"preset", t:"select", ui:1, label:"Start from a style", def:"",
    opts:[["","Choose a style..."],["halftone","Photo as halftone dots"],["lineart","Line drawing (outlined cartoon)"],["cartoon","Cartoon / figurine"],["portrait","Portrait photo"],["silhouette","Silhouette (solid shapes)"],["lines","Photo as lines"],["lowpoly","Low poly wall art"],["qr","QR code plate"],["layers","Layered relief (stacked plates)"],["engrave","Photo for engraving (keychain, plaque)"]]},
  ]},
- {g:"Render preview", items:[
-  {k:"material", t:"select", ui:1, label:"Sheet material", def:"wood_dark",
-   opts:[["wood_light","Light wood"],["wood_dark","Dark wood"],["black","Black"],["gray","Gray"],["slate","Slate"],["white","White"]]},
-  {k:"backlight", t:"check", ui:1, label:"Backlight (LEDs behind a diffuser)", def:true},
-  {k:"lightcolor", t:"select", ui:1, label:"Light colour", def:"warm",
-   opts:[["warm","Warm white"],["cool","Cool white"],["white","Neutral white"],["red","Red"],["green","Green"],["blue","Blue"],["amber","Amber"]]},
- ]},
- {g:"Frame", items:[
-  {k:"shape", t:"select", label:"Shape", def:"circle",
-   opts:[["circle","Circle"],["oval","Oval"],["rect","Rectangle"],["rrect","Rounded rectangle"],["heart","Heart"],["star","Star"],["tree","Christmas tree"],["none","No outer frame"]]},
-  {k:"aspect", t:"select", ui:1, label:"Aspect ratio", def:"1",
-   opts:[["1","1:1"],["1.3333","4:3"],["0.75","3:4"],["1.5","3:2"],["0.6667","2:3"],["1.7778","16:9"],
-         ["full","Full image (original ratio)"],["custom","Custom (width x height)"]]},
-  {k:"custom_w", t:"number", ui:1, label:"Width (mm)", min:5, max:600, step:1, def:100},
-  {k:"custom_h", t:"number", ui:1, label:"Height (mm)", min:5, max:600, step:1, def:100},
-  {k:"free", t:"check", ui:1, label:"Free placement (empty margins around the image)", def:false},
-  {k:"rot", t:"range", ui:1, label:"Frame rotation (degrees)", min:-180, max:180, step:1, def:0, fmt:v => v + " °"},
-  {k:"img_mm", t:"range", ui:1, label:"Image width on the plate (mm)", min:10, max:4000, step:1, def:100, fmt:mm},
-  {k:"zoom", t:"range", ui:1, label:"Frame size", min:0.05, max:1, step:0.01, def:1, fmt:pct},
-  {k:"size_mm", t:"range", label:"Final size (mm, largest side)", min:20, max:400, step:1, def:100, fmt:mm},
-  {k:"ring_mm", t:"range", label:"Border width around the image (mm)", min:0, max:30, step:0.5, def:4, fmt:mm},
- ]},
- {g:"Hanging loop", items:[
-  {k:"hang", t:"select", label:"Hanging loop", def:"none",
-   opts:[["none","None"],["top","Top (ornament)"],["top_left","Top left corner"],["top_right","Top right corner"],["both","Left and right (two holes)"]]},
-  {k:"hang_style", t:"select", label:"Loop shape", def:"round", opts:[["round","Round"],["drop","Drop (wider base)"]]},
-  {k:"hang_hole_mm", t:"range", label:"Hole diameter (mm)", min:1.5, max:8, step:0.5, def:3, fmt:mm},
-  {k:"hang_tab_mm", t:"range", label:"Material around the hole (mm)", min:1.5, max:6, step:0.5, def:2.5, fmt:mm},
- ]},
- {g:"Text on the ring", items:[
-  {k:"text_top", t:"text", label:"Text on top", def:""},
-  {k:"text_bottom", t:"text", label:"Text on the bottom", def:""},
-  {k:"text_size_mm", t:"range", label:"Letter height (mm)", min:3, max:15, step:0.5, def:6, fmt:mm},
-  {k:"text_spacing", t:"range", label:"Letter spacing (%)", min:0, max:50, step:1, def:12},
-  {k:"text_bridge_mm", t:"range", label:"Bridge width inside letters (mm)", min:0.4, max:1.5, step:0.1, def:0.7, fmt:mm},
- ]},
- {g:"Engraving", items:[
-  {k:"eng_dpi", t:"range", label:"Machine resolution (DPI)", min:100, max:600, step:5, def:195, eg:1},
-  {k:"eng_dither", t:"select", label:"Dithering method", def:"stucki", eg:1,
-   opts:[["stucki","Stucki (smooth, recommended)"],["floyd","Floyd-Steinberg"],["atkinson","Atkinson (contrasted, clear highlights)"],["jarvis","Jarvis"],["burkes","Burkes"],["sierra","Sierra"],["bayer","Ordered (Bayer, regular pattern)"],["threshold","Threshold (black and white only)"]]},
-  {k:"eng_levels", t:"range", label:"Gray levels (2 = black and white)", min:2, max:8, step:1, def:2, eg:1},
-  {k:"eng_brightness", t:"range", label:"Brightness", min:-100, max:100, step:1, def:0, eg:1},
-  {k:"eng_contrast", t:"range", label:"Contrast", min:-90, max:90, step:1, def:0, eg:1},
-  {k:"eng_gamma", t:"range", label:"Midtones (higher = lighter)", min:0.4, max:2.5, step:0.05, def:1, eg:1},
-  {k:"eng_sharpen", t:"range", label:"Sharpness", min:0, max:3, step:0.1, def:1, eg:1},
-  {k:"eng_invert", t:"check", label:"Engrave the light areas (negative)", def:false, eg:1},
-  {k:"eng_border_mm", t:"range", label:"Unengraved margin at the edge (mm)", min:0, max:10, step:0.5, def:1, fmt:mm, eg:1},
-  {k:"eng_speed", t:"range", label:"Engraving speed (mm/min, for the time estimate)", min:1000, max:12000, step:100, def:5500, eg:1},
- ]},
- {g:"Lightbox", items:[
-  {k:"box_style", t:"select", label:"Box system", def:"stack",
-   opts:[["stack","Stacked frames (glued layers)"],["fingers","Walls with finger joints (flexible on curves)"]]},
-  {k:"box_depth_mm", t:"range", label:"Inside depth (mm)", min:10, max:80, step:1, def:25, fmt:mm},
-  {k:"box_thickness_mm", t:"range", label:"Material thickness (mm)", min:1, max:10, step:0.5, def:3, fmt:mm},
-  {k:"box_wall_mm", t:"range", label:"Wall width (mm)", min:4, max:30, step:1, def:10, fmt:mm, bs:1},
-  {k:"box_screws", t:"range", label:"Back screws (0 = glued)", min:0, max:8, step:1, def:4, bs:1},
-  {k:"box_screw_mm", t:"range", label:"Screw diameter (mm)", min:2, max:5, step:0.5, def:3, fmt:mm, bs:1},
-  {k:"box_rib_mm", t:"range", label:"Flexible wall: rib width (mm)", min:1.5, max:6, step:0.1, def:2.54, fmt:v=>v.toFixed(2)+" mm", bf:1},
-  {k:"box_fit_auto", t:"check", label:"Slot clearance adjusted to the curve", def:true, bf:1},
-  {k:"box_tab_solid", t:"check", label:"Solid tabs (not cut by the flexible slits)", def:false, bf:1},
-  {k:"box_end_mm", t:"range", label:"Flexible wall: end margin of the centre slits (mm)", min:1.5, max:8, step:0.1, def:2.7, fmt:mm, bf:1},
-  {k:"box_mid_mm", t:"range", label:"Flexible wall: middle bridge between cells (mm)", min:2, max:15, step:0.5, def:6, fmt:mm, bf:1},
-  {k:"box_wall_parts", t:"range", label:"Flexible wall: number of pieces", min:1, max:3, step:1, def:1, fmt:v=>String(v), bf:1},
-  {k:"box_lip_mm", t:"range", label:"Front and back overhang around the wall (mm)", min:0.5, max:6, step:0.5, def:1.5, fmt:mm, bf:1},
-  {k:"box_fit_mm", t:"range", label:"Slot clearance for glue (mm)", min:0, max:0.4, step:0.05, def:0.1, fmt:v => (+v).toFixed(2) + " mm", bf:1},
-  {k:"box_support", t:"select", label:"Support", def:"none",
-   opts:[["none","No support"],["foot","Stand (foot)"],["wall","Wall mount (keyholes in the back)"],["both","Stand and wall mount"]]},
-  {k:"box_foot_h", t:"range", label:"Stand: depth of the groove (mm)", min:4, max:30, step:1, def:9, fmt:mm, sf:1},
-  {k:"box_key_head", t:"range", label:"Wall mount: screw head diameter (mm)", min:4, max:16, step:0.5, def:8, fmt:mm, sk:1},
-  {k:"box_key_shank", t:"range", label:"Wall mount: screw shank diameter (mm)", min:2, max:8, step:0.5, def:4, fmt:mm, sk:1},
-  {k:"box_center_mm", t:"range", label:"Centre hole in the back (mm, 0 = none)", min:0, max:100, step:1, def:0, fmt:mm},
-  {k:"box_cable_mm", t:"range", label:"Cable hole in the back (mm, 0 = none)", min:0, max:20, step:1, def:8, fmt:mm},
-  {k:"box_diffuser", t:"check", label:"Diffuser sheet between front and frames", def:true},
-  {k:"box_sheet_w", t:"range", label:"Cutting sheet width (mm)", min:100, max:900, step:10, def:400, fmt:mm},
-  {k:"box_gap_mm", t:"range", label:"Space between parts (mm)", min:1, max:15, step:1, def:4, fmt:mm},
- ]},
- {g:"Subject", items:[
-  {k:"isolate", t:"check", ui:1, label:"Isolate the subject (remove background)", def:false},
-  {k:"ai_subject", t:"check", label:"Detect the subject with AI (when available)", def:true},
-  {k:"margin", t:"range", ui:1, label:"Search margin around the frame", min:0, max:0.4, step:0.01, def:0.03, fmt:pct},
-  {k:"outline_mm", t:"range", label:"Subject outline (mm)", min:0, max:4, step:0.1, def:1, fmt:mm, st:1},
-  {k:"brush", t:"range", ui:1, label:"Brush size", min:4, max:120, step:1, def:30},
- ]},
  {g:"Layers", items:[
   {k:"ml_sep", t:"select", label:"Separate the plates by", def:"tone", ml:1, opts:[["tone","Tone (brightness)"],["color","Dominant colours"]]},
   {k:"ml_color_auto", t:"check", label:"Detect the number of colours automatically", def:true, ml:1, mlcol:1},
@@ -382,17 +313,32 @@ const SPEC = [
  ]},
  {g:"Halftone dots", items:[
   {k:"dot_pitch_mm", t:"range", label:"Dot pitch (mm)", min:0.8, max:4, step:0.1, def:1.6, fmt:mm, dt:1},
-  {k:"min_web_mm", t:"range", label:"Minimum material between holes (mm)", min:0.3, max:1.2, step:0.05, def:0.5, fmt:mm, ht:1},
-  {k:"min_dot_mm", t:"range", label:"Smallest hole (mm)", min:0.2, max:1, step:0.05, def:0.4, fmt:mm, ht:1},
   {k:"dot_angle", t:"range", label:"Grid angle (degrees)", min:0, max:90, step:5, def:45, dt:1},
-  {k:"dot_gamma", t:"range", label:"Tone curve (higher = more material)", min:0.5, max:2.5, step:0.1, def:1.2, ht:1},
-  {k:"dot_contrast", t:"range", label:"Contrast (0 = natural, 1 = maximum)", min:0, max:1, step:0.1, def:0.8, ht:1},
-  {k:"dot_detail", t:"range", label:"Local detail (0 = none)", min:0, max:3, step:0.1, def:1.5, ht:1},
  ]},
  {g:"Lines", items:[
   {k:"line_pitch_mm", t:"range", label:"Line spacing (mm)", min:0.8, max:4, step:0.1, def:1.5, fmt:mm, ln:1},
   {k:"line_angle", t:"range", label:"Line angle (degrees)", min:0, max:175, step:5, def:30, ln:1},
   {k:"line_break_mm", t:"range", label:"Longest slot before a bridge (mm, 0 = continuous)", min:0, max:100, step:5, def:30, fmt:mm, ln:1},
+ ]},
+ {g:"Engraving", items:[
+  {k:"eng_dpi", t:"range", label:"Machine resolution (DPI)", min:100, max:600, step:5, def:195, eg:1},
+  {k:"eng_dither", t:"select", label:"Dithering method", def:"stucki", eg:1,
+   opts:[["stucki","Stucki (smooth, recommended)"],["floyd","Floyd-Steinberg"],["atkinson","Atkinson (contrasted, clear highlights)"],["jarvis","Jarvis"],["burkes","Burkes"],["sierra","Sierra"],["bayer","Ordered (Bayer, regular pattern)"],["threshold","Threshold (black and white only)"]]},
+  {k:"eng_levels", t:"range", label:"Gray levels (2 = black and white)", min:2, max:8, step:1, def:2, eg:1},
+  {k:"eng_brightness", t:"range", label:"Brightness", min:-100, max:100, step:1, def:0, eg:1},
+  {k:"eng_contrast", t:"range", label:"Contrast", min:-90, max:90, step:1, def:0, eg:1},
+  {k:"eng_gamma", t:"range", label:"Midtones (higher = lighter)", min:0.4, max:2.5, step:0.05, def:1, eg:1},
+  {k:"eng_sharpen", t:"range", label:"Sharpness", min:0, max:3, step:0.1, def:1, eg:1},
+  {k:"eng_invert", t:"check", label:"Engrave the light areas (negative)", def:false, eg:1},
+  {k:"eng_border_mm", t:"range", label:"Unengraved margin at the edge (mm)", min:0, max:10, step:0.5, def:1, fmt:mm, eg:1},
+  {k:"eng_speed", t:"range", label:"Engraving speed (mm/min, for the time estimate)", min:1000, max:12000, step:100, def:5500, eg:1},
+ ]},
+ {g:"Cut sizes and tones", items:[
+  {k:"min_web_mm", t:"range", label:"Minimum material between holes (mm)", min:0.3, max:1.2, step:0.05, def:0.5, fmt:mm, ht:1},
+  {k:"min_dot_mm", t:"range", label:"Smallest hole (mm)", min:0.2, max:1, step:0.05, def:0.4, fmt:mm, ht:1},
+  {k:"dot_gamma", t:"range", label:"Tone curve (higher = more material)", min:0.5, max:2.5, step:0.1, def:1.2, ht:1},
+  {k:"dot_contrast", t:"range", label:"Contrast (0 = natural, 1 = maximum)", min:0, max:1, step:0.1, def:0.8, ht:1},
+  {k:"dot_detail", t:"range", label:"Local detail (0 = none)", min:0, max:3, step:0.1, def:1.5, ht:1},
  ]},
  {g:"Tones", items:[
   {k:"mode", t:"select", label:"Tone mode", def:"local", st:1,
@@ -417,6 +363,76 @@ const SPEC = [
   {k:"min_island_mm2", t:"range", label:"Remove isolated pieces smaller than (mm2)", min:0, max:30, step:0.5, def:10, st:1, sl:1},
   {k:"bridge_mm", t:"range", label:"Bridge width (mm)", min:0.6, max:4, step:0.1, def:1.5, fmt:mm, st:1, sl:1},
   {k:"max_bridge_mm", t:"range", label:"Remove pieces farther than (mm)", min:1, max:30, step:0.5, def:8, fmt:mm, st:1, sl:1},
+ ]},
+ {g:"Frame", items:[
+  {k:"shape", t:"select", label:"Shape", def:"circle",
+   opts:[["circle","Circle"],["oval","Oval"],["rect","Rectangle"],["rrect","Rounded rectangle"],["heart","Heart"],["star","Star"],["tree","Christmas tree"],["none","No outer frame"]]},
+  {k:"aspect", t:"select", ui:1, label:"Aspect ratio", def:"1",
+   opts:[["1","1:1"],["1.3333","4:3"],["0.75","3:4"],["1.5","3:2"],["0.6667","2:3"],["1.7778","16:9"],
+         ["full","Full image (original ratio)"],["custom","Custom (width x height)"]]},
+  {k:"custom_w", t:"number", ui:1, label:"Width (mm)", min:5, max:600, step:1, def:100},
+  {k:"custom_h", t:"number", ui:1, label:"Height (mm)", min:5, max:600, step:1, def:100},
+  {k:"free", t:"check", ui:1, label:"Free placement (empty margins around the image)", def:false},
+  {k:"rot", t:"range", ui:1, label:"Frame rotation (degrees)", min:-180, max:180, step:1, def:0, fmt:v => v + " °"},
+  {k:"img_mm", t:"range", ui:1, label:"Image width on the plate (mm)", min:10, max:4000, step:1, def:100, fmt:mm},
+  {k:"zoom", t:"range", ui:1, label:"Frame size", min:0.05, max:1, step:0.01, def:1, fmt:pct},
+  {k:"size_mm", t:"range", label:"Final size (mm, largest side)", min:20, max:400, step:1, def:100, fmt:mm},
+  {k:"ring_mm", t:"range", label:"Border width around the image (mm)", min:0, max:30, step:0.5, def:4, fmt:mm},
+ ]},
+ {g:"Subject", items:[
+  {k:"isolate", t:"check", ui:1, label:"Isolate the subject (remove background)", def:false},
+  {k:"ai_subject", t:"check", label:"Detect the subject with AI (when available)", def:true},
+  {k:"margin", t:"range", ui:1, label:"Search margin around the frame", min:0, max:0.4, step:0.01, def:0.03, fmt:pct},
+  {k:"outline_mm", t:"range", label:"Subject outline (mm)", min:0, max:4, step:0.1, def:1, fmt:mm, st:1},
+  {k:"brush", t:"range", ui:1, label:"Brush size", min:4, max:120, step:1, def:30},
+ ]},
+ {g:"Hanging loop", items:[
+  {k:"hang", t:"select", label:"Hanging loop", def:"none",
+   opts:[["none","None"],["top","Top (ornament)"],["top_left","Top left corner"],["top_right","Top right corner"],["both","Left and right (two holes)"]]},
+  {k:"hang_style", t:"select", label:"Loop shape", def:"round", opts:[["round","Round"],["drop","Drop (wider base)"]]},
+  {k:"hang_hole_mm", t:"range", label:"Hole diameter (mm)", min:1.5, max:8, step:0.5, def:3, fmt:mm},
+  {k:"hang_tab_mm", t:"range", label:"Material around the hole (mm)", min:1.5, max:6, step:0.5, def:2.5, fmt:mm},
+ ]},
+ {g:"Text on the ring", items:[
+  {k:"text_top", t:"text", label:"Text on top", def:""},
+  {k:"text_bottom", t:"text", label:"Text on the bottom", def:""},
+  {k:"text_size_mm", t:"range", label:"Letter height (mm)", min:3, max:15, step:0.5, def:6, fmt:mm},
+  {k:"text_spacing", t:"range", label:"Letter spacing (%)", min:0, max:50, step:1, def:12},
+  {k:"text_bridge_mm", t:"range", label:"Bridge width inside letters (mm)", min:0.4, max:1.5, step:0.1, def:0.7, fmt:mm},
+ ]},
+ {g:"Lightbox", items:[
+  {k:"box_style", t:"select", label:"Box system", def:"stack",
+   opts:[["stack","Stacked frames (glued layers)"],["fingers","Walls with finger joints (flexible on curves)"]]},
+  {k:"box_depth_mm", t:"range", label:"Inside depth (mm)", min:10, max:80, step:1, def:25, fmt:mm},
+  {k:"box_thickness_mm", t:"range", label:"Material thickness (mm)", min:1, max:10, step:0.5, def:3, fmt:mm},
+  {k:"box_wall_mm", t:"range", label:"Wall width (mm)", min:4, max:30, step:1, def:10, fmt:mm, bs:1},
+  {k:"box_screws", t:"range", label:"Back screws (0 = glued)", min:0, max:8, step:1, def:4, bs:1},
+  {k:"box_screw_mm", t:"range", label:"Screw diameter (mm)", min:2, max:5, step:0.5, def:3, fmt:mm, bs:1},
+  {k:"box_rib_mm", t:"range", label:"Flexible wall: rib width (mm)", min:1.5, max:6, step:0.1, def:2.54, fmt:v=>v.toFixed(2)+" mm", bf:1},
+  {k:"box_fit_auto", t:"check", label:"Slot clearance adjusted to the curve", def:true, bf:1},
+  {k:"box_tab_solid", t:"check", label:"Solid tabs (not cut by the flexible slits)", def:false, bf:1},
+  {k:"box_end_mm", t:"range", label:"Flexible wall: end margin of the centre slits (mm)", min:1.5, max:8, step:0.1, def:2.7, fmt:mm, bf:1},
+  {k:"box_mid_mm", t:"range", label:"Flexible wall: middle bridge between cells (mm)", min:2, max:15, step:0.5, def:6, fmt:mm, bf:1},
+  {k:"box_wall_parts", t:"range", label:"Flexible wall: number of pieces", min:1, max:3, step:1, def:1, fmt:v=>String(v), bf:1},
+  {k:"box_lip_mm", t:"range", label:"Front and back overhang around the wall (mm)", min:0.5, max:6, step:0.5, def:1.5, fmt:mm, bf:1},
+  {k:"box_fit_mm", t:"range", label:"Slot clearance for glue (mm)", min:0, max:0.4, step:0.05, def:0.1, fmt:v => (+v).toFixed(2) + " mm", bf:1},
+  {k:"box_support", t:"select", label:"Support", def:"none",
+   opts:[["none","No support"],["foot","Stand (foot)"],["wall","Wall mount (keyholes in the back)"],["both","Stand and wall mount"]]},
+  {k:"box_foot_h", t:"range", label:"Stand: depth of the groove (mm)", min:4, max:30, step:1, def:9, fmt:mm, sf:1},
+  {k:"box_key_head", t:"range", label:"Wall mount: screw head diameter (mm)", min:4, max:16, step:0.5, def:8, fmt:mm, sk:1},
+  {k:"box_key_shank", t:"range", label:"Wall mount: screw shank diameter (mm)", min:2, max:8, step:0.5, def:4, fmt:mm, sk:1},
+  {k:"box_center_mm", t:"range", label:"Centre hole in the back (mm, 0 = none)", min:0, max:100, step:1, def:0, fmt:mm},
+  {k:"box_cable_mm", t:"range", label:"Cable hole in the back (mm, 0 = none)", min:0, max:20, step:1, def:8, fmt:mm},
+  {k:"box_diffuser", t:"check", label:"Diffuser sheet between front and frames", def:true},
+  {k:"box_sheet_w", t:"range", label:"Cutting sheet width (mm)", min:100, max:900, step:10, def:400, fmt:mm},
+  {k:"box_gap_mm", t:"range", label:"Space between parts (mm)", min:1, max:15, step:1, def:4, fmt:mm},
+ ]},
+ {g:"Render preview", items:[
+  {k:"material", t:"select", ui:1, label:"Sheet material", def:"wood_dark",
+   opts:[["wood_light","Light wood"],["wood_dark","Dark wood"],["black","Black"],["gray","Gray"],["slate","Slate"],["white","White"]]},
+  {k:"backlight", t:"check", ui:1, label:"Backlight (LEDs behind a diffuser)", def:true},
+  {k:"lightcolor", t:"select", ui:1, label:"Light colour", def:"warm",
+   opts:[["warm","Warm white"],["cool","Cool white"],["white","Neutral white"],["red","Red"],["green","Green"],["blue","Blue"],["amber","Amber"]]},
  ]},
  {g:"Contours", items:[
   {k:"smooth", t:"range", label:"Smoothing", min:0, max:6, step:0.5, def:2},
@@ -587,7 +603,74 @@ const ADV = new Set(["hang_style","hang_tab_mm","text_spacing","text_bridge_mm",
   "margin","outline_mm","min_web_mm","min_dot_mm","dot_gamma","dot_contrast","dot_detail","dot_angle","line_angle","line_break_mm",
   "tone_source","bias","texture","blur","local_contrast","local_size","dark_offset","min_island_mm2","bridge_mm","max_bridge_mm","smooth","simplify",
   "previewRes","exportRes"]);
-const DEF_OPEN = null;   // null = tous les groupes ouverts par défaut
+const DEF_OPEN = new Set(["Style","Layers","QR code","Low poly","Halftone dots","Lines","Engraving","Cut sizes and tones","Tones","Cleanup and bridges","Frame","Subject"]);   // les autres groupes (accroche, texte, caisson, rendu...) sont repliés au départ
+
+/* ---- modes : un bouton par fonction, la colonne de gauche n'affiche que les réglages utiles
+   Pour ajouter / retirer un réglage d'un mode, modifier uniquement les tables ci-dessous. */
+const MODES = [
+  {id:"stencil",  label:"Stencil",   tip:"Cut-out shapes held by bridges (cartoons, silhouettes, portraits)",
+   ic:'<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="12" cy="12" r="4"/>'},
+  {id:"halftone", label:"Halftone dots", tip:"Photo as a plate of holes whose size follows the tones",
+   ic:'<circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="2.4"/><circle cx="18.5" cy="12" r="3.6"/>'},
+  {id:"engrave",  label:"Engravings", tip:"Dithered photo engraved on the plate, with a cut outline",
+   ic:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/>'},
+  {id:"lines",    label:"Lines",     tip:"Photo as slots of varying width",
+   ic:'<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>'},
+  {id:"lowpoly",  label:"Low poly",  tip:"Triangulated mesh, wall art",
+   ic:'<path d="M12 3l9 7-4 11H7L3 10z"/><path d="M3 10h18M12 3l-3 7 3 11 3-11z"/>'},
+  {id:"qr",       label:"QR code",   tip:"QR code engraved or cut out on a plate",
+   ic:'<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v3M14 20h3M20 20h1"/>'},
+  {id:"layers",   label:"Layered relief", tip:"Stacked plates giving depth to a picture",
+   ic:'<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>'},
+];
+// groupes affichés dans tous les modes, puis groupes propres à chaque mode
+const MODE_COMMON = ["Style","Frame","Subject","Hanging loop","Text on the ring","Lightbox","Render preview","Contours","Preview and export"];
+const MODE_EXTRA = {
+  stencil:  ["Tones","Cleanup and bridges"],
+  halftone: ["Halftone dots","Cut sizes and tones","Tones"],
+  engrave:  ["Engraving","Tones"],
+  lines:    ["Lines","Cut sizes and tones","Tones"],
+  lowpoly:  ["Low poly","Tones","Cleanup and bridges"],
+  qr:       ["QR code"],
+  layers:   ["Layers","Tones"],
+};
+const MODE_NOT = {engrave:["Lightbox"], qr:["Subject"]};      // groupes communs inutiles pour ce mode
+// réglages sans drapeau, propres à certains modes seulement (« output » : remplacé par les boutons)
+const MODE_ROWS = {
+  output: [],
+  tone_source: ["stencil","halftone","lines","engrave","layers"],
+  contrast:    ["stencil","halftone","lines","engrave"],
+  invert:      ["stencil","halftone","lines","lowpoly"],
+};
+// styles proposés dans « Partir d'un style » selon le mode
+const PRESET_MODE = {halftone:"halftone", lineart:"stencil", cartoon:"stencil", portrait:"stencil", silhouette:"stencil",
+  lines:"lines", lowpoly:"lowpoly", qr:"qr", layers:"layers", engrave:"engrave"};
+const curMode = () => MODES.some(m => m.id === S.output) ? S.output : "stencil";
+const groupOK = g => { const m = curMode(); return !(MODE_NOT[m] || []).includes(g) && (MODE_COMMON.includes(g) || (MODE_EXTRA[m] || []).includes(g)); };
+const rowModeHidden = k => MODE_ROWS[k] !== undefined && !MODE_ROWS[k].includes(curMode());
+function buildModeBar(){
+  const nav = $("modebar"); nav.innerHTML = "";
+  MODES.forEach(m => {
+    const b = document.createElement("button"); b.type = "button"; b.dataset.mode = m.id; b.title = m.tip;
+    b.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + m.ic + '</svg><span data-i18n="' + m.label + '">' + m.label + '</span>';
+    b.addEventListener("click", () => setOutputMode(m.id));
+    nav.appendChild(b);
+  });
+}
+function setOutputMode(m){
+  if (S.output === m) return;
+  S.output = m; setControl("output", m);
+  S.preset = ""; setControl("preset", "");
+  changed("output");
+}
+function syncModeBar(){
+  const m = curMode();
+  document.querySelectorAll("#modebar button").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+  const ps = $("c_preset");
+  if (ps) [...ps.options].forEach(o => { o.hidden = !!o.value && PRESET_MODE[o.value] !== m; });
+  const mb = $("btnMB");   // les ponts manuels n'existent que pour pochoir, QR et low poly
+  if (mb){ const ok = ["stencil","qr","lowpoly"].includes(m); mb.hidden = !ok; if (!ok && mbMode === "bridge") mbMode = null; }
+}
 let SRCH = "", ADV_ON = false, srchSaved = null;
 ADV_ON = true;   // par défaut : tous les réglages visibles
 try { if (localStorage.getItem("lss_adv") === "0") ADV_ON = false; } catch(e){}
@@ -610,11 +693,13 @@ function applyFilter(){
       n++;
       const adv = ADV.has(it.k) && !ADV_ON && !r.classList.contains("mod");
       const txt = norm(T(it.label) + " " + (TIPS[it.k] ? T(TIPS[it.k]) : "") + " " + gname);
+      r.classList.toggle("modehide", rowModeHidden(it.k));
       r.classList.toggle("advhide", adv && !q);
       r.classList.toggle("srchide", !!q && !txt.includes(q));
-      if (!r.classList.contains("hidden") && !r.classList.contains("advhide") && !r.classList.contains("srchide")) vis++;
+      if (!r.classList.contains("hidden") && !r.classList.contains("advhide") && !r.classList.contains("srchide") && !r.classList.contains("modehide")) vis++;
     });
-    if (n){ d.hidden = vis === 0; if (q && vis) d.open = true; }
+    d.classList.toggle("modehide", !groupOK(d.dataset.g));
+    if (n){ d.hidden = vis === 0 || !groupOK(d.dataset.g); if (q && vis && groupOK(d.dataset.g)) d.open = true; }
     if (restore && srchSaved[d.dataset.g] !== undefined) d.open = srchSaved[d.dataset.g];
   });
   if (restore) srchSaved = null;
@@ -648,18 +733,20 @@ function applyUserPreset(name){
 function buildTools(box){
   const t = document.createElement("div"); t.className = "tools";
   t.innerHTML =
-    '<input type="search" id="srch" data-i18n-ph="Search a setting...">' +
+    '<div class="trow srow"><input type="search" id="srch" data-i18n-ph="Search a setting...">' +
+    '<button type="button" id="gOpen" title="Expand all">&#9662;</button>' +
+    '<button type="button" id="gClose" title="Collapse all">&#9652;</button></div>' +
     '<label><input type="checkbox" id="advOn"><span data-i18n="Show advanced settings">Show advanced settings</span></label>' +
-    '<div class="trow"><select id="presetSel"></select>' +
+    '<button type="button" id="pToggle" data-i18n="My saved settings...">My saved settings...</button>' +
+    '<div id="pBox" hidden><div class="trow"><select id="presetSel"></select>' +
     '<button type="button" id="pApply" data-i18n="Apply">Apply</button>' +
     '<button type="button" id="pSave" data-i18n="Save as...">Save as...</button>' +
     '<button type="button" id="pDel" data-i18n="Delete">Delete</button>' +
     '<button type="button" id="pExp" data-i18n="Export">Export</button>' +
     '<button type="button" id="pImp" data-i18n="Import">Import</button>' +
-    '<input type="file" id="pFile" accept=".json,application/json" hidden></div>' +
-    '<div class="trow"><button type="button" id="gOpen" data-i18n="Expand all">Expand all</button>' +
-    '<button type="button" id="gClose" data-i18n="Collapse all">Collapse all</button></div>';
+    '<input type="file" id="pFile" accept=".json,application/json" hidden></div></div>';
   box.appendChild(t);
+  $("pToggle").onclick = () => { $("pBox").hidden = !$("pBox").hidden; };
   $("advOn").checked = ADV_ON;
   $("advOn").onchange = e => { ADV_ON = e.target.checked; try { localStorage.setItem("lss_adv", ADV_ON ? "1" : "0"); } catch(_){} applyFilter(); };
   $("srch").oninput = e => { SRCH = e.target.value; applyFilter(); };
@@ -794,6 +881,7 @@ function initDD(){
   document.addEventListener("keydown", e => { if (e.key === "Escape") closeDD(); });
 }
 function refreshDisabled(){
+  try { syncModeBar(); } catch(e){}
   try { mbSyncUI(); } catch(e){}
   try { renderPick(); } catch(e){}
   const dis = (k, on) => $("row_" + k) && $("row_" + k).classList.toggle("disabled", !!on);   // !! : toggle(x, undefined) inverserait l'état
@@ -815,8 +903,9 @@ function refreshDisabled(){
   updateLightBtn();
   dis("outline_mm", !S.isolate);
   const o = S.output, stencil = o !== "halftone" && o !== "lines" && o !== "engrave" && o !== "lowpoly";
-  ITEMS.filter(i => i.local).forEach(i => { hid(i.k, !stencil || S.mode !== "local"); });
-  ITEMS.filter(i => i.st).forEach(i => { if (!i.local) hid(i.k, !stencil && !(o === "lowpoly" && i.sl)); });
+  const isSt = o === "stencil" || !MODES.some(m => m.id === o);
+  ITEMS.filter(i => i.local).forEach(i => { hid(i.k, !isSt || S.mode !== "local"); });
+  ITEMS.filter(i => i.st).forEach(i => { if (!i.local) hid(i.k, !isSt && !(o === "lowpoly" && i.sl)); });
   ITEMS.filter(i => i.ml).forEach(i => hid(i.k, o !== "layers" || (i.mlcol && S.ml_sep !== "color") || i.mlorder || (i.mlpin && !S.ml_pins) || (i.mlbg && S.ml_bg !== "own") || (i.mleng && !S.ml_engrave)));
   try { renderPalette(); } catch(e){}
   ITEMS.filter(i => i.qr).forEach(i => hid(i.k, o !== "qr" || (i.qrk && i.qrk !== S.qr_kind) || (i.qrcut && S.qr_mode !== "cut")));
@@ -1766,7 +1855,7 @@ window.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTrans
   const names = {fr:"Fran\u00e7ais", en:"English", de:"Deutsch", es:"Espa\u00f1ol"};
   langs.forEach(l => { const o = document.createElement("option"); o.value = l; o.textContent = names[l] || l; $("lang").appendChild(o); });
   const want = saved.lang || (langs.includes(def) ? def : "en");
-  initDD(); buildControls(); updateCursor(); layout(); loadPresets();
+  initDD(); buildModeBar(); buildControls(); updateCursor(); layout(); loadPresets();
   await setLang(langs.includes(want) ? want : "en");
   clampFrame();
 })();

@@ -123,7 +123,7 @@ class VectorToolbarTests(unittest.TestCase):
         rows = self.rows()
         self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg", "ui.vector_box_generator",
                                                    "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
-                                                   "ui.vector_nesting"]})
+                                                   "ui.vector_keychain_generator", "ui.vector_nesting"]})
 
     def test_create_and_draw_tools_float_on_the_left_with_icons(self):
         with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
@@ -135,7 +135,7 @@ class VectorToolbarTests(unittest.TestCase):
                           ("ui.vector_tool_measure", "measure")):
             self.assertIn(f'"{key}", "{icon}"', create, key)
         self.assertIn('self.vector_canvas, anchor="left")', src)
-        for icon in ("document-import", "draw-cuboid", "games-config-board", "object-group"):
+        for icon in ("document-import", "draw-cuboid", "games-config-board", "keychain", "object-group"):
             self.assertIn(f'"{icon}"', src[src.index("# Boutons d'outils"):src.index("vector_create_actions")], icon)
 
     def test_edit_and_align_actions_float_over_the_canvas(self):
@@ -167,6 +167,7 @@ class VectorToolbarTests(unittest.TestCase):
         self.assertIn("ui.vector_box_generator", first)
         self.assertIn("ui.vector_puzzle_generator", first)
         self.assertIn("ui.vector_ornament_generator", first)
+        self.assertIn("ui.vector_keychain_generator", first)
         self.assertIn("ui.vector_nesting", first)
 
 

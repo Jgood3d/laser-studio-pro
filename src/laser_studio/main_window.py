@@ -180,7 +180,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
         self._build_vector_editor_tab()
         self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))
-
         self._build_2d_preview_tab()
         center_bottom_scroll = self._build_machine_panel()
         center_panel.addWidget(self.center_v_splitter)
@@ -622,12 +621,15 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         btn_ornament_generator = QPushButton(tr("ui.vector_ornament_generator"))
         btn_ornament_generator.setToolTip(tr("ui.vector_ornament_generator_tip"))
         btn_ornament_generator.clicked.connect(self.open_ornament_generator)
+        btn_keychain_generator = QPushButton(tr("ui.vector_keychain_generator"))
+        btn_keychain_generator.setToolTip(tr("ui.vector_keychain_generator_tip"))
+        btn_keychain_generator.clicked.connect(self.open_keychain_generator)
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
         btn_nesting.clicked.connect(self.open_nesting)
         for button, icon in ((btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
                              (btn_puzzle_generator, "games-config-board"), (btn_ornament_generator, "draw-ellipse"),
-                             (btn_nesting, "object-group")):
+                             (btn_keychain_generator, "keychain"), (btn_nesting, "object-group")):
             button.setIcon(palette_icon(icon, self.palette()))
             # L'emoji du libellé (📥, 📦, 🧩) ferait doublon avec l'icône.
             label = button.text()
@@ -680,7 +682,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         layout_vector_editor.setContentsMargins(4, 4, 4, 4)
         layout_vector_editor.setSpacing(4)
 
-        # Rangée du haut : importer et outils (boîte, puzzle, boule de Noël, imbrication), puis la grille
+        # Rangée du haut : importer et outils (boîte, puzzle, boule de Noël, porte-clés, imbrication), puis la grille
         # magnétique à droite. Le plein écran est celui de la barre d'outils principale.
         toolbar_vector = QHBoxLayout()
         toolbar_vector.setSpacing(4)
@@ -688,6 +690,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         toolbar_vector.addWidget(btn_box_generator)
         toolbar_vector.addWidget(btn_puzzle_generator)
         toolbar_vector.addWidget(btn_ornament_generator)
+        toolbar_vector.addWidget(btn_keychain_generator)
         toolbar_vector.addWidget(btn_nesting)
         toolbar_vector.addStretch()
         self.chk_vector_snap = QCheckBox(tr("ui.vector_snap_enable"))

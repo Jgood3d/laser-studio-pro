@@ -175,8 +175,9 @@ class MotifShapeTests(unittest.TestCase):
                     for poly in shape.solids + shape.late:
                         if len(poly) < 60:  # les cercles et ellipses sont simples par construction
                             self.assertTrue(og.is_simple(poly), (name, style, h))
-                    self.assertAlmostEqual(shape.ymin, 0.0, places=6)
-                    self.assertAlmostEqual(shape.ymax, h, delta=0.15 * h)
+                    self.assertLessEqual(abs(shape.ymin), 0.02 * h + 0.01, (name, style, h))
+                    self.assertGreater(shape.ymax, 0.6 * h, (name, style, h))
+                    self.assertLess(shape.ymax, 1.1 * h, (name, style, h))
 
     def test_axis_points_are_inside_the_material(self):
         for name, build in om.UPRIGHT_BUILDERS.items():
@@ -201,6 +202,46 @@ class MotifShapeTests(unittest.TestCase):
         self.assertTrue(shape.contains(0.0, 0.43 * 26))        # …mais la moustache est pleine
         self.assertTrue(shape.contains(0.0, 0.50 * 26))        # et le nez aussi
 
+    def test_moon_is_one_simple_crescent_open_to_the_right(self):
+        for h in (10.0, 24.0, 50.0):
+            moon = om.moon_shape(h)
+            self.assertTrue(og.is_simple(moon.solids[0]), h)
+            self.assertTrue(moon.contains(-0.45 * h, 0.5 * h))        # l'épaisseur du croissant, à gauche
+            self.assertFalse(moon.contains(0.30 * h, 0.5 * h))        # le creux, à droite
+            self.assertAlmostEqual(moon.width, 0.8 * h, delta=0.1 * h)
+
+    def test_holly_berries_hold_the_leaves_together(self):
+        for style in om.HOLLY_STYLES:
+            shape = om.holly_shape(24.0, style)
+            leaves, berries = shape.solids[:-3], shape.solids[-3:]
+            self.assertEqual(len(leaves), 3 if style == "Trio" else 2)
+            for leaf in leaves:
+                # Chaque feuille a au moins un sommet dans une baie : elles sont soudées entre elles.
+                self.assertTrue(any(om.point_in_polygon(x, y, b) for x, y in leaf for b in berries), style)
+
+    def test_candle_flame_is_welded_to_the_body_and_hollowed_when_large(self):
+        small, large = om.candle_shape(14.0), om.candle_shape(40.0)
+        self.assertEqual(small.cuts, [])
+        self.assertEqual(len(large.cuts), 1)
+        for shape in (small, large):
+            flame = shape.solids[2]
+            body = shape.solids[1]
+            self.assertTrue(any(om.point_in_polygon(x, y, body) for x, y in flame))
+
+    def test_bell_clapper_is_tied_inside_the_bell(self):
+        for h in (12.0, 24.0, 50.0):
+            bell = om.bell_shape(h)
+            body, _knob, clapper, stem = bell.solids
+            self.assertTrue(any(om.point_in_polygon(x, y, body) for x, y in stem), h)
+            self.assertTrue(any(om.point_in_polygon(x, y, clapper) or om.point_in_polygon(x, y, stem)
+                                for x, y in stem), h)
+
+    def test_bulb_has_a_socket_on_top(self):
+        bulb = om.bulb_shape(10.0)
+        self.assertTrue(bulb.contains(0.0, 9.5))      # la douille
+        self.assertTrue(bulb.contains(0.0, 4.0))      # l'ampoule
+        self.assertFalse(bulb.contains(3.0, 9.5))     # la douille est plus étroite que l'ampoule
+
     def test_cuts_stay_inside_the_solids(self):
         for name, build in om.UPRIGHT_BUILDERS.items():
             shape = build(30.0, "Classique")
@@ -216,7 +257,7 @@ class MotifShapeTests(unittest.TestCase):
 
 class MotifLayoutTests(unittest.TestCase):
     def build(self, motif, layout, **kw):
-        base = dict(motif=motif, flake_layout=layout, flake_count=3, flake_size=og.MOTIF_DEFAULT_SIZE[motif],
+        base = dict(motif=motif, flake_layout=layout, flake_count=3, flake_size=og.MOTIF_DEFAULT_SIZE.get(motif, 16.0),
                     name="Emma")
         base.update(kw)
         return og.build_ornament(params(**base), TEXT_BOUNDS)
@@ -265,8 +306,9 @@ class MotifLayoutTests(unittest.TestCase):
     def test_hanging_motifs_are_tied_by_a_stem(self):
         for motif in og.UPRIGHT_MOTIFS:
             g = self.build(motif, "Suspendus")
-            stems = [p for p in g.solids if len(p) == 4 and p is not g.bar and p[0][1] == p[1][1]
-                     and (p[2][0] - p[0][0]) < 3.0]
+            # Une suspente est un rectangle fin qui monte jusque dans l'anneau.
+            stems = [p for p in g.solids if len(p) == 4 and p is not g.bar and (p[2][0] - p[0][0]) < 3.0
+                     and max(y for _x, y in p) > math.sqrt(max(g.inner_radius ** 2 - p[0][0] ** 2, 0.0))]
             self.assertEqual(len(stems), 3, motif)
 
     def test_star_layouts_reuse_the_radial_placement(self):
@@ -283,7 +325,8 @@ class MotifLayoutTests(unittest.TestCase):
                 continue
             g = self.build(motif, "Haut et bas")
             self.assertIsNotNone(g.upper_edge, motif)
-            self.assertIsNotNone(g.lower_edge, motif)
+            if g.lower_edge is None:  # la guirlande n'occupe que le haut
+                continue
             top = g.text.center_y + g.text.height / 2
             bottom = g.text.center_y - g.text.height / 2
             if g.upper_edge - g.lower_edge >= 10.0:  # assez de place : pas de recouvrement
@@ -313,6 +356,55 @@ class MotifLayoutTests(unittest.TestCase):
             self.assertGreater(b - a, 8.0)   # pas empilés au même endroit
         small = self.build("Sapins", "Bas", flake_count=3, flake_size=14.0)
         self.assertEqual(len({round(f.cx, 3) for f in small.flakes}), 3)
+
+    def test_garland_hangs_the_bulbs_from_a_string_rooted_in_the_ring(self):
+        g = self.build("Guirlande", "Haut", flake_count=5)
+        self.assertEqual(len(g.flakes), 5)
+        string = max((p for p in g.solids if len(p) > 50), key=len)
+        xs = [x for x, _y in string]
+        self.assertGreater(max(xs), g.inner_radius * 0.7)      # le fil va d'un côté à l'autre
+        self.assertLess(min(xs), -g.inner_radius * 0.7)
+        for end in (min(string), max(string)):                  # ses deux bouts s'enfoncent dans l'anneau
+            self.assertGreater(math.hypot(*end), g.inner_radius)
+        sag = min(y for _x, y in string)
+        for f in g.flakes:
+            self.assertLess(f.cy, sag + 1.0 + f.radius)         # l'ampoule pend sous le fil
+        self.assertIsNotNone(g.upper_edge)
+        self.assertIsNone(g.lower_edge)
+
+    def test_garland_string_is_a_simple_ribbon_at_every_size(self):
+        for diameter in (60.0, 80.0, 150.0):
+            for count in (1, 3, 7):
+                g = og.build_ornament(params(diameter=diameter, motif="Guirlande", flake_count=count,
+                                             flake_size=10.0))
+                string = max((p for p in g.solids if len(p) > 50), key=len)
+                self.assertTrue(og.is_simple(string), (diameter, count))
+
+    def test_garland_ignores_the_layout(self):
+        a = self.build("Guirlande", "Haut")
+        b = self.build("Guirlande", "Bas")
+        self.assertEqual(a.solids, b.solids)
+
+    def test_bandeau_adds_a_second_bar_along_the_top_of_the_letters(self):
+        g = self.build("Aucun", "Haut", support="Bandeau", bar_thickness=2.0)
+        self.assertIsNotNone(g.bar)
+        self.assertIsNotNone(g.top_bar)
+        top = g.text.center_y + g.text.height / 2
+        self.assertAlmostEqual(max(p[1] for p in g.top_bar), top + 0.6, places=6)
+        self.assertAlmostEqual(min(p[1] for p in g.top_bar), top - 1.4, places=6)
+        self.assertGreater(min(p[1] for p in g.top_bar), max(p[1] for p in g.bar))   # au-dessus de la barre du bas
+        self.assertIsNone(self.build("Aucun", "Haut", support="Barre").top_bar)
+        self.assertFalse(g.floating_name)
+
+    def test_support_none_has_no_bar_at_all(self):
+        g = self.build("Aucun", "Haut", support="Aucun")
+        self.assertEqual((g.bar, g.top_bar), (None, None))
+
+    def test_holly_styles_and_the_other_new_motifs_are_listed(self):
+        self.assertEqual(og.MOTIF_STYLES["Houx"], ("Trio", "Duo"))
+        for motif in ("Lune", "Houx", "Bougie", "Cloche", "Guirlande"):
+            self.assertIn(motif, og.MOTIFS)
+        self.assertEqual(og.MOTIFS[-1], "Aucun")
 
     def test_default_sizes_exist_for_every_motif(self):
         for motif in og.MOTIFS:
@@ -435,8 +527,9 @@ class WeldingTests(unittest.TestCase):
         _, santa = self.contours(name="", motif="Père Noël", flake_layout="Haut", flake_count=1, flake_size=30.0)
         _, snowman = self.contours(name="", motif="Bonhomme de neige", flake_layout="Bas", flake_count=1,
                                    flake_size=30.0)
-        self.assertGreaterEqual(len(santa), len(plain) + 1)  # motif soudé à l'anneau + visage (trou)
+        self.assertGreaterEqual(len(santa), len(plain) + 1)       # contour du motif soudé à l'anneau + visage
         self.assertGreater(len(snowman), len(plain) + 3)     # yeux et boutons
+
 
 if __name__ == "__main__":
     unittest.main()

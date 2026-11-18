@@ -475,7 +475,7 @@
  "Guides: click to place a vertex (eye, nose, ear tip), drag to place an edge. Click an existing guide to remove it.": "Guides : clique pour poser un sommet (œil, nez, pointe d'oreille), glisse pour poser une arête. Clique sur un guide existant pour le supprimer.",
  "QR code (engraved or cut out)": "Code QR (gravé ou ajouré)",
  "QR code plate": "Plaque avec code QR",
- "QR code": "Code QR",
+ "QR code": "QR Code",
  "Content": "Contenu",
  "Link or text": "Lien ou texte",
  "Wi-Fi network": "Réseau Wi-Fi",
@@ -555,5 +555,16 @@
  "{n} picked colours = {n} plates": "{n} couleurs choisies = {n} plaques",
  "Pick at least one more colour.": "Choisis au moins une couleur de plus.",
  "No pick: the colours are found automatically.": "Aucune pipette : les couleurs sont trouvées automatiquement.",
- "click to remove": "clic pour retirer"
+ "click to remove": "clic pour retirer",
+ "Stencil": "Pochoir",
+ "Engravings": "Gravures",
+ "Layered relief": "Reliefs en couches",
+ "Cut sizes and tones": "Tailles de découpe et tons",
+ "Cut-out shapes held by bridges (cartoons, silhouettes, portraits)": "Formes découpées tenues par des ponts (dessins, silhouettes, portraits)",
+ "Photo as a plate of holes whose size follows the tones": "Photo en plaque percée de trous dont la taille suit les tons",
+ "Dithered photo engraved on the plate, with a cut outline": "Photo tramée gravée sur la plaque, avec un contour de découpe",
+ "Photo as slots of varying width": "Photo en fentes de largeur variable",
+ "Triangulated mesh, wall art": "Maillage de triangles, décor mural",
+ "QR code engraved or cut out on a plate": "Code QR gravé ou découpé sur une plaque",
+ "Stacked plates giving depth to a picture": "Plaques empilées qui donnent du relief à une image"
 }
