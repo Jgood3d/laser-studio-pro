@@ -71,8 +71,10 @@ class AppActions(QObject):
     box_generator_requested = pyqtSignal()
     puzzle_generator_requested = pyqtSignal()
     ornament_generator_requested = pyqtSignal()
+    camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
+
     gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
     job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
     # Aide
@@ -323,12 +325,23 @@ class AppActions(QObject):
             tr("menu.tools.ornament"),
             self.ornament_generator_requested,
         )
+        self.camera = self._action(
+            bundled_icon("camera-photo", QStyle.StandardPixmap.SP_ComputerIcon),
+            tr("menu.tools.camera"),
+            self.camera_requested,
+        )
         self.vector_tool_actions = (
             self.vector_import,
             self.box_generator,
             self.puzzle_generator,
             self.ornament_generator,
         )
+        # Caméra : placée avec les outils généraux (pas seulement vectoriel).
+        self.tool_actions = (
+            *self.tool_actions,
+            self.camera,
+        )
+
 
     def _create_help_actions(self, parent):
         # Version : icône de l'application (définie dans main.py).

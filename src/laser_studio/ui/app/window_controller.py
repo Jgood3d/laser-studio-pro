@@ -99,8 +99,10 @@ class WindowControllerMixin:
         actions.ornament_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_ornament_generator)
         )
+        actions.camera_requested.connect(self.open_camera_dialog)
         # Affichage
         actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)
+
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
         actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide
@@ -266,3 +268,15 @@ class WindowControllerMixin:
             tr("menu.language.restart_title"),
             tr("menu.language.restart_body"),
         )
+
+    def open_camera_dialog(self):
+        """Ouvre le dialogue Caméra (choix appareil, état, actions)."""
+        from laser_studio.controllers.camera import CameraController
+        from laser_studio.ui.dialogs.camera import CameraDialog
+
+        if getattr(self, "camera", None) is None:
+            self.camera = CameraController(
+                self,
+                bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
+            )
+        CameraDialog(self.camera, self).exec()
