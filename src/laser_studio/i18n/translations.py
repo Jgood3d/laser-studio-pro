@@ -6661,7 +6661,13 @@ TRANSLATIONS = {
         "en": "Solid",
         "de": "Voll",
         "es": "Sólido",
-        },
+    },
+        "ornament.style.Trio": {
+        "fr": "Trio",
+        "en": "Trio",
+        "de": "Trio",
+        "es": "Trío",
+    },
 }
 
 
