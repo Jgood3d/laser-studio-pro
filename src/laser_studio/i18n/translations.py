@@ -6602,6 +6602,30 @@ TRANSLATIONS = {
         "de": "Mond",
         "es": "Luna",
     },
+        "ornament.motif.Houx": {
+        "fr": "Houx",
+        "en": "Holly",
+        "de": "Stechpalme",
+        "es": "Acebo",
+    },
+        "ornament.motif.Sapin": {
+        "fr": "Sapin",
+        "en": "Fir tree",
+        "de": "Tannenbaum",
+        "es": "Abeto",
+    },
+        "ornament.motif.Cadeau": {
+        "fr": "Cadeau",
+        "en": "Gift",
+        "de": "Geschenk",
+        "es": "Regalo",
+    },
+        "ornament.motif.Bougie": {
+        "fr": "Bougie",
+        "en": "Candle",
+        "de": "Kerze",
+        "es": "Vela",
+    },
 }
 
 
