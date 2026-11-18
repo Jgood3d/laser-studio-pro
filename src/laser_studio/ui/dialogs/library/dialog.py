@@ -47,6 +47,7 @@ class LibraryDialog(QDialog):
         self._items = {item.key: item for c in categories for item in c.items}
         self._icons = {}
         self._chosen = None
+        self._details_open = False
 
         layout = QVBoxLayout(self)
         layout.addLayout(self._header(icon_size))
@@ -115,7 +116,8 @@ class LibraryDialog(QDialog):
         self.grid.setWrapping(True)
         self.grid.setWordWrap(True)
         self.grid.setSpacing(6)
-        self.grid.itemDoubleClicked.connect(lambda _item: self.show_details())
+        # Double-clic ou Entrée. Pas aussi itemDoubleClicked : un double-clic émet les deux
+        # signaux, et la fiche s'ouvrait deux fois de suite (la seconde, vierge, après l'import).
         self.grid.itemActivated.connect(lambda _item: self.show_details())
         self.grid.currentItemChanged.connect(lambda *_a: self._update_buttons())
         self._apply_icon_size(icon_size)
@@ -195,10 +197,16 @@ class LibraryDialog(QDialog):
 
     def show_details(self):
         item = self.current_item()
-        if item is None:
+        # Une seule fiche à la fois, et plus aucune une fois le modèle choisi.
+        if item is None or self._details_open or self._chosen is not None:
             return
         details = LibraryItemDialog(self, item, self._icon(item))
-        if details.exec() == QDialog.DialogCode.Accepted:
+        self._details_open = True
+        try:
+            accepted = details.exec() == QDialog.DialogCode.Accepted
+        finally:
+            self._details_open = False
+        if accepted:
             self._import(item, details.variants(), details.texts())
 
     def _import(self, item, variants, texts):

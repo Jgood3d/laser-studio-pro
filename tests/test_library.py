@@ -379,6 +379,24 @@ class LibraryDialogTests(unittest.TestCase):
         self.assertEqual((item.key, variants, texts), ("medals/medaille", {"Niveau": "A"}, {}))
         self.assertEqual(d.result(), QDialog.DialogCode.Accepted)
 
+    def test_details_open_only_once(self):
+        """Un double-clic émet itemDoubleClicked puis itemActivated : une seule fiche, et rien
+        ne se rouvre après l'import (avant, une seconde fiche vierge s'ouvrait)."""
+        d = self.dialog()
+        d.grid.setCurrentRow(0)
+        opened = []
+
+        def fake_exec(details):
+            opened.append(details)
+            d.grid.itemActivated.emit(d.grid.currentItem())     # pendant que la fiche est ouverte
+            return QDialog.DialogCode.Accepted
+
+        with mock.patch.object(LibraryItemDialog, "exec", fake_exec):
+            d.grid.itemDoubleClicked.emit(d.grid.currentItem())
+            d.grid.itemActivated.emit(d.grid.currentItem())
+        self.assertEqual(len(opened), 1)
+        self.assertEqual(d.chosen()[0].key, "medals/medaille")
+
     def test_details_offer_the_texts(self):
         write(os.path.join(self.tmp.name, "signs", "nom", "n.svg"),
               svg(engrave('<text id="nom" x="10" y="20" style="font-size:8px">Prénom</text>')))
