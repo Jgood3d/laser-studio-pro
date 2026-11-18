@@ -3,7 +3,7 @@ par catégorie et par recherche, en grille dont on règle la taille."""
 from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
+    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QListView, QListWidget, QListWidgetItem, QSlider, QSplitter, QTabWidget,
     QTextBrowser, QVBoxLayout, QWidget,
 )
@@ -12,7 +12,7 @@ from laser_studio.i18n import tr
 from laser_studio.ui.dialogs.library.thumbnails import item_image, render_svg
 from laser_studio.ui.widgets import ZoomableGraphicsView
 from laser_studio.vector.svg_import import (
-    SvgImportError, document_size_mm, find_variant_groups, svg_with_variants,
+    SvgImportError, document_size_mm, find_texts, find_variant_groups, svg_preview,
 )
 
 ICON_SIZE_MIN = 80
@@ -29,11 +29,12 @@ class LibraryDialog(QDialog):
       de colonnes suit la largeur de la fenêtre (icon_size_changed(px)).
     - Double-clic ou « Détails » : fiche du modèle (LibraryItemDialog).
     - « Importer » (ici ou dans la fiche) : la fenêtre se ferme acceptée, le
-      choix est dans chosen() -> (modèle, {groupe de variantes: option}).
+      choix est dans chosen() -> (modèle, {groupe de variantes: option},
+      {texte: nouveau contenu}).
 
         dialog = LibraryDialog(self, load_catalog(library_roots()), icon_size=200)
         if dialog.exec() == QDialog.DialogCode.Accepted:
-            item, variants = dialog.chosen()
+            item, variants, texts = dialog.chosen()
     """
 
     icon_size_changed = pyqtSignal(int)
@@ -61,7 +62,7 @@ class LibraryDialog(QDialog):
         self.import_button = buttons.addButton(tr("library.import"), QDialogButtonBox.ButtonRole.AcceptRole)
         buttons.addButton(tr("library.close"), QDialogButtonBox.ButtonRole.RejectRole)
         self.details_button.clicked.connect(self.show_details)
-        self.import_button.clicked.connect(lambda: self._import(self.current_item(), None))
+        self.import_button.clicked.connect(lambda: self._import(self.current_item(), None, None))
         buttons.rejected.connect(self.reject)
         bottom = QHBoxLayout()
         bottom.addWidget(self.count_label, 1)
@@ -113,7 +114,6 @@ class LibraryDialog(QDialog):
         self.grid.setMovement(QListView.Movement.Static)
         self.grid.setWrapping(True)
         self.grid.setWordWrap(True)
-        self.grid.setUniformItemSizes(True)
         self.grid.setSpacing(6)
         self.grid.itemDoubleClicked.connect(lambda _item: self.show_details())
         self.grid.itemActivated.connect(lambda _item: self.show_details())
@@ -121,9 +121,17 @@ class LibraryDialog(QDialog):
         self._apply_icon_size(icon_size)
         return self.grid
 
+    def _cell_size(self, size):
+        """Case d'un modèle : la vignette et deux lignes de titre."""
+        return QSize(size + 24, size + 48)
+
     def _apply_icon_size(self, size):
         self.grid.setIconSize(QSize(size, size))
-        self.grid.setGridSize(QSize(size + 24, size + 48))
+        self.grid.setGridSize(self._cell_size(size))
+        # Chaque case prend la taille de la vignette (sinon la largeur du titre
+        # peut l'emporter et écraser l'image).
+        for row in range(self.grid.count()):
+            self.grid.item(row).setSizeHint(self._cell_size(size))
 
     # -- état
 
@@ -146,7 +154,7 @@ class LibraryDialog(QDialog):
         return self._items.get(entry.data(Qt.ItemDataRole.UserRole)) if entry else None
 
     def chosen(self):
-        """(modèle, variantes) choisis par « Importer », ou None."""
+        """(modèle, variantes, textes remplacés) choisis par « Importer », ou None."""
         return self._chosen
 
     def _icon(self, item):
@@ -166,6 +174,7 @@ class LibraryDialog(QDialog):
             entry.setData(Qt.ItemDataRole.UserRole, item.key)
             entry.setToolTip(item.description or item.title)
             entry.setTextAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
+            entry.setSizeHint(self._cell_size(self.icon_size()))
             self.grid.addItem(entry)
             if current is not None and item.key == current.key:
                 self.grid.setCurrentItem(entry)
@@ -187,9 +196,9 @@ class LibraryDialog(QDialog):
             return
         details = LibraryItemDialog(self, item, self._icon(item))
         if details.exec() == QDialog.DialogCode.Accepted:
-            self._import(item, details.variants())
+            self._import(item, details.variants(), details.texts())
 
-    def _import(self, item, variants):
+    def _import(self, item, variants, texts):
         if item is None:
             return
         if variants is None:
@@ -197,14 +206,15 @@ class LibraryDialog(QDialog):
                 variants = {g.key: g.default for g in find_variant_groups(item.svg_path)}
             except SvgImportError:
                 variants = {}
-        self._chosen = (item, variants)
+        self._chosen = (item, variants, texts or {})
         self.accept()
 
 
 class LibraryItemDialog(QDialog):
     """Fiche d'un modèle : aperçu en grand (zoom à la molette), dessin du SVG
     avec la variante choisie, informations, texte d'accompagnement (readme),
-    choix des variantes. « Importer » ferme la fiche acceptée : variants()."""
+    choix des variantes, textes à remplacer (nom de la régate...).
+    « Importer » ferme la fiche acceptée : variants(), texts()."""
 
     def __init__(self, parent, item, icon=None):
         super().__init__(parent)
@@ -216,6 +226,8 @@ class LibraryItemDialog(QDialog):
         except SvgImportError:
             self._groups = []
         self._combos = {}
+        self._text_edits = {}
+        self._typed = {}           # textes saisis, gardés quand la variante change
 
         splitter = QSplitter()
         self.views = QTabWidget()
@@ -275,10 +287,15 @@ class LibraryItemDialog(QDialog):
             for key, name in group.options:
                 combo.addItem(name, key)
             combo.setCurrentIndex(max(0, combo.findData(group.default)))
-            combo.currentIndexChanged.connect(self.refresh_drawing)
+            combo.currentIndexChanged.connect(self._variant_changed)
             self._combos[group.key] = combo
             form.addRow(f"{group.label} :", combo)
         layout.addLayout(form)
+        # Textes du modèle, remplaçables avant l'import (reconstruits si la variante change).
+        self.texts_box = QGroupBox(tr("library.texts"))
+        self._texts_form = QFormLayout(self.texts_box)
+        layout.addWidget(self.texts_box)
+        self._fill_texts()
         if self.item.readme:
             readme = QTextBrowser()
             readme.setPlainText(self.item.readme)
@@ -303,10 +320,36 @@ class LibraryItemDialog(QDialog):
         """{groupe de variantes: option choisie}."""
         return {key: combo.currentData() for key, combo in self._combos.items()}
 
-    def refresh_drawing(self, *_args):
-        """Dessin du SVG, avec la variante choisie."""
+    def texts(self):
+        """{texte: nouveau contenu}, pour les textes modifiés seulement."""
+        return {key: edit.text() for key, edit in self._text_edits.items()
+                if edit.text() != edit.property("original")}
+
+    def _fill_texts(self):
+        while self._texts_form.rowCount():
+            self._texts_form.removeRow(0)
+        self._text_edits = {}
         try:
-            data = svg_with_variants(self.item.svg_path, self.variants())
+            fields = find_texts(self.item.svg_path, self.variants())
+        except SvgImportError:
+            fields = []
+        for field in fields:
+            edit = QLineEdit(self._typed.get(field.key, field.text))
+            edit.setProperty("original", field.text)
+            edit.textEdited.connect(lambda text, key=field.key: self._typed.__setitem__(key, text))
+            edit.textChanged.connect(self.refresh_drawing)
+            self._text_edits[field.key] = edit
+            self._texts_form.addRow(f"{field.label} :", edit)
+        self.texts_box.setVisible(bool(fields))
+
+    def _variant_changed(self, *_args):
+        self._fill_texts()
+        self.refresh_drawing()
+
+    def refresh_drawing(self, *_args):
+        """Dessin du SVG, avec la variante choisie et les textes saisis."""
+        try:
+            data = svg_preview(self.item.svg_path, self.variants(), self.texts())
         except SvgImportError:
             return
         except Exception:

@@ -61,8 +61,8 @@ class LibraryController:
         dialog.icon_size_changed.connect(lambda size: _settings().setValue(ICON_SIZE_SETTING, size))
         if dialog.exec() != QDialog.DialogCode.Accepted or dialog.chosen() is None:
             return
-        item, variants = dialog.chosen()
-        self.import_item(item, variants)
+        item, variants, texts = dialog.chosen()
+        self.import_item(item, variants, texts)
 
     def layer_for_role(self, role):
         """Identifiant du calque de rôle `role`, sinon du calque SVG par défaut."""
@@ -71,11 +71,13 @@ class LibraryController:
                 return layer.id
         return self._layers.default_svg_layer().id
 
-    def import_item(self, item, variants=None):
-        """Importe le modèle `item` (avec ses `variants`) dans l'éditeur
-        vectoriel. Renvoie les objets ajoutés (liste vide en cas d'erreur)."""
+    def import_item(self, item, variants=None, texts=None):
+        """Importe le modèle `item` (avec ses `variants` et ses `texts`
+        remplacés) dans l'éditeur vectoriel. Renvoie les objets ajoutés
+        (liste vide en cas d'erreur)."""
         try:
-            artwork = import_svg(item.svg_path, variants=variants, bed_h_mm=self._bed_height())
+            artwork = import_svg(item.svg_path, variants=variants, texts=texts,
+                                 bed_h_mm=self._bed_height())
         except SvgImportError as e:
             QMessageBox.critical(self._parent, tr("vector.svg_error_title"),
                                  tr("vector.svg_error").format(error=e))

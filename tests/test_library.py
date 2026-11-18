@@ -12,6 +12,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 LIBRARY = os.path.join(REPO, "src", "laser_studio", "resources", "library")
 TOTEM = os.path.join(LIBRARY, "trophees", "totem-brevet-aviron", "totem-brevet-aviron.svg")
+MEDAL = os.path.join(LIBRARY, "medailles", "medaille-skiffeur", "medaille-skiffeur.svg")
 
 from laser_studio.library.catalog import load_catalog, pretty_name  # noqa: E402
 
@@ -22,7 +23,7 @@ try:
     from laser_studio.ui.dialogs.library import LibraryDialog, LibraryItemDialog
     from laser_studio.vector.svg_import import (
         document_size_mm, find_variant_groups, import_svg, parse_transform, role_of_label,
-        svg_with_variants,
+        find_texts, svg_preview,
     )
 except ImportError:  # PyQt6 manquant
     import_svg = None
@@ -153,7 +154,7 @@ class SvgImportTests(unittest.TestCase):
         self.assertAlmostEqual(self.boxes(import_svg(path))["engrave"].width(), 40, places=3)
         small = import_svg(path, variants={"Niveau": "Petit"})
         self.assertAlmostEqual(self.boxes(small)["engrave"].width(), 10, places=3)
-        self.assertIn(b"display:none", svg_with_variants(path, {"Niveau": "Grand"}))
+        self.assertIn(b"display:none", svg_preview(path, {"Niveau": "Grand"}))
 
     def test_text_becomes_an_editable_text_object(self):
         path = self.file('<text x="50" y="30" style="font-size:10px;text-anchor:middle;font-weight:bold">'
@@ -190,6 +191,47 @@ class SvgImportTests(unittest.TestCase):
         self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"])
         self.assertAlmostEqual(art.width_mm, 30.0, places=1)
         self.assertAlmostEqual(art.height_mm, 116.4, places=1)
+
+    def test_light_shapes_are_cut_out_of_the_engraving(self):
+        # Bandeau noir de 40 x 20 mm, carré blanc de 10 mm dessus : un seul objet, le carré en trou.
+        path = self.file('<rect width="40" height="20" fill="#000"/>'
+                         '<rect x="5" y="5" width="10" height="10" fill="#ffffff"/>')
+        (role, obj), = import_svg(path).items
+        outlines = sorted(round(p.boundingRect().width(), 2) for p in obj.world_path().toSubpathPolygons())
+        self.assertEqual((role, outlines), ("engrave", [10.0, 40.0]))
+
+    def test_light_text_is_cut_out_dark_text_stays_editable(self):
+        path = self.file('<rect width="100" height="50" fill="black"/>'
+                         '<text id="titre" x="50" y="20" style="font-size:8px;fill:#fff;text-anchor:middle">Club</text>'
+                         '<text id="num" x="50" y="40" style="font-size:8px;fill:#000;text-anchor:middle">1</text>')
+        kinds = sorted((o.kind, getattr(o, "text", "")) for _r, o in import_svg(path).items)
+        self.assertEqual(kinds, [("svg_path", ""), ("text", "1")])
+
+    def test_texts_can_be_replaced(self):
+        path = self.file('<text id="titre" x="10" y="20" style="font-size:8px">Régate de XXXX</text>')
+        self.assertEqual([(f.key, f.text) for f in find_texts(path)], [("titre", "Régate de XXXX")])
+        (_role, obj), = import_svg(path, texts={"titre": "Régate de Rennes"}).items
+        self.assertEqual(obj.text, "Régate de Rennes")
+        self.assertIn("Régate de Rennes", svg_preview(path, texts={"titre": "Régate de Rennes"}).decode())
+
+    def test_inkscape_line_tspans_are_placed_under_the_text(self):
+        # Inkscape enregistre parfois x="0" y="0" sur une ligne : elle s'affiche quand même au x / y du texte.
+        path = self.file('<rect width="100" height="50" fill="none" stroke="blue"/>'
+                         '<text id="t" x="50" y="25" style="font-size:10px;text-anchor:middle">'
+                         '<tspan xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" '
+                         'sodipodi:role="line" x="0" y="0">8</tspan></text>')
+        art = import_svg(path, offset_x_mm=0, offset_y_mm=0)
+        text = next(o for _r, o in art.items if o.kind == "text").world_path().boundingRect()
+        self.assertAlmostEqual(text.center().x(), 50.0, delta=1.0)
+        self.assertIn('x="50"', svg_preview(path).decode())
+
+    def test_bundled_medal(self):
+        groups = find_variant_groups(MEDAL)
+        self.assertEqual([o[0] for o in groups[0].options], ["Etoile", "1", "2", "3"])
+        self.assertEqual([f.key for f in find_texts(MEDAL)], ["Régate de XXXX", "1"])
+        art = import_svg(MEDAL, variants={groups[0].key: "Etoile"}, texts={"Régate de XXXX": "Régate de Rennes"})
+        self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"])     # nom en réserve : tracé
+        self.assertAlmostEqual(art.width_mm, 80.0, places=1)
 
 
 @unittest.skipIf(import_svg is None, "PyQt6 non importable ici")
@@ -233,9 +275,19 @@ class LibraryDialogTests(unittest.TestCase):
         d = self.dialog()
         d.grid.setCurrentRow(0)
         d.import_button.click()
-        item, variants = d.chosen()
-        self.assertEqual((item.key, variants), ("medals/medaille", {"Niveau": "A"}))
+        item, variants, texts = d.chosen()
+        self.assertEqual((item.key, variants, texts), ("medals/medaille", {"Niveau": "A"}, {}))
         self.assertEqual(d.result(), QDialog.DialogCode.Accepted)
+
+    def test_details_offer_the_texts(self):
+        write(os.path.join(self.tmp.name, "signs", "nom", "n.svg"),
+              svg('<text id="nom" x="10" y="20" style="font-size:8px">Prénom</text>'))
+        item = next(i for c in load_catalog([self.tmp.name]) for i in c.items if i.key == "signs/nom")
+        details = LibraryItemDialog(None, item)
+        self.addCleanup(details.deleteLater)
+        self.assertEqual(details.texts(), {})                      # rien de modifié
+        details._text_edits["nom"].setText("Léa")
+        self.assertEqual(details.texts(), {"nom": "Léa"})
 
     def test_details_offer_the_variants(self):
         item = self.categories[0].items[0]

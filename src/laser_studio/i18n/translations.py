@@ -1931,6 +1931,12 @@ TRANSLATIONS = {
         "de": "Lizenz:",
         "es": "Licencia:",
     },
+    "library.texts": {
+        "fr": "Textes",
+        "en": "Texts",
+        "de": "Texte",
+        "es": "Textos",
+    },
     "library.close": {
         "fr": "Fermer",
         "en": "Close",

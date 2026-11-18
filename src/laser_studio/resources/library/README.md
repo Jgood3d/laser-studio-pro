@@ -52,9 +52,10 @@ Le fichier est importé tel qu'il est dessiné, en millimètres (unités du docu
   - « Marquage », « Mark », « Contour » → calque **Marquage**.
 
   Hors de ces calques, un tracé rempli va en gravure, un contour seul en découpe.
-- **Calques cachés** : ils ne sont pas importés. Pratique pour garder des éléments de construction (« sources ») dans le fichier.
+- **Calques cachés** : ils ne sont pas importés. Pratique pour garder des éléments de construction (« sources ») dans le fichier. **Le calque « Découpe » doit donc être visible** dans le fichier enregistré.
+- **Noir et blanc** : sur la gravure, une forme foncée est gravée, une forme blanche (ou très claire) ne l'est pas : elle est creusée dans ce qui est gravé en dessous (un texte blanc sur un bandeau noir reste en réserve). La gravure importée est l'union des formes foncées, moins les formes claires, dans l'ordre du dessin.
 - **Variantes** : un groupe (ou calque) dont les éléments nommés sont tous cachés sauf un devient un choix dans la fiche du modèle. Exemple : le calque « Niveau du brevet » du totem contient « Niveau 1 », « Niveau 2 », « Niveau 3 », « Bronze », « Argent », « Or » ; seul le texte choisi est importé. L'élément visible dans le fichier est le choix par défaut.
-- **Textes** : ils deviennent des textes modifiables de l'éditeur (police, taille, gras). Si la police n'est pas installée chez l'utilisateur, une police de remplacement est utilisée : pour un rendu exact, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin).
+- **Textes** : chaque texte visible apparaît dans la fiche du modèle, où l'utilisateur peut le remplacer avant l'import (nom de la régate, du club…) ; le nom du champ est le nom (ou l'id) du texte dans Inkscape. Un texte foncé devient ensuite un texte modifiable de l'éditeur (police, taille, gras) ; un texte blanc est creusé dans la gravure, il devient donc un tracé. Si la police n'est pas installée chez l'utilisateur, une police de remplacement est utilisée : pour un rendu exact, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin), mais il ne sera plus remplaçable.
 - **Transformations** (`translate`, `scale`, `matrix`…) : prises en compte.
 - **Images bitmap** (`<image>`) : non importées.
 

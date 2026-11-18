@@ -8,6 +8,12 @@ Par rapport à l'import SVG classique, il prend en compte :
 - les calques Inkscape « Découpe », « Gravure », « Marquage » : chaque tracé
   va sur le calque de même rôle de l'éditeur (voir role_of_label) ;
 - les textes (<text>, <tspan>) : objets texte modifiables de l'éditeur ;
+  leur contenu peut être remplacé à l'import (paramètre `texts`, voir
+  find_texts) ;
+- le blanc : un élément rempli de blanc (ou d'une couleur très claire) sur
+  le calque de gravure n'est pas gravé, il est creusé dans la gravure
+  (gravure = union des formes foncées, moins les formes claires, dans
+  l'ordre du dessin). Un texte clair devient donc un tracé (creux) ;
 - les variantes : un groupe dont les sous-éléments nommés sont tous cachés
   sauf un (ex. « Niveau 1 », « Niveau 2 », « Bronze »...) ; l'élément choisi
   (paramètre `variants`) est importé, les autres non.
@@ -68,6 +74,15 @@ class VariantGroup:
     label: str
     options: list
     default: str
+
+
+@dataclass
+class TextField:
+    """Texte du modèle remplaçable à l'import : `key` (passée dans `texts`),
+    `label` (nom affiché) et `text` (contenu du fichier)."""
+    key: str
+    label: str
+    text: str
 
 
 @dataclass
@@ -225,6 +240,42 @@ def _variant_options(group):
     return [(_label(c), _label(c), not _is_hidden(c)) for c in children]
 
 
+def _chosen_option(group, options, variants):
+    """Option retenue d'un groupe de variantes : celle de `variants`, sinon
+    l'option visible dans le fichier."""
+    chosen = (variants or {}).get(_label(group))
+    if chosen in [key for key, _n, _v in options]:
+        return chosen
+    return next((key for key, _n, visible in options if visible), None)
+
+
+def _visible_elements(root, variants):
+    """Éléments dessinés (ni cachés ni écartés par une variante), dans
+    l'ordre du document : [(élément, profondeur)]. Les enfants d'un <text>
+    ne sont pas parcourus."""
+    result = []
+
+    def walk(elem, depth, forced=False):
+        tag = _local(elem.tag)
+        if tag in NON_RENDERED or (depth > 0 and _is_hidden(elem) and not forced):
+            return
+        result.append((elem, depth))
+        if tag == "text":
+            return
+        options = _variant_options(elem) if depth > 0 and tag == "g" else None
+        if options:
+            chosen = _chosen_option(elem, options, variants)
+            for child in elem:
+                if _label(child) == chosen:
+                    walk(child, depth + 1, forced=True)
+            return
+        for child in elem:
+            walk(child, depth + 1)
+
+    walk(root, 0)
+    return result
+
+
 def find_variant_groups(path):
     """Groupes de variantes du fichier (voir VariantGroup), dans l'ordre du
     document. Le calque racine des calques n'en est jamais un (un calque de
@@ -249,19 +300,106 @@ def find_variant_groups(path):
     return groups
 
 
+def find_texts(path, variants=None):
+    """Textes visibles du fichier (avec les variantes choisies), à proposer
+    pour remplacement : [TextField]. Un texte de plusieurs lignes donne un
+    champ par ligne (clé « nom#1 », « nom#2 »...)."""
+    root = _parse(path)
+    fields = []
+    for elem, _depth in _visible_elements(root, variants):
+        if _local(elem.tag) != "text":
+            continue
+        runs = _text_runs(elem, {})
+        name = _label(elem)
+        if not name:
+            continue                 # sans nom ni id : pas de clé pour le remplacer
+        for index, run in enumerate(runs):
+            key = name if len(runs) == 1 else f"{name}#{index + 1}"
+            label = name if len(runs) == 1 else f"{name} ({index + 1})"
+            fields.append(TextField(key, label, run[0]))
+    return fields
+
+
+# -- couleurs
+
+NAMED_COLORS = {"white": (255, 255, 255), "black": (0, 0, 0), "red": (255, 0, 0),
+                "blue": (0, 0, 255), "green": (0, 128, 0), "yellow": (255, 255, 0),
+                "gray": (128, 128, 128), "grey": (128, 128, 128), "silver": (192, 192, 192)}
+
+# Au-dessus de cette luminance (0 à 1), une couleur est « claire » : non gravée.
+LIGHT_LUMINANCE = 0.8
+
+
+def _rgb(color):
+    color = (color or "").strip().lower()
+    if color in NAMED_COLORS:
+        return NAMED_COLORS[color]
+    match = re.fullmatch(r"#([0-9a-f]{3}|[0-9a-f]{6})", color)
+    if match:
+        h = match.group(1)
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+    match = re.fullmatch(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", color)
+    if match:
+        return tuple(int(v) for v in match.groups())
+    return None
+
+
+def is_light(color):
+    """Vrai pour le blanc et les couleurs très claires (non gravées)."""
+    rgb = _rgb(color)
+    if rgb is None:
+        return False
+    r, g, b = (v / 255 for v in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b >= LIGHT_LUMINANCE
+
+
 # -- import
 
+# Les opérations sur les tracés (union, différence) sont faites à cette échelle :
+# Qt aplatit les courbes avec une tolérance d'environ 1 unité, trop grossière en mm.
+BOOLEAN_SCALE = 100.0
+
+
+class _EngraveRegion:
+    """Zone gravée : union des formes foncées moins les formes claires, dans
+    l'ordre du dessin (tracés en mm × BOOLEAN_SCALE)."""
+
+    def __init__(self):
+        self.path = None
+        self._up = QTransform.fromScale(BOOLEAN_SCALE, BOOLEAN_SCALE)
+
+    def add(self, path, light):
+        scaled = self._up.map(path)
+        scaled.setFillRule(path.fillRule())
+        if self.path is None:
+            if not light:
+                self.path = scaled
+            return
+        self.path = self.path.subtracted(scaled) if light else self.path.united(scaled)
+
+    def result(self):
+        if self.path is None or self.path.isEmpty():
+            return None
+        down = QTransform.fromScale(1 / BOOLEAN_SCALE, 1 / BOOLEAN_SCALE)
+        return down.map(self.path.simplified())
+
+
 def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm=0.0,
-               default_role=None):
+               default_role=None, texts=None):
     """Lit le SVG `path` et renvoie un ImportedArtwork : les tracés de chaque
-    rôle groupés en un objet, chaque texte en objet texte. `variants` :
+    rôle groupés en un objet, chaque texte foncé en objet texte. `variants` :
     {clé du groupe: clé de l'option} (voir find_variant_groups ; option
-    visible dans le fichier si absente). `default_role` : rôle d'un tracé hors
-    calque nommé (sinon : rempli -> gravure, contour seul -> découpe)."""
+    visible dans le fichier si absente). `texts` : {clé du texte: nouveau
+    contenu} (voir find_texts). `default_role` : rôle d'un tracé hors calque
+    nommé (sinon : rempli -> gravure, contour seul -> découpe)."""
     root = _parse(path)
     variants = variants or {}
-    shapes = {}          # rôle -> [QPainterPath en mm, Y vers le bas]
-    texts = []           # (rôle, TextObject, boîte cible en mm Y vers le bas)
+    texts = texts or {}
+    outlines = {}               # rôle (découpe, marquage) -> [QPainterPath en mm, Y vers le bas]
+    engrave = _EngraveRegion()  # gravure remplie : formes foncées moins formes claires
+    text_items = []             # (rôle, TextObject, boîte cible en mm Y vers le bas)
 
     def role_for(style, inherited):
         if inherited:
@@ -271,6 +409,16 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         fill = style.get("fill", "black")
         return ROLE_ENGRAVE if fill not in ("none", "transparent") else ROLE_CUT
 
+    def add_shape(path_mm, role, style):
+        if role == ROLE_ENGRAVE:
+            fill = style.get("fill", "black")
+            if fill in ("none", "transparent"):
+                outlines.setdefault(role, []).append(path_mm)    # contour seul, rien à remplir
+            else:
+                engrave.add(path_mm, is_light(fill))
+        else:
+            outlines.setdefault(role, []).append(path_mm)
+
     def walk(elem, ctm, role, style, depth, forced=False):
         tag = _local(elem.tag)
         if tag in NON_RENDERED:
@@ -278,19 +426,23 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         if depth > 0 and _is_hidden(elem) and not forced:
             return
         if tag == "text":
-            # Le texte applique lui-même sa transformation et son style (_text_objects).
-            for obj, box in _text_objects(elem, ctm, style):
-                texts.append((role_for({**style, **_style(elem)}, role), obj, box))
+            # Le texte applique lui-même sa transformation et son style.
+            text_style = {**style, **_inherited(_style(elem))}
+            text_role = role_for(text_style, role)
+            light = is_light(text_style.get("fill", "black"))
+            for run in _text_glyphs(elem, ctm, style, texts):
+                if text_role == ROLE_ENGRAVE and not light:
+                    text_items.append((text_role, _text_object(run), run.box))
+                else:
+                    add_shape(run.path, text_role, text_style)    # texte clair : creusé
             return
-        own = _style(elem)
-        style = {**style, **{k: v for k, v in own.items() if k not in ("display", "visibility", "opacity")}}
+        style = {**style, **_inherited(_style(elem))}
         ctm = parse_transform(elem.attrib.get("transform")) * ctm
         if tag in ("g", "svg", "a", "switch"):
             role = role_of_label(_label(elem)) or role
             options = _variant_options(elem) if depth > 0 and tag == "g" else None
             if options:
-                chosen = variants.get(_label(elem)) or next(
-                    (key for key, _n, visible in options if visible), None)
+                chosen = _chosen_option(elem, options, variants)
                 for child in elem:
                     if _label(child) == chosen:
                         walk(child, ctm, role_of_label(_label(child)) or role, style, depth + 1, forced=True)
@@ -300,10 +452,20 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
             return
         geometry = _shape_path(elem, tag)
         if geometry is not None and not geometry.isEmpty():
-            shapes.setdefault(role_for(style, role), []).append(ctm.map(geometry))
+            mapped = ctm.map(geometry)
+            mapped.setFillRule(geometry.fillRule())
+            add_shape(mapped, role_for(style, role), style)
 
     walk(root, _document_transform(root), None, {}, 0)
-    return _to_artwork(shapes, texts, offset_x_mm, offset_y_mm, bed_h_mm)
+    region = engrave.result()
+    if region is not None:
+        outlines.setdefault(ROLE_ENGRAVE, []).insert(0, region)
+    return _to_artwork(outlines, text_items, offset_x_mm, offset_y_mm, bed_h_mm)
+
+
+def _inherited(style):
+    """Propriétés transmises aux enfants (pas l'affichage ni l'opacité)."""
+    return {k: v for k, v in style.items() if k not in ("display", "visibility", "opacity")}
 
 
 def _shape_path(elem, tag):
@@ -366,21 +528,49 @@ def _is_bold(style):
     return weight in ("bold", "bolder") or (weight.isdigit() and int(weight) >= 600)
 
 
+def _font_size(style):
+    return (_numbers(style.get("font-size")) or [16.0])[0]
+
+
+def _line_height(style):
+    """Hauteur de ligne en unités du document (Inkscape : « 1.25 », « 125% »
+    ou « 12.8px »)."""
+    size = _font_size(style)
+    value = (style.get("line-height") or "").strip()
+    number = (_numbers(value) or [None])[0]
+    if number is None:
+        return 1.25 * size
+    if value.endswith("%"):
+        return number / 100 * size
+    if re.search(r"[a-z]", value):
+        return number
+    return number * size
+
+
 def _text_runs(text_elem, style):
-    """[(texte, x, y, style)] : une ligne par <tspan> positionné (x / y),
-    sinon tout le texte en une ligne."""
+    """[[texte, x, y, style]] : une ligne par <tspan> positionné, sinon tout
+    le texte en une ligne. Comme Inkscape, une ligne sodipodi:role="line" est
+    placée sous la précédente (x et y du texte, plus une hauteur de ligne par
+    ligne), quelles que soient ses propres coordonnées."""
+    style = {**style, **_inherited(_style(text_elem))}
     x0 = (_numbers(text_elem.attrib.get("x")) or [0.0])[0]
     y0 = (_numbers(text_elem.attrib.get("y")) or [0.0])[0]
     runs = []
     if text_elem.text and text_elem.text.strip():
         runs.append([text_elem.text.strip(), x0, y0, style])
+    line = 0
     for tspan in text_elem:
         if _local(tspan.tag) != "tspan" or _is_hidden(tspan):
             continue
+        span_style = {**style, **_inherited(_style(tspan))}
         content = "".join(tspan.itertext()).strip()
+        if _attr(tspan, "role") == "line":
+            if content:
+                runs.append([content, x0, y0 + line * _line_height(span_style), span_style])
+            line += 1
+            continue
         if not content:
             continue
-        span_style = {**style, **_style(tspan)}
         xs, ys = _numbers(tspan.attrib.get("x")), _numbers(tspan.attrib.get("y"))
         if (xs or ys) or not runs:
             runs.append([content, xs[0] if xs else x0, ys[0] if ys else y0, span_style])
@@ -389,19 +579,31 @@ def _text_runs(text_elem, style):
     return runs
 
 
-def _text_objects(text_elem, ctm, style):
-    """Objets texte modifiables d'un <text> : [(TextObject, boîte cible)].
+@dataclass
+class _GlyphRun:
+    """Une ligne de texte telle que le SVG la dessine : contenu, police, et
+    son tracé (`path`) et sa boîte (`box`) en mm, Y vers le bas."""
+    text: str
+    family: str
+    bold: bool
+    italic: bool
+    path: QPainterPath
+    box: object
 
-    La boîte cible est celle du texte tel que le SVG le dessine (taille,
-    ancrage, transformation), en mm Y vers le bas ; l'objet texte est ensuite
-    mis à la même hauteur et centré dessus (_to_artwork)."""
-    style = {**style, **{k: v for k, v in _style(text_elem).items()
-                         if k not in ("display", "visibility", "opacity")}}
+
+def _text_glyphs(text_elem, ctm, style, replacements=None):
+    """Lignes d'un <text> (voir _GlyphRun), avec le contenu remplacé par
+    `replacements` ({clé: texte}, voir find_texts)."""
+    replacements = replacements or {}
     ctm = parse_transform(text_elem.attrib.get("transform")) * ctm
+    runs = _text_runs(text_elem, style)
+    name = _label(text_elem)
     result = []
-    for content, x, y, run_style in _text_runs(text_elem, style):
-        size = (_numbers(run_style.get("font-size")) or [16.0])[0]
-        if size <= 0:
+    for index, (content, x, y, run_style) in enumerate(runs):
+        key = name if len(runs) == 1 else f"{name}#{index + 1}"
+        content = replacements.get(key, content)
+        size = _font_size(run_style)
+        if size <= 0 or not content.strip():
             continue
         family = _font_family(run_style)
         bold = _is_bold(run_style)
@@ -412,20 +614,23 @@ def _text_objects(text_elem, ctm, style):
         font.setItalic(italic)
         glyphs = QPainterPath()
         glyphs.addText(0, 0, font, content)
-        bounds = glyphs.boundingRect()
-        advance = bounds.right()
+        advance = glyphs.boundingRect().right()
         anchor = (run_style.get("text-anchor") or "start").lower()
         shift = {"middle": -advance / 2, "end": -advance}.get(anchor, 0.0)
         local = QTransform()
         local.translate(x, y)
         local.scale(0.01, 0.01)
         local.translate(shift, 0)
-        box = (local * ctm).map(glyphs).boundingRect()
-        if box.isEmpty():
-            continue
-        obj = TextObject(text=content, font_family=family, size_mm=1.0, bold=bold, italic=italic)
-        result.append((obj, box))
+        mapped = (local * ctm).map(glyphs)
+        box = mapped.boundingRect()
+        if not box.isEmpty():
+            result.append(_GlyphRun(content, family, bold, italic, mapped, box))
     return result
+
+
+def _text_object(run):
+    """Objet texte modifiable de l'éditeur (placé ensuite par _fit_text)."""
+    return TextObject(text=run.text, font_family=run.family, size_mm=1.0, bold=run.bold, italic=run.italic)
 
 
 def _fit_text(obj, box, bed_h_mm):
@@ -499,36 +704,58 @@ def document_size_mm(path):
     return None
 
 
-def svg_with_variants(path, variants):
-    """Contenu SVG (octets) où seule l'option choisie de chaque groupe de
-    variantes est visible : pour dessiner l'aperçu de la variante choisie."""
+def _set_visible(elem, visible):
+    style = [p for p in (elem.attrib.get("style") or "").split(";")
+             if p.strip() and not p.strip().startswith("display")]
+    style.append("display:inline" if visible else "display:none")
+    elem.attrib["style"] = ";".join(style)
+    elem.attrib.pop("display", None)
+
+
+def svg_preview(path, variants=None, texts=None):
+    """Contenu SVG (octets) tel qu'il sera importé, pour l'aperçu de la
+    fiche : seule l'option choisie de chaque groupe de variantes est visible,
+    les textes sont remplacés (`texts`), et les lignes de texte Inkscape
+    (sodipodi:role="line") reçoivent leur position réelle (un afficheur SVG
+    qui ne connaît pas Inkscape les placerait en 0, 0)."""
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     ET.register_namespace("inkscape", INKSCAPE_NS)
     ET.register_namespace("sodipodi", "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
-    tree = ET.parse(path)
+    try:
+        tree = ET.parse(path)
+    except (ET.ParseError, OSError) as e:
+        raise SvgImportError(str(e)) from e
     root = tree.getroot()
+    texts = texts or {}
 
-    def set_visible(elem, visible):
-        style = [p for p in (elem.attrib.get("style") or "").split(";")
-                 if p.strip() and not p.strip().startswith("display")]
-        style.append("display:inline" if visible else "display:none")
-        elem.attrib["style"] = ";".join(style)
-        elem.attrib.pop("display", None)
-
-    def walk(elem, depth):
-        if _local(elem.tag) in NON_RENDERED or (depth > 0 and _is_hidden(elem)):
-            return
-        if depth > 0 and _local(elem.tag) == "g":
+    for elem, depth in _visible_elements(root, variants):
+        tag = _local(elem.tag)
+        if depth > 0 and tag == "g":
             options = _variant_options(elem)
             if options:
-                chosen = (variants or {}).get(_label(elem))
-                if chosen in [key for key, _n, _v in options]:
-                    for child in elem:
-                        if _label(child):
-                            set_visible(child, _label(child) == chosen)
-                return
-        for child in elem:
-            walk(child, depth + 1)
-
-    walk(root, 0)
+                chosen = _chosen_option(elem, options, variants)
+                for child in elem:
+                    if _label(child):
+                        _set_visible(child, _label(child) == chosen)
+        if tag != "text":
+            continue
+        x0 = elem.attrib.get("x", "0")
+        y0 = (_numbers(elem.attrib.get("y")) or [0.0])[0]
+        style = {**_inherited(_style(elem))}
+        spans = [t for t in elem if _local(t.tag) == "tspan" and not _is_hidden(t)]
+        line = 0
+        for tspan in spans:
+            if _attr(tspan, "role") == "line":
+                span_style = {**style, **_inherited(_style(tspan))}
+                tspan.attrib["x"] = x0
+                tspan.attrib["y"] = f"{y0 + line * _line_height(span_style):.4f}"
+                line += 1
+        name = _label(elem)
+        lines = [t for t in spans if "".join(t.itertext()).strip()] or ([elem] if (elem.text or "").strip() else [])
+        for index, target in enumerate(lines):
+            key = name if len(lines) == 1 else f"{name}#{index + 1}"
+            if key in texts:
+                for child in list(target):
+                    target.remove(child)
+                target.text = texts[key]
     return ET.tostring(root, encoding="utf-8")

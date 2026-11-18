@@ -1,0 +1,22 @@
+{
+  "title": {
+    "fr": "Médaille skiffeur",
+    "en": "Single sculler medal",
+    "de": "Einer-Medaille",
+    "es": "Medalla de skiff"
+  },
+  "author": "Antoine Le Morvan",
+  "license": {
+    "fr": "Libre d'utilisation pour usage personnel et associatif",
+    "en": "Free for personal and club use",
+    "de": "Frei für private Nutzung und Vereine",
+    "es": "Libre para uso personal y asociativo"
+  },
+  "description": {
+    "fr": "Médaille de régate d'aviron avec un skiffeur gravé et un trou pour le ruban. Résultat au choix : 1, 2, 3 ou étoile (Challenge Jeune) ; nom de la régate à saisir avant l'import.",
+    "en": "Rowing regatta medal with an engraved single sculler and a ribbon hole. Result of your choice: 1, 2, 3 or star (youth challenge); regatta name to type before import.",
+    "de": "Ruderregatta-Medaille mit graviertem Einer-Ruderer und Loch für das Band. Ergebnis nach Wahl: 1, 2, 3 oder Stern (Jugend-Challenge); Regattaname vor dem Import eingeben.",
+    "es": "Medalla de regata de remo con un remero de skiff grabado y un agujero para la cinta. Resultado a elegir: 1, 2, 3 o estrella (desafío joven); nombre de la regata a escribir antes de importar."
+  },
+  "tags": ["aviron", "rowing", "régate", "skiff", "médaille", "podium", "club"]
+}
