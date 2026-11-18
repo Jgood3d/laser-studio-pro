@@ -6626,6 +6626,18 @@ TRANSLATIONS = {
         "de": "Kerze",
         "es": "Vela",
     },
+        "ornament.motif.Cloche": {
+        "fr": "Cloche",
+        "en": "Bell",
+        "de": "Glocke",
+        "es": "Campana",
+    },
+        "ornament.motif.Couronne": {
+        "fr": "Couronne",
+        "en": "Wreath",
+        "de": "Kranz",
+        "es": "Corona",
+    },
 }
 
 
