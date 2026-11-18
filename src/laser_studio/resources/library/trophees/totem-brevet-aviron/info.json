@@ -1,0 +1,22 @@
+{
+  "title": {
+    "fr": "Totem brevet d'aviron",
+    "en": "Rowing award totem",
+    "de": "Ruder-Abzeichen-Totem",
+    "es": "Tótem de diploma de remo"
+  },
+  "author": "Antoine Le Morvan",
+  "license": {
+    "fr": "Libre d'utilisation pour usage personnel et associatif",
+    "en": "Free for personal and club use",
+    "de": "Frei für private Nutzung und Vereine",
+    "es": "Libre para uso personal y asociativo"
+  },
+  "description": {
+    "fr": "Totem en 3 pièces (socle, partie principale, retour) à découper et coller, avec le logo de l'aviron gravé. Niveau au choix : 1, 2, 3, bronze, argent ou or.",
+    "en": "3-piece totem (base, main part, front) to cut and glue, with the engraved rowing logo. Level of your choice: 1, 2, 3, bronze, silver or gold.",
+    "de": "Totem aus 3 Teilen (Sockel, Hauptteil, Vorderteil) zum Schneiden und Kleben, mit graviertem Ruderlogo. Stufe nach Wahl: 1, 2, 3, Bronze, Silber oder Gold.",
+    "es": "Tótem de 3 piezas (base, parte principal, frontal) para cortar y pegar, con el logotipo de remo grabado. Nivel a elegir: 1, 2, 3, bronce, plata u oro."
+  },
+  "tags": ["aviron", "rowing", "trophée", "médaille", "brevet", "club"]
+}

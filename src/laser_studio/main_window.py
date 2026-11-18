@@ -38,6 +38,7 @@ from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, MaterialsC
 from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
 from laser_studio.controllers.matrix_image import MatrixImageController
+from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
@@ -609,6 +610,15 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 
         # Boutons d'outils (rangée du haut), avec une icône du pack Breeze embarqué.
+        # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
+        self.library = LibraryController(
+            self, self.layer_manager,
+            bed_height=lambda: self.machine.bed_h,
+            add_to_vector_editor=self._add_objects_to_vector_editor,
+        )
+        btn_library = QPushButton(tr("ui.vector_library"))
+        btn_library.setToolTip(tr("ui.vector_library_tip"))
+        btn_library.clicked.connect(self.library.open)
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
         btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
@@ -627,7 +637,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
         btn_nesting.clicked.connect(self.open_nesting)
-        for button, icon in ((btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
+        for button, icon in ((btn_library, "view-app-grid"),
+                             (btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
                              (btn_puzzle_generator, "games-config-board"), (btn_ornament_generator, "draw-ellipse"),
                              (btn_keychain_generator, "keychain"), (btn_nesting, "object-group")):
             button.setIcon(palette_icon(icon, self.palette()))
@@ -688,6 +699,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # magnétique à droite. Le plein écran est celui de la barre d'outils principale.
         toolbar_vector = QHBoxLayout()
         toolbar_vector.setSpacing(4)
+        toolbar_vector.addWidget(btn_library)
         toolbar_vector.addWidget(btn_import_svg_vector)
         toolbar_vector.addWidget(btn_box_generator)
         toolbar_vector.addWidget(btn_puzzle_generator)

@@ -7,6 +7,12 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Bibliothèque de modèles (Outils → Bibliothèque…, bouton « Modèles » de l'éditeur vectoriel) :
+- Modèles prêts à graver ou découper, rangés par catégorie, avec recherche et taille des aperçus réglable (colonnes adaptées à la largeur de la fenêtre).
+- Fiche de chaque modèle : aperçu et dessin en grand (zoom à la molette), taille, auteur, licence, notice, et choix des variantes (ex. niveau du brevet).
+- Import dans l'éditeur vectoriel : découpe, gravure et marquage chacun sur son calque, textes modifiables.
+- Premier modèle : totem du brevet d'aviron (niveaux 1, 2, 3, bronze, argent, or).
+
 Générateur de boîte :
 - Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.
 - Types de couvercle : à doigts (comme avant), posé avec rebord intérieur, coulissant (rainure dans les parois gauche et droite, façade abaissée), ou aucun (boîte ouverte).

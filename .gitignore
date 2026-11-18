@@ -23,6 +23,8 @@ build_venv/
 # Projets utilisateur (sauvegardes .json de Laser Studio Pro)
 # Retire cette ligne si tu veux versionner tes propres projets d'exemple
 *.json
+# Exception : fiches des modèles de la bibliothèque (info.json, _category.json).
+!src/laser_studio/resources/library/**/*.json
 
 # Fichiers système
 .DS_Store
