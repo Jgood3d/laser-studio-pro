@@ -22,13 +22,31 @@ import math
 import random
 from typing import List, Optional, Sequence, Tuple
 
+from laser_studio.vector.ornament_motifs import (
+    STAR_STYLES, TREE_STYLES, UPRIGHT_BUILDERS, MotifShape, star_points_for, star_polygon,
+)
+
 Point = Tuple[float, float]
 Polygon = List[Point]
 
 HANGERS = ("Anneau", "Bouchon", "Aucun")
-MOTIFS = ("Flocons", "Aucun")
+RADIAL_MOTIFS = ("Flocons", "Étoiles")                       # symétriques : une pointe vers l'anneau
+UPRIGHT_MOTIFS = tuple(UPRIGHT_BUILDERS)                    # ont un haut et un bas
+MOTIFS = ("Flocons", "Étoiles", "Sapins", "Père Noël", "Bonhomme de neige", "Cadeaux", "Aucun")
 FLAKE_LAYOUTS = ("Suspendus", "Haut et bas", "Haut", "Bas")
 FLAKE_STYLES = ("Classique", "Dentelle", "Étoile")
+# Styles proposés selon le motif.
+MOTIF_STYLES = {
+    "Flocons": FLAKE_STYLES,
+    "Étoiles": STAR_STYLES,
+    "Sapins": TREE_STYLES,
+    "Père Noël": ("Classique",),
+    "Bonhomme de neige": ("Classique",),
+    "Cadeaux": ("Classique",),
+}
+# Taille proposée par défaut selon le motif (mm).
+MOTIF_DEFAULT_SIZE = {"Flocons": 16.0, "Étoiles": 12.0, "Sapins": 20.0, "Père Noël": 26.0,
+                      "Bonhomme de neige": 24.0, "Cadeaux": 18.0}
 SUPPORTS = ("Barre", "Aucun")
 
 # Précision des cercles : l'écart à un vrai cercle reste sous 0,01 mm jusqu'à 400 mm de diamètre.
@@ -60,7 +78,7 @@ class OrnamentParams:
         bar_thickness=2.0,
         motif="Flocons",
         flake_layout="Suspendus",
-        flake_style="Classique",
+        flake_style=None,
         flake_count=3,
         flake_size=16.0,
         seed=1,
@@ -78,7 +96,8 @@ class OrnamentParams:
         self.bar_thickness = float(bar_thickness)
         self.motif = motif
         self.flake_layout = flake_layout
-        self.flake_style = flake_style
+        # None = le premier style du motif (« Classique » pour les flocons, « 5 branches » pour les étoiles…).
+        self.flake_style = flake_style if flake_style is not None else MOTIF_STYLES.get(motif, ("Classique",))[0]
         self.flake_count = int(flake_count)
         self.flake_size = float(flake_size)
         self.seed = int(seed)
@@ -122,10 +141,16 @@ class OrnamentGeometry:
         self.voids: List[Polygon] = []
         self.solids: List[Polygon] = []
         self.holes: List[Polygon] = []
+        self.cuts: List[Polygon] = []   # découpes dans les motifs (visage, yeux…), retirées des formes pleines
+        self.late: List[Polygon] = []   # formes pleines ajoutées après ces découpes (moustache, nez)
         self.flakes: List[Flake] = []
         self.text: Optional[TextPlacement] = None
         self.bar: Optional[Polygon] = None
         self.hole_center: Optional[Point] = None
+        # Limites verticales des motifs : bord bas de ceux du haut, bord haut de ceux du bas (None = aucun). Le prénom
+        # se place entre les deux.
+        self.upper_edge: Optional[float] = None
+        self.lower_edge: Optional[float] = None
         self.floating_name = False  # le prénom ne touche rien : il tomberait à la découpe
         self.bounds = (-radius, -radius, radius, radius)
 
@@ -262,6 +287,21 @@ def _hanger_shapes(params, radius):
 # Motifs
 # ---------------------------------------------------------------------------------------------------------
 
+def _note_edge(geo, upper=None, lower=None):
+    """Retient le bord bas le plus bas des motifs du haut (`upper`) et le bord haut le plus haut de ceux du bas."""
+    if upper is not None:
+        geo.upper_edge = upper if geo.upper_edge is None else min(geo.upper_edge, upper)
+    if lower is not None:
+        geo.lower_edge = lower if geo.lower_edge is None else max(geo.lower_edge, lower)
+
+
+def _radial_polygon(params, index, cx, cy, radius, rotation):
+    """Forme d'un motif symétrique (flocon ou étoile) centrée en (cx, cy), une pointe à `rotation` degrés."""
+    if params.motif == "Étoiles":
+        return star_polygon(cx, cy, radius, star_points_for(params.flake_style, index), rotation)
+    return snowflake_polygon(cx, cy, radius, rotation, params.flake_style)
+
+
 def _hanging_flakes(params, geo, rng):
     """Flocons suspendus à l'anneau par une fine suspente, comme sur la boule « Emma »."""
     n, size, r_in = params.flake_count, params.flake_size, geo.inner_radius
@@ -275,9 +315,10 @@ def _hanging_flakes(params, geo, rng):
         centrality = 1.0 - (abs(x) / x_max if x_max > 0 else 0.0)
         hang = size * (0.30 + 0.40 * centrality) + 1.0
         cy = top - hang - a
-        geo.flakes.append(Flake(x, cy, a, 90.0, snowflake_polygon(x, cy, a, 90.0, params.flake_style)))
+        geo.flakes.append(Flake(x, cy, a, 90.0, _radial_polygon(params, i, x, cy, a, 90.0)))
         # La suspente part de la pointe haute du flocon et s'enfonce de 1 mm dans l'anneau.
         geo.solids.append(rect_polygon(x - stem / 2, cy + a - 0.5, x + stem / 2, top + 1.0))
+        _note_edge(geo, upper=cy - a)
 
 
 def _ring_flakes(params, geo, rng, top, bottom):
@@ -297,7 +338,89 @@ def _ring_flakes(params, geo, rng, top, bottom):
             ang = base + shift + (i - (n - 1) / 2.0) * step * (-1 if side < 0 else 1)
             cx, cy = rho * math.cos(math.radians(ang)), rho * math.sin(math.radians(ang))
             rot = ang
-            geo.flakes.append(Flake(cx, cy, a, rot, snowflake_polygon(cx, cy, a, rot, params.flake_style)))
+            geo.flakes.append(Flake(cx, cy, a, rot, _radial_polygon(params, len(geo.flakes), cx, cy, a, rot)))
+            _note_edge(geo, upper=cy - a if side > 0 else None, lower=cy + a if side < 0 else None)
+
+
+def _add_shape(geo, shape: MotifShape, cx, cy, radius, rotation):
+    geo.solids += shape.solids
+    geo.cuts += shape.cuts
+    geo.late += shape.late
+    geo.flakes.append(Flake(cx, cy, radius, rotation, None))
+
+
+def _upright_motifs(params, geo):
+    """Motifs à haut et bas (sapin, Père Noël, bonhomme de neige, cadeau). Suspendus : accrochés à l'anneau par une
+    suspente. En haut : le sommet s'enfonce directement dans l'anneau. En bas : le pied repose dans l'anneau (la
+    forêt de sapins au bas de la boule, la tête du Père Noël posée sur l'anneau). Contre l'anneau, ils restent
+    DROITS (un sapin penché ou un Père Noël couché ferait bizarre) ; si les `flake_count` motifs ne tiennent pas côte
+    à côte à la taille demandée, ils sont réduits (de 7 % à la fois, jusqu'à 8 mm) plutôt que de se chevaucher."""
+    n, r_in = params.flake_count, geo.inner_radius
+    build = UPRIGHT_BUILDERS[params.motif]
+    size = params.flake_size
+    base = build(size, params.flake_style)
+    a_top, a_bot, width = base.axis_top(), base.axis_bottom(), base.width
+    radius = max(width, base.height) / 2.0
+    if params.flake_layout == "Suspendus":
+        stem = max(MIN_STEM_MM, 0.07 * size)
+        x_max = min(0.58 * r_in, 0.5 * (n - 1) * (width + 3.0)) if n > 1 else 0.0
+        for i in range(n):
+            x = 0.0 if n == 1 else -x_max + 2 * x_max * i / (n - 1)
+            top = math.sqrt(max(r_in * r_in - x * x, 0.0))
+            centrality = 1.0 - (abs(x) / x_max if x_max > 0 else 0.0)
+            hang = size * (0.30 + 0.40 * centrality) + 1.0
+            anchor_y = top - hang
+            placed = base.transformed(0.0, x, anchor_y - a_top)
+            geo.solids.append([(x - stem / 2, anchor_y - 0.5), (x + stem / 2, anchor_y - 0.5),
+                               (x + stem / 2, top + 1.0), (x - stem / 2, top + 1.0)])
+            _add_shape(geo, placed, x, anchor_y - base.height / 2.0, radius, 0.0)
+            _note_edge(geo, upper=placed.ymin)
+        return
+
+    depth = 2.5
+
+    def inside(shape):
+        return all(math.hypot(px, py) <= geo.radius - 0.8 for poly in shape.solids + shape.late for px, py in poly)
+
+    def make_placement(shape, top_anchor, bottom_anchor):
+        def placement(x, side):
+            """Motif droit posé à l'abscisse x contre l'anneau du haut (side > 0) ou du bas (side < 0). Le point
+            d'appui s'enfonce le plus possible dans l'anneau (2,5 mm au plus) tant que le reste du motif reste dans
+            le disque : une base plate large ne peut s'enfoncer que de peu."""
+            ring_y = math.sqrt(max(r_in * r_in - x * x, 0.0))
+            d = depth
+            while True:
+                if side > 0:
+                    placed = shape.transformed(0.0, x, ring_y + d - top_anchor)
+                else:
+                    placed = shape.transformed(0.0, x, -ring_y - d - bottom_anchor)
+                if d <= 0.8 or inside(placed):
+                    return placed
+                d = max(0.8, d - 0.1)
+        return placement
+
+    while True:
+        placement = make_placement(base, a_top, a_bot)
+        # Plus loin du centre, la base plate d'un motif large sortirait du disque : on borne l'écart des motifs.
+        x_lim = 0.0
+        while x_lim + 0.5 < r_in and inside(placement(x_lim + 0.5, +1)) and inside(placement(x_lim + 0.5, -1)):
+            x_lim += 0.5
+        if n == 1 or (width + 3.0) * (n - 1) <= 2.0 * x_lim or size * 0.93 < 8.0:
+            break
+        size *= 0.93
+        base = build(size, params.flake_style)
+        a_top, a_bot, width = base.axis_top(), base.axis_bottom(), base.width
+        radius = max(width, base.height) / 2.0
+    step_x = min(width + 3.0, 2.0 * x_lim / (n - 1)) if n > 1 else 0.0
+    for side, enabled in ((+1, params.flake_layout in ("Haut", "Haut et bas")),
+                          (-1, params.flake_layout in ("Bas", "Haut et bas"))):
+        if not enabled:
+            continue
+        for i in range(n):
+            x = (i - (n - 1) / 2.0) * step_x
+            placed = placement(x, side)
+            _note_edge(geo, upper=placed.ymin if side > 0 else None, lower=placed.ymax if side < 0 else None)
+            _add_shape(geo, placed, x, (placed.ymin + placed.ymax) / 2.0, radius, 0.0)
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -305,7 +428,7 @@ def _ring_flakes(params, geo, rng, top, bottom):
 # ---------------------------------------------------------------------------------------------------------
 
 def _auto_name_offset(params, radius):
-    layout = params.flake_layout if params.motif == "Flocons" else None
+    layout = params.flake_layout if params.motif != "Aucun" else None
     return {"Suspendus": -0.18, "Haut": -0.14, "Bas": 0.14}.get(layout, 0.0) * radius
 
 
@@ -317,12 +440,24 @@ def place_text(params, geo, bounds):
     if tw <= 0 or th <= 0:
         return None
     radius, r_in = geo.radius, geo.inner_radius
-    offset = params.name_offset if params.name_offset is not None else _auto_name_offset(params, radius)
+    band = None
+    if params.name_offset is not None:
+        offset = params.name_offset
+    elif geo.upper_edge is not None or geo.lower_edge is not None:
+        # Le prénom occupe la bande libre entre les motifs du haut et ceux du bas.
+        gap = 2.0
+        hi = geo.upper_edge - gap if geo.upper_edge is not None else 0.85 * r_in
+        lo = geo.lower_edge + gap if geo.lower_edge is not None else -0.85 * r_in
+        band = max(hi - lo, 6.0)
+        offset = (hi + lo) / 2.0
+    else:
+        offset = _auto_name_offset(params, radius)
     if params.name_size > 0:
         scale = params.name_size / th
     else:
         chord = 2.0 * math.sqrt(max(r_in * r_in - offset * offset, 0.0))
-        scale = min((chord + params.ring_width) / tw, 0.34 * params.diameter / th)
+        max_h = 0.34 * params.diameter if band is None else min(band, 0.34 * params.diameter)
+        scale = min((chord + params.ring_width) / tw, max_h / th)
     # Jamais plus large que le disque extérieur à la hauteur du prénom.
     outer_chord = 2.0 * math.sqrt(max(radius * radius - offset * offset, 0.0)) - 1.0
     scale = min(scale, outer_chord / tw)
@@ -349,10 +484,10 @@ def validate(params):
         raise OrnamentError("support", value=params.support)
     if len(params.name) > 40:
         raise OrnamentError("name_too_long", value=len(params.name))
-    if params.motif == "Flocons":
+    if params.motif in RADIAL_MOTIFS + UPRIGHT_MOTIFS:
         if params.flake_layout not in FLAKE_LAYOUTS:
             raise OrnamentError("layout", value=params.flake_layout)
-        if params.flake_style not in FLAKE_STYLES:
+        if params.flake_style not in MOTIF_STYLES[params.motif]:
             raise OrnamentError("style", value=params.flake_style)
         if not 1 <= params.flake_count <= 7:
             raise OrnamentError("flake_count", value=params.flake_count)
@@ -378,13 +513,15 @@ def build_ornament(params, text_bounds=None) -> OrnamentGeometry:
         geo.hole_center = hole_center
         geo.holes.append(circle_polygon(hole_center[0], hole_center[1], params.hole_diameter / 2.0))
 
-    if params.motif == "Flocons":
+    if params.motif in RADIAL_MOTIFS:
         if params.flake_layout == "Suspendus":
             _hanging_flakes(params, geo, rng)
         else:
             _ring_flakes(params, geo, rng, top=params.flake_layout in ("Haut", "Haut et bas"),
                          bottom=params.flake_layout in ("Bas", "Haut et bas"))
         geo.solids += [f.polygon for f in geo.flakes]
+    elif params.motif in UPRIGHT_MOTIFS:
+        _upright_motifs(params, geo)
 
     if params.name.strip() and text_bounds is not None:
         geo.text = place_text(params, geo, text_bounds)
