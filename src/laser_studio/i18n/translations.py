@@ -6644,6 +6644,24 @@ TRANSLATIONS = {
         "de": "Girlande",
         "es": "Guirnalda",
     },
+        "ornament.style.Duo": {
+        "fr": "Duo",
+        "en": "Duo",
+        "de": "Duo",
+        "es": "Dúo",
+    },
+        "ornament.style.Contour": {
+        "fr": "Contour",
+        "en": "Outline",
+        "de": "Kontur",
+        "es": "Contorno",
+    },
+        "ornament.style.Plein": {
+        "fr": "Plein",
+        "en": "Solid",
+        "de": "Voll",
+        "es": "Sólido",
+        },
 }
 
 
