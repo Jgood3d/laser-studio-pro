@@ -178,6 +178,29 @@ class SvgImportTests(unittest.TestCase):
         self.assertAlmostEqual(self.boxes(small)["engrave"].width(), 10, places=3)
         self.assertIn(b"display:none", svg_preview(path, {"Niveau": "Grand"}))
 
+    def test_groups_with_the_same_name_form_one_choice(self):
+        # « Forme » dans Cut et « Forme » dans Engrave : un seul choix, appliqué aux deux.
+        path = self.file(
+            cut('<g inkscape:label="Forme">'
+                + layer("Ronde", '<circle cx="20" cy="20" r="20" fill="none"/>')
+                + layer("Carrée", '<rect width="60" height="60" fill="none"/>', hidden=True) + '</g>')
+            + engrave('<g inkscape:label="Forme">'
+                      + layer("Ronde", '<circle cx="20" cy="20" r="5"/>')
+                      + layer("Carrée", '<rect width="30" height="30"/>', hidden=True) + '</g>'))
+        groups = find_variant_groups(path)
+        self.assertEqual([(g.key, [o[0] for o in g.options], g.default) for g in groups],
+                         [("Forme", ["Ronde", "Carrée"], "Ronde")])
+        square = self.boxes(import_svg(path, variants={"Forme": "Carrée"}))
+        self.assertAlmostEqual(square["cut"].width(), 60, places=2)
+        self.assertAlmostEqual(square["engrave"].width(), 30, places=2)
+
+    def test_a_group_without_visible_option_is_not_a_choice(self):
+        path = self.file(cut('<g inkscape:label="Forme">'
+                             + layer("Ronde", '<circle cx="20" cy="20" r="20" fill="none"/>', hidden=True)
+                             + layer("Carrée", '<rect width="60" height="60" fill="none"/>', hidden=True)
+                             + '</g>'))
+        self.assertEqual(find_variant_groups(path), [])
+
     def test_named_elements_alone_are_not_options(self):
         path = self.file(engrave('<g inkscape:label="Niveau"><rect inkscape:label="A" width="10" height="10"/>'
                                  '<rect inkscape:label="B" width="20" height="10" style="display:none"/></g>'))
@@ -293,7 +316,9 @@ class SvgImportTests(unittest.TestCase):
 
     def test_bundled_medal(self):
         groups = {g.key: g for g in find_variant_groups(MEDAL)}
+        self.assertEqual(list(groups), ["Forme", "Résultat"])        # « Forme » de Cut et d'Engrave : un seul choix
         self.assertEqual([o[0] for o in groups["Forme"].options], ["Hexagonale", "Ronde"])
+        self.assertEqual(groups["Forme"].default, "Hexagonale")
         self.assertEqual([o[0] for o in groups["Résultat"].options], ["Étoile", "1ère place", "2e place", "3e place"])
         self.assertEqual([f.key for f in find_texts(MEDAL)], ["Compétition de XXXX", "1"])
         for shape in ("Hexagonale", "Ronde"):

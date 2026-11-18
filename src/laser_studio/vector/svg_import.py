@@ -11,8 +11,9 @@ Convention (voir resources/library/README.md) :
 - tout le reste (élément hors de ces calques, calque caché) est ignoré ;
 - options : un groupe dont les sous-calques sont tous cachés sauf un (celui
   par défaut) ; le nom du groupe est le libellé du choix, le nom de chaque
-  sous-calque celui d'une option. Une option peut contenir ses propres
-  calques Cut / Engrave / Mark (forme différente, par exemple).
+  sous-calque celui d'une option. Des groupes du même nom forment un seul
+  choix (un groupe « Forme » dans Cut et un autre dans Engrave). Une option
+  peut aussi contenir ses propres calques Cut / Engrave / Mark.
 
 Pris en compte aussi : les unités du document (width / height / viewBox),
 les transformations cumulées, les textes (<text>, <tspan>, lignes Inkscape),
@@ -273,9 +274,14 @@ def _visible_elements(root, variants):
 def find_variant_groups(path):
     """Groupes de variantes du fichier (voir VariantGroup), dans l'ordre du
     document. Le calque racine des calques n'en est jamais un (un calque de
-    construction caché n'est pas une variante)."""
+    construction caché n'est pas une variante).
+
+    Plusieurs groupes du même nom forment un seul choix (options réunies,
+    option par défaut du premier) : un groupe « Forme » dans Cut et un autre
+    dans Engrave changent ensemble la découpe et la gravure."""
     root = _parse(path)
     groups = []
+    by_key = {}
 
     def walk(elem, depth):
         if _local(elem.tag) in NON_RENDERED or (depth > 0 and _is_hidden(elem)):
@@ -284,8 +290,14 @@ def find_variant_groups(path):
             options = _variant_options(elem)
             if options:
                 default = next((key for key, _n, visible in options if visible), options[0][0])
-                groups.append(VariantGroup(_label(elem), _label(elem),
-                                           [(key, name) for key, name, _v in options], default))
+                found = by_key.get(_label(elem))
+                if found is None:
+                    found = VariantGroup(_label(elem), _label(elem), [], default)
+                    by_key[found.key] = found
+                    groups.append(found)
+                for key, name, _v in options:
+                    if key not in [k for k, _n in found.options]:
+                        found.options.append((key, name))
                 return
         for child in elem:
             walk(child, depth + 1)

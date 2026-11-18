@@ -70,7 +70,9 @@ Quand le modèle se décline (niveau, résultat, orientation…) :
 - **un seul sous-calque est visible** : l'option par défaut ;
 - le **nom du groupe** est le libellé du choix dans la fiche, le **nom de chaque sous-calque** celui d'une option.
 
-Une option peut ne toucher que la gravure (groupe placé dans `Engrave`), que la découpe (dans `Cut`), ou les deux : le groupe est alors à la racine, et chaque option contient ses propres calques `Cut` et `Engrave` (une médaille ronde ou carrée, par exemple).
+Une option peut ne toucher que la gravure (groupe placé dans `Engrave`), que la découpe (dans `Cut`), ou les deux. Pour les deux, le plus simple : **un groupe du même nom dans `Cut` et dans `Engrave`**, avec les mêmes noms d'options. Ils forment un seul choix dans la fiche, appliqué aux deux (la médaille skiffeur : « Forme », hexagonale ou ronde). On peut aussi placer le groupe à la racine, chaque option contenant ses propres calques `Cut` et `Engrave`.
+
+Chaque groupe doit avoir **exactement un** sous-calque visible : si tous sont cachés, ce n'est plus un choix (et rien n'en est importé).
 
 ```
 Cut                         (calque, rouge)
