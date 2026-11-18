@@ -9,10 +9,12 @@ from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
+from laser_studio.ui.dialogs.ornament import OrnamentGeneratorDialog
+from laser_studio.ui.dialogs.ornament.dialog import error_text as ornament_error_text
 from laser_studio.ui.dialogs.puzzle import PuzzleGeneratorDialog
 from laser_studio.vector import puzzle_generator
 from laser_studio.vector.importers import (box_to_objects, decor_to_objects, dxf_to_objects, index_to_objects,
-                                          motif_to_objects, puzzle_to_objects)
+                                          motif_to_objects, ornament_to_objects, puzzle_to_objects)
 from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
@@ -780,6 +782,38 @@ class VectorEditingMixin:
             ),
         )
 
+    def open_ornament_generator(self):
+        """Fenêtre du générateur de boules de Noël : crée les contours soudés sur le calque de découpe."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return
+        dialog = OrnamentGeneratorDialog(
+            parent=self, layers=self.layer_manager.layers,
+            saved_settings=getattr(self, "_ornament_settings", None),
+        )
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._ornament_settings = dialog.settings()
+        from laser_studio.vector import ornament_generator
+        from laser_studio.vector.ornament_region import build_ornament_contours
+        try:
+            family, bold, italic = dialog.font_options()
+            geometry, contours = build_ornament_contours(dialog.params(), family, bold, italic)
+        except ornament_generator.OrnamentError as e:
+            QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
+            return
+        objects = ornament_to_objects(contours, dialog.cut_layer_id(), offset_x_mm=10.0, offset_y_mm=10.0)
+        if not objects:
+            QMessageBox.warning(self, tr("ornament.title"), tr("ornament.empty"))
+            return
+        self.vector_canvas.push_undo_snapshot()
+        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+        self.vector_canvas.request_recenter(new_items)
+        QMessageBox.information(
+            self, tr("ornament.title"),
+            tr("ornament.done").format(w=geometry.width, h=geometry.height, count=len(contours)),
+        )
 
     # ------------------------------------------------------------------
     # Alignement / distribution multi-objets

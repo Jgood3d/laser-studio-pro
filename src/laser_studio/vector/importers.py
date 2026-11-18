@@ -200,3 +200,25 @@ def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
         merged = _merge_path_objects(edges, source_tag="puzzle:edges")
         objects.append(merged if merged is not None else edges[0])
     return objects
+
+
+def ornament_to_objects(contours, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
+    """Boule de Noël -> objets de découpe : le contour extérieur, et UN objet qui regroupe tous les contours
+    intérieurs (trou de la ficelle, contreformes des lettres, vides entre les flocons).
+
+    `contours` vient de `ornament_region.assemble` : le premier est l'extérieur. Chaque contour y est déjà
+    unique (la matière est soudée), donc rien n'est découpé deux fois."""
+    from laser_studio.vector_layers import _merge_path_objects
+
+    if not contours:
+        return []
+    objects = []
+    outline = _path_object(contours[0], True, "ornament:outline", layer_id, offset_x_mm, offset_y_mm)
+    if outline is not None:
+        objects.append(outline)
+    inner = [o for o in (_path_object(c, True, "ornament:inner", layer_id, offset_x_mm, offset_y_mm)
+                         for c in contours[1:]) if o is not None]
+    if inner:
+        merged = _merge_path_objects(inner, source_tag="ornament:inner")
+        objects.append(merged if merged is not None else inner[0])
+    return objects

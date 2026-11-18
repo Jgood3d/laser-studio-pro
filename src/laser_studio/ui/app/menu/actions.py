@@ -70,6 +70,7 @@ class AppActions(QObject):
     vector_import_requested = pyqtSignal()
     box_generator_requested = pyqtSignal()
     puzzle_generator_requested = pyqtSignal()
+    ornament_generator_requested = pyqtSignal()
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
     gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
@@ -317,10 +318,16 @@ class AppActions(QObject):
             tr("menu.tools.puzzle"),
             self.puzzle_generator_requested,
         )
+        self.ornament_generator = self._action(
+            bundled_icon("draw-ellipse", QStyle.StandardPixmap.SP_DesktopIcon),
+            tr("menu.tools.ornament"),
+            self.ornament_generator_requested,
+        )
         self.vector_tool_actions = (
             self.vector_import,
             self.box_generator,
             self.puzzle_generator,
+            self.ornament_generator,
         )
 
     def _create_help_actions(self, parent):
