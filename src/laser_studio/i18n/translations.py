@@ -4605,6 +4605,24 @@ TRANSLATIONS = {
         "de": "Löschen",
         "es": "Eliminar",
     },
+    "ui.vector_delete_all": {
+        "fr": "Tout supprimer",
+        "en": "Delete all",
+        "de": "Alles löschen",
+        "es": "Eliminar todo",
+    },
+    "vector.delete_all_title": {
+        "fr": "Tout supprimer",
+        "en": "Delete all",
+        "de": "Alles löschen",
+        "es": "Eliminar todo",
+    },
+    "vector.delete_all_question": {
+        "fr": "Supprimer les {count} objets de l'éditeur vectoriel ?\n\nCtrl+Z (Annuler) les fait revenir.",
+        "en": "Delete the {count} objects of the vector editor?\n\nCtrl+Z (Undo) brings them back.",
+        "de": "Die {count} Objekte des Vektoreditors löschen?\n\nStrg+Z (Rückgängig) holt sie zurück.",
+        "es": "¿Eliminar los {count} objetos del editor vectorial?\n\nCtrl+Z (Deshacer) los recupera.",
+    },
     "ui.vector_undo": {
         "fr": "↶ Annuler (Ctrl+Z)",
         "en": "↶ Undo (Ctrl+Z)",

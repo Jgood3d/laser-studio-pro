@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
+
 Bibliothèque de modèles (Outils → Bibliothèque…, bouton « Modèles » de l'éditeur vectoriel) :
 - Modèles prêts à graver ou découper, rangés par catégorie, avec recherche et taille des aperçus réglable (colonnes adaptées à la largeur de la fenêtre).
 - Aperçus calculés à partir du SVG, tels que la pièce sortira de la machine (matière, trous, gravure) ; dans la fiche, ils suivent les options et les textes saisis.

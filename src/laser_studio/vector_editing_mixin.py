@@ -187,6 +187,25 @@ class VectorEditingMixin:
 
     def delete_selected_vector_object(self):
         self.vector_canvas.remove_selected()
+
+    def delete_all_vector_objects(self):
+        """Bouton « Tout supprimer » : vide le canevas, après confirmation.
+        Annulable d'un coup (Ctrl+Z)."""
+        canvas = self.vector_canvas
+        if not canvas.objects:
+            return
+        reply = QMessageBox.question(
+            self, tr("vector.delete_all_title"),
+            tr("vector.delete_all_question").format(count=len(canvas.objects)),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        canvas.exit_node_edit()
+        canvas.push_undo_snapshot()
+        canvas.load_objects([])
+        self.on_vector_selection_changed(None)
         
     def _selected_vector_items(self):
         """Renvoie les éléments vectoriels sélectionnés dans le canevas."""
