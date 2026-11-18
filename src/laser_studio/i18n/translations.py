@@ -6668,6 +6668,12 @@ TRANSLATIONS = {
         "de": "Trio",
         "es": "Trío",
     },
+        "ornament.support.Bandeau": {
+        "fr": "Bandeau",
+        "en": "Banner",
+        "de": "Banner",
+        "es": "Banda",
+    },
 }
 
 
