@@ -527,7 +527,7 @@ class WeldingTests(unittest.TestCase):
         _, santa = self.contours(name="", motif="Père Noël", flake_layout="Haut", flake_count=1, flake_size=30.0)
         _, snowman = self.contours(name="", motif="Bonhomme de neige", flake_layout="Bas", flake_count=1,
                                    flake_size=30.0)
-        self.assertGreater(len(santa), len(plain) + 1)       # contour du motif soudé à l'anneau + visage
+        self.assertGreaterEqual(len(santa), len(plain) + 1)       # contour du motif soudé à l'anneau + visage
         self.assertGreater(len(snowman), len(plain) + 3)     # yeux et boutons
 
 

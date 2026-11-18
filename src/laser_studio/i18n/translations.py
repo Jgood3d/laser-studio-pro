@@ -6596,6 +6596,12 @@ TRANSLATIONS = {
         "de": "Das Loch muss mindestens 1,5 mm groß sein und 1 mm Rand lassen.",
         "es": "El agujero debe ser de al menos 1,5 mm dejando 1 mm de borde.",
     },
+        "ornament.motif.Lune": {
+        "fr": "Lune",
+        "en": "Moon",
+        "de": "Mond",
+        "es": "Luna",
+    },
 }
 
 
