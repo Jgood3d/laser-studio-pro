@@ -132,7 +132,7 @@ class AppMenusTests(unittest.TestCase):
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
                          [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
                           tr("png2svg.tab_title"), tr("menu.tools.import_vector"), tr("menu.tools.box"),
-                          tr("menu.tools.puzzle")])
+                          tr("menu.tools.puzzle"), tr("menu.tools.ornament")])
 
     def test_toolbar_reuses_the_menu_actions(self):
         # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
@@ -196,7 +196,8 @@ class AppMenusTests(unittest.TestCase):
                 (a.image_rotate_right, a.image_rotate_requested, (True,)),
                 (a.vector_import, a.vector_import_requested, ()),
                 (a.box_generator, a.box_generator_requested, ()),
-                (a.puzzle_generator, a.puzzle_generator_requested, ())):
+                (a.puzzle_generator, a.puzzle_generator_requested, ()),
+                (a.ornament_generator, a.ornament_generator_requested, ())):
             received = self.record(signal)
             action.setEnabled(True)
             action.trigger()

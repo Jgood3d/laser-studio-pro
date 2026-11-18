@@ -96,6 +96,9 @@ class WindowControllerMixin:
         actions.puzzle_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_puzzle_generator)
         )
+        actions.ornament_generator_requested.connect(
+            lambda: self._run_in_vector_editor(self.open_ornament_generator)
+        )
         # Affichage
         actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
@@ -141,7 +144,7 @@ class WindowControllerMixin:
 
     def _run_in_vector_editor(self, command):
         """Affiche l'onglet « Graver une image vectorielle », puis lance
-        `command` (import SVG / DXF, générateur de boîte, puzzle)."""
+        `command` (import SVG / DXF, générateur de boîte, puzzle, boule de Noël)."""
         self.show_main_tab("tab_vector_editor")
         command()
 

@@ -122,7 +122,8 @@ class VectorToolbarTests(unittest.TestCase):
     def test_one_row_with_import_and_tools(self):
         rows = self.rows()
         self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg", "ui.vector_box_generator",
-                                                   "ui.vector_puzzle_generator", "ui.vector_nesting"]})
+                                                   "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
+                                                   "ui.vector_nesting"]})
 
     def test_create_and_draw_tools_float_on_the_left_with_icons(self):
         with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
@@ -165,6 +166,7 @@ class VectorToolbarTests(unittest.TestCase):
         self.assertIn("ui.vector_import_svg", first)
         self.assertIn("ui.vector_box_generator", first)
         self.assertIn("ui.vector_puzzle_generator", first)
+        self.assertIn("ui.vector_ornament_generator", first)
         self.assertIn("ui.vector_nesting", first)
 
 

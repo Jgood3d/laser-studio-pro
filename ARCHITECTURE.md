@@ -119,6 +119,7 @@ laser-studio-pro/
 ├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, cadre ImageTestGroup, aperçu TilePicker)
 ├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
 ├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog) + aperçu live (preview.py : BoxPreview)
+├── ui/dialogs/ornament/              # fenêtre du générateur de boules de Noël (OrnamentGeneratorDialog) + aperçu des contours soudés
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
 ├── ui/dialogs/jig/                   # fenêtre « Gabarit de placement » (JigDialog)
 ├── ui/dialogs/serial_duplicate/      # fenêtre « Dupliquer en série » (SerialDuplicateDialog)
@@ -128,7 +129,7 @@ laser-studio-pro/
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, ornament_generator, ornament_region, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -356,6 +357,19 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 **Une arête = un passage de laser** : deux pièces voisines partagent leur frontière, donc on ne génère jamais un contour fermé par pièce pour la découpe (chaque arête interne serait coupée deux fois). `PuzzleResult.pieces` ne sert qu'à l'aperçu. Le kerf n'est pas compensé sur les arêtes internes (le trait enlève kerf/2 à chaque pièce voisine) ; seul le contour extérieur est agrandi de kerf/2.
 **Tracés ouverts** : `build_vector_layers_gcode` ne referme plus un tracé ouvert (sinon aller-retour = double passage) ; seuls les tracés quasi fermés (`CLOSE_GAP_MM`) le sont. Test : `tests/test_puzzle_cut_once.py`.
 `PuzzleError` → message traduit `puzzle.err.<code>`.
+
+## 8.0 Générateur de boules de Noël
+
+| Fichier | Rôle |
+|---------|------|
+| **vector/ornament_generator.py** | Géométrie pure, sans Qt : disque, anneau d'accroche (anneau ou bouchon), flocons (3 styles, un seul contour simple chacun), suspentes, barre de soutien, échelle et position du prénom (`OrnamentGeometry`, `OrnamentError`) |
+| **vector/ornament_region.py** | Soudure avec les opérations booléennes de `QPainterPath` : texte (`QFont` → contour), union des formes, soustraction du vide intérieur et du trou, rognage au disque. Renvoie les contours à découper, le premier est l'extérieur |
+| **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification) |
+| **vector/importers.ornament_to_objects** | Contours → 2 `SvgPathObject` : l'extérieur, et un objet qui regroupe tous les contours intérieurs |
+| **vector_editing_mixin.open_ornament_generator** | Ouverture du dialogue et placement sur le canevas |
+| **i18n/translations.py** | Clés `menu.tools.ornament`, `ui.vector_ornament_generator*`, `ornament.*`, `ornament.err.*` |
+
+Principes : le prénom, les flocons et l'anneau sont **soudés** en une seule pièce avant d'être envoyés au laser : un contour qui traverse de la matière serait découpé à l'intérieur d'une lettre. Les lettres sont d'abord fusionnées (écritures cursives), leurs contreformes (a, e, o) restent des contours à part. Le prénom est tenu à l'anneau par une barre posée sur la ligne de base (choix « Barre », par défaut) ; sans elle il doit toucher l'anneau des deux côtés (`floating_name` avertit sinon). Un point de i ou un accent reste détaché et tombe. Tests : `tests/test_ornament_generator.py` (formes et disposition sans Qt ; soudure avec le vrai Qt, ignorée sans lui).
 
 ## 8.1 Stencil Studio → calques multiples (lsp_bridge)
 
