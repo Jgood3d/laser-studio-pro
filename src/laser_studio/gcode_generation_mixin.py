@@ -127,6 +127,38 @@ class GcodeGenerationMixin:
                 key = data
         return PREVIEW_MATERIALS.get(key) or PREVIEW_MATERIALS["light"]
 
+    # Marge du fond de matière autour du job, en mm.
+    MATERIAL_BACKGROUND_MARGIN_MM = 3.0
+
+    def _plot_material_background(self, raster_groups, vector_segments):
+        """Fond de la couleur de la matière sous la gravure, couvrant tout le
+        job (segments gravés et tracés vectoriels, découpe comprise) plus une
+        marge. En négatif, la couleur des zones non gravées (celle de la
+        brûlure)."""
+        xs, ys = [], []
+        for strokes in raster_groups:
+            for x1, y1, x2, y2, _s in strokes:
+                xs += (x1, x2)
+                ys += (y1, y2)
+        for seg_xs, seg_ys in vector_segments:
+            xs += [v for v in seg_xs if v == v]          # NaN : séparateur de tracés
+            ys += [v for v in seg_ys if v == v]
+        if not xs or not ys:
+            return
+        margin = self.MATERIAL_BACKGROUND_MARGIN_MM
+        left, bottom = min(xs) - margin, min(ys) - margin
+        width, height = max(xs) - min(xs) + 2 * margin, max(ys) - min(ys) + 2 * margin
+        preset = self._preview_material_preset()
+        negative = bool(getattr(self, "chk_negative_raster_preview", None)
+                        and self.chk_negative_raster_preview.isChecked())
+        rgb = preset["burn_rgb"] if negative else preset["material_rgb"]
+        pixel = np.array([[rgb]], dtype=np.uint8)
+        background = pg.ImageItem(pixel)
+        background.setLevels([0, 255])
+        background.setRect(QRectF(left, bottom, width, height))
+        background.setZValue(-60)                       # sous la gravure (-50)
+        self.plot_widget.addItem(background)
+
     def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
         couleur du calque, si fournie) à partir des segments de gravure
@@ -1161,6 +1193,11 @@ class GcodeGenerationMixin:
         if hasattr(self, "gcode_position_marker"):
             self.plot_widget.addItem(self.gcode_position_marker, ignoreBounds=True)
         self._setup_burn_overlay(burn_line_idx, burn_segments)
+
+        # Fond de matière sous tout le job (gravure et découpe), pour que la découpe ne
+        # déborde pas sur le fond de l'aperçu quand elle est plus grande que la gravure.
+        if raster_groups:
+            self._plot_material_background(raster_groups.values(), g1_segments.values())
 
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():

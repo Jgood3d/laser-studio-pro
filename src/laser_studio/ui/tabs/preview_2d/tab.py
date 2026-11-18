@@ -107,8 +107,11 @@ class Preview2DTab(QWidget):
         self.flip_check = self._option(
             "preview.flip", "preview.flip_tip", checked=False
         )
+        # Décochée : aperçu réaliste (brûlure de la matière choisie sur les zones gravées).
+        # Cochée, elle inverse zones gravées et non gravées : une gravure de texte en réserve
+        # semblait alors inversée.
         self.negative_check = self._option(
-            "preview.negative", "preview.negative_tip"
+            "preview.negative", "preview.negative_tip", checked=False
         )
         self.hide_rapid_check = self._option(
             "preview.hide_rapid", "preview.hide_rapid_tip"

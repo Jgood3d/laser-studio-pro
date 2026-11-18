@@ -51,6 +51,12 @@ class Preview2DTabTests(_TabTest):
         tab.optimize_path_check.toggle()  # prochaine génération seulement
         self.assertEqual(len(received), 3)
 
+    def test_negative_preview_is_off_by_default(self):
+        """Aperçu réaliste par défaut : le négatif inversait zones gravées et non gravées."""
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
+        self.assertFalse(tab.negative_check.isChecked())
+        self.assertTrue(tab.hide_rapid_check.isChecked())
+
     def test_click_is_emitted_in_bed_millimetres(self):
         tab = self.make(Preview2DTab, QGroupBox("Position"))
         tab.resize(400, 300)

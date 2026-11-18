@@ -3062,10 +3062,10 @@ TRANSLATIONS = {
         "de": "Negative Vorschau", "es": "Vista previa negativa",
     },
     "preview.negative_tip": {
-        "fr": "Afficher l'aperçu en négatif, pour voir ce qui sera réellement gravé.",
-        "en": "Show the preview in negative, to see what will actually be engraved.",
-        "de": "Vorschau negativ anzeigen, um das tatsächliche Gravurergebnis zu sehen.",
-        "es": "Mostrar la vista previa en negativo, para ver lo que se grabará realmente.",
+        "fr": "Inverse l'aperçu : les zones gravées apparaissent claires, les zones non gravées foncées. Décochée, l'aperçu montre la pièce telle qu'elle sortira (brûlure de la matière choisie).",
+        "en": "Inverts the preview: engraved areas appear light, non-engraved areas dark. Unchecked, the preview shows the piece as it will come out (burn of the chosen material).",
+        "de": "Kehrt die Vorschau um: gravierte Bereiche erscheinen hell, nicht gravierte dunkel. Ohne Haken zeigt die Vorschau das Werkstück so, wie es herauskommt (Brandfarbe des gewählten Materials).",
+        "es": "Invierte la vista previa: las zonas grabadas aparecen claras y las no grabadas oscuras. Sin marcar, la vista previa muestra la pieza tal como saldrá (quemado del material elegido).",
     },
     "preview.hide_rapid": {
         "fr": "Masquer les déplacements rapides", "en": "Hide Rapid Moves",
