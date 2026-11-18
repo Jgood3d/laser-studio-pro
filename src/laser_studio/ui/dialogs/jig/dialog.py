@@ -112,6 +112,9 @@ class JigDialog(QDialog):
             self.combo_position.addItem(tr("jig.pos_beside"), "beside")
             self.combo_position.addItem(tr("jig.pos_around"), "around")
         self.combo_position.addItem(tr("jig.pos_manual"), "manual")
+        # Libellés longs : la liste ne doit pas imposer sa largeur à la fenêtre (voir tests/test_widget_widths.py).
+        self.combo_position.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_position.setMinimumContentsLength(16)
         self.combo_position.setCurrentIndex(max(0, self.combo_position.findData(init.get("position", "beside"))))
         self.spin_x = _spin(-5000, 5000, init.get("x", 10.0))
         self.spin_y = _spin(-5000, 5000, init.get("y", 10.0))
