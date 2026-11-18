@@ -642,6 +642,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 ("ui.vector_rotate_90", "object-rotate-right", self.rotate_selected_vector_object),
                 ("ui.vector_duplicate", "edit-duplicate", self.duplicate_selected_vector_object),
                 ("ui.vector_serial_duplicate", "view-grid", self.open_serial_duplicate),
+                ("ui.vector_jig", "draw-rectangle", self.open_jig_generator),
                 ("ui.vector_delete", "edit-delete", self.delete_selected_vector_object),
                 (None, None, None),
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
@@ -817,6 +818,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.vector_canvas.edit_requested.connect(self.edit_vector_object)
         self.vector_canvas.insert_text_requested.connect(self.insert_text_object)
         self.vector_canvas.serial_duplicate_requested.connect(self.open_serial_duplicate)
+        self.vector_canvas.jig_requested.connect(self.open_jig_generator)
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor

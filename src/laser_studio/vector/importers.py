@@ -28,6 +28,34 @@ def _path_object(points, closed, tag, layer_id, shift_x, shift_y):
                          x_mm=min_x + shift_x, y_mm=min_y + shift_y)
 
 
+def _compound_path_object(polys, tag, layer_id, shift_x, shift_y):
+    """Plusieurs contours fermés (points en mm, Y vers le haut) -> un seul SvgPathObject ancré en bas à gauche."""
+    xs = [p[0] for poly in polys for p in poly]
+    ys = [p[1] for poly in polys for p in poly]
+    if not xs:
+        return None
+    min_x, min_y = min(xs), min(ys)
+    path = QPainterPath()
+    for poly in polys:
+        path.moveTo(poly[0][0] - min_x, -(poly[0][1] - min_y))
+        for x, y in poly[1:]:
+            path.lineTo(x - min_x, -(y - min_y))
+        path.closeSubpath()
+    return SvgPathObject(local_path_data=path, source_tag=tag, layer_id=layer_id,
+                         x_mm=min_x + shift_x, y_mm=min_y + shift_y)
+
+
+def jig_to_objects(jig, layer_id, origin_x_mm, origin_y_mm, with_base=False, base_gap_mm=10.0):
+    """Gabarit de placement : les poches (un seul objet, découpées en premier) puis le contour de la plaque, et
+    éventuellement une plaque de fond pleine posée à droite. (origin_x_mm, origin_y_mm) = coin bas-gauche de la plaque."""
+    objects = [_compound_path_object(jig.pockets, "jig:pockets", layer_id, origin_x_mm, origin_y_mm),
+               _path_object(jig.plate, True, "jig:plate", layer_id, origin_x_mm, origin_y_mm)]
+    if with_base:
+        objects.append(_path_object(jig.plate, True, "jig:base", layer_id,
+                                    origin_x_mm + jig.plate_w + base_gap_mm, origin_y_mm))
+    return [o for o in objects if o is not None]
+
+
 def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungroup=False):
     """Convertit un DXF en objets vectoriels.
 

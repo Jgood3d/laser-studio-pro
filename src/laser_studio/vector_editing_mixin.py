@@ -17,6 +17,9 @@ from laser_studio.vector import nesting
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.ui.dialogs.nesting import NestingDialog
 from laser_studio.ui.dialogs.serial_duplicate import SerialDuplicateDialog
+from laser_studio.ui.dialogs.jig import JigDialog, error_message as jig_error_message
+from laser_studio.vector import jig as jig_geometry
+from laser_studio.vector.importers import jig_to_objects
 from laser_studio.vector import serial_duplicate as serial_dup
 from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
 
@@ -628,6 +631,48 @@ class VectorEditingMixin:
             shown = ", ".join(labels[:8]) + (", …" if len(labels) > 8 else "")
             message += "\n\n" + tr("serial.overflow").format(names=shown)
         QMessageBox.information(self, tr("serial.title"), message)
+
+    def open_jig_generator(self):
+        """Gabarit de placement : une plaque à découper avec une poche par objet (dimensions de la sélection, plus
+        un jeu), pour poser les porte-clés, décapsuleurs, stylos... toujours au même endroit avant de les graver.
+        Avec les mêmes colonnes et espacements que « Dupliquer en série », chaque exemplaire tombe dans sa poche."""
+        if not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            return
+        canvas = self.vector_canvas
+        objects = [item.obj for item in canvas.selected_items_vector()]
+        box = serial_dup.union_bounds([object_bounds(o) for o in objects]) if objects else None
+        dialog = JigDialog(self, self.layer_manager.layers,
+                           (box[2] - box[0]) if box else 0.0, (box[3] - box[1]) if box else 0.0, box is not None,
+                           self.machine.bed_w, self.machine.bed_h,
+                           getattr(self, "_jig_settings", None))
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        self._jig_settings = dialog.settings()
+        try:
+            jig = jig_geometry.build_jig(dialog.jig_params())
+        except jig_geometry.JigError as e:
+            QMessageBox.warning(self, tr("jig.title"), jig_error_message(e))
+            return
+        mode = dialog.position_mode()
+        if mode == "around" and box:
+            origin_x, origin_y = jig_geometry.plate_origin_around(jig, box[0], box[1])
+        elif mode == "beside" and box:
+            origin_x, origin_y = box[2] + 10.0, box[1]
+        else:
+            origin_x, origin_y = dialog.position_xy()
+        new_objects = jig_to_objects(jig, dialog.cut_layer_id(), origin_x, origin_y, dialog.with_base())
+        canvas.push_undo_snapshot()
+        new_items = [canvas.add_object(obj) for obj in new_objects]
+        canvas.request_recenter(new_items)
+        message = tr("jig.done").format(count=jig.count, pw=f"{jig.pocket_w:.1f}", ph=f"{jig.pocket_h:.1f}",
+                                        w=f"{jig.plate_w:.1f}", h=f"{jig.plate_h:.1f}")
+        total_w = jig.plate_w * (2 if dialog.with_base() else 1) + (10.0 if dialog.with_base() else 0.0)
+        if (origin_x < 0 or origin_y < 0 or origin_x + total_w > self.machine.bed_w
+                or origin_y + jig.plate_h > self.machine.bed_h):
+            message += "\n\n" + tr("jig.out_of_bed").format(bed_w=f"{self.machine.bed_w:.0f}",
+                                                           bed_h=f"{self.machine.bed_h:.0f}")
+        QMessageBox.information(self, tr("jig.title"), message)
 
     def open_box_generator(self):
         """Fenêtre du générateur de boîte à encoches : crée les panneaux (calque de découpe) et le
