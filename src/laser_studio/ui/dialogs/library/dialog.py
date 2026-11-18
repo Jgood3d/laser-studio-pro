@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
-from laser_studio.ui.dialogs.library.thumbnails import item_image, render_svg
+from laser_studio.ui.dialogs.library.thumbnails import item_image, photo_image, render_svg
 from laser_studio.ui.widgets import ZoomableGraphicsView
 from laser_studio.vector.svg_import import (
     SvgImportError, document_size_mm, find_texts, find_variant_groups, svg_preview,
@@ -160,7 +160,10 @@ class LibraryDialog(QDialog):
     def _icon(self, item):
         icon = self._icons.get(item.key)
         if icon is None:
-            icon = QIcon(QPixmap.fromImage(item_image(item)))
+            pixmap = QPixmap.fromImage(item_image(item))
+            icon = QIcon(pixmap)
+            # Même image une fois sélectionnée (sinon Qt la teinte de la couleur de sélection).
+            icon.addPixmap(pixmap, QIcon.Mode.Selected)
             self._icons[item.key] = icon
         return icon
 
@@ -211,8 +214,8 @@ class LibraryDialog(QDialog):
 
 
 class LibraryItemDialog(QDialog):
-    """Fiche d'un modèle : aperçu en grand (zoom à la molette), dessin du SVG
-    avec la variante choisie, informations, texte d'accompagnement (readme),
+    """Fiche d'un modèle : aperçu de la pièce en grand (zoom à la molette),
+    dessin du SVG et photo éventuelle, avec la variante choisie, informations, texte d'accompagnement (readme),
     choix des variantes, textes à remplacer (nom de la régate...).
     « Importer » ferme la fiche acceptée : variants(), texts()."""
 
@@ -230,12 +233,24 @@ class LibraryItemDialog(QDialog):
         self._typed = {}           # textes saisis, gardés quand la variante change
 
         splitter = QSplitter()
+        # Aperçu de la pièce (calculé, suit les options et les textes), fichier SVG, et photo
+        # fournie avec le modèle s'il y en a une.
         self.views = QTabWidget()
         self.preview_view = ZoomableGraphicsView()
-        if item.preview_path:
-            self.views.addTab(self.preview_view, tr("library.preview_tab"))
+        self.views.addTab(self.preview_view, tr("library.preview_tab"))
         self.drawing_view = ZoomableGraphicsView()
         self.views.addTab(self.drawing_view, tr("library.drawing_tab"))
+        self.photo_view = None
+        photo = photo_image(item)
+        if not photo.isNull():
+            self.photo_view = ZoomableGraphicsView()
+            self.photo_view.set_image(photo)
+            self.views.addTab(self.photo_view, tr("library.photo_tab"))
+        # Recalcul des aperçus peu après la dernière frappe (l'import complet prend un instant).
+        self._refresh_timer = QTimer(self)
+        self._refresh_timer.setSingleShot(True)
+        self._refresh_timer.setInterval(250)
+        self._refresh_timer.timeout.connect(self.refresh_drawing)
         splitter.addWidget(self.views)
         splitter.addWidget(self._side_panel())
         splitter.setStretchFactor(0, 3)
@@ -251,8 +266,6 @@ class LibraryItemDialog(QDialog):
         layout.addWidget(splitter, 1)
         layout.addWidget(buttons)
 
-        if item.preview_path:
-            self.preview_view.set_image(item_image(item, max_px=2000))
         self.refresh_drawing()
 
     def _side_panel(self):
@@ -313,8 +326,9 @@ class LibraryItemDialog(QDialog):
         QTimer.singleShot(0, self.fit_views)
 
     def fit_views(self):
-        for view in (self.preview_view, self.drawing_view):
-            view.fitInView(view.pixmap_item, Qt.AspectRatioMode.KeepAspectRatio)
+        for view in (self.preview_view, self.drawing_view, self.photo_view):
+            if view is not None:
+                view.fitInView(view.pixmap_item, Qt.AspectRatioMode.KeepAspectRatio)
 
     def variants(self):
         """{groupe de variantes: option choisie}."""
@@ -337,7 +351,7 @@ class LibraryItemDialog(QDialog):
             edit = QLineEdit(self._typed.get(field.key, field.text))
             edit.setProperty("original", field.text)
             edit.textEdited.connect(lambda text, key=field.key: self._typed.__setitem__(key, text))
-            edit.textChanged.connect(self.refresh_drawing)
+            edit.textChanged.connect(lambda _text: self._refresh_timer.start())
             self._text_edits[field.key] = edit
             self._texts_form.addRow(f"{field.label} :", edit)
         self.texts_box.setVisible(bool(fields))
@@ -347,7 +361,11 @@ class LibraryItemDialog(QDialog):
         self.refresh_drawing()
 
     def refresh_drawing(self, *_args):
-        """Dessin du SVG, avec la variante choisie et les textes saisis."""
+        """Aperçu de la pièce et dessin du SVG, avec les options choisies et
+        les textes saisis."""
+        preview = item_image(self.item, 1600, self.variants(), self.texts())
+        if not preview.isNull():
+            self.preview_view.set_image(preview)
         try:
             data = svg_preview(self.item.svg_path, self.variants(), self.texts())
         except SvgImportError:

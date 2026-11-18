@@ -12,12 +12,14 @@ library/
         _category.json             facultatif : nom de la catégorie dans chaque langue
         totem-brevet-aviron/       un modèle par dossier
             totem-brevet-aviron.svg            le modèle (le premier .svg du dossier)
-            totem-brevet-aviron_preview.png    facultatif : aperçu (nom contenant « preview »)
+            totem-brevet-aviron_photo.jpg      facultatif : photo de la pièce réalisée
             readme.txt                         facultatif : texte affiché dans la fiche
             info.json                          facultatif : titre, auteur, licence, description
 ```
 
-Sans `_category.json`, le nom de la catégorie vient du nom du dossier (`medailles` donne « Medailles »). Sans aperçu, le SVG est dessiné à la place.
+Sans `_category.json`, le nom de la catégorie vient du nom du dossier (`medailles` donne « Medailles »).
+
+L'**aperçu** (grille et fiche) est calculé à partir du SVG, tel qu'il sera importé : la matière (bois clair) à l'intérieur des découpes, les trous transparents, la gravure en brun foncé. Dans la fiche, il suit les options et les textes saisis. Il n'y a donc pas d'image d'aperçu à fournir. Une **photo** de la pièce réalisée (image dont le nom contient « photo », PNG, JPEG ou WebP) peut être ajoutée : elle s'affiche dans l'onglet « Photo » de la fiche.
 
 ### `_category.json`
 

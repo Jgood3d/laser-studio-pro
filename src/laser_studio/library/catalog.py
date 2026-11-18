@@ -8,7 +8,9 @@ Organisation (voir resources/library/README.md) :
             _category.json             <- facultatif : nom dans chaque langue
             totem-brevet-aviron/       <- un modèle par dossier
                 totem.svg              <- le modèle (le premier .svg du dossier)
-                totem_preview.png      <- facultatif : aperçu (nom contenant « preview »)
+                totem_photo.jpg        <- facultatif : photo de la pièce réalisée
+                                          (nom contenant « photo » ou « preview ») ;
+                                          l'aperçu, lui, est calculé à partir du SVG
                 readme.txt             <- facultatif : texte de la fiche détail
                 info.json              <- facultatif : titre, auteur, licence, description
 
@@ -29,7 +31,8 @@ PREVIEW_EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp")
 @dataclass
 class LibraryItem:
     """Un modèle : `key` (« catégorie/dossier »), `title`, `svg_path`,
-    `preview_path` (ou None : l'aperçu est dessiné à partir du SVG),
+    `preview_path` (photo fournie avec le modèle, ou None ; l'aperçu, lui,
+    est toujours calculé à partir du SVG),
     `readme` (texte, ou ""), et les informations de info.json."""
     key: str
     category: str
@@ -100,12 +103,12 @@ def _read_text(path):
 
 
 def _find_preview(folder, files):
-    """Aperçu : une image dont le nom contient « preview » (ou « apercu »),
-    sinon None."""
+    """Photo : une image dont le nom contient « photo », « preview » ou
+    « apercu », sinon None."""
     images = sorted(f for f in files if f.lower().endswith(PREVIEW_EXTENSIONS))
     for name in images:
         lower = name.lower()
-        if "preview" in lower or "apercu" in lower or "aperçu" in lower:
+        if any(word in lower for word in ("photo", "preview", "apercu", "aperçu")):
             return os.path.join(folder, name)
     return None
 

@@ -1901,11 +1901,17 @@ TRANSLATIONS = {
         "de": "Vorschau",
         "es": "Vista previa",
     },
+    "library.photo_tab": {
+        "fr": "Photo",
+        "en": "Photo",
+        "de": "Foto",
+        "es": "Foto",
+    },
     "library.drawing_tab": {
-        "fr": "Dessin à graver",
-        "en": "Design to engrave",
-        "de": "Gravurvorlage",
-        "es": "Diseño a grabar",
+        "fr": "Fichier SVG",
+        "en": "SVG file",
+        "de": "SVG-Datei",
+        "es": "Archivo SVG",
     },
     "library.size": {
         "fr": "Taille :",

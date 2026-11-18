@@ -9,7 +9,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ### Ajouté
 Bibliothèque de modèles (Outils → Bibliothèque…, bouton « Modèles » de l'éditeur vectoriel) :
 - Modèles prêts à graver ou découper, rangés par catégorie, avec recherche et taille des aperçus réglable (colonnes adaptées à la largeur de la fenêtre).
-- Fiche de chaque modèle : aperçu et dessin en grand (zoom à la molette), taille, auteur, licence, notice, choix des variantes (ex. niveau du brevet) et textes à remplacer avant l'import (ex. nom de la régate).
+- Aperçus calculés à partir du SVG, tels que la pièce sortira de la machine (matière, trous, gravure) ; dans la fiche, ils suivent les options et les textes saisis.
+- Fiche de chaque modèle : aperçu, fichier SVG et photo éventuelle en grand (zoom à la molette), taille, auteur, licence, notice, choix des variantes (ex. niveau du brevet) et textes à remplacer avant l'import (ex. nom de la régate).
 - Import dans l'éditeur vectoriel : découpe, gravure et marquage chacun sur son calque, textes modifiables ; le blanc n'est pas gravé (creusé dans la gravure).
 - Convention des modèles (`resources/library/README.md`) : calques `Cut` (rouge), `Engrave` (noir) et `Mark` (bleu, facultatif) ; options en sous-calques d'un groupe, un seul visible, le nom du sous-calque étant celui de l'option.
 - Premiers modèles : totem du brevet d'aviron (niveaux 1, 2, 3, bronze, argent, or), médaille skiffeur (1, 2, 3 ou étoile, nom de la régate) et porte-clef aviron solo (bateau diagonal ou horizontal).

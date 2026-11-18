@@ -23,6 +23,9 @@ try:
     from laser_studio.controllers.library import LibraryController
     from laser_studio.models.layers import LayersModel
     from laser_studio.ui.dialogs.library import LibraryDialog, LibraryItemDialog
+    from laser_studio.ui.dialogs.library.thumbnails import (
+        BURN_COLOR, MATERIAL_COLOR, item_image, render_artwork,
+    )
     from laser_studio.vector.svg_import import (
         document_size_mm, find_variant_groups, import_svg, parse_transform, role_of_label,
         find_texts, svg_preview,
@@ -299,6 +302,36 @@ class SvgImportTests(unittest.TestCase):
             self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"], shape)  # nom en réserve : tracé
             cut_obj = next(o for r, o in art.items if r == "cut")
             self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2, shape)    # contour et trou du ruban
+
+
+@unittest.skipIf(import_svg is None, "PyQt6 non importable ici")
+class PreviewTests(unittest.TestCase):
+    """Aperçu calculé : matière dans la découpe, trous transparents, gravure brûlée."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_material_holes_and_engraving(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "m.svg")
+            # Plaque de 100 x 50 mm, trou de 10 mm à gauche, carré gravé de 10 mm à droite.
+            write(path, svg(cut('<rect width="100" height="50" fill="none"/>'
+                                '<circle cx="20" cy="25" r="5" fill="none"/>')
+                            + engrave('<rect x="70" y="20" width="10" height="10"/>')))
+            image = render_artwork(import_svg(path), 104, margin_px=2)     # 1 px par mm
+        pixel = lambda x, y: image.pixelColor(x + 2, y + 2)
+        self.assertEqual(pixel(20, 25).alpha(), 0)                        # trou : transparent
+        self.assertEqual(pixel(45, 10).rgb(), MATERIAL_COLOR.rgb())       # matière
+        self.assertEqual(pixel(75, 25).rgb(), BURN_COLOR.rgb())           # gravure
+
+    def test_preview_follows_options_and_texts(self):
+        item = next(i for c in load_catalog([LIBRARY]) for i in c.items if i.key.endswith("medaille-skiffeur"))
+        hexagonal = item_image(item, 200)
+        round_ = item_image(item, 200, {"Forme": "Ronde"})
+        self.assertFalse(hexagonal.isNull())
+        self.assertNotEqual(hexagonal, round_)
+        self.assertNotEqual(item_image(item, 200, texts={"Compétition de XXXX": "Rennes"}), hexagonal)
 
 
 @unittest.skipIf(import_svg is None, "PyQt6 non importable ici")
