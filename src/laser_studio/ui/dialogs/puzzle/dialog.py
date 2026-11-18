@@ -257,7 +257,7 @@ class PuzzleGeneratorDialog(QDialog):
             shape_lay.addWidget(w)
             return w
 
-        self.row_depth = pm("Profondeur", 0.14, 0.34, "tab_depth", 0.22)
+        self.row_depth = pm("Profondeur", 0.14, 0.30, "tab_depth", 0.22)
         self.row_span = pm("Largeur zone", 0.22, 0.46, "tab_span", 0.34)
         self.row_neck = pm("Largeur du col", 0.32, 0.60, "neck_width", 0.45)
         self.row_pos = pm("Position aléatoire", 0.00, 1.00, "pos_random", 0.60, 0.05)

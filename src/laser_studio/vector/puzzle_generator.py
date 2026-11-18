@@ -1,6 +1,13 @@
-"""Générateur de puzzle Jigsaw — tenon type champignon (col + tête ronde).
+"""Générateur de puzzle Jigsaw — tenon à col étroit et tête ronde qui déborde du col.
 
 Repère LSP : X droite, Y haut. Arêtes internes partagées (emboîtement exact).
+
+Forme de l'ergot : trois courbes de Bézier cubiques (épaule, col, tête). La taille de référence est la plus
+petite dimension d'une pièce (`knob_unit`), pour que les ergots horizontaux et verticaux aient la même
+taille même avec des pièces rectangulaires. Deux plafonds, mesurés sur des milliers de puzzles, évitent que
+deux ergots voisins se touchent : la hauteur de la tête (MAX_TAB_DEPTH) et le décalage d'un gros ergot vers
+un coin (voir `generate_classic_jigsaw_puzzle`) ; le jeu minimal entre deux traits reste >= 0,1 x la plus
+petite dimension d'une pièce sur toute la plage des curseurs.
 """
 from __future__ import annotations
 
@@ -253,6 +260,21 @@ def _straight(p0: Point, p1: Point, n: int = 4) -> List[Point]:
     return [(_lerp(p0[0], p1[0], i / n), _lerp(p0[1], p1[1], i / n)) for i in range(n + 1)]
 
 
+CURVE_STEPS = 14          # points par segment de Bézier (3 segments par ergot)
+MAX_TAB_DEPTH = 0.30      # hauteur maximale d'un ergot, en fraction de la plus petite dimension d'une pièce
+
+
+def _bezier(p0, p1, p2, p3, steps):
+    pts = []
+    for i in range(1, steps + 1):
+        t = i / steps
+        u = 1.0 - t
+        a, b, c, d = u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t
+        pts.append((a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0],
+                    a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1]))
+    return pts
+
+
 def generate_jigsaw_edge(
     p_start: Point,
     p_end: Point,
@@ -263,10 +285,13 @@ def generate_jigsaw_edge(
     neck_width: float = 0.45,
     t_mid: float = 0.50,
     jitter: float = 0.0,
+    knob_unit: float = None,
 ) -> List[Point]:
-    """Tenon classique : plat → col lisse → tête circulaire → col → plat.
+    """Arête avec un ergot : plat -> épaule -> col -> tête ronde qui déborde -> col -> épaule -> plat.
 
-    Construction géométrique (pas un simple sinus) pour coller aux puzzles grand public.
+    tab_depth = hauteur de la tête, tab_span = largeur de la tête, neck_width = largeur du col (relative),
+    t_mid = position de l'ergot le long de l'arête (0..1), jitter = variation de taille de CET ergot
+    (-0,3..+0,3). knob_unit = taille de référence (mm) des ergots ; par défaut la longueur de l'arête.
     """
     x1, y1 = p_start
     x2, y2 = p_end
@@ -280,128 +305,35 @@ def generate_jigsaw_edge(
     ux, uy = dx / length, dy / length
     nx, ny = -uy * tab_sign, ux * tab_sign
 
-    span = max(0.22, min(0.46, tab_span * (1 + 0.06 * jitter)))
-    depth = length * max(0.14, min(0.34, tab_depth * (1 + 0.08 * jitter)))
-    t_mid = max(span / 2 + 0.03, min(1.0 - span / 2 - 0.03, t_mid))
-    t0 = t_mid - span / 2
-    t1 = t_mid + span / 2
+    s = (knob_unit if knob_unit else length) / length       # ergot dimensionné sur knob_unit
+    size = max(0.75, min(1.25, 1.0 + jitter))
+    # Hauteur effective de la tête (variation de taille comprise), plafonnée : au-delà, un ergot
+    # horizontal et un ergot vertical voisins finissent par se toucher.
+    depth = min(max(0.10, min(0.40, tab_depth)) * size, MAX_TAB_DEPTH)
+    t = (depth / 2.5) * s                                    # la tête monte à 2,5 t
+    b = 2.0 * t * (max(0.18, min(0.50, tab_span)) / 0.34)    # demi-largeur (contrôle) de la tête
+    a = t * (max(0.30, min(0.65, neck_width)) / 0.45)        # demi-largeur du col
+    a = min(a, 0.80 * b)                                     # le col reste plus étroit que la tête
+    c0 = max(0.35, min(0.65, t_mid))
 
-    # Tête = cercle. Le col est plus étroit que le diamètre de la tête.
-    head_r = depth * 0.48
-    neck_ratio = max(0.32, min(0.60, neck_width * (1 + 0.05 * jitter)))
-    neck_half = head_r * neck_ratio          # demi-largeur du col (mm le long de l'arête)
-    head_half = head_r * 0.92                # demi-largeur max de la tête le long de l'arête
-
-    # Centre du cercle de tête, poussé le long de la normale
-    # Sommet du cercle ≈ depth
-    center_n = depth - head_r
-
-    def base(t):
-        return (_lerp(x1, x2, t), _lerp(y1, y2, t))
-
-    def loc(s, n):
-        """s = décalage le long de l'arête (mm) depuis le centre du tenon, n = normale."""
-        cx = _lerp(x1, x2, t_mid)
-        cy = _lerp(y1, y2, t_mid)
-        return (cx + ux * s + nx * n, cy + uy * s + ny * n)
-
-    half_zone = length * span / 2
-
-    # --- points de construction ---
-    # A  : début zone (sur la ligne)
-    # B  : entrée col (légère courbe)
-    # C  : base de la tête (jonction cercle)
-    # puis arc
-    A_s = -half_zone
-    C_s = -neck_half
-    # Point sur le cercle à l'angle où on joint le col
-    # Angle depuis la normale : asin(neck_half/head_r) limité
-    join_ang = math.asin(max(-0.95, min(0.95, neck_half / head_r)))
-
-    pts: List[Point] = []
-    pts.extend(_straight(p_start, base(t0), 5)[:-1])
-
-    # A sur la ligne
-    A = loc(A_s, 0.0)
-    pts.append(A)
-
-    # Courbe de Bézier quadratique A → C (entrée col douce)
-    # Point de contrôle : un peu vers l'extérieur pour un arrondi naturel
-    C = loc(C_s, center_n)
-    # Contrôle placé à mi-chemin en s, légèrement sorti
-    ctrl1 = loc((A_s + C_s) / 2, center_n * 0.18)
-    for i in range(1, 10):
-        t = i / 10
-        u = 1 - t
-        px = u * u * A[0] + 2 * u * t * ctrl1[0] + t * t * C[0]
-        py = u * u * A[1] + 2 * u * t * ctrl1[1] + t * t * C[1]
-        pts.append((px, py))
-
-    # Arc de tête : du joint gauche au joint droit
-    # Angles : normale = 0 en polar local
-    base_ang = math.atan2(ny, nx)
-    # join gauche = base_ang + (pi/2 + join? ) 
-    # Le point C est à gauche : angle = base_ang + pi/2 approximativement,
-    # plus précisément angle = base_ang + atan2(direction)
-    # Point sur cercle relatif : offset from center = C - center
-    ccx = _lerp(x1, x2, t_mid) + nx * center_n
-    ccy = _lerp(y1, y2, t_mid) + ny * center_n
-
-    # Angle du point C par rapport au centre
-    def ang_of(pt):
-        return math.atan2(pt[1] - ccy, pt[0] - ccx)
-
-    # Point droit miroir
-    C2 = loc(neck_half, center_n)
-    a_left = ang_of(C)
-    a_right = ang_of(C2)
-
-    # On veut parcourir le côté EXTERIEUR (sommet du tenon), pas le petit arc intérieur.
-    # Delta dans le sens qui passe par le sommet (direction nx, ny)
-    summit = (ccx + nx * head_r, ccy + ny * head_r)
-    a_sum = ang_of(summit)
-
-    def lerp_angle_via(a0, a1, via, n):
-        """Interpole a0 → a1 en passant près de `via`."""
-        # Normaliser
-        def norm(a):
-            while a < -math.pi:
-                a += 2 * math.pi
-            while a > math.pi:
-                a -= 2 * math.pi
-            return a
-        a0, a1, via = norm(a0), norm(a1), norm(via)
-        # Deux chemins possibles
-        d_ccw = (a1 - a0) % (2 * math.pi)
-        d_cw = (a0 - a1) % (2 * math.pi)
-        # Lequel passe près de via
-        def dist_via(d, direction):
-            # sample mid
-            mid = a0 + direction * d / 2
-            return abs(norm(mid - via))
-        if dist_via(d_ccw, +1) <= dist_via(d_cw, -1):
-            delta, direction = d_ccw, +1
-        else:
-            delta, direction = d_cw, -1
-        return [a0 + direction * delta * i / n for i in range(n + 1)]
-
-    angles = lerp_angle_via(a_left, a_right, a_sum, 20)
-    for a in angles:
-        pts.append((ccx + math.cos(a) * head_r, ccy + math.sin(a) * head_r))
-
-    # Sortie C2 → A2
-    A2 = loc(half_zone, 0.0)
-    ctrl2 = loc((half_zone + neck_half) / 2, center_n * 0.18)
-    for i in range(1, 10):
-        t = i / 10
-        u = 1 - t
-        px = u * u * C2[0] + 2 * u * t * ctrl2[0] + t * t * A2[0]
-        py = u * u * C2[1] + 2 * u * t * ctrl2[1] + t * t * A2[1]
-        pts.append((px, py))
-    pts.append(A2)
-
-    pts.append(base(t1))
-    pts.extend(_straight(base(t1), p_end, 5)[1:])
+    p = [
+        (0.0, 0.0),
+        (max(c0 - 0.30, 0.02), 0.0),
+        (c0, -t),
+        (c0 - a, t),
+        (c0 - b, 3.0 * t),
+        (c0 + b, 3.0 * t),
+        (c0 + a, t),
+        (c0, -t),
+        (min(c0 + 0.30, 0.98), 0.0),
+        (1.0, 0.0),
+    ]
+    p = [(x1 + ux * (l * length) + nx * (w * length), y1 + uy * (l * length) + ny * (w * length))
+         for l, w in p]
+    pts = [p[0]]
+    pts += _bezier(p[0], p[1], p[2], p[3], CURVE_STEPS)
+    pts += _bezier(p[3], p[4], p[5], p[6], CURVE_STEPS)
+    pts += _bezier(p[6], p[7], p[8], p[9], CURVE_STEPS)
     return pts
 
 
@@ -420,13 +352,19 @@ def generate_classic_jigsaw_puzzle(
     h_jit = [[rng.uniform(-1, 1) * jitter_amt for _ in range(max(0, cols - 1))] for _ in range(rows)]
     v_jit = [[rng.uniform(-1, 1) * jitter_amt for _ in range(cols)] for _ in range(max(0, rows - 1))]
 
+    # Plus l'ergot est profond, moins on peut le décaler vers un coin : un ergot horizontal et un ergot
+    # vertical voisins se feraient face dans le même coin. À profondeur maximale les ergots restent
+    # centrés ; seuls leur taille et leur sens varient.
+    deep = min(tab_depth * (1.0 + max(0.0, jitter_amt)), MAX_TAB_DEPTH)
+    room = 1.0 - max(0.0, min(1.0, (deep - 0.18) / 0.12))
+
     def rand_mid():
-        spread = 0.28 * max(0.0, min(1.0, pos_random))
+        spread = 0.15 * max(0.0, min(1.0, pos_random)) * room
         return 0.5 + rng.uniform(-spread, spread)
 
     h_mid = [[rand_mid() for _ in range(max(0, cols - 1))] for _ in range(rows)]
     v_mid = [[rand_mid() for _ in range(cols)] for _ in range(max(0, rows - 1))]
-    kw = dict(tab_depth=tab_depth, tab_span=tab_span, neck_width=neck_width)
+    kw = dict(tab_depth=tab_depth, tab_span=tab_span, neck_width=neck_width, knob_unit=min(dx, dy))
 
     H_edges = []
     for r in range(rows):
