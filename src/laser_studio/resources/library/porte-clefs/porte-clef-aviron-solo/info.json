@@ -1,0 +1,21 @@
+{
+  "title": {
+    "fr": "Porte-clef aviron solo",
+    "en": "Single scull keychain",
+    "de": "Einer-Schlüsselanhänger",
+    "es": "Llavero de remo individual"
+  },
+  "license": {
+    "fr": "Libre d'utilisation pour usage personnel et associatif",
+    "en": "Free for personal and club use",
+    "de": "Frei für private Nutzung und Vereine",
+    "es": "Libre para uso personal y asociativo"
+  },
+  "description": {
+    "fr": "Porte-clefs de 50 × 50 mm avec un bateau d'aviron en style losanges dans un cadre gravé, et un trou pour l'anneau. Bateau diagonal ou horizontal.",
+    "en": "50 × 50 mm keychain with a diamond-style rowing boat in an engraved frame, and a ring hole. Diagonal or horizontal boat.",
+    "de": "Schlüsselanhänger 50 × 50 mm mit Ruderboot im Rautenstil in einem gravierten Rahmen und einem Loch für den Ring. Boot diagonal oder waagerecht.",
+    "es": "Llavero de 50 × 50 mm con un bote de remo de estilo rombos en un marco grabado, y un agujero para la anilla. Bote diagonal u horizontal."
+  },
+  "tags": ["aviron", "rowing", "porte-clef", "porte-clefs", "keychain", "club", "souvenir"]
+}

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="50mm"
+   height="49.999996mm"
+   viewBox="0 0 50 49.999993"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   sodipodi:docname="portes-clefs_losanges_solo.svg"
+   inkscape:export-filename="/home/alemorvan/portes-clefs_losanges_previsualisation.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="4.0904587"
+     inkscape:cx="94.610416"
+     inkscape:cy="94.610416"
+     inkscape:window-width="1920"
+     inkscape:window-height="1011"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1"
+     showguides="true"
+     showgrid="false">
+    <sodipodi:guide
+       position="-1.3283391,-10.001238"
+       orientation="0,-1"
+       id="guide4"
+       inkscape:locked="false" />
+  </sodipodi:namedview>
+  <defs
+     id="defs1">
+    <inkscape:path-effect
+       effect="fillet_chamfer"
+       id="path-effect3"
+       is_visible="true"
+       lpeversion="1"
+       nodesatellites_param="F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1 @ F,0,0,1,0,0,0,1"
+       radius="0"
+       unit="px"
+       method="auto"
+       mode="F"
+       chamfer_steps="1"
+       flexible="false"
+       use_knot_distance="true"
+       apply_no_radius="true"
+       apply_with_radius="true"
+       only_selected="false"
+       hide_knots="false" />
+  </defs>
+  <path
+     style="display:inline;fill:#000080;stroke-width:0.262515"
+     d="M 48.946771,48.336819 C 50.450516,46.85825 50.231284,3.6471844 49.000321,1.8059244 47.329592,-0.69288457 3.0638997,-0.51986657 1.0656298,1.8388744 c -1.58658062,1.872791 -1.24514482,44.9680136 9.546e-4,46.4389106 1.7170296,2.026794 45.3685276,2.5287 47.8802796,0.05906 z"
+     id="path1"
+     sodipodi:nodetypes="sssss"
+     inkscape:label="Découpe" />
+  <path
+     id="path4"
+     style="display:inline;fill:#000000;stroke-width:0.262515"
+     inkscape:label="Contour"
+     d="m 28.632878,2.6985433 c 0.266436,0.4959127 0.443695,1.0413415 0.51108,1.5947347 5.362051,0.029322 10.717402,0.1832147 16.043465,0.8278564 0.06611,1.0562806 0.126716,2.0990754 0.181901,3.1538127 0.450856,12.2399149 0.584948,24.5070629 -0.111621,36.7409099 -3.865281,0.335748 -7.69229,0.541911 -11.569837,0.644405 -9.631353,0.07266 -19.33051,0.203595 -28.879374,-0.843876 C 4.6389091,41.496383 4.4998197,38.174768 4.4100667,34.851619 4.2341473,24.976135 4.0888973,15.066173 4.7754191,5.2188029 10.150189,4.5181517 15.5449,4.4151757 20.969779,4.3010295 21.036888,3.7482667 21.21254,3.2036691 21.477759,2.7078451 21.367306,2.7081642 21.256954,2.708588 21.146513,2.7088786 15.183262,2.8251386 9.2007196,2.9498211 3.2892049,3.8106201 2.5299602,13.208668 2.6500789,22.650445 2.7548706,32.070911 2.8395679,36.79899 3.0409763,41.524086 3.2871379,46.246273 13.209065,47.447891 23.225522,47.32042 33.201591,47.264815 37.730014,47.163982 42.252806,46.893282 46.763554,46.482434 47.548545,34.045951 47.41213,21.568755 47.0085,9.1198568 46.920951,7.3124769 46.792983,5.5081009 46.689657,3.7010661 40.70193,2.9012282 34.667703,2.725096 28.632878,2.6985433 Z" />
+  <g
+     id="orientation"
+     inkscape:label="Orientation du bateau">
+    <g
+       id="g84"
+       transform="matrix(0.85106383,0,0,1,5.0577356,23)"
+       style="display:none;fill:#000000"
+       inkscape:label="Bateau horizontal">
+      <path
+         id="path82"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-opacity:0"
+         d="M 0,2 C 6.666667,2.6666666 13.333333,3.3333334 20,4 19.166667,3.3333334 18.333333,2.6666666 17.5,2 18.333333,1.3333334 19.166667,0.66666664 20,0 13.333333,0.66666664 6.666667,1.3333334 0,2 Z"
+         inkscape:label="Pointe avant" />
+      <path
+         id="path83"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-opacity:0"
+         d="M 47,2 C 40.333333,2.6666666 33.666667,3.3333334 27,4 27.833333,3.3333334 28.666667,2.6666666 29.5,2 28.666667,1.3333334 27.833333,0.66666664 27,0 33.666667,0.66666664 40.333333,1.3333334 47,2 Z"
+         inkscape:label="Pointe arriere" />
+      <path
+         id="path84"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0"
+         d="m 29.5,-5.5 c -4.14212,3.87e-5 -7.499961,3.3578803 -7.5,7.4999998 3.9e-5,4.1421197 3.35788,7.4999615 7.5,7.5000002 0.250646,-0.00373 0.500947,-0.020033 0.749961,-0.048834 -3.82812,-0.3847486 -6.286177,-3.6037645 -6.291978,-7.4511662 0.006,-3.8472529 2.464006,-7.0660441 6.291978,-7.4507775 C 30.000954,-5.4797082 29.750653,-5.4961362 29.5,-5.5 Z"
+         sodipodi:nodetypes="ccccccc"
+         inkscape:label="Portant" />
+    </g>
+    <g
+       id="g7"
+       transform="matrix(0.79171345,-0.79171345,0.93026329,0.93026329,4.5919431,41.744739)"
+       style="display:inline;fill:#000000"
+       inkscape:label="Bateau diagonal">
+      <path
+         id="path5"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-opacity:0"
+         d="M 0,2 C 6.666667,2.6666666 13.333333,3.3333334 20,4 19.166667,3.3333334 18.333333,2.6666666 17.5,2 18.333333,1.3333334 19.166667,0.66666664 20,0 13.333333,0.66666664 6.666667,1.3333334 0,2 Z"
+         inkscape:label="Pointe avant" />
+      <path
+         id="path6"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-opacity:0"
+         d="M 47,2 C 40.333333,2.6666666 33.666667,3.3333334 27,4 27.833333,3.3333334 28.666667,2.6666666 29.5,2 28.666667,1.3333334 27.833333,0.66666664 27,0 33.666667,0.66666664 40.333333,1.3333334 47,2 Z"
+         inkscape:label="Pointe arriere" />
+      <path
+         id="path7"
+         style="fill:#000000;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0"
+         d="m 29.5,-5.5 c -4.14212,3.87e-5 -7.499961,3.3578803 -7.5,7.4999998 3.9e-5,4.1421197 3.35788,7.4999615 7.5,7.5000002 0.250646,-0.00373 0.500947,-0.020033 0.749961,-0.048834 -3.82812,-0.3847486 -6.286177,-3.6037645 -6.291978,-7.4511662 0.006,-3.8472529 2.464006,-7.0660441 6.291978,-7.4507775 C 30.000954,-5.4797082 29.750653,-5.4961362 29.5,-5.5 Z"
+         sodipodi:nodetypes="ccccccc"
+         inkscape:label="Portant" />
+    </g>
+  </g>
+  <circle
+     style="display:inline;fill:#000000;stroke:#000000;stroke-width:0;stroke-dasharray:none;stroke-opacity:0"
+     id="circle97"
+     cx="25.057735"
+     cy="4.6500001"
+     r="2"
+     inkscape:label="Trou" />
+</svg>

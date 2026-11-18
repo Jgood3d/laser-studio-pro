@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 LIBRARY = os.path.join(REPO, "src", "laser_studio", "resources", "library")
 TOTEM = os.path.join(LIBRARY, "trophees", "totem-brevet-aviron", "totem-brevet-aviron.svg")
 MEDAL = os.path.join(LIBRARY, "medailles", "medaille-skiffeur", "medaille-skiffeur.svg")
+KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-aviron-solo", "porte-clef-aviron-solo.svg")
 
 from laser_studio.library.catalog import load_catalog, pretty_name  # noqa: E402
 
@@ -141,7 +142,17 @@ class SvgImportTests(unittest.TestCase):
         roles = [role for role, _o in import_svg(path).items]
         self.assertEqual(sorted(roles), ["cut", "engrave", "mark"])     # un objet groupé par rôle
         self.assertEqual(role_of_label("Découpes"), "cut")
+        self.assertEqual(role_of_label("Trou"), "cut")
         self.assertIsNone(role_of_label("Niveau du brevet"))
+        self.assertIsNone(role_of_label("Contour"))                       # ambigu : gravé ou découpé
+
+    def test_element_name_counts_outside_named_layers(self):
+        # Pas de calque : un cercle « Trou » rempli de noir va en découpe, pas en gravure.
+        path = self.file('<circle inkscape:label="Trou" cx="10" cy="10" r="2" fill="#000"/>'
+                         '<rect inkscape:label="Contour" width="40" height="20" fill="#000"/>'
+                         '<g inkscape:label="Gravure"><rect inkscape:label="Trait" x="50" width="9" height="1"/></g>')
+        roles = sorted(role for role, _o in import_svg(path).items)
+        self.assertEqual(roles, ["cut", "engrave"])                      # « Trait » suit son calque Gravure
 
     def test_variants_are_detected_and_chosen(self):
         path = self.file(
@@ -224,6 +235,17 @@ class SvgImportTests(unittest.TestCase):
         text = next(o for _r, o in art.items if o.kind == "text").world_path().boundingRect()
         self.assertAlmostEqual(text.center().x(), 50.0, delta=1.0)
         self.assertIn('x="50"', svg_preview(path).decode())
+
+    def test_bundled_keychain(self):
+        groups = find_variant_groups(KEYCHAIN)
+        self.assertEqual([(g.key, [o[0] for o in g.options], g.default) for g in groups],
+                         [("Orientation du bateau", ["Bateau horizontal", "Bateau diagonal"], "Bateau diagonal")])
+        for option in ("Bateau horizontal", "Bateau diagonal"):
+            art = import_svg(KEYCHAIN, variants={groups[0].key: option})
+            self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"], option)
+            cut = next(o for r, o in art.items if r == "cut")
+            self.assertEqual(len(cut.world_path().toSubpathPolygons()), 2)   # contour et trou de l'anneau
+            self.assertAlmostEqual(art.width_mm, 50.0, places=1)
 
     def test_bundled_medal(self):
         groups = find_variant_groups(MEDAL)

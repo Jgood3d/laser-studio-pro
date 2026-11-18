@@ -6,7 +6,9 @@ Par rapport à l'import SVG classique, il prend en compte :
 - les transformations (transform="translate(...) matrix(...)..."), cumulées ;
 - les éléments et calques cachés (display:none, visibility:hidden) : ignorés ;
 - les calques Inkscape « Découpe », « Gravure », « Marquage » : chaque tracé
-  va sur le calque de même rôle de l'éditeur (voir role_of_label) ;
+  va sur le calque de même rôle de l'éditeur (voir role_of_label). Hors de
+  tout calque ou groupe nommé ainsi, le nom de l'élément lui-même compte
+  (un chemin « Découpe » ou un cercle « Trou » à la racine : découpe) ;
 - les textes (<text>, <tspan>) : objets texte modifiables de l'éditeur ;
   leur contenu peut être remplacé à l'import (paramètre `texts`, voir
   find_texts) ;
@@ -44,9 +46,9 @@ ROLE_MARK = "mark"
 # Mots-clés des noms de calques ou de groupes -> rôle (comparés sans accents,
 # en minuscules).
 ROLE_KEYWORDS = (
-    (ROLE_CUT, ("decoup", "coupe", "cut")),
+    (ROLE_CUT, ("decoup", "coupe", "cut", "trou", "hole")),
     (ROLE_ENGRAVE, ("grav", "engrav", "remplissage", "fill")),
-    (ROLE_MARK, ("marqu", "mark", "contour", "trait")),
+    (ROLE_MARK, ("marqu", "mark", "trait")),
 )
 
 # Éléments dont le contenu ne se dessine pas.
@@ -148,8 +150,10 @@ def _plain(text):
 
 
 def role_of_label(label):
-    """Rôle d'un calque ou d'un groupe d'après son nom (« Découpes » -> cut,
-    « Gravure » -> engrave, « Marquage » -> mark), ou None."""
+    """Rôle d'un calque, d'un groupe ou d'un élément d'après son nom
+    (« Découpes », « Trou » -> cut, « Gravure » -> engrave, « Marquage » ->
+    mark), ou None. « Contour » n'en fait pas partie : selon les fichiers, il
+    désigne un cadre gravé ou un tracé de découpe."""
     plain = _plain(label or "")
     for role, keywords in ROLE_KEYWORDS:
         if any(word in plain for word in keywords):
@@ -428,7 +432,7 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         if tag == "text":
             # Le texte applique lui-même sa transformation et son style.
             text_style = {**style, **_inherited(_style(elem))}
-            text_role = role_for(text_style, role)
+            text_role = role_for(text_style, role or role_of_label(_label(elem)))
             light = is_light(text_style.get("fill", "black"))
             for run in _text_glyphs(elem, ctm, style, texts):
                 if text_role == ROLE_ENGRAVE and not light:
@@ -454,7 +458,7 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         if geometry is not None and not geometry.isEmpty():
             mapped = ctm.map(geometry)
             mapped.setFillRule(geometry.fillRule())
-            add_shape(mapped, role_for(style, role), style)
+            add_shape(mapped, role_for(style, role or role_of_label(_label(elem))), style)
 
     walk(root, _document_transform(root), None, {}, 0)
     region = engrave.result()
