@@ -1942,10 +1942,10 @@ TRANSLATIONS = {
         "es": "Soporte del nombre:",
     },
     "ornament.support_tip": {
-        "fr": "La barre relie le prénom à l'anneau pour qu'il ne tombe pas à la découpe ; le bandeau en ajoute une seconde au sommet des lettres. Sans barre, le prénom doit toucher l'anneau des deux côtés (polices cursives larges).",
-        "en": "The bar joins the name to the ring so it does not fall out when cut; the band adds a second bar along the top of the letters. Without a bar, the name must touch the ring on both sides (wide script fonts).",
-        "de": "Der Steg verbindet den Namen mit dem Ring, damit er beim Schneiden nicht herausfällt; das Band fügt einen zweiten Steg an der Oberkante der Buchstaben hinzu. Ohne Steg muss der Name den Ring auf beiden Seiten berühren (breite Schreibschriften).",
-        "es": "La barra une el nombre al aro para que no se caiga al cortar; la banda añade una segunda barra en la parte superior de las letras. Sin barra, el nombre debe tocar el aro por ambos lados (fuentes cursivas anchas).",
+        "fr": "La barre relie le prénom à l'anneau pour qu'il ne tombe pas à la découpe. Sans barre, le prénom doit toucher l'anneau des deux côtés (polices cursives larges).",
+        "en": "The bar joins the name to the ring so it does not fall out when cut. Without a bar, the name must touch the ring on both sides (wide script fonts).",
+        "de": "Der Steg verbindet den Namen mit dem Ring, damit er beim Schneiden nicht herausfällt. Ohne Steg muss der Name den Ring auf beiden Seiten berühren (breite Schreibschriften).",
+        "es": "La barra une el nombre al aro para que no se caiga al cortar. Sin barra, el nombre debe tocar el aro por ambos lados (fuentes cursivas anchas).",
     },
     "ornament.layer": {
         "fr": "Calque de découpe :",
@@ -2108,54 +2108,6 @@ TRANSLATIONS = {
         "en": "Slim (5 tiers)",
         "de": "Schlank (5 Etagen)",
         "es": "Fino (5 pisos)",
-    },
-    "ornament.motif.Lune": {
-        "fr": "Lune",
-        "en": "Moon",
-        "de": "Mond",
-        "es": "Luna",
-    },
-    "ornament.motif.Houx": {
-        "fr": "Houx",
-        "en": "Holly",
-        "de": "Stechpalme",
-        "es": "Acebo",
-    },
-    "ornament.motif.Bougie": {
-        "fr": "Bougies",
-        "en": "Candles",
-        "de": "Kerzen",
-        "es": "Velas",
-    },
-    "ornament.motif.Cloche": {
-        "fr": "Cloches",
-        "en": "Bells",
-        "de": "Glocken",
-        "es": "Campanas",
-    },
-    "ornament.motif.Guirlande": {
-        "fr": "Guirlande d'ampoules",
-        "en": "String of bulbs",
-        "de": "Lichterkette",
-        "es": "Guirnalda de bombillas",
-    },
-    "ornament.style.Trio": {
-        "fr": "Trio (3 feuilles)",
-        "en": "Trio (3 leaves)",
-        "de": "Trio (3 Blätter)",
-        "es": "Trío (3 hojas)",
-    },
-    "ornament.style.Duo": {
-        "fr": "Duo (2 feuilles)",
-        "en": "Duo (2 leaves)",
-        "de": "Duo (2 Blätter)",
-        "es": "Dúo (2 hojas)",
-    },
-    "ornament.support.Bandeau": {
-        "fr": "Bandeau (2 barres)",
-        "en": "Band (2 bars)",
-        "de": "Band (2 Stege)",
-        "es": "Banda (2 barras)",
     },
     "ornament.support.Barre": {
         "fr": "Barre",
@@ -6505,7 +6457,7 @@ TRANSLATIONS = {
     "ui.vector_keychain_generator": {
         "fr": "Porte-clés",
         "en": "Keychain",
-        "de": "Schlüsselanhänger",
+        "de": "Anhänger",
         "es": "Llavero",
     },
     "ui.vector_keychain_generator_tip": {
