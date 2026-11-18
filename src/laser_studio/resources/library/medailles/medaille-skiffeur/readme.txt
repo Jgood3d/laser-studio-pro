@@ -16,10 +16,10 @@ Cette médaille est conçue pour récompenser les compétiteurs lors de régates
 d'aviron. Elle représente un skiffeur et se décline en plusieurs variantes,
 au choix dans cette fiche (liste « Résultat ») :
 
-  1  →  1ère place, podium compétition
-  2  →  2ème place, podium compétition
-  3  →  3ème place, podium compétition
-  Etoile  →  récompense spéciale Challenge Jeune
+  1ère place  →  podium compétition
+  2e place    →  podium compétition
+  3e place    →  podium compétition
+  Étoile      →  récompense spéciale Challenge Jeune
 
 Le nom de la régate se modifie dans cette fiche (champ « Régate de XXXX »),
 avant l'import.
@@ -33,7 +33,7 @@ y passer un ruban ou un cordon.
 --------------------------------------------------------------------------------
 
   1. Dans cette fiche :
-       - choisir le résultat (1, 2, 3 ou Etoile) ;
+       - choisir le résultat (1ère, 2e ou 3e place, ou Étoile) ;
        - remplacer « Régate de XXXX » par le nom de votre régate.
      L'onglet « Dessin à graver » montre la médaille telle qu'elle sera
      importée.

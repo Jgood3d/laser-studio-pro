@@ -98,7 +98,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
   - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
   - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-  - `vector/svg_import.py` — import SVG complet (unités, transformations, calques cachés ignorés, calques Découpe / Gravure / Marquage, textes modifiables, variantes), utilisé par la bibliothèque ; destiné à remplacer l’import SVG de `vector_layers.py`
+  - `vector/svg_import.py` — import SVG de la bibliothèque, selon la convention des modèles : calques `Cut` (découpe, rouge), `Engrave` (gravure, noir ; le blanc est creusé) et `Mark` (marquage), le reste ignoré ; options en sous-calques ; textes modifiables et remplaçables ; unités et transformations prises en compte. Destiné à remplacer l’import SVG de `vector_layers.py` une fois validé
   - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 

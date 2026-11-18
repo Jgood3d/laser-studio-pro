@@ -1,24 +1,23 @@
-"""Import SVG complet, pour les modèles de la bibliothèque (et, une fois
-validé, pour remplacer extract_svg_objects de vector_layers.py).
+"""Import SVG des modèles de la bibliothèque (et, une fois validé, pour
+remplacer extract_svg_objects de vector_layers.py).
 
-Par rapport à l'import SVG classique, il prend en compte :
-- les unités du document (width / height / viewBox) : 1 unité ≠ 1 mm ;
-- les transformations (transform="translate(...) matrix(...)..."), cumulées ;
-- les éléments et calques cachés (display:none, visibility:hidden) : ignorés ;
-- les calques Inkscape « Découpe », « Gravure », « Marquage » : chaque tracé
-  va sur le calque de même rôle de l'éditeur (voir role_of_label). Hors de
-  tout calque ou groupe nommé ainsi, le nom de l'élément lui-même compte
-  (un chemin « Découpe » ou un cercle « Trou » à la racine : découpe) ;
-- les textes (<text>, <tspan>) : objets texte modifiables de l'éditeur ;
-  leur contenu peut être remplacé à l'import (paramètre `texts`, voir
-  find_texts) ;
-- le blanc : un élément rempli de blanc (ou d'une couleur très claire) sur
-  le calque de gravure n'est pas gravé, il est creusé dans la gravure
-  (gravure = union des formes foncées, moins les formes claires, dans
-  l'ordre du dessin). Un texte clair devient donc un tracé (creux) ;
-- les variantes : un groupe dont les sous-éléments nommés sont tous cachés
-  sauf un (ex. « Niveau 1 », « Niveau 2 », « Bronze »...) ; l'élément choisi
-  (paramètre `variants`) est importé, les autres non.
+Convention (voir resources/library/README.md) :
+- calque (ou groupe) « Cut » : découpe, dessinée en rouge ;
+- calque (ou groupe) « Engrave » : gravure remplie ; le noir est gravé, le
+  blanc (ou une couleur très claire) est creusé dans ce qui est gravé en
+  dessous (gravure = union des formes foncées, moins les formes claires,
+  dans l'ordre du dessin) ; un texte clair devient donc un tracé ;
+- calque (ou groupe) « Mark », facultatif : marquage (contour gravé), en bleu ;
+- tout le reste (élément hors de ces calques, calque caché) est ignoré ;
+- options : un groupe dont les sous-calques sont tous cachés sauf un (celui
+  par défaut) ; le nom du groupe est le libellé du choix, le nom de chaque
+  sous-calque celui d'une option. Une option peut contenir ses propres
+  calques Cut / Engrave / Mark (forme différente, par exemple).
+
+Pris en compte aussi : les unités du document (width / height / viewBox),
+les transformations cumulées, les textes (<text>, <tspan>, lignes Inkscape),
+dont le contenu peut être remplacé à l'import (paramètre `texts`, voir
+find_texts) et qui deviennent des objets texte modifiables de l'éditeur.
 
     artwork = import_svg("totem.svg", variants={"Niveau du brevet": "Bronze"})
     for role, obj in artwork.items:      # role : "cut", "engrave", "mark"
@@ -43,13 +42,8 @@ ROLE_CUT = "cut"
 ROLE_ENGRAVE = "engrave"
 ROLE_MARK = "mark"
 
-# Mots-clés des noms de calques ou de groupes -> rôle (comparés sans accents,
-# en minuscules).
-ROLE_KEYWORDS = (
-    (ROLE_CUT, ("decoup", "coupe", "cut", "trou", "hole")),
-    (ROLE_ENGRAVE, ("grav", "engrav", "remplissage", "fill")),
-    (ROLE_MARK, ("marqu", "mark", "trait")),
-)
+# Nom du calque ou du groupe (sans tenir compte des majuscules) -> rôle.
+ROLE_NAMES = {"cut": ROLE_CUT, "engrave": ROLE_ENGRAVE, "mark": ROLE_MARK}
 
 # Éléments dont le contenu ne se dessine pas.
 NON_RENDERED = {"defs", "metadata", "title", "desc", "namedview", "clipPath", "mask",
@@ -150,15 +144,9 @@ def _plain(text):
 
 
 def role_of_label(label):
-    """Rôle d'un calque, d'un groupe ou d'un élément d'après son nom
-    (« Découpes », « Trou » -> cut, « Gravure » -> engrave, « Marquage » ->
-    mark), ou None. « Contour » n'en fait pas partie : selon les fichiers, il
-    désigne un cadre gravé ou un tracé de découpe."""
-    plain = _plain(label or "")
-    for role, keywords in ROLE_KEYWORDS:
-        if any(word in plain for word in keywords):
-            return role
-    return None
+    """Rôle d'un calque ou d'un groupe d'après son nom exact (« Cut »,
+    « Engrave », « Mark », majuscules indifférentes), ou None."""
+    return ROLE_NAMES.get((label or "").strip().lower())
 
 
 def _length_mm(value, default_unit=""):
@@ -232,14 +220,13 @@ def _parse(path):
 # -- variantes
 
 def _variant_options(group):
-    """[(clé, nom, visible)] si `group` est un groupe de variantes (au moins
-    deux sous-éléments nommés, un seul visible au plus, au moins un caché),
-    sinon None."""
-    children = [c for c in group if _local(c.tag) not in NON_RENDERED and _label(c)]
-    if len(children) < 2:
+    """[(clé, nom, visible)] si `group` est un groupe d'options : au moins
+    deux sous-calques (ou groupes) nommés, un seul visible ; sinon None."""
+    children = [c for c in group if _local(c.tag) == "g" and _label(c)]
+    if len(children) < 2 or len(children) != len([c for c in group if _local(c.tag) not in NON_RENDERED]):
         return None
     visible = [c for c in children if not _is_hidden(c)]
-    if len(visible) > 1 or len(visible) == len(children):
+    if len(visible) != 1:
         return None
     return [(_label(c), _label(c), not _is_hidden(c)) for c in children]
 
@@ -254,16 +241,19 @@ def _chosen_option(group, options, variants):
 
 
 def _visible_elements(root, variants):
-    """Éléments dessinés (ni cachés ni écartés par une variante), dans
-    l'ordre du document : [(élément, profondeur)]. Les enfants d'un <text>
+    """Éléments dessinés (ni cachés ni écartés par une option), dans l'ordre
+    du document : [(élément, profondeur, rôle)] ; rôle : celui du calque
+    Cut / Engrave / Mark qui le contient, ou None. Les enfants d'un <text>
     ne sont pas parcourus."""
     result = []
 
-    def walk(elem, depth, forced=False):
+    def walk(elem, depth, role, forced=False):
         tag = _local(elem.tag)
         if tag in NON_RENDERED or (depth > 0 and _is_hidden(elem) and not forced):
             return
-        result.append((elem, depth))
+        if tag == "g":
+            role = role_of_label(_label(elem)) or role
+        result.append((elem, depth, role))
         if tag == "text":
             return
         options = _variant_options(elem) if depth > 0 and tag == "g" else None
@@ -271,12 +261,12 @@ def _visible_elements(root, variants):
             chosen = _chosen_option(elem, options, variants)
             for child in elem:
                 if _label(child) == chosen:
-                    walk(child, depth + 1, forced=True)
+                    walk(child, depth + 1, role, forced=True)
             return
         for child in elem:
-            walk(child, depth + 1)
+            walk(child, depth + 1, role)
 
-    walk(root, 0)
+    walk(root, 0, None)
     return result
 
 
@@ -305,13 +295,14 @@ def find_variant_groups(path):
 
 
 def find_texts(path, variants=None):
-    """Textes visibles du fichier (avec les variantes choisies), à proposer
+    """Textes importés (visibles, dans un calque Cut / Engrave / Mark, avec
+    les options choisies), à proposer
     pour remplacement : [TextField]. Un texte de plusieurs lignes donne un
     champ par ligne (clé « nom#1 », « nom#2 »...)."""
     root = _parse(path)
     fields = []
-    for elem, _depth in _visible_elements(root, variants):
-        if _local(elem.tag) != "text":
+    for elem, _depth, role in _visible_elements(root, variants):
+        if _local(elem.tag) != "text" or role is None:
             continue
         runs = _text_runs(elem, {})
         name = _label(elem)
@@ -391,27 +382,19 @@ class _EngraveRegion:
 
 
 def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm=0.0,
-               default_role=None, texts=None):
+               texts=None):
     """Lit le SVG `path` et renvoie un ImportedArtwork : les tracés de chaque
     rôle groupés en un objet, chaque texte foncé en objet texte. `variants` :
     {clé du groupe: clé de l'option} (voir find_variant_groups ; option
     visible dans le fichier si absente). `texts` : {clé du texte: nouveau
-    contenu} (voir find_texts). `default_role` : rôle d'un tracé hors calque
-    nommé (sinon : rempli -> gravure, contour seul -> découpe)."""
+    contenu} (voir find_texts). Seul le contenu des calques Cut, Engrave et
+    Mark est importé."""
     root = _parse(path)
     variants = variants or {}
     texts = texts or {}
     outlines = {}               # rôle (découpe, marquage) -> [QPainterPath en mm, Y vers le bas]
     engrave = _EngraveRegion()  # gravure remplie : formes foncées moins formes claires
     text_items = []             # (rôle, TextObject, boîte cible en mm Y vers le bas)
-
-    def role_for(style, inherited):
-        if inherited:
-            return inherited
-        if default_role:
-            return default_role
-        fill = style.get("fill", "black")
-        return ROLE_ENGRAVE if fill not in ("none", "transparent") else ROLE_CUT
 
     def add_shape(path_mm, role, style):
         if role == ROLE_ENGRAVE:
@@ -432,7 +415,9 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         if tag == "text":
             # Le texte applique lui-même sa transformation et son style.
             text_style = {**style, **_inherited(_style(elem))}
-            text_role = role_for(text_style, role or role_of_label(_label(elem)))
+            if role is None:
+                return                    # hors des calques Cut / Engrave / Mark : ignoré
+            text_role = role
             light = is_light(text_style.get("fill", "black"))
             for run in _text_glyphs(elem, ctm, style, texts):
                 if text_role == ROLE_ENGRAVE and not light:
@@ -449,16 +434,18 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
                 chosen = _chosen_option(elem, options, variants)
                 for child in elem:
                     if _label(child) == chosen:
-                        walk(child, ctm, role_of_label(_label(child)) or role, style, depth + 1, forced=True)
+                        walk(child, ctm, role, style, depth + 1, forced=True)
                 return
             for child in elem:
                 walk(child, ctm, role, style, depth + 1)
             return
+        if role is None:
+            return                        # hors des calques Cut / Engrave / Mark : ignoré
         geometry = _shape_path(elem, tag)
         if geometry is not None and not geometry.isEmpty():
             mapped = ctm.map(geometry)
             mapped.setFillRule(geometry.fillRule())
-            add_shape(mapped, role_for(style, role or role_of_label(_label(elem))), style)
+            add_shape(mapped, role, style)
 
     walk(root, _document_transform(root), None, {}, 0)
     region = engrave.result()
@@ -732,7 +719,7 @@ def svg_preview(path, variants=None, texts=None):
     root = tree.getroot()
     texts = texts or {}
 
-    for elem, depth in _visible_elements(root, variants):
+    for elem, depth, _role in _visible_elements(root, variants):
         tag = _local(elem.tag)
         if depth > 0 and tag == "g":
             options = _variant_options(elem)

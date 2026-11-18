@@ -42,20 +42,55 @@ Tous les champs sont facultatifs. Chaque texte peut être une simple chaîne, ou
 
 `tags` sert à la recherche ; `svg` choisit le fichier quand le dossier en contient plusieurs.
 
-## Préparer le SVG
+## Préparer le SVG : la convention
 
-Le fichier est importé tel qu'il est dessiné, en millimètres (unités du document : `width`, `height`, `viewBox`).
+Le fichier est importé tel qu'il est dessiné, en millimètres (unités du document : `width`, `height`, `viewBox`). Seul ce qui suit la convention est importé.
 
-- **Calques** : les tracés sont répartis sur les calques de l'éditeur d'après le nom du calque (ou du groupe) Inkscape qui les contient :
-  - « Découpe », « Découpes », « Cut » → calque **Découpe** ;
-  - « Gravure », « Engrave », « Remplissage » → calque **Gravure** ;
-  - « Marquage », « Mark », « Trait » → calque **Marquage**.
+### Calques
 
-  Sans calque ni groupe nommé ainsi, c'est le nom de l'élément qui compte : un chemin nommé « Découpe » ou un cercle nommé « Trou » (« Hole ») va en découpe. Sinon, un tracé rempli va en gravure, un contour seul en découpe. « Contour » n'est pas un nom reconnu : selon les fichiers, il désigne un cadre gravé ou une découpe.
-- **Calques cachés** : ils ne sont pas importés. Pratique pour garder des éléments de construction (« sources ») dans le fichier. **Le calque « Découpe » doit donc être visible** dans le fichier enregistré.
-- **Noir et blanc** : sur la gravure, une forme foncée est gravée, une forme blanche (ou très claire) ne l'est pas : elle est creusée dans ce qui est gravé en dessous (un texte blanc sur un bandeau noir reste en réserve). La gravure importée est l'union des formes foncées, moins les formes claires, dans l'ordre du dessin.
-- **Variantes** : un groupe (ou calque) dont les éléments nommés sont tous cachés sauf un devient un choix dans la fiche du modèle. Exemple : le calque « Niveau du brevet » du totem contient « Niveau 1 », « Niveau 2 », « Niveau 3 », « Bronze », « Argent », « Or » ; seul le texte choisi est importé. L'élément visible dans le fichier est le choix par défaut. Le groupe doit avoir un parent : des éléments posés directement à la racine du document ne forment pas un choix (les regrouper, comme « Orientation du bateau » du porte-clef).
-- **Textes** : chaque texte visible apparaît dans la fiche du modèle, où l'utilisateur peut le remplacer avant l'import (nom de la régate, du club…) ; le nom du champ est le nom (ou l'id) du texte dans Inkscape. Un texte foncé devient ensuite un texte modifiable de l'éditeur (police, taille, gras) ; un texte blanc est creusé dans la gravure, il devient donc un tracé. Si la police n'est pas installée chez l'utilisateur, une police de remplacement est utilisée : pour un rendu exact, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin), mais il ne sera plus remplaçable.
+| Calque (ou groupe) Inkscape | Contenu | Couleur | Calque de l'éditeur |
+| --- | --- | --- | --- |
+| `Cut` | Tracés de découpe (contour, trous) | rouge, contour sans remplissage | Découpe |
+| `Engrave` | Ce qui est gravé, en remplissage | noir | Gravure |
+| `Mark` (facultatif) | Contours gravés, sans remplissage | bleu | Marquage |
+
+- Le nom doit être exactement `Cut`, `Engrave` ou `Mark` (majuscules indifférentes).
+- **Tout le reste est ignoré** : un élément hors de ces calques, un calque caché, un calque d'un autre nom (pratique pour garder des éléments de construction, « sources » par exemple, dans le fichier).
+- Le calque `Cut` doit être visible dans le fichier enregistré.
+- La couleur sert à l'auteur et à l'aperçu de la fiche ; c'est le nom du calque qui décide.
+- **Noir et blanc dans `Engrave`** : le noir est gravé ; le blanc (ou une couleur très claire) n'est pas gravé, il est creusé dans ce qui est gravé en dessous. Un texte blanc sur un bandeau noir reste ainsi en réserve. La gravure importée est l'union des formes foncées, moins les formes claires, dans l'ordre du dessin.
+
+### Options
+
+Quand le modèle se décline (niveau, résultat, orientation…) :
+
+- les options sont des **sous-calques**, réunis dans un groupe (ou un calque) ;
+- **un seul sous-calque est visible** : l'option par défaut ;
+- le **nom du groupe** est le libellé du choix dans la fiche, le **nom de chaque sous-calque** celui d'une option.
+
+Une option peut ne toucher que la gravure (groupe placé dans `Engrave`), que la découpe (dans `Cut`), ou les deux : le groupe est alors à la racine, et chaque option contient ses propres calques `Cut` et `Engrave` (une médaille ronde ou carrée, par exemple).
+
+```
+Cut                         (calque, rouge)
+Engrave                     (calque, noir)
+    Logo
+    Niveau du brevet        (groupe : libellé du choix)
+        Niveau 1            (sous-calque caché : une option)
+        Niveau 2            (sous-calque caché)
+        Niveau 3            (sous-calque visible : l'option par défaut)
+sources                     (calque caché : ignoré)
+```
+
+Un élément nommé seul (un texte, un chemin) n'est pas une option : le mettre dans son sous-calque.
+
+### Textes
+
+- Chaque texte importé apparaît dans la fiche du modèle, où l'utilisateur peut le remplacer avant l'import (nom de la régate, du club…). Le nom du champ est le nom (ou l'id) du texte dans Inkscape.
+- Dans `Engrave`, un texte noir devient un texte modifiable de l'éditeur (police, taille, gras) ; un texte blanc est creusé dans la gravure, il devient donc un tracé.
+- Si la police n'est pas installée chez l'utilisateur, une police de remplacement est utilisée. Pour un rendu exact, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin), mais il ne sera plus remplaçable.
+
+### Le reste
+
 - **Transformations** (`translate`, `scale`, `matrix`…) : prises en compte.
 - **Images bitmap** (`<image>`) : non importées.
 
