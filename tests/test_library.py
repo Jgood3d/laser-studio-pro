@@ -289,12 +289,16 @@ class SvgImportTests(unittest.TestCase):
             self.assertAlmostEqual(art.width_mm, 50.0, places=1)
 
     def test_bundled_medal(self):
-        groups = find_variant_groups(MEDAL)
-        self.assertEqual([o[0] for o in groups[0].options], ["Étoile", "1ère place", "2e place", "3e place"])
-        self.assertEqual([f.key for f in find_texts(MEDAL)], ["Régate de XXXX", "1"])
-        art = import_svg(MEDAL, variants={groups[0].key: "Étoile"}, texts={"Régate de XXXX": "Régate de Rennes"})
-        self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"])     # nom en réserve : tracé
-        self.assertAlmostEqual(art.width_mm, 80.0, places=1)
+        groups = {g.key: g for g in find_variant_groups(MEDAL)}
+        self.assertEqual([o[0] for o in groups["Forme"].options], ["Hexagonale", "Ronde"])
+        self.assertEqual([o[0] for o in groups["Résultat"].options], ["Étoile", "1ère place", "2e place", "3e place"])
+        self.assertEqual([f.key for f in find_texts(MEDAL)], ["Compétition de XXXX", "1"])
+        for shape in ("Hexagonale", "Ronde"):
+            art = import_svg(MEDAL, variants={"Forme": shape, "Résultat": "Étoile"},
+                             texts={"Compétition de XXXX": "Régate de Rennes"})
+            self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"], shape)  # nom en réserve : tracé
+            cut_obj = next(o for r, o in art.items if r == "cut")
+            self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2, shape)    # contour et trou du ruban
 
 
 @unittest.skipIf(import_svg is None, "PyQt6 non importable ici")

@@ -13,16 +13,21 @@ Licence      : Libre d'utilisation pour usage personnel et associatif
 --------------------------------------------------------------------------------
 
 Cette médaille est conçue pour récompenser les compétiteurs lors de régates
-d'aviron. Elle représente un skiffeur et se décline en plusieurs variantes,
-au choix dans cette fiche (liste « Résultat ») :
+d'aviron. Elle représente un skiffeur et se décline en deux formes, au choix
+dans cette fiche (liste « Forme ») :
+
+  Hexagonale  →  forme d'origine
+  Ronde
+
+et en plusieurs résultats (liste « Résultat ») :
 
   1ère place  →  podium compétition
   2e place    →  podium compétition
   3e place    →  podium compétition
   Étoile      →  récompense spéciale Challenge Jeune
 
-Le nom de la régate se modifie dans cette fiche (champ « Régate de XXXX »),
-avant l'import.
+Le nom de la compétition se modifie dans cette fiche (champ « Compétition
+de XXXX »), avant l'import.
 
 La médaille est une pièce unique découpée au laser, percée d'un trou pour
 y passer un ruban ou un cordon.
@@ -33,8 +38,9 @@ y passer un ruban ou un cordon.
 --------------------------------------------------------------------------------
 
   1. Dans cette fiche :
+       - choisir la forme (hexagonale ou ronde) ;
        - choisir le résultat (1ère, 2e ou 3e place, ou Étoile) ;
-       - remplacer « Régate de XXXX » par le nom de votre régate.
+       - remplacer « Compétition de XXXX » par le nom de votre compétition.
      L'onglet « Dessin à graver » montre la médaille telle qu'elle sera
      importée.
 
@@ -43,7 +49,7 @@ y passer un ruban ou un cordon.
        - Gravure : le fond noir, le skiffeur, les rameaux et le numéro ;
        - Découpe : le contour de la médaille et le trou du ruban.
 
-     Le nom de la régate est en réserve (non gravé) dans le bandeau noir :
+     Le nom de la compétition est en réserve (non gravé) dans le bandeau noir :
      il est donc importé comme un tracé, et non comme un texte modifiable.
      Pour le changer, revenir à cette fiche et importer à nouveau. Le
      numéro, lui, reste un texte modifiable dans l'éditeur vectoriel.
