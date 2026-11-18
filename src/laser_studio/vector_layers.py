@@ -1043,6 +1043,7 @@ class VectorCanvasView(QGraphicsView):
     edit_requested = pyqtSignal(object)     # double-clic sur un objet
     insert_text_requested = pyqtSignal(float, float)  # clic droit > Texte (x_mm, y_mm)
     serial_duplicate_requested = pyqtSignal()        # clic droit > Dupliquer en série...
+    jig_requested = pyqtSignal()                     # clic droit > Gabarit de placement...
 
     def __init__(self, layer_manager: LayerManager, parent=None):
         super().__init__(parent)
@@ -2900,6 +2901,8 @@ class VectorCanvasView(QGraphicsView):
         dup_action.triggered.connect(self.duplicate_selected)
         serial_action = menu.addAction(tr("ui.vector_serial_duplicate"))
         serial_action.triggered.connect(lambda: self.serial_duplicate_requested.emit())
+        jig_action = menu.addAction(tr("ui.vector_jig"))
+        jig_action.triggered.connect(lambda: self.jig_requested.emit())
         del_action = menu.addAction(tr("ui.vector_delete"))
         del_action.triggered.connect(self.remove_selected)
 
@@ -2916,6 +2919,8 @@ class VectorCanvasView(QGraphicsView):
             lambda checked=False: self.add_basic_shape("Carré", x_mm, y_mm))
         add_menu.addAction(tr("vector.ctx_circle")).triggered.connect(
             lambda checked=False: self.add_basic_shape("Cercle", x_mm, y_mm))
+        add_menu.addSeparator()
+        add_menu.addAction(tr("ui.vector_jig")).triggered.connect(lambda checked=False: self.jig_requested.emit())
 
     def add_basic_shape(self, kind, cx_mm, cy_mm, size_mm=20.0):
         """Ajoute une ligne / un carré / un cercle centré sur (cx_mm, cy_mm),

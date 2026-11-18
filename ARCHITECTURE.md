@@ -120,6 +120,7 @@ laser-studio-pro/
 ├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
 ├── ui/dialogs/box_generator/          # fenêtre du générateur de boîte (BoxGeneratorDialog) + aperçu live (preview.py : BoxPreview)
 ├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
+├── ui/dialogs/jig/                   # fenêtre « Gabarit de placement » (JigDialog)
 ├── ui/dialogs/serial_duplicate/      # fenêtre « Dupliquer en série » (SerialDuplicateDialog)
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
@@ -127,7 +128,7 @@ laser-studio-pro/
 ├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, serial_duplicate, serial_apply, importers
+├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
 ├── gcode_generation_mixin.py / laser_control_mixin.py
 ├── separation_mixin.py
 ├── requirements-linux.txt / requirements-windows.txt
@@ -199,6 +200,7 @@ laser-studio-pro/
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
 | **vector/box_generator.py** / **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
 | **vector/serial_duplicate.py** / **vector/serial_apply.py** | Duplication en série : exemplaires, texte par exemplaire, grille (logique pure, testée sans Qt) ; passerelle vers le canevas et l'imbrication | `vector_editing_mixin`, `ui/dialogs/serial_duplicate` |
+| **vector/jig.py** | Gabarit de placement : géométrie de la plaque et des poches (logique pure, testée sans Qt) ; les objets sont créés par `vector/importers.jig_to_objects` | `vector_editing_mixin`, `ui/dialogs/jig` |
 
 #### Générateur de boîte (`vector/box_generator.py`)
 
