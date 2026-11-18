@@ -35,7 +35,7 @@ main.py
         ├─ VectorEditingMixin    (vector_editing_mixin.py)
         ├─ GcodeGenerationMixin  (gcode_generation_mixin.py)
         ├─ LaserControlMixin     (laser_control_mixin.py)
-        └─ SeparationMixin       (separation_mixin.py)  logique de la séparation (vue : ui/tabs/separation/)
+        └─ SeparationMixin       (separation_mixin.py)  interface de la séparation (logique : controllers/separation.py, vue : ui/tabs/separation/)
         │
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
         │  qui reçoivent ce dont ils ont besoin :
@@ -87,7 +87,7 @@ laser-studio-pro/
 ├── main.py                           # point d’entrée (+ Breeze + thème)
 ├── main_window.py
 ├── core/                             # socle sans interface : version, paths (chemins, ressources), constants, debug_log
-├── models/                           # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), settings (base), change_log (journal)
+├── models/                           # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), settings (base), change_log (journal)
 ├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
 ├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
 ├── workers.py
@@ -126,7 +126,7 @@ laser-studio-pro/
 ├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
 ├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
 ├── image_processing_mixin.py
-├── image/                            # traitement d'image sans Qt : filters, size, matrix, separation, vectorize
+├── image/                            # traitement d'image sans Qt : filters, size, resolution, matrix, separation, vectorize
 ├── vector_editing_mixin.py
 ├── vector_layers.py                  # calques + canevas + nœuds / explode
 ├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, ornament_generator, ornament_region, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
@@ -153,6 +153,8 @@ laser-studio-pro/
 | **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
 | **models/settings.py**, **machine.py**, **grbl.py** | `SettingsModel` : réglages nommés (`FIELDS` : type et défaut), lus comme des attributs, modifiés par `update()` qui convertit, n'émet `changed({nom: valeur})` que pour ce qui change et écrit l'ancienne et la nouvelle valeur dans le journal. `MachineConfig` (`machine`) : plateau, spot, vitesse et accélération max (`to_profile` / `apply_profile` pour les profils machine). `GrblConfig` (`grbl`) : commande laser (`M4` / `M3`), S-Max, homing, surbalayage, décalage aller/retour, ordre de découpe sûr, G-Code de début et de fin, réglages `$$` ; `profile_values` / `apply_profile` / `mechanical_values` pour les profils machine. Les pages Paramètres du graveur et Configuration GRBL ne sont plus que des vues liées à ces modèles | Créés par `main_window` ; lus par la génération, l'éditeur vectoriel, le traitement d'image, Stencil Studio (`lsp_bridge`) |
 | **models/layer_modes.py** | Codes des modes de calque (`engrave_fill`, `cut`, `mark`), indépendants de la langue, enregistrés dans les projets, les profils et les commentaires du G-Code ; seul leur affichage est traduit (`LAYER_MODE_TR_KEYS`, `models.layers.layer_label`). `normalize_mode()` convertit les anciens libellés français (« Gravure Remplie », « Découpe », « Marquage (Contour) ») à la lecture. Sans Qt | `models/layers`, `vector/order`, génération, Stencil Studio |
+| **models/image_settings.py** | `ImageSettings` (`SettingsModel`) : réglages de tramage de « Graver une image » (luminosité, contraste, gamma, netteté, négatif, matière, miroirs, algorithme), liés aux champs de l'onglet et aux miroirs de la barre d'outils (`ImageProcessingMixin._bind_image_settings`) ; `choose_material()` coche ou décoche le négatif, `to_project()` / `load_project()` pour les projets, `processing_params()` pour le traitement. `ImageSettingsHistory` : annuler / refaire, changements rapprochés regroupés en une étape | `main_window`, `image_processing_mixin`, `separation_mixin`, génération |
+| **image/resolution.py** | Lignes/mm, DPI, focale, et classement de l'écart entre les lignes par rapport au spot (`resolution_quality`). Sans Qt | `image_processing_mixin` |
 | **models/change_log.py** | Journal des changements des modèles : une ligne par changement, sauf pour les textes saisis au clavier (G-Code de début et de fin, `$$`, nom d'un calque), écrits une seule fois à la fin de la saisie | `models/` |
 | **models/materials.py** | `MaterialsModel` : les matériaux (nom -> réglages des calques) et le matériau choisi ; `store()` n'émet que si quelque chose change. Le matériau choisi suit chaque changement de calque (plus de bouton « Enregistrer »), sauf pendant le chargement d'un profil machine, d'un projet ou d'un matériau (`main_window._material_autosave_paused`) | `controllers/materials` (liste déroulante tenue à jour par ses signaux) |
 | **ui/binding.py** | `bind(champ, modèle, réglage)` : lie un champ (spinbox, case, liste, texte) à un réglage d'un modèle, dans les deux sens, sans boucle | Pages Paramètres du graveur et Configuration GRBL |
@@ -189,8 +191,11 @@ laser-studio-pro/
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
 | **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
-| **laser_control_mixin.py** | USB/série, stream, status, homing, urgences | `grbl.connection`, `workers` |
-| **separation_mixin.py** | Logique de la séparation couleur (vue : `ui/tabs/separation/`, `SeparationTab`) | `image.separation`, `workers` |
+| **laser_control_mixin.py** | Connexion au graveur côté interface : boîtes de dialogue, panneau machine, aperçu 2D, abonnés aux signaux de `MachineConnection` | `controllers/machine_connection` |
+| **controllers/machine_connection.py** | `MachineConnection` (`QObject`, sans boîte de dialogue) : port série, threads (sondage de l'état, envoi du job, commandes, reconnexion après coupure), état « référencé » (`homed`), dernier job envoyé, `read_settings()` ($$). Signaux : `connection_changed`, `status_updated`, `log`, `position_lost`, `stream_progress` / `stream_lines_sent` / `stream_lines_acked`, `reconnecting` / `reconnected` | `grbl.connection`, `workers` |
+| **separation_mixin.py** | Séparation couleur côté interface : boîtes de dialogue, aperçus affichés, test du gain ; abonné aux signaux de `SeparationController` | `controllers/separation`, `workers` |
+| **controllers/separation.py** | `SeparationController` (`QObject`, sans boîte de dialogue) : image source, tonalité cadrée sur la plaque envoyée à « Graver une image » (`tone_ready`), aperçus (original, gravure, impression, simulation) avec cache du calque couleur, export (PNG et PDF 1:1), réglages du verre appliqués à `ImageSettings` puis rendus (`apply_glass_settings` / `release_glass_settings`) | `image.separation`, `models/separation`, `models/image_settings` |
+| **models/separation.py** | `SeparationSettings` (`SettingsModel`) : plaque, résolution d'impression, gain de point, saturation, clarté, miroir d'impression, diffusion, intensité ; liés aux champs de `SeparationTab` (le cadrage reste lu par `SeparationTab.frame_args`) | `controllers/separation` |
 
 ### 3.3 Vectoriel (cœur édition)
 

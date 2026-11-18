@@ -7,8 +7,11 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
+    from laser_studio.controllers.separation import SeparationController
     from laser_studio.image_processing_mixin import ImageProcessingMixin
+    from laser_studio.models.image_settings import ImageSettings
     from laser_studio.models.machine import MachineConfig
+    from laser_studio.models.separation import SeparationSettings
     from laser_studio.separation_mixin import SeparationMixin
 except ImportError:
     ImageProcessingMixin = None
@@ -67,9 +70,6 @@ class ResolutionSyncTests(unittest.TestCase):
             def update_image_processing(self, *a):
                 pass
 
-            def _sep_schedule_push(self):
-                self.pushes += 1
-
         f = Fake.__new__(Fake)
         f.pushes = 0
         f.spin_lmm = Spin(10.0)                    # valeur par défaut, comme au démarrage
@@ -80,7 +80,13 @@ class ResolutionSyncTests(unittest.TestCase):
         f.lbl_focal_info = Label()
         if with_separation:
             f.tab_separation = SeparationTabStub()
-            f.sep_src = object() if image_loaded else None
+            f.separation = SeparationController(
+                SeparationSettings(), ImageSettings(), frame_args=lambda: (0, 1.0, 0.5, 0.5),
+                engrave_lmm=lambda: f.spin_lmm.value())
+            f.separation.source = object() if image_loaded else None
+            # Tonalité renvoyée : compte les démarrages du minuteur d'envoi.
+            f.separation._push_timer = type("T", (), {"start": lambda _t: setattr(f, "pushes", f.pushes + 1),
+                                                      "stop": lambda _t: None})()
             f._sep_update_dpi_label()              # libellé construit au démarrage : 254 DPI
         return f
 
@@ -151,4 +157,4 @@ class SeparationHooksStillPresentTests(unittest.TestCase):
         self.assertIn("self.separation_release_image_settings()", self.source())
 
     def test_reset_forgets_the_separation_state(self):
-        self.assertIn("self._sep_glass_settings_active = False", self.source())
+        self.assertIn("self.separation.forget_glass_settings()", self.source())

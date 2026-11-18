@@ -40,8 +40,9 @@ from laser_studio.controllers.machine_profiles import MachineProfilesController,
 from laser_studio.controllers.matrix_image import MatrixImageController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
-from laser_studio.grbl.connection import LaserUSBController
+from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.vector_layers import VectorCanvasView
+from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
 from laser_studio.models.grbl import LASER_COMMANDS, GrblConfig
@@ -68,7 +69,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         
         self.setAcceptDrops(True)
         
-        self.usb = LaserUSBController()
+        # Dialogue avec le graveur (port, threads, état « référencé ») : voir LaserControlMixin
+        # pour l'interface.
+        self.connection = MachineConnection(parent=self)
         self.raw_image = None
         self.processed_array = None
         self.loaded_svg_path = None
@@ -82,15 +85,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # machine, projet ou matériau en cours d'application, voir _store_layers_in_material).
         self._material_autosave_pause = 0
         self.block_aspect_signal = False
-        self.streamer = None
-        self.cmd_thread = None
-        self.status_poll_thread = None
-        self.has_homed_since_connect = False
         self.img_worker = None
         self.pending_reprocess = False
-        self._img_undo_stack = []
-        self._img_redo_stack = []
-        self._img_last_undo_push_time = 0.0
+        # Réglages de tramage de « Graver une image » et leur annulation (Ctrl+Z / Ctrl+Y) : les
+        # champs de l'onglet y sont liés (_bind_image_settings), la logique les lit ici.
+        self.image_settings = ImageSettings(self)
+        self.image_history = ImageSettingsHistory(self.image_settings)
 
         # Gravure d'une image : vitesse et puissance lues dans le calque de
         # gravure (engrave_speed / engrave_power, voir GcodeGenerationMixin).
@@ -127,6 +127,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.autosave_timer.start()
 
         self.init_ui()
+        self._bind_image_settings()
+        self._connect_machine_signals()
         self.load_machine_settings()
         self.load_splitter_sizes()
         self.restore_remembered_algorithm()
@@ -509,7 +511,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         settings = tab.settings
         settings.load_requested.connect(self.load_image)
         settings.processing_changed.connect(self.update_image_processing)
-        settings.material_changed.connect(self._on_material_bg_changed)
+        # Matière choisie par l'utilisateur (pas par programme) : coche ou décoche le négatif.
+        settings.material_combo.activated.connect(
+            lambda _index: self.image_settings.choose_material(settings.material_combo.material()))
         settings.engrave_layer_changed.connect(self._on_engrave_layer_chosen)
         settings.size_changed.connect(self.on_dimension_changed)
         settings.resolution_mode_changed.connect(self.on_lmm_mode_changed)
@@ -581,25 +585,17 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Onglet « Séparation Couleur / Verre », abonné à sa logique
         (SeparationMixin). Masqué au démarrage, ouvert depuis le menu Outils.
         """
-        self._init_separation_state()
         tab = SeparationTab()
+        self._init_separation(tab)
         tab.load_requested.connect(self.separation_load_image)
         tab.image_dropped.connect(self.separation_load_path)
-        tab.tone_changed.connect(self._sep_schedule_push)
-        tab.preview_changed.connect(self._sep_schedule_preview)
+        tab.tone_changed.connect(self.separation.schedule_push)
+        tab.preview_changed.connect(self.separation.schedule_previews)
         tab.gain_test_requested.connect(self.separation_gain_test)
         tab.export_requested.connect(self.separation_export)
         tab.preview_tab_changed.connect(lambda _index: self._sep_render_current())
-        # Noms historiques, lus par la logique de la séparation.
-        self.sep_w = tab.plate_width_spin
-        self.sep_h = tab.plate_height_spin
-        self.sep_dp = tab.print_dpi_spin
-        self.sep_gain = tab.gain_slider
-        self.sep_sat = tab.saturation_slider
-        self.sep_cla = tab.lightness_slider
-        self.sep_mir_print = tab.mirror_print_check
-        self.sep_dif = tab.diffusion_slider
-        self.sep_int = tab.intensity_slider
+        # Champs affichés par l'interface de la séparation (les réglages sont lus dans
+        # self.separation_settings).
         self.sep_lbl_file = tab.file_label
         self.sep_tabs = tab.preview_tabs
         self.sep_views = tab.preview_views
@@ -900,8 +896,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         qui envoie ses jobs par la connexion au graveur (LaserControlMixin)."""
         tab = JobQueueTab()
         engraver = Engraver(
-            is_connected=self.usb.is_connected,
-            last_state=lambda: self.usb.last_state,
+            is_connected=self.connection.is_connected,
+            last_state=lambda: self.connection.last_state,
             confirm_homed=self._confirm_homed_before_job,
             start_stream=self._start_stream,
             stream_ended=self._stream_ended,
@@ -1060,16 +1056,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             "origin_pos": self.job_position_box.origin(),
             "offset_x": self.spin_off_x.value(),
             "offset_y": self.spin_off_y.value(),
-            "bright": self.slider_bright.value(),
-            "contrast": self.slider_contrast.value(),
-            "gamma": self.slider_gamma.value(),
-            "sharp": self.slider_sharp.value(),
+            **self.image_settings.to_project(),
             "safe_cut_order": self.grbl.safe_cut_order,
-            "invert": self.chk_invert.isChecked(),
-            "material_bg": self.get_material_bg(),
-            "mirror_h": self.app_actions.mirror_h.isChecked(),
-            "mirror_v": self.app_actions.mirror_v.isChecked(),
-            "algo": self.combo_algo.currentText(),
             "lmm": self.spin_lmm.value(),
             "speed_engrave": self.engrave_speed,
             "power_engrave": self.engrave_power,
@@ -1100,8 +1088,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # Le projet impose ses propres réglages matière / négatif / miroir :
         # l'état mémorisé par l'onglet Séparation est oublié, sinon un
         # chargement d'image ultérieur le « rendrait » par-dessus.
-        self._sep_glass_settings_active = False
-        self._sep_prev_image_settings = None
+        self.separation.forget_glass_settings()
 
         self.spin_w.setValue(data.get("w_mm", 100.0))
         self.spin_h.setValue(data.get("h_mm", 100.0))
@@ -1111,17 +1098,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_off_x.setValue(data.get("offset_x", 0.0))
         self.spin_off_y.setValue(data.get("offset_y", 0.0))
 
-        self.slider_bright.setValue(data.get("bright", 0))
-        self.slider_contrast.setValue(data.get("contrast", 0))
-        self.slider_gamma.setValue(data.get("gamma", 100))
-        self.slider_sharp.setValue(data.get("sharp", 0))
+        # Réglages de tramage (anciens projets sans "material_bg" : déduite du négatif).
+        self.image_settings.load_project(data)
         self.grbl.update(safe_cut_order=data.get("safe_cut_order", True))
-        # Anciens projets sans "material_bg" : déduit du négatif sauvegardé.
-        self.set_material_bg(data.get("material_bg", "dark" if data.get("invert", False) else "light"))
-        self.chk_invert.setChecked(data.get("invert", False))
-        self.app_actions.mirror_h.setChecked(data.get("mirror_h", False))
-        self.app_actions.mirror_v.setChecked(data.get("mirror_v", False))
-        self.combo_algo.setCurrentText(data.get("algo", "Floyd-Steinberg"))
         self.spin_lmm.setValue(data.get("lmm", 10.0))
 
         # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque
@@ -1159,8 +1138,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             QTimer.singleShot(0, self.project.offer_autosave_recovery)
 
     def closeEvent(self, event):
-        if hasattr(self, "_stop_status_poll"):
-            self._stop_status_poll()
         self.save_machine_settings()
         self.save_splitter_sizes()
         reply = QMessageBox.question(
@@ -1177,12 +1154,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 event.ignore()
                 return
             self._flush_background_writes()
+            self.connection.shutdown()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
             # Fermeture volontaire sans enregistrer : la sauvegarde automatique ne
             # doit pas être proposée en récupération au prochain démarrage.
             self.project.discard_autosave()
             self._flush_background_writes()
+            self.connection.shutdown()
             event.accept()
         else:
             event.ignore()
@@ -1218,11 +1197,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
           self.separation_refresh_if_dirty()
 
     def _job_in_progress(self):
-        streamer = getattr(self, "streamer", None)
-        try:
-            return bool(streamer is not None and streamer.isRunning())
-        except RuntimeError:
-            return False
+        connection = getattr(self, "connection", None)
+        return bool(connection is not None and connection.is_streaming())
 
     def _update_bottom_panel_visibility(self, *_args):
         panel = getattr(self, "center_bottom_widget", None)

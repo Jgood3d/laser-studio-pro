@@ -2,6 +2,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -72,9 +73,9 @@ class SendManualCommandTests(unittest.TestCase):
         class Fake(LaserControlMixin):
             pass
         f = Fake.__new__(Fake)
-        f.usb = type("U", (), {"is_connected": lambda self: connected})()
+        f.connection = mock.Mock(is_connected=lambda: connected)
         f.sent = []
-        f._run_commands_async = f.sent.append
+        f.connection.run_commands = f.sent.append
         return f
 
     def test_command_is_sent(self):

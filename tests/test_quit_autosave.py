@@ -21,6 +21,8 @@ class QuitTests(unittest.TestCase):
         for name in ("save_machine_settings", "save_splitter_sizes", "_flush_background_writes"):
             setattr(self.win, name, lambda n=name: self.calls.append(n))
         self.win.project = mock.Mock()
+        self.win.connection = mock.Mock()
+        self.win.connection.shutdown = lambda: self.calls.append("shutdown")
         self.win.project.discard_autosave = lambda: self.calls.append("discard_autosave")
         self.event = mock.Mock()
 
@@ -29,6 +31,13 @@ class QuitTests(unittest.TestCase):
         button = getattr(self.mod.QMessageBox.StandardButton, answer)
         with mock.patch.object(self.mod.QMessageBox, "question", return_value=button):
             self.mod.FullLaserStudio.closeEvent(self.win, self.event)
+
+    def test_status_poll_stops_only_when_the_window_really_closes(self):
+        """Annuler : la fenêtre reste ouverte, l'état du graveur continue d'arriver."""
+        self.close_with("Cancel")
+        self.assertNotIn("shutdown", self.calls)
+        self.close_with("No")
+        self.assertIn("shutdown", self.calls)
 
     def test_quit_without_saving_clears_the_autosave(self):
         self.close_with("No")

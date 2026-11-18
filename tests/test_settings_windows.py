@@ -301,8 +301,10 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.text_edit.setReadOnly(True)",
                       read(os.path.join("ui", "machine", "sent_gcode", "log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
-        self.assertIn("self.streamer.lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
+        self.assertIn("c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
                       read("laser_control_mixin.py"))
+        self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
+                      read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
         self.assertIn("start_stream=self._start_stream", ui_source())
 
@@ -417,7 +419,9 @@ class ShowWindowTests(unittest.TestCase):
         obj.app_actions = mock.Mock()
         obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
         obj.main_tabs_view = mock.Mock()
-        obj.raw_image = obj.sep_src = None
+        obj.raw_image = None
+        obj.separation = mock.Mock(has_image=lambda: obj._sep_image)
+        obj._sep_image = False
         obj.png2svg_widget = mock.Mock(image_path=None)
         return obj
 
@@ -435,7 +439,7 @@ class ShowWindowTests(unittest.TestCase):
         self.assert_enabled(obj, obj.tab_previews, True, True)
         self.assert_enabled(obj, obj.tab_separation, False, False)   # l'image d'un autre onglet ne compte pas
         self.assert_enabled(obj, object(), False, False)
-        obj.sep_src = "img"
+        obj._sep_image = True
         self.assert_enabled(obj, obj.tab_separation, True, True)
         obj.png2svg_widget.image_path = "/tmp/a.png"
         self.assert_enabled(obj, obj.tab_png2svg, True, False)       # pas de miroir de gravure en PNG ⇒ SVG
@@ -459,7 +463,7 @@ class ShowWindowTests(unittest.TestCase):
         obj = self.make()
         obj.machine_panel = mock.Mock()
         for connected in (False, True):
-            obj.usb = mock.Mock(is_connected=lambda c=connected: c)
+            obj.connection = mock.Mock(is_connected=lambda c=connected: c)
             obj.update_connection_widgets()
             obj.machine_panel.set_connected.assert_called_with(connected)
 
@@ -471,16 +475,16 @@ class ShowWindowTests(unittest.TestCase):
         fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
         combo = mock.Mock()
         combo.findText.side_effect = lambda text: 0 if text == "Atkinson" else -1
-        obj = types.SimpleNamespace(combo_algo=combo)
+        obj = types.SimpleNamespace(combo_algo=combo, image_settings=mock.Mock())
         with mock.patch.object(mixin, "QSettings", fake):
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            combo.setCurrentText.assert_not_called()                 # rien de mémorisé : défaut
+            obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
             mixin.ImageProcessingMixin.remember_algorithm(obj, "Atkinson")
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            combo.setCurrentText.assert_called_once_with("Atkinson")
+            obj.image_settings.update.assert_called_once_with(algorithm="Atkinson")
             stored[mixin.ALGORITHM_SETTING] = "Algorithme disparu"    # plus dans la liste : ignoré
             mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
-            self.assertEqual(combo.setCurrentText.call_count, 1)
+            self.assertEqual(obj.image_settings.update.call_count, 1)
         src = read("main_window.py")
         self.assertIn("settings.algorithm_combo.textActivated.connect(self.remember_algorithm)", src)
         self.assertIn("self.restore_remembered_algorithm()", src)

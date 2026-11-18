@@ -25,7 +25,7 @@ class DitherComparisonDialog(QDialog):
     de l'algorithme cliqué, puis se ferme :
 
         dialog = DitherComparisonDialog(self, [("Stucki", tableau), ...])
-        dialog.algorithm_chosen.connect(self.combo_algo.setCurrentText)
+        dialog.algorithm_chosen.connect(lambda name: self.image_settings.update(algorithm=name))
         dialog.exec()
     """
 

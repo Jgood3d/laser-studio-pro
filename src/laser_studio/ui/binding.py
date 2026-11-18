@@ -11,15 +11,18 @@ et le champ n'est réécrit que s'il affiche autre chose. Les signaux propres
 du champ (valueChanged, toggled…) restent émis, pour ceux qui y sont
 abonnés.
 """
-from PyQt6.QtWidgets import (QAbstractSpinBox, QCheckBox, QComboBox, QDoubleSpinBox,
-                             QPlainTextEdit, QSpinBox, QTextEdit)
+from PyQt6.QtGui import QAction
+from PyQt6.QtWidgets import (QAbstractSlider, QAbstractSpinBox, QCheckBox, QComboBox,
+                             QDoubleSpinBox, QPlainTextEdit, QSpinBox, QTextEdit)
 
 
 def _accessors(widget):
     """(lire, écrire, signal de changement) selon le type du champ."""
     if isinstance(widget, (QSpinBox, QDoubleSpinBox)):
         return widget.value, widget.setValue, widget.valueChanged
-    if isinstance(widget, QCheckBox):
+    if isinstance(widget, QAbstractSlider):
+        return widget.value, widget.setValue, widget.valueChanged
+    if isinstance(widget, (QCheckBox, QAction)):
         return widget.isChecked, widget.setChecked, widget.toggled
     if isinstance(widget, QComboBox):
         return widget.currentIndex, widget.setCurrentIndex, widget.currentIndexChanged

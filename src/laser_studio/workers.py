@@ -587,7 +587,7 @@ class GCodeStreamerThread(QThread):
             clean_finish = False
             # Signale une coupure probable (USB débranché, driver qui
             # décroche...) pour que l'UI propose une reconnexion automatique
-            # — voir ReconnectThread plus bas et _on_job_connection_lost
+            # — voir ReconnectThread plus bas et MachineConnection._on_stream_connection_lost
             # dans laser_control_mixin.py. Le job lui-même reste arrêté :
             # jamais de reprise automatique de l'envoi (position potentiellement
             # plus fiable après une coupure).
