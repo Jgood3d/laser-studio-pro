@@ -335,7 +335,7 @@ Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur
 
 | Fichier | Rôle |
 |---------|------|
-| **vector/puzzle_generator.py** | Géométrie jigsaw (tenons/mortaises) + grille ondulée ; validation ; `PuzzleResult` : `pieces` (aperçu seulement), **`outline`** (contour extérieur fermé, agrandi de kerf/2) et **`edges`** (arêtes internes, chacune une seule fois, tracés ouverts) |
+| **vector/puzzle_generator.py** | Géométrie jigsaw (ergot à col étroit et tête ronde qui déborde : 3 Béziers, dimensionné sur la plus petite dimension d'une pièce, hauteur plafonnée par `MAX_TAB_DEPTH` = 0,30) + grille ondulée ; validation ; `PuzzleResult` : `pieces` (aperçu seulement), **`outline`** (contour extérieur fermé, agrandi de kerf/2) et **`edges`** (arêtes internes, chacune une seule fois, tracés ouverts) |
 | **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme, calque de découpe) |
 | **vector/importers.puzzle_to_objects** | `outline` + `edges` → 2 `SvgPathObject` (contour fermé ; arêtes internes regroupées en un objet) |
 | **vector_editing_mixin.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
@@ -355,7 +355,8 @@ Bouton éditeur / menu Outils
 
 Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de découpe, undo canevas).
 **Une arête = un passage de laser** : deux pièces voisines partagent leur frontière, donc on ne génère jamais un contour fermé par pièce pour la découpe (chaque arête interne serait coupée deux fois). `PuzzleResult.pieces` ne sert qu'à l'aperçu. Le kerf n'est pas compensé sur les arêtes internes (le trait enlève kerf/2 à chaque pièce voisine) ; seul le contour extérieur est agrandi de kerf/2.
-**Tracés ouverts** : `build_vector_layers_gcode` ne referme plus un tracé ouvert (sinon aller-retour = double passage) ; seuls les tracés quasi fermés (`CLOSE_GAP_MM`) le sont. Test : `tests/test_puzzle_cut_once.py`.
+**Tracés ouverts** : `build_vector_layers_gcode` ne referme plus un tracé ouvert (sinon aller-retour = double passage) ; seuls les tracés quasi fermés (`CLOSE_GAP_MM`) le sont. Tests : `tests/test_puzzle_cut_once.py` (un passage par arête) et `tests/test_puzzle_shape.py` (forme de l'ergot, aucun croisement et jeu ≥ 0,10 × la plus petite dimension d'une pièce sur toute la plage des curseurs, contour coupé en dernier).
+**Jeu entre traits** : un ergot trop haut, ou un gros ergot décalé vers un coin, finit par toucher l'ergot voisin (pont de bois trop fin, trait fondu). La hauteur est donc plafonnée (`MAX_TAB_DEPTH`) et le décalage aléatoire (`pos_random`) diminue quand l'ergot est profond, jusqu'à zéro à la hauteur maximale.
 `PuzzleError` → message traduit `puzzle.err.<code>`.
 
 ## 8.0 Générateur de boules de Noël
