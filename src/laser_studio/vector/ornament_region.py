@@ -20,6 +20,11 @@ FLATTEN_SCALE = 20.0
 
 
 def polygon_path(points):
+    """Chemin fermé du polygone, toujours dans le sens trigonométrique : avec le remplissage « winding », deux
+    formes qui se chevauchent dans des sens opposés s'annuleraient au lieu de fusionner."""
+    area = sum(x0 * y1 - x1 * y0 for (x0, y0), (x1, y1) in zip(points, list(points[1:]) + [points[0]]))
+    if area < 0:
+        points = list(reversed(points))
     path = QPainterPath()
     path.moveTo(*points[0])
     for x, y in points[1:]:
@@ -85,6 +90,10 @@ def assemble(geometry, text=None):
     inner = union_path(geometry.voids)
 
     solids = union_path(geometry.solids) if geometry.solids else QPainterPath()
+    if geometry.cuts and not solids.isEmpty():
+        solids = solids.subtracted(union_path(geometry.cuts))
+    if geometry.late:
+        solids = solids.united(union_path(geometry.late))
     if text is not None and not text.isEmpty() and geometry.text is not None:
         t = geometry.text
         placed = QTransform(t.scale, 0, 0, t.scale, t.tx, t.ty).map(text)

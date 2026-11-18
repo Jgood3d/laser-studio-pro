@@ -107,9 +107,7 @@ class OrnamentGeneratorDialog(QDialog):
         self._select(self.combo_layout, saved.get("flake_layout", "Suspendus"))
         form.addRow(tr("ornament.layout"), self.combo_layout)
         self.combo_style = QComboBox()
-        for key in og.FLAKE_STYLES:
-            self.combo_style.addItem(tr(f"ornament.style.{key}"), key)
-        self._select(self.combo_style, saved.get("flake_style", "Classique"))
+        self._fill_styles(saved.get("flake_style", "Classique"))
         form.addRow(tr("ornament.style"), self.combo_style)
         self.spin_count = QSpinBox()
         self.spin_count.setRange(1, 7)
@@ -174,6 +172,7 @@ class OrnamentGeneratorDialog(QDialog):
         root.addLayout(right, 5)
 
         # Un recalcul 150 ms après la dernière modification : la soudure des lettres n'est pas instantanée.
+        self.combo_motif.currentIndexChanged.connect(self._on_motif_changed)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(150)
@@ -207,6 +206,27 @@ class OrnamentGeneratorDialog(QDialog):
         index = combo.findData(data)
         if index >= 0:
             combo.setCurrentIndex(index)
+
+    def _fill_styles(self, wanted=None):
+        """Liste les styles du motif choisi ; garde `wanted` s'il existe pour ce motif."""
+        motif = self.combo_motif.currentData() if hasattr(self, "combo_motif") else "Flocons"
+        styles = og.MOTIF_STYLES.get(motif, ("Classique",))
+        blocked = self.combo_style.blockSignals(True)
+        try:
+            self.combo_style.clear()
+            for key in styles:
+                self.combo_style.addItem(tr(f"ornament.style.{key}"), key)
+            index = self.combo_style.findData(wanted)
+            self.combo_style.setCurrentIndex(index if index >= 0 else 0)
+        finally:
+            self.combo_style.blockSignals(blocked)
+
+    def _on_motif_changed(self, *_args):
+        """Un autre motif : ses styles, et une taille qui lui convient (un Père Noël de 16 mm n'aurait pas de visage)."""
+        self._fill_styles(self.combo_style.currentData())
+        default = og.MOTIF_DEFAULT_SIZE.get(self.combo_motif.currentData())
+        if default:
+            self.spin_flake.setValue(default)
 
     def _schedule(self, *_args):
         self._timer.start()
@@ -243,7 +263,7 @@ class OrnamentGeneratorDialog(QDialog):
     def _update_preview(self):
         self.spin_offset.setEnabled(not self.chk_auto_offset.isChecked())
         self.spin_size.setEnabled(not self.chk_auto_size.isChecked())
-        flakes = self.combo_motif.currentData() == "Flocons"
+        flakes = self.combo_motif.currentData() != "Aucun"
         for widget in (self.combo_layout, self.combo_style, self.spin_count, self.spin_flake):
             widget.setEnabled(flakes)
         self.spin_hole.setEnabled(self.combo_hanger.currentData() != "Aucun")
