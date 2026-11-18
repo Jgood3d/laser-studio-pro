@@ -6638,6 +6638,12 @@ TRANSLATIONS = {
         "de": "Kranz",
         "es": "Corona",
     },
+        "ornament.motif.Guirlande": {
+        "fr": "Guirlande",
+        "en": "Garland",
+        "de": "Girlande",
+        "es": "Guirnalda",
+    },
 }
 
 
