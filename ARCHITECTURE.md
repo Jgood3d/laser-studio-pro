@@ -9,7 +9,7 @@ Ce fichier regroupe :
 2. Le rôle de chaque module / fichier
 3. Les liens de dépendance (qui utilise qui)
 4. Les flux principaux
-5. Les évolutions récentes (thèmes, édition vectorielle, Stencil Studio, icônes, caméra)
+5. Les évolutions récentes (thèmes, générateurs, boîte 3D, Stencil Studio, icônes, caméra, avertissement de démarrage)
 
 ---
 
@@ -22,9 +22,11 @@ main.py
   │
   ├─► install_qt_message_filters / setup_debug_logging
   ├─► QApplication
-  ├─► install_breeze_icon_theme()   # resources/icons/breeze (surtout Windows)
-  ├─► apply_app_theme()            # ui/app/theme.py (dark / light / dusk / warm)
-  ├─► StartupSplash
+  ├─► StartupSplash                 # affiché le plus tôt possible
+  ├─► install_breeze_icon_theme()   # pack d'icônes embarqué : breeze, ou jarvis si ce thème est choisi
+  ├─► apply_saved_theme()           # ui/app/theme.py : 7 thèmes, relu dans QSettings("app_theme")
+  ├─► StartupSafetyPolicy           # controllers/startup_safety.py : avertissement laser
+  │     └─ confirm_startup_safety() # ui/dialogs/startup_safety/ ; « Annuler » quitte avant la fenêtre
   │
   └─► main_window.py  (classe FullLaserStudio : construit la fenêtre, init_ui)
         │
@@ -40,14 +42,18 @@ main.py
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
         │  qui reçoivent ce dont ils ont besoin :
         │
-        ├─ png2svg       = Png2SvgController      envoi du SVG vers l'éditeur vectoriel
-        ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
-        ├─ job_queue     = JobQueueController     file d'attente (graveur : interface Engraver)
+        ├─ connection    = MachineConnection      port série, threads, état « référencé » (laser_control_mixin s'y abonne)
         ├─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
-        ├─ materials     = MaterialsController    profils matériaux (modèle MaterialsModel)
         ├─ machines      = MachineProfilesController profils machine (champs : ProfileFields)
-        └─ camera        = CameraController       pilotage de la caméra, calibration optique et alignement plateau
+        ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
+        ├─ materials     = MaterialsController    profils matériaux (modèle MaterialsModel)
+        ├─ png2svg       = Png2SvgController      envoi du SVG vers l'éditeur vectoriel
+        ├─ job_queue     = JobQueueController     file d'attente (graveur : interface Engraver)
+        ├─ separation    = SeparationController   créé par SeparationMixin (séparation couleur)
+        └─ camera        = CameraController       créé à la demande par WindowControllerMixin : capture, calibration optique, alignement plateau
 ```
+
+Le code vit dans `src/laser_studio/` : le `main.py` de la racine n'ajoute que `src/` au `sys.path` et appelle `laser_studio.main.main()` (`python -m laser_studio` fonctionne aussi une fois installé, voir `pyproject.toml`). La fenêtre principale s'affiche une fois `SPLASH_SCREEN_DURATION` écoulé, et le thème est réappliqué après la construction de l'interface.
 
 `FullLaserStudio` est le **cœur** : il assemble les mixins et possède les objets partagés (`usb`, `layer_manager`, images, file d’attente…).
 
@@ -57,87 +63,114 @@ main.py
 
 ```
 laser-studio-pro/
-├── pyproject.toml                    # disposition src/ : paquets laser_studio et laser_common
-├── main.py                           # lance l'application depuis le dépôt (et point d'entrée PyInstaller)
-├── .github/workflows/macos-build.yml
-├── docs/                             # captures, page de présentation
-├── packaging/                        # compilation : windows/ (build.bat, setup.iss), linux/ (build-linux.sh), macos/ (spec, scripts, icns)
-├── src/laser_common/                 # partagé par Laser Studio et Stencil Studio : files (écriture sûre)
-├── src/laser_studio/                 # l'application : resources/, ui/, core/, models/, vector/, image/, grbl/, i18n/, controllers/, camera/, main_window.py, mixins (détail ci-dessous, sauf stencil_studio/, tests/, tools/)
-├── resources/                        # images : icône, bannière, logo, « Buy me a coffee »
-│   └── icons/breeze/                 # thème d’icônes FreeDesktop embarqué
-│       ├── index.theme
-│       ├── COPYING.LGPL-3
-│       ├── 16x16/actions/…
-│       └── 22x22/{actions,devices,apps,categories,preferences}/…
-├── stencil_studio/                   # sous-application Stencil Studio
+├── main.py                           # lance l'application depuis le dépôt (ajoute src/ au chemin) et point d'entrée PyInstaller
+├── pyproject.toml                    # disposition src/ : paquets laser_studio et laser_common ; version lue dans core/version.py
+├── requirements-linux.txt / requirements-windows.txt   # dépendances par plateforme
+├── requirements_principal.txt        # versions exactes figées pour les builds
+├── .github/workflows/                # tests.yml (unittest hors écran), release.yml (tag vX.Y.Z → Linux AppImage, Windows, macOS, release en brouillon), macos-build.yml
+├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
+├── packaging/                        # compilation
+│   ├── windows/                      # build.bat, setup.iss (Inno Setup)
+│   ├── linux/                        # build-linux.sh, build-appimage.sh
+│   ├── macos/                        # LaserStudioPro.spec, build_macos.sh, run_macos.sh, requirements-macos.txt, laser_studio_pro.icns, README.md
+│   └── pyinstaller/                  # LaserStudioPro.spec (commun Windows / Linux), bundle_filter.py (filtre des fichiers inutiles)
+├── src/
+│   ├── laser_common/                 # partagé par Laser Studio et Stencil Studio
+│   │   └── files.py                  # écriture sûre (atomique, en arrière-plan)
+│   └── laser_studio/                 # l'application
+│       ├── main.py / __main__.py     # démarrage (python -m laser_studio)
+│       ├── main_window.py            # FullLaserStudio : assemble les mixins, construit la fenêtre (init_ui, _build_*)
+│       ├── image_processing_mixin.py # image, filtres, matière, undo image
+│       ├── vector_editing_mixin.py   # import, dessin, alignement, nesting, duplication en série, générateurs
+│       ├── gcode_generation_mixin.py # génération du G-Code (image + vectoriel), aperçu 2D
+│       ├── laser_control_mixin.py    # connexion au graveur côté interface
+│       ├── separation_mixin.py       # séparation couleur côté interface
+│       ├── vector_layers.py          # calques (LayerManagerWidget) + canevas (VectorCanvasView) + objets + nœuds / explode
+│       ├── workers.py                # threads (QThread) : traitement d'image, envoi du G-Code, sondage d'état, matrice de test…
+│       ├── core/                     # socle sans interface : version, paths (chemins, ressources), constants, debug_log
+│       ├── models/                   # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), settings (base SettingsModel), change_log (journal)
+│       ├── i18n/                     # traductions : translations.py (textes FR / EN / DE / ES), language.py (langue, tr)
+│       ├── grbl/                     # dialogue avec le graveur, sans Qt : connection, simulator, ports (ports série proposés + dernier port utilisé)
+│       ├── image/                    # traitement d'image sans Qt : filters, size, resolution, matrix, separation, vectorize
+│       ├── vector/                   # géométrie vectorielle sans Qt (sauf ornament_region)
+│       │   ├── importers.py / dxf.py                  # import SVG / DXF, conversion des résultats des générateurs en objets
+│       │   ├── order.py / nudge.py / font.py          # ordre de coupe, déplacement clavier, polices
+│       │   ├── text_on_path.py / text_on_arc.py       # texte le long d'un tracé / sur un cercle
+│       │   ├── box_generator.py / box_3d.py / box_presets.py
+│       │   ├── puzzle_generator.py
+│       │   ├── ornament_generator.py / ornament_motifs.py / ornament_region.py
+│       │   ├── keychain_generator.py
+│       │   ├── nesting.py / nesting_apply.py
+│       │   ├── serial_duplicate.py / serial_apply.py
+│       │   └── jig.py
+│       ├── camera/                   # module caméra sans Qt : capture, lens_calibration (objectif), workspace_alignment (homographie du plateau), storage
+│       ├── controllers/              # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety (remplacent des mixins)
+│       ├── resources/                # images : icône (.ico, 512 px), bannière, « Buy me a coffee »
+│       │   └── icons/                # thèmes d’icônes FreeDesktop embarqués
+│       │       ├── breeze/           # pack par défaut (LGPL-3) : 16x16, 22x22, 32x32
+│       │       └── jarvis/           # pack cyan « HUD », activé avec le thème jarvis
+│       └── ui/                       # interface PyQt6
+│           ├── binding.py            # liaison champ ↔ modèle
+│           ├── utils.py              # icônes dessinées, images haute résolution
+│           ├── about/ / support/ / buy_me_a_coffee/   # boîtes du menu Aide, bouton ko-fi
+│           ├── splashscreen/         # écran de démarrage (StartupSplash)
+│           ├── statusbar/            # barre d'état (StatusBar : messages, progression)
+│           ├── app/                  # coque de la fenêtre
+│           │   ├── menu/             # AppActions, AppMenuBar, AppToolBar ; un fichier par menu (file, settings, view, tools, help)
+│           │   ├── window_controller.py   # WindowControllerMixin
+│           │   ├── qt_messages.py    # filtre des avertissements Qt
+│           │   └── theme.py          # 7 thèmes UI ; packs d'icônes Breeze et Jarvis
+│           ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar, FloatingToolBar, TabCloseButton, FullscreenWindow, SliderWithButtons
+│           ├── machine/              # panneau machine (panel.py : MachinePanel)
+│           │   ├── connection/       # ConnectionPanel (port, connecter, état GRBL, console directe) ; help_dialog : aide « Port introuvable ? »
+│           │   ├── status/           # MachineStateView (état GRBL), AxisPositionRow (X / Y / Z)
+│           │   ├── controls/         # JogControlPanel, RealtimeCommands
+│           │   ├── job_actions/      # JobActionsPanel
+│           │   ├── job_position/     # JobPositionBox (à droite de l'aperçu 2D)
+│           │   ├── console/          # DirectConsolePanel (dans Connexion)
+│           │   └── sent_gcode/       # SentGcodeLog (à gauche du panneau machine)
+│           ├── tabs/                 # un dossier par onglet
+│           │   ├── layers/           # LayersTab (onglet Calques)
+│           │   ├── image/            # ImageTab, ImageSettingsPanel, MaterialComboBox, EngraveLayerComboBox, ResolutionBox
+│           │   ├── separation/       # SeparationTab (séparation couleur / verre)
+│           │   ├── png2svg/          # Png2SvgTab, PngToSvgWidget, ZoomableSvgView
+│           │   ├── preview_2d/       # Preview2DTab, JobStatsPanel
+│           │   ├── console/          # ConsoleTab (Console / G-Code)
+│           │   └── job_queue/        # JobQueueTab (file d'attente)
+│           ├── settings/             # window.py (SettingsWindow) et pages : machine_params/, grbl_config/, test_matrix/ (TestMatrixPage, ImageTestGroup, TilePicker)
+│           └── dialogs/              # fenêtres des outils
+│               ├── box_generator/    # BoxGeneratorDialog + preview.py (BoxPreview) + preview_3d.py (Box3DView)
+│               ├── ornament/         # OrnamentGeneratorDialog
+│               ├── puzzle/           # PuzzleGeneratorDialog
+│               ├── keychain/         # KeychainGeneratorDialog + KeychainPreview
+│               ├── camera/           # dialog.py, lens_wizard.py, align_wizard.py
+│               ├── nesting/          # NestingDialog
+│               ├── jig/              # JigDialog (gabarit de placement)
+│               ├── serial_duplicate/ # SerialDuplicateDialog
+│               ├── dither_comparison/# DitherComparisonDialog
+│               └── startup_safety/   # avertissement de sécurité laser (confirm_startup_safety)
+├── stencil_studio/                   # sous-application Stencil Studio (hors src/)
 │   ├── LISEZMOI.md
-│   ├── core.py / engrave.py / lightbox.py / subject_ai.py
-│   ├── lasercut_stencil.py
+│   ├── core.py / engrave.py / lightbox.py / subject_ai.py / lasercut_stencil.py
 │   ├── lsp_bridge.py                 # import SVG/DXF vers l’éditeur LSP
-│   ├── studio.py / studio_window.py / studio_dialog.py
-│   ├── i18n.py + locales / json
-│   ├── fonts/ / models/ / exemple/
+│   ├── studio.py / studio.html / studio_window.py / studio_dialog.py
+│   ├── selftest.py                   # autotest : mêmes résultats OpenCV / numpy / scipy que les valeurs attendues
+│   ├── i18n.py + locales/ (fr / en / de / es .json) + fr.json / de.json / es.json
+│   ├── fonts/ / models/ (u2netp.onnx) / exemple/
+│   ├── requirements*.txt             # dépendances propres (+ requirements-lsp-ajouts.txt)
 │   └── lancer_studio.bat / .sh
-├── tests/
+├── tests/                            # 82 fichiers de test, ~850 tests (unittest, sans écran) ; gcode_reader.py et ui_source.py : outils de test
 ├── tools/
 │   ├── check_translations.py
 │   ├── check_ui_attributes.py
+│   ├── project_files.py              # liste des fichiers Python de l'application (src/laser_studio)
 │   ├── signal_map.py                 # carte des signaux → docs/architecture/signaux.svg / .png
-│   └── screenshots.py                # captures de l'interface → docs/screenshots/
-├── main.py                           # point d’entrée (+ Breeze + thème)
-├── main_window.py
-├── camera/                           # module caméra sans Qt : capture, calibration optique, stockage, alignement plateau
-├── core/                             # socle sans interface : version, paths (chemins, ressources), constants, debug_log
-├── models/                           # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), settings (base), change_log (journal)
-├── i18n/                             # traductions : translations.py (textes), language.py (langue, tr)
-├── grbl/                             # dialogue avec le graveur, sans Qt (connection, simulator)
-├── workers.py
-├── controllers/                      # contrôleurs : png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, camera (remplacent des mixins)
-├── ui/about/ / ui/support/ / ui/buy_me_a_coffee/   # boîtes du menu Aide (classes), bouton ko-fi
-├── ui/splashscreen/                  # écran de démarrage (StartupSplash)
-├── ui/statusbar/                     # barre d'état (StatusBar : messages, progression)
-├── ui/app/menu/                      # menu et barre d'outils (AppActions, AppMenuBar, AppToolBar)
-├── ui/app/window_controller.py       # contrôleur de la fenêtre (WindowControllerMixin)
-├── ui/app/qt_messages.py             # filtre des avertissements Qt
-├── ui/app/theme.py                   # thèmes UI : dark / light / dusk / warm, pack d'icônes Breeze
-├── ui/widgets/                       # petits widgets (ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar, FullscreenWindow, SliderWithButtons)
-├── ui/utils.py                       # icônes dessinées, images haute résolution
-├── ui/machine/connection/            # connexion (ConnectionPanel : port, connecter, état GRBL, console directe)
-├── ui/machine/status/                # état GRBL (MachineStateView) et position X / Y / Z (AxisPositionRow)
-├── ui/machine/controls/              # panneau de pilotage (JogControlPanel, commandes RealtimeCommands)
-├── ui/machine/job_actions/           # actions de job (JobActionsPanel, signaux)
-├── ui/machine/console/               # console directe, dans Connexion (DirectConsolePanel : command_submitted)
-├── ui/tabs/layers/                   # onglet Calques (LayersTab : profils matériaux, layers_changed)
-├── ui/tabs/image/                    # onglet Graver une image (ImageTab, ImageSettingsPanel, MaterialComboBox, ResolutionBox)
-├── ui/machine/job_position/          # cadre Position du job (JobPositionBox), à droite de l'aperçu 2D
-├── ui/machine/sent_gcode/            # suivi du G-Code envoyé (SentGcodeLog), à gauche du panneau machine
-├── ui/tabs/separation/               # onglet Séparation Couleur / Verre (SeparationTab)
-├── ui/tabs/png2svg/                  # onglet Vectorisation d'image (Png2SvgTab, PngToSvgWidget, ZoomableSvgView)
-├── ui/tabs/preview_2d/               # onglet Visualisation 2D (Preview2DTab ; à droite JobPositionBox puis JobStatsPanel)
-├── ui/tabs/console/                  # onglet Console / G-Code (ConsoleTab : export_requested, set_stats)
-├── ui/tabs/job_queue/                # onglet File d'attente (JobQueueTab)
-├── ui/settings/machine_params/       # page Paramètres du graveur (MachineParamsPage)
-├── ui/settings/test_matrix/          # page Matrice de test (TestMatrixPage, cadre ImageTestGroup, aperçu TilePicker)
-├── ui/settings/grbl_config/          # page Configuration GRBL (GrblConfigPage, cadre GrblSettingsBox)
-├── ui/dialogs/box_generator/         # fenêtre du générateur de boîte (BoxGeneratorDialog) + aperçu live (preview.py : BoxPreview)
-├── ui/dialogs/ornament/              # fenêtre du générateur de boules de Noël (OrnamentGeneratorDialog) + aperçu des contours soudés
-├── ui/dialogs/camera/                # fenêtre et assistants de la caméra (dialog.py, lens_wizard.py, align_wizard.py)
-├── ui/dialogs/nesting/               # fenêtre de l'imbrication (NestingDialog)
-├── ui/dialogs/jig/                   # fenêtre « Gabarit de placement » (JigDialog)
-├── ui/dialogs/serial_duplicate/      # fenêtre « Dupliquer en série » (SerialDuplicateDialog)
-├── ui/dialogs/dither_comparison/     # comparaison des algorithmes de tramage (DitherComparisonDialog)
-├── ui/settings/window.py              # fenêtre des pages de réglages (SettingsWindow)
-├── image_processing_mixin.py
-├── image/                            # traitement d'image sans Qt : filters, size, resolution, matrix, separation, vectorize
-├── vector_editing_mixin.py
-├── vector_layers.py                  # calques + canevas + nœuds / explode
-├── vector/                           # géométrie vectorielle : order, nudge, font, dxf, box_generator, puzzle_generator, ornament_generator, ornament_region, nesting, nesting_apply, serial_duplicate, serial_apply, jig, importers
-├── gcode_generation_mixin.py / laser_control_mixin.py
-├── separation_mixin.py
-├── requirements-linux.txt / requirements-windows.txt
+│   ├── screenshots.py                # captures de l'interface → docs/screenshots/
+│   └── menu_tools_puzzle.md          # mémo : brancher un outil dans le menu Outils
 ├── BUILD.md
-└── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
+├── MACOS_AUDIT.md / RELEASE_NOTES_2.x.0.md
+├── claude.md / gemini.md             # consignes pour les assistants de code
+└── Architecture.md / CHANGELOG.md / README.md / LICENSE
 ```
 
 ---
@@ -148,8 +181,10 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** | Lance l’app (ou Stencil Studio si `--stencil-studio`). Installe Breeze, applique le thème, splash, icône fenêtre. | → `ui/app/theme`, `main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
-| **ui/app/theme.py** | Définition des thèmes **dark / light / dusk / warm** (palette Qt + stylesheet généré). `apply_app_theme()`, `available_themes()`. | `main.py`, `ui/app/window_controller.change_theme` |
+| **main.py** (racine) / **src/laser_studio/main.py** | La racine ajoute `src/` au chemin et appelle `laser_studio.main.main()`. Celui-ci lance l’app (ou Stencil Studio si `--stencil-studio`), puis : splash, icônes Breeze / Jarvis, thème enregistré, icône fenêtre, avertissement de sécurité, fenêtre principale. | → `ui/app/theme`, `controllers/startup_safety`, `main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
+| **ui/app/theme.py** | Définition des 7 thèmes **dark / light / dusk / warm / neon / retro80 / jarvis** (palette Qt + stylesheet généré). `apply_app_theme()`, `apply_saved_theme()` (relit et normalise `QSettings("app_theme")`), `normalize_theme_name()` (alias FR/EN), `available_themes()`, `apply_icon_theme_for_ui()` (pack Jarvis pour le thème jarvis, sinon Breeze ; un thème système n'est pas écrasé), `install_breeze_icon_theme()`. | `main.py`, `ui/app/window_controller.change_theme`, `stencil_studio/studio_dialog` |
+| **controllers/startup_safety.py** | `StartupSafetyPolicy` : quand afficher l'avertissement laser du démarrage. Case « Ne plus afficher » : l'avertissement ne revient qu'en rappel tous les `REMINDER_EVERY` démarrages ; la variable d'environnement `NOWARNING` le désactive (tests). Prend tout objet de type `QSettings` | `main.py`, `ui/dialogs/startup_safety` |
+| **grbl/ports.py** | Ports série proposés (`port_labels`, `is_usable`, `is_usb`, `port_of`) : masque les ports virtuels `/dev/ttyS*` sans matériel (description « n/a ») ; mémorise le dernier port (`load_last_port` / `save_last_port`). Sans Qt | `laser_control_mixin`, `ui/machine/connection` |
 | **core/version.py** | Version (`APP_VERSION`), lue aussi par le build macOS | `ui/about`, `ui/app/menu` |
 | **core/paths.py** | Dossier de l'exécutable et du bundle, dossier des données (autosave), ressources (`find_resource`) | Utilisé largement |
 | **laser_common/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
@@ -177,8 +212,9 @@ laser-studio-pro/
 | Mixin / fichier | Rôle | Dépend de / appelle |
 |-----------------|------|---------------------|
 | **main_window.py** | `FullLaserStudio` : mixins + USB + `LayersModel` + timers. Construit la fenêtre (`init_ui` appelle les `_build_*`), crée `MachinePanel` et l'abonne à la logique (`_build_machine_panel`), fermeture, drag&drop, affichage du panneau machine et tailles du séparateur, plein écran d'un onglet, fenêtres de réglages, onglet « Éditeur vectoriel » (`_build_vector_editor_tab`, partira dans `ui/tabs/`) | Tous les mixins, `ui/machine`, `ui/statusbar`, `ui/settings/window` |
-| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`, `camera_requested`…). `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar` (mêmes actions + « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
+| **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`, `camera_requested`, `keychain_generator_requested`…) ; les outils de l'éditeur vectoriel (`vector_tool_actions` : import, boîte, puzzle, boules de Noël, porte-clés) ouvrent d'abord son onglet. `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar` (mêmes actions + « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
 | **ui/app/window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, actions de la barre d'outils sur l'image de l'onglet courant, ouverture Stencil Studio, ouverture de la fenêtre Caméra | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog`, `controllers/camera` |
+| **ui/widgets/floating_toolbar.py**, **tab_close_button.py** | `FloatingToolBar` : petite barre d'outils posée par-dessus un aperçu, un canevas ou une table (aperçus d'image, séparation, PNG→SVG, aperçu 2D, onglet Calques) ; `TabCloseButton` : croix de fermeture sur un seul onglet (onglets ouverts depuis le menu Outils) | `main_window`, `ui/tabs/*` |
 | **ui/tabs/image/** | `ImageTab` : onglet « Graver une image », réglages à gauche (`ImageSettingsPanel` : taille + offset, réglages photo, matière, tramage, résolution, **calque de gravure** — `EngraveLayerComboBox`, calques en mode gravure seulement, signal `engrave_layer_changed(id)` sur choix de l'utilisateur ; la fenêtre le transmet à `LayersModel.select_engrave_layer` et remplit la liste via `_refresh_engrave_layer_combo`, `vector_editing_mixin`), aperçus originale / tramé côte à côte. Émet `compare_requested`, `fullscreen_requested` ; le panneau émet `processing_changed`, `size_changed`, `material_changed`, `resolution_mode_changed`… | Construit et abonné dans `main_window._build_image_tab`, qui garde les anciens noms des champs (`spin_w`, `slider_bright`, `combo_algo`, `spin_lmm`…) |
 | **ui/machine/job_position/** | `JobPositionBox` : cadre « Position du job » (origine du repère, lue par code : `origin()` / `set_origin()`) | Construit dans `main_window._build_image_tab`, placé en haut de la colonne de droite de `Preview2DTab` |
 | **ui/machine/sent_gcode/** | `SentGcodeLog` : suivi du G-Code envoyé (`clear_lines`, `append_lines`, `mark_end`) | Placé à gauche par `MachinePanel` ; alimenté par `JobQueueController` (`sent_log`) et l'envoi direct (`LaserControlMixin`) |
@@ -190,11 +226,11 @@ laser-studio-pro/
 | **ui/settings/machine_params/** | `MachineParamsPage` (QScrollArea) : profils machine, dimensions du lit, spot, limites. Émet `profile_selected`, `new/update/delete_profile_requested`, `bed_size_changed(l, p)`, `focal_changed(mm)`, `max_speed_changed` | Construite et abonnée dans `main_window._build_machine_params_page` ; ses champs sont liés au modèle `MachineConfig` (`ui/binding.py`), que lit la logique (`self.machine.bed_w`…) ; les anciens noms (`spin_machine_w`…) restent pour l'interface |
 | **ui/settings/test_matrix/** | `TestMatrixPage` : réglages de la matrice (puissances, passes, vitesses, cases), affichage selon le mode gravure / découpe, test à partir d'une image (aperçu `TilePicker`). Émet `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled` ; fournit `matrix_params()`, `tile_settings()` ; reçoit `set_lines_mm()`, `set_source_image()` | Construite et abonnée dans `main_window._build_test_matrix_page` ; lue par `GcodeGenerationMixin.generate_test_matrix` |
 | **ui/settings/grbl_config/** | `GrblConfigPage` : commande laser, S-Max, homing, surbalayage (la page affiche la distance ou le pourcentage selon le mode), ordre de découpe sûr, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets ($$). Émet `bidir_test_requested`, `scan_offset_changed`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | Construite et abonnée dans `main_window._build_grbl_config_page`, qui garde les anciens noms des champs (`combo_laser_cmd`, `chk_overscan`, `txt_grbl_settings`…) lus par la génération, les profils, les projets et la connexion |
-| **controllers/** | Contrôleurs : objets Python ordinaires, construits par la fenêtre avec ce dont ils ont besoin, sur lesquels elle branche les signaux de l'interface. `Png2SvgController` (SVG de l'onglet PNG→SVG → objets de l'éditeur vectoriel), `MatrixImageController` (matrice à partir d'une image : fichier ou image de « Graver une image », zone gravée de chaque case), `JobQueueController` (liste des jobs, sauvegarde, enchaînement des envois par l'interface `Engraver`), `ProjectController` (fichier du projet : format JSON et image en base64, boîtes Enregistrer / Ouvrir, projets récents, sauvegarde automatique et récupération ; l'état est fourni et réappliqué par `main_window._capture_project` / `_restore_project`), `CameraController` (`controllers/camera.py` : orchestre la capture vidéo, applique les calibrations, projette l'image du plateau sur le canevas vectoriel et gère les assistants) | Construits dans `main_window` (`_build_png2svg_tab`, `_build_test_matrix_page`, `_build_job_queue_tab`, etc.) ; testés seuls (`tests/test_controllers.py`) |
+| **controllers/** | Contrôleurs : objets Python ordinaires, construits par la fenêtre avec ce dont ils ont besoin, sur lesquels elle branche les signaux de l'interface. `Png2SvgController` (SVG de l'onglet PNG→SVG → objets de l'éditeur vectoriel), `MatrixImageController` (matrice à partir d'une image : fichier ou image de « Graver une image », zone gravée de chaque case), `JobQueueController` (liste des jobs, sauvegarde, enchaînement des envois par l'interface `Engraver`), `ProjectController` (fichier du projet : format JSON et image en base64, boîtes Enregistrer / Ouvrir, projets récents, sauvegarde automatique et récupération ; l'état est fourni et réappliqué par `main_window._capture_project` / `_restore_project`), `layer_memory.py` (fonctions, pas une classe : `apply_saved_layers`, `settings_from` ; réglages des calques mémorisés par profil machine et réappliqués à `LayersModel`), `CameraController` (`controllers/camera.py` : orchestre la capture vidéo, applique les calibrations, projette l'image du plateau sur le canevas vectoriel et gère les assistants) | Construits dans `main_window` (`_build_png2svg_tab`, `_build_test_matrix_page`, `_build_job_queue_tab`, etc.) ; testés seuls (`tests/test_controllers.py`) |
 | **ui/dialogs/camera/** | Interface et assistants de la caméra : `dialog.py` (`CameraDialog` : sélection caméra, aperçu en direct, capture de fond de plateau, lancement des assistants), `lens_wizard.py` (`LensCalibrationWizard` : étalonnage de la distorsion de lentille), `align_wizard.py` (`WorkspaceAlignmentWizard` : mire 4 points / gravure de repères pour calibrer le repère machine) | Pilotés par `controllers/camera.py` ; ouverts depuis le menu Outils / barre d'outils |
 | **ui/tabs/layers/** | `LayersTab` : page de l'onglet « Calques ». Barre des profils matériaux (`material_combo`, `material_selected` sur un choix de l'utilisateur seulement, actions enregistrer / nouveau / supprimer / exporter / importer). Enveloppe `LayerManagerWidget` (encore dans `vector_layers.py`, vue abonnée à `LayersModel`), relaie `layers_changed` (= `LayersModel.changed`), `refresh()`, `link_all_to_focal()`… | Construit et abonné dans `main_window._build_layers_tab` ; lu par Stencil Studio (`lsp_bridge`) |
 | **ui/tabs/preview_2d/** | `Preview2DTab` : onglet « Visualisation 2D G-Code ». Options d'affichage (inverser, négatif, déplacements rapides, optimiser le chemin), graphique pyqtgraph (`plot_widget`), point de la tête (`position_marker`). À droite, séparateur réglable (position mémorisée) : colonne étroite avec `JobPositionBox` puis `JobStatsPanel` (`set_stats`). Émet `display_options_changed`, `plot_clicked(x_mm, y_mm)`, `fullscreen_requested` | Construit et abonné dans `main_window._build_2d_preview_tab` ; la génération (`GcodeGenerationMixin`) dessine dans `plot_widget` |
-| **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code », masqué au démarrage (menu Affichage). Console `console_edit` ; les statistiques sont dans `JobStatsPanel` (à droite de l'aperçu 2D), l'export dans « Fichier > Enregistrer le G-Code » | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
+| **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code », masqué au démarrage (menu Affichage). Console `console_edit` ; les statistiques (`JobStatsPanel` : lignes, puissance moyenne, temps estimé, fichier `job_stats_panel.py` de `ui/tabs/preview_2d/`) sont à droite de l'aperçu 2D, l'export dans « Fichier > Enregistrer le G-Code » | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons (le G-Code envoyé est suivi dans le panneau machine). Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé (`SentGcodeLog`, panneau machine) sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
@@ -212,7 +248,11 @@ laser-studio-pro/
 | **vector_layers.py** | Tableau des calques (`LayerManagerWidget`, vue de `LayersModel` ; `LayerManager` reste un alias de `LayersModel` ; colonnes Couleur, Nom, Mode, Puissance, Vitesse, Passes, Pas, Surbalayage — grisée hors gravure remplie —, Laser — Auto / M4 / M3 —, Actif), `build_vector_layers_gcode` (commande et surbalayage de chaque calque), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** (supporte aussi l'affichage de l'image de fond du plateau issue de la caméra) | Éditeur, G-Code, profils, caméra |
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
-| **vector/box_generator.py** / **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Boîte à encoches, puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
+| **vector/text_on_path.py** | Texte le long d'un tracé quelconque, sans Qt : `path_placements(advances, points, center_fraction, spacing, reverse, gap)` donne `(x, y, rotation)` de chaque lettre (direction = corde sous la largeur de la lettre ; prolongement droit au-delà d'un tracé ouvert, bouclage sur un tracé fermé). `orient_path` (fermé : sens horaire ; ouvert : de gauche à droite), `default_center_fraction`, `is_closed`, `relative_points`, `scaled_points`. Testé dans `tests/test_text_on_path.py` | `vector_layers.TextObject._follow_path` |
+| **vector/text_on_arc.py** | Texte sur un cercle, sans Qt : `arc_placements(advances, rayon, centre, intérieur, espacement)` donne `(x, y, rotation)` de chaque lettre (repère mathématique, Y vers le haut, centre du cercle en (0, 0) ; 90° = haut, 270° = bas), `arc_span_deg`, `text_length`, `default_center_deg`. Extérieur : lettres vers l'extérieur, lu dans le sens horaire ; intérieur : lettres vers le centre, lu de gauche à droite en bas. Testé dans `tests/test_text_on_arc.py` | `vector_layers.TextObject` |
+| **vector/box_generator.py** / **box_3d.py** / **box_presets.py** | Boîte à encoches, modèle 3D de la boîte assemblée (aperçu), préréglages nommés | `vector_editing_mixin`, `ui/dialogs/box_generator` |
+| **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
+| **vector/ornament_generator.py** / **ornament_motifs.py** / **ornament_region.py** / **keychain_generator.py** | Boules de Noël (géométrie, motifs, soudure) et porte-clés prénom (voir §8.0 et §8.2) | `vector_editing_mixin`, `ui/dialogs/ornament`, `ui/dialogs/keychain` |
 | **vector/serial_duplicate.py** / **vector/serial_apply.py** | Duplication en série : exemplaires, texte par exemplaire, grille (logique pure, testée sans Qt) ; passerelle vers le canevas et l'imbrication | `vector_editing_mixin`, `ui/dialogs/serial_duplicate` |
 | **vector/jig.py** | Gabarit de placement : géométrie de la plaque et des poches (logique pure, testée sans Qt) ; les objets sont créés par `vector/importers.jig_to_objects` | `vector_editing_mixin`, `ui/dialogs/jig` |
 
@@ -220,13 +260,15 @@ laser-studio-pro/
 
 | Élément | Description |
 |---------|-------------|
-| `BoxParams` | Dimensions, épaisseur, kerf, doigts, **`lid_type`** (`none` / `finger` / `lip` / `sliding`), **`clearance`** (jeu des assemblages libres), **`dividers_x` / `dividers_y`** |
+| `BoxParams` | Dimensions, épaisseur, kerf, doigts, **`lid_type`** (`none` / `finger` / `lip` / `sliding` / `hinged` / `pinned`), **`clearance`** (jeu des assemblages libres), **`dividers_x` / `dividers_y`**, pieds (`foot_size`, `foot_layers`), motif gravé au centre du dessus (`engrave_motif`, `motif_size`, `motif_shape` : papillon / feuille / étoile / mandala), charnières (`HINGE_STYLES` : rond / papillon, `MAX_HINGES`), encoche d'ouverture (`HANDLE_LIDS`) et aimants (`MAGNET_LIDS`) |
 | `build_box()` | Parois à doigts + couvercle selon le type + cloisons ; renvoie des `Panel` (contour `cut`, trous `holes`) |
 | `rectilinear_loops()` | Union / différence de rectangles → contours (extérieur anti-horaire, trous horaires) ; `rectilinear_outline()` en est l'enveloppe à un seul contour |
-| Couvercles | `lip` : plaque + rebord (`top`, `lip`) ; `sliding` : façade abaissée, rainure dans `left` / `right`, plaque `top` plus petite |
+| Couvercles | `lip` : plaque + rebord (`top`, `lip`) ; `sliding` : façade abaissée, rainure dans `left` / `right`, plaque `top` plus petite ; `hinged` : charnière vivante d'une seule pièce (paroi arrière prolongée par une zone à fentes) ; `pinned` : charnière à axe (plaques percées empilées autour d'une tige, une sur deux dans la paroi arrière) |
+| Aperçu 3D | `vector/box_3d.py` (sans Qt) : faces planes, projection, tri de l'arrière vers l'avant (algorithme du peintre), ouverture du couvercle selon la charnière (`LivingHinge`). `Box3DView` (`preview_3d.py`) : rendu QPainter sans OpenGL, glisser = tourner, molette = zoom, double-clic = vue de départ |
+| Préréglages | `vector/box_presets.py` : jeux de réglages nommés, JSON dans le dossier de données de l'utilisateur ; calques et décors non mémorisés |
 | Cloisons | `divider_x<n>` / `divider_y<n>` ; fentes ajoutées en trous dans `front`/`back`/`left`/`right`/`bottom` ; emboîtement à mi-hauteur au croisement |
-| `importers.box_to_objects` | Un objet par trou puis un par contour ; la même `Panel` peut donc apparaître plusieurs fois |
-| `tests/test_box_generator.py` | Contrôle 3D : aucune collision entre pièces, volume exact avec jeu nul |
+| `importers.box_to_objects` | Un objet par trou puis un par contour ; la même `Panel` peut donc apparaître plusieurs fois. `motif_to_objects` (motif gravé), `index_to_objects` (numéros de pièces gravés) et `decor_to_objects` complètent |
+| Tests | `tests/test_box_generator.py` (contrôle 3D : aucune collision entre pièces, volume exact avec jeu nul), `test_box_3d.py`, `test_box_presets.py`, `test_box_dialog_smoke.py` |
 
 
 #### Capacités du canevas (`VectorCanvasView`)
@@ -237,7 +279,9 @@ laser-studio-pro/
 | Dégrouper | Clic droit → sous-tracés indépendants (`ungroup_selected`) |
 | **Exploser en segments** | Chaque arête = un objet (`explode_selected`) — supprimer une encoche / un trait |
 | **Édition de nœuds** | Poignées jaunes : déplacer, double-clic = ajouter, Suppr = retirer |
-| Outils dessin | `line` / `rect` / `ellipse` en clic-glisser (`set_draw_tool`) |
+| Outils dessin | `line`, `rect`, `circle`, `ellipse` (`set_draw_tool`). Rectangle : 3 points (2 clics pour la base, puis tirer la profondeur). Cercle : clic-glisser du centre vers le bord. Ellipse : clic-glisser d'un coin du cadre à l'autre. Cercle et ellipse se tracent d'un seul geste (`_draw_pressed` : relâcher après un glissé crée la forme, un simple clic attend le 2e clic) ; au clavier, le cercle prend un rayon, l'ellipse « L x H ». Aperçu : `_shape_preview_path` |
+| Texte le long d'un objet | Sélectionner un texte et un autre objet (cercle, ellipse, courbe, forme importée…) puis clic droit ou bouton « Texte le long de l'objet » : `make_text_follow_object` COPIE le plus long contour du guide (`_guide_polyline`, courbes aplaties au 1/20 mm) dans `TextObject.follow_points` (mm, relatif à l'origine du texte, Y vers le haut) ; le guide n'est pas modifié. Réglages : `follow_center` (position 0 à 1, par défaut le point le plus haut d'un contour fermé), `follow_reverse`, `follow_gap_mm`, modifiables dans `TextInsertDialog` (qui permet aussi de détacher). Calcul pur dans `vector/text_on_path.py`. Prioritaire sur le texte sur un cercle ; copie : si le guide change, le texte ne suit pas |
+| Texte sur un cercle | `TextObject.arc_radius_mm` (0 = texte droit), `arc_inside`, `arc_center_deg` (`None` = haut ou bas selon le côté) ; réglés dans `TextInsertDialog` (rayon, côté, angle). `_arc_path` place et tourne chaque lettre rigide selon `vector/text_on_arc` ; le rayon suit la mise à l'échelle. Les anciens projets sans ces champs se relisent comme texte droit (`getattr`). Pas pour le texte vertical |
 | Grouper / aligner / distribuer | Sélection multiple |
 | Fond caméra | Affichage calibré du plateau laser en arrière-plan pour le placement précis des pièces |
 | Undo / redo | Snapshots sur le canevas |
@@ -246,20 +290,20 @@ laser-studio-pro/
 
 | Élément | Rôle |
 |---------|------|
-| **ui/app/theme.py** | 4 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré) |
+| **ui/app/theme.py** | 7 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré), `neon`, `retro80` (synthwave), `jarvis` (HUD cyan) |
 | Menu **Paramètres → Thème** | `available_themes()` + `change_theme()` ; persistance `QSettings("app_theme")` |
-| **resources/icons/breeze/** | Pack minimal Breeze (LGPL-3) ; activé par `install_breeze_icon_theme()` si pas de thème système, cherché comme les images (`resource_candidates`) |
-| **packaging/ / BUILD.md** | `--add-data "resources;resources"` embarque les images et le pack d'icônes |
+| **resources/icons/breeze/**, **jarvis/** | Packs embarqués (LGPL-3). `install_breeze_icon_theme()` active Breeze, ou Jarvis si le thème enregistré est jarvis ; `apply_icon_theme_for_ui()` bascule entre les deux au changement de thème. Un thème système déjà actif n'est pas écrasé. Cherchés comme les images (`resource_candidates`) |
+| **packaging/ / BUILD.md** | `packaging/pyinstaller/LaserStudioPro.spec` embarque `src/laser_studio/resources/` (images et packs d'icônes) et Stencil Studio ; `bundle_filter.py` retire les fichiers Qt inutiles |
 
 ### 3.5 Stencil Studio
 
 | Fichier | Rôle |
 |---------|------|
-| **studio_dialog.py** | Fenêtre QtWebEngine intégrée ; `theme_for_lsp()` mappe dark/light/dusk/warm ; `sync_theme_from_lsp()` à chaud |
+| **studio_dialog.py** | Fenêtre QtWebEngine intégrée ; `theme_for_lsp()` mappe les 7 thèmes (`LSP_THEME_DARK`, `_LIGHT`, `_DUSK`, `_WARM`, `_NEON`, `_RETRO80`, `_JARVIS`) ; `sync_theme_from_lsp()` à chaud |
 | **lsp_bridge.py** | Intercepte exports SVG/DXF → import dans l’éditeur vectoriel |
 | **studio.py** | Serveur HTTP local + logique de conversion |
 
-Thèmes Studio (`LSP_THEME_*`) alignés sur les palettes LSP.
+Thèmes Studio (`LSP_THEME_*`) alignés sur les palettes LSP. `selftest.py` vérifie que les bibliothèques d'un PC (OpenCV, numpy, scipy) donnent les mêmes résultats que les valeurs attendues.
 
 ### 3.6 Image, machine, build
 
@@ -312,7 +356,7 @@ Import SVG/DXF  ──(groupé)──► 1 SvgPathObject
 ```
 Menu Thème → change_theme(name)
     ├─ QSettings app_theme
-    ├─ apply_app_theme(app, name)     # palette + stylesheet
+    ├─ apply_app_theme(app, name)     # palette + stylesheet + pack d'icônes (breeze / jarvis)
     └─ si Stencil Studio ouvert → sync_theme_from_lsp(name)
 ```
 
@@ -338,7 +382,7 @@ Menu Outils → Caméra (CameraDialog)
 1. **Mixins additifs** : ne pas casser les responsabilités (UI ≠ G-Code ≠ USB).
 2. **Repère machine** : origine bas-gauche, Y vers le haut dans le modèle monde ; conversion écran dans `VectorGraphicsItem.refresh`.
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
-4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` ; Stencil Studio consomme via `theme_for_lsp`.
+4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` (relu par `apply_saved_theme`) ; Stencil Studio consomme via `theme_for_lsp`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
@@ -350,13 +394,22 @@ Menu Outils → Caméra (CameraDialog)
 
 | Domaine | Ajout |
 |---------|--------|
-| Thèmes | `dark`, `light`, **`dusk`**, **`warm`** (`ui/app/theme.py`) |
-| Icônes | Pack **Breeze** embarqué (`resources/icons/breeze`) |
+| Thèmes | `dark`, `light`, `dusk`, `warm`, puis **`neon`**, **`retro80`**, **`jarvis`** (`ui/app/theme.py`) |
+| Icônes | Packs **Breeze** et **Jarvis** embarqués (`resources/icons/`) |
 | Import | Plus de dégroupage automatique SVG/DXF |
 | Dessin | Outils souris ligne / rectangle / ellipse |
 | Édition | **Exploser en segments** + **mode nœuds** |
-| Stencil Studio | Thème lié à LSP (4 thèmes, sync à chaud) |
+| Stencil Studio | Thème lié à LSP (7 thèmes, sync à chaud), autotest `selftest.py` |
 | UI claire | Stylesheet dédié (boutons ±, spinbox, etc.) |
+| Sécurité | Avertissement laser au démarrage (`controllers/startup_safety`, `ui/dialogs/startup_safety`), rappel périodique, `NOWARNING` pour les tests |
+| Machine | `grbl/ports.py` : ports virtuels masqués, dernier port mémorisé ; aide « Port introuvable ? » |
+| Boîte | Couvercles `hinged` / `pinned`, pieds, aimants, motifs gravés, aperçu 3D, préréglages |
+| Générateurs | Porte-clés prénom (`keychain_generator`), motifs de boules de Noël (`ornament_motifs`) |
+| Interface | `FloatingToolBar` sur les aperçus, `TabCloseButton` |
+| Texte | Texte sur un cercle (médailles, tampons), voir `vector/text_on_arc.py` ; texte le long de n'importe quel objet, voir `vector/text_on_path.py` |
+| Dessin | Boutons séparés cercle / ellipse, tracés d'un seul geste ; le rectangle garde ses 3 points ; icônes `draw-circle` et `text-follow-path` (Breeze et Jarvis) |
+| Modes de calque | Codes indépendants de la langue (`models/layer_modes`) ; matériau choisi enregistré automatiquement |
+| Build | `packaging/pyinstaller/` (spec commun, filtre), AppImage, workflows `tests.yml` / `release.yml` ; numpy 2, OpenCV headless |
 | Caméra | Module `camera/` (calibration objectif, alignement homographique du plateau) + assistants (`ui/dialogs/camera/`) + superposition sur le canevas vectoriel |
 
 ---
@@ -393,7 +446,8 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 
 | Fichier | Rôle |
 |---------|------|
-| **vector/ornament_generator.py** | Géométrie pure, sans Qt : disque, anneau d'accroche (anneau ou bouchon), flocons (3 styles, un seul contour simple chacun), suspentes, barre de soutien, échelle et position du prénom (`OrnamentGeometry`, `OrnamentError`) |
+| **vector/ornament_generator.py** | Géométrie pure, sans Qt : disque, anneau d'accroche (anneau ou bouchon), flocons (3 styles, un seul contour simple chacun), suspentes, guirlande, motifs droits, barre de soutien, échelle et position du prénom, réglage `motif_drop` (écart du motif à l'anneau, avec une tige qui garde le contact) (`OrnamentGeometry`, `OrnamentError`) |
+| **vector/ornament_motifs.py** | Motifs, géométrie pure : étoiles, sapins, Père Noël, bonhomme de neige, cadeau, lune, houx, bougie, cloche, boule… (`MotifShape` : `solids` soudés, `cuts` découpés, `late` ajoutés après les découpes) |
 | **vector/ornament_region.py** | Soudure avec les opérations booléennes de `QPainterPath` : texte (`QFont` → contour), union des formes, soustraction du vide intérieur et du trou, rognage au disque. Renvoie les contours à découper, le premier est l'extérieur |
 | **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification) |
 | **vector/importers.ornament_to_objects** | Contours → 2 `SvgPathObject` : l'extérieur, et un objet qui regroupe tous les contours intérieurs |
@@ -414,6 +468,15 @@ Export Studio vers LSP : routage par nom de calque DXF / groupe SVG
 
 Fichier : **stencil_studio/lsp_bridge.py** (`ensure_multi_layer`, `kind_for_layer_name`, `pick_layer`).
 
+## 8.2 Porte-clés prénom (NameKey)
+
+| Fichier | Rôle |
+|---------|------|
+| **vector/keychain_generator.py** | Géométrie pure, sans Qt (`build_keychain`, `KeychainParams`, `KeychainResult`, `KeychainError`) : prénom, base dilatée soudée à l'anneau. Deux ensembles de polygones fermés : `base_contours` (base + trou d'anneau → calque Découpe) et `text_contours` (texte centré sur la base → calque Gravure). Repère LSP (mm, Y vers le haut, coin bas-gauche en (0, 0)) |
+| **ui/dialogs/keychain/** | `KeychainGeneratorDialog` + `KeychainPreview` : aperçu en direct découpe + gravure ; `error_text()` |
+| **vector/importers.keychain_to_objects** | Contours → objets sur le calque de découpe et celui de gravure |
+| **vector_editing_mixin.open_keychain_generator** | Ouverture du dialogue (réglages mémorisés dans `_keychain_settings`) et placement sur le canevas ; lancé par le bouton de l'éditeur, le menu Outils (`keychain_generator_requested`) |
+
 ## 9. Commandes utiles
 
 ```bash
@@ -423,8 +486,8 @@ python main.py
 # Lancer Stencil Studio seul
 python main.py --stencil-studio
 
-# Tests
-python -m pytest tests/
+# Tests (comme le workflow tests.yml)
+QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 
 # Qualité traductions / UI
 python tools/check_translations.py
@@ -436,4 +499,4 @@ python -m compileall -q main.py src
 
 ---
 
-*Document d’architecture — à tenir à jour lors des changements structurants (nouveaux mixins, flux d’import, thèmes, pont Stencil Studio, caméra).*
+*Document d’architecture — à tenir à jour lors des changements structurants (nouveaux mixins, flux d’import, thèmes, pont Stencil Studio, caméra, arborescence).*

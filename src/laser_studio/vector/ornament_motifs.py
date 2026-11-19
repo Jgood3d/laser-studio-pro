@@ -158,24 +158,54 @@ def tree_shape(h, style="Classique") -> MotifShape:
 # Père Noël (tête)
 # ---------------------------------------------------------------------------------------------------------
 
+def _smooth_closed(points, iterations=2):
+    """Contour fermé arrondi (Chaikin) : les coins du polygone de contrôle deviennent des courbes."""
+    for _ in range(iterations):
+        out = []
+        n = len(points)
+        for i in range(n):
+            (x0, y0), (x1, y1) = points[i], points[(i + 1) % n]
+            out += [(0.75 * x0 + 0.25 * x1, 0.75 * y0 + 0.25 * y1), (0.25 * x0 + 0.75 * x1, 0.25 * y0 + 0.75 * y1)]
+        points = out
+    return points
+
+
+def _capsule(x0, y0, x1, y1, n=10) -> Polygon:
+    """Rectangle aux deux bouts en demi-cercle (bandeau de fourrure du bonnet)."""
+    r = (y1 - y0) / 2.0
+    cy = (y0 + y1) / 2.0
+    right = [(x1 - r + r * math.cos(math.radians(-90 + 180 * i / n)), cy + r * math.sin(math.radians(-90 + 180 * i / n)))
+             for i in range(n + 1)]
+    left = [(x0 + r + r * math.cos(math.radians(90 + 180 * i / n)), cy + r * math.sin(math.radians(90 + 180 * i / n)))
+            for i in range(n + 1)]
+    return right + left
+
+
 def santa_shape(h) -> MotifShape:
-    """Tête de Père Noël de hauteur `h`, pied (bas de la barbe) en (0, 0) : bonnet à pompon, bandeau, barbe, visage
-    évidé avec moustache et nez. Sous ~17 mm de haut, le visage serait trop fin : il reste une silhouette pleine."""
+    """Tête de Père Noël de hauteur `h`, pied (bas de la barbe) en (0, 0) : bonnet dont la pointe retombe sur le côté
+    avec son pompon, bandeau de fourrure arrondi, barbe à deux lobes, visage évidé fermé en bas par la moustache
+    (deux boucles) et le nez. Tout est soudé : le pompon touche la pointe du bonnet, la moustache la barbe.
+    Sous ~17 mm de haut, le visage serait trop fin : il reste une silhouette pleine."""
     s = h
-    hat = [(-0.30 * s, 0.62 * s), (0.30 * s, 0.62 * s), (0.20 * s, 0.80 * s), (0.08 * s, 0.92 * s),
-           (0.0, 0.93 * s), (-0.08 * s, 0.92 * s), (-0.20 * s, 0.80 * s)]
-    pompom = circle(0.0, 0.95 * s, 0.075 * s)
-    brim = rect(-0.34 * s, 0.56 * s, 0.34 * s, 0.66 * s)
-    beard = [(-0.34 * s, 0.60 * s), (-0.36 * s, 0.45 * s), (-0.33 * s, 0.30 * s), (-0.24 * s, 0.14 * s),
-             (-0.12 * s, 0.04 * s), (0.0, 0.0), (0.12 * s, 0.04 * s), (0.24 * s, 0.14 * s),
-             (0.33 * s, 0.30 * s), (0.36 * s, 0.45 * s), (0.34 * s, 0.60 * s)]
+    # Bonnet : le sommet est sur l'axe (là s'attache la suspente), la pointe retombe vers la droite.
+    hat_ctrl = [(-0.29, 0.62), (-0.27, 0.78), (-0.17, 0.90), (-0.02, 0.96), (0.15, 0.95), (0.29, 0.90), (0.37, 0.82),
+                (0.31, 0.80), (0.24, 0.80), (0.27, 0.70), (0.29, 0.62)]
+    hat = _smooth_closed([(x * s, y * s) for x, y in hat_ctrl], 2)
+    pompom = circle(0.375 * s, 0.80 * s, 0.075 * s, 32)          # posé à cheval sur la pointe du bonnet
+    brim = _capsule(-0.37 * s, 0.555 * s, 0.37 * s, 0.675 * s)
+    beard_ctrl = [(-0.36, 0.60), (-0.40, 0.46), (-0.37, 0.31), (-0.29, 0.17), (-0.20, 0.06), (-0.10, 0.0),
+                  (-0.03, 0.05), (0.03, 0.05), (0.10, 0.0), (0.20, 0.06), (0.29, 0.17), (0.37, 0.31), (0.40, 0.46),
+                  (0.36, 0.60)]
+    beard = _smooth_closed([(x * s, y * s) for x, y in beard_ctrl], 2)
     solids = [hat, pompom, brim, beard]
     cuts: List[Polygon] = []
     late: List[Polygon] = []
-    if 0.09 * s >= MIN_DETAIL_MM and 0.07 * s >= MIN_DETAIL_MM:
-        cuts.append(ellipse(0.0, 0.50 * s, 0.20 * s, 0.09 * s))
-        late.append(ellipse(0.0, 0.43 * s, 0.17 * s, 0.05 * s))   # moustache, soudée à la barbe sous le visage
-        late.append(circle(0.0, 0.50 * s, 0.05 * s))              # nez, posé sur la moustache
+    if 0.11 * s >= MIN_DETAIL_MM and 0.07 * s >= MIN_DETAIL_MM:
+        cuts.append(ellipse(0.0, 0.505 * s, 0.215 * s, 0.085 * s))
+        # Moustache : deux boucles qui se chevauchent au centre, soudées à la barbe sous le visage, puis le nez.
+        late.append(ellipse(-0.10 * s, 0.425 * s, 0.13 * s, 0.055 * s))
+        late.append(ellipse(0.10 * s, 0.425 * s, 0.13 * s, 0.055 * s))
+        late.append(circle(0.0, 0.485 * s, 0.05 * s, 24))
     return MotifShape(solids, cuts, late)
 
 
@@ -209,14 +239,16 @@ def gift_shape(h) -> MotifShape:
     s = h
     box = rect(-0.42 * s, 0.0, 0.42 * s, 0.57 * s)
     lid = rect(-0.46 * s, 0.56 * s, 0.46 * s, 0.72 * s)
-    loop_l = circle(-0.13 * s, 0.80 * s, 0.12 * s)
-    loop_r = circle(0.13 * s, 0.80 * s, 0.12 * s)
-    knot = circle(0.0, 0.76 * s, 0.06 * s)
+    # Deux boucles écartées : un creux (~0,10 h) reste entre elles au-dessus du nœud, pour y loger la tige de la
+    # suspente sans qu'elle recouvre les boucles. Le nœud les chevauche, elles sont soudées.
+    loop_l = circle(-0.17 * s, 0.80 * s, 0.12 * s)
+    loop_r = circle(0.17 * s, 0.80 * s, 0.12 * s)
+    knot = circle(0.0, 0.76 * s, 0.075 * s)
     cuts: List[Polygon] = []
     if 0.07 * s >= MIN_DETAIL_MM:
         cuts.append(rect(-0.035 * s, 0.05 * s, 0.035 * s, 0.55 * s))
     if (0.12 - 0.05) * s >= MIN_DETAIL_MM:
-        cuts += [circle(-0.13 * s, 0.80 * s, 0.05 * s), circle(0.13 * s, 0.80 * s, 0.05 * s)]
+        cuts += [circle(-0.17 * s, 0.80 * s, 0.05 * s), circle(0.17 * s, 0.80 * s, 0.05 * s)]
     return MotifShape([box, lid, loop_l, loop_r, knot], cuts)
 
 
@@ -314,7 +346,8 @@ def bell_shape(h) -> MotifShape:
     half = _chaikin([(x * s, (y * 0.9 + 0.05) * s) for x, y in half], 2)
     right = half + [(0.0, half[-1][1])]
     body = right + [(-x, y) for x, y in reversed(right[1:-1])]
-    knob = circle(0.0, 0.93 * s, 0.05 * s, 24)
+    # Le bouton s'enfonce dans le haut du dôme (sommet à 0,842 h) : sans chevauchement il flotterait au-dessus.
+    knob = circle(0.0, 0.875 * s, 0.055 * s, 24)
     clapper = circle(0.0, 0.07 * s, 0.075 * s, 32)
     # Une tige relie le battant à l'intérieur de la cloche : sans elle, il ne toucherait le rebord que d'un point.
     stem_w = max(MIN_DETAIL_MM, 0.06 * s)
