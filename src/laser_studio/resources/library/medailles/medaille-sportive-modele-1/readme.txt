@@ -48,7 +48,7 @@ y passer un ruban ou un cordon.
        - choisir la forme (hexagonale ou ronde) ;
        - choisir le résultat (1ère, 2e ou 3e place, ou Étoile) ;
        - remplacer « Compétition de XXXX » par le nom de votre compétition.
-     L'onglet « Dessin à graver » montre la médaille telle qu'elle sera
+     L'onglet « Aperçu » montre la médaille telle qu'elle sera
      importée.
 
   2. Cliquer sur « Importer dans l'éditeur vectoriel ». La médaille arrive

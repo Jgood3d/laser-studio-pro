@@ -15,7 +15,8 @@ LIBRARY = os.path.join(REPO, "src", "laser_studio", "resources", "library")
 TOTEM = os.path.join(LIBRARY, "trophees", "totem-brevet-aviron", "totem-brevet-aviron.svg")
 MEDAL = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-1", "medaille-sportive-modele-1.svg")
 MEDAL2 = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-2", "medaille-sportive-modele-2.svg")
-KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-aviron-solo", "porte-clef-aviron-solo.svg")
+KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-sportif-modele-1", "porte-clef-sportif-modele-1.svg")
+KEYCHAIN2 = os.path.join(LIBRARY, "porte-clefs", "porte-clef-sportif-modele-2", "porte-clef-sportif-modele-2.svg")
 
 from laser_studio.library.catalog import load_catalog, pretty_name  # noqa: E402
 
@@ -324,7 +325,7 @@ class SvgImportTests(unittest.TestCase):
 
     def test_bundled_models_follow_the_convention(self):
         """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques."""
-        for model in (TOTEM, MEDAL, MEDAL2, KEYCHAIN):
+        for model in (TOTEM, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2):
             root = ET.parse(model).getroot()
             layers = {next((v for k, v in g.attrib.items() if k.endswith("label")), "")
                       for g in root if g.tag.endswith("}g") and "display:none" not in g.attrib.get("style", "")}
@@ -346,16 +347,23 @@ class SvgImportTests(unittest.TestCase):
         self.assertAlmostEqual(art.width_mm, 30.0, places=1)
         self.assertAlmostEqual(art.height_mm, 116.4, places=1)
 
-    def test_bundled_keychain(self):
-        groups = find_variant_groups(KEYCHAIN)
-        self.assertEqual([(g.key, [o[0] for o in g.options], g.default) for g in groups],
-                         [("Orientation du bateau", ["Bateau horizontal", "Bateau diagonal"], "Bateau diagonal")])
-        for option in ("Bateau horizontal", "Bateau diagonal"):
-            art = import_svg(KEYCHAIN, variants={groups[0].key: option})
-            self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"], option)
-            cut_obj = next(o for r, o in art.items if r == "cut")
-            self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2)   # contour et trou de l'anneau
-            self.assertAlmostEqual(art.width_mm, 50.0, places=1)
+    def test_bundled_keychains(self):
+        expected = {
+            KEYCHAIN: (["Aviron (diagonal)", "Aviron (horizontal)", "Basket-ball (1 contre 1)", "Kayak", "Surf",
+                        "Natation", "Course", "Vélo", "Ballon de basket", "Handball", "Volley-ball", "Gymnastique",
+                        "Arts martiaux"], "Aviron (diagonal)"),
+            KEYCHAIN2: (["Natation", "Dribble", "Handball", "Water-polo", "Escrime", "Haltérophilie", "Football"],
+                        "Natation"),
+        }
+        for model, (options, default) in expected.items():
+            (group,) = find_variant_groups(model)
+            self.assertEqual((group.key, [o[0] for o in group.options], group.default), ("Motif", options, default))
+            for option in options:
+                art = import_svg(model, variants={"Motif": option})
+                self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], option)
+                cut_obj = next(o for r, o in art.items if r == "cut")
+                self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2, option)  # contour et trou
+                self.assertAlmostEqual(art.width_mm, 50.0, places=1)
 
     def test_bundled_medal(self):
         groups = {g.key: g for g in find_variant_groups(MEDAL)}

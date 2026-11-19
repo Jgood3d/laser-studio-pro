@@ -1,5 +1,5 @@
 ================================================================================
-  PORTE-CLEFS AVIRON - LOSANGES SOLO
+  PORTE-CLEF SPORTIF - MODÈLE 1
   Modèle de la bibliothèque Laser Studio Pro
 ================================================================================
 
@@ -10,26 +10,27 @@ Licence      : Libre d'utilisation pour usage personnel et associatif
   PRÉSENTATION
 --------------------------------------------------------------------------------
 
-Ce porte-clefs a été conçu spécialement pour les amateurs et pratiquants
-d'aviron. Le motif représente un bateau d'aviron en style losanges, dans un
-cadre gravé, avec un trou pour l'anneau.
+Ce porte-clefs porte un motif sportif dans un cadre gravé, avec un trou pour
+l'anneau. Le motif se choisit dans cette fiche (liste « Motif ») :
 
-Deux orientations du bateau, au choix dans cette fiche (liste
-« Orientation du bateau ») :
-  - Bateau diagonal    → version par défaut
-  - Bateau horizontal
+  Aviron (diagonal)         →  bateau d'aviron en style losanges, en diagonale
+                               (par défaut)
+  Aviron (horizontal)       →  le même bateau, à l'horizontale
+  Basket-ball (1 contre 1)  →  deux joueurs en 1 contre 1
+  Kayak, Surf, Natation, Course, Vélo, Ballon de basket, Handball,
+  Volley-ball, Gymnastique, Arts martiaux  →  pictogrammes sportifs
 
 
 --------------------------------------------------------------------------------
   GRAVER ET DÉCOUPER AVEC LASER STUDIO PRO
 --------------------------------------------------------------------------------
 
-  1. Dans cette fiche, choisir l'orientation du bateau. L'onglet « Dessin à
-     graver » montre le porte-clefs tel qu'il sera importé.
+  1. Dans cette fiche, choisir le motif. L'onglet « Aperçu » montre le
+     porte-clefs tel qu'il sera importé.
 
   2. Cliquer sur « Importer dans l'éditeur vectoriel ». Le porte-clefs
      (50 × 50 mm) arrive sur deux calques :
-       - Gravure : le cadre et le bateau (gravure remplie) ;
+       - Gravure : le cadre et le motif (gravure remplie) ;
        - Découpe : le contour du porte-clefs et le trou de l'anneau.
 
   3. Dans l'onglet « Calques (Layers) », choisir le profil matériau de votre
@@ -75,9 +76,20 @@ Deux orientations du bateau, au choix dans cette fiche (liste
 
 
 --------------------------------------------------------------------------------
+  LICENCE DES PICTOGRAMMES
+--------------------------------------------------------------------------------
+
+  Les pictogrammes sportifs (kayak, surf, natation, course, vélo, ballon de
+  basket, handball, volley-ball, gymnastique, arts martiaux) viennent de
+  Material Symbols, de Google, sous licence Apache 2.0 (texte complet dans
+  LICENCE-material-symbols.txt). Ils ont été mis à l'échelle du porte-clefs.
+  https://github.com/google/material-design-icons
+
+
+--------------------------------------------------------------------------------
   CONTACT & PARTAGE
 --------------------------------------------------------------------------------
 
-  Si vous réalisez ce porte-clefs pour votre club, vos rameurs ou une
+  Si vous réalisez ce porte-clefs pour votre club, vos sportifs ou une
   compétition, n'hésitez pas à partager vos résultats !
   Tout retour sur les paramètres laser utilisés est le bienvenu.
