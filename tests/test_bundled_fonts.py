@@ -25,6 +25,15 @@ class BundledFontsTests(unittest.TestCase):
         self.assertIn(SCRIPT_FONT, load_bundled_fonts())
         self.assertEqual(QFontInfo(QFont(SCRIPT_FONT)).family(), SCRIPT_FONT)
 
+    def test_totem_font_is_available_everywhere(self):
+        """Yantramanav (titres des totems) : sans elle, la police de
+        remplacement, plus large, fait déborder le titre du totem."""
+        self.assertIn("Yantramanav", load_bundled_fonts())
+        for weight in (QFont.Weight.Bold, QFont.Weight.Black):
+            font = QFont("Yantramanav")
+            font.setWeight(weight)
+            self.assertEqual(QFontInfo(font).family(), "Yantramanav")
+
     def test_every_font_has_its_license(self):
         files = bundled_font_files()
         self.assertTrue(files)
