@@ -17,7 +17,7 @@ Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque 
 - Convention des modèles (`resources/library/README.md`) : calques `Cut` (rouge), `Engrave` (noir) et `Mark` (bleu, facultatif) ; options en sous-calques d'un groupe, un seul visible, le nom du sous-calque étant celui de l'option.
 - Premiers modèles : totems sportifs modèle 1 (pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0), titre et sous-titre à saisir, médailles sportives modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0) — hexagonales ou rondes, 1, 2, 3 ou étoile, nom de la compétition — boule de Noël avec prénom, et porte-clefs sportifs modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0).
 - Import : dans `Engrave`, les traits sont gravés avec leur épaisseur (pictogrammes dessinés au trait).
-- Polices embarquées (`resources/fonts/`, chargées au démarrage) : Dancing Script (police manuscrite) et Yantramanav (titres des totems), sous licence OFL, disponibles sur tous les systèmes pour les textes des modèles.
+- Polices embarquées (`resources/fonts/`, chargées au démarrage) : Dancing Script (police manuscrite), Yantramanav (titres des totems) et Rubik (textes des médailles), sous licence OFL, disponibles sur tous les systèmes pour les textes des modèles.
 
 Générateur de boîte :
 - Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.

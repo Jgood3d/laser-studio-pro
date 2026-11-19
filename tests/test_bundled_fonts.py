@@ -34,6 +34,13 @@ class BundledFontsTests(unittest.TestCase):
             font.setWeight(weight)
             self.assertEqual(QFontInfo(font).family(), "Yantramanav")
 
+    def test_medal_font_is_available_everywhere(self):
+        """Rubik en gras (textes des médailles sportives)."""
+        self.assertIn("Rubik", load_bundled_fonts())
+        font = QFont("Rubik")
+        font.setWeight(QFont.Weight.Bold)
+        self.assertEqual(QFontInfo(font).family(), "Rubik")
+
     def test_every_font_has_its_license(self):
         files = bundled_font_files()
         self.assertTrue(files)
