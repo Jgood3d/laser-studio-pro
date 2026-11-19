@@ -150,5 +150,46 @@ class InsideReadabilityTests(unittest.TestCase):
         self.assertEqual(top.default_center_fraction(pts), top.default_center_fraction(pts, False))
 
 
+
+class SideTests(unittest.TestCase):
+    """Placement « en haut / en bas / à gauche / à droite »."""
+
+    def _where(self, pts, side):
+        f = top.side_center_fraction(pts, side)
+        return top._locate(pts, top._cumulative(pts), top.is_closed(pts), f * top.path_length(pts))
+
+    def test_circle_sides(self):
+        for clockwise in (True, False):
+            pts = top.orient_path(circle(20, clockwise=clockwise))
+            for side, (ex, ey) in {"top": (0, 20), "bottom": (0, -20), "left": (-20, 0), "right": (20, 0)}.items():
+                x, y = self._where(pts, side)
+                self.assertAlmostEqual(x, ex, delta=0.3, msg=side)
+                self.assertAlmostEqual(y, ey, delta=0.3, msg=side)
+
+    def test_flat_side_straddling_start(self):
+        # Carré dont le départ est au milieu du côté droit : la série « droite » est à cheval sur 0.
+        pts = [(10, 0), (10, -10), (-10, -10), (-10, 10), (10, 10), (10, 0)]
+        pts = top.orient_path(pts)
+        x, y = self._where(pts, "right")
+        self.assertAlmostEqual(x, 10, delta=1e-6)
+        self.assertAlmostEqual(y, 0, delta=1e-6)
+
+    def test_place_for_fraction(self):
+        pts = top.orient_path(circle(20))
+        for side in top.SIDES:
+            self.assertEqual(top.place_for_fraction(pts, top.side_center_fraction(pts, side)), side)
+        self.assertIsNone(top.place_for_fraction(pts, top.side_center_fraction(pts, "top") + 0.05))
+
+    def test_open_path_side(self):
+        pts = [(0.0, 0.0), (10.0, 5.0), (20.0, 0.0)]
+        self.assertAlmostEqual(top.side_center_fraction(pts, "top"), 0.5, delta=0.01)
+        self.assertEqual(top.side_center_fraction(pts, "left"), 0.0)
+        self.assertEqual(top.side_center_fraction(pts, "right"), 1.0)
+
+    def test_unknown_side(self):
+        with self.assertRaises(ValueError):
+            top.side_center_fraction(circle(5), "middle")
+
+
 if __name__ == "__main__":
     unittest.main()
