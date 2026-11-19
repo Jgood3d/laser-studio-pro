@@ -410,6 +410,19 @@ if "--stencil-studio" in sys.argv:
 ```
 
 
+## v2026.11.86 — Détection automatique des couleurs (logos et illustrations à aplats)
+
+- **Palette cherchée sur les pixels « plats »** : les bords anti-crénelés (simples mélanges de deux couleurs) ne comptent plus, donc plus de fausses couleurs de transition. Les petites zones vraiment distinctes (nez, yeux, langue) sont gardées au lieu d'être noyées par le k-means ; les couleurs trop proches sont fusionnées.
+- **Affectation sans flou** : un pixel de bord va à la plus proche des deux couleurs qu'il mélange (plus de liseré d'une troisième couleur entre le noir et le bleu). Le flou des étiquettes, qui effaçait les contours noirs fins, est supprimé.
+- Quand le nombre de plaques demandé est inférieur au nombre de couleurs de l'image, les moins marquantes sont fusionnées dans leur voisine la plus proche (surface et distinction), au lieu de retomber sur l'ancienne méthode.
+- Les photos et les images sans aplats gardent l'ancienne méthode (k-means). La pipette est inchangée.
+
+## v2026.11.85 — Relief en couches : traits fins, ponts invisibles, aperçu éclairé
+
+- **Traits fins conservés** : une écriture ou un trait plus fin que le « détail minimal » n'est plus coupé en points. Un morceau fin est gardé s'il est long, assez grand, ou s'il relie deux zones épaisses (le jambage entre deux boucles). Les petites bosses le long d'une forme épaisse sont toujours supprimées.
+- **Plaques intermédiaires sans ponts** (nouveau réglage « Plaques intermédiaires en pièces libres », coché par défaut) : une plaque posée sur une plaque pleine n'a pas besoin de ponts, ses formes se collent derrière. Fini le trait rouge entre le bandeau et le logo. La plaque de devant garde ses ponts, sauf si « Pièces libres à coller » est coché.
+- **Aperçu « plaques empilées »** : lumière en haut à gauche, biseau clair côté lumière et sombre à l'opposé, ombre portée plus longue pour les plaques de devant.
+
 ## v2026.10.84 — Pipette de couleurs (relief en couches par couleurs)
 - Dans « Couches » > « Séparer les plaques par : Couleurs dominantes », bouton **Pipette** : clique sur l'image d'origine pour choisir les couleurs (moyenne 5×5 pixels, jusqu'à 8). **Chaque couleur choisie = une plaque** ; clique une pastille pour la retirer, « Effacer les couleurs choisies » pour recommencer, Échap pour quitter la pipette. Sans pipette (ou avec une seule couleur), les couleurs sont trouvées automatiquement comme avant.
 - Avec la pipette, « Nombre de plaques » et la détection automatique sont désactivés ; chaque pixel prend la couleur choisie la plus proche. Avec le fond « Couleur de la plaque de devant », toute l'image est utilisée (tu peux donc choisir le blanc du fond comme une couleur). Les plaques sont triées du plus sombre au plus clair ; les flèches ◀ ▶ les réordonnent.
