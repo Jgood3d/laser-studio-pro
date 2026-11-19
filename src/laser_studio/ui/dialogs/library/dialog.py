@@ -3,7 +3,8 @@ par catégorie et par recherche, en grille dont on règle la taille."""
 from PyQt6.QtCore import QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QPixmap
 from PyQt6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+    QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout, QGroupBox,
+    QHBoxLayout, QLabel, QLineEdit,
     QListView, QListWidget, QListWidgetItem, QSlider, QSplitter, QTabWidget,
     QTextBrowser, QVBoxLayout, QWidget,
 )
@@ -12,7 +13,7 @@ from laser_studio.i18n import tr
 from laser_studio.ui.dialogs.library.thumbnails import item_image, photo_image, render_svg
 from laser_studio.ui.widgets import ZoomableGraphicsView
 from laser_studio.vector.svg_import import (
-    SvgImportError, document_size_mm, find_texts, find_variant_groups, svg_preview,
+    SvgImportError, TextChange, document_size_mm, find_texts, find_variant_groups, svg_preview,
 )
 
 ICON_SIZE_MIN = 80
@@ -237,8 +238,8 @@ class LibraryItemDialog(QDialog):
         except SvgImportError:
             self._groups = []
         self._combos = {}
-        self._text_edits = {}
-        self._typed = {}           # textes saisis, gardés quand la variante change
+        self._text_edits = {}      # clé -> (champ, police, taille), et le TextField d'origine
+        self._typed = {}           # saisies (TextChange), gardées quand l'option change
 
         splitter = QSplitter()
         # Aperçu de la pièce (calculé, suit les options et les textes), fichier SVG, et photo
@@ -343,11 +344,24 @@ class LibraryItemDialog(QDialog):
         return {key: combo.currentData() for key, combo in self._combos.items()}
 
     def texts(self):
-        """{texte: nouveau contenu}, pour les textes modifiés seulement."""
-        return {key: edit.text() for key, edit in self._text_edits.items()
-                if edit.text() != edit.property("original")}
+        """{texte: TextChange}, pour les textes modifiés seulement (contenu,
+        police ou taille ; ce qui n'a pas changé reste à None)."""
+        changes = {}
+        for key, (edit, font, size, field, start_family, start_size) in self._text_edits.items():
+            # Comparé à l'état initial des champs : une police absente de l'ordinateur est
+            # affichée par une police de remplacement, et la taille est arrondie au dixième ;
+            # tant que l'utilisateur n'y touche pas, ce n'est pas une modification.
+            change = TextChange(
+                text=edit.text() if edit.text() != field.text else None,
+                family=font.currentText() if font.currentText() != start_family else None,
+                size_mm=size.value() if abs(size.value() - start_size) > 1e-6 else None,
+            )
+            if change != TextChange():
+                changes[key] = change
+        return changes
 
     def _fill_texts(self):
+        """Un bloc par texte du modèle : contenu, police, taille (mm)."""
         while self._texts_form.rowCount():
             self._texts_form.removeRow(0)
         self._text_edits = {}
@@ -356,13 +370,46 @@ class LibraryItemDialog(QDialog):
         except SvgImportError:
             fields = []
         for field in fields:
-            edit = QLineEdit(self._typed.get(field.key, field.text))
-            edit.setProperty("original", field.text)
-            edit.textEdited.connect(lambda text, key=field.key: self._typed.__setitem__(key, text))
-            edit.textChanged.connect(lambda _text: self._refresh_timer.start())
-            self._text_edits[field.key] = edit
-            self._texts_form.addRow(f"{field.label} :", edit)
+            typed = self._typed.get(field.key) or TextChange()
+            edit = QLineEdit(typed.text if typed.text is not None else field.text)
+            font = QFontComboBox()
+            font.setToolTip(tr("library.text_font"))
+            size = QDoubleSpinBox()
+            size.setRange(0.5, 200.0)
+            size.setDecimals(1)
+            size.setSingleStep(0.5)
+            size.setSuffix(" mm")
+            size.setToolTip(tr("library.text_size"))
+            # État initial (celui du fichier, tel que les champs peuvent l'afficher), puis
+            # les saisies gardées d'une option à l'autre.
+            font.setCurrentFont(QFont(field.family))
+            size.setValue(field.size_mm)
+            # currentText() : la police affichée (currentFont() peut renvoyer le nom demandé
+            # alors qu'une police de remplacement est affichée).
+            start_family, start_size = font.currentText(), size.value()
+            font.setCurrentFont(QFont(typed.family or field.family))
+            size.setValue(typed.size_mm or field.size_mm)
+            self._text_edits[field.key] = (edit, font, size, field, start_family, start_size)
+            edit.textChanged.connect(lambda _t, key=field.key: self._remember(key))
+            font.currentFontChanged.connect(lambda _f, key=field.key: self._remember(key))
+            size.valueChanged.connect(lambda _v, key=field.key: self._remember(key))
+            options = QHBoxLayout()
+            options.addWidget(font, 1)
+            options.addWidget(size)
+            block = QVBoxLayout()
+            block.addWidget(edit)
+            block.addLayout(options)
+            self._texts_form.addRow(f"{field.label} :", block)
         self.texts_box.setVisible(bool(fields))
+
+    def _remember(self, key):
+        """Saisie sur un texte : gardée si l'option change, aperçu recalculé."""
+        change = self.texts().get(key)
+        if change is None:
+            self._typed.pop(key, None)
+        else:
+            self._typed[key] = change
+        self._refresh_timer.start()
 
     def _variant_changed(self, *_args):
         self._fill_texts()

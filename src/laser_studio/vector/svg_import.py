@@ -75,11 +75,38 @@ class VariantGroup:
 
 @dataclass
 class TextField:
-    """Texte du modèle remplaçable à l'import : `key` (passée dans `texts`),
-    `label` (nom affiché) et `text` (contenu du fichier)."""
+    """Texte du modèle modifiable à l'import : `key` (passée dans `texts`),
+    `label` (nom affiché), et ce que contient le fichier : `text`, `family`
+    (police), `size_mm` (taille de la police, en mm), `bold`."""
     key: str
     label: str
     text: str
+    family: str = "Sans"
+    size_mm: float = 5.0
+    bold: bool = False
+
+
+@dataclass
+class TextChange:
+    """Modification d'un texte à l'import (valeur de `texts`) ; None : garder
+    ce que dit le fichier."""
+    text: str = None
+    family: str = None
+    size_mm: float = None
+
+
+def _text_change(value):
+    """Valeur de `texts` : TextChange, ou simple chaîne (nouveau contenu)."""
+    if value is None or isinstance(value, TextChange):
+        return value
+    if isinstance(value, dict):
+        return TextChange(**value)
+    return TextChange(text=str(value))
+
+
+def _vertical_scale(transform):
+    """Échelle verticale d'une transformation (taille d'une unité en hauteur)."""
+    return math.hypot(transform.m21(), transform.m22()) or 1.0
 
 
 @dataclass
@@ -243,31 +270,33 @@ def _chosen_option(group, options, variants):
 
 def _visible_elements(root, variants):
     """Éléments dessinés (ni cachés ni écartés par une option), dans l'ordre
-    du document : [(élément, profondeur, rôle)] ; rôle : celui du calque
-    Cut / Engrave / Mark qui le contient, ou None. Les enfants d'un <text>
-    ne sont pas parcourus."""
+    du document : [(élément, profondeur, rôle, ctm)] ; rôle : celui du calque
+    Cut / Engrave / Mark qui le contient, ou None ; ctm : transformation du
+    repère de son parent vers les mm du document. Les enfants d'un <text> ne
+    sont pas parcourus."""
     result = []
 
-    def walk(elem, depth, role, forced=False):
+    def walk(elem, depth, role, ctm, forced=False):
         tag = _local(elem.tag)
         if tag in NON_RENDERED or (depth > 0 and _is_hidden(elem) and not forced):
             return
         if tag == "g":
             role = role_of_label(_label(elem)) or role
-        result.append((elem, depth, role))
+        result.append((elem, depth, role, ctm))
         if tag == "text":
             return
+        own = parse_transform(elem.attrib.get("transform")) * ctm
         options = _variant_options(elem) if depth > 0 and tag == "g" else None
         if options:
             chosen = _chosen_option(elem, options, variants)
             for child in elem:
                 if _label(child) == chosen:
-                    walk(child, depth + 1, role, forced=True)
+                    walk(child, depth + 1, role, own, forced=True)
             return
         for child in elem:
-            walk(child, depth + 1, role)
+            walk(child, depth + 1, role, own)
 
-    walk(root, 0, None)
+    walk(root, 0, None, _document_transform(root))
     return result
 
 
@@ -308,22 +337,24 @@ def find_variant_groups(path):
 
 def find_texts(path, variants=None):
     """Textes importés (visibles, dans un calque Cut / Engrave / Mark, avec
-    les options choisies), à proposer
-    pour remplacement : [TextField]. Un texte de plusieurs lignes donne un
-    champ par ligne (clé « nom#1 », « nom#2 »...)."""
+    les options choisies), à proposer pour modification (contenu, police,
+    taille) : [TextField]. Un texte de plusieurs lignes donne un champ par
+    ligne (clé « nom#1 », « nom#2 »...)."""
     root = _parse(path)
     fields = []
-    for elem, _depth, role in _visible_elements(root, variants):
+    for elem, _depth, role, ctm in _visible_elements(root, variants):
         if _local(elem.tag) != "text" or role is None:
             continue
         runs = _text_runs(elem, {})
         name = _label(elem)
         if not name:
             continue                 # sans nom ni id : pas de clé pour le remplacer
-        for index, run in enumerate(runs):
+        scale = _vertical_scale(parse_transform(elem.attrib.get("transform")) * ctm)
+        for index, (content, _x, _y, run_style) in enumerate(runs):
             key = name if len(runs) == 1 else f"{name}#{index + 1}"
             label = name if len(runs) == 1 else f"{name} ({index + 1})"
-            fields.append(TextField(key, label, run[0]))
+            fields.append(TextField(key, label, content, _font_family(run_style),
+                                    round(_font_size(run_style) * scale, 2), _is_bold(run_style)))
     return fields
 
 
@@ -398,8 +429,8 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
     """Lit le SVG `path` et renvoie un ImportedArtwork : les tracés de chaque
     rôle groupés en un objet, chaque texte foncé en objet texte. `variants` :
     {clé du groupe: clé de l'option} (voir find_variant_groups ; option
-    visible dans le fichier si absente). `texts` : {clé du texte: nouveau
-    contenu} (voir find_texts). Seul le contenu des calques Cut, Engrave et
+    visible dans le fichier si absente). `texts` : {clé du texte: TextChange
+    (contenu, police, taille en mm) ou nouveau contenu} (voir find_texts). Seul le contenu des calques Cut, Engrave et
     Mark est importé."""
     root = _parse(path)
     variants = variants or {}
@@ -594,21 +625,25 @@ class _GlyphRun:
     box: object
 
 
-def _text_glyphs(text_elem, ctm, style, replacements=None):
-    """Lignes d'un <text> (voir _GlyphRun), avec le contenu remplacé par
-    `replacements` ({clé: texte}, voir find_texts)."""
-    replacements = replacements or {}
+def _text_glyphs(text_elem, ctm, style, changes=None):
+    """Lignes d'un <text> (voir _GlyphRun), modifiées par `changes`
+    ({clé: TextChange ou nouveau contenu}, voir find_texts)."""
+    changes = changes or {}
     ctm = parse_transform(text_elem.attrib.get("transform")) * ctm
     runs = _text_runs(text_elem, style)
     name = _label(text_elem)
     result = []
     for index, (content, x, y, run_style) in enumerate(runs):
         key = name if len(runs) == 1 else f"{name}#{index + 1}"
-        content = replacements.get(key, content)
+        change = _text_change(changes.get(key)) or TextChange()
+        if change.text is not None:
+            content = change.text
         size = _font_size(run_style)
+        if change.size_mm:
+            size = change.size_mm / _vertical_scale(ctm)      # mm -> unités du texte
         if size <= 0 or not content.strip():
             continue
-        family = _font_family(run_style)
+        family = change.family or _font_family(run_style)
         bold = _is_bold(run_style)
         italic = (run_style.get("font-style") or "").lower() in ("italic", "oblique")
         font = QFont(family)
@@ -707,6 +742,17 @@ def document_size_mm(path):
     return None
 
 
+def _set_style(elem, props):
+    """Remplace des propriétés de l'attribut style de `elem`."""
+    if not props:
+        return
+    kept = [p for p in (elem.attrib.get("style") or "").split(";")
+            if p.strip() and p.split(":", 1)[0].strip() not in props]
+    elem.attrib["style"] = ";".join(kept + [f"{k}:{v}" for k, v in props.items()])
+    for name in props:
+        elem.attrib.pop(name, None)
+
+
 def _set_visible(elem, visible):
     style = [p for p in (elem.attrib.get("style") or "").split(";")
              if p.strip() and not p.strip().startswith("display")]
@@ -720,7 +766,8 @@ def svg_preview(path, variants=None, texts=None):
     fiche : seule l'option choisie de chaque groupe de variantes est visible,
     les textes sont remplacés (`texts`), et les lignes de texte Inkscape
     (sodipodi:role="line") reçoivent leur position réelle (un afficheur SVG
-    qui ne connaît pas Inkscape les placerait en 0, 0)."""
+    qui ne connaît pas Inkscape les placerait en 0, 0). `texts` : comme pour
+    import_svg (contenu, police, taille)."""
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     ET.register_namespace("inkscape", INKSCAPE_NS)
     ET.register_namespace("sodipodi", "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
@@ -731,7 +778,7 @@ def svg_preview(path, variants=None, texts=None):
     root = tree.getroot()
     texts = texts or {}
 
-    for elem, depth, _role in _visible_elements(root, variants):
+    for elem, depth, _role, ctm in _visible_elements(root, variants):
         tag = _local(elem.tag)
         if depth > 0 and tag == "g":
             options = _variant_options(elem)
@@ -755,10 +802,22 @@ def svg_preview(path, variants=None, texts=None):
                 line += 1
         name = _label(elem)
         lines = [t for t in spans if "".join(t.itertext()).strip()] or ([elem] if (elem.text or "").strip() else [])
+        scale = _vertical_scale(parse_transform(elem.attrib.get("transform")) * ctm)
         for index, target in enumerate(lines):
             key = name if len(lines) == 1 else f"{name}#{index + 1}"
-            if key in texts:
+            change = _text_change(texts.get(key))
+            if change is None:
+                continue
+            if change.text is not None:
                 for child in list(target):
                     target.remove(child)
-                target.text = texts[key]
+                target.text = change.text
+            props = {}
+            if change.family:
+                props["font-family"] = f"'{change.family}'"
+                props["-inkscape-font-specification"] = f"'{change.family}'"
+            if change.size_mm:
+                props["font-size"] = f"{change.size_mm / scale:.4f}px"
+            for node in {target, elem}:
+                _set_style(node, props)
     return ET.tostring(root, encoding="utf-8")

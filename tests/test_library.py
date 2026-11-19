@@ -28,7 +28,7 @@ try:
     )
     from laser_studio.vector.svg_import import (
         document_size_mm, find_variant_groups, import_svg, parse_transform, role_of_label,
-        find_texts, svg_preview,
+        TextChange, find_texts, svg_preview,
     )
 except ImportError:  # PyQt6 manquant
     import_svg = None
@@ -268,6 +268,25 @@ class SvgImportTests(unittest.TestCase):
         self.assertEqual(obj.text, "Régate de Rennes")
         self.assertIn("Régate de Rennes", svg_preview(path, texts={"titre": "Régate de Rennes"}).decode())
 
+    def test_text_fields_give_font_and_size_in_mm(self):
+        # viewBox de 200 unités pour 100 mm : une police de 10 unités fait 5 mm.
+        path = self.file(engrave('<text id="t" x="10" y="20" style="font-size:10px;font-family:\'DejaVu Sans\';'
+                                 'font-weight:bold">Club</text>'), w="100mm", h="50mm", vb="0 0 200 100")
+        (field,) = find_texts(path)
+        self.assertEqual((field.family, field.size_mm, field.bold), ("DejaVu Sans", 5.0, True))
+
+    def test_font_and_size_can_be_changed(self):
+        path = self.file(engrave('<text id="t" x="10" y="20" style="font-size:5px">Club</text>'))
+        height = lambda art: next(o for _r, o in art.items).world_path().boundingRect().height()
+        normal = height(import_svg(path))
+        double = height(import_svg(path, texts={"t": TextChange(size_mm=10.0)}))
+        self.assertAlmostEqual(double / normal, 2.0, delta=0.05)
+        (_r, obj), = import_svg(path, texts={"t": TextChange(family="DejaVu Serif")}).items
+        self.assertEqual((obj.text, obj.font_family), ("Club", "DejaVu Serif"))
+        preview = svg_preview(path, texts={"t": TextChange(family="DejaVu Serif", size_mm=10.0)}).decode()
+        self.assertIn("font-family:'DejaVu Serif'", preview)
+        self.assertIn("font-size:10.0000px", preview)
+
     def test_inkscape_line_tspans_are_placed_under_the_text(self):
         # Inkscape enregistre parfois x="0" y="0" sur une ligne : elle s'affiche quand même au x / y du texte.
         path = self.file(cut('<rect width="100" height="50" fill="none" stroke="red"/>')
@@ -429,8 +448,22 @@ class LibraryDialogTests(unittest.TestCase):
         details = LibraryItemDialog(None, item)
         self.addCleanup(details.deleteLater)
         self.assertEqual(details.texts(), {})                      # rien de modifié
-        details._text_edits["nom"].setText("Léa")
-        self.assertEqual(details.texts(), {"nom": "Léa"})
+        edit, font, size, field, _start_family, _start_size = details._text_edits["nom"]
+        self.assertEqual(size.value(), field.size_mm)
+        edit.setText("Léa")
+        self.assertEqual(details.texts(), {"nom": TextChange(text="Léa")})
+        size.setValue(12.0)
+        self.assertEqual(details.texts(), {"nom": TextChange(text="Léa", size_mm=12.0)})
+
+    def test_untouched_text_with_a_missing_font_is_not_a_change(self):
+        """Police absente (remplacée dans la liste) et taille arrondie : pas une modification."""
+        write(os.path.join(self.tmp.name, "signs", "num", "n.svg"),
+              svg(engrave('<text id="num" x="10" y="20" style="font-size:16.3363px;'
+                          'font-family:\'Police Introuvable\'">1</text>')))
+        item = next(i for c in load_catalog([self.tmp.name]) for i in c.items if i.key == "signs/num")
+        details = LibraryItemDialog(None, item)
+        self.addCleanup(details.deleteLater)
+        self.assertEqual(details.texts(), {})
 
     def test_details_offer_the_variants(self):
         item = self.categories[0].items[0]

@@ -1943,6 +1943,18 @@ TRANSLATIONS = {
         "de": "Texte",
         "es": "Textos",
     },
+    "library.text_font": {
+        "fr": "Police du texte",
+        "en": "Text font",
+        "de": "Schriftart des Textes",
+        "es": "Fuente del texto",
+    },
+    "library.text_size": {
+        "fr": "Taille de la police, en mm",
+        "en": "Font size, in mm",
+        "de": "Schriftgröße in mm",
+        "es": "Tamaño de la fuente, en mm",
+    },
     "library.close": {
         "fr": "Fermer",
         "en": "Close",

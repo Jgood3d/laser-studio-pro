@@ -89,7 +89,7 @@ Un élément nommé seul (un texte, un chemin) n'est pas une option : le mettre 
 
 ### Textes
 
-- Chaque texte importé apparaît dans la fiche du modèle, où l'utilisateur peut le remplacer avant l'import (nom de la régate, du club…). Le nom du champ est le nom (ou l'id) du texte dans Inkscape.
+- Chaque texte importé apparaît dans la fiche du modèle, où l'utilisateur peut changer, avant l'import, son contenu (nom de la régate, du club…), sa police et sa taille (en mm). Le nom du champ est le nom (ou l'id) du texte dans Inkscape ; la police et la taille proposées au départ sont celles du fichier.
 - Dans `Engrave`, un texte noir devient un texte modifiable de l'éditeur (police, taille, gras) ; un texte blanc est creusé dans la gravure, il devient donc un tracé.
 - Si la police n'est pas installée chez l'utilisateur, une police de remplacement est utilisée. Pour un rendu exact, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin), mais il ne sera plus remplaçable.
 
