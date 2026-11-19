@@ -1836,10 +1836,10 @@ TRANSLATIONS = {
         "es": "Biblioteca…",
     },
     "ui.vector_library": {
-        "fr": "Modèles",
-        "en": "Designs",
-        "de": "Vorlagen",
-        "es": "Modelos",
+        "fr": "Bibliothèque",
+        "en": "Library",
+        "de": "Bibliothek",
+        "es": "Biblioteca",
     },
     "ui.vector_library_tip": {
         "fr": "Bibliothèque de modèles prêts à graver ou découper (trophées, médailles…), à importer dans l'éditeur.",
