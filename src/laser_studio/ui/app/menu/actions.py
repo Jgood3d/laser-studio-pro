@@ -79,6 +79,7 @@ class AppActions(QObject):
     gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
     job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
     # Aide
+    documentation_requested = pyqtSignal()
     about_requested = pyqtSignal()
     support_requested = pyqtSignal()
     coffee_requested = pyqtSignal()
@@ -369,6 +370,16 @@ class AppActions(QObject):
             window_icon, f"{tr('menu.help.version')} {APP_VERSION}"
         )
         self.version.setEnabled(False)
+        # Documentation : pages Markdown de doc/, touche F1.
+        self.documentation = self._action(
+            standard_icon(
+                QIcon.ThemeIcon.HelpFaq,
+                QStyle.StandardPixmap.SP_DialogHelpButton,
+            ),
+            tr("menu.help.documentation"),
+            self.documentation_requested,
+        )
+        self.documentation.setShortcut(QKeySequence.StandardKey.HelpContents)
         self.about = self._action(
             standard_icon(
                 QIcon.ThemeIcon.HelpAbout,

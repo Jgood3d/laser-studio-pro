@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QSettings, Qt, QTimer
 from laser_studio.i18n import set_language, tr
 from laser_studio.ui.about import AboutDialog
+from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.support import SupportDialog
@@ -109,6 +110,7 @@ class WindowControllerMixin:
         actions.gcode_console_toggled.connect(self.set_gcode_console_visible)
         actions.job_queue_toggled.connect(self.set_job_queue_visible)
         # Aide
+        actions.documentation_requested.connect(self.show_documentation)
         actions.about_requested.connect(lambda: AboutDialog(self).exec())
         actions.support_requested.connect(lambda: SupportDialog(self).exec())
         actions.coffee_requested.connect(
@@ -132,6 +134,12 @@ class WindowControllerMixin:
         actions.keychain_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_keychain_generator)
         )
+
+    def show_documentation(self, page="index.md"):
+        """Ouvre la fenêtre de documentation (une seule, réutilisée)."""
+        if getattr(self, "_help_dialog", None) is None:
+            self._help_dialog = HelpDialog(self)
+        self._help_dialog.show_page(page)
 
     def show_main_tab(self, tab_attr):
         """Affiche l'onglet central `tab_attr` (ex. "tab_separation").

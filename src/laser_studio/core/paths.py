@@ -77,3 +77,22 @@ def find_resource(filename):
         if os.path.exists(candidate):
             return candidate
     return None
+
+
+
+# Documentation utilisateur : fichiers Markdown de resources/doc/<langue>/,
+# embarqués avec les autres ressources. Qt les affiche directement
+# (QTextBrowser), sans étape de compilation.
+DOC_DIRNAME = "doc"
+
+
+def find_doc_page(lang, page="index.md"):
+    """Chemin de la page de documentation `page` dans la langue `lang`, ou à
+    défaut en français (langue de rédaction), ou None si introuvable.
+    Mêmes emplacements que find_resource (à côté de l'exécutable, pour
+    corriger la doc sans recompiler, puis dans le bundle)."""
+    for language in dict.fromkeys((lang, "fr")):
+        path = find_resource(os.path.join(DOC_DIRNAME, language, page))
+        if path is not None:
+            return path
+    return None

@@ -1,4 +1,4 @@
-"""Menu Aide : version, à propos, support et soutien."""
+"""Menu Aide : version, documentation, à propos, support et soutien."""
 
 from PyQt6.QtWidgets import QMenu
 
@@ -12,6 +12,7 @@ class HelpMenu(QMenu):
         super().__init__(tr("menu.help"), parent)
         self.addAction(actions.version)
         self.addSeparator()
+        self.addAction(actions.documentation)
         self.addAction(actions.about)
         self.addAction(actions.support)
         self.addAction(actions.coffee)
