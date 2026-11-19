@@ -1,0 +1,140 @@
+# Les outils
+
+[‹ Retour au sommaire](index.md)
+
+Laser Studio Pro réunit des outils pour laisser libre cours à votre
+créativité : vous choisissez quelques réglages, l'outil dessine la pièce et
+l'envoie dans l'éditeur vectoriel, la découpe et la gravure déjà rangées
+sur leurs calques. Vous pouvez ensuite la retoucher comme n'importe quel
+dessin.
+
+La plupart des outils se trouvent dans le menu **Outils**. Les outils de
+mise en page s'ouvrent depuis l'éditeur vectoriel.
+
+## Créer une pièce
+
+### Bibliothèque de modèles
+
+**Outils › Bibliothèque…**, ou le bouton *Bibliothèque* de l'éditeur
+vectoriel. Des modèles prêts à graver, rangés par catégorie : médailles,
+porte-clefs, totems, boules de Noël… Un double-clic ouvre la fiche du
+modèle : choisissez ses options (forme, motif…), modifiez ses textes
+(contenu, police, taille), l'aperçu suit vos choix. **Importer** le place
+dans l'éditeur.
+
+### Générateur de boîte
+
+**Outils › Générateur de boîte…** Une boîte à encoches, dont les faces
+s'emboîtent comme des doigts. Donnez les dimensions et l'épaisseur du
+matériau, puis choisissez :
+
+- le **couvercle** : aucun, à doigts, posé avec rebord, coulissant,
+  charnière vivante (bois rendu souple par des fentes) ou charnière à axe ;
+- des **cloisons** pour faire des compartiments ;
+- des pieds, des aimants de fermeture, une encoche pour le doigt, un motif
+  gravé sur le dessus, un numéro gravé sur chaque face pour l'assemblage.
+
+Le **kerf** est la largeur de matière brûlée par le laser (souvent 0,1 à
+0,2 mm) : l'outil en tient compte pour que les pièces s'emboîtent sans jeu.
+Mesurez-le sur un essai. L'aperçu en 3D montre la boîte montée, ou ses
+pièces écartées pour vérifier l'assemblage.
+
+### Générateur de puzzle
+
+**Outils › Générateur de puzzle…** Deux styles de découpe : le puzzle
+classique, à tenons et mortaises, ou une grille ondulée. Choisissez la
+taille et le nombre de pièces en largeur et en hauteur ; la forme des
+tenons (profondeur, largeur du col, variations) se règle finement. Si une
+image est chargée, le puzzle s'ajuste à sa taille : gravez l'image, puis
+découpez le puzzle par-dessus.
+
+### Boule de Noël
+
+**Outils › Boule de Noël…** Une boule ajourée à suspendre au sapin, avec un
+prénom et un motif : flocons, étoiles, sapins, Père Noël, bonhomme de
+neige, cadeaux, houx, cloche, bougie… L'aperçu montre les contours
+réellement découpés. Une barre relie le prénom à l'anneau pour qu'il ne
+tombe pas à la découpe.
+
+### Générateur de porte-clés
+
+**Outils › Générateur de porte-clés…** Un prénom découpé sur une base qui
+suit la forme des lettres, avec un anneau à gauche, à droite ou en haut.
+Réglez la hauteur du texte, l'espacement des lettres et la bordure. Les
+points isolés (i, accents) peuvent être reliés à la base.
+
+## Mettre en page
+
+Ces outils agissent sur les objets de l'éditeur vectoriel (clic droit sur
+le dessin, ou barre d'outils de l'éditeur).
+
+### Dupliquer en série
+
+Reproduit la sélection en plusieurs exemplaires, rangés en grille ou
+imbriqués automatiquement. Chaque exemplaire peut recevoir son propre
+texte : saisissez une liste de prénoms, un par ligne, et vous obtenez un
+porte-clés par prénom.
+
+### Imbrication automatique
+
+Le bouton **Imbrication auto** place les pièces au plus serré sur la
+plaque, pour économiser la matière. Il tient compte de la forme réelle des
+pièces : une petite pièce peut se loger dans le creux d'une grande. Réglez
+la taille de la feuille, l'écart entre les pièces et les rotations
+autorisées.
+
+### Gabarit de placement
+
+Découpe une plaque percée d'une poche par objet, à sa forme et à sa
+taille, avec un peu de jeu. Posez-y vos porte-clés, stylos ou
+décapsuleurs : ils seront toujours gravés au même endroit. Les poches sont
+rangées comme les exemplaires de *Dupliquer en série*, pour que chaque
+gravure tombe pile sur sa poche.
+
+### Texte le long d'un objet
+
+Clic droit sur un texte et une forme : **Courber le texte sur le tracé**
+fait suivre au texte le contour de la forme, par exemple un cercle.
+
+## Préparer les images
+
+### Vectorisation d'image
+
+L'onglet **Vectorisation d'image** transforme une image (logo, dessin au
+trait) en dessin vectoriel, en noir et blanc ou en couleur, puis l'envoie
+dans l'éditeur. Voir [Images vectorielles](images-vectorielles.md).
+
+### Comparaison des algorithmes de tramage
+
+Dans l'onglet *Graver une image*, ce bouton affiche une vignette de votre
+image pour chaque algorithme de tramage, avec vos réglages actuels. Cliquez
+sur la vignette qui vous plaît pour choisir cet algorithme.
+
+### Séparation Couleur / Verre
+
+L'onglet **Séparation Couleur / Verre** prépare une image en couleur sur
+verre : la partie sombre est gravée sur le verre, la couleur est imprimée
+sur un film transparent collé au dos. Une simulation montre le rendu
+rétro-éclairé, et une grille de test aide à régler le gain de point.
+
+## Régler la machine
+
+### Matrice de test
+
+**Outils › Matrice de Test** grave une grille de cases, chacune avec une
+puissance et une vitesse différentes. Sur une chute de votre matériau,
+elle montre d'un coup d'œil le bon réglage, que vous reportez ensuite dans
+votre profil matériau. Le test peut aussi se faire à partir d'une image.
+
+### Caméra
+
+**Outils › Caméra…** Une caméra au-dessus du plateau affiche la plaque
+dans l'éditeur vectoriel, pour placer le dessin exactement sur la pièce.
+Deux assistants guident les réglages : la calibration de l'objectif (avec
+un damier imprimé), puis l'alignement sur le plateau (avec des repères
+gravés).
+
+---
+
+*Stencil Studio, l'atelier de pochoirs et d'effets lumineux, fait l'objet
+d'une documentation séparée.*
