@@ -54,9 +54,13 @@ def orient_path(points):
     return pts
 
 
-def default_center_fraction(points):
+def default_center_fraction(points, inside=False):
     """Fraction (0 à 1) de la longueur où centrer le texte par défaut : le point le plus haut d'un contour
-    fermé (légende du haut d'une médaille), le milieu d'un tracé ouvert."""
+    fermé (légende du haut d'une médaille), le milieu d'un tracé ouvert.
+
+    `inside` (texte de l'autre côté du trait) : le point le plus BAS d'un contour fermé. Le haut des
+    lettres est alors tourné vers le centre, donc le texte n'est à l'endroit qu'en bas (légende du bas
+    d'une médaille) ; en haut il serait à l'envers."""
     if len(points) < 2:
         return 0.5
     if not is_closed(points):
@@ -65,8 +69,12 @@ def default_center_fraction(points):
     total = cum[-1]
     if total <= 0:
         return 0.5
-    top = max(p[1] for p in points)
-    spots = [cum[i] for i, p in enumerate(points[:-1]) if p[1] >= top - 1e-6]
+    if inside:
+        edge = min(p[1] for p in points)
+        spots = [cum[i] for i, p in enumerate(points[:-1]) if p[1] <= edge + 1e-6]
+    else:
+        edge = max(p[1] for p in points)
+        spots = [cum[i] for i, p in enumerate(points[:-1]) if p[1] >= edge - 1e-6]
     # Plusieurs sommets à la même hauteur (dessus plat) : on prend le milieu de la série.
     return ((min(spots) + max(spots)) / 2.0 / total) % 1.0
 

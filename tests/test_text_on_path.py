@@ -119,5 +119,36 @@ class HelperTests(unittest.TestCase):
         self.assertEqual(top.scaled_points([(1.0, 2.0)], 2.0, 3.0), [(2.0, 6.0)])
 
 
+class InsideReadabilityTests(unittest.TestCase):
+    """Texte de l'autre côté du trait : lisible à l'endroit en bas du contour, à l'envers en haut."""
+
+    def _rotation_at(self, inside, center):
+        pts = top.orient_path(circle(20))
+        spots = top.path_placements([2.0, 2.0, 2.0], pts, center, 0.0, inside)
+        return spots[1][2]
+
+    def test_default_center_inside_is_bottom(self):
+        pts = top.orient_path(circle(20))
+        for inside, expected_y in ((False, 20.0), (True, -20.0)):
+            f = top.default_center_fraction(pts, inside)
+            x, y = top._locate(pts, top._cumulative(pts), True, f * top.path_length(pts))
+            self.assertAlmostEqual(y, expected_y, delta=0.1)
+            self.assertAlmostEqual(x, 0.0, delta=0.5)
+
+    def test_inside_text_upright_at_bottom(self):
+        pts = top.orient_path(circle(20))
+        rot = self._rotation_at(True, top.default_center_fraction(pts, True))
+        self.assertAlmostEqual(abs(((rot + 180) % 360) - 180), 0.0, delta=1.0)
+
+    def test_inside_text_upside_down_at_top(self):
+        pts = top.orient_path(circle(20))
+        rot = self._rotation_at(True, top.default_center_fraction(pts, False))
+        self.assertAlmostEqual(abs(rot), 180.0, delta=1.0)
+
+    def test_outside_default_unchanged(self):
+        pts = top.orient_path(circle(20))
+        self.assertEqual(top.default_center_fraction(pts), top.default_center_fraction(pts, False))
+
+
 if __name__ == "__main__":
     unittest.main()
