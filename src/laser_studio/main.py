@@ -38,6 +38,9 @@ def main():
     # la fenêtre principale, qui les utilise dès sa construction.
     install_breeze_icon_theme()
     apply_saved_theme(app)
+    # Polices embarquées (resources/fonts/) : textes des modèles de la bibliothèque.
+    from laser_studio.ui.fonts import load_bundled_fonts
+    load_bundled_fonts()
 
     # Après l'affichage du splash, pour qu'il apparaisse le plus tôt possible.
     icon_path = (

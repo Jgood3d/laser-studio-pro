@@ -1,0 +1,37 @@
+{
+  "title": {
+    "fr": "Médaille sportive - modèle 2",
+    "en": "Sports medal - model 2",
+    "de": "Sportmedaille - Modell 2",
+    "es": "Medalla deportiva - modelo 2"
+  },
+  "author": "Antoine Le Morvan ; pictogrammes : OpenMoji (HfG Schwäbisch Gmünd)",
+  "license": {
+    "fr": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) : utilisation et modification libres, y compris commerciales, en citant les auteurs et en partageant à l'identique.",
+    "en": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): free use and modification, including commercial, with attribution and share-alike.",
+    "de": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): freie Nutzung und Änderung, auch kommerziell, mit Namensnennung und Weitergabe unter gleichen Bedingungen.",
+    "es": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): uso y modificación libres, incluso comerciales, citando a los autores y compartiendo igual."
+  },
+  "description": {
+    "fr": "La médaille du modèle 1 avec des pictogrammes OpenMoji : natation, dribble, handball, water-polo, escrime, haltérophilie, football. Forme hexagonale ou ronde ; résultat : 1ère, 2e, 3e place ou étoile ; nom de la compétition à saisir avant l'import.",
+    "en": "The model 1 medal with OpenMoji pictograms: swimming, dribbling, handball, water polo, fencing, weightlifting, football. Hexagonal or round shape; result: 1st, 2nd, 3rd place or star; competition name to type before import.",
+    "de": "Die Medaille von Modell 1 mit OpenMoji-Piktogrammen: Schwimmen, Dribbeln, Handball, Wasserball, Fechten, Gewichtheben, Fußball. Sechseckig oder rund; Ergebnis: 1., 2., 3. Platz oder Stern; Wettkampfname vor dem Import eingeben.",
+    "es": "La medalla del modelo 1 con pictogramas OpenMoji: natación, regate, balonmano, waterpolo, esgrima, halterofilia, fútbol. Forma hexagonal o redonda; resultado: 1.º, 2.º, 3.er puesto o estrella; nombre de la competición a escribir antes de importar."
+  },
+  "tags": [
+    "médaille",
+    "medal",
+    "sport",
+    "compétition",
+    "podium",
+    "natation",
+    "basket",
+    "handball",
+    "water-polo",
+    "escrime",
+    "haltérophilie",
+    "football",
+    "openmoji",
+    "club"
+  ]
+}

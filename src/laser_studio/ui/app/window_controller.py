@@ -96,6 +96,9 @@ class WindowControllerMixin:
         actions.puzzle_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_puzzle_generator)
         )
+        actions.library_requested.connect(
+            lambda: self._run_in_vector_editor(self.library.open)
+        )
         actions.ornament_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_ornament_generator)
         )

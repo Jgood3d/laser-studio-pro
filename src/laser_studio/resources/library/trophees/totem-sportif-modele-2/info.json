@@ -1,0 +1,37 @@
+{
+  "title": {
+    "fr": "Totem sportif - modèle 2",
+    "en": "Sports totem - model 2",
+    "de": "Sport-Totem - Modell 2",
+    "es": "Tótem deportivo - modelo 2"
+  },
+  "author": "Antoine Le Morvan ; pictogrammes : OpenMoji (HfG Schwäbisch Gmünd)",
+  "license": {
+    "fr": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) : utilisation et modification libres, y compris commerciales, en citant les auteurs et en partageant à l'identique.",
+    "en": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): free use and modification, including commercial, with attribution and share-alike.",
+    "de": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): freie Nutzung und Änderung, auch kommerziell, mit Namensnennung und Weitergabe unter gleichen Bedingungen.",
+    "es": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): uso y modificación libres, incluso comerciales, citando a los autores y compartiendo igual."
+  },
+  "description": {
+    "fr": "Le totem du modèle 1 avec des pictogrammes OpenMoji en réserve dans le logo : natation, dribble, handball, water-polo, escrime, haltérophilie, football. Titre et sous-titre à saisir avant l'import.",
+    "en": "The model 1 totem with OpenMoji pictograms reserved in the logo: swimming, dribbling, handball, water polo, fencing, weightlifting, football. Title and subtitle to type before import.",
+    "de": "Das Totem von Modell 1 mit ausgesparten OpenMoji-Piktogrammen im Logo: Schwimmen, Dribbeln, Handball, Wasserball, Fechten, Gewichtheben, Fußball. Titel und Untertitel vor dem Import eingeben.",
+    "es": "El tótem del modelo 1 con pictogramas OpenMoji en reserva en el logotipo: natación, regate, balonmano, waterpolo, esgrima, halterofilia, fútbol. Título y subtítulo a escribir antes de importar."
+  },
+  "tags": [
+    "trophée",
+    "trophy",
+    "totem",
+    "sport",
+    "club",
+    "challenge",
+    "natation",
+    "basket",
+    "handball",
+    "water-polo",
+    "escrime",
+    "haltérophilie",
+    "football",
+    "openmoji"
+  ]
+}

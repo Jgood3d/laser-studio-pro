@@ -38,6 +38,7 @@ from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, MaterialsC
 from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
 from laser_studio.controllers.matrix_image import MatrixImageController
+from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
@@ -609,6 +610,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
 
         # Boutons d'outils (rangée du haut), avec une icône du pack Breeze embarqué.
+        # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
+        self.library = LibraryController(
+            self, self.layer_manager,
+            bed_height=lambda: self.machine.bed_h,
+            add_to_vector_editor=self._add_objects_to_vector_editor,
+        )
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
         btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
@@ -646,6 +653,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 ("ui.vector_serial_duplicate", "view-grid", self.open_serial_duplicate),
                 ("ui.vector_jig", "draw-rectangle", self.open_jig_generator),
                 ("ui.vector_delete", "edit-delete", self.delete_selected_vector_object),
+                ("ui.vector_delete_all", "edit-clear-all", self.delete_all_vector_objects),
                 (None, None, None),
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
                 ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
@@ -665,6 +673,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 ("ui.vector_add_shape", "shape-choose", self.insert_shape_object),
             )
         ]
+        # Bibliothèque de modèles : ajoute aussi des objets (la rangée du haut est pleine).
+        vector_create_actions.append(self._vector_action(
+            tr("ui.vector_library"), tr("ui.vector_library_tip"), self.library.open, "view-app-grid"))
         self._vector_draw_buttons = {}
         for tool, key, icon in (
             (None, "ui.vector_tool_select", "tool-pointer"),

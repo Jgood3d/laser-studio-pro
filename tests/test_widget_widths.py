@@ -121,7 +121,8 @@ class VectorToolbarTests(unittest.TestCase):
 
     def test_one_row_with_import_and_tools(self):
         rows = self.rows()
-        self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg", "ui.vector_box_generator",
+        self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg",
+                                                   "ui.vector_box_generator",
                                                    "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
                                                    "ui.vector_keychain_generator", "ui.vector_nesting"]})
 

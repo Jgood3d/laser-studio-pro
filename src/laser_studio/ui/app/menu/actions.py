@@ -71,6 +71,7 @@ class AppActions(QObject):
     box_generator_requested = pyqtSignal()
     puzzle_generator_requested = pyqtSignal()
     ornament_generator_requested = pyqtSignal()
+    library_requested = pyqtSignal()
     camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
@@ -333,12 +334,18 @@ class AppActions(QObject):
             tr("menu.tools.ornament"),
             self.ornament_generator_requested,
         )
+        self.library = self._action(
+            bundled_icon("view-app-grid", QStyle.StandardPixmap.SP_DirIcon),
+            tr("menu.tools.library"),
+            self.library_requested,
+        )
         self.camera = self._action(
             bundled_icon("camera-photo", QStyle.StandardPixmap.SP_ComputerIcon),
             tr("menu.tools.camera"),
             self.camera_requested,
         )
         self.vector_tool_actions = (
+            self.library,
             self.vector_import,
             self.box_generator,
             self.puzzle_generator,
