@@ -1,27 +1,28 @@
 ================================================================================
-  TOTEM AVIRON - NIVEAUX 1 / 2 / 3
-  (anciennement Or / Argent / Bronze)
+  TOTEM SPORTIF - MODÈLE 2
   Modèle de la bibliothèque Laser Studio Pro
 ================================================================================
 
 Auteur       : Antoine Le Morvan
 Technique    : Gravure + découpe laser
-Licence      : Libre d'utilisation pour usage personnel et associatif
+Pictogrammes : OpenMoji, HfG Schwäbisch Gmünd
+Licence      : CC BY-SA 4.0 — https://creativecommons.org/licenses/by-sa/4.0/
 
 --------------------------------------------------------------------------------
   PRÉSENTATION
 --------------------------------------------------------------------------------
 
-Ce totem est un trophée ou récompense destiné aux rameurs, décliné en trois
-niveaux de distinction :
+Ce totem est un trophée ou une récompense sportive. Son logo, un rond noir,
+porte un pictogramme en réserve, au choix dans cette fiche (liste « Motif ») :
 
-  Niveau 1  →  anciennement Bronze
-  Niveau 2  →  anciennement Argent
-  Niveau 3  →  anciennement Or
+  Natation, Dribble, Handball, Water-polo, Escrime, Haltérophilie, Football
+  (pictogrammes OpenMoji)
 
-Le niveau se choisit dans cette fiche (liste « Niveau du brevet »). Les
-textes sont modifiables dans la fiche avant l'import, puis dans l'éditeur
-vectoriel (nom du rameur, club, année, etc.).
+Sous le logo, deux textes à adapter dans la fiche avant l'import (contenu,
+police, taille), puis modifiables dans l'éditeur vectoriel :
+
+  Titre       →  « TITRE TOTEM » (nom du trophée, du club…)
+  Sous-titre  →  « Challenge XXX » (épreuve, année, nom du sportif…)
 
 Le totem est un objet en volume, assemblé à partir de trois pièces découpées
 au laser et collées entre elles. L'onglet « Aperçu » montre le résultat final.
@@ -49,12 +50,13 @@ au laser et collées entre elles. L'onglet « Aperçu » montre le résultat fin
   GRAVER ET DÉCOUPER AVEC LASER STUDIO PRO
 --------------------------------------------------------------------------------
 
-  1. Dans cette fiche, choisir le niveau (« Niveau du brevet ») et, si besoin,
-     modifier les textes.
+  1. Dans cette fiche, choisir le motif et remplacer les textes « TITRE
+     TOTEM » et « Challenge XXX ».
 
   2. Cliquer sur « Importer dans l'éditeur vectoriel ». Le totem arrive sur
      deux calques :
-       - Gravure : le logo, le trait et les textes (gravure remplie) ;
+       - Gravure : le logo (rond noir, pictogramme en réserve), le trait et
+         les textes (gravure remplie) ;
        - Découpe : les contours des trois pièces.
      Les textes restent modifiables dans l'éditeur vectoriel.
 
@@ -113,6 +115,22 @@ au laser et collées entre elles. L'onglet « Aperçu » montre le résultat fin
 
   /!\ Éviter l'acrylique pour ce projet : le collage et l'assemblage en
   volume sont moins adaptés à ce matériau.
+
+
+--------------------------------------------------------------------------------
+  LICENCE
+--------------------------------------------------------------------------------
+
+  Les pictogrammes viennent d'OpenMoji (https://openmoji.org), de la
+  HfG Schwäbisch Gmünd, sous licence CC BY-SA 4.0. Ils ont été mis à
+  l'échelle du logo et passés en blanc ; leurs traits sont gravés avec leur
+  épaisseur.
+
+  Ce totem, qui les contient, est donc lui aussi sous licence CC BY-SA 4.0 :
+  vous pouvez l'utiliser, le modifier et le diffuser, y compris pour un
+  usage commercial, en citant les auteurs et en diffusant vos versions sous
+  la même licence.
+  https://creativecommons.org/licenses/by-sa/4.0/
 
 
 --------------------------------------------------------------------------------

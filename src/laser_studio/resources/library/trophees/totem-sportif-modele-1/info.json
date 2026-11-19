@@ -1,0 +1,40 @@
+{
+  "title": {
+    "fr": "Totem sportif - modèle 1",
+    "en": "Sports totem - model 1",
+    "de": "Sport-Totem - Modell 1",
+    "es": "Tótem deportivo - modelo 1"
+  },
+  "author": "Antoine Le Morvan",
+  "license": {
+    "fr": "Libre d'utilisation pour usage personnel et associatif. Pictogrammes sportifs : Material Symbols (Google), licence Apache 2.0 (LICENCE-material-symbols.txt).",
+    "en": "Free for personal and club use. Sports pictograms: Material Symbols (Google), Apache 2.0 license (LICENCE-material-symbols.txt).",
+    "de": "Frei für private Nutzung und Vereine. Sportpiktogramme: Material Symbols (Google), Apache-2.0-Lizenz (LICENCE-material-symbols.txt).",
+    "es": "Libre para uso personal y asociativo. Pictogramas deportivos: Material Symbols (Google), licencia Apache 2.0 (LICENCE-material-symbols.txt)."
+  },
+  "description": {
+    "fr": "Trophée en 3 pièces (socle, partie principale, retour) à découper et coller. Logo : un pictogramme sportif en réserve dans un rond noir (basket-ball, kayak, surf, natation, course, vélo, handball, volley-ball, gymnastique, arts martiaux…). Titre et sous-titre à saisir avant l'import.",
+    "en": "3-piece trophy (base, main part, front) to cut and glue. Logo: a sports pictogram reserved in a black circle (basketball, kayak, surf, swimming, running, cycling, handball, volleyball, gymnastics, martial arts…). Title and subtitle to type before import.",
+    "de": "Trophäe aus 3 Teilen (Sockel, Hauptteil, Vorderteil) zum Schneiden und Kleben. Logo: ein ausgespartes Sportpiktogramm in einem schwarzen Kreis (Basketball, Kajak, Surfen, Schwimmen, Laufen, Radfahren, Handball, Volleyball, Turnen, Kampfsport…). Titel und Untertitel vor dem Import eingeben.",
+    "es": "Trofeo de 3 piezas (base, parte principal, frontal) para cortar y pegar. Logotipo: un pictograma deportivo en reserva dentro de un círculo negro (baloncesto, kayak, surf, natación, carrera, ciclismo, balonmano, voleibol, gimnasia, artes marciales…). Título y subtítulo a escribir antes de importar."
+  },
+  "tags": [
+    "trophée",
+    "trophy",
+    "totem",
+    "sport",
+    "club",
+    "challenge",
+    "récompense",
+    "basket",
+    "kayak",
+    "surf",
+    "natation",
+    "course",
+    "vélo",
+    "handball",
+    "volley",
+    "gymnastique",
+    "arts martiaux"
+  ]
+}

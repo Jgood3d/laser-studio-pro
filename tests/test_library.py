@@ -12,7 +12,8 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 LIBRARY = os.path.join(REPO, "src", "laser_studio", "resources", "library")
-TOTEM = os.path.join(LIBRARY, "trophees", "totem-brevet-aviron", "totem-brevet-aviron.svg")
+TOTEM = os.path.join(LIBRARY, "trophees", "totem-sportif-modele-1", "totem-sportif-modele-1.svg")
+TOTEM2 = os.path.join(LIBRARY, "trophees", "totem-sportif-modele-2", "totem-sportif-modele-2.svg")
 MEDAL = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-1", "medaille-sportive-modele-1.svg")
 MEDAL2 = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-2", "medaille-sportive-modele-2.svg")
 KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-sportif-modele-1", "porte-clef-sportif-modele-1.svg")
@@ -119,7 +120,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_bundled_library_is_found(self):
         keys = [i.key for c in load_catalog([LIBRARY]) for i in c.items]
-        self.assertIn("trophees/totem-brevet-aviron", keys)
+        self.assertIn("trophees/totem-sportif-modele-1", keys)
 
 
 @unittest.skipIf(import_svg is None, "PyQt6 non importable ici")
@@ -325,7 +326,7 @@ class SvgImportTests(unittest.TestCase):
 
     def test_bundled_models_follow_the_convention(self):
         """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques."""
-        for model in (TOTEM, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2):
+        for model in (TOTEM, TOTEM2, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2):
             root = ET.parse(model).getroot()
             layers = {next((v for k, v in g.attrib.items() if k.endswith("label")), "")
                       for g in root if g.tag.endswith("}g") and "display:none" not in g.attrib.get("style", "")}
@@ -335,17 +336,32 @@ class SvgImportTests(unittest.TestCase):
                 if shape.tag.split("}")[-1] in ("path", "rect", "circle"):
                     self.assertIn("stroke:#ff0000", shape.attrib.get("style", ""), model)
 
-    def test_bundled_totem(self):
-        groups = find_variant_groups(TOTEM)
-        self.assertEqual([o[0] for o in groups[0].options],
-                         ["Niveau 1", "Niveau 2", "Niveau 3", "Bronze", "Argent", "Or"])
-        self.assertEqual(groups[0].default, "Niveau 3")
-        art = import_svg(TOTEM, variants={groups[0].key: "Or"})
-        texts = sorted(o.text for _r, o in art.items if o.kind == "text")
-        self.assertEqual(texts, ["Brevet d'aviron", "Or"])               # calque caché « sources » ignoré
-        self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"])
-        self.assertAlmostEqual(art.width_mm, 30.0, places=1)
-        self.assertAlmostEqual(art.height_mm, 116.4, places=1)
+    def test_bundled_totems(self):
+        expected = {
+            TOTEM: ["Basket-ball (1 contre 1)", "Kayak", "Surf", "Natation", "Course", "Vélo", "Ballon de basket",
+                    "Handball", "Volley-ball", "Gymnastique", "Arts martiaux"],
+            TOTEM2: ["Natation", "Dribble", "Handball", "Water-polo", "Escrime", "Haltérophilie", "Football"],
+        }
+        for model, options in expected.items():
+            (group,) = find_variant_groups(model)
+            self.assertEqual((group.key, [o[0] for o in group.options]), ("Motif", options))
+            self.assertEqual([(f.key, f.text) for f in find_texts(model)],
+                             [("Titre", "TITRE TOTEM"), ("Sous-titre", "Challenge XXX")])
+            for option in options:
+                art = import_svg(model, variants={"Motif": option})
+                self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], option)
+                self.assertAlmostEqual(art.width_mm, 30.0, places=1)
+                self.assertAlmostEqual(art.height_mm, 116.4, places=1)
+                for _r, obj in art.items:                                   # textes dans la largeur
+                    if obj.kind == "text":
+                        self.assertLess(obj.world_path().boundingRect().width(), 28.0, obj.text)
+
+    def test_totem_pictogram_is_reserved_in_the_black_circle(self):
+        """Le picto est blanc : il creuse le rond noir (plus de sous-tracés que le rond seul)."""
+        polygons = lambda motif: len(next(o for r, o in import_svg(TOTEM, variants={"Motif": motif}).items
+                                          if r == "engrave" and o.kind == "svg_path").world_path().toSubpathPolygons())
+        for motif in ("Kayak", "Natation"):
+            self.assertGreater(polygons(motif), 4, motif)
 
     def test_bundled_keychains(self):
         expected = {
@@ -573,7 +589,7 @@ class LibraryControllerTests(unittest.TestCase):
         added = []
         controller = LibraryController(None, layers, bed_height=lambda: 300.0,
                                        add_to_vector_editor=added.extend, roots=lambda: [LIBRARY])
-        item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-brevet-aviron")
+        item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-sportif-modele-1")
         objects = controller.import_item(item)
         self.assertEqual(objects, added)
         by_role = {layer.role: layer.id for layer in layers.layers if getattr(layer, "role", None)}

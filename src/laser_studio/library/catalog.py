@@ -6,7 +6,7 @@ Organisation (voir resources/library/README.md) :
     resources/library/
         trophees/                      <- une catégorie par dossier
             _category.json             <- facultatif : nom dans chaque langue
-            totem-brevet-aviron/       <- un modèle par dossier
+            totem-sportif-modele-1/    <- un modèle par dossier
                 totem.svg              <- le modèle (le premier .svg du dossier)
                 totem_photo.jpg        <- facultatif : photo de la pièce réalisée
                                           (nom contenant « photo » ou « preview ») ;

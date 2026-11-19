@@ -10,9 +10,9 @@ On peut aussi en ajouter sans recompiler : un dossier `resources/library/` plac�
 library/
     trophees/                      une catégorie par dossier
         _category.json             facultatif : nom de la catégorie dans chaque langue
-        totem-brevet-aviron/       un modèle par dossier
-            totem-brevet-aviron.svg            le modèle (le premier .svg du dossier)
-            totem-brevet-aviron_photo.jpg      facultatif : photo de la pièce réalisée
+        totem-sportif-modele-1/    un modèle par dossier
+            totem-sportif-modele-1.svg         le modèle (le premier .svg du dossier)
+            totem-sportif-modele-1_photo.jpg   facultatif : photo de la pièce réalisée
             readme.txt                         facultatif : texte affiché dans la fiche
             info.json                          facultatif : titre, auteur, licence, description
 ```
@@ -33,7 +33,7 @@ Tous les champs sont facultatifs. Chaque texte peut être une simple chaîne, ou
 
 ```json
 {
-  "title": {"fr": "Totem brevet d'aviron", "en": "Rowing award totem"},
+  "title": {"fr": "Totem sportif - modèle 1", "en": "Sports totem - model 1"},
   "author": "Nom de l'auteur",
   "license": "Libre d'utilisation pour usage personnel et associatif",
   "description": {"fr": "Totem en 3 pièces…", "en": "3-piece totem…"},
@@ -78,11 +78,11 @@ Chaque groupe doit avoir **exactement un** sous-calque visible : si tous sont ca
 ```
 Cut                         (calque, rouge)
 Engrave                     (calque, noir)
-    Logo
-    Niveau du brevet        (groupe : libellé du choix)
-        Niveau 1            (sous-calque caché : une option)
-        Niveau 2            (sous-calque caché)
-        Niveau 3            (sous-calque visible : l'option par défaut)
+    Fond logo               (rond noir)
+    Motif                   (groupe : libellé du choix)
+        Kayak               (sous-calque caché : une option, dessiné en blanc)
+        Natation            (sous-calque caché)
+        Course              (sous-calque visible : l'option par défaut)
 sources                     (calque caché : ignoré)
 ```
 
