@@ -115,6 +115,9 @@ class OrnamentGeneratorDialog(QDialog):
         form.addRow(tr("ornament.count"), self.spin_count)
         self.spin_flake = self._spin(8, 240, saved.get("flake_size", 16.0), " mm")
         form.addRow(tr("ornament.flake_size"), self.spin_flake)
+        self.spin_drop = self._spin(-10, 60, saved.get("motif_drop", 0.0), " mm")
+        self.spin_drop.setToolTip(tr("ornament.drop_tip"))
+        form.addRow(tr("ornament.drop"), self.spin_drop)
 
         self.chk_auto_offset = QCheckBox(tr("ornament.auto"))
         self.chk_auto_offset.setChecked(saved.get("name_offset") is None)
@@ -183,7 +186,7 @@ class OrnamentGeneratorDialog(QDialog):
             (self.spin_ring, "valueChanged"), (self.combo_hanger, "currentIndexChanged"),
             (self.spin_hole, "valueChanged"), (self.combo_motif, "currentIndexChanged"),
             (self.combo_layout, "currentIndexChanged"), (self.combo_style, "currentIndexChanged"),
-            (self.spin_count, "valueChanged"), (self.spin_flake, "valueChanged"),
+            (self.spin_count, "valueChanged"), (self.spin_flake, "valueChanged"), (self.spin_drop, "valueChanged"),
             (self.chk_auto_offset, "toggled"), (self.spin_offset, "valueChanged"),
             (self.chk_auto_size, "toggled"), (self.spin_size, "valueChanged"),
             (self.combo_support, "currentIndexChanged"),
@@ -227,6 +230,7 @@ class OrnamentGeneratorDialog(QDialog):
         default = og.MOTIF_DEFAULT_SIZE.get(self.combo_motif.currentData())
         if default:
             self.spin_flake.setValue(default)
+        self.spin_drop.setValue(0.0)   # le bon décalage dépend du motif : on repart de zéro
 
     def _schedule(self, *_args):
         self._timer.start()
@@ -247,6 +251,7 @@ class OrnamentGeneratorDialog(QDialog):
             support=self.combo_support.currentData(), motif=self.combo_motif.currentData(),
             flake_layout=self.combo_layout.currentData(), flake_style=self.combo_style.currentData(),
             flake_count=self.spin_count.value(), flake_size=self.spin_flake.value(),
+            motif_drop=self.spin_drop.value(),
         )
 
     def settings(self):
@@ -257,7 +262,7 @@ class OrnamentGeneratorDialog(QDialog):
             "ring_width": p.ring_width, "hanger": p.hanger, "hole_diameter": p.hole_diameter,
             "motif": p.motif, "flake_layout": p.flake_layout, "flake_style": p.flake_style,
             "flake_count": p.flake_count, "flake_size": p.flake_size, "name_offset": p.name_offset,
-            "name_size": p.name_size, "support": p.support,
+            "name_size": p.name_size, "support": p.support, "motif_drop": p.motif_drop,
         }
 
     def _update_preview(self):
@@ -268,6 +273,7 @@ class OrnamentGeneratorDialog(QDialog):
             widget.setEnabled(flakes)
         # La guirlande va toujours en haut, d'un côté à l'autre : la disposition ne s'applique pas.
         self.combo_layout.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
+        self.spin_drop.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_hole.setEnabled(self.combo_hanger.currentData() != "Aucun")
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         try:

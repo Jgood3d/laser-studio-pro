@@ -131,7 +131,8 @@ class VectorToolbarTests(unittest.TestCase):
         create = src[src.index("vector_create_actions = ["):src.index("# Une seule rangée en haut")]
         for key, icon in (("ui.vector_add_text", "insert-text"), ("ui.vector_add_shape", "shape-choose"),
                           ("ui.vector_tool_select", "tool-pointer"), ("ui.vector_tool_line", "draw-line"),
-                          ("ui.vector_tool_rect", "draw-rectangle"), ("ui.vector_tool_ellipse", "draw-ellipse"),
+                          ("ui.vector_tool_rect", "draw-rectangle"), ("ui.vector_tool_circle", "draw-circle"),
+                          ("ui.vector_tool_ellipse", "draw-ellipse"),
                           ("ui.vector_tool_measure", "measure")):
             self.assertIn(f'"{key}", "{icon}"', create, key)
         self.assertIn('self.vector_canvas, anchor="left")', src)
@@ -143,7 +144,7 @@ class VectorToolbarTests(unittest.TestCase):
             src = f.read()
         edit = src[src.index("vector_edit_actions = ["):src.index("# Créer et dessiner")]
         for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
-                    "vector.explode_path", "vector.edit_nodes", "ui.vector_undo", "ui.vector_redo"):
+                    "vector.explode_path", "vector.edit_nodes", "vector.text_follow", "ui.vector_undo", "ui.vector_redo"):
             self.assertIn(f'("{key}"', edit, key)
         align = src[src.index("vector_align_actions = ["):src.index("self.vector_canvas = VectorCanvasView(")]
         for key in ("ui.vector_align_left", "ui.vector_align_center_h", "ui.vector_align_right",

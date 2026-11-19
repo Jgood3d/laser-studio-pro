@@ -649,13 +649,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 (None, None, None),
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
                 ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
+                ("vector.text_follow", "text-follow-path", self.make_text_follow_selection),
                 (None, None, None),
                 ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
             )
         ]
         # Créer et dessiner : barre flottante d'icônes à gauche du canevas (voir plus bas). Texte et
-        # forme ajoutent un objet ; sélection, ligne, rectangle, ellipse et mesure sont les outils de
+        # forme ajoutent un objet ; sélection, ligne, rectangle, cercle, ellipse et mesure sont les outils de
         # la souris, un seul coché à la fois (set_vector_draw_tool).
         vector_create_actions = [
             self._vector_action(tr(key), tr(key).lstrip("+ "), slot, icon)
@@ -669,6 +670,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             (None, "ui.vector_tool_select", "tool-pointer"),
             ("line", "ui.vector_tool_line", "draw-line"),
             ("rect", "ui.vector_tool_rect", "draw-rectangle"),
+            ("circle", "ui.vector_tool_circle", "draw-circle"),
             ("ellipse", "ui.vector_tool_ellipse", "draw-ellipse"),
             ("measure", "ui.vector_tool_measure", "measure"),
         ):

@@ -96,8 +96,9 @@ class VectorEditingMixin:
     def set_vector_draw_tool(self, tool):
         """Active un outil de dessin à la souris sur le canevas vectoriel.
 
-        tool: None/'select', 'line', 'rect', 'ellipse'.
-        Clic-glisser crée la forme ; Échap ou clic droit annule l'outil.
+        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
+        Rectangle : 3 points. Cercle (du centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) :
+        un seul clic-glisser. Échap ou clic droit annule l'outil.
         """
         if not hasattr(self, "vector_canvas"):
             return
@@ -159,6 +160,15 @@ class VectorEditingMixin:
                 dialog.get_object()
                 item.refresh()
                 self.on_vector_selection_changed(obj)
+
+    def make_text_follow_selection(self):
+        """Fait suivre à un texte le contour d'un autre objet : sélectionner le texte ET l'objet (Maj + clic)."""
+        if not self.vector_canvas.make_text_follow_object():
+            QMessageBox.information(self, tr("vector.text_follow_title"), tr("vector.text_follow_need_two"))
+            return
+        item, obj = self.vector_canvas.selected_object()
+        if obj is not None:
+            self.on_vector_selection_changed(obj)
 
     def rotate_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()

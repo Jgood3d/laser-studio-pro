@@ -89,6 +89,7 @@ class OrnamentParams:
         flake_style=None,
         flake_count=3,
         flake_size=16.0,
+        motif_drop=0.0,
         seed=1,
     ):
         self.diameter = float(diameter)
@@ -108,6 +109,10 @@ class OrnamentParams:
         self.flake_style = flake_style if flake_style is not None else MOTIF_STYLES.get(motif, ("Classique",))[0]
         self.flake_count = int(flake_count)
         self.flake_size = float(flake_size)
+        # Écart du motif à l'anneau, en mm, vers le centre de la boule : positif = les motifs du haut ou suspendus
+        # descendent (la suspente ou la tige s'allonge), ceux du bas montent ; négatif = ils se rapprochent de
+        # l'anneau. Une tige garde toujours le contact avec l'anneau.
+        self.motif_drop = float(motif_drop)
         self.seed = int(seed)
 
 
@@ -311,6 +316,14 @@ def _radial_polygon(params, index, cx, cy, radius, rotation):
     return snowflake_polygon(cx, cy, radius, rotation, params.flake_style)
 
 
+def _stem_polygon(x0, y0, x1, y1, w):
+    """Tige de largeur `w` entre deux points (rectangle orienté)."""
+    dx, dy = x1 - x0, y1 - y0
+    n = math.hypot(dx, dy) or 1.0
+    nx, ny = -dy / n * w / 2.0, dx / n * w / 2.0
+    return [(x0 + nx, y0 + ny), (x1 + nx, y1 + ny), (x1 - nx, y1 - ny), (x0 - nx, y0 - ny)]
+
+
 def _hanging_flakes(params, geo, rng):
     """Flocons suspendus à l'anneau par une fine suspente, comme sur la boule « Emma »."""
     n, size, r_in = params.flake_count, params.flake_size, geo.inner_radius
@@ -322,7 +335,12 @@ def _hanging_flakes(params, geo, rng):
         top = math.sqrt(max(r_in * r_in - x * x, 0.0))  # bord intérieur de l'anneau à cet x
         # Plus long au milieu, plus court sur les côtés : la ligne des flocons suit la courbure.
         centrality = 1.0 - (abs(x) / x_max if x_max > 0 else 0.0)
-        hang = size * (0.30 + 0.40 * centrality) + 1.0
+        base_hang = size * (0.30 + 0.40 * centrality) + 1.0
+        extra = max(params.motif_drop, 1.0 - base_hang)   # il reste toujours 1 mm de suspente
+        # Le décalage demandé ne doit pas faire sortir le flocon du disque : on le réduit jusqu'à ce qu'il rentre.
+        while extra > 0.0 and math.hypot(x, top - (base_hang + extra) - 2 * a) > geo.radius - 0.8:
+            extra = max(extra - 0.2, 0.0)
+        hang = base_hang + extra
         cy = top - hang - a
         geo.flakes.append(Flake(x, cy, a, 90.0, _radial_polygon(params, i, x, cy, a, 90.0)))
         # La suspente part de la pointe haute du flocon et s'enfonce de 1 mm dans l'anneau.
@@ -345,7 +363,13 @@ def _ring_flakes(params, geo, rng, top, bottom):
         shift = 0.0 if side > 0 else step / 2.0 * (1 if n % 2 == 0 else 0)
         for i in range(n):
             ang = base + shift + (i - (n - 1) / 2.0) * step * (-1 if side < 0 else 1)
-            cx, cy = rho * math.cos(math.radians(ang)), rho * math.sin(math.radians(ang))
+            ca, sa = math.cos(math.radians(ang)), math.sin(math.radians(ang))
+            # Décalage vers le centre (réglage « descendre ») : au plus jusqu'à laisser 1 mm au centre de la boule.
+            move = min(max(params.motif_drop, -2.0), max(rho - a - 1.0, 0.0))
+            r_flake = rho - move
+            cx, cy = r_flake * ca, r_flake * sa
+            if move > 1.7:   # le bras (qui s'enfonce de 2 mm) ne touche plus l'anneau : une tige radiale relie le flocon à l'anneau
+                geo.solids.append(_stem_polygon(cx, cy, (r_in + 1.0) * ca, (r_in + 1.0) * sa, max(MIN_STEM_MM, 0.07 * size)))
             rot = ang
             geo.flakes.append(Flake(cx, cy, a, rot, _radial_polygon(params, len(geo.flakes), cx, cy, a, rot)))
             _note_edge(geo, upper=cy - a if side > 0 else None, lower=cy + a if side < 0 else None)
@@ -356,6 +380,11 @@ def _add_shape(geo, shape: MotifShape, cx, cy, radius, rotation):
     geo.cuts += shape.cuts
     geo.late += shape.late
     geo.flakes.append(Flake(cx, cy, radius, rotation, None))
+
+
+def _axis_y(shape: MotifShape, side):
+    """Hauteur du point d'attache d'un motif posé, sur son axe : le haut (side > 0) ou le bas (side < 0)."""
+    return shape.axis_top() if side > 0 else shape.axis_bottom()
 
 
 def _upright_motifs(params, geo):
@@ -370,6 +399,11 @@ def _upright_motifs(params, geo):
     base = build(size, params.flake_style)
     a_top, a_bot, width = base.axis_top(), base.axis_bottom(), base.width
     radius = max(width, base.height) / 2.0
+    drop = params.motif_drop
+
+    def inside(shape):
+        return all(math.hypot(px, py) <= geo.radius - 0.8 for poly in shape.solids + shape.late for px, py in poly)
+
     if params.flake_layout == "Suspendus":
         stem = max(MIN_STEM_MM, 0.07 * size)
         x_max = min(0.58 * r_in, 0.5 * (n - 1) * (width + 3.0)) if n > 1 else 0.0
@@ -377,9 +411,17 @@ def _upright_motifs(params, geo):
             x = 0.0 if n == 1 else -x_max + 2 * x_max * i / (n - 1)
             top = math.sqrt(max(r_in * r_in - x * x, 0.0))
             centrality = 1.0 - (abs(x) / x_max if x_max > 0 else 0.0)
-            hang = size * (0.30 + 0.40 * centrality) + 1.0
-            anchor_y = top - hang
-            placed = base.transformed(0.0, x, anchor_y - a_top)
+            base_hang = size * (0.30 + 0.40 * centrality) + 1.0
+            # Réglage « descendre » : la suspente s'allonge (ou se raccourcit, mais il en reste toujours 1 mm) ; le
+            # décalage est réduit jusqu'à ce que le motif reste dans le disque. Sans réglage, rien ne change.
+            extra = max(drop, 1.0 - base_hang)
+            while True:
+                hang = base_hang + extra
+                anchor_y = top - hang
+                placed = base.transformed(0.0, x, anchor_y - a_top)
+                if extra == 0.0 or inside(placed):
+                    break
+                extra = max(extra - 0.2, 0.0) if extra > 0 else min(extra + 0.2, 0.0)
             geo.solids.append([(x - stem / 2, anchor_y - 0.5), (x + stem / 2, anchor_y - 0.5),
                                (x + stem / 2, top + 1.0), (x - stem / 2, top + 1.0)])
             _add_shape(geo, placed, x, anchor_y - base.height / 2.0, radius, 0.0)
@@ -387,9 +429,6 @@ def _upright_motifs(params, geo):
         return
 
     depth = 2.5
-
-    def inside(shape):
-        return all(math.hypot(px, py) <= geo.radius - 0.8 for poly in shape.solids + shape.late for px, py in poly)
 
     def make_placement(shape, top_anchor, bottom_anchor):
         def placement(x, side):
@@ -428,6 +467,27 @@ def _upright_motifs(params, geo):
         for i in range(n):
             x = (i - (n - 1) / 2.0) * step_x
             placed = placement(x, side)
+            # Réglage « descendre » : le motif s'écarte de l'anneau vers le centre (les motifs du bas montent). Il
+            # reste dans le disque ; une tige entre le motif et l'anneau garde le contact quand il ne le touche plus.
+            move = drop
+            while move != 0.0:
+                moved = placed.transformed(0.0, 0.0, -move * side)
+                if inside(moved):
+                    break
+                move = move - 0.1 if move > 0 else move + 0.1
+                if abs(move) < 0.1:
+                    move = 0.0
+            if move != 0.0:
+                placed = moved
+                if move > 0.0:
+                    ring_y = math.sqrt(max(r_in * r_in - x * x, 0.0))
+                    stem = max(MIN_STEM_MM, 0.07 * size)
+                    if side > 0:
+                        y_a = _axis_y(placed, +1)
+                        geo.solids.append(rect_polygon(x - stem / 2, y_a - 0.5, x + stem / 2, ring_y + 1.0))
+                    else:
+                        y_a = _axis_y(placed, -1)
+                        geo.solids.append(rect_polygon(x - stem / 2, -ring_y - 1.0, x + stem / 2, y_a + 0.5))
             _note_edge(geo, upper=placed.ymin if side > 0 else None, lower=placed.ymax if side < 0 else None)
             _add_shape(geo, placed, x, (placed.ymin + placed.ymax) / 2.0, radius, 0.0)
 

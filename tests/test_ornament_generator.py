@@ -251,7 +251,7 @@ class MotifShapeTests(unittest.TestCase):
 
     def test_transformed_moves_every_polygon_group(self):
         shape = om.santa_shape(26.0).transformed(90.0, 5.0, 7.0)
-        self.assertEqual((len(shape.cuts), len(shape.late)), (1, 2))
+        self.assertEqual((len(shape.cuts), len(shape.late)), (1, 3))
         self.assertAlmostEqual(shape.contains(5.0 - 0.5, 7.0 + 0.0), shape.contains(5.0 - 0.5, 7.0))
 
 
@@ -347,7 +347,7 @@ class MotifLayoutTests(unittest.TestCase):
         self.assertEqual((g.cuts, g.late), ([], []))
         g = og.build_ornament(params(motif="Père Noël", flake_size=26.0))
         self.assertEqual(len(g.cuts), 3)
-        self.assertEqual(len(g.late), 6)
+        self.assertEqual(len(g.late), 9)   # 3 pères Noël × (2 boucles de moustache + nez)
 
     def test_motifs_that_do_not_fit_side_by_side_are_shrunk_not_stacked(self):
         wide = self.build("Cadeaux", "Bas", flake_count=3, flake_size=30.0)
@@ -411,6 +411,113 @@ class MotifLayoutTests(unittest.TestCase):
             if motif != "Aucun":
                 self.assertIn(motif, og.MOTIF_DEFAULT_SIZE)
                 self.assertGreaterEqual(og.MOTIF_DEFAULT_SIZE[motif], 8.0)
+
+
+def _grid_components(inside, bounds, res, min_cells=5):
+    """Nombre de morceaux de matière d'une fonction `inside(x, y)` sur une grille (sans Qt) : les miettes de moins de
+    `min_cells` cases (pointes très fines) sont ignorées."""
+    x0, y0, x1, y1 = bounds
+    nx, ny = int((x1 - x0) / res) + 1, int((y1 - y0) / res) + 1
+    grid = [[inside(x0 + i * res, y0 + j * res) for j in range(ny)] for i in range(nx)]
+    seen = [[False] * ny for _ in range(nx)]
+    pieces = 0
+    for i in range(nx):
+        for j in range(ny):
+            if grid[i][j] and not seen[i][j]:
+                stack, cells = [(i, j)], 0
+                seen[i][j] = True
+                while stack:
+                    a, b = stack.pop()
+                    cells += 1
+                    for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        c, d = a + da, b + db
+                        if 0 <= c < nx and 0 <= d < ny and grid[c][d] and not seen[c][d]:
+                            seen[c][d] = True
+                            stack.append((c, d))
+                if cells >= min_cells:
+                    pieces += 1
+    return pieces
+
+
+def _ball_material(geo):
+    """La matière réellement découpée (sans prénom) : anneau + accroche, plus motifs et tiges dans le disque."""
+    def poly_in(x, y, polys):
+        return any(om.point_in_polygon(x, y, p) for p in polys)
+
+    def inside(x, y):
+        if poly_in(x, y, geo.holes):
+            return False
+        if poly_in(x, y, geo.outer) and not poly_in(x, y, geo.voids):
+            return True
+        if math.hypot(x, y) > geo.radius:
+            return False
+        return poly_in(x, y, geo.late) or (poly_in(x, y, geo.solids) and not poly_in(x, y, geo.cuts))
+    return inside
+
+
+class ContactTests(unittest.TestCase):
+    """Rien ne doit flotter : chaque motif, chaque tige touche le reste de la boule (sinon la pièce tombe)."""
+
+    def test_every_upright_motif_is_one_piece(self):
+        for name, build in om.UPRIGHT_BUILDERS.items():
+            if name == "Lune":   # croissant : pointes émoussées plus fines que la grille
+                continue
+            for style in og.MOTIF_STYLES[name]:
+                for h in (14.0, 18.0, 26.0, 40.0):
+                    shape = build(h, style)
+                    bounds = (min(p[0] for p in shape._points()) - 1, shape.ymin - 1,
+                              max(p[0] for p in shape._points()) + 1, shape.ymax + 1)
+                    self.assertEqual(_grid_components(shape.contains, bounds, 0.2), 1, (name, style, h))
+
+    def test_bell_knob_overlaps_the_dome(self):
+        bell = om.bell_shape(18.0)
+        body, knob = bell.solids[0], bell.solids[1]
+        self.assertTrue(any(om.point_in_polygon(x, y, body) for x, y in knob))
+
+    def test_gift_bow_leaves_room_for_the_stem_between_the_loops(self):
+        for h in (18.0, 26.0, 40.0):
+            gift = om.gift_shape(h)
+            y_loops = 0.86 * h
+            stem = max(og.MIN_STEM_MM, 0.07 * h)
+            self.assertFalse(gift.contains(-stem / 2, y_loops), h)
+            self.assertFalse(gift.contains(stem / 2, y_loops), h)
+            self.assertTrue(gift.contains(0.0, gift.axis_top()), h)
+
+    def test_motif_drop_is_off_by_default(self):
+        self.assertEqual(params().motif_drop, 0.0)
+
+    def test_hanging_motifs_hang_lower_by_the_drop(self):
+        for motif in ("Cadeaux", "Père Noël", "Cloche", "Flocons"):
+            base = og.build_ornament(params(motif=motif, flake_layout="Suspendus", flake_count=1, flake_size=18.0))
+            low = og.build_ornament(params(motif=motif, flake_layout="Suspendus", flake_count=1, flake_size=18.0,
+                                           motif_drop=5.0))
+            self.assertAlmostEqual(base.flakes[0].cy - low.flakes[0].cy, 5.0, places=6, msg=motif)
+
+    def test_drop_moves_top_motifs_down_and_bottom_motifs_up(self):
+        base = og.build_ornament(params(motif="Cadeaux", flake_layout="Haut et bas", flake_count=3))
+        low = og.build_ornament(params(motif="Cadeaux", flake_layout="Haut et bas", flake_count=3, motif_drop=6.0))
+        tops = lambda g: sorted(f.cy for f in g.flakes if f.cy > 0)
+        bottoms = lambda g: sorted(f.cy for f in g.flakes if f.cy < 0)
+        for a, b in zip(tops(base), tops(low)):
+            self.assertAlmostEqual(a - b, 6.0, places=6)
+        for a, b in zip(bottoms(base), bottoms(low)):
+            self.assertAlmostEqual(b - a, 6.0, places=6)
+
+    def test_a_lowered_motif_stays_joined_to_the_ring_by_a_stem(self):
+        for motif, layout in (("Cadeaux", "Haut"), ("Cadeaux", "Bas"), ("Cloche", "Suspendus"),
+                              ("Flocons", "Haut et bas")):
+            for drop in (0.0, 6.0, 9.0):
+                geo = og.build_ornament(params(motif=motif, flake_layout=layout, flake_count=3, flake_size=18.0,
+                                               motif_drop=drop))
+                self.assertEqual(_grid_components(_ball_material(geo), geo.bounds, 0.8), 1, (motif, layout, drop))
+
+    def test_a_lowered_motif_never_leaves_the_disc(self):
+        for layout in ("Suspendus", "Haut", "Bas"):
+            geo = og.build_ornament(params(motif="Cadeaux", flake_layout=layout, flake_count=3, flake_size=18.0,
+                                           motif_drop=60.0))
+            for poly in geo.solids + geo.late:
+                for x, y in poly:
+                    self.assertLessEqual(math.hypot(x, y), geo.radius + 1.5, layout)
 
 
 class ValidationTests(unittest.TestCase):

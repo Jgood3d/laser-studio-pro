@@ -430,6 +430,32 @@ TRANSLATIONS = {
         "fr": "Espacement des lettres :", "en": "Letter spacing:",
         "de": "Buchstabenabstand:", "es": "Espaciado entre letras:",
     },
+    "vector.dlg.arc_radius": {
+        "fr": "Texte sur un cercle, rayon :", "en": "Text on a circle, radius:",
+        "de": "Text auf einem Kreis, Radius:", "es": "Texto sobre un círculo, radio:",
+    },
+    "vector.dlg.arc_off": {
+        "fr": "Texte droit", "en": "Straight text",
+        "de": "Gerader Text", "es": "Texto recto",
+    },
+    "vector.dlg.arc_side": {
+        "fr": "Côté du cercle :", "en": "Side of the circle:",
+        "de": "Seite des Kreises:", "es": "Lado del círculo:",
+    },
+    "vector.dlg.arc_outside": {
+        "fr": "Extérieur (lettres vers l'extérieur)", "en": "Outside (letters pointing out)",
+        "de": "Außen (Buchstaben nach außen)", "es": "Exterior (letras hacia fuera)",
+    },
+    "vector.dlg.arc_inside": {
+        "fr": "Intérieur (lettres vers le centre)", "en": "Inside (letters pointing in)",
+        "de": "Innen (Buchstaben zur Mitte)", "es": "Interior (letras hacia el centro)",
+    },
+    "vector.dlg.arc_angle": {
+        "fr": "Position sur le cercle (90° = haut, 270° = bas) :",
+        "en": "Position on the circle (90° = top, 270° = bottom):",
+        "de": "Position auf dem Kreis (90° = oben, 270° = unten):",
+        "es": "Posición en el círculo (90° = arriba, 270° = abajo):",
+    },
     "vector.dlg.horizontal": {
         "fr": "Horizontal", "en": "Horizontal",
         "de": "Horizontal", "es": "Horizontal",
@@ -1916,6 +1942,26 @@ TRANSLATIONS = {
         "en": "Motif size:",
         "de": "Motivgröße:",
         "es": "Tamaño de los motivos:",
+    },
+    "ornament.drop": {
+        "fr": "Descendre le motif :",
+        "en": "Lower the motif:",
+        "de": "Motiv absenken:",
+        "es": "Bajar el motivo:",
+    },
+    "ornament.drop_tip": {
+        "fr": "Écarte le motif de l'anneau, vers le centre de la boule : les motifs du haut ou suspendus descendent "
+              "(la suspente s'allonge, on voit le haut du motif, par exemple le nœud d'un cadeau), ceux du bas montent. "
+              "Une tige garde le contact avec l'anneau. Une valeur négative rapproche le motif de l'anneau.",
+        "en": "Moves the motif away from the ring, towards the centre of the ornament: top or hanging motifs go down "
+              "(the stem gets longer, so the top of the motif shows, such as a gift's bow), bottom ones go up. "
+              "A stem keeps the motif joined to the ring. A negative value brings it closer to the ring.",
+        "de": "Rückt das Motiv vom Ring weg zur Mitte der Kugel: obere oder hängende Motive gehen nach unten "
+              "(der Steg wird länger, die Oberseite des Motivs, etwa die Schleife eines Geschenks, bleibt sichtbar), "
+              "untere gehen nach oben. Ein Steg hält die Verbindung zum Ring. Ein negativer Wert rückt es näher an den Ring.",
+        "es": "Aleja el motivo del anillo, hacia el centro de la bola: los de arriba o colgantes bajan "
+              "(el hilo se alarga y se ve la parte superior del motivo, por ejemplo el lazo de un regalo), los de abajo suben. "
+              "Un tallo mantiene el contacto con el anillo. Un valor negativo lo acerca al anillo.",
     },
     "ornament.name_offset": {
         "fr": "Hauteur du prénom :",
@@ -4308,10 +4354,10 @@ TRANSLATIONS = {
         "es": "Rectángulo",
     },
     "ui.vector_tool_rect_tip": {
-        "fr": "Tracer un rectangle : clic-glisser sur le canevas (Échap pour annuler)",
-        "en": "Draw a rectangle: click-drag on the canvas (Esc to cancel)",
-        "de": "Rechteck zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
-        "es": "Dibujar un rectángulo: clic y arrastrar (Esc para cancelar)",
+        "fr": "Tracer un rectangle en 3 points : 2 clics pour un côté, puis tirer pour l'autre dimension (Échap pour annuler)",
+        "en": "Draw a rectangle in 3 points: 2 clicks for one side, then drag for the other dimension (Esc to cancel)",
+        "de": "Rechteck in 3 Punkten zeichnen: 2 Klicks für eine Seite, dann ziehen für die andere Abmessung (Esc zum Abbrechen)",
+        "es": "Dibujar un rectángulo en 3 puntos: 2 clics para un lado, luego arrastrar para la otra dimensión (Esc para cancelar)",
     },
     "ui.vector_tool_ellipse": {
         "fr": "Ellipse",
@@ -4320,10 +4366,88 @@ TRANSLATIONS = {
         "es": "Elipse",
     },
     "ui.vector_tool_ellipse_tip": {
-        "fr": "Tracer une ellipse : clic-glisser sur le canevas (Échap pour annuler)",
-        "en": "Draw an ellipse: click-drag on the canvas (Esc to cancel)",
-        "de": "Ellipse zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
-        "es": "Dibujar una elipse: clic y arrastrar (Esc para cancelar)",
+        "fr": "Tracer une ellipse d'un seul geste : clic-glisser d'un coin du cadre à l'autre (Échap pour annuler)",
+        "en": "Draw an ellipse in one go: click-drag from one corner of its frame to the opposite one (Esc to cancel)",
+        "de": "Ellipse in einem Zug zeichnen: von einer Ecke des Rahmens zur gegenüberliegenden ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar una elipse de un solo gesto: clic y arrastrar de una esquina del marco a la opuesta (Esc para cancelar)",
+    },
+    "ui.vector_tool_circle": {
+        "fr": "Cercle",
+        "en": "Circle",
+        "de": "Kreis",
+        "es": "Círculo",
+    },
+    "ui.vector_tool_circle_tip": {
+        "fr": "Tracer un cercle d'un seul geste : clic-glisser du centre vers le bord (Échap pour annuler)",
+        "en": "Draw a circle in one go: click-drag from the centre to the edge (Esc to cancel)",
+        "de": "Kreis in einem Zug zeichnen: vom Mittelpunkt zum Rand ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar un círculo de un solo gesto: clic y arrastrar del centro al borde (Esc para cancelar)",
+    },
+    "vector.text_follow": {
+        "fr": "Courber le texte sur le tracé",
+        "en": "Bend text along the curve",
+        "de": "Text entlang der Kurve biegen",
+        "es": "Curvar el texto sobre el trazado",
+    },
+    "vector.text_follow_title": {
+        "fr": "Texte le long d'un objet",
+        "en": "Text along an object",
+        "de": "Text entlang eines Objekts",
+        "es": "Texto a lo largo de un objeto",
+    },
+    "vector.text_follow_need_two": {
+        "fr": "Sélectionnez un texte ET l'objet dont il doit suivre le contour (cercle, ellipse, courbe, forme importée...) : cliquez sur l'un, puis Maj + clic sur l'autre.",
+        "en": "Select a text AND the object whose outline it must follow (circle, ellipse, curve, imported shape...): click one, then Shift + click the other.",
+        "de": "Wählen Sie einen Text UND das Objekt, dessen Kontur er folgen soll (Kreis, Ellipse, Kurve, importierte Form ...): erst eines anklicken, dann Umschalt + Klick auf das andere.",
+        "es": "Seleccione un texto Y el objeto cuyo contorno debe seguir (círculo, elipse, curva, forma importada...): haga clic en uno y luego Mayús + clic en el otro.",
+    },
+    "vector.dlg.follow_place": {
+        "fr": "Placer le texte :",
+        "en": "Place the text:",
+        "de": "Text platzieren:",
+        "es": "Colocar el texto:",
+    },
+    "vector.dlg.follow_place_custom": {
+        "fr": "Position libre (voir ci-dessous)",
+        "en": "Free position (see below)",
+        "de": "Freie Position (siehe unten)",
+        "es": "Posición libre (ver abajo)",
+    },
+    "vector.dlg.follow_place_top": {
+        "fr": "En haut", "en": "At the top", "de": "Oben", "es": "Arriba",
+    },
+    "vector.dlg.follow_place_bottom": {
+        "fr": "En bas", "en": "At the bottom", "de": "Unten", "es": "Abajo",
+    },
+    "vector.dlg.follow_place_left": {
+        "fr": "À gauche", "en": "On the left", "de": "Links", "es": "A la izquierda",
+    },
+    "vector.dlg.follow_place_right": {
+        "fr": "À droite", "en": "On the right", "de": "Rechts", "es": "A la derecha",
+    },
+    "vector.dlg.follow_pos": {
+        "fr": "Position sur le tracé :",
+        "en": "Position along the outline:",
+        "de": "Position auf der Kontur:",
+        "es": "Posición en el contorno:",
+    },
+    "vector.dlg.follow_reverse": {
+        "fr": "Texte à l'intérieur / de l'autre côté du trait (inverse le sens de lecture)",
+        "en": "Text inside / on the other side of the line (reverses the reading direction)",
+        "de": "Text innen / auf der anderen Seite der Linie (kehrt die Leserichtung um)",
+        "es": "Texto por dentro / al otro lado de la línea (invierte el sentido de lectura)",
+    },
+    "vector.dlg.follow_gap": {
+        "fr": "Distance au tracé :",
+        "en": "Distance from the outline:",
+        "de": "Abstand zur Kontur:",
+        "es": "Distancia al contorno:",
+    },
+    "vector.dlg.follow_detach": {
+        "fr": "Détacher du tracé (redevient un texte droit)",
+        "en": "Detach from the outline (back to straight text)",
+        "de": "Von der Kontur lösen (wieder gerader Text)",
+        "es": "Separar del contorno (vuelve a ser texto recto)",
     },
     "ui.vector_import_svg": {
         "fr": "📥 Importer SVG / DXF (multi-calques)",

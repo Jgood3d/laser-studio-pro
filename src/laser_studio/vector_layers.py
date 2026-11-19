@@ -50,6 +50,9 @@ from PyQt6.QtWidgets import (
 from laser_studio.i18n import tr
 from laser_studio.vector.order import CUT_MODE, order_layers_for_cutting, order_polygons_inner_first
 from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
+from laser_studio.vector.text_on_arc import arc_placements, default_center_deg
+from laser_studio.vector.text_on_path import (default_center_fraction, is_closed, orient_path, path_length,
+                                              path_placements, relative_points, scaled_points)
 
 
 # ============================================================================
@@ -517,7 +520,9 @@ class TextObject(VectorObject):
 
     def __init__(self, text="TEXTE", font_family="Arial", size_mm=10.0,
                  bold=False, italic=False, vertical=False,
-                 letter_spacing_mm=0.0, **kwargs):
+                 letter_spacing_mm=0.0, arc_radius_mm=0.0, arc_inside=False,
+                 arc_center_deg=None, follow_points=None, follow_closed=False, follow_center=0.5,
+                 follow_reverse=False, follow_gap_mm=0.0, **kwargs):
         super().__init__(**kwargs)
         self.text = text
         self.font_family = font_family
@@ -526,6 +531,19 @@ class TextObject(VectorObject):
         self.italic = italic
         self.vertical = vertical
         self.letter_spacing_mm = letter_spacing_mm
+        # Texte sur un cercle : rayon de la ligne de base (0 = texte droit), côté (extérieur / intérieur)
+        # et angle où le texte est centré (None = en haut pour l'extérieur, en bas pour l'intérieur).
+        self.arc_radius_mm = arc_radius_mm
+        self.arc_inside = arc_inside
+        self.arc_center_deg = arc_center_deg
+        # Texte le long d'un objet existant : copie du tracé (mm, relative à l'origine de l'objet, Y vers
+        # le haut ; None = texte droit), position du centre du texte sur ce tracé (0 à 1), sens inversé et
+        # décalage de la ligne de base. Prioritaire sur le texte sur un cercle.
+        self.follow_points = follow_points
+        self.follow_closed = follow_closed
+        self.follow_center = follow_center
+        self.follow_reverse = follow_reverse
+        self.follow_gap_mm = follow_gap_mm
 
     def _font(self):
         font = QFont(self.font_family)
@@ -539,6 +557,12 @@ class TextObject(VectorObject):
         metrics = QFontMetricsF(font)
         ref_height = metrics.ascent() if metrics.ascent() > 0 else self._REF_PT
         scale = self.size_mm / ref_height
+
+        # getattr : un projet enregistré avant le texte sur arc / sur tracé n'a pas ces champs.
+        if not self.vertical and getattr(self, "follow_points", None):
+            return self._follow_path(font, metrics, scale)
+        if not self.vertical and getattr(self, "arc_radius_mm", 0.0) > 0:
+            return self._arc_path(font, metrics, scale)
 
         raw_path = QPainterPath()
         if not self.vertical:
@@ -575,6 +599,63 @@ class TextObject(VectorObject):
         reanchor.translate(-bbox.left(), -bbox.bottom())
         path = reanchor.map(raw_path)
         return QTransform().scale(scale, scale).map(path)
+
+
+    def _arc_path(self, font, metrics, scale) -> QPainterPath:
+        """Texte posé sur un cercle : chaque lettre reste rigide, placée et tournée selon
+        `vector.text_on_arc.arc_placements` (le calcul pur est testé sans Qt). Le chemin est construit
+        en Y vers le haut, comme le repère monde, puis remis en Y vers le bas (repère local Qt)."""
+        chars = list(self.text)
+        advances = [metrics.horizontalAdvance(ch) * scale for ch in chars]
+        spots = arc_placements(advances, self.arc_radius_mm,
+                               getattr(self, "arc_center_deg", None),
+                               bool(getattr(self, "arc_inside", False)),
+                               self.letter_spacing_mm)
+        out = QPainterPath()
+        for ch, advance, (px, py, rotation) in zip(chars, advances, spots):
+            if ch.isspace():
+                continue
+            glyph = QPainterPath()
+            glyph.addText(0, 0, font, ch)
+            t = QTransform()
+            t.translate(px, py)
+            t.rotate(rotation)
+            t.translate(-advance / 2.0, 0)
+            t.scale(scale, -scale)
+            out.addPath(t.map(glyph))
+        out = QTransform().scale(1, -1).map(out)
+        bbox = out.boundingRect()
+        reanchor = QTransform()
+        reanchor.translate(-bbox.left(), -bbox.bottom())
+        return reanchor.map(out)
+
+    def _follow_path(self, font, metrics, scale) -> QPainterPath:
+        """Texte posé le long d'un tracé quelconque (copie du contour d'un autre objet) : chaque lettre reste
+        rigide, placée et tournée selon `vector.text_on_path.path_placements` (calcul pur, testé sans Qt).
+        Pas de réancrage : l'origine de l'objet reste celle du tracé, donc modifier le texte ne le décale pas."""
+        chars = list(self.text)
+        advances = [metrics.horizontalAdvance(ch) * scale for ch in chars]
+        try:
+            spots = path_placements(advances, self.follow_points,
+                                    getattr(self, "follow_center", None),
+                                    self.letter_spacing_mm,
+                                    bool(getattr(self, "follow_reverse", False)),
+                                    getattr(self, "follow_gap_mm", 0.0))
+        except ValueError:      # tracé inutilisable (un seul point, longueur nulle)
+            return QPainterPath()
+        out = QPainterPath()
+        for ch, advance, (px, py, rotation) in zip(chars, advances, spots):
+            if ch.isspace():
+                continue
+            glyph = QPainterPath()
+            glyph.addText(0, 0, font, ch)
+            t = QTransform()
+            t.translate(px, py)
+            t.rotate(rotation)
+            t.translate(-advance / 2.0, 0)
+            t.scale(scale, -scale)
+            out.addPath(t.map(glyph))
+        return QTransform().scale(1, -1).map(out)
 
 
 class ShapeObject(VectorObject):
@@ -1095,6 +1176,10 @@ class VectorCanvasView(QGraphicsView):
         self._draw_awaiting_second = False
         self._draw_awaiting_depth = False
         self._draw_depth_dragging = False
+        # Cercle / ellipse d'un seul geste : bouton enfoncé depuis le 1er point (clic-glisser), position du
+        # clic à l'écran pour distinguer un simple clic (2 clics) d'un glissé.
+        self._draw_pressed = False
+        self._draw_press_screen = None
         # Outil mesure : deux clics → distance affichée
         self._measure_p1 = None
         self._measure_preview = None
@@ -1309,7 +1394,11 @@ class VectorCanvasView(QGraphicsView):
         return QPointF(x_mm * s, work_h_px - y_mm * s)
 
     def set_draw_tool(self, tool, layer_id=None):
-        """Active un outil : None/'select', 'line', 'rect', 'ellipse', 'measure'."""
+        """Active un outil : None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
+
+        rect : 3 points (base en 2 clics, puis profondeur) ; circle : du centre vers le rayon ; ellipse :
+        d'un coin du cadre à l'autre. Cercle et ellipse se tracent d'un seul geste (clic-glisser) ou en
+        2 clics."""
         self._cancel_draw_preview()
         self._clear_measure_temp()
         if tool in (None, "", "select"):
@@ -1341,6 +1430,8 @@ class VectorCanvasView(QGraphicsView):
         self._draw_awaiting_second = False
         self._draw_awaiting_depth = False
         self._draw_depth_dragging = False
+        self._draw_pressed = False
+        self._draw_press_screen = None
 
     def _clear_measure_temp(self):
         self._measure_p1 = None
@@ -1486,7 +1577,7 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
-        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool in ("line", "rect", "ellipse"):
+        if event.button() == Qt.MouseButton.LeftButton and self._draw_tool in ("line", "rect", "circle", "ellipse"):
             if not self.layer_manager.layers:
                 event.accept()
                 return
@@ -1500,7 +1591,7 @@ class VectorCanvasView(QGraphicsView):
             # --- Phase profondeur : début du TIRÉ (après les 2 clics nœuds) ---
             if (
                 phase in ("p2", "depth")
-                and self._draw_tool in ("rect", "ellipse")
+                and self._draw_tool == "rect"
                 and self._draw_base_p1 is not None
                 and self._draw_base_p2 is not None
             ):
@@ -1513,7 +1604,7 @@ class VectorCanvasView(QGraphicsView):
 
             # --- Phase p1 : 2e CLIC (pas de tiré) → place le 2e nœud ---
             if phase == "p1" and self._draw_start_scene is not None:
-                if self._draw_tool == "line":
+                if self._draw_tool in ("line", "circle", "ellipse"):
                     start = self._draw_start_scene
                     self._cancel_draw_preview()
                     obj = self._create_drawn_object(start, pt)
@@ -1524,7 +1615,7 @@ class VectorCanvasView(QGraphicsView):
                         item.setSelected(True)
                     event.accept()
                     return
-                # Rect / ellipse : largeur figée, on n'autorise le tiré QU'après ce clic
+                # Rectangle : largeur figée, on n'autorise le tiré QU'après ce clic
                 self._draw_base_p1 = QPointF(self._draw_start_scene)
                 self._draw_base_p2 = QPointF(pt)
                 self._draw_phase = "p2"
@@ -1551,6 +1642,8 @@ class VectorCanvasView(QGraphicsView):
             if phase is None:
                 self._draw_start_scene = pt
                 self._draw_phase = "p1"
+                self._draw_pressed = self._draw_tool in ("circle", "ellipse")
+                self._draw_press_screen = event.position().toPoint()
                 self._draw_awaiting_second = True
                 self._draw_awaiting_depth = False
                 self._draw_depth_dragging = False
@@ -1664,7 +1757,7 @@ class VectorCanvasView(QGraphicsView):
 
         # Aperçu profondeur : UNIQUEMENT pendant le tiré (bouton enfoncé)
         if (
-            self._draw_tool in ("rect", "ellipse")
+            self._draw_tool == "rect"
             and self._draw_depth_dragging
             and self._draw_base_p1 is not None
             and self._draw_base_p2 is not None
@@ -1689,7 +1782,7 @@ class VectorCanvasView(QGraphicsView):
 
         # Phase p2 (base fixée, pas encore de tiré) : segment fixe + accroche
         if (
-            self._draw_tool in ("rect", "ellipse")
+            self._draw_tool == "rect"
             and self._draw_phase == "p2"
             and self._draw_base_p1 is not None
             and self._draw_base_p2 is not None
@@ -1712,7 +1805,7 @@ class VectorCanvasView(QGraphicsView):
 
         # Phase p1 : ligne du 1er point vers le curseur (sans tenir le bouton)
         if (
-            self._draw_tool in ("line", "rect", "ellipse")
+            self._draw_tool in ("line", "rect", "circle", "ellipse")
             and self._draw_phase == "p1"
             and self._draw_start_scene is not None
             and self._draw_preview_item is not None
@@ -1724,9 +1817,12 @@ class VectorCanvasView(QGraphicsView):
                 self._show_snap_indicator(end)
             else:
                 self._hide_snap_indicator()
-            path = QPainterPath()
-            path.moveTo(self._draw_start_scene)
-            path.lineTo(end)
+            if self._draw_tool in ("circle", "ellipse"):
+                path = self._shape_preview_path(self._draw_tool, self._draw_start_scene, end)
+            else:
+                path = QPainterPath()
+                path.moveTo(self._draw_start_scene)
+                path.lineTo(end)
             self._draw_preview_item.setPath(path)
             self._draw_preview_item.setPen(self._preview_pen())
             event.accept()
@@ -2276,10 +2372,36 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
-        # Rectangle/ellipse : fin du TIRÉ de profondeur (relâchement)
+        # Cercle / ellipse : relâchement après un clic-glisser = forme terminée, d'un seul geste. Un simple
+        # clic sans glisser laisse l'outil en attente du 2e clic.
         if (
             event.button() == Qt.MouseButton.LeftButton
-            and self._draw_tool in ("rect", "ellipse")
+            and self._draw_tool in ("circle", "ellipse")
+            and self._draw_phase == "p1"
+            and self._draw_pressed
+        ):
+            self._draw_pressed = False
+            moved = 0
+            if self._draw_press_screen is not None:
+                moved = (event.position().toPoint() - self._draw_press_screen).manhattanLength()
+            if moved >= 4 and self._draw_start_scene is not None:
+                raw = self.mapToScene(event.position().toPoint())
+                pt, _ = self._snap_scene_pos(raw)
+                start = self._draw_start_scene
+                self._cancel_draw_preview()
+                obj = self._create_drawn_object(start, pt)
+                if obj is not None:
+                    self.push_undo_snapshot()
+                    item = self.add_object(obj)
+                    self.scene_obj.clearSelection()
+                    item.setSelected(True)
+            event.accept()
+            return
+
+        # Rectangle : fin du TIRÉ de profondeur (relâchement)
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self._draw_tool == "rect"
             and self._draw_depth_dragging
             and self._draw_base_p1 is not None
             and self._draw_base_p2 is not None
@@ -2304,7 +2426,7 @@ class VectorCanvasView(QGraphicsView):
         # Autres outils dessin/mesure : pas de finalisation sur release
         if (
             event.button() == Qt.MouseButton.LeftButton
-            and self._draw_tool in ("line", "rect", "ellipse", "measure")
+            and self._draw_tool in ("line", "rect", "circle", "ellipse", "measure")
         ):
             event.accept()
             return
@@ -2348,6 +2470,20 @@ class VectorCanvasView(QGraphicsView):
                 rotation_deg=angle,
             )
 
+        if self._draw_tool == "circle":
+            # Cercle : 1er point = centre, 2e point = un point du cercle.
+            radius = math.hypot(x2 - x1, y2 - y1)
+            if radius < 0.05:
+                return None
+            return ShapeObject(
+                shape_type="Ellipse",
+                width_mm=2 * radius,
+                height_mm=2 * radius,
+                layer_id=layer_id,
+                x_mm=x1 - radius,
+                y_mm=y1 - radius,
+            )
+
         # Rectangle / ellipse : coin bas-gauche + largeur / hauteur positives
         left, right = (x1, x2) if x1 <= x2 else (x2, x1)
         bottom, top = (y1, y2) if y1 <= y2 else (y2, y1)
@@ -2371,6 +2507,7 @@ class VectorCanvasView(QGraphicsView):
 
         Ligne : dims = (length_mm,) — direction = curseur ou horizontale.
         Rect/ellipse : dims = (width_mm, height_mm) — signe selon quadrant curseur.
+        Cercle : dims = (rayon_mm,) — le 1er point est le centre.
         """
         x1, y1 = self.scene_to_mm(start_scene)
         layer_id = self._default_draw_layer_id()
@@ -2401,6 +2538,20 @@ class VectorCanvasView(QGraphicsView):
                 x_mm=x1,
                 y_mm=y1,
                 rotation_deg=angle,
+            )
+
+        if self._draw_tool == "circle":
+            # Cercle : la valeur saisie est le rayon, le 1er point est le centre.
+            radius = abs(float(dims[0]))
+            if radius < 0.05:
+                return None
+            return ShapeObject(
+                shape_type="Ellipse",
+                width_mm=2 * radius,
+                height_mm=2 * radius,
+                layer_id=layer_id,
+                x_mm=x1 - radius,
+                y_mm=y1 - radius,
             )
 
         if len(dims) < 2:
@@ -2458,7 +2609,7 @@ class VectorCanvasView(QGraphicsView):
             self._draw_awaiting_depth
             and self._draw_base_p1 is not None
             and self._draw_base_p2 is not None
-            and self._draw_tool in ("rect", "ellipse")
+            and self._draw_tool == "rect"
         ):
             depth = float(dims[0])
             # Signe : côté du curseur par rapport à la base
@@ -2487,6 +2638,8 @@ class VectorCanvasView(QGraphicsView):
             return False
         if self._draw_tool == "line" and len(dims) >= 1:
             pass
+        elif self._draw_tool == "circle" and len(dims) >= 1:
+            pass
         elif self._draw_tool in ("rect", "ellipse") and len(dims) >= 2:
             pass
         elif self._draw_tool in ("rect", "ellipse") and len(dims) == 1:
@@ -2504,6 +2657,17 @@ class VectorCanvasView(QGraphicsView):
         self.scene_obj.clearSelection()
         item.setSelected(True)
         return True
+
+    def _shape_preview_path(self, tool, start_scene, end_scene):
+        """Aperçu scène d'un cercle (centre = 1er point, passe par le curseur) ou d'une ellipse (cadre
+        d'un coin à l'autre)."""
+        path = QPainterPath()
+        if tool == "circle":
+            radius = math.hypot(end_scene.x() - start_scene.x(), end_scene.y() - start_scene.y())
+            path.addEllipse(start_scene, radius, radius)
+        else:
+            path.addEllipse(QRectF(start_scene, end_scene).normalized())
+        return path
 
     def _depth_from_cursor(self, p1_scene, p2_scene, cursor_scene):
         """Distance signée du curseur à la droite p1→p2, en mm (Y machine)."""
@@ -2654,7 +2818,7 @@ class VectorCanvasView(QGraphicsView):
         # Saisie de dimensions après le 1er point ou profondeur après base
         if (
             (self._draw_awaiting_second or self._draw_awaiting_depth)
-            and self._draw_tool in ("line", "rect", "ellipse")
+            and self._draw_tool in ("line", "rect", "circle", "ellipse")
         ):
             key = event.key()
             text = event.text() or ""
@@ -2856,6 +3020,72 @@ class VectorCanvasView(QGraphicsView):
         self._populate_insert_menu(menu, click_mm)
         menu.exec(event.globalPos())
 
+    # -- Texte le long d'un objet existant -------------------------------------
+
+    # Finesse de l'aplatissement des courbes du contour : 1/20 mm.
+    _FOLLOW_FLATTEN = 20.0
+
+    def text_follow_candidates(self):
+        """(élément texte, élément guide) si la sélection est exactement un texte et un autre objet, sinon None."""
+        items = self.selected_items_vector()
+        texts = [it for it in items if isinstance(it.obj, TextObject)]
+        guides = [it for it in items if not isinstance(it.obj, TextObject)]
+        if len(items) == 2 and len(texts) == 1 and len(guides) == 1:
+            return texts[0], guides[0]
+        return None
+
+    def _guide_polyline(self, obj):
+        """Contour le plus long de `obj`, en points (x, y) mm monde (Y vers le haut), courbes aplaties.
+        Refermé si l'objet est une forme fermée. None si l'objet n'a pas de contour exploitable."""
+        k = self._FOLLOW_FLATTEN
+        best, best_len = None, 0.0
+        for poly in obj.world_path().toSubpathPolygons(QTransform.fromScale(k, k)):
+            pts = [(poly.at(i).x() / k, poly.at(i).y() / k) for i in range(poly.count())]
+            length = path_length(pts)
+            if len(pts) >= 2 and length > best_len:
+                best, best_len = pts, length
+        if best is None:
+            return None
+        closed_shape = isinstance(obj, ShapeObject) and obj.shape_type in ("Rectangle", "Ellipse", "Polygone Régulier")
+        if closed_shape and not is_closed(best):
+            best.append(best[0])
+        return best
+
+    def make_text_follow_object(self):
+        """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
+        le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer).
+        Renvoie False si la sélection ne convient pas."""
+        pair = self.text_follow_candidates()
+        if pair is None:
+            return False
+        text_item, guide_item = pair
+        pts = self._guide_polyline(guide_item.obj)
+        if pts is None:
+            return False
+        pts = orient_path(pts)
+        if path_length(pts) < 1.0:
+            return False
+        origin = (min(x for x, _y in pts), min(y for _x, y in pts))
+        self.push_undo_snapshot()
+        text = text_item.obj
+        # Le texte est calculé directement dans le repère du tracé : ni rotation ni miroir, origine = coin
+        # bas-gauche du tracé.
+        text.rotation_deg = 0.0
+        text.mirror_h = False
+        text.mirror_v = False
+        text.vertical = False
+        text.arc_radius_mm = 0.0
+        text.x_mm, text.y_mm = origin
+        text.follow_points = relative_points(pts, origin)
+        text.follow_closed = is_closed(pts)
+        text.follow_center = default_center_fraction(pts)
+        text.follow_reverse = False
+        text.follow_gap_mm = 0.0
+        text_item.refresh()
+        self.scene_obj.clearSelection()
+        text_item.setSelected(True)
+        return True
+
     def _populate_selection_menu(self, menu, selected):
         """Entrées du clic droit qui agissent sur la sélection courante."""
         n = len(selected)
@@ -2882,6 +3112,10 @@ class VectorCanvasView(QGraphicsView):
         if explodable:
             explode_action = menu.addAction(tr("vector.explode_path"))
             explode_action.triggered.connect(self.explode_selected)
+
+        if self.text_follow_candidates() is not None:
+            follow_action = menu.addAction(tr("vector.text_follow"))
+            follow_action.triggered.connect(self.make_text_follow_object)
 
         if len(selected) == 1:
             nodes_action = menu.addAction(tr("vector.edit_nodes"))
@@ -3023,6 +3257,10 @@ class VectorCanvasView(QGraphicsView):
             elif isinstance(obj, TextObject):
                 obj.size_mm *= factor_y
                 obj.letter_spacing_mm *= factor_x
+                obj.arc_radius_mm = getattr(obj, "arc_radius_mm", 0.0) * factor_y
+                if getattr(obj, "follow_points", None):
+                    obj.follow_points = scaled_points(obj.follow_points, factor_x, factor_y)
+                    obj.follow_gap_mm = getattr(obj, "follow_gap_mm", 0.0) * factor_y
             elif isinstance(obj, SvgPathObject):
                 obj.scale_x = getattr(obj, "scale_x", 1.0) * factor_x
                 obj.scale_y = getattr(obj, "scale_y", 1.0) * factor_y
@@ -3098,6 +3336,49 @@ class TextInsertDialog(QDialog):
         self.spin_spacing.setSuffix(" mm")
         layout.addRow(tr("vector.dlg.letter_spacing"), self.spin_spacing)
 
+        arc_inside = bool(getattr(text_obj, "arc_inside", False))
+        self.spin_arc_radius = QDoubleSpinBox(); self.spin_arc_radius.setRange(0.0, 1000.0)
+        self.spin_arc_radius.setDecimals(1); self.spin_arc_radius.setSuffix(" mm")
+        self.spin_arc_radius.setSpecialValueText(tr("vector.dlg.arc_off"))
+        self.spin_arc_radius.setValue(getattr(text_obj, "arc_radius_mm", 0.0))
+        layout.addRow(tr("vector.dlg.arc_radius"), self.spin_arc_radius)
+
+        self.combo_arc_side = QComboBox()
+        self.combo_arc_side.addItem(tr("vector.dlg.arc_outside"), False)
+        self.combo_arc_side.addItem(tr("vector.dlg.arc_inside"), True)
+        self.combo_arc_side.setCurrentIndex(1 if arc_inside else 0)
+        layout.addRow(tr("vector.dlg.arc_side"), self.combo_arc_side)
+
+        center = getattr(text_obj, "arc_center_deg", None)
+        self.spin_arc_center = QDoubleSpinBox(); self.spin_arc_center.setRange(0.0, 360.0)
+        self.spin_arc_center.setDecimals(1); self.spin_arc_center.setSuffix(" °")
+        self.spin_arc_center.setValue(default_center_deg(arc_inside) if center is None else center)
+        layout.addRow(tr("vector.dlg.arc_angle"), self.spin_arc_center)
+        self.combo_arc_side.currentIndexChanged.connect(self._on_arc_side_changed)
+        self.spin_arc_radius.valueChanged.connect(self._update_arc_enabled)
+        self._update_arc_enabled()
+
+        # Texte le long d'un autre objet (voir VectorCanvasView.make_text_follow_object) : position sur le
+        # tracé, sens, décalage. Affiché seulement pour un texte déjà posé sur un tracé.
+        self._has_follow = bool(text_obj and getattr(text_obj, "follow_points", None))
+        if self._has_follow:
+            self.spin_follow_pos = QDoubleSpinBox(); self.spin_follow_pos.setRange(0.0, 100.0)
+            self.spin_follow_pos.setDecimals(1); self.spin_follow_pos.setSuffix(" %")
+            self.spin_follow_pos.setValue(100.0 * float(getattr(text_obj, "follow_center", 0.5)))
+            layout.addRow(tr("vector.dlg.follow_pos"), self.spin_follow_pos)
+            self.chk_follow_reverse = QCheckBox(tr("vector.dlg.follow_reverse"))
+            self.chk_follow_reverse.setChecked(bool(getattr(text_obj, "follow_reverse", False)))
+            layout.addRow(self.chk_follow_reverse)
+            self.spin_follow_gap = QDoubleSpinBox(); self.spin_follow_gap.setRange(-100.0, 100.0)
+            self.spin_follow_gap.setDecimals(1); self.spin_follow_gap.setSuffix(" mm")
+            self.spin_follow_gap.setValue(float(getattr(text_obj, "follow_gap_mm", 0.0)))
+            layout.addRow(tr("vector.dlg.follow_gap"), self.spin_follow_gap)
+            self.chk_follow_detach = QCheckBox(tr("vector.dlg.follow_detach"))
+            layout.addRow(self.chk_follow_detach)
+            # Le tracé l'emporte sur le texte sur un cercle : on grise ses réglages.
+            for widget in (self.spin_arc_radius, self.combo_arc_side, self.spin_arc_center):
+                widget.setEnabled(False)
+
         orient_row = QHBoxLayout()
         self.rb_horizontal = QRadioButton(tr("vector.dlg.horizontal"))
         self.rb_vertical = QRadioButton(tr("vector.dlg.vertical"))
@@ -3139,6 +3420,18 @@ class TextInsertDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
 
+    def _on_arc_side_changed(self):
+        """Passer d'extérieur à intérieur déplace le texte du haut vers le bas du cercle, tant que
+        l'angle est encore celui par défaut de l'autre côté."""
+        inside = bool(self.combo_arc_side.currentData())
+        if abs(self.spin_arc_center.value() - default_center_deg(not inside)) < 1e-6:
+            self.spin_arc_center.setValue(default_center_deg(inside))
+
+    def _update_arc_enabled(self):
+        on = self.spin_arc_radius.value() > 0
+        self.combo_arc_side.setEnabled(on)
+        self.spin_arc_center.setEnabled(on)
+
     def get_object(self) -> TextObject:
         layer_id = self.combo_layer.currentData()
         if self.editing:
@@ -3151,6 +3444,16 @@ class TextInsertDialog(QDialog):
         obj.italic = self.chk_italic.isChecked()
         obj.size_mm = self.spin_size.value()
         obj.letter_spacing_mm = self.spin_spacing.value()
+        obj.arc_radius_mm = self.spin_arc_radius.value()
+        obj.arc_inside = bool(self.combo_arc_side.currentData())
+        obj.arc_center_deg = self.spin_arc_center.value()
+        if self._has_follow:
+            if self.chk_follow_detach.isChecked():
+                obj.follow_points = None        # redevient un texte droit
+            else:
+                obj.follow_center = self.spin_follow_pos.value() / 100.0
+                obj.follow_reverse = self.chk_follow_reverse.isChecked()
+                obj.follow_gap_mm = self.spin_follow_gap.value()
         obj.vertical = self.rb_vertical.isChecked()
         obj.mirror_h = self.chk_mirror_h.isChecked()
         obj.mirror_v = self.chk_mirror_v.isChecked()
