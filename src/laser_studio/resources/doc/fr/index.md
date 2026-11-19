@@ -9,11 +9,37 @@ terminée.
 Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 **Aide › Documentation**.
 
+## ⚠ Avertissement de sécurité
+
+> **Un graveur laser est une machine dangereuse qui ne doit jamais
+> fonctionner sans surveillance.**
+>
+> - Restez à côté de la machine pendant toute la durée du travail : une
+>   flamme peut apparaître en quelques secondes. Gardez un extincteur à
+>   portée de main.
+> - Portez des lunettes de protection adaptées à la longueur d'onde de
+>   votre laser, et faites-les porter aux personnes présentes.
+> - Aérez ou aspirez les fumées. Ne gravez jamais de PVC ni de vinyle :
+>   ils dégagent des gaz toxiques et corrosifs.
+> - Vérifiez le tracé dans l'onglet *Visualisation 2D G-Code* avant de
+>   lancer un travail.
+>
+> L'utilisateur reste seul responsable des fichiers envoyés à sa machine.
+
 ## Sommaire
 
-- [Premiers pas](premiers-pas.md) : de l'image au G-code en quatre étapes
 - [Images vectorielles](images-vectorielles.md) : qu'est-ce qu'un vecteur ?
 - [Les outils](outils.md) : bibliothèque, générateurs, imbrication…
+
+## Premiers pas
+
+1. **Ouvrez une image** dans l'onglet *Graver une image*.
+2. **Réglez** la taille, le contraste et le mode de tramage.
+3. **Générez le G-code**, puis vérifiez-le dans l'onglet *Visualisation 2D
+   G-Code*.
+4. **Connectez le graveur** et lancez le travail.
+
+Les sections suivantes expliquent les notions utilisées par l'application.
 
 ## Les trois façons de travailler au laser
 
@@ -42,7 +68,9 @@ Trois calques de base existent toujours : **Gravure**, **Découpe** et
 servent pas). Vous pouvez en ajouter d'autres, par exemple deux gravures
 plus ou moins foncées.
 
-Chaque calque a ses réglages :
+Chaque calque a ses réglages, dans l'onglet *Calques (Layers)* :
+
+![L'onglet Calques](images/onglet-calques.jpg)
 
 | Réglage           | Rôle |
 |-------------------|------|
@@ -103,5 +131,9 @@ que comprend votre graveur laser (déplacements, vitesse, puissance). Avant
 de lancer le travail, vérifiez le tracé dans l'onglet *Visualisation 2D
 G-Code* : vous y voyez le chemin du laser et la durée estimée.
 
-> **Sécurité** : ne laissez jamais le graveur fonctionner sans surveillance
-> et portez des lunettes adaptées à la longueur d'onde du laser.
+Dans le G-code, la puissance et la vitesse d'un calque s'écrivent par
+exemple `S1000 F3000` : `S` est la puissance du laser, `F` la vitesse de
+déplacement en mm/min.
+
+> ⚠ **Avant chaque lancement** : la machine est surveillée, les lunettes
+> sont portées, l'aspiration fonctionne.

@@ -5,7 +5,7 @@ Pages affichées dans l'application par **Aide › Documentation** (touche F1).
 - Une langue par dossier : `fr/`, `en/`, `de/`, `es/`. Une page absente
   dans la langue de l'interface est affichée en français.
 - Le point d'entrée est `index.md`.
-- Liens entre pages : `[Premiers pas](premiers-pas.md)`.
+- Liens entre pages : `[Les outils](outils.md)`.
 - Images dans `images/`, en JPEG (~700 px de large) ou PNG pour les
   schémas : c'est ce qui pèse le plus dans l'exécutable.
 
