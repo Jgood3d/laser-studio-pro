@@ -16,6 +16,7 @@ TOTEM = os.path.join(LIBRARY, "trophees", "totem-sportif-modele-1", "totem-sport
 TOTEM2 = os.path.join(LIBRARY, "trophees", "totem-sportif-modele-2", "totem-sportif-modele-2.svg")
 MEDAL = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-1", "medaille-sportive-modele-1.svg")
 MEDAL2 = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-2", "medaille-sportive-modele-2.svg")
+ORNAMENT = os.path.join(LIBRARY, "noel", "boule-de-noel-prenom", "boule-de-noel-prenom.svg")
 KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-sportif-modele-1", "porte-clef-sportif-modele-1.svg")
 KEYCHAIN2 = os.path.join(LIBRARY, "porte-clefs", "porte-clef-sportif-modele-2", "porte-clef-sportif-modele-2.svg")
 
@@ -326,7 +327,7 @@ class SvgImportTests(unittest.TestCase):
 
     def test_bundled_models_follow_the_convention(self):
         """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques."""
-        for model in (TOTEM, TOTEM2, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2):
+        for model in (TOTEM, TOTEM2, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2, ORNAMENT):
             root = ET.parse(model).getroot()
             layers = {next((v for k, v in g.attrib.items() if k.endswith("label")), "")
                       for g in root if g.tag.endswith("}g") and "display:none" not in g.attrib.get("style", "")}
@@ -362,6 +363,19 @@ class SvgImportTests(unittest.TestCase):
                                           if r == "engrave" and o.kind == "svg_path").world_path().toSubpathPolygons())
         for motif in ("Kayak", "Natation"):
             self.assertGreater(polygons(motif), 4, motif)
+
+    def test_bundled_ornament(self):
+        """Boule de Noël : prénom gravé, en police embarquée, centré sur la boule."""
+        from laser_studio.ui.fonts import SCRIPT_FONT, load_bundled_fonts
+        self.assertIn(SCRIPT_FONT, load_bundled_fonts())
+        (field,) = find_texts(ORNAMENT)
+        self.assertEqual((field.key, field.text, field.family), ("Prénom", "Prénom", SCRIPT_FONT))
+        for name in ("Prénom", "Léa", "Joséphine"):
+            art = import_svg(ORNAMENT, texts={"Prénom": name}, offset_x_mm=0, offset_y_mm=0)
+            cut = next(o for r, o in art.items if r == "cut").world_path().boundingRect()
+            text = next(o for r, o in art.items if o.kind == "text")
+            self.assertEqual((text.text, text.font_family), (name, SCRIPT_FONT))
+            self.assertAlmostEqual(text.world_path().boundingRect().center().x(), cut.center().x(), delta=0.6)
 
     def test_bundled_keychains(self):
         expected = {
