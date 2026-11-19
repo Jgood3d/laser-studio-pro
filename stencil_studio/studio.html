@@ -197,7 +197,7 @@
 
 <script>
 "use strict";
-const UI_VERSION = "2026.10.84";  // doit être identique à core.py
+const UI_VERSION = "2026.11.86";  // doit être identique à core.py
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -277,6 +277,7 @@ const SPEC = [
   {k:"ml_picks", t:"text", label:"Picked colours", def:"", ml:1, mlorder:1, maxlen:80},
   {k:"ml_order", t:"text", label:"Colour order", def:"", ml:1, mlorder:1, maxlen:40},
   {k:"ml_pieces", t:"check", label:"Loose pieces to glue (no bridges)", def:false, ml:1},
+  {k:"ml_mid_loose", t:"check", label:"Intermediate plates as loose pieces (no visible bridges)", def:true, ml:1},
   {k:"ml_bg", t:"select", label:"Background", def:"front", ml:1, opts:[["front","Colour of the front plate"],["own","Own plate (colour of your choice)"],["image","Own plate (colour of the picture's background)"]]},
   {k:"ml_bg_color", t:"color", label:"Background plate colour", def:"#e8dcc8", ml:1, mlbg:1},
   {k:"ml_engrave", t:"check", label:"Engrave the details on the front plate", def:false, ml:1},
@@ -456,6 +457,7 @@ const TIPS = {
  "ml_sep": "Tone: the plates follow the brightness of the picture (one material, depth from shadows). Dominant colours: one plate per main colour of the picture, so you can cut each from a different coloured material.",
  "ml_color_auto": "Finds how many colours the picture really has (the Number of plates setting becomes a maximum) and ignores the blended edge pixels. Ideal for logos and flat illustrations; untick to force exactly that number of plates.",
  "ml_pieces": "The plates in front are cut as separate pieces that you glue onto the plate behind, instead of holding them with small bridges. Letters and small shapes then keep a clean outline.",
+ "ml_mid_loose": "Plates between the first and the last are cut without bridges: their shapes are glued onto the full plate behind them, so no bridge shows as a line between the colours in front. Untick to keep bridges on every plate.",
  "ml_bg": "What the background of the picture becomes. Front plate colour: it simply takes the colour of the plate in front. Own plate: an extra solid plate at the very back, in the colour you choose (or the real colour of the picture's background, e.g. white), seen through the openings around the subject.",
  "ml_bg_color": "Colour of the extra background plate (used for the preview and the export colour).",
  "ml_engrave": "Burns the dark details of the picture (eyes, nose, mouth, shoe laces...) onto the front plate, in the ENGRAVE layer. The plate outline stays a cut.",
@@ -1082,21 +1084,34 @@ function uploadHints(){
 }
 let pickMode = false, pickTarget = null, pickCv = null, pickImg = null;  // pickTarget = index pastille à peaufiner, ou null (ajout)
 document.addEventListener("keydown", e => { if (e.key === "Escape" && pickMode){ pickMode = false; pickTarget = null; updateCursor(); try { renderPick(); } catch(_){} try { renderPalette(); } catch(_){} } });
-function pickAt(p){       // moyenne 5x5 autour du point, sur l'image d'origine
+function pickAt(p){       // médiane 7x7 (résiste à l'anti-crénelage mieux que la moyenne)
   if (!img) return null;
   if (pickImg !== img){ pickCv = document.createElement("canvas"); pickCv.width = iw; pickCv.height = ih;
     pickCv.getContext("2d", {willReadFrequently:true}).drawImage(img, 0, 0); pickImg = img; }
   const x = Math.round(p.x), y = Math.round(p.y);
   if (x < 0 || y < 0 || x >= iw || y >= ih) return null;
-  const x0 = Math.max(0, x - 2), y0 = Math.max(0, y - 2), w = Math.min(iw, x + 3) - x0, hh = Math.min(ih, y + 3) - y0;
-  const d = pickCv.getContext("2d").getImageData(x0, y0, w, hh).data; let r = 0, g = 0, b = 0, n = 0;
-  for (let i = 0; i < d.length; i += 4){ r += d[i]; g += d[i + 1]; b += d[i + 2]; n++; }
-  const hx = v => Math.round(v / n).toString(16).padStart(2, "0");
-  return "#" + hx(r) + hx(g) + hx(b);
+  const rad = 3;
+  const x0 = Math.max(0, x - rad), y0 = Math.max(0, y - rad);
+  const w = Math.min(iw, x + rad + 1) - x0, hh = Math.min(ih, y + rad + 1) - y0;
+  const d = pickCv.getContext("2d").getImageData(x0, y0, w, hh).data;
+  const rs = [], gs = [], bs = [];
+  for (let i = 0; i < d.length; i += 4){ rs.push(d[i]); gs.push(d[i + 1]); bs.push(d[i + 2]); }
+  const med = a => { a.sort((u,v)=>u-v); return a[a.length >> 1]; };
+  const hx = v => Math.round(v).toString(16).padStart(2, "0");
+  return "#" + hx(med(rs)) + hx(med(gs)) + hx(med(bs));
 }
 const picksList = () => String(S.ml_picks || "").split(",").map(t => t.trim()).filter(t => /^#[0-9a-fA-F]{6}$/.test(t));
 function setPicks(list){
-  S.ml_picks = list.slice(0, 8).join(","); setControl("ml_picks", S.ml_picks);
+  // ignore les couleurs trop proches déjà présentes (double-clic / AA)
+  const parse = h => [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+  const uniq = [];
+  for (const h of list){
+    if (!/^#[0-9a-fA-F]{6}$/.test(h)) continue;
+    const [r,g,b] = parse(h);
+    if (uniq.some(u => { const [r2,g2,b2] = parse(u); return (r-r2)**2+(g-g2)**2+(b-b2)**2 < 35*35; })) continue;
+    uniq.push(h);
+  }
+  S.ml_picks = uniq.slice(0, 8).join(","); setControl("ml_picks", S.ml_picks);
   S.ml_order = ""; setControl("ml_order", ""); persist();
   try { renderPick(); } catch(e){}
   refreshDisabled(); schedule();

@@ -11,7 +11,7 @@ import numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
 
-VERSION = "2026.10.84"  # doit être identique dans core.py et studio.html
+VERSION = "2026.11.86"  # doit être identique dans core.py et studio.html
 REF_SIZE = 1200.0  # taille de référence : les réglages en pixels sont exprimés pour 1200 px
 
 
@@ -116,6 +116,7 @@ class Params:
     ml_picks: str = ""            # multicouche couleur : couleurs choisies à la pipette (#rrggbb séparés par des virgules)
     ml_color_auto: bool = True    # multicouche couleur : nombre de couleurs détecté automatiquement (ml_layers = maximum)
     ml_pieces: bool = False       # multicouche : plaques de dessus = pièces libres à coller (aucun pont)
+    ml_mid_loose: bool = True     # multicouche : plaques intermédiaires = pièces libres (collées sur la plaque pleine derrière) : aucun pont visible entre les couleurs
     keep_islands: bool = False    # interne : les îlots non reliés sont gardés comme pièces libres (au lieu d'être supprimés)
     loose: bool = False           # interne : pas de ponts (pièces libres)
     ml_gap_mm: float = 6.0        # espace entre couches sur la planche de découpe
@@ -441,6 +442,34 @@ def _remove_small(mask, min_area):
     return keep[lab]
 
 
+def _keep_strokes(thin, opened, d):
+    """Parmi les morceaux de matière plus étroits que d (px), garde ceux qui sont de vrais traits :
+    - assez grands (surface >= 2 d²), ou
+    - longs (plus de 2,5 d), ou
+    - qui relient au moins deux zones épaisses (le jambage fin entre deux boucles d'une écriture).
+    Les petites bosses qui bordent une forme épaisse (touchent une seule zone, courtes) sont supprimées.
+    Avant : seule la surface comptait, donc un trait fin et sinueux était coupé en points."""
+    n, lab, st, _ = cv2.connectedComponentsWithStats(thin, connectivity=8)
+    if n <= 1:
+        return thin
+    on, olab = cv2.connectedComponents(opened, connectivity=8)
+    H, W = thin.shape
+    keep = np.zeros(n, np.uint8)
+    big = max(4, 2 * d * d)
+    for i in range(1, n):
+        x, y, w, h, area = (int(v) for v in st[i])
+        if area >= big or max(w, h) >= 2.5 * d:
+            keep[i] = 1
+            continue
+        x0, y0, x1, y1 = max(0, x - 2), max(0, y - 2), min(W, x + w + 2), min(H, y + h + 2)
+        comp = (lab[y0:y1, x0:x1] == i).astype(np.uint8)
+        ring = cv2.dilate(comp, np.ones((3, 3), np.uint8)) > 0
+        touched = np.unique(olab[y0:y1, x0:x1][ring & (opened[y0:y1, x0:x1] > 0)])
+        if len(touched[touched > 0]) >= 2:
+            keep[i] = 1
+    return keep[lab]
+
+
 def clean_mask(mat, px_per_mm, min_feature_mm, keep_thin=True):
     """Rend la matière découpable : comble les trous trop fins et traite la matière trop étroite.
     keep_thin=True : les traits plus fins que le détail minimal sont épaissis (dessins au trait) ;
@@ -451,7 +480,7 @@ def clean_mask(mat, px_per_mm, min_feature_mm, keep_thin=True):
     opened = cv2.morphologyEx(closed, cv2.MORPH_OPEN, k)
     if keep_thin:
         thin = closed & (1 - opened)                  # matière plus étroite que d
-        thin = _remove_small(thin, max(4, 2 * d * d))  # on garde les traits, pas les petits bords
+        thin = _keep_strokes(thin, opened, d)         # on garde les traits (même fins et longs), pas les petits bords
         r = max(1, d // 3)
         thick = cv2.dilate(thin, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * r + 1, 2 * r + 1)))
         mat = opened | thick
@@ -1593,7 +1622,7 @@ def _layer_domain(rgb, p, subject, valid):
 
 
 def parse_picks(txt):
-    """'#rrggbb,#rrggbb' -> liste de tuples RGB (0 à 8 couleurs)."""
+    """'#rrggbb,#rrggbb' -> liste de tuples RGB (0 à 8 couleurs), sans doublons proches en Lab."""
     out = []
     for t in str(txt or "").split(","):
         t = t.strip().lstrip("#")
@@ -1602,7 +1631,16 @@ def parse_picks(txt):
                 out.append(tuple(int(t[i:i + 2], 16) for i in (0, 2, 4)))
             except ValueError:
                 pass
-    return out[:8]
+    if len(out) <= 1:
+        return out[:8]
+    # dédoublonne les pipettes trop proches (même aplat cliqué deux fois / AA)
+    lab = cv2.cvtColor(np.array([out], np.uint8), cv2.COLOR_RGB2LAB).reshape(-1, 3).astype(np.float32)
+    keep = []
+    for i, c in enumerate(out):
+        if any(float(np.linalg.norm(lab[i] - lab[j])) < 10.0 for j in keep):
+            continue
+        keep.append(i)
+    return [out[i] for i in keep][:8]
 
 
 def is_flat_image(rgb, valid=None, top=6, share=0.85):
@@ -1619,15 +1657,326 @@ def is_flat_image(rgb, valid=None, top=6, share=0.85):
     return float(cnt[:top].sum()) / max(1, code.size) >= share
 
 
-def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
-    """Classe chaque pixel du sujet parmi au plus n couleurs dominantes (k-means en Lab).
+def is_shaded_image(rgb, valid=None):
+    """Vrai pour une photo / figurine ombrée : beaucoup de micro-variations, peu d'aplats francs.
+    Dans ce cas la séparation par tons est en général plus pertinente que par couleurs dominantes."""
+    if is_flat_image(rgb, valid, top=8, share=0.78):
+        return False
+    small = cv2.resize(rgb, None, fx=min(1.0, 280.0 / max(rgb.shape[:2])), fy=min(1.0, 280.0 / max(rgb.shape[:2])),
+                       interpolation=cv2.INTER_AREA)
+    lab = cv2.cvtColor(small, cv2.COLOR_RGB2LAB)
+    L = lab[:, :, 0].astype(np.float32)
+    if valid is not None:
+        vm = cv2.resize(valid.astype(np.uint8), (small.shape[1], small.shape[0]), interpolation=cv2.INTER_NEAREST) > 0
+        if not vm.any():
+            return False
+    else:
+        vm = np.ones(L.shape, bool)
+    # gradient local moyen élevé + beaucoup de niveaux de L distincts → ombrage / photo
+    gx = cv2.Sobel(L, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(L, cv2.CV_32F, 0, 1, ksize=3)
+    gmag = np.hypot(gx, gy)[vm]
+    levels = len(np.unique((L[vm] / 4.0).astype(np.int32)))
+    return float(np.median(gmag)) > 6.5 and levels >= 28
+
+
+def _chroma_boost(cen_lab, counts, total):
+    """Score d'importance : surface + vivacité + bonus contours sombres.
+    Les aplats vifs même petits (bandes rouges) restent prioritaires."""
+    frac = counts / max(1.0, float(total))
+    surf = np.clip((frac - 0.0010) / 0.04, 0.05, 1.0)
+    a = cen_lab[:, 1].astype(np.float32) - 128.0
+    b = cen_lab[:, 2].astype(np.float32) - 128.0
+    chroma = np.hypot(a, b)
+    # bonus fort pour les couleurs saturées (rouge logo, etc.)
+    vivid = 1.0 + 1.35 * np.clip(chroma / 45.0, 0.0, 1.8)
+    L = cen_lab[:, 0].astype(np.float32)
+    dark = 1.0 + 0.55 * np.clip((55.0 - L) / 55.0, 0.0, 1.0)
+    return surf * vivid * dark
+
+
+
+def _merge_near_colors(cen, cnt, max_dist=12.0, white_dist=18.0):
+    """Fusionne les centres très proches en Lab. Les quasi-blancs se regroupent plus facilement ;
+    les teintes sombres (traits) ne sont fusionnées que si vraiment identiques."""
+    cen = np.asarray(cen, np.float32).copy()
+    cnt = np.asarray(cnt, np.float64).copy()
+    merged = True
+    while merged and len(cen) > 2:
+        merged = False
+        best, bd = None, 1e9
+        for i in range(len(cen)):
+            for j in range(i + 1, len(cen)):
+                dd = float(np.linalg.norm(cen[i] - cen[j]))
+                ch_i = float(np.hypot(cen[i, 1] - 128.0, cen[i, 2] - 128.0))
+                ch_j = float(np.hypot(cen[j, 1] - 128.0, cen[j, 2] - 128.0))
+                # blancs / pâles : seuil large
+                if cen[i, 0] > 180 and cen[j, 0] > 180 and ch_i < 18 and ch_j < 18:
+                    lim = white_dist
+                # deux teintes sombres (contours) : seuil strict pour ne pas perdre le trait
+                elif cen[i, 0] < 60 and cen[j, 0] < 60:
+                    lim = min(max_dist, 9.0)
+                # couleur vive (rouge, etc.) : ne fusionner que si quasi identique
+                elif ch_i >= 28.0 or ch_j >= 28.0:
+                    lim = min(max_dist, 8.0)
+                else:
+                    lim = max_dist
+                if dd < lim and dd < bd:
+                    best, bd = (i, j), dd
+        if best is not None and bd < 1e8:
+            i, j = best
+            cen[i] = (cen[i] * cnt[i] + cen[j] * cnt[j]) / max(1e-6, cnt[i] + cnt[j])
+            cnt[i] += cnt[j]
+            cen, cnt = np.delete(cen, j, 0), np.delete(cnt, j)
+            merged = True
+    return cen, cnt
+
+
+def _natural_color_count(cen_lab, counts, total, max_n, min_keep=None):
+    """Estime le nombre « naturel » de couleurs (≤ max_n) à partir de l'importance relative.
+    Coupe seulement les candidats vraiment négligeables (fantômes AA), pas les petits aplats utiles.
+    `min_keep` : plancher (ex. cartoons : au moins ~5 si le plafond le permet)."""
+    m = len(cen_lab)
+    if m <= 2:
+        return max(2, min(m, max_n))
+    imp = _chroma_boost(cen_lab, counts, total)
+    order = list(np.argsort(-imp))
+    scores = [float(imp[i]) for i in order]
+    s0 = max(scores[0], 1e-6)
+    scores_n = [s / s0 for s in scores]
+    keep = 2
+    for k in range(2, min(m, max_n)):
+        if scores_n[k] < 0.045:
+            break
+        if scores_n[k] < 0.10 and scores_n[k] < 0.30 * scores_n[k - 1]:
+            break
+        keep = k + 1
+    # plancher : logos (peu de modes forts) restent bas ; cartoons montent vers min_keep
+    if min_keep is None:
+        # si beaucoup de candidats distincts → cartoon / illustration → viser au moins min(5, max_n)
+        min_keep = min(5, max_n) if m >= 5 else 2
+    keep = max(keep, min(min_keep, max_n, m))
+    return max(2, min(keep, max_n))
+
+
+def _select_mmr(cen_lab, counts, total, k, min_dist=11.0, lam=0.45):
+    """Sélectionne jusqu'à k centres en favorisant l'importance et la diversité perceptuelle (Lab).
+    Retourne (indices_choisis, liste_(idx, raison_rejet))."""
+    m = len(cen_lab)
+    if m <= k:
+        return list(range(m)), []
+    imp = _chroma_boost(cen_lab, counts, total)
+    imp_n = imp / max(1e-6, float(imp.max()))
+    first = int(np.argmax(imp))
+    chosen = [first]
+
+    while len(chosen) < k:
+        best_idx = None
+        best_val = -1e9
+        for i in range(m):
+            if i in chosen:
+                continue
+            dmin = min(float(np.linalg.norm(cen_lab[i] - cen_lab[j])) for j in chosen)
+            # pénalité plus forte sous min_dist ; les accents vifs restent favorisés via imp_n
+            pen = 3.2 if dmin < min_dist else lam * np.exp(-dmin / 28.0)
+            val = imp_n[i] - pen
+            if val > best_val:
+                best_val = val
+                best_idx = i
+        if best_idx is None:
+            break
+        # Arrêt anticipé seulement si le candidat est quasi nul (évite de couper noir / détails)
+        if best_val < 0.02 and len(chosen) >= 2:
+            break
+        chosen.append(best_idx)
+
+    rejected = []
+    for i in range(m):
+        if i not in chosen:
+            dmin = min(float(np.linalg.norm(cen_lab[i] - cen_lab[j])) for j in chosen)
+            reason = "merged" if dmin < min_dist else "cap"
+            rejected.append((i, reason))
+    return chosen, rejected
+
+
+def _lab_to_hex(lab_vec):
+    rgb = cv2.cvtColor(np.clip(lab_vec, 0, 255).reshape(1, 1, 3).astype(np.uint8), cv2.COLOR_LAB2RGB)[0, 0]
+    return "#%02x%02x%02x" % (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+
+
+def _collect_ignored_vivid(cen_lab, counts, total, rejected, min_chroma=22.0):
+    """Liste compacte des couleurs vives non retenues dans la palette finale."""
+    out = []
+    for idx, reason in rejected:
+        c = cen_lab[idx]
+        chroma = float(np.hypot(float(c[1]) - 128.0, float(c[2]) - 128.0))
+        frac = float(counts[idx]) / max(1.0, float(total))
+        if chroma >= min_chroma and frac >= 0.0025:
+            out.append({
+                "hex": _lab_to_hex(c),
+                "reason": reason,
+                "share": round(frac * 100.0, 2),
+                "chroma": round(chroma, 1),
+            })
+    out.sort(key=lambda item: (-item["chroma"], -item["share"]))
+    return out[:6]
+
+
+
+def _saturated_peaks_lab(rgb, dom, max_peaks=4, min_frac=0.0015):
+    """Centres Lab des aplats saturés (rouge, etc.) via histogramme HSV — même s'ils sont fins."""
+    hsv = cv2.cvtColor(rgb, cv2.COLOR_RGB2HSV)
+    m = (dom > 0) & (hsv[:, :, 1] >= 80) & (hsv[:, :, 2] >= 40)
+    if int(m.sum()) < 50:
+        return np.zeros((0, 3), np.float32), np.zeros(0, np.float64)
+    # quantifie la teinte (H) en 18 seaux
+    h = hsv[:, :, 0][m].astype(np.int32)
+    bins = np.bincount(h // 10, minlength=18)
+    total = float(m.sum())
+    peaks = []
+    counts = []
+    lab0 = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB).astype(np.float32)
+    for bi in np.argsort(-bins):
+        if bins[bi] < min_frac * total:
+            break
+        sel = m & (hsv[:, :, 0] // 10 == bi)
+        if not sel.any():
+            continue
+        peaks.append(lab0[sel].mean(0))
+        counts.append(float(sel.sum()))
+        if len(peaks) >= max_peaks:
+            break
+    if not peaks:
+        return np.zeros((0, 3), np.float32), np.zeros(0, np.float64)
+    return np.array(peaks, np.float32), np.array(counts, np.float64)
+
+
+def _flat_palette(lab0, dom, n, min_frac=0.0025, radius=13.0, meta=None, rgb=None):
+    """Palette d'un logo / d'une illustration à aplats : couleurs dominantes cherchées sur les pixels « plats »
+    (sans les bords anti-crénelés, qui ne sont que des mélanges de deux couleurs), par recherche de modes.
+    Garde les petites zones vraiment distinctes (bandes, nez, yeux, langue) grâce à la diversité MMR et au bonus
+    de vivacité chromatique. Retourne les centres (Lab OpenCV) ou None si l'image n'est pas à aplats."""
+    m = dom > 0
+    k3 = np.ones((3, 3), np.uint8)
+    rng = np.zeros(m.shape, np.float32)
+    for c in range(3):
+        ch = lab0[:, :, c]
+        rng = np.maximum(rng, cv2.dilate(ch, k3) - cv2.erode(ch, k3))
+    flat = m & (rng < 7.0)
+    pts = lab0[flat]
+    if len(pts) < 300:
+        return None
+    if len(pts) > 120000:
+        pts = pts[np.random.default_rng(11).choice(len(pts), 120000, replace=False)]
+    total = len(pts)
+    rem, cens, cnts = pts, [], []
+    for _ in range(18):
+        if len(rem) < 0.0008 * total:
+            break
+        q = np.floor(rem / 6.0).astype(np.int64)
+        key = (q[:, 0] * 64 + q[:, 1]) * 64 + q[:, 2]
+        uniq, inv, cnt = np.unique(key, return_inverse=True, return_counts=True)
+        c = rem[inv == int(np.argmax(cnt))].mean(0)
+        for _ in range(4):
+            sel = np.linalg.norm(rem - c, axis=1) < radius * 0.8
+            if sel.any():
+                c = rem[sel].mean(0)
+        sel = np.linalg.norm(rem - c, axis=1) < radius
+        n_sel = int(sel.sum())
+        chroma = float(np.hypot(c[1] - 128.0, c[2] - 128.0))
+        # aplats vifs (bandes rouges) acceptés plus petits que les gris neutres
+        need = (min_frac * 0.45 * total) if chroma >= 28.0 else (min_frac * total)
+        if n_sel >= need:
+            cens.append(c)
+            cnts.append(n_sel)
+        rem = rem[~sel]
+    if len(cens) < 2:
+        return None
+    cen = np.array(cens, np.float32)
+    cnt = np.array(cnts, np.float64)
+    # injecte les aplats saturés (bandes rouges fines) s'ils manquent
+    if rgb is not None:
+        sp, sc = _saturated_peaks_lab(rgb, dom.astype(np.uint8), max_peaks=4, min_frac=0.0012)
+        for i in range(len(sp)):
+            if len(cen) and min(float(np.linalg.norm(sp[i] - c)) for c in cen) < 14.0:
+                continue
+            cen = np.vstack([cen, sp[i][None, :]])
+            cnt = np.append(cnt, sc[i])
+    # fusion des centres presque identiques (dégradés doux / quasi-blancs anti-crénelés)
+    cen, cnt = _merge_near_colors(cen, cnt, max_dist=12.0, white_dist=20.0)
+    # l'image est-elle bien à aplats ? (la plupart des pixels du sujet sont proches d'une couleur trouvée ;
+    # mesuré sur la palette complète, avant de la réduire au nombre de plaques demandé)
+    pl = lab0[m]
+    if len(pl) > 60000:
+        pl = pl[np.random.default_rng(5).choice(len(pl), 60000, replace=False)]
+    dmin = np.sqrt(((pl[:, None, :] - cen[None, :, :]) ** 2).sum(-1)).min(1)
+    if float((dmin < 16.0).mean()) < 0.80:
+        return None
+    # nombre naturel de couleurs (auto) : n reste un plafond
+    n_use = min(n, len(cen))  # lié au nombre de plaques manuel (plafond = n)
+    # sélection MMR avec bonus de vivacité chromatique si plus de candidats que n plaques
+    if len(cen) > n_use:
+        chosen, rejected = _select_mmr(cen, cnt, total, n_use, min_dist=11.0, lam=0.45)
+        if meta is not None:
+            ign = _collect_ignored_vivid(cen, cnt, total, rejected)
+            if ign:
+                meta["ml_ignored"] = ign
+        # rattache les centres écartés les plus proches sans altérer les teintes vives retenues
+        kept_cen = cen[chosen].copy()
+        for idx, reason in rejected:
+            if reason == "merged":
+                j = int(np.argmin([np.linalg.norm(cen[idx] - kept_cen[r]) for r in range(len(kept_cen))]))
+                w_keep = cnt[chosen[j]]
+                w_drop = cnt[idx]
+                kept_cen[j] = (kept_cen[j] * w_keep + cen[idx] * w_drop) / max(1e-6, w_keep + w_drop)
+        cen = kept_cen
+    return cen[np.argsort(cen[:, 0])]
+
+
+def _assign_flat(lab, cen, tol=16.0):
+    """Étiquette chaque pixel par la couleur la plus proche ; un pixel de bord (loin de toutes les couleurs, car mélange
+    de deux d'entre elles) va à la plus proche des deux couleurs qu'il mélange, pas à une troisième couleur
+    intermédiaire (évite les liserés parasites entre le noir et le bleu). Aucun flou des étiquettes : les contours
+    fins sont conservés."""
+    h, w = lab.shape[:2]
+    n = len(cen)
+    flat_lab = lab.reshape(-1, 3)
+    labels = np.empty(len(flat_lab), np.int64)
+    dm = np.empty(len(flat_lab), np.float32)
+    for s0 in range(0, len(flat_lab), 400000):      # par blocs : pas de tableau géant sur les grandes images
+        blk = flat_lab[s0:s0 + 400000]
+        d = np.sqrt(((blk[:, None, :] - cen[None, :, :]) ** 2).sum(-1))
+        labels[s0:s0 + 400000] = d.argmin(1)
+        dm[s0:s0 + 400000] = d.min(1)
+    mix = np.nonzero(dm > tol)[0]
+    if len(mix) and n >= 3:
+        P = flat_lab[mix]
+        best_d = np.full(len(mix), 1e9, np.float32)
+        best_l = labels[mix].copy()
+        for a in range(n):
+            for b in range(a + 1, n):
+                ab = cen[b] - cen[a]
+                den = float((ab ** 2).sum())
+                if den < 1e-6:
+                    continue
+                t = np.clip(((P - cen[a]) @ ab) / den, 0.0, 1.0)
+                dist = np.linalg.norm(P - (cen[a] + t[:, None] * ab), axis=1)
+                better = dist < best_d
+                best_d = np.where(better, dist, best_d)
+                best_l = np.where(better, np.where(t < 0.5, a, b), best_l)
+        labels[mix] = best_l
+    return labels.reshape(h, w).astype(np.int32)
+
+
+def color_classes(rgb, dom, n, valid=None, auto=True, picks=None, meta=None):
+    """Classe chaque pixel du sujet parmi au plus n couleurs dominantes (k-means / modes en Lab).
 
     - picks : couleurs choisies à la pipette (listes de RGB). Elles servent de centres
       préférés. Le nombre de plaques demandé (n) est TOUJOURS respecté.
         • len(picks) == n  → centres exacts
         • len(picks) <  n  → picks en graines + k-means pour le reste
         • len(picks) >  n  → on garde les n picks les mieux réparties en luminosité
-    - auto : fusion des couleurs proches / suppression des classes négligeables
+    - auto : fusion des couleurs proches / sélection MMR avec bonus de vivacité chromatique
       (uniquement quand il n'y a pas de picks).
     Retourne (labels, centres RGB triés du plus sombre au plus clair).
     """
@@ -1641,19 +1990,17 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
 
     # ---------- Cas pipette ----------
     if picks:
-        # Tri par luminosité (L) pour un ordre stable arrière → avant
         order_p = sorted(picks, key=lambda c: cv2.cvtColor(
             np.array([[c]], np.uint8), cv2.COLOR_RGB2LAB)[0, 0, 0])
 
         if len(order_p) >= n:
-            # Trop de picks (ou exact) → on garde n couleurs bien réparties
             if len(order_p) > n:
                 idx = [int(round(i * (len(order_p) - 1) / (n - 1))) for i in range(n)]
                 order_p = [order_p[i] for i in idx]
             cen = cv2.cvtColor(np.array([order_p], np.uint8),
                                cv2.COLOR_RGB2LAB).reshape(n, 3).astype(np.float32)
         else:
-            # Moins de picks que de plaques demandées → graines + k-means
+            # Les picks sont des centres FIXES ; on complète jusqu'à n avec des modes distants
             fixed = cv2.cvtColor(np.array([order_p], np.uint8),
                                  cv2.COLOR_RGB2LAB).reshape(len(order_p), 3).astype(np.float32)
             src = lab0 if auto else lab
@@ -1664,18 +2011,25 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
                 pts = pts[np.random.default_rng(3).choice(len(pts), 40000, replace=False)]
 
             crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
-            # Centres initiaux = picks + points aléatoires
-            n_extra = n - len(fixed)
-            extra = pts[np.random.default_rng(7).choice(len(pts), n_extra, replace=False)]
-            init = np.vstack([fixed, extra]).astype(np.float32)
-            # kmeans avec initialisation manuelle (labels initiaux approx)
-            # On utilise KMEANS_PP puis on force les picks
-            _, _, cen = cv2.kmeans(pts, n, None, crit, 3, cv2.KMEANS_PP_CENTERS)
-            # Remettre les picks exacts aux positions les plus proches
-            for i, f in enumerate(fixed):
-                d = np.linalg.norm(cen - f, axis=1)
-                j = int(np.argmin(d))
-                cen[j] = f
+            k_extra = min(max(n + 2, n * 2), 12)
+            _, _, cand = cv2.kmeans(pts, k_extra, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+            # part des picks, ajoute les candidats les plus éloignés des centres déjà choisis
+            cen_list = [fixed[i] for i in range(len(fixed))]
+            while len(cen_list) < n and len(cand):
+                dmin = np.array([min(float(np.linalg.norm(c - f)) for f in cen_list) for c in cand])
+                j = int(np.argmax(dmin))
+                if dmin[j] < 8.0:   # plus rien de distinct
+                    break
+                cen_list.append(cand[j])
+                cand = np.delete(cand, j, 0)
+            # si encore trop peu : comble avec k-means à n puis impose les picks
+            if len(cen_list) < n:
+                _, _, cen = cv2.kmeans(pts, n, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+                for f in fixed:
+                    j = int(np.argmin(np.linalg.norm(cen - f, axis=1)))
+                    cen[j] = f
+            else:
+                cen = np.array(cen_list[:n], np.float32)
             cen = cen[np.argsort(cen[:, 0])]
 
         d = ((lab[:, :, None, :] - cen[None, None, :, :]) ** 2).sum(-1)
@@ -1694,6 +2048,14 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
         return labels, [tuple(int(v) for v in q) for q in rgb_c]
 
     # ---------- Cas classique (sans pipette) ----------
+    if auto:
+        pal = _flat_palette(lab0, dom, n, meta=meta, rgb=rgb)
+        if pal is not None:     # logo / illustration à aplats : palette par modes, étiquettes sans flou
+            lab_f = cv2.cvtColor(cv2.GaussianBlur(rgb, (0, 0), 0.6), cv2.COLOR_RGB2LAB).astype(np.float32)
+            labels = _assign_flat(lab_f, pal)
+            rgb_c = cv2.cvtColor(np.clip(pal, 0, 255).reshape(1, len(pal), 3).astype(np.uint8),
+                                 cv2.COLOR_LAB2RGB).reshape(len(pal), 3)
+            return labels, [tuple(int(v) for v in q) for q in rgb_c]
     src = lab0 if auto else lab
     pts = src[dom > 0]
     if len(pts) < n * 10:
@@ -1701,26 +2063,51 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
     if len(pts) > 40000:
         pts = pts[np.random.default_rng(3).choice(len(pts), 40000, replace=False)]
     crit = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
-    _, _, cen = cv2.kmeans(pts, n, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+    k_cand = min(max(n + 3, n * 2), 12) if auto else n
+    _, _, cen = cv2.kmeans(pts, k_cand, None, crit, 3, cv2.KMEANS_PP_CENTERS)
     cen = cen[np.argsort(cen[:, 0])]
     flat = False
     if auto:
-        for _ in range(n):
+        d = np.sqrt(((pts[:, None, :] - cen[None, :, :]) ** 2).sum(-1))
+        cnt = np.bincount(d.argmin(1), minlength=len(cen)).astype(np.float64)
+        total_pts = float(len(pts))
+        # filtre le bruit micro-pixel (< 0.25 %)
+        valid_c = [i for i in range(len(cen)) if cnt[i] >= 0.0025 * total_pts]
+        if len(valid_c) >= 2:
+            cen = cen[valid_c]
+            cnt = cnt[valid_c]
+        # regroupe les quasi-blancs et teintes presque identiques avant la sélection
+        cen, cnt = _merge_near_colors(cen, cnt, max_dist=12.0, white_dist=19.0)
+        n_use = min(n, len(cen))  # lié au nombre de plaques manuel (plafond = n)
+        # sélection MMR avec bonus chromatique pour préserver les accents vifs (ex. bandes rouges)
+        chosen, rejected = _select_mmr(cen, cnt, total_pts, n_use, min_dist=11.0, lam=0.45)
+        if meta is not None:
+            ign = _collect_ignored_vivid(cen, cnt, total_pts, rejected)
+            if ign:
+                meta["ml_ignored"] = ign
+        cen = cen[chosen]
+        cnt = cnt[chosen]
+        # élagage des clusters redondants ou de mélange intermédiaire sans supprimer les couleurs vives distinctes
+        for _ in range(len(cen)):
             k = len(cen)
+            if k <= 2:
+                break
             d = np.sqrt(((pts[:, None, :] - cen[None, :, :]) ** 2).sum(-1))
             frac = np.bincount(d.argmin(1), minlength=k) / max(1, len(pts))
+            chroma = np.hypot(cen[:, 1] - 128.0, cen[:, 2] - 128.0)
             changed = False
-            small = [i for i in range(k) if frac[i] < 0.015]
+            small = [i for i in range(k) if frac[i] < 0.003 or (frac[i] < 0.012 and chroma[i] < 22.0)]
             mix = []
             for c in range(k):
+                if chroma[c] >= 28.0:
+                    continue
                 for a in range(k):
                     for b in range(a + 1, k):
                         if c in (a, b):
                             continue
                         dab = float(np.linalg.norm(cen[a] - cen[b]))
                         if dab > 20 and float(np.linalg.norm(cen[a] - cen[c]) +
-                                              np.linalg.norm(cen[c] - cen[b])) < 1.06 * dab \
-                                and frac[c] < 0.12:
+                                              np.linalg.norm(cen[c] - cen[b])) < 1.06 * dab                                 and frac[c] < 0.12:
                             mix.append(c)
             if mix and k > 2:
                 cen = np.delete(cen, min(mix, key=lambda i: frac[i]), 0)
@@ -1729,7 +2116,7 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
                 cen = np.delete(cen, min(small, key=lambda i: frac[i]), 0)
                 changed = True
             elif k > 2:
-                best, bd = None, 14.0
+                best, bd = None, 12.0
                 for i in range(k):
                     for j in range(i + 1, k):
                         dd = float(np.linalg.norm(cen[i] - cen[j]))
@@ -1742,6 +2129,7 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
                     changed = True
             if not changed:
                 break
+        cen = cen[np.argsort(cen[:, 0])]
         n = len(cen)
         pl = lab0[dom > 0]
         if len(pl) > 40000:
@@ -1765,11 +2153,11 @@ def color_classes(rgb, dom, n, valid=None, auto=True, picks=None):
     return labels, [tuple(int(v) for v in q) for q in rgb_c]
 
 
-def layers_masks_color(rgb, p, subject, valid, dom=None):
+def layers_masks_color(rgb, p, subject, valid, dom=None, meta=None):
     h, w = rgb.shape[:2]
     dom = _layer_domain(rgb, p, subject, valid) if dom is None else dom
     n = int(min(8, max(2, p.ml_layers)))
-    labels, cols = color_classes(fill_outside(rgb, valid), dom, n, auto=p.ml_color_auto, picks=parse_picks(p.ml_picks))
+    labels, cols = color_classes(fill_outside(rgb, valid), dom, n, auto=p.ml_color_auto, picks=parse_picks(p.ml_picks), meta=meta)
     n = len(cols)
     try:
         order = [int(t) for t in str(p.ml_order).split(",") if t.strip() != ""]
@@ -1847,12 +2235,22 @@ def layers_result(rgb, p, subject=None, valid=None):
     t0 = time.time()
     h, w = rgb.shape[:2]
     colors, corder = None, None
+    color_meta = {}
     dom = _layer_domain(rgb, p, subject, valid)
-    if (p.ml_sep == "color" and subject is None and p.ml_bg == "front"
+    # Logo / aplat : analyser TOUTE l'image (y compris bandes rouges en bordure),
+    # quel que soit ml_bg (front ou plaque à part).
+    if (p.ml_sep == "color" and subject is None
             and (parse_picks(p.ml_picks) or is_flat_image(fill_outside(rgb, valid), valid))):
-        dom = np.ones((h, w), np.uint8) if valid is None else valid.astype(np.uint8)   # logo : pas de fond à retirer
-    if p.ml_sep == "color":
-        masks, colors, corder = layers_masks_color(rgb, p, subject, valid, dom)
+        dom = np.ones((h, w), np.uint8) if valid is None else valid.astype(np.uint8)
+    use_color = (p.ml_sep == "color")
+    picks = parse_picks(p.ml_picks)
+    # Image ombrée / photo sans pipette : bascule vers les tons (meilleur relief)
+    if use_color and not picks and is_shaded_image(fill_outside(rgb, valid), valid):
+        use_color = False
+        color_meta["ml_sep_fallback"] = "tone"
+        color_meta["ml_sep_reason"] = "shaded"
+    if use_color:
+        masks, colors, corder = layers_masks_color(rgb, p, subject, valid, dom, meta=color_meta)
     else:
         masks = layers_masks(rgb, p, subject, valid, dom)
     front = masks[-1].copy()
@@ -1871,9 +2269,19 @@ def layers_result(rgb, p, subject=None, valid=None):
             colors = [bgc] + list(colors)
         else:
             colors = None
-    pl = replace(p, output="stencil", keep_islands=(p.ml_sep == "color"))
-    outs = [process(rgb, pl if (i == 0 or not p.ml_pieces) else replace(pl, loose=True), None, valid, raw_override=m)
-            for i, m in enumerate(masks)]
+    pl = replace(p, output="stencil", keep_islands=(colors is not None))
+    nm = len(masks)
+
+    def _plate_params(i):
+        # Une plaque posée sur une plaque pleine n'a pas besoin de ponts : ses îlots se collent derrière.
+        # Plaque de devant : ponts conservés (sauf « pièces libres »). Plaques intermédiaires : libres,
+        # sinon le pont d'une couleur de milieu (ex. rouge) se voit comme un trait entre les formes de devant.
+        if i == 0:
+            return pl
+        if p.ml_pieces or (p.ml_mid_loose and i < nm - 1):
+            return replace(pl, loose=True)
+        return pl
+    outs = [process(rgb, _plate_params(i), None, valid, raw_override=m) for i, m in enumerate(masks)]
     n = len(outs)
     H2, W2 = outs[0].mat.shape
     gray_eng = tone_gray(fill_outside(rgb, valid), p.tone_source) if p.ml_engrave else None
@@ -1898,6 +2306,11 @@ def layers_result(rgb, p, subject=None, valid=None):
     if colors is not None:
         info["ml_palette"] = ["#%02x%02x%02x" % q for q in (colors[1:] if own_bg else colors)]
         info["ml_order_ids"] = [int(v) for v in corder]
+        if color_meta.get("ml_ignored"):
+            info["ml_ignored"] = color_meta["ml_ignored"]
+    if color_meta.get("ml_sep_fallback"):
+        info["ml_sep_fallback"] = color_meta["ml_sep_fallback"]
+        info["ml_sep_reason"] = color_meta.get("ml_sep_reason", "")
     cols = 1 if n == 1 else (2 if n <= 4 else 3)
     rows = int(np.ceil(n / cols))
     gap = max(2, int(round(p.ml_gap_mm * ppm)))
@@ -1954,25 +2367,39 @@ def layers_result(rgb, p, subject=None, valid=None):
 
 
 def render_layer_stack(res, material="wood_light"):
-    """Aperçu des couches empilées (la 1re derrière) avec ombres portées : donne une idée du relief."""
+    """Aperçu des couches empilées (la 1re derrière), éclairées par le haut à gauche : ombre portée sur la plaque
+    de derrière (plus longue pour les plaques de devant), arête biseautée claire côté lumière et sombre côté
+    opposé. Donne une idée fidèle du relief une fois les plaques collées."""
     mats = res.layers
     n = len(mats)
     H, W = mats[0].shape
-    base = np.array(MATERIALS.get(material, MATERIALS["wood_light"])[0], np.float32)
+    big = max(H, W)
+    base = np.array(MATERIALS.get(material, MATERIALS[material if material in MATERIALS else "wood_light"])[0], np.float32)
     out = np.full((H, W, 3), (226, 226, 230), np.float32)
     cols = res.layer_colors
-    s = max(2, int(0.006 * max(H, W)))
+    s0 = max(2, int(0.005 * big))
+    bev = max(1.2, 0.0035 * big)                       # largeur du biseau (px)
+    lx, ly = -0.7071, -0.7071                           # direction de la lumière (vers le haut à gauche)
     for i, m in enumerate(mats):
         mf = m.astype(np.float32)
-        sh = cv2.GaussianBlur(np.roll(np.roll(mf, s, 0), s, 1), (0, 0), max(1.0, 0.004 * max(H, W)))
-        out *= (1.0 - 0.5 * sh)[..., None]
+        off = int(round(s0 * (1.0 + 0.5 * min(i, 4))))   # plus la plaque est en avant, plus l'ombre s'allonge
+        sh = cv2.GaussianBlur(np.roll(np.roll(mf, off, 0), off, 1), (0, 0), max(1.0, 0.004 * big) * (1.0 + 0.25 * min(i, 4)))
+        out *= (1.0 - 0.55 * sh)[..., None]
         if cols:
             col = np.array(cols[i], np.float32)
         else:
             col = np.clip(base * (0.6 + 0.4 * (i / max(1, n - 1))), 0, 255)
-        out[m > 0] = col
-        edge = (m > 0) & (cv2.erode(m, np.ones((3, 3), np.uint8)) == 0)
-        out[edge] = np.clip(col * 1.25 + 8, 0, 255)
+        solid = m > 0
+        out[solid] = col
+        # biseau : dégradé du masque lissé ; arête tournée vers la lumière = plus claire, opposée = plus sombre
+        g = cv2.GaussianBlur(mf, (0, 0), bev)
+        gx = cv2.Sobel(g, cv2.CV_32F, 1, 0, ksize=3)
+        gy = cv2.Sobel(g, cv2.CV_32F, 0, 1, ksize=3)
+        lit = -(gx * lx + gy * ly)
+        lit = np.clip(lit / max(1e-6, float(np.abs(lit).max())) * 2.2, -1.0, 1.0)
+        band = solid & (g < 0.97)
+        k = (1.0 + 0.42 * lit)[..., None]
+        out[band] = np.clip(out[band] * k[band] + (8.0 * np.maximum(lit, 0))[band][:, None], 0, 255)
         if i == n - 1 and res.marks is not None and res.layer_boxes:
             x0, y0, tw, th = res.layer_boxes[-1]
             mk = res.marks[y0:y0 + th, x0:x0 + tw] > 0
