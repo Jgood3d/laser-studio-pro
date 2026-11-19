@@ -3341,19 +3341,14 @@ class TextInsertDialog(QDialog):
         self.spin_arc_radius.setDecimals(1); self.spin_arc_radius.setSuffix(" mm")
         self.spin_arc_radius.setSpecialValueText(tr("vector.dlg.arc_off"))
         self.spin_arc_radius.setValue(getattr(text_obj, "arc_radius_mm", 0.0))
-        layout.addRow(tr("vector.dlg.arc_radius"), self.spin_arc_radius)
-
         self.combo_arc_side = QComboBox()
         self.combo_arc_side.addItem(tr("vector.dlg.arc_outside"), False)
         self.combo_arc_side.addItem(tr("vector.dlg.arc_inside"), True)
         self.combo_arc_side.setCurrentIndex(1 if arc_inside else 0)
-        layout.addRow(tr("vector.dlg.arc_side"), self.combo_arc_side)
-
         center = getattr(text_obj, "arc_center_deg", None)
         self.spin_arc_center = QDoubleSpinBox(); self.spin_arc_center.setRange(0.0, 360.0)
         self.spin_arc_center.setDecimals(1); self.spin_arc_center.setSuffix(" °")
         self.spin_arc_center.setValue(default_center_deg(arc_inside) if center is None else center)
-        layout.addRow(tr("vector.dlg.arc_angle"), self.spin_arc_center)
         self.combo_arc_side.currentIndexChanged.connect(self._on_arc_side_changed)
         self.spin_arc_radius.valueChanged.connect(self._update_arc_enabled)
         self._update_arc_enabled()
@@ -3361,6 +3356,13 @@ class TextInsertDialog(QDialog):
         # Texte le long d'un autre objet (voir VectorCanvasView.make_text_follow_object) : position sur le
         # tracé, sens, décalage. Affiché seulement pour un texte déjà posé sur un tracé.
         self._has_follow = bool(text_obj and getattr(text_obj, "follow_points", None))
+        if not self._has_follow:
+            # Texte sur un cercle (rayon, côté, angle). Pour un texte posé sur un tracé, ces réglages ne
+            # servent à rien : la position, le côté et la distance se règlent ci-dessous, donc on ne
+            # les affiche pas (des champs grisés laissaient croire à une panne).
+            layout.addRow(tr("vector.dlg.arc_radius"), self.spin_arc_radius)
+            layout.addRow(tr("vector.dlg.arc_side"), self.combo_arc_side)
+            layout.addRow(tr("vector.dlg.arc_angle"), self.spin_arc_center)
         if self._has_follow:
             self.spin_follow_pos = QDoubleSpinBox(); self.spin_follow_pos.setRange(0.0, 100.0)
             self.spin_follow_pos.setDecimals(1); self.spin_follow_pos.setSuffix(" %")
@@ -3368,6 +3370,7 @@ class TextInsertDialog(QDialog):
             layout.addRow(tr("vector.dlg.follow_pos"), self.spin_follow_pos)
             self.chk_follow_reverse = QCheckBox(tr("vector.dlg.follow_reverse"))
             self.chk_follow_reverse.setChecked(bool(getattr(text_obj, "follow_reverse", False)))
+            self.chk_follow_reverse.toggled.connect(self._on_follow_reverse_toggled)
             layout.addRow(self.chk_follow_reverse)
             self.spin_follow_gap = QDoubleSpinBox(); self.spin_follow_gap.setRange(-100.0, 100.0)
             self.spin_follow_gap.setDecimals(1); self.spin_follow_gap.setSuffix(" mm")
@@ -3375,9 +3378,6 @@ class TextInsertDialog(QDialog):
             layout.addRow(tr("vector.dlg.follow_gap"), self.spin_follow_gap)
             self.chk_follow_detach = QCheckBox(tr("vector.dlg.follow_detach"))
             layout.addRow(self.chk_follow_detach)
-            # Le tracé l'emporte sur le texte sur un cercle : on grise ses réglages.
-            for widget in (self.spin_arc_radius, self.combo_arc_side, self.spin_arc_center):
-                widget.setEnabled(False)
 
         orient_row = QHBoxLayout()
         self.rb_horizontal = QRadioButton(tr("vector.dlg.horizontal"))
@@ -3400,6 +3400,12 @@ class TextInsertDialog(QDialog):
             self.combo_layer.addItem(layer_label(l), l.id)
         if text_obj and text_obj.layer_id:
             idx = self.combo_layer.findData(text_obj.layer_id)
+            if idx >= 0:
+                self.combo_layer.setCurrentIndex(idx)
+        elif text_obj is None:
+            # Nouveau texte : calque de gravure par défaut (le premier calque sinon).
+            engrave = self.layer_manager.engrave_layer()
+            idx = self.combo_layer.findData(engrave.id) if engrave is not None else -1
             if idx >= 0:
                 self.combo_layer.setCurrentIndex(idx)
         layout.addRow(tr("ui.vector_layer"), self.combo_layer)
@@ -3426,6 +3432,17 @@ class TextInsertDialog(QDialog):
         inside = bool(self.combo_arc_side.currentData())
         if abs(self.spin_arc_center.value() - default_center_deg(not inside)) < 1e-6:
             self.spin_arc_center.setValue(default_center_deg(inside))
+
+    def _on_follow_reverse_toggled(self, inside):
+        """Mettre le texte de l'autre côté du trait le fait lire à l'envers à l'endroit où il était (le haut
+        des lettres vise le centre) : tant que la position est encore celle par défaut de l'autre côté, on
+        l'amène au bas du contour (ou au haut en décochant), où il se lit à l'endroit."""
+        points = getattr(self.editing, "follow_points", None)
+        if not points:
+            return
+        old = 100.0 * default_center_fraction(points, not inside)
+        if abs(self.spin_follow_pos.value() - old) < 0.1:
+            self.spin_follow_pos.setValue(100.0 * default_center_fraction(points, inside))
 
     def _update_arc_enabled(self):
         on = self.spin_arc_radius.value() > 0

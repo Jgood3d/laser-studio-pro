@@ -169,6 +169,8 @@ class VectorEditingMixin:
         item, obj = self.vector_canvas.selected_object()
         if obj is not None:
             self.on_vector_selection_changed(obj)
+            # Ouvre tout de suite les réglages du texte (position, côté, distance...).
+            self._open_edit_dialog(item, obj)
 
     def rotate_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()
