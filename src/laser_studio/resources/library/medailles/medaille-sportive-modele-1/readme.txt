@@ -15,8 +15,10 @@ Licence      : Libre d'utilisation pour usage personnel et associatif
 Cette médaille est conçue pour récompenser les compétiteurs. Elle se décline
 en deux motifs, au choix dans cette fiche (liste « Motif ») :
 
-  Aviron       →  un skiffeur
-  Basket-ball  →  deux joueurs en 1 contre 1
+  Aviron                    →  un skiffeur
+  Basket-ball (1 contre 1)  →  deux joueurs en 1 contre 1
+  Kayak, Surf, Natation, Course, Vélo, Ballon de basket, Handball,
+  Volley-ball, Gymnastique, Arts martiaux  →  pictogrammes sportifs
 
 en deux formes (liste « Forme ») :
 
@@ -42,7 +44,7 @@ y passer un ruban ou un cordon.
 --------------------------------------------------------------------------------
 
   1. Dans cette fiche :
-       - choisir le motif (aviron ou basket-ball) ;
+       - choisir le motif (aviron, basket-ball ou l'un des pictogrammes) ;
        - choisir la forme (hexagonale ou ronde) ;
        - choisir le résultat (1ère, 2e ou 3e place, ou Étoile) ;
        - remplacer « Compétition de XXXX » par le nom de votre compétition.
@@ -106,6 +108,17 @@ y passer un ruban ou un cordon.
   Contreplaqué bouleau (3 mm)
     → Surface plus lisse, aspect légèrement plus premium
     → Très bon compromis qualité / prix pour des séries
+
+
+--------------------------------------------------------------------------------
+  LICENCE DES PICTOGRAMMES
+--------------------------------------------------------------------------------
+
+  Les pictogrammes sportifs (kayak, surf, natation, course, vélo, ballon de
+  basket, handball, volley-ball, gymnastique, arts martiaux) viennent de
+  Material Symbols, de Google, sous licence Apache 2.0 (texte complet dans
+  LICENCE-material-symbols.txt). Ils ont été mis à l'échelle de la médaille.
+  https://github.com/google/material-design-icons
 
 
 --------------------------------------------------------------------------------

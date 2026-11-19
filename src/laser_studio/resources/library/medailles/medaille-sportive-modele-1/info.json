@@ -7,28 +7,37 @@
   },
   "author": "Antoine Le Morvan",
   "license": {
-    "fr": "Libre d'utilisation pour usage personnel et associatif",
-    "en": "Free for personal and club use",
-    "de": "Frei für private Nutzung und Vereine",
-    "es": "Libre para uso personal y asociativo"
+    "fr": "Libre d'utilisation pour usage personnel et associatif. Pictogrammes sportifs : Material Symbols (Google), licence Apache 2.0 (LICENCE-material-symbols.txt).",
+    "en": "Free for personal and club use. Sports pictograms: Material Symbols (Google), Apache 2.0 license (LICENCE-material-symbols.txt).",
+    "de": "Frei für private Nutzung und Vereine. Sportpiktogramme: Material Symbols (Google), Apache-2.0-Lizenz (LICENCE-material-symbols.txt).",
+    "es": "Libre para uso personal y asociativo. Pictogramas deportivos: Material Symbols (Google), licencia Apache 2.0 (LICENCE-material-symbols.txt)."
   },
   "description": {
-    "fr": "Médaille de compétition avec un trou pour le ruban. Motif au choix : aviron (skiffeur) ou basket-ball (1 contre 1) ; forme hexagonale ou ronde ; résultat : 1ère, 2e, 3e place ou étoile ; nom de la compétition à saisir avant l'import.",
-    "en": "Competition medal with a ribbon hole. Design of your choice: rowing (single sculler) or basketball (one-on-one); hexagonal or round shape; result: 1st, 2nd, 3rd place or star; competition name to type before import.",
-    "de": "Wettkampfmedaille mit Loch für das Band. Motiv nach Wahl: Rudern (Einer) oder Basketball (Eins gegen Eins); sechseckig oder rund; Ergebnis: 1., 2., 3. Platz oder Stern; Wettkampfname vor dem Import eingeben.",
-    "es": "Medalla de competición con un agujero para la cinta. Motivo a elegir: remo (skiff) o baloncesto (uno contra uno); forma hexagonal o redonda; resultado: 1.º, 2.º, 3.er puesto o estrella; nombre de la competición a escribir antes de importar."
+    "fr": "Médaille de compétition avec un trou pour le ruban. Motif au choix : aviron (skiffeur), basket-ball (1 contre 1), ou un pictogramme : kayak, surf, natation, course, vélo, ballon de basket, handball, volley-ball, gymnastique, arts martiaux. Forme hexagonale ou ronde ; résultat : 1ère, 2e, 3e place ou étoile ; nom de la compétition à saisir avant l'import.",
+    "en": "Competition medal with a ribbon hole. Design of your choice: rowing (single sculler), basketball (one-on-one), or a pictogram: kayak, surf, swimming, running, cycling, basketball, handball, volleyball, gymnastics, martial arts. Hexagonal or round shape; result: 1st, 2nd, 3rd place or star; competition name to type before import.",
+    "de": "Wettkampfmedaille mit Loch für das Band. Motiv nach Wahl: Rudern (Einer), Basketball (Eins gegen Eins) oder ein Piktogramm: Kajak, Surfen, Schwimmen, Laufen, Radfahren, Basketball, Handball, Volleyball, Turnen, Kampfsport. Sechseckig oder rund; Ergebnis: 1., 2., 3. Platz oder Stern; Wettkampfname vor dem Import eingeben.",
+    "es": "Medalla de competición con un agujero para la cinta. Motivo a elegir: remo (skiff), baloncesto (uno contra uno) o un pictograma: kayak, surf, natación, carrera, ciclismo, baloncesto, balonmano, voleibol, gimnasia, artes marciales. Forma hexagonal o redonda; resultado: 1.º, 2.º, 3.er puesto o estrella; nombre de la competición a escribir antes de importar."
   },
   "tags": [
-    "médaille",
-    "medal",
-    "sport",
-    "compétition",
-    "podium",
+    "arts martiaux",
     "aviron",
-    "rowing",
-    "skiff",
     "basket",
     "basketball",
-    "club"
+    "club",
+    "compétition",
+    "course",
+    "gymnastique",
+    "handball",
+    "kayak",
+    "medal",
+    "médaille",
+    "natation",
+    "podium",
+    "rowing",
+    "skiff",
+    "sport",
+    "surf",
+    "volley",
+    "vélo"
   ]
 }

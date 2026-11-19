@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 LIBRARY = os.path.join(REPO, "src", "laser_studio", "resources", "library")
 TOTEM = os.path.join(LIBRARY, "trophees", "totem-brevet-aviron", "totem-brevet-aviron.svg")
 MEDAL = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-1", "medaille-sportive-modele-1.svg")
+MEDAL2 = os.path.join(LIBRARY, "medailles", "medaille-sportive-modele-2", "medaille-sportive-modele-2.svg")
 KEYCHAIN = os.path.join(LIBRARY, "porte-clefs", "porte-clef-aviron-solo", "porte-clef-aviron-solo.svg")
 
 from laser_studio.library.catalog import load_catalog, pretty_name  # noqa: E402
@@ -244,6 +245,29 @@ class SvgImportTests(unittest.TestCase):
         self.assertEqual(document_size_mm(path), (30.0, 18.0))
         self.assertEqual(len(import_svg(path).items), 1)
 
+    def test_strokes_are_engraved_with_their_width(self):
+        # Trait noir de 2 mm d'épaisseur sur une ligne de 40 mm (bouts ronds) : 42 x 2 mm gravés.
+        path = self.file(engrave('<line x1="10" y1="20" x2="50" y2="20" stroke="#000" stroke-width="2" '
+                                 'stroke-linecap="round" fill="none"/>'))
+        (role, obj), = import_svg(path).items
+        box = obj.world_path().boundingRect()
+        self.assertEqual(role, "engrave")
+        self.assertAlmostEqual(box.width(), 42.0, delta=0.05)
+        self.assertAlmostEqual(box.height(), 2.0, delta=0.05)
+        # Trait blanc : creusé dans la gravure.
+        knocked = self.file(engrave('<rect width="40" height="20" fill="#000"/>'
+                                    '<line x1="0" y1="10" x2="40" y2="10" stroke="#fff" stroke-width="2"/>'))
+        (_r, obj), = import_svg(knocked).items
+        self.assertEqual(len(obj.world_path().toSubpathPolygons()), 2)    # bandeau coupé en deux
+
+    def test_bundled_medal_2_pictograms(self):
+        groups = {g.key: g for g in find_variant_groups(MEDAL2)}
+        self.assertEqual([o[0] for o in groups["Motif"].options],
+                         ["Natation", "Dribble", "Handball", "Water-polo", "Escrime", "Haltérophilie", "Football"])
+        for motif, _name in groups["Motif"].options:
+            art = import_svg(MEDAL2, variants={"Motif": motif})
+            self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], motif)
+
     def test_light_shapes_are_cut_out_of_the_engraving(self):
         # Bandeau noir de 40 x 20 mm, carré blanc de 10 mm dessus : un seul objet, le carré en trou.
         path = self.file(engrave('<rect width="40" height="20" fill="#000"/>'
@@ -300,7 +324,7 @@ class SvgImportTests(unittest.TestCase):
 
     def test_bundled_models_follow_the_convention(self):
         """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques."""
-        for model in (TOTEM, MEDAL, KEYCHAIN):
+        for model in (TOTEM, MEDAL, MEDAL2, KEYCHAIN):
             root = ET.parse(model).getroot()
             layers = {next((v for k, v in g.attrib.items() if k.endswith("label")), "")
                       for g in root if g.tag.endswith("}g") and "display:none" not in g.attrib.get("style", "")}
@@ -336,7 +360,9 @@ class SvgImportTests(unittest.TestCase):
     def test_bundled_medal(self):
         groups = {g.key: g for g in find_variant_groups(MEDAL)}
         self.assertEqual(list(groups), ["Forme", "Résultat", "Motif"])   # « Forme » de Cut et d'Engrave : un seul choix
-        self.assertEqual([o[0] for o in groups["Motif"].options], ["Aviron", "Basket-ball"])
+        self.assertEqual([o[0] for o in groups["Motif"].options],
+                         ["Aviron", "Basket-ball (1 contre 1)", "Kayak", "Surf", "Natation", "Course", "Vélo",
+                          "Ballon de basket", "Handball", "Volley-ball", "Gymnastique", "Arts martiaux"])
         self.assertEqual([o[0] for o in groups["Forme"].options], ["Hexagonale", "Ronde"])
         self.assertEqual(groups["Forme"].default, "Hexagonale")
         self.assertEqual([o[0] for o in groups["Résultat"].options], ["Étoile", "1ère place", "2e place", "3e place"])
@@ -362,13 +388,38 @@ class SvgImportTests(unittest.TestCase):
                     r = (si.parse_transform(elem.attrib.get("transform")) * ctm).map(geometry).boundingRect()
                     box = r if box is None else box.united(r)
             return box
-        rower, players = motif_box("Aviron"), motif_box("Basket-ball")
+        rower, players = motif_box("Aviron"), motif_box("Basket-ball (1 contre 1)")
         self.assertTrue(rower.contains(players), (rower, players))
+
+    def test_every_medal_motif_fits_the_rower_area(self):
+        """Chaque motif (dessin ou pictogramme) tient dans la zone du skiffeur."""
+        import xml.etree.ElementTree as ElementTree
+        import laser_studio.vector.svg_import as si
+        for model in (MEDAL, MEDAL2):
+            root = ElementTree.parse(model).getroot()
+            motif_group = next(e for e in root.iter() if e.attrib.get("id") == "layer6")
+            for layer in motif_group:
+                name = layer.attrib[f"{{{INK}}}label"]
+                art = import_svg(model, variants={"Motif": name}, offset_x_mm=0, offset_y_mm=0)
+                inside = {id(e) for e in layer.iter()}
+                box = None
+                for elem, _d, _role, ctm in si._visible_elements(root, {"Motif": name}):
+                    geometry = si._shape_path(elem, si._local(elem.tag))
+                    if id(elem) in inside and geometry is not None:
+                        r = (si.parse_transform(elem.attrib.get("transform")) * ctm).map(geometry).boundingRect()
+                        box = r if box is None else box.united(r)
+                self.assertIsNotNone(box, name)
+                # Zone du skiffeur : x 2,98..75,75, y 25,63..44,66 (marge pour les traits épaissis).
+                self.assertGreaterEqual(box.left(), 2.5, name)
+                self.assertLessEqual(box.right(), 76.3, name)
+                self.assertGreaterEqual(box.top(), 25.1, name)
+                self.assertLessEqual(box.bottom(), 45.2, name)
+                self.assertTrue(art.items, name)
 
     def test_round_medal_is_concentric(self):
         """Découpe ronde concentrique à la gravure ronde (même centre)."""
         # Motif basket : il reste dans la gravure (les avirons du skiffeur en dépassent).
-        art = import_svg(MEDAL, variants={"Forme": "Ronde", "Motif": "Basket-ball"})
+        art = import_svg(MEDAL, variants={"Forme": "Ronde", "Motif": "Basket-ball (1 contre 1)"})
         cut_box = next(o for r, o in art.items if r == "cut").world_path().boundingRect()
         engrave_shapes = next(o for r, o in art.items if r == "engrave" and o.kind == "svg_path")
         engrave_box = engrave_shapes.world_path().boundingRect()

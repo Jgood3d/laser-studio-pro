@@ -6,7 +6,9 @@ Convention (voir resources/library/README.md) :
 - calque (ou groupe) « Engrave » : gravure remplie ; le noir est gravé, le
   blanc (ou une couleur très claire) est creusé dans ce qui est gravé en
   dessous (gravure = union des formes foncées, moins les formes claires,
-  dans l'ordre du dessin) ; un texte clair devient donc un tracé ;
+  dans l'ordre du dessin) ; un texte clair devient donc un tracé. Les
+  traits (stroke) sont gravés avec leur épaisseur, comme Inkscape les
+  dessine (pictogrammes dessinés au trait) ;
 - calque (ou groupe) « Mark », facultatif : marquage (contour gravé), en bleu ;
 - tout le reste (élément hors de ces calques, calque caché) est ignoré ;
 - options : un groupe dont les sous-calques sont tous cachés sauf un (celui
@@ -32,8 +34,8 @@ import re
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 
-from PyQt6.QtCore import QPointF
-from PyQt6.QtGui import QFont, QPainterPath, QPolygonF, QTransform
+from PyQt6.QtCore import QPointF, Qt
+from PyQt6.QtGui import QFont, QPainterPath, QPainterPathStroker, QPolygonF, QTransform
 
 from laser_studio.vector_layers import (
     SvgPathObject, TextObject, _merge_path_objects, _svg_path_element_to_single,
@@ -142,8 +144,9 @@ def _style(elem):
     """Propriétés de style de l'élément : attribut style="a:b;c:d" et
     attributs de présentation (fill="...", display="...")."""
     props = {}
-    for name in ("display", "visibility", "fill", "stroke", "font-family", "font-size",
-                 "font-weight", "font-style", "text-anchor", "opacity"):
+    for name in ("display", "visibility", "fill", "stroke", "stroke-width", "stroke-linecap",
+                 "stroke-linejoin", "font-family", "font-size", "font-weight", "font-style",
+                 "text-anchor", "opacity"):
         value = elem.attrib.get(name)
         if value is not None:
             props[name] = value.strip()
@@ -439,13 +442,18 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
     engrave = _EngraveRegion()  # gravure remplie : formes foncées moins formes claires
     text_items = []             # (rôle, TextObject, boîte cible en mm Y vers le bas)
 
-    def add_shape(path_mm, role, style):
+    def add_shape(path_mm, role, style, stroke_mm=None):
+        """Forme en mm. Sur la gravure : son remplissage, puis son trait
+        (`stroke_mm` : le trait déjà épaissi, voir _stroke_outline), chacun
+        gravé (foncé) ou creusé (clair) selon sa couleur."""
         if role == ROLE_ENGRAVE:
             fill = style.get("fill", "black")
-            if fill in ("none", "transparent"):
-                outlines.setdefault(role, []).append(path_mm)    # contour seul, rien à remplir
-            else:
+            if fill not in ("none", "transparent"):
                 engrave.add(path_mm, is_light(fill))
+            if stroke_mm is not None:
+                engrave.add(stroke_mm, is_light(style.get("stroke")))
+            elif fill in ("none", "transparent"):
+                outlines.setdefault(role, []).append(path_mm)    # contour seul, sans trait ni remplissage
         else:
             outlines.setdefault(role, []).append(path_mm)
 
@@ -488,13 +496,35 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
         if geometry is not None and not geometry.isEmpty():
             mapped = ctm.map(geometry)
             mapped.setFillRule(geometry.fillRule())
-            add_shape(mapped, role, style)
+            stroke = _stroke_outline(geometry, style) if role == ROLE_ENGRAVE else None
+            add_shape(mapped, role, style, ctm.map(stroke) if stroke is not None else None)
 
     walk(root, _document_transform(root), None, {}, 0)
     region = engrave.result()
     if region is not None:
         outlines.setdefault(ROLE_ENGRAVE, []).insert(0, region)
     return _to_artwork(outlines, text_items, offset_x_mm, offset_y_mm, bed_h_mm)
+
+
+def _stroke_outline(geometry, style):
+    """Trait d'une forme épaissi en surface (repère de la forme), comme le
+    dessine un afficheur SVG : épaisseur `stroke-width`, bouts et angles
+    selon `stroke-linecap` / `stroke-linejoin`. None sans trait visible."""
+    stroke = (style.get("stroke") or "none").strip().lower()
+    width = (_numbers(style.get("stroke-width")) or [1.0])[0]
+    if stroke in ("none", "transparent") or width <= 0:
+        return None
+    stroker = QPainterPathStroker()
+    stroker.setWidth(width)
+    stroker.setCapStyle({"round": Qt.PenCapStyle.RoundCap, "square": Qt.PenCapStyle.SquareCap}.get(
+        (style.get("stroke-linecap") or "butt").strip(), Qt.PenCapStyle.FlatCap))
+    stroker.setJoinStyle({"round": Qt.PenJoinStyle.RoundJoin, "bevel": Qt.PenJoinStyle.BevelJoin}.get(
+        (style.get("stroke-linejoin") or "miter").strip(), Qt.PenJoinStyle.MiterJoin))
+    # simplified() : surface sans recouvrements (le trait se recoupe aux angles), lisible en
+    # pair-impair comme le reste de la gravure.
+    outline = stroker.createStroke(geometry).simplified()
+    outline.setFillRule(Qt.FillRule.OddEvenFill)
+    return outline
 
 
 def _inherited(style):

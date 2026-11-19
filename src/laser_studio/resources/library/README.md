@@ -59,6 +59,7 @@ Le fichier est importé tel qu'il est dessiné, en millimètres (unités du docu
 - Le nom doit être exactement `Cut`, `Engrave` ou `Mark` (majuscules indifférentes).
 - **Tout le reste est ignoré** : un élément hors de ces calques, un calque caché, un calque d'un autre nom (pratique pour garder des éléments de construction, « sources » par exemple, dans le fichier).
 - Le calque `Cut` doit être visible dans le fichier enregistré.
+- **Traits** : dans `Engrave`, un trait (stroke) est gravé avec son épaisseur, comme Inkscape le dessine (bouts et angles compris) ; un pictogramme dessiné au trait s'utilise donc tel quel.
 - La couleur sert à l'auteur et à l'aperçu de la fiche ; c'est le nom du calque qui décide.
 - **Noir et blanc dans `Engrave`** : le noir est gravé ; le blanc (ou une couleur très claire) n'est pas gravé, il est creusé dans ce qui est gravé en dessous. Un texte blanc sur un bandeau noir reste ainsi en réserve. La gravure importée est l'union des formes foncées, moins les formes claires, dans l'ordre du dessin.
 
