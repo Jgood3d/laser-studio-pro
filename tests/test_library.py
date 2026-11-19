@@ -351,13 +351,11 @@ class SvgImportTests(unittest.TestCase):
             for option in options:
                 art = import_svg(model, variants={"Motif": option})
                 self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], option)
-                # Le calque Cut fait bien 30 mm, le contenu Engrave déborde légèrement.
-                self.assertAlmostEqual(art.width_mm, 30.0, delta=2.0)
+                self.assertAlmostEqual(art.width_mm, 30.0, places=1)
                 self.assertAlmostEqual(art.height_mm, 116.4, places=1)
-                # Les textes peuvent légèrement dépasser à cause du scale dans le SVG
-                for _r, obj in art.items:
+                for _r, obj in art.items:                                   # textes dans la largeur
                     if obj.kind == "text":
-                        self.assertLess(obj.world_path().boundingRect().width(), 32.0, obj.text)
+                        self.assertLess(obj.world_path().boundingRect().width(), 28.0, obj.text)
 
     def test_totem_pictogram_is_reserved_in_the_black_circle(self):
         """Le picto est blanc : il creuse le rond noir (plus de sous-tracés que le rond seul)."""
