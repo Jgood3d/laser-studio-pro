@@ -1,7 +1,8 @@
 """Génération, aperçu, estimation et export du G-Code."""
 import re
-from PyQt6.QtWidgets import (QFileDialog, QMessageBox)
-from PyQt6.QtCore import Qt, QThread, QRectF
+from PyQt6.QtWidgets import (QFileDialog, QGraphicsPathItem, QMessageBox)
+from PyQt6.QtCore import Qt, QPointF, QThread, QRectF
+from PyQt6.QtGui import QColor, QPainterPath, QPolygonF
 import pyqtgraph as pg
 import numpy as np
 from PIL import Image
@@ -130,11 +131,59 @@ class GcodeGenerationMixin:
     # Marge du fond de matière autour du job, en mm.
     MATERIAL_BACKGROUND_MARGIN_MM = 3.0
 
+    @staticmethod
+    def _cut_contours(segment_lists):
+        """Contours fermés des découpes, à partir de leurs segments G1
+        (listes x / y, un NaN entre deux segments) : les segments qui se
+        suivent sont chaînés bout à bout. Un contour répété (découpe en
+        plusieurs passes) n'est gardé qu'une fois."""
+        contours, seen = [], set()
+        for xs, ys in segment_lists:
+            chain = []
+            for i in range(0, len(xs) - 1, 3):          # (départ, arrivée, NaN)
+                start, end = (xs[i], ys[i]), (xs[i + 1], ys[i + 1])
+                if chain and abs(chain[-1][0] - start[0]) < 1e-3 and abs(chain[-1][1] - start[1]) < 1e-3:
+                    chain.append(end)
+                else:
+                    if len(chain) > 2:
+                        contours.append(chain)
+                    chain = [start, end]
+            if len(chain) > 2:
+                contours.append(chain)
+        result = []
+        for chain in contours:
+            closed = abs(chain[0][0] - chain[-1][0]) < 0.05 and abs(chain[0][1] - chain[-1][1]) < 0.05
+            key = (round(min(x for x, _ in chain), 2), round(min(y for _, y in chain), 2),
+                   round(max(x for x, _ in chain), 2), round(max(y for _, y in chain), 2))
+            if closed and key not in seen:
+                seen.add(key)
+                result.append(chain)
+        return result
+
+    def _plot_material_inside_cut(self, cut_segments):
+        """Matière à l'intérieur des découpes seulement (les trous restent
+        vides), comme la pièce qui sortira de la machine. Renvoie False s'il
+        n'y a aucun contour de découpe fermé."""
+        contours = self._cut_contours(cut_segments)
+        if not contours:
+            return False
+        path = QPainterPath()
+        path.setFillRule(Qt.FillRule.OddEvenFill)       # contour plein, trous vides
+        for chain in contours:
+            path.addPolygon(QPolygonF([QPointF(x, y) for x, y in chain]))
+            path.closeSubpath()
+        item = QGraphicsPathItem(path)
+        item.setBrush(QColor(*self._preview_material_preset()["material_rgb"]))
+        item.setPen(pg.mkPen(None))
+        item.setZValue(-60)                             # sous la gravure (-50)
+        self.plot_widget.addItem(item)
+        return True
+
     def _plot_material_background(self, raster_groups, vector_segments):
         """Fond de la couleur de la matière sous la gravure, couvrant tout le
         job (segments gravés et tracés vectoriels, découpe comprise) plus une
         marge. En négatif, la couleur des zones non gravées (celle de la
-        brûlure)."""
+        brûlure). Utilisé sans découpe (voir _plot_material_inside_cut)."""
         xs, ys = [], []
         for strokes in raster_groups:
             for x1, y1, x2, y2, _s in strokes:
@@ -159,7 +208,8 @@ class GcodeGenerationMixin:
         background.setZValue(-60)                       # sous la gravure (-50)
         self.plot_widget.addItem(background)
 
-    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0):
+    def _plot_raster_reconstruction(self, raster_strokes, tint_color=None, gamma=1.0,
+                                    transparent_unburned=False):
         """Reconstruit une vraie image en niveaux de gris (ou teintée avec la
         couleur du calque, si fournie) à partir des segments de gravure
         raster (position + puissance S), façon LaserGRBL, affichée sous les
@@ -265,8 +315,16 @@ class GcodeGenerationMixin:
             else:
                 burn = np.array(preset["burn_rgb"], dtype=np.float32)
             blend = power_arr[..., None]
-            rgb = material + blend * (burn - material)
-            arr = np.clip(rgb, 0, 255).astype(np.uint8)
+            if transparent_unburned and not negative_preview:
+                # La matière est dessinée dessous (à l'intérieur des découpes) : seule la
+                # brûlure est peinte, son opacité suivant la puissance.
+                rgba = np.empty(power_arr.shape + (4,), dtype=np.float32)
+                rgba[..., :3] = burn
+                rgba[..., 3] = power_arr * 255.0
+                arr = np.clip(rgba, 0, 255).astype(np.uint8)
+            else:
+                rgb = material + blend * (burn - material)
+                arr = np.clip(rgb, 0, 255).astype(np.uint8)
             pg_array = arr.transpose(1, 0, 2)
             if getattr(self, "chk_flip_raster_preview", None) and self.chk_flip_raster_preview.isChecked():
                 pg_array = pg_array[:, ::-1]
@@ -1194,10 +1252,19 @@ class GcodeGenerationMixin:
             self.plot_widget.addItem(self.gcode_position_marker, ignoreBounds=True)
         self._setup_burn_overlay(burn_line_idx, burn_segments)
 
-        # Fond de matière sous tout le job (gravure et découpe), pour que la découpe ne
-        # déborde pas sur le fond de l'aperçu quand elle est plus grande que la gravure.
+        # Fond de matière : à l'intérieur des découpes (la pièce telle qu'elle sortira), les
+        # zones non gravées de la gravure restant alors transparentes ; sans découpe, sous tout
+        # le job. En négatif, toujours sous tout le job (vue inversée, opaque).
+        negative_preview = bool(getattr(self, "chk_negative_raster_preview", None)
+                                and self.chk_negative_raster_preview.isChecked())
+        material_inside_cut = False
         if raster_groups:
-            self._plot_material_background(raster_groups.values(), g1_segments.values())
+            cut_segments = [segments for key, segments in g1_segments.items()
+                            if layer_mode_by_key.get(key) == MODE_CUT or key[0] == tr("gen.legend_svg_cut")]
+            if not negative_preview:
+                material_inside_cut = self._plot_material_inside_cut(cut_segments)
+            if not material_inside_cut:
+                self._plot_material_background(raster_groups.values(), g1_segments.values())
 
         # Reconstruction raster par calque seulement si cela correspond à une vraie image.
         for key, strokes in raster_groups.items():
@@ -1207,7 +1274,8 @@ class GcodeGenerationMixin:
             # Matrice de test : les niveaux de puissance sont relevés (gamma 0,5) pour que
             # l'image de chaque case reste visible, y compris celles à faible puissance.
             gamma = 0.5 if label == MATRIX_LABEL else 1.0
-            self._plot_raster_reconstruction(strokes, tint_color=tint, gamma=gamma)
+            self._plot_raster_reconstruction(strokes, tint_color=tint, gamma=gamma,
+                                             transparent_unburned=material_inside_cut)
 
         hide_rapid_moves = getattr(self, "chk_hide_rapid_moves", None)
         hide_rapid = bool(
