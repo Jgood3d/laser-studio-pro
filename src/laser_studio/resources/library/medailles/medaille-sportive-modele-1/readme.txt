@@ -1,5 +1,5 @@
 ================================================================================
-  MÉDAILLE SKIFFEUR
+  MÉDAILLE SPORTIVE - MODÈLE 1
   Modèle de la bibliothèque Laser Studio Pro
 ================================================================================
 
@@ -12,9 +12,13 @@ Licence      : Libre d'utilisation pour usage personnel et associatif
   PRÉSENTATION
 --------------------------------------------------------------------------------
 
-Cette médaille est conçue pour récompenser les compétiteurs lors de régates
-d'aviron. Elle représente un skiffeur et se décline en deux formes, au choix
-dans cette fiche (liste « Forme ») :
+Cette médaille est conçue pour récompenser les compétiteurs. Elle se décline
+en deux motifs, au choix dans cette fiche (liste « Motif ») :
+
+  Aviron       →  un skiffeur
+  Basket-ball  →  deux joueurs en 1 contre 1
+
+en deux formes (liste « Forme ») :
 
   Hexagonale  →  forme d'origine
   Ronde
@@ -38,6 +42,7 @@ y passer un ruban ou un cordon.
 --------------------------------------------------------------------------------
 
   1. Dans cette fiche :
+       - choisir le motif (aviron ou basket-ball) ;
        - choisir la forme (hexagonale ou ronde) ;
        - choisir le résultat (1ère, 2e ou 3e place, ou Étoile) ;
        - remplacer « Compétition de XXXX » par le nom de votre compétition.
@@ -46,7 +51,7 @@ y passer un ruban ou un cordon.
 
   2. Cliquer sur « Importer dans l'éditeur vectoriel ». La médaille arrive
      sur deux calques :
-       - Gravure : le fond noir, le skiffeur, les rameaux et le numéro ;
+       - Gravure : le fond noir, le motif, les rameaux et le numéro ;
        - Découpe : le contour de la médaille et le trou du ruban.
 
      Le nom de la compétition est en réserve (non gravé) dans le bandeau noir :
@@ -81,7 +86,7 @@ y passer un ruban ou un cordon.
   Ruban / cordon :
     - Ruban satin (15 mm de largeur) pour un rendu soigné
     - Cordon ciré ou paracorde pour un style plus sportif
-    - Couleur à adapter aux couleurs du club ou de la régate
+    - Couleur à adapter aux couleurs du club ou de la compétition
 
   Optionnel :
     - Poncer légèrement à l'aide d'une dremel les bords après découpe
@@ -107,11 +112,11 @@ y passer un ruban ou un cordon.
   CONTACT & PARTAGE
 --------------------------------------------------------------------------------
 
-  Si vous utilisez ces médailles lors de vos régates, n'hésitez pas à
+  Si vous utilisez ces médailles lors de vos compétitions, n'hésitez pas à
   partager vos résultats et vos paramètres laser !
   Tout retour sur les matériaux utilisés ou les finitions est le bienvenu.
 
 
 ================================================================================
-  Bon découpage, et belles régates !
+  Bon découpage, et belles compétitions !
 ================================================================================

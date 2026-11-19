@@ -15,7 +15,7 @@ Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque 
 - Fiche de chaque modèle : aperçu, fichier SVG et photo éventuelle en grand (zoom à la molette), taille, auteur, licence, notice, choix des variantes (ex. niveau du brevet) et textes à modifier avant l'import (contenu, police et taille ; ex. nom de la régate).
 - Import dans l'éditeur vectoriel : découpe, gravure et marquage chacun sur son calque, textes modifiables ; le blanc n'est pas gravé (creusé dans la gravure).
 - Convention des modèles (`resources/library/README.md`) : calques `Cut` (rouge), `Engrave` (noir) et `Mark` (bleu, facultatif) ; options en sous-calques d'un groupe, un seul visible, le nom du sous-calque étant celui de l'option.
-- Premiers modèles : totem du brevet d'aviron (niveaux 1, 2, 3, bronze, argent, or), médaille skiffeur (1, 2, 3 ou étoile, nom de la régate) et porte-clef aviron solo (bateau diagonal ou horizontal).
+- Premiers modèles : totem du brevet d'aviron (niveaux 1, 2, 3, bronze, argent, or), médaille sportive - modèle 1 (aviron ou basket-ball, hexagonale ou ronde, 1, 2, 3 ou étoile, nom de la compétition) et porte-clef aviron solo (bateau diagonal ou horizontal).
 
 Générateur de boîte :
 - Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.
