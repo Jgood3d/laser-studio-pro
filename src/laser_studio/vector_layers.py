@@ -52,7 +52,8 @@ from laser_studio.vector.order import CUT_MODE, order_layers_for_cutting, order_
 from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 from laser_studio.vector.text_on_arc import arc_placements, default_center_deg
 from laser_studio.vector.text_on_path import (default_center_fraction, is_closed, orient_path, path_length,
-                                              path_placements, relative_points, scaled_points)
+                                              path_placements, place_for_fraction, relative_points, scaled_points,
+                                              side_center_fraction)
 
 
 # ============================================================================
@@ -3304,11 +3305,22 @@ class VectorCanvasView(QGraphicsView):
 class TextInsertDialog(QDialog):
     """Boîte de dialogue façon LightBurn pour insérer/éditer un objet texte."""
 
-    def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None):
+    # Position d'un texte sur un cercle selon le côté choisi (degrés, 90 = haut, 270 = bas).
+    _ARC_SIDE_DEG = {"top": 90.0, "bottom": 270.0, "left": 180.0, "right": 0.0}
+
+    def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None, on_preview=None):
+        """`on_preview` : appelé après chaque réglage d'un texte déjà posé, pour redessiner l'objet pendant
+        que la boîte est ouverte (aperçu en direct). L'objet est remis dans son état d'origine à la
+        fermeture : l'appelant applique ensuite `get_object()` si la boîte est acceptée."""
         super().__init__(parent)
         self.setWindowTitle(tr("vector.dlg.text_title_new") if text_obj is None else tr("vector.dlg.text_title_edit"))
         self.layer_manager = layer_manager
         self.editing = text_obj
+        self._on_preview = on_preview if text_obj is not None else None
+        self._original_state = dict(text_obj.__dict__) if text_obj is not None else None
+        self._follow_points = list(getattr(text_obj, "follow_points", None) or [])
+        self._place_touched = False      # l'utilisateur a choisi lui-même la position
+        self._syncing = False            # réglage modifié par le code, pas par l'utilisateur
 
         layout = QFormLayout(self)
 
@@ -3363,10 +3375,15 @@ class TextInsertDialog(QDialog):
             layout.addRow(tr("vector.dlg.arc_radius"), self.spin_arc_radius)
             layout.addRow(tr("vector.dlg.arc_side"), self.combo_arc_side)
             layout.addRow(tr("vector.dlg.arc_angle"), self.spin_arc_center)
+            self.combo_place = self._make_place_combo()
+            layout.addRow(tr("vector.dlg.follow_place"), self.combo_place)
+            self._update_arc_enabled()
         if self._has_follow:
             self.spin_follow_pos = QDoubleSpinBox(); self.spin_follow_pos.setRange(0.0, 100.0)
             self.spin_follow_pos.setDecimals(1); self.spin_follow_pos.setSuffix(" %")
             self.spin_follow_pos.setValue(100.0 * float(getattr(text_obj, "follow_center", 0.5)))
+            self.combo_place = self._make_place_combo()
+            layout.addRow(tr("vector.dlg.follow_place"), self.combo_place)
             layout.addRow(tr("vector.dlg.follow_pos"), self.spin_follow_pos)
             self.chk_follow_reverse = QCheckBox(tr("vector.dlg.follow_reverse"))
             self.chk_follow_reverse.setChecked(bool(getattr(text_obj, "follow_reverse", False)))
@@ -3426,28 +3443,138 @@ class TextInsertDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addRow(buttons)
 
+        self._sync_place_combo()
+        self._wire_live_preview()
+
+    # -- Position : haut / bas / gauche / droite ---------------------------------------------------------
+
+    def _make_place_combo(self):
+        combo = QComboBox()
+        combo.addItem(tr("vector.dlg.follow_place_custom"), None)
+        for side in ("top", "bottom", "left", "right"):
+            combo.addItem(tr("vector.dlg.follow_place_" + side), side)
+        combo.activated.connect(self._on_place_chosen)
+        return combo
+
+    def _position_spin(self):
+        return self.spin_follow_pos if self._has_follow else self.spin_arc_center
+
+    def _on_place_chosen(self, _index):
+        side = self.combo_place.currentData()
+        if side is None:
+            return
+        self._place_touched = True
+        self._set_position(side)
+
+    def _set_position(self, side):
+        """Place le texte du côté voulu : sur le tracé (fraction de sa longueur) ou sur le cercle (angle)."""
+        self._syncing = True
+        try:
+            if self._has_follow:
+                self.spin_follow_pos.setValue(100.0 * side_center_fraction(self._follow_points, side))
+            else:
+                self.spin_arc_center.setValue(self._ARC_SIDE_DEG[side])
+        finally:
+            self._syncing = False
+        self._sync_place_combo()
+
+    def _sync_place_combo(self):
+        """Le choix de la liste suit la position : « position libre » si elle ne correspond à aucun côté."""
+        if self._has_follow:
+            side = place_for_fraction(self._follow_points, self.spin_follow_pos.value() / 100.0)
+        else:
+            angle = self.spin_arc_center.value() % 360.0
+            side = next((k for k, v in self._ARC_SIDE_DEG.items() if abs(v - angle) < 0.05), None)
+        for i in range(self.combo_place.count()):
+            if self.combo_place.itemData(i) == side:
+                self.combo_place.setCurrentIndex(i)
+                return
+
+    def _on_position_edited(self, _value=None):
+        if not self._syncing:
+            self._place_touched = True
+        self._sync_place_combo()
+
+    # -- Aperçu en direct --------------------------------------------------------------------------------
+
+    def _wire_live_preview(self):
+        """Chaque réglage redessine le texte sur le canevas, sans attendre « OK »."""
+        self._position_spin().valueChanged.connect(self._on_position_edited)
+        if self._on_preview is None:
+            return
+        signals = [self.edit_text.textChanged, self.combo_font.currentFontChanged,
+                   self.chk_bold.toggled, self.chk_italic.toggled, self.spin_size.valueChanged,
+                   self.spin_spacing.valueChanged, self.spin_arc_radius.valueChanged,
+                   self.combo_arc_side.currentIndexChanged, self.spin_arc_center.valueChanged,
+                   self.rb_vertical.toggled, self.chk_mirror_h.toggled, self.chk_mirror_v.toggled,
+                   self.combo_layer.currentIndexChanged, self.spin_x.valueChanged, self.spin_y.valueChanged]
+        if self._has_follow:
+            signals += [self.spin_follow_pos.valueChanged, self.chk_follow_reverse.toggled,
+                        self.spin_follow_gap.valueChanged, self.chk_follow_detach.toggled]
+        for signal in signals:
+            signal.connect(self._preview)
+
+    def _preview(self, *_args):
+        try:
+            self.get_object()
+            self._on_preview()
+        except Exception:       # un réglage en cours de saisie ne doit jamais fermer la boîte
+            pass
+
+    def showEvent(self, event):
+        """Aperçu en direct : la boîte se range sur le côté droit de la fenêtre pour laisser voir le texte."""
+        super().showEvent(event)
+        parent = self.parentWidget()
+        if self._on_preview is None or parent is None or getattr(self, "_placed", False):
+            return
+        self._placed = True
+        try:
+            frame = parent.window().frameGeometry()
+            screen = self.screen().availableGeometry()
+            x = min(frame.right() - self.width() - 20, screen.right() - self.width())
+            y = min(max(frame.top() + 80, screen.top()), screen.bottom() - self.height())
+            self.move(max(x, screen.left()), y)
+        except Exception:
+            pass
+
+    def done(self, result):
+        """À la fermeture, remet le texte dans son état d'origine : le texte a été modifié pour l'aperçu, et
+        l'appelant enregistre l'annulation (Ctrl+Z) puis applique `get_object()` seulement si on accepte."""
+        if self._original_state is not None:
+            self.editing.__dict__.clear()
+            self.editing.__dict__.update(self._original_state)
+            if self._on_preview is not None:
+                self._on_preview()
+        super().done(result)
+
     def _on_arc_side_changed(self):
         """Passer d'extérieur à intérieur déplace le texte du haut vers le bas du cercle, tant que
         l'angle est encore celui par défaut de l'autre côté."""
         inside = bool(self.combo_arc_side.currentData())
-        if abs(self.spin_arc_center.value() - default_center_deg(not inside)) < 1e-6:
+        if not self._place_touched and abs(self.spin_arc_center.value() - default_center_deg(not inside)) < 1e-6:
+            self._syncing = True
             self.spin_arc_center.setValue(default_center_deg(inside))
+            self._syncing = False
 
     def _on_follow_reverse_toggled(self, inside):
         """Mettre le texte de l'autre côté du trait le fait lire à l'envers à l'endroit où il était (le haut
         des lettres vise le centre) : tant que la position est encore celle par défaut de l'autre côté, on
         l'amène au bas du contour (ou au haut en décochant), où il se lit à l'endroit."""
-        points = getattr(self.editing, "follow_points", None)
-        if not points:
+        points = self._follow_points
+        if not points or self._place_touched:
             return
         old = 100.0 * default_center_fraction(points, not inside)
         if abs(self.spin_follow_pos.value() - old) < 0.1:
+            self._syncing = True
             self.spin_follow_pos.setValue(100.0 * default_center_fraction(points, inside))
+            self._syncing = False
 
     def _update_arc_enabled(self):
         on = self.spin_arc_radius.value() > 0
         self.combo_arc_side.setEnabled(on)
         self.spin_arc_center.setEnabled(on)
+        if hasattr(self, "combo_place"):
+            self.combo_place.setEnabled(on)
 
     def get_object(self) -> TextObject:
         layer_id = self.combo_layer.currentData()

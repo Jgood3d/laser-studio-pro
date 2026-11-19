@@ -139,8 +139,9 @@ class VectorEditingMixin:
 
     def _open_edit_dialog(self, item, obj):
         if isinstance(obj, TextObject):
-            dialog = TextInsertDialog(self.layer_manager, text_obj=obj, parent=self)
+            dialog = TextInsertDialog(self.layer_manager, text_obj=obj, parent=self, on_preview=item.refresh)
             if dialog.exec():
+                # La boîte a remis le texte dans son état d'origine : on enregistre l'annulation, puis on applique.
                 self.vector_canvas.push_undo_snapshot()
                 dialog.get_object()
                 item.refresh()

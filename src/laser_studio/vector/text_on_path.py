@@ -54,6 +54,50 @@ def orient_path(points):
     return pts
 
 
+SIDES = ("top", "bottom", "left", "right")
+_SIDE_TOL_MM = 0.01
+
+
+def side_center_fraction(points, side):
+    """Fraction (0 à 1) de la longueur du tracé au point le plus haut / bas / à gauche / à droite
+    (`side` : "top", "bottom", "left", "right"). Plusieurs sommets à égalité (côté plat) : le milieu de la
+    série. Sert à poser le texte « en haut », « en bas »... d'un contour."""
+    if side not in SIDES:
+        raise ValueError(side)
+    pts = [tuple(p) for p in points]
+    if len(pts) < 2:
+        return 0.5
+    closed = is_closed(pts)
+    cum = _cumulative(pts)
+    total = cum[-1]
+    if total <= 0:
+        return 0.5
+    n = len(pts) - 1 if closed else len(pts)
+    axis = 1 if side in ("top", "bottom") else 0
+    pick = max if side in ("top", "right") else min
+    best = pick(p[axis] for p in pts[:n])
+    spots = [cum[i] for i in range(n) if abs(pts[i][axis] - best) <= _SIDE_TOL_MM]
+    if closed:
+        # Série à cheval sur le départ du contour : on ramène les positions de la fin avant 0.
+        if min(spots) < total / 4 and max(spots) > 3 * total / 4:
+            spots = [x - total if x > total / 2 else x for x in spots]
+        return ((min(spots) + max(spots)) / 2.0 / total) % 1.0
+    return min(1.0, max(0.0, (min(spots) + max(spots)) / 2.0 / total))
+
+
+def place_for_fraction(points, fraction, tol=0.002):
+    """Nom du côté ("top"...) dont la fraction correspond à `fraction` (à `tol` près, circulaire si fermé),
+    sinon None : c'est le choix « position libre »."""
+    closed = is_closed([tuple(p) for p in points])
+    for side in SIDES:
+        d = abs(side_center_fraction(points, side) - fraction)
+        if closed:
+            d = min(d, 1.0 - d)
+        if d <= tol:
+            return side
+    return None
+
+
 def default_center_fraction(points, inside=False):
     """Fraction (0 à 1) de la longueur où centrer le texte par défaut : le point le plus haut d'un contour
     fermé (légende du haut d'une médaille), le milieu d'un tracé ouvert.
@@ -61,22 +105,9 @@ def default_center_fraction(points, inside=False):
     `inside` (texte de l'autre côté du trait) : le point le plus BAS d'un contour fermé. Le haut des
     lettres est alors tourné vers le centre, donc le texte n'est à l'endroit qu'en bas (légende du bas
     d'une médaille) ; en haut il serait à l'envers."""
-    if len(points) < 2:
+    if len(points) < 2 or not is_closed(points):
         return 0.5
-    if not is_closed(points):
-        return 0.5
-    cum = _cumulative(points)
-    total = cum[-1]
-    if total <= 0:
-        return 0.5
-    if inside:
-        edge = min(p[1] for p in points)
-        spots = [cum[i] for i, p in enumerate(points[:-1]) if p[1] <= edge + 1e-6]
-    else:
-        edge = max(p[1] for p in points)
-        spots = [cum[i] for i, p in enumerate(points[:-1]) if p[1] >= edge - 1e-6]
-    # Plusieurs sommets à la même hauteur (dessus plat) : on prend le milieu de la série.
-    return ((min(spots) + max(spots)) / 2.0 / total) % 1.0
+    return side_center_fraction(points, "bottom" if inside else "top")
 
 
 def _locate(points, cum, closed, s):
