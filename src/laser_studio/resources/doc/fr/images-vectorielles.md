@@ -50,7 +50,9 @@ Dans l'éditeur vectoriel, chaque élément est attribué à un calque :
 | Surface pleine, texte en aplat | Gravure remplie (le laser balaie l'intérieur) |
 
 Une même forme peut servir deux fois : un cercle peut être gravé en plein
-puis découpé, en le dupliquant sur deux calques.
+puis découpé, en le dupliquant sur deux calques. La marche à suivre est
+expliquée dans [Comment graver ou découper avec une image
+vectorielle](graver-decouper-vectoriel.md).
 
 ## D'où viennent les dessins vectoriels ?
 

@@ -28,7 +28,11 @@ Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 
 ## Sommaire
 
+- [Comment graver une image](graver-une-image.md)
+- [Comment graver ou découper avec une image vectorielle](graver-decouper-vectoriel.md)
 - [Images vectorielles](images-vectorielles.md) : qu'est-ce qu'un vecteur ?
+- [Comprendre les calques et les matériaux](calques-et-materiaux.md)
+- [Comprendre les différents modes de gravure](modes-de-gravure.md) : puissance fixe ou variable, surbalayage
 - [Les outils](outils.md) : bibliothèque, générateurs, imbrication…
 
 ## Premiers pas
@@ -98,26 +102,33 @@ le choix fait dans **Paramètres › Configuration GRBL**.
 **L'ordre des calques** compte : ils sont exécutés de haut en bas. Placez
 la découpe en dernier, pour que la pièce ne bouge pas pendant la gravure.
 
+Pour aller plus loin : [Comprendre les calques et les
+matériaux](calques-et-materiaux.md) et [Comprendre les différents modes de
+gravure](modes-de-gravure.md).
+
 ## Les trois onglets principaux
 
 **Graver une image** : chargez une photo ou un dessin, réglez la taille, la
 luminosité, le contraste, la netteté, puis choisissez l'algorithme de
 tramage (Floyd-Steinberg, Jarvis, Stucki, Atkinson…) qui transforme les
 nuances de gris en points gravés. Le bouton de comparaison montre le
-résultat de chaque algorithme côte à côte.
+résultat de chaque algorithme côte à côte. Voir [Comment graver une
+image](graver-une-image.md).
 
 **Graver une image vectorielle** : l'éditeur vectoriel. Importez un fichier
 SVG ou DXF, ajoutez du texte et des formes, arrangez le tout sur le
 plateau, puis attribuez chaque élément à un calque de gravure, de découpe
-ou de marquage. Pour comprendre ce qu'est un dessin vectoriel, lisez la
-page [Images vectorielles](images-vectorielles.md).
+ou de marquage. Voir [Comment graver ou découper avec une image
+vectorielle](graver-decouper-vectoriel.md) ; pour comprendre ce qu'est un
+dessin vectoriel, lisez la page [Images vectorielles](images-vectorielles.md).
 
 **Calques (Layers)** : la gestion des calques et des **profils
 matériaux**. Un profil matériau (bois, bambou, cuir, verre, ardoise…)
 regroupe les réglages de tous les calques pour ce support. Créez un profil
 par matière, ajustez chaque calque, puis il suffit de choisir la matière
 pour retrouver les bons réglages. Les profils s'exportent et s'importent
-pour les partager.
+pour les partager. Voir [Comprendre les calques et les
+matériaux](calques-et-materiaux.md).
 
 D'autres onglets complètent ces trois-là : *Vectorisation d'image* (une
 image devient un dessin vectoriel), *Séparation Couleur / Verre*,
