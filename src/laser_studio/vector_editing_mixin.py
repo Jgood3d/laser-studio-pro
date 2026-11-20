@@ -2,7 +2,8 @@
 from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
 from laser_studio.vector_layers import (
-    TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog
+    TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog,
+    MedalTextDialog
 )
 from laser_studio.i18n import tr
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
@@ -74,14 +75,24 @@ class VectorEditingMixin:
     tr("vector.no_layer_body")
 )
             return
-        dialog = TextInsertDialog(self.layer_manager, parent=self)
-        if x_mm is not None and y_mm is not None:
-            dialog.spin_x.setValue(x_mm)
-            dialog.spin_y.setValue(y_mm)
+        # Aperçu en direct : le texte est posé sur le canevas avant d'ouvrir la boîte, et retiré si on annule.
+        engrave = self.layer_manager.engrave_layer()
+        layer = engrave if engrave is not None else self.layer_manager.layers[0]
+        obj = TextObject(text=tr("vector.dlg.text_default"), layer_id=layer.id,
+                         x_mm=10.0 if x_mm is None else x_mm, y_mm=10.0 if y_mm is None else y_mm)
+        canvas = self.vector_canvas
+        canvas.push_undo_snapshot()
+        item = canvas.add_object(obj)
+        dialog = TextInsertDialog(self.layer_manager, text_obj=obj, parent=self, is_new=True,
+                                  on_preview=lambda: (item.refresh(), canvas._sync_follow_handle()))
         if dialog.exec():
-            obj = dialog.get_object()
-            self.vector_canvas.push_undo_snapshot()
-            self.vector_canvas.add_object(obj)
+            # La boîte a remis le texte dans son état d'origine : on applique les réglages choisis.
+            dialog.get_object()
+            item.refresh()
+            canvas.scene_obj.clearSelection()
+            item.setSelected(True)
+        else:
+            canvas.discard_added_object(item)
 
     def insert_shape_object(self):
         if not self.layer_manager.layers:
@@ -139,13 +150,15 @@ class VectorEditingMixin:
 
     def _open_edit_dialog(self, item, obj):
         if isinstance(obj, TextObject):
-            dialog = TextInsertDialog(self.layer_manager, text_obj=obj, parent=self, on_preview=item.refresh)
+            dialog = TextInsertDialog(self.layer_manager, text_obj=obj, parent=self,
+                                      on_preview=lambda: (item.refresh(), self.vector_canvas._sync_follow_handle()))
             if dialog.exec():
                 # La boîte a remis le texte dans son état d'origine : on enregistre l'annulation, puis on applique.
                 self.vector_canvas.push_undo_snapshot()
                 dialog.get_object()
                 item.refresh()
                 self.on_vector_selection_changed(obj)
+            self.vector_canvas._sync_follow_handle()
         elif isinstance(obj, SvgPathObject):
             dialog = AssignLayerDialog(self.layer_manager, svg_obj=obj,
                                         title=tr("vector.svg_properties"), parent=self)
@@ -164,14 +177,33 @@ class VectorEditingMixin:
 
     def make_text_follow_selection(self):
         """Fait suivre à un texte le contour d'un autre objet : sélectionner le texte ET l'objet (Maj + clic)."""
+        pair = self.vector_canvas.text_follow_candidates()
+        resync = bool(pair and getattr(pair[0].obj, "follow_points", None))
         if not self.vector_canvas.make_text_follow_object():
             QMessageBox.information(self, tr("vector.text_follow_title"), tr("vector.text_follow_need_two"))
             return
         item, obj = self.vector_canvas.selected_object()
         if obj is not None:
             self.on_vector_selection_changed(obj)
-            # Ouvre tout de suite les réglages du texte (position, côté, distance...).
-            self._open_edit_dialog(item, obj)
+            if resync:
+                self.show_status_message(tr("vector.text_resynced"))
+            else:
+                # Ouvre tout de suite les réglages du texte (position, côté, distance...).
+                self._open_edit_dialog(item, obj)
+
+    def open_medal_text(self):
+        """Texte de médaille : un texte en haut et un en bas, à l'intérieur du contour fermé sélectionné."""
+        if self.vector_canvas.medal_guide_item() is None:
+            QMessageBox.information(self, tr("vector.medal_title"), tr("vector.medal_need_guide"))
+            return
+        dialog = MedalTextDialog(self.layer_manager, parent=self)
+        if dialog.exec():
+            created = self.vector_canvas.make_medal_texts(**dialog.values())
+            if created:
+                self.vector_canvas.scene_obj.clearSelection()
+                for item in self.vector_canvas.scene_obj.items():
+                    if getattr(item, "obj", None) in created:
+                        item.setSelected(True)
 
     def rotate_selected_vector_object(self):
         item, obj = self.vector_canvas.selected_object()

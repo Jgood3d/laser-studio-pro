@@ -658,6 +658,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
                 ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
                 ("vector.text_follow", "text-follow-path", self.make_text_follow_selection),
+                ("vector.medal", "insert-text", self.open_medal_text),
                 (None, None, None),
                 ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
@@ -836,6 +837,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.vector_canvas.insert_text_requested.connect(self.insert_text_object)
         self.vector_canvas.serial_duplicate_requested.connect(self.open_serial_duplicate)
         self.vector_canvas.jig_requested.connect(self.open_jig_generator)
+        self.vector_canvas.medal_text_requested.connect(self.open_medal_text)
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
