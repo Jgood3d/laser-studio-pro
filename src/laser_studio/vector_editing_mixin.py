@@ -827,14 +827,19 @@ class VectorEditingMixin:
             return
         self._ornament_settings = dialog.settings()
         from laser_studio.vector import ornament_generator
-        from laser_studio.vector.ornament_region import build_ornament_contours
+        from laser_studio.vector.importers import ornament_engrave_to_objects
+        from laser_studio.vector.ornament_region import build_ornament_parts
         try:
             family, bold, italic = dialog.font_options()
-            geometry, contours = build_ornament_contours(dialog.params(), family, bold, italic)
+            parts = build_ornament_parts(dialog.params(), family, bold, italic)
         except ornament_generator.OrnamentError as e:
             QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
             return
+        geometry, contours = parts.geometry, parts.cut
         objects = ornament_to_objects(contours, dialog.cut_layer_id(), offset_x_mm=10.0, offset_y_mm=10.0)
+        # Prénom gravé sur la bande : le prénom et le filet vont sur le calque de gravure, au même repère que la découpe.
+        objects += ornament_engrave_to_objects(parts.name, parts.frame, dialog.engrave_layer_id(),
+                                               offset_x_mm=10.0, offset_y_mm=10.0)
         if not objects:
             QMessageBox.warning(self, tr("ornament.title"), tr("ornament.empty"))
             return

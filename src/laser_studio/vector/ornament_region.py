@@ -10,6 +10,8 @@ UNE seule fois :
 Les lettres qui se chevauchent (écriture cursive) sont d'abord fusionnées ; les contreformes (le trou d'un a,
 d'un e, d'un o) restent des contours à part. Repère : Y vers le haut, en mm, coin bas-gauche de la boule à (0, 0).
 """
+from collections import namedtuple
+
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QPainterPath, QTransform
 
@@ -94,7 +96,13 @@ def assemble(geometry, text=None):
         solids = solids.subtracted(union_path(geometry.cuts))
     if geometry.late:
         solids = solids.united(union_path(geometry.late))
-    if text is not None and not text.isEmpty() and geometry.text is not None:
+    # Remplissages à motif : les barres sont rognées à leur zone (au-dessus ou au-dessous du prénom), puis soudées.
+    for bars, clip in geometry.fills:
+        piece = union_path(bars).intersected(union_path([clip]))
+        if not piece.isEmpty():
+            solids = solids.united(piece)
+    # Prénom découpé : les lettres sont soudées à l'anneau. Prénom gravé : elles restent hors de la découpe.
+    if text is not None and not text.isEmpty() and geometry.text is not None and not geometry.engrave_text:
         t = geometry.text
         placed = QTransform(t.scale, 0, 0, t.scale, t.tx, t.ty).map(text)
         placed.setFillRule(Qt.FillRule.WindingFill)
@@ -114,6 +122,37 @@ def assemble(geometry, text=None):
     contours.sort(key=lambda c: -((max(p[0] for p in c) - min(p[0] for p in c))
                                   * (max(p[1] for p in c) - min(p[1] for p in c))))
     return contours
+
+
+def assemble_engraving(geometry, text=None):
+    """Contours GRAVÉS (prénom gravé sur la bande et filet) : (contours du prénom, contours du filet), dans le même
+    repère que `assemble`. Le prénom garde ses contreformes (le trou d'un a, d'un e, d'un o) comme contours à part.
+    Deux listes vides si le prénom est découpé."""
+    if not geometry.engrave_text:
+        return [], []
+    min_x, min_y, _max_x, _max_y = geometry.bounds
+    name = []
+    if text is not None and not text.isEmpty() and geometry.text is not None:
+        t = geometry.text
+        placed = QTransform(t.scale, 0, 0, t.scale, t.tx, t.ty).map(text)
+        placed.setFillRule(Qt.FillRule.WindingFill)
+        name = _contours(placed.simplified(), -min_x, -min_y)
+    frame = [[(x - min_x, y - min_y) for x, y in poly] for poly in geometry.frame]
+    return name, frame
+
+
+OrnamentParts = namedtuple("OrnamentParts", "geometry cut name frame")
+
+
+def build_ornament_parts(params, family="Sans Serif", bold=False, italic=False):
+    """Comme `build_ornament_contours`, avec en plus le prénom gravé et le filet : `OrnamentParts`
+    (géométrie, contours de découpe, contours du prénom gravé, contours du filet gravé)."""
+    from laser_studio.vector.ornament_generator import build_ornament
+
+    text = text_path(params.name, family, bold, italic)
+    geometry = build_ornament(params, text_bounds(text))
+    name, frame = assemble_engraving(geometry, text)
+    return OrnamentParts(geometry, assemble(geometry, text), name, frame)
 
 
 def build_ornament_contours(params, family="Sans Serif", bold=False, italic=False):

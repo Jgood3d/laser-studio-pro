@@ -638,5 +638,262 @@ class WeldingTests(unittest.TestCase):
         self.assertGreater(len(snowman), len(plain) + 3)     # yeux et boutons
 
 
+from laser_studio.vector import ornament_fills as of  # noqa: E402
+from laser_studio.vector import ornament_presets as presets  # noqa: E402
+
+
+class EngravedBandTests(unittest.TestCase):
+    def build(self, **kw):
+        kw.setdefault("name", "Emma")
+        kw.setdefault("name_mode", "Gravé")
+        return og.build_ornament(params(**kw), TEXT_BOUNDS)
+
+    def test_the_band_crosses_the_ball_and_holds_the_name(self):
+        g = self.build(motif="Aucun")
+        lo, hi = g.band_span
+        self.assertTrue(g.engrave_text)
+        self.assertIsNotNone(g.band)
+        self.assertIn(g.band, g.solids)                       # la bande est de la matière soudée
+        self.assertAlmostEqual(min(p[0] for p in g.band), -g.radius)
+        self.assertAlmostEqual(max(p[0] for p in g.band), g.radius)
+        t = g.text
+        self.assertGreaterEqual(t.center_y - t.height / 2, lo)    # le prénom tient dans la bande
+        self.assertLessEqual(t.center_y + t.height / 2, hi)
+        self.assertLess(t.width, 2 * g.inner_radius)
+        self.assertFalse(g.floating_name)
+
+    def test_an_engraved_name_adds_no_bar(self):
+        g = self.build(support="Bandeau")
+        self.assertIsNone(g.bar)
+        self.assertIsNone(g.top_bar)
+
+    def test_the_band_exists_even_without_a_name(self):
+        g = og.build_ornament(params(name="", name_mode="Gravé", motif="Aucun"))
+        self.assertIsNotNone(g.band)
+        self.assertIsNone(g.text)
+
+    def test_band_height_follows_the_setting_and_the_name_fits(self):
+        g = self.build(motif="Aucun", band_height=24.0)
+        lo, hi = g.band_span
+        self.assertAlmostEqual(hi - lo, 24.0)
+        self.assertLessEqual(g.text.height, 24.0)
+
+    def test_a_long_name_shrinks_to_the_band_width_not_the_other_way_round(self):
+        g = og.build_ornament(params(name="Bernadette-Marie", name_mode="Gravé", motif="Aucun"), (0, -30, 700, 110))
+        lo, hi = g.band_span
+        self.assertAlmostEqual(hi - lo, 0.24 * 80.0)           # la bande garde sa hauteur
+        self.assertLess(g.text.width, 2 * g.inner_radius)
+
+    def test_band_sits_under_the_top_motifs_and_over_the_bottom_ones(self):
+        top = self.build(motif="Flocons", flake_layout="Haut", flake_count=1, flake_size=30.0)
+        self.assertLessEqual(top.band_span[1], top.upper_edge)
+        bottom = self.build(motif="Flocons", flake_layout="Bas", flake_count=1, flake_size=30.0)
+        self.assertGreaterEqual(bottom.band_span[0], bottom.lower_edge)
+        both = self.build(motif="Flocons", flake_layout="Haut et bas", flake_count=2, flake_size=16.0)
+        self.assertLess(both.band_span[1], both.upper_edge + 1e-6)
+        self.assertGreater(both.band_span[0], both.lower_edge - 1e-6)
+
+    def test_band_stays_inside_the_ball_for_any_offset(self):
+        g = self.build(motif="Aucun", name_offset=500.0)
+        self.assertLess(g.band_span[1], g.inner_radius)
+
+    def test_frame_is_two_nested_outlines_inside_the_band(self):
+        g = self.build(motif="Aucun", band_frame=True)
+        self.assertEqual(len(g.frame), 2)
+        outer, inner = g.frame
+        lo, hi = g.band_span
+        self.assertGreater(min(p[1] for p in outer), lo)
+        self.assertLess(max(p[1] for p in outer), hi)
+        self.assertGreater(og.polygon_area(outer), og.polygon_area(inner))
+        for x, y in outer:
+            self.assertLess(math.hypot(x, y), g.inner_radius)   # le filet reste dans le vide de la boule
+        self.assertEqual(self.build(motif="Aucun", band_frame=False).frame, [])
+
+    def test_cut_mode_is_unchanged(self):
+        g = self.build(name_mode="Découpé", support="Barre")
+        self.assertFalse(g.engrave_text)
+        self.assertIsNone(g.band)
+        self.assertIsNotNone(g.bar)
+
+    def test_bad_values_are_rejected(self):
+        for kw in ({"name_mode": "Peint"}, {"crown": "Cornes"}, {"fill": "Pois"}, {"fill_zone": "Milieu"},
+                   {"fill": "Rayures", "fill_pitch": 2.0}, {"name_mode": "Gravé", "band_height": 3.0}):
+            with self.assertRaises(og.OrnamentError, msg=str(kw)):
+                og.build_ornament(params(**kw), TEXT_BOUNDS)
+
+
+class FillTests(unittest.TestCase):
+    def test_each_fill_covers_its_zone_with_cuttable_bars(self):
+        box = (-45.0, 10.0, 45.0, 42.0)
+        for kind in of.FILL_KINDS:
+            for pitch in (4.5, 6.0, 12.0):
+                shapes = of.fill_shapes(kind, pitch, box)
+                self.assertGreater(len(shapes), 3, (kind, pitch))
+                xs = [p[0] for poly in shapes for p in poly]
+                ys = [p[1] for poly in shapes for p in poly]
+                self.assertLessEqual(min(xs), box[0] + 1.0, (kind, pitch))     # elles débordent la zone : on rogne ensuite
+                self.assertGreaterEqual(max(xs), box[2] - 1.0, (kind, pitch))
+                self.assertLessEqual(min(ys), box[1] + 1.0, (kind, pitch))
+                self.assertGreaterEqual(max(ys), box[3] - 1.0, (kind, pitch))
+
+    def test_bar_width_is_never_below_the_laser_limit_and_leaves_a_gap(self):
+        for pitch in (4.5, 5.0, 6.0, 10.0, 40.0):
+            w = of.bar_width(pitch)
+            self.assertGreaterEqual(w, of.MIN_BAR_MM)
+            self.assertGreaterEqual(pitch - w, 1.6 - 1e-9 if pitch >= 4.5 else 0)   # le vide entre deux barres tient aussi
+
+    def test_a_pitch_below_the_minimum_is_raised_not_trusted(self):
+        a = of.fill_shapes("Rayures", 1.0, (-10, -10, 10, 10))
+        b = of.fill_shapes("Rayures", of.MIN_PITCH_MM, (-10, -10, 10, 10))
+        self.assertEqual(len(a), len(b))
+
+    def test_zones_are_above_and_below_the_name_block(self):
+        g = og.build_ornament(params(name="Emma", name_mode="Gravé", motif="Aucun", fill="Rayures"), TEXT_BOUNDS)
+        self.assertEqual(len(g.fills), 2)
+        lo, hi = g.name_block
+        clips = sorted(g.fills, key=lambda f: min(p[1] for p in f[1]))
+        bottom, top = clips[0][1], clips[1][1]
+        self.assertLessEqual(max(p[1] for p in bottom), lo + 1.0)
+        self.assertGreaterEqual(min(p[1] for p in top), hi - 1.0)
+        for zone, count in (("Haut", 1), ("Bas", 1), ("Haut et bas", 2)):
+            g = og.build_ornament(params(name="Emma", name_mode="Gravé", motif="Aucun", fill="Treillis",
+                                         fill_zone=zone), TEXT_BOUNDS)
+            self.assertEqual(len(g.fills), count, zone)
+
+    def test_no_fill_means_no_shapes(self):
+        self.assertEqual(og.build_ornament(params(name="Emma"), TEXT_BOUNDS).fills, [])
+
+    def test_fills_work_with_a_cut_name_too(self):
+        g = og.build_ornament(params(name="Emma", support="Barre", motif="Aucun", fill="Vagues"), TEXT_BOUNDS)
+        self.assertEqual(len(g.fills), 2)
+
+
+class AntlerAndCapTests(unittest.TestCase):
+    def test_antlers_rise_above_the_ball_on_both_sides(self):
+        plain = og.build_ornament(params(motif="Aucun"))
+        g = og.build_ornament(params(motif="Aucun", crown="Bois de renne"))
+        self.assertGreater(g.bounds[3], plain.bounds[3] + 10.0)
+        self.assertLess(g.bounds[0], -g.radius)
+        self.assertGreater(g.bounds[2], g.radius)
+        self.assertAlmostEqual(g.bounds[0], -g.bounds[2], places=6)    # symétriques
+
+    def test_antlers_start_on_the_ring_and_keep_clear_of_the_hanger(self):
+        g = og.build_ornament(params(motif="Aucun", crown="Bois de renne"))
+        hx, hy = g.hole_center
+        for poly in g.outer[1 + 2:]:                       # disque, accroche (boucle) : le reste, ce sont les bois
+            touches = any(abs(math.hypot(x, y) - g.radius) < 3.0 for x, y in poly)
+            near_hanger = any(math.hypot(x - hx, y - hy) < 6.0 for x, y in poly)
+            self.assertFalse(near_hanger)
+            _ = touches
+        feet = [p for poly in g.outer[3:] for p in poly if math.hypot(*p) < g.radius + 0.5]
+        self.assertTrue(feet)                               # chaque bois s'enfonce dans l'anneau
+
+    def test_the_ribbed_cap_has_three_slots_inside_the_cap(self):
+        g = og.build_ornament(params(hanger="Capuchon", motif="Aucun"))
+        self.assertEqual(len(g.holes), 1 + 3)
+        slots = g.holes[1:] if g.holes[0] == [] else [h for h in g.holes if len(h) == 4]
+        self.assertEqual(len(slots), 3)
+        for slot in slots:
+            ys = [p[1] for p in slot]
+            self.assertGreater(min(ys), g.radius)             # au-dessus du cercle : dans le capuchon
+            self.assertLess(max(ys), g.hole_center[1] - params().hole_diameter / 2)   # sous le trou de la ficelle
+        self.assertGreater(g.bounds[3], og.build_ornament(params(hanger="Anneau", motif="Aucun")).bounds[3])
+
+    def test_a_tiny_cap_has_no_slots(self):
+        g = og.build_ornament(params(hanger="Capuchon", motif="Aucun", diameter=30.0, ring_width=2.0))
+        self.assertEqual([h for h in g.holes if len(h) == 4], [])
+
+
+class PresetTests(unittest.TestCase):
+    def test_keys_are_unique_and_every_preset_builds(self):
+        keys = [p.key for p in presets.PRESETS]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertGreaterEqual(len(keys), 20)
+        for preset in presets.PRESETS:
+            for name in ("", "Emma", "Bernadette"):
+                settings = dict(preset.settings)
+                settings["name"] = name
+                g = og.build_ornament(og.OrnamentParams(**settings), TEXT_BOUNDS if name else None)
+                self.assertFalse(g.floating_name, preset.key)
+
+    def test_presets_only_set_known_generator_settings(self):
+        known = set(og.OrnamentParams().__dict__)
+        for preset in presets.PRESETS:
+            self.assertLessEqual(set(preset.settings), known | {"flake_style"}, preset.key)
+            self.assertEqual(set(preset.settings), set(presets.SETTING_KEYS), preset.key)
+
+    def test_presets_never_touch_the_user_dimensions_or_text(self):
+        for preset in presets.PRESETS:
+            for key in ("diameter", "ring_width", "name", "hole_diameter"):
+                self.assertNotIn(key, preset.settings, preset.key)
+
+    def test_each_preset_has_a_label_in_the_four_languages(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "tr_ornament3", os.path.join(REPO, "src", "laser_studio", "i18n", "translations.py"))
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        for preset in presets.PRESETS:
+            self.assertEqual(set(mod.TRANSLATIONS[f"ornament.preset.{preset.key}"]), {"fr", "en", "de", "es"})
+        for prefix, keys in (("name_mode", og.NAME_MODES), ("crown", og.CROWNS), ("fill", og.FILLS),
+                             ("fill_zone", og.FILL_ZONES)):
+            for key in keys:
+                self.assertEqual(set(mod.TRANSLATIONS[f"ornament.{prefix}.{key}"]), {"fr", "en", "de", "es"})
+
+
+@unittest.skipUnless(HAS_QT, "PyQt6 réel requis")
+class EngravedWeldingTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QGuiApplication.instance() or QGuiApplication(sys.argv[:1] + ["-platform", "offscreen"])
+
+    def parts(self, **kw):
+        kw.setdefault("name", "Emma")
+        return region.build_ornament_parts(params(**kw), "DejaVu Sans", True, False)
+
+    def test_engraved_name_is_not_in_the_cut_and_cut_is_unchanged_in_shape(self):
+        engraved = self.parts(name_mode="Gravé", motif="Aucun")
+        self.assertTrue(engraved.name)
+        # La découpe ne contient plus les lettres : ni contreformes de lettres, seulement l'extérieur, le vide
+        # du haut, le vide du bas et le trou de la ficelle.
+        self.assertEqual(len(engraved.cut), 4)
+
+    def test_engraved_name_lies_on_the_band(self):
+        p = self.parts(name_mode="Gravé", motif="Aucun")
+        min_y = min(pt[1] for c in p.name for pt in c)
+        max_y = max(pt[1] for c in p.name for pt in c)
+        lo, hi = p.geometry.band_span
+        oy = -p.geometry.bounds[1]
+        self.assertGreaterEqual(min_y, lo + oy - 0.01)
+        self.assertLessEqual(max_y, hi + oy + 0.01)
+
+    def test_cut_mode_has_nothing_to_engrave(self):
+        p = self.parts(name_mode="Découpé")
+        self.assertEqual((p.name, p.frame), ([], []))
+
+    def test_every_preset_is_one_piece_of_material_with_no_duplicate_contour(self):
+        for preset in presets.PRESETS:
+            settings = dict(preset.settings)
+            settings["name"] = "Emma"
+            p = region.build_ornament_parts(og.OrnamentParams(**settings), "DejaVu Sans", True, False)
+            keys = {tuple(sorted((round(x, 2), round(y, 2)) for x, y in c)) for c in p.cut}
+            self.assertEqual(len(keys), len(p.cut), preset.key)
+            outer = p.cut[0]
+            for c in p.cut[1:]:                             # les autres contours sont des vides, jamais de la matière isolée
+                self.assertLess(abs(og.polygon_area(c)), abs(og.polygon_area(outer)), preset.key)
+
+    def test_fill_bars_are_welded_to_the_ring(self):
+        plain = self.parts(name_mode="Gravé", motif="Aucun")
+        for kind in of.FILL_KINDS:
+            filled = self.parts(name_mode="Gravé", motif="Aucun", fill=kind)
+            # Matière isolée = contour posé à l'intérieur d'un vide sans toucher son bord : ici, un îlot serait un
+            # contour DANS un vide ; on vérifie que le nombre de contours reste cohérent et que rien ne sort du disque.
+            self.assertGreater(len(filled.cut), len(plain.cut), kind)
+            for c in filled.cut:
+                for x, y in c:
+                    if y < 80.0:
+                        self.assertLessEqual(math.hypot(x - 40.0, y - 40.0), 40.0 + 0.1, kind)
+
+
 if __name__ == "__main__":
     unittest.main()

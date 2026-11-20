@@ -22,6 +22,7 @@ import math
 import random
 from typing import List, Optional, Sequence, Tuple
 
+from laser_studio.vector.ornament_fills import FILL_KINDS, MIN_PITCH_MM, antler_shapes, fill_shapes
 from laser_studio.vector.ornament_motifs import (
     HOLLY_STYLES, STAR_STYLES, TREE_STYLES, UPRIGHT_BUILDERS, MotifShape, bulb_shape, star_points_for, star_polygon,
 )
@@ -29,7 +30,7 @@ from laser_studio.vector.ornament_motifs import (
 Point = Tuple[float, float]
 Polygon = List[Point]
 
-HANGERS = ("Anneau", "Bouchon", "Aucun")
+HANGERS = ("Anneau", "Bouchon", "Capuchon", "Aucun")
 RADIAL_MOTIFS = ("Flocons", "Étoiles")                       # symétriques : une pointe vers l'anneau
 UPRIGHT_MOTIFS = tuple(UPRIGHT_BUILDERS)                    # ont un haut et un bas
 GARLAND_MOTIFS = ("Guirlande",)                            # un fil d'ampoules d'un côté à l'autre du haut
@@ -55,6 +56,10 @@ MOTIF_STYLES = {
 MOTIF_DEFAULT_SIZE = {"Flocons": 16.0, "Étoiles": 12.0, "Sapins": 20.0, "Père Noël": 26.0,
                       "Bonhomme de neige": 24.0, "Cadeaux": 18.0, "Lune": 16.0, "Houx": 18.0, "Bougie": 22.0,
                       "Cloche": 18.0, "Guirlande": 10.0}
+NAME_MODES = ("Découpé", "Gravé")        # Découpé : lettres soudées à l'anneau ; Gravé : lettres gravées sur une bande
+FILLS = ("Aucun",) + FILL_KINDS          # remplissages à motif des zones au-dessus et au-dessous du prénom
+FILL_ZONES = ("Haut et bas", "Haut", "Bas")
+CROWNS = ("Aucune", "Bois de renne")
 SUPPORTS = ("Barre", "Bandeau", "Aucun")  # Bandeau : une barre sous le prénom ET une au niveau du haut des lettres
 
 # Précision des cercles : l'écart à un vrai cercle reste sous 0,01 mm jusqu'à 400 mm de diamètre.
@@ -91,6 +96,13 @@ class OrnamentParams:
         flake_size=16.0,
         motif_drop=0.0,
         seed=1,
+        name_mode="Découpé",
+        band_height=0.0,
+        band_frame=False,
+        crown="Aucune",
+        fill="Aucun",
+        fill_zone="Haut et bas",
+        fill_pitch=6.0,
     ):
         self.diameter = float(diameter)
         self.ring_width = float(ring_width)
@@ -114,6 +126,15 @@ class OrnamentParams:
         # l'anneau. Une tige garde toujours le contact avec l'anneau.
         self.motif_drop = float(motif_drop)
         self.seed = int(seed)
+        # Gravé : le prénom est gravé sur une bande pleine qui traverse la boule (la bande est découpée avec la boule).
+        self.name_mode = name_mode
+        # Hauteur de la bande en mm ; 0 = automatique. Cadre : un filet gravé tout autour du prénom, dans la bande.
+        self.band_height = float(band_height)
+        self.band_frame = bool(band_frame)
+        self.crown = crown
+        self.fill = fill
+        self.fill_zone = fill_zone
+        self.fill_pitch = float(fill_pitch)
 
 
 class Flake:
@@ -166,6 +187,13 @@ class OrnamentGeometry:
         self.upper_edge: Optional[float] = None
         self.lower_edge: Optional[float] = None
         self.floating_name = False  # le prénom ne touche rien : il tomberait à la découpe
+        self.engrave_text = False   # le prénom est gravé (sur la bande) au lieu d'être découpé
+        self.band: Optional[Polygon] = None            # bande pleine du prénom gravé
+        self.band_span: Optional[Tuple[float, float]] = None  # (bas, haut) de la bande
+        self.frame: List[Polygon] = []                 # filet gravé autour du prénom (contour extérieur puis intérieur)
+        self.name_block: Optional[Tuple[float, float]] = None  # (bas, haut) de la zone du prénom
+        # Remplissages : [(barres, zone de découpe rectangulaire)] ; ils sont rognés à la zone puis soudés.
+        self.fills: List[Tuple[List[Polygon], Polygon]] = []
         self.bounds = (-radius, -radius, radius, radius)
 
     @property
@@ -283,9 +311,10 @@ def _hanger_shapes(params, radius):
     hole_r = params.hole_diameter / 2.0
     ring_r = hole_r + max(1.8, params.ring_width * 0.5)  # rayon extérieur de la petite boucle
     shapes: List[Polygon] = []
-    if params.hanger == "Bouchon":
-        cap_w = max(params.diameter * 0.18, 2 * ring_r + 2.0)
-        cap_h = params.diameter * 0.10
+    if params.hanger in ("Bouchon", "Capuchon"):
+        wide = params.hanger == "Capuchon"
+        cap_w = max(params.diameter * (0.24 if wide else 0.18), 2 * ring_r + 2.0)
+        cap_h = params.diameter * (0.08 if wide else 0.10)
         c = 1.5  # chanfrein des coins du bouchon
         y0, y1 = radius - 2.0, radius + cap_h
         shapes.append([(-cap_w / 2, y0), (cap_w / 2, y0), (cap_w / 2, y1 - c), (cap_w / 2 - c, y1),
@@ -295,6 +324,22 @@ def _hanger_shapes(params, radius):
         center = (0.0, radius + ring_r - 1.5)
     shapes.append(circle_polygon(center[0], center[1], ring_r))
     return shapes, center
+
+
+def _cap_slots(params, radius) -> List[Polygon]:
+    """Les trois fentes verticales du capuchon (nervures), ou [] si le capuchon est trop petit pour les tenir."""
+    if params.hanger != "Capuchon":
+        return []
+    hole_r = params.hole_diameter / 2.0
+    ring_r = hole_r + max(1.8, params.ring_width * 0.5)
+    cap_w = max(params.diameter * 0.24, 2 * ring_r + 2.0)
+    cap_h = params.diameter * 0.08
+    slot_w, margin = 1.2, 1.0
+    y0, y1 = radius + margin, radius + cap_h - margin
+    if cap_w < 12.0 or y1 - y0 < 2.0:
+        return []
+    pitch = cap_w / 4.0
+    return [rect_polygon(x - slot_w / 2.0, y0, x + slot_w / 2.0, y1) for x in (-pitch, 0.0, pitch)]
 
 
 # ---------------------------------------------------------------------------------------------------------
@@ -571,6 +616,89 @@ def place_text(params, geo, bounds):
     return TextPlacement(scale, -scale * (x0 + x1) / 2.0, offset - scale * (y0 + y1) / 2.0, tw * scale, th * scale, offset)
 
 
+def _band_geometry(params, geo):
+    """(bas, haut) de la bande du prénom gravé. Elle se pose directement sous les motifs du haut, directement au-dessus
+    de ceux du bas, ou au milieu de la bande libre quand il y en a des deux côtés."""
+    r_in = geo.inner_radius
+    bh = params.band_height if params.band_height > 0 else 0.24 * params.diameter
+    bh = min(max(bh, 6.0), 0.6 * params.diameter)
+    gap = 2.0
+    up, lo = geo.upper_edge, geo.lower_edge
+    if params.name_offset is not None:
+        c = params.name_offset
+    elif up is not None and lo is not None:
+        c = ((up - gap) + (lo + gap)) / 2.0
+    elif up is not None:
+        c = up - gap - bh / 2.0
+    elif lo is not None:
+        c = lo + gap + bh / 2.0
+    else:
+        c = 0.0
+    limit = max(0.85 * r_in - bh / 2.0, 0.0)
+    c = max(-limit, min(limit, c))
+    return c - bh / 2.0, c + bh / 2.0
+
+
+def _place_name_in_band(params, geo, bounds, span):
+    x0, y0, x1, y1 = bounds
+    tw, th = x1 - x0, y1 - y0
+    if tw <= 0 or th <= 0:
+        return None
+    lo, hi = span
+    c, bh = (lo + hi) / 2.0, hi - lo
+    pad = max(1.5, 0.12 * bh)
+    target = params.name_size if params.name_size > 0 else bh - 2.0 * pad
+    # Largeur disponible : celle du disque intérieur au bord de la bande le plus éloigné du centre, moins une marge.
+    far = max(abs(lo), abs(hi))
+    avail = 2.0 * math.sqrt(max(geo.inner_radius ** 2 - far ** 2, 0.0)) - 2.0 * 2.0
+    scale = min(target / th, max(avail, 1.0) / tw)
+    return TextPlacement(scale, -scale * (x0 + x1) / 2.0, c - scale * (y0 + y1) / 2.0, tw * scale, th * scale, c)
+
+
+def _rounded_rect(x0, y0, x1, y1, r, n=8) -> Polygon:
+    r = max(min(r, (x1 - x0) / 2.0, (y1 - y0) / 2.0), 0.01)
+    pts: Polygon = []
+    for cx, cy, a0 in ((x1 - r, y1 - r, 0.0), (x0 + r, y1 - r, 90.0), (x0 + r, y0 + r, 180.0), (x1 - r, y0 + r, 270.0)):
+        for i in range(n + 1):
+            a = math.radians(a0 + 90.0 * i / n)
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    return pts
+
+
+def _band_frame(geo, span, line=0.6, inset=1.2) -> List[Polygon]:
+    """Filet gravé en retrait des bords de la bande : [contour extérieur, contour intérieur] (un trait de `line`)."""
+    lo, hi = span
+    y0, y1 = lo + inset, hi - inset
+    if y1 - y0 < 3.0:
+        return []
+    far = max(abs(y0), abs(y1))
+    half = math.sqrt(max(geo.inner_radius ** 2 - far ** 2, 0.0)) - 2.0
+    if half < 6.0:
+        return []
+    r = min(3.0, (y1 - y0) / 2.0)
+    return [_rounded_rect(-half, y0, half, y1, r), _rounded_rect(-half + line, y0 + line, half - line, y1 - line, max(r - line, 0.2))]
+
+
+def _add_fills(params, geo):
+    """Remplissages à motif au-dessus et/ou au-dessous du prénom."""
+    if params.fill == "Aucun" or geo.name_block is None:
+        return
+    lo, hi = geo.name_block
+    radius = geo.radius
+    box_x = (-radius - 2.0, radius + 2.0)
+    overlap = 0.8  # les barres mordent un peu dans la bande, pour y être soudées
+    zones = []
+    if params.fill_zone in ("Haut", "Haut et bas"):
+        zones.append((hi - overlap, radius + 1.0))
+    if params.fill_zone in ("Bas", "Haut et bas"):
+        zones.append((-radius - 1.0, lo + overlap))
+    for y0, y1 in zones:
+        if y1 - y0 < 1.0:
+            continue
+        clip = rect_polygon(box_x[0], y0, box_x[1], y1)
+        geo.fills.append((fill_shapes(params.fill, params.fill_pitch, (box_x[0], y0, box_x[1], y1)), clip))
+
+
 # ---------------------------------------------------------------------------------------------------------
 # Assemblage
 # ---------------------------------------------------------------------------------------------------------
@@ -589,6 +717,16 @@ def validate(params):
         raise OrnamentError("motif", value=params.motif)
     if params.support not in SUPPORTS:
         raise OrnamentError("support", value=params.support)
+    if params.name_mode not in NAME_MODES:
+        raise OrnamentError("name_mode", value=params.name_mode)
+    if params.crown not in CROWNS:
+        raise OrnamentError("crown", value=params.crown)
+    if params.fill not in FILLS or params.fill_zone not in FILL_ZONES:
+        raise OrnamentError("fill", value=params.fill)
+    if params.fill != "Aucun" and not MIN_PITCH_MM <= params.fill_pitch <= d * 0.4:
+        raise OrnamentError("fill_pitch", value=params.fill_pitch, lo=MIN_PITCH_MM, hi=d * 0.4)
+    if params.name_mode == "Gravé" and params.band_height != 0 and not 6.0 <= params.band_height <= 0.6 * d:
+        raise OrnamentError("band_height", value=params.band_height, lo=6.0, hi=0.6 * d)
     if len(params.name) > 40:
         raise OrnamentError("name_too_long", value=len(params.name))
     if params.motif in RADIAL_MOTIFS + UPRIGHT_MOTIFS + GARLAND_MOTIFS:
@@ -616,6 +754,9 @@ def build_ornament(params, text_bounds=None) -> OrnamentGeometry:
     hanger_shapes, hole_center = _hanger_shapes(params, radius)
     geo.outer += hanger_shapes
     geo.voids.append(circle_polygon(0.0, 0.0, geo.inner_radius))
+    geo.holes += _cap_slots(params, radius)
+    if params.crown == "Bois de renne":
+        geo.outer += antler_shapes(radius, max(2.0, 0.045 * params.diameter))
     if hole_center is not None:
         geo.hole_center = hole_center
         geo.holes.append(circle_polygon(hole_center[0], hole_center[1], params.hole_diameter / 2.0))
@@ -632,10 +773,24 @@ def build_ornament(params, text_bounds=None) -> OrnamentGeometry:
     elif params.motif in GARLAND_MOTIFS:
         _garland(params, geo)
 
-    if params.name.strip() and text_bounds is not None:
+    engraved = params.name_mode == "Gravé"
+    has_name = bool(params.name.strip()) and text_bounds is not None
+    if engraved:
+        span = _band_geometry(params, geo)
+        geo.band_span = span
+        geo.name_block = span
+        geo.band = rect_polygon(-radius, span[0], radius, span[1])
+        geo.solids.append(geo.band)
+        geo.engrave_text = True
+        if has_name:
+            geo.text = _place_name_in_band(params, geo, text_bounds, span)
+        if params.band_frame:
+            geo.frame = _band_frame(geo, span)
+    elif has_name:
         geo.text = place_text(params, geo, text_bounds)
         if geo.text is not None:
             t = geo.text
+            geo.name_block = (t.center_y - t.height / 2.0, t.center_y + t.height / 2.0)
             if params.support in ("Barre", "Bandeau"):
                 thick = params.bar_thickness
                 # La barre est à cheval sur la ligne de base : 70 % au-dessus, là où les lettres la croisent.
@@ -650,6 +805,10 @@ def build_ornament(params, text_bounds=None) -> OrnamentGeometry:
                 # Sans barre, le prénom ne tient que s'il touche l'anneau des deux côtés.
                 chord = 2.0 * math.sqrt(max(geo.inner_radius ** 2 - t.center_y ** 2, 0.0))
                 geo.floating_name = t.width < chord - 0.5
+    if geo.name_block is None:
+        c = params.name_offset if params.name_offset is not None else _auto_name_offset(params, radius)
+        geo.name_block = (c - 0.12 * params.diameter, c + 0.12 * params.diameter)
+    _add_fills(params, geo)
 
     xs = [p[0] for poly in geo.outer for p in poly]
     ys = [p[1] for poly in geo.outer for p in poly]
