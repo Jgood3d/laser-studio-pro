@@ -74,6 +74,7 @@ class KeychainResult:
         two_layers: bool = False,
         top_base_contours: Optional[List[Polygon]] = None,
         top_text_contours: Optional[List[Polygon]] = None,
+        pieces: Optional[List["KeychainResult"]] = None,
     ):
         self.base_contours = base_contours
         self.text_contours = text_contours
@@ -84,6 +85,8 @@ class KeychainResult:
         # Pièce de droite (couche dessus) — uniquement en mode 2 couches
         self.top_base_contours = top_base_contours or []
         self.top_text_contours = top_text_contours or []
+        # Lot : une entrée par prénom (chacune est un KeychainResult "simple")
+        self.pieces = pieces or []
 
 
 def _validate(params: KeychainParams) -> None:
@@ -386,6 +389,7 @@ def build_keychain(
     all_outline: List[Polygon] = []
     all_top_base: List[Polygon] = []
     all_top_text: List[Polygon] = []
+    placed_pieces: List[KeychainResult] = []
 
     for i, res in enumerate(results):
         r, c = divmod(i, cols)
@@ -396,6 +400,18 @@ def build_keychain(
         all_outline.extend(_offset_polys(res.outline_contours, ox, oy))
         all_top_base.extend(_offset_polys(res.top_base_contours, ox, oy))
         all_top_text.extend(_offset_polys(res.top_text_contours, ox, oy))
+
+        # Copie décalée pour l'import : chaque pièce garde sa position dans la grille
+        placed_pieces.append(KeychainResult(
+            base_contours=_offset_polys(res.base_contours, ox, oy),
+            text_contours=_offset_polys(res.text_contours, ox, oy),
+            width=res.width,
+            height=res.height,
+            outline_contours=_offset_polys(res.outline_contours, ox, oy),
+            two_layers=res.two_layers,
+            top_base_contours=_offset_polys(res.top_base_contours, ox, oy),
+            top_text_contours=_offset_polys(res.top_text_contours, ox, oy),
+        ))
 
     total_w = x_offsets[-1] + col_widths[min(cols, n) - 1] if n else 0.0
     total_h = y_offsets[-1] + row_heights[-1] if rows else 0.0
@@ -409,4 +425,5 @@ def build_keychain(
         two_layers=params.two_layers,
         top_base_contours=all_top_base,
         top_text_contours=all_top_text,
+        pieces=placed_pieces,
     )
