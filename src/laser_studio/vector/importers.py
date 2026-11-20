@@ -237,38 +237,70 @@ def ornament_engrave_to_objects(name_contours, frame_contours, layer_id, offset_
 
 
 def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
-    """Porte-clés -> objets vectoriels :
-    - trou de l'anneau + contour extérieur de la base sur `cut_layer_id`
-    - contours du texte sur `engrave_layer_id`
+    """Porte-clés -> objets vectoriels.
+
+    Mode classique :
+      - trou + contour extérieur de la base sur `cut_layer_id`
+      - texte (remplissage) sur `engrave_layer_id`
+
+    Mode 2 couches (deux porte-clés côte à côte) :
+      - GAUCHE (fond) :
+          base (trou + contour) → découpe
+          contour fin du prénom → gravure (guide de collage)
+      - DROITE (dessus) :
+          base (trou + contour) → découpe
+          lettres solides du prénom → découpe (pièces à coller)
     """
     from laser_studio.vector_layers import _merge_path_objects
 
+    two = getattr(result, "two_layers", False)
     objects = []
-    if result.text_contours:
-        text_objs = [
-            o for o in (_path_object(c, True, "keychain:text", engrave_layer_id, offset_x_mm, offset_y_mm)
-                        for c in result.text_contours)
+
+    def _add_merged(contours, closed, tag, layer_id):
+        if not contours:
+            return
+        objs = [
+            o for o in (_path_object(c, closed, tag, layer_id, offset_x_mm, offset_y_mm)
+                        for c in contours)
             if o is not None
         ]
-        if text_objs:
-            merged_text = _merge_path_objects(text_objs, source_tag="keychain:text")
-            objects.append(merged_text if merged_text is not None else text_objs[0])
+        if not objs:
+            return
+        merged = _merge_path_objects(objs, source_tag=tag)
+        objects.append(merged if merged is not None else objs[0])
 
-    if result.base_contours:
-        # Trou de l'anneau en premier (découpe intérieure avant découpe extérieure)
-        inner = [
-            o for o in (_path_object(c, True, "keychain:hole", cut_layer_id, offset_x_mm, offset_y_mm)
-                        for c in result.base_contours[1:])
-            if o is not None
-        ]
-        if inner:
-            merged_inner = _merge_path_objects(inner, source_tag="keychain:hole")
-            objects.append(merged_inner if merged_inner is not None else inner[0])
-
-        outline = _path_object(
-            result.base_contours[0], True, "keychain:outline", cut_layer_id, offset_x_mm, offset_y_mm
+    def _add_base(base_contours, tag_prefix):
+        """Ajoute trou(s) puis contour extérieur (ordre de découpe)."""
+        if not base_contours:
+            return
+        # Trous intérieurs d'abord
+        if len(base_contours) > 1:
+            _add_merged(base_contours[1:], True, f"{tag_prefix}:hole", cut_layer_id)
+        # Contour extérieur
+        outer = _path_object(
+            base_contours[0], True, f"{tag_prefix}:outline", cut_layer_id, offset_x_mm, offset_y_mm
         )
-        if outline is not None:
-            objects.append(outline)
+        if outer is not None:
+            objects.append(outer)
+
+    if two:
+        # ===== Pièce GAUCHE : fond + guide de collage =====
+        _add_base(result.base_contours, "keychain:bottom")
+        _add_merged(
+            getattr(result, "outline_contours", None) or [],
+            True, "keychain:glue_guide", engrave_layer_id
+        )
+
+        # ===== Pièce DROITE : base + lettres solides =====
+        _add_base(getattr(result, "top_base_contours", None) or [], "keychain:top")
+        _add_merged(
+            getattr(result, "top_text_contours", None) or [],
+            True, "keychain:letters", cut_layer_id
+        )
+    else:
+        # Mode classique
+        if result.text_contours:
+            _add_merged(result.text_contours, True, "keychain:text", engrave_layer_id)
+        _add_base(result.base_contours, "keychain")
 
     return objects

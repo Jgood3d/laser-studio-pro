@@ -6891,10 +6891,16 @@ TRANSLATIONS = {
         "es": "Error de llavero",
     },
     "keychain.done": {
-        "fr": "Porte-clés {w:.1f}×{h:.1f} mm généré (découpe + gravure).",
-        "en": "Keychain {w:.1f}×{h:.1f} mm generated (cut + engrave).",
-        "de": "Schlüsselanhänger {w:.1f}×{h:.1f} mm erzeugt (Schnitt + Gravur).",
-        "es": "Llavero {w:.1f}×{h:.1f} mm generado (corte + grabado).",
+        "fr": "Porte-clés {w:.1f}×{h:.1f} mm généré.",
+        "en": "Keychain {w:.1f}×{h:.1f} mm generated.",
+        "de": "Schlüsselanhänger {w:.1f}×{h:.1f} mm erzeugt.",
+        "es": "Llavero {w:.1f}×{h:.1f} mm generado.",
+    },
+    "keychain.done_two_layers": {
+        "fr": "Porte-clés 2 couches {w:.1f}×{h:.1f} mm généré (fond + lettres + guide de collage).",
+        "en": "2-layer keychain {w:.1f}×{h:.1f} mm generated (base + letters + glue guide).",
+        "de": "2-Schicht-Schlüsselanhänger {w:.1f}×{h:.1f} mm erzeugt (Basis + Buchstaben + Klebehilfe).",
+        "es": "Llavero de 2 capas {w:.1f}×{h:.1f} mm generado (fondo + letras + guía de pegado).",
     },
     "keychain.text": {
         "fr": "Texte / Prénom :",
@@ -6925,6 +6931,18 @@ TRANSLATIONS = {
         "en": "Bridge isolated dots/accents",
         "de": "Isolierte Punkte/Akzente verbinden",
         "es": "Unir puntos y acentos aislados",
+    },
+    "keychain.two_layers": {
+        "fr": "2 couches (fond + lettres à coller)",
+        "en": "2 layers (base + letters to glue)",
+        "de": "2 Schichten (Grund + Buchstaben zum Kleben)",
+        "es": "2 capas (fondo + letras para pegar)",
+    },
+    "keychain.two_layers_tip": {
+        "fr": "Génère 2 porte-clés côte à côte :\n• Gauche = fond + contour du prénom (guide de collage)\n• Droite = fond + prénom plein découpé (à coller)",
+        "en": "Generates 2 keychains side by side:\n• Left = base + name outline (glue guide)\n• Right = base + solid cut letters (to glue)",
+        "de": "Erzeugt 2 Schlüsselanhänger nebeneinander:\n• Links = Basis + Namensumriss (Klebehilfe)\n• Rechts = Basis + ausgeschnittene Buchstaben (zum Kleben)",
+        "es": "Genera 2 llaveros uno al lado del otro:\n• Izquierda = fondo + contorno del nombre (guía de pegado)\n• Derecha = fondo + letras macizas cortadas (para pegar)",
     },
     "keychain.ring_position": {
         "fr": "Position de l'anneau :",
@@ -6967,10 +6985,10 @@ TRANSLATIONS = {
         "es": "Capa de grabado (texto):",
     },
     "keychain.preview": {
-        "fr": "Aperçu (rouge = découpe, bleu = gravure) :",
-        "en": "Preview (red = cut, blue = engrave):",
-        "de": "Vorschau (rot = Schnitt, blau = Gravur):",
-        "es": "Vista previa (rojo = corte, azul = grabado):",
+        "fr": "Aperçu (rouge = découpe, bleu = gravure/contour, vert = lettres 2e couche) :",
+        "en": "Preview (red = cut, blue = engrave/outline, green = 2nd layer letters):",
+        "de": "Vorschau (rot = Schnitt, blau = Gravur/Umriss, grün = 2. Schicht Buchstaben):",
+        "es": "Vista previa (rojo = corte, azul = grabado/contorno, verde = letras 2ª capa):",
     },
     "keychain.hint": {
         "fr": "Astuce : une fois généré, utilisez « Dupliquer en série » dans l'éditeur vectoriel.",
