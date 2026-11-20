@@ -1,28 +1,85 @@
 """Dialogue « Boule de Noël » : prénom, police, accroche, motifs, aperçu en direct des contours à découper."""
-from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PyQt6.QtCore import QSize, Qt, QTimer
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout, QHBoxLayout,
-    QLabel, QLineEdit, QSpinBox, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSpinBox, QVBoxLayout, QWidget,
 )
 
 from laser_studio.i18n import tr
-from laser_studio.models.layers import layer_label
+from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import ornament_generator as og
-from laser_studio.vector.ornament_region import build_ornament_contours
+from laser_studio.vector import ornament_presets
+from laser_studio.vector.ornament_region import build_ornament_parts
+
+# Couleurs de l'aperçu : la découpe en rouge (comme le laser la suit), la gravure en bleu.
+CUT_COLOR = QColor("#ff4b4b")
+ENGRAVE_COLOR = QColor("#5aa9ff")
+
+
+def _contours_path(contours, ox, oy, s):
+    path = QPainterPath()
+    for contour in contours:
+        path.moveTo(ox + contour[0][0] * s, oy - contour[0][1] * s)
+        for x, y in contour[1:]:
+            path.lineTo(ox + x * s, oy - y * s)
+        path.closeSubpath()
+    path.setFillRule(Qt.FillRule.OddEvenFill)
+    return path
+
+
+def paint_parts(p, rect, cut, name=(), frame=(), pad=14, line=1.6):
+    """Dessine la découpe (rouge) et la gravure (bleu) centrées dans `rect`, Y vers le haut. Sert à l'aperçu comme
+    aux vignettes de la galerie."""
+    allc = list(cut)
+    if not allc:
+        return
+    xs = [pt[0] for c in allc for pt in c]
+    ys = [pt[1] for c in allc for pt in c]
+    w, h = max(max(xs), 1e-6), max(max(ys), 1e-6)
+    s = min((rect.width() - 2 * pad) / w, (rect.height() - 2 * pad) / h)
+    ox = rect.left() + (rect.width() - w * s) / 2
+    oy = rect.top() + (rect.height() - h * s) / 2 + h * s  # Y vers le haut : on retourne
+    p.setBrush(QColor(201, 164, 107, 70))
+    p.setPen(QPen(CUT_COLOR, line))
+    p.drawPath(_contours_path(allc, ox, oy, s))
+    if name:
+        p.setBrush(ENGRAVE_COLOR)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawPath(_contours_path(name, ox, oy, s))
+    if frame:
+        p.setBrush(ENGRAVE_COLOR)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawPath(_contours_path(frame, ox, oy, s))
+
+
+def render_thumbnail(parts, size):
+    """Vignette `size`×`size` d'un modèle (`OrnamentParts`)."""
+    pix = QPixmap(size, size)
+    pix.fill(QColor("#1a1d24"))
+    p = QPainter(pix)
+    p.setRenderHint(QPainter.RenderHint.Antialiasing)
+    paint_parts(p, pix.rect(), parts.cut, parts.name, parts.frame, pad=8, line=1.2)
+    p.end()
+    return pix
 
 
 class OrnamentPreview(QWidget):
-    """Contours exactement tels que le laser les suivra (après soudure), Y vers le haut."""
+    """Contours exactement tels que le laser les suivra (après soudure), Y vers le haut : la découpe en rouge, le
+    prénom gravé et le filet en bleu."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setMinimumSize(320, 360)
         self.contours = []
+        self.name = []
+        self.frame = []
         self.message = ""
 
-    def set_contours(self, contours, message=""):
+    def set_contours(self, contours, message="", name=(), frame=()):
         self.contours = contours
+        self.name = list(name)
+        self.frame = list(frame)
         self.message = message
         self.update()
 
@@ -30,29 +87,69 @@ class OrnamentPreview(QWidget):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
         p.fillRect(self.rect(), QColor("#1a1d24"))
-        if self.contours:
-            xs = [pt[0] for c in self.contours for pt in c]
-            ys = [pt[1] for c in self.contours for pt in c]
-            w, h = max(max(xs), 1e-6), max(max(ys), 1e-6)
-            pad = 14
-            s = min((self.width() - 2 * pad) / w, (self.height() - 2 * pad) / h)
-            ox = (self.width() - w * s) / 2
-            oy = (self.height() - h * s) / 2 + h * s  # Y vers le haut : on retourne
-            path = QPainterPath()
-            for contour in self.contours:
-                path.moveTo(ox + contour[0][0] * s, oy - contour[0][1] * s)
-                for x, y in contour[1:]:
-                    path.lineTo(ox + x * s, oy - y * s)
-                path.closeSubpath()
-            p.setBrush(QColor(201, 164, 107, 70))
-            p.setPen(QPen(QColor("#ff4b4b"), 1.6))
-            path.setFillRule(Qt.FillRule.OddEvenFill)
-            p.drawPath(path)
+        paint_parts(p, self.rect(), self.contours, self.name, self.frame)
         if self.message:
             p.setPen(QColor("#ffb86b"))
             p.drawText(self.rect().adjusted(10, 8, -10, -8), Qt.AlignmentFlag.AlignTop.value | Qt.TextFlag.TextWordWrap.value,
                        self.message)
         p.end()
+
+
+class OrnamentGalleryDialog(QDialog):
+    """Galerie des modèles : une vignette par modèle, dessinée avec le prénom, la police et les dimensions du
+    moment. Un double-clic (ou OK) choisit le modèle ; `selected_key()` le donne."""
+
+    THUMB = 128
+
+    def __init__(self, parent=None, name="", family="Sans Serif", bold=True, italic=False, diameter=80.0,
+                 ring_width=4.0):
+        super().__init__(parent)
+        self.setWindowTitle(tr("ornament.gallery.title"))
+        self.resize(780, 560)
+        layout = QVBoxLayout(self)
+        hint = QLabel(tr("ornament.gallery.hint"))
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #8b93a7; font-size: 12px;")
+        layout.addWidget(hint)
+        self.list = QListWidget()
+        self.list.setViewMode(QListWidget.ViewMode.IconMode)
+        self.list.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.list.setMovement(QListWidget.Movement.Static)
+        self.list.setWordWrap(True)
+        self.list.setIconSize(QSize(self.THUMB, self.THUMB))
+        self.list.setGridSize(QSize(self.THUMB + 24, self.THUMB + 44))
+        self.list.setSpacing(6)
+        layout.addWidget(self.list, 1)
+        self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        layout.addWidget(self.buttons)
+        self.list.itemDoubleClicked.connect(lambda _item: self.accept())
+        self.list.itemSelectionChanged.connect(
+            lambda: self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(bool(self.list.selectedItems())))
+        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+        self._fill(name or "Emma", family, bold, italic, diameter, ring_width)
+
+    def _fill(self, name, family, bold, italic, diameter, ring_width):
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            for preset in ornament_presets.PRESETS:
+                settings = dict(preset.settings)
+                settings.update(diameter=diameter, ring_width=ring_width, name=name)
+                try:
+                    parts = build_ornament_parts(og.OrnamentParams(**settings), family, bold, italic)
+                except og.OrnamentError:
+                    continue
+                item = QListWidgetItem(QIcon(render_thumbnail(parts, self.THUMB)), tr(f"ornament.preset.{preset.key}"))
+                item.setData(Qt.ItemDataRole.UserRole, preset.key)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignHCenter)
+                self.list.addItem(item)
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def selected_key(self):
+        items = self.list.selectedItems()
+        return items[0].data(Qt.ItemDataRole.UserRole) if items else None
 
 
 class OrnamentGeneratorDialog(QDialog):
@@ -65,6 +162,10 @@ class OrnamentGeneratorDialog(QDialog):
 
         root = QHBoxLayout(self)
         left = QVBoxLayout()
+        self.btn_gallery = QPushButton(tr("ornament.gallery.button"))
+        self.btn_gallery.setToolTip(tr("ornament.gallery.tip"))
+        self.btn_gallery.clicked.connect(self._open_gallery)
+        left.addWidget(self.btn_gallery)
         form = QFormLayout()
 
         self.edit_name = QLineEdit(saved.get("name", "Emma"))
@@ -83,6 +184,13 @@ class OrnamentGeneratorDialog(QDialog):
         font_row.addWidget(self.chk_italic)
         form.addRow(tr("ornament.font"), font_row)
 
+        self.combo_name_mode = QComboBox()
+        for key in og.NAME_MODES:
+            self.combo_name_mode.addItem(tr(f"ornament.name_mode.{key}"), key)
+        self._select(self.combo_name_mode, saved.get("name_mode", "Découpé"))
+        self.combo_name_mode.setToolTip(tr("ornament.name_mode_tip"))
+        form.addRow(tr("ornament.name_mode"), self.combo_name_mode)
+
         self.spin_d = self._spin(30, 400, saved.get("diameter", 80.0), " mm")
         form.addRow(tr("ornament.diameter"), self.spin_d)
         self.spin_ring = self._spin(1.5, 100, saved.get("ring_width", 4.0), " mm")
@@ -95,6 +203,11 @@ class OrnamentGeneratorDialog(QDialog):
         form.addRow(tr("ornament.hanger"), self.combo_hanger)
         self.spin_hole = self._spin(1.5, 10, saved.get("hole_diameter", 3.0), " mm")
         form.addRow(tr("ornament.hole"), self.spin_hole)
+        self.combo_crown = QComboBox()
+        for key in og.CROWNS:
+            self.combo_crown.addItem(tr(f"ornament.crown.{key}"), key)
+        self._select(self.combo_crown, saved.get("crown", "Aucune"))
+        form.addRow(tr("ornament.crown"), self.combo_crown)
 
         self.combo_motif = QComboBox()
         for key in og.MOTIFS:
@@ -119,6 +232,19 @@ class OrnamentGeneratorDialog(QDialog):
         self.spin_drop.setToolTip(tr("ornament.drop_tip"))
         form.addRow(tr("ornament.drop"), self.spin_drop)
 
+        self.combo_fill = QComboBox()
+        for key in og.FILLS:
+            self.combo_fill.addItem(tr(f"ornament.fill.{key}"), key)
+        self._select(self.combo_fill, saved.get("fill", "Aucun"))
+        form.addRow(tr("ornament.fill"), self.combo_fill)
+        self.combo_fill_zone = QComboBox()
+        for key in og.FILL_ZONES:
+            self.combo_fill_zone.addItem(tr(f"ornament.fill_zone.{key}"), key)
+        self._select(self.combo_fill_zone, saved.get("fill_zone", "Haut et bas"))
+        form.addRow(tr("ornament.fill_zone"), self.combo_fill_zone)
+        self.spin_fill_pitch = self._spin(4.5, 120, saved.get("fill_pitch", 6.0), " mm")
+        form.addRow(tr("ornament.fill_pitch"), self.spin_fill_pitch)
+
         self.chk_auto_offset = QCheckBox(tr("ornament.auto"))
         self.chk_auto_offset.setChecked(saved.get("name_offset") is None)
         self.spin_offset = self._spin(-200, 200, saved.get("name_offset") or 0.0, " mm")
@@ -140,6 +266,12 @@ class OrnamentGeneratorDialog(QDialog):
         self._select(self.combo_support, saved.get("support", "Barre"))
         self.combo_support.setToolTip(tr("ornament.support_tip"))
         form.addRow(tr("ornament.support"), self.combo_support)
+        self.spin_band = self._spin(0, 240, saved.get("band_height", 0.0), " mm")
+        self.spin_band.setSpecialValueText(tr("ornament.auto"))   # 0 = automatique
+        form.addRow(tr("ornament.band_height"), self.spin_band)
+        self.chk_frame = QCheckBox(tr("ornament.band_frame"))
+        self.chk_frame.setChecked(saved.get("band_frame", False))
+        form.addRow("", self.chk_frame)
 
         self.combo_layer = QComboBox()
         default_index = 0
@@ -150,6 +282,15 @@ class OrnamentGeneratorDialog(QDialog):
         if self.combo_layer.count() > 0:
             self.combo_layer.setCurrentIndex(default_index)
         form.addRow(tr("ornament.layer"), self.combo_layer)
+        self.combo_engrave_layer = QComboBox()
+        engrave_index = 0
+        for idx, layer in enumerate(self.layers):
+            self.combo_engrave_layer.addItem(layer_label(layer), layer.id)
+            if layer.mode == ENGRAVE_MODE:
+                engrave_index = idx
+        if self.combo_engrave_layer.count() > 0:
+            self.combo_engrave_layer.setCurrentIndex(engrave_index)
+        form.addRow(tr("ornament.engrave_layer"), self.combo_engrave_layer)
         left.addLayout(form)
 
         self.lbl_warning = QLabel()
@@ -189,7 +330,10 @@ class OrnamentGeneratorDialog(QDialog):
             (self.spin_count, "valueChanged"), (self.spin_flake, "valueChanged"), (self.spin_drop, "valueChanged"),
             (self.chk_auto_offset, "toggled"), (self.spin_offset, "valueChanged"),
             (self.chk_auto_size, "toggled"), (self.spin_size, "valueChanged"),
-            (self.combo_support, "currentIndexChanged"),
+            (self.combo_support, "currentIndexChanged"), (self.combo_name_mode, "currentIndexChanged"),
+            (self.spin_band, "valueChanged"), (self.chk_frame, "toggled"), (self.combo_crown, "currentIndexChanged"),
+            (self.combo_fill, "currentIndexChanged"), (self.combo_fill_zone, "currentIndexChanged"),
+            (self.spin_fill_pitch, "valueChanged"),
         ):
             getattr(widget, signal).connect(self._schedule)
         self._update_preview()
@@ -235,9 +379,52 @@ class OrnamentGeneratorDialog(QDialog):
     def _schedule(self, *_args):
         self._timer.start()
 
+    def _open_gallery(self):
+        family, bold, italic = self.font_options()
+        gallery = OrnamentGalleryDialog(self, self.edit_name.text().strip(), family, bold, italic,
+                                        self.spin_d.value(), self.spin_ring.value())
+        if gallery.exec() == QDialog.DialogCode.Accepted and gallery.selected_key():
+            self.apply_preset(gallery.selected_key())
+
+    def apply_preset(self, key):
+        """Recopie les réglages d'un modèle dans le formulaire (prénom, police, dimensions et calques restent)."""
+        preset = ornament_presets.BY_KEY.get(key)
+        if preset is None:
+            return
+        s = preset.settings
+        # Le motif d'abord : en changer remet la taille et le décalage par défaut, qu'on écrase ensuite.
+        self._select(self.combo_motif, s["motif"])
+        self._fill_styles(s.get("flake_style"))
+        self._select(self.combo_layout, s["flake_layout"])
+        self.spin_count.setValue(s["flake_count"])
+        self.spin_flake.setValue(s["flake_size"])
+        self.spin_drop.setValue(s["motif_drop"])
+        self._select(self.combo_name_mode, s["name_mode"])
+        self._select(self.combo_support, s["support"])
+        self.spin_band.setValue(s["band_height"])
+        self.chk_frame.setChecked(bool(s["band_frame"]))
+        self._select(self.combo_crown, s["crown"])
+        self._select(self.combo_fill, s["fill"])
+        self._select(self.combo_fill_zone, s["fill_zone"])
+        self.spin_fill_pitch.setValue(s["fill_pitch"])
+        self._select(self.combo_hanger, s["hanger"])
+        self.chk_auto_offset.setChecked(s["name_offset"] is None)
+        if s["name_offset"] is not None:
+            self.spin_offset.setValue(s["name_offset"])
+        self.chk_auto_size.setChecked(not s["name_size"])
+        if s["name_size"]:
+            self.spin_size.setValue(s["name_size"])
+        self._update_preview()
+
     # -- état ----------------------------------------------------------------------------------------------
     def cut_layer_id(self):
         return self.combo_layer.currentData()
+
+    def engrave_layer_id(self):
+        return self.combo_engrave_layer.currentData()
+
+    def is_engraved(self):
+        return self.combo_name_mode.currentData() == "Gravé"
 
     def font_options(self):
         return self.combo_font.currentFont().family(), self.chk_bold.isChecked(), self.chk_italic.isChecked()
@@ -251,7 +438,10 @@ class OrnamentGeneratorDialog(QDialog):
             support=self.combo_support.currentData(), motif=self.combo_motif.currentData(),
             flake_layout=self.combo_layout.currentData(), flake_style=self.combo_style.currentData(),
             flake_count=self.spin_count.value(), flake_size=self.spin_flake.value(),
-            motif_drop=self.spin_drop.value(),
+            motif_drop=self.spin_drop.value(), name_mode=self.combo_name_mode.currentData(),
+            band_height=self.spin_band.value(), band_frame=self.chk_frame.isChecked(),
+            crown=self.combo_crown.currentData(), fill=self.combo_fill.currentData(),
+            fill_zone=self.combo_fill_zone.currentData(), fill_pitch=self.spin_fill_pitch.value(),
         )
 
     def settings(self):
@@ -263,6 +453,8 @@ class OrnamentGeneratorDialog(QDialog):
             "motif": p.motif, "flake_layout": p.flake_layout, "flake_style": p.flake_style,
             "flake_count": p.flake_count, "flake_size": p.flake_size, "name_offset": p.name_offset,
             "name_size": p.name_size, "support": p.support, "motif_drop": p.motif_drop,
+            "name_mode": p.name_mode, "band_height": p.band_height, "band_frame": p.band_frame,
+            "crown": p.crown, "fill": p.fill, "fill_zone": p.fill_zone, "fill_pitch": p.fill_pitch,
         }
 
     def _update_preview(self):
@@ -275,16 +467,26 @@ class OrnamentGeneratorDialog(QDialog):
         self.combo_layout.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_drop.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_hole.setEnabled(self.combo_hanger.currentData() != "Aucun")
+        engraved = self.is_engraved()
+        # Prénom gravé : la bande remplace les barres ; le calque de gravure et le filet n'ont de sens que là.
+        self.combo_support.setEnabled(not engraved)
+        self.spin_band.setEnabled(engraved)
+        self.chk_frame.setEnabled(engraved)
+        self.combo_engrave_layer.setEnabled(engraved)
+        filled = self.combo_fill.currentData() != "Aucun"
+        self.combo_fill_zone.setEnabled(filled)
+        self.spin_fill_pitch.setEnabled(filled)
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
         try:
             family, bold, italic = self.font_options()
-            geometry, contours = build_ornament_contours(self.params(), family, bold, italic)
+            parts = build_ornament_parts(self.params(), family, bold, italic)
+            geometry, contours = parts.geometry, parts.cut
         except og.OrnamentError as e:
             self.preview.set_contours([], error_text(e))
             self.lbl_warning.clear()
             ok.setEnabled(False)
             return
-        self.preview.set_contours(contours)
+        self.preview.set_contours(contours, name=parts.name, frame=parts.frame)
         self.lbl_warning.setText(tr("ornament.warn.floating") if geometry.floating_name else "")
         ok.setEnabled(bool(contours))
 

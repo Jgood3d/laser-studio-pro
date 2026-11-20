@@ -223,6 +223,19 @@ def ornament_to_objects(contours, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
         objects.append(merged if merged is not None else inner[0])
     return objects
 
+def ornament_engrave_to_objects(name_contours, frame_contours, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
+    """Boule de Noël, prénom gravé -> objets de gravure : UN objet pour le prénom (ses contreformes y restent des
+    trous) et UN pour le filet de la bande. Les contours viennent de `ornament_region.assemble_engraving`, dans le
+    même repère que ceux de la découpe : la gravure tombe donc exactement sur la bande."""
+    objects = []
+    for contours, tag in ((name_contours, "ornament:name"), (frame_contours, "ornament:frame")):
+        if contours:
+            obj = _compound_path_object(contours, tag, layer_id, offset_x_mm, offset_y_mm)
+            if obj is not None:
+                objects.append(obj)
+    return objects
+
+
 def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
     """Porte-clés -> objets vectoriels :
     - trou de l'anneau + contour extérieur de la base sur `cut_layer_id`
