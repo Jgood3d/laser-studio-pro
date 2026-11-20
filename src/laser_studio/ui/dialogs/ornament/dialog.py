@@ -3,7 +3,8 @@ from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout,
-    QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QSpinBox, QVBoxLayout, QWidget,
+    QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QScrollArea, QSpinBox,
+    QVBoxLayout, QWidget,
 )
 
 from laser_studio.i18n import tr
@@ -156,7 +157,11 @@ class OrnamentGeneratorDialog(QDialog):
     def __init__(self, parent=None, layers=None, saved_settings=None):
         super().__init__(parent)
         self.setWindowTitle(tr("ornament.title"))
-        self.resize(820, 620)
+        self.resize(1100, 760)
+        # Plein écran par défaut : le formulaire est long et l'aperçu gagne à être grand. Les boutons OK / Annuler
+        # restent hors de la zone défilante, donc toujours visibles, quelle que soit la taille de l'écran.
+        self.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, True)
+        self.setWindowState(self.windowState() | Qt.WindowState.WindowMaximized)
         self.layers = layers or []
         saved = saved_settings or {}
 
@@ -302,7 +307,17 @@ class OrnamentGeneratorDialog(QDialog):
         self.buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         self.buttons.accepted.connect(self.accept)
         self.buttons.rejected.connect(self.reject)
-        left.addWidget(self.buttons)
+        # Le formulaire défile ; les boutons restent fixes en bas de la colonne.
+        left_host = QWidget()
+        left_host.setLayout(left)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(left_host)
+        left_column = QVBoxLayout()
+        left_column.addWidget(scroll, 1)
+        left_column.addWidget(self.buttons)
 
         right = QVBoxLayout()
         right.addWidget(QLabel(tr("ornament.preview")))
@@ -312,7 +327,7 @@ class OrnamentGeneratorDialog(QDialog):
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #8b93a7; font-size: 12px;")
         right.addWidget(hint)
-        root.addLayout(left, 4)
+        root.addLayout(left_column, 4)
         root.addLayout(right, 5)
 
         # Un recalcul 150 ms après la dernière modification : la soudure des lettres n'est pas instantanée.
