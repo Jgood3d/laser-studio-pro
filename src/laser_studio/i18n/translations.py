@@ -6916,10 +6916,22 @@ TRANSLATIONS = {
         "es": "Llavero de 2 capas {w:.1f}×{h:.1f} mm generado (fondo + letras + guía de pegado).",
     },
     "keychain.text": {
-        "fr": "Texte / Prénom :",
-        "en": "Text / Name:",
-        "de": "Text / Name:",
-        "es": "Texto / Nombre:",
+        "fr": "Texte / Prénom(s) :",
+        "en": "Text / Name(s):",
+        "de": "Text / Name(n):",
+        "es": "Texto / Nombre(s):",
+    },
+    "keychain.text_placeholder": {
+        "fr": "Un prénom par ligne\n(ex: Emma\nLéa\nNoah)",
+        "en": "One name per line\n(e.g. Emma\nLéa\nNoah)",
+        "de": "Ein Name pro Zeile\n(z.B. Emma\nLéa\nNoah)",
+        "es": "Un nombre por línea\n(ej. Emma\nLéa\nNoah)",
+    },
+    "keychain.batch_preview": {
+        "fr": "{n} porte-clés seront générés au clic sur OK.\n(aperçu désactivé pour les lots)",
+        "en": "{n} keychains will be generated when you click OK.\n(preview disabled for batches)",
+        "de": "{n} Schlüsselanhänger werden beim Klick auf OK erzeugt.\n(Vorschau für Serien deaktiviert)",
+        "es": "Se generarán {n} llaveros al pulsar Aceptar.\n(vista previa desactivada para lotes)",
     },
     "keychain.text_height": {
         "fr": "Hauteur du texte :",
@@ -7004,10 +7016,10 @@ TRANSLATIONS = {
         "es": "Vista previa (rojo = corte, azul = grabado/contorno, verde = letras 2ª capa):",
     },
     "keychain.hint": {
-        "fr": "Astuce : une fois généré, utilisez « Dupliquer en série » dans l'éditeur vectoriel.",
-        "en": "Tip: once generated, use 'Serial duplicate' in the vector editor.",
-        "de": "Tipp: Verwenden Sie nach dem Erstellen 'Serienduplizieren' im Vektoreditor.",
-        "es": "Consejo: una vez generado, use 'Duplicar en serie' en el editor vectorial.",
+        "fr": "Astuce : un prénom par ligne pour un lot. Puis « Dupliquer en série » si besoin.",
+        "en": "Tip: one name per line for a batch. Then use 'Serial duplicate' if needed.",
+        "de": "Tipp: Ein Name pro Zeile für eine Serie. Danach ggf. 'Serienduplizieren'.",
+        "es": "Consejo: un nombre por línea para un lote. Luego 'Duplicar en serie' si hace falta.",
     },
     "keychain.err.empty_text": {
         "fr": "Veuillez saisir un texte ou un prénom.",
