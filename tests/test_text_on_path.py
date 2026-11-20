@@ -150,7 +150,6 @@ class InsideReadabilityTests(unittest.TestCase):
         self.assertEqual(top.default_center_fraction(pts), top.default_center_fraction(pts, False))
 
 
-
 class SideTests(unittest.TestCase):
     """Placement « en haut / en bas / à gauche / à droite »."""
 
@@ -189,6 +188,52 @@ class SideTests(unittest.TestCase):
     def test_unknown_side(self):
         with self.assertRaises(ValueError):
             top.side_center_fraction(circle(5), "middle")
+
+
+class HandleAndSpreadTests(unittest.TestCase):
+    """Poignée de glissement, étalement du texte, ancrage."""
+
+    def test_point_and_projection_round_trip(self):
+        pts = top.orient_path(circle(20))
+        for f in (0.1, 0.35, 0.6, 0.9):
+            x, y = top.point_at_fraction(pts, f)
+            self.assertAlmostEqual(top.project_fraction(pts, (x, y)), f, delta=0.002)
+
+    def test_projection_from_off_path_point(self):
+        pts = top.orient_path(circle(20))
+        f_top = top.side_center_fraction(pts, "top")
+        self.assertAlmostEqual(top.project_fraction(pts, (0.0, 50.0)), f_top, delta=0.01)
+        self.assertAlmostEqual(top.project_fraction(pts, (0.0, 3.0)), f_top, delta=0.01)
+
+    def test_projection_open_path_clamps(self):
+        pts = [(0.0, 0.0), (10.0, 0.0)]
+        self.assertEqual(top.project_fraction(pts, (-5.0, 2.0)), 0.0)
+        self.assertEqual(top.project_fraction(pts, (50.0, 2.0)), 1.0)
+        self.assertAlmostEqual(top.project_fraction(pts, (5.0, 9.0)), 0.5)
+
+    def test_spacing_to_span(self):
+        adv = [2.0, 2.0, 2.0, 2.0]
+        self.assertAlmostEqual(top.spacing_to_span(adv, 20.0), 4.0)             # 3 espaces entre 4 lettres
+        self.assertAlmostEqual(top.spacing_to_span(adv, 20.0, wrap=True), 3.0)  # 4 espaces (tour complet)
+        self.assertEqual(top.spacing_to_span([3.0], 20.0), 0.0)
+        self.assertEqual(top.spacing_to_span([], 20.0), 0.0)
+        self.assertLess(top.spacing_to_span(adv, 5.0), 0.0)                     # texte trop long : resserre
+
+    def test_anchor_offset(self):
+        self.assertEqual(top.anchor_offset_mm("above", 8.0), 0.0)
+        self.assertEqual(top.anchor_offset_mm("center", 8.0), -4.0)
+        self.assertEqual(top.anchor_offset_mm("below", 8.0), -8.0)
+        self.assertEqual(top.anchor_offset_mm("inconnu", 8.0), 0.0)
+
+    def test_below_anchor_puts_text_inside_upright_at_top(self):
+        """Lettres accrochées sous le trait : texte à l'endroit en haut, côté intérieur du contour."""
+        pts = top.orient_path(circle(20))
+        f = top.side_center_fraction(pts, "top")
+        gap = top.anchor_offset_mm("below", 6.0)
+        spots = top.path_placements([2.0, 2.0, 2.0], pts, f, 0.0, False, gap)
+        x, y, rot = spots[1][:3]
+        self.assertAlmostEqual(abs(((rot + 180) % 360) - 180), 0.0, delta=1.0)   # à l'endroit
+        self.assertLess(math.hypot(x, y), 20.0 - 5.0)                            # à l'intérieur du cercle
 
 
 if __name__ == "__main__":

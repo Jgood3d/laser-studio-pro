@@ -53,7 +53,9 @@ from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 from laser_studio.vector.text_on_arc import arc_placements, default_center_deg
 from laser_studio.vector.text_on_path import (default_center_fraction, is_closed, orient_path, path_length,
                                               path_placements, place_for_fraction, relative_points, scaled_points,
-                                              side_center_fraction)
+                                              side_center_fraction, point_at_fraction, project_fraction,
+                                              spacing_to_span, anchor_offset_mm, ANCHORS)
+from laser_studio.vector import text_presets
 
 
 # ============================================================================
@@ -523,7 +525,8 @@ class TextObject(VectorObject):
                  bold=False, italic=False, vertical=False,
                  letter_spacing_mm=0.0, arc_radius_mm=0.0, arc_inside=False,
                  arc_center_deg=None, follow_points=None, follow_closed=False, follow_center=0.5,
-                 follow_reverse=False, follow_gap_mm=0.0, **kwargs):
+                 follow_reverse=False, follow_gap_mm=0.0, text_anchor="above", follow_guide_id=None,
+                 **kwargs):
         super().__init__(**kwargs)
         self.text = text
         self.font_family = font_family
@@ -545,6 +548,13 @@ class TextObject(VectorObject):
         self.follow_center = follow_center
         self.follow_reverse = follow_reverse
         self.follow_gap_mm = follow_gap_mm
+        # Position des lettres par rapport au trait (cercle ou contour) : "above" (posées sur le trait),
+        # "center" (centrées sur le trait) ou "below" (accrochées sous le trait). Voir
+        # vector.text_on_path.anchor_offset_mm.
+        self.text_anchor = text_anchor
+        # Identifiant de l'objet dont le contour a été copié : permet de resynchroniser le texte si cet objet
+        # change (VectorCanvasView.resync_text_guide).
+        self.follow_guide_id = follow_guide_id
 
     def _font(self):
         font = QFont(self.font_family)
@@ -553,11 +563,32 @@ class TextObject(VectorObject):
         font.setItalic(self.italic)
         return font
 
-    def local_path(self) -> QPainterPath:
+    def _font_metrics_scale(self):
         font = self._font()
         metrics = QFontMetricsF(font)
         ref_height = metrics.ascent() if metrics.ascent() > 0 else self._REF_PT
-        scale = self.size_mm / ref_height
+        return font, metrics, self.size_mm / ref_height
+
+    def text_advances_mm(self):
+        """Largeur de chaque lettre, en mm (sans espacement)."""
+        _font, metrics, scale = self._font_metrics_scale()
+        return [metrics.horizontalAdvance(ch) * scale for ch in self.text]
+
+    def _anchor_shift_mm(self, metrics, scale):
+        """Décalage de la ligne de base selon `text_anchor`, le long du haut des lettres."""
+        cap = metrics.capHeight() if metrics.capHeight() > 0 else metrics.ascent() * 0.7
+        return anchor_offset_mm(getattr(self, "text_anchor", "above"), cap * scale)
+
+    def arc_baseline_radius_mm(self):
+        """Rayon réel de la ligne de base d'un texte sur un cercle : le rayon réglé, corrigé de l'ancrage
+        (le haut des lettres vise l'extérieur, ou le centre pour un texte à l'intérieur)."""
+        _font, metrics, scale = self._font_metrics_scale()
+        shift = self._anchor_shift_mm(metrics, scale)
+        radius = self.arc_radius_mm - shift if getattr(self, "arc_inside", False) else self.arc_radius_mm + shift
+        return max(radius, 0.1)
+
+    def local_path(self) -> QPainterPath:
+        font, metrics, scale = self._font_metrics_scale()
 
         # getattr : un projet enregistré avant le texte sur arc / sur tracé n'a pas ces champs.
         if not self.vertical and getattr(self, "follow_points", None):
@@ -608,7 +639,7 @@ class TextObject(VectorObject):
         en Y vers le haut, comme le repère monde, puis remis en Y vers le bas (repère local Qt)."""
         chars = list(self.text)
         advances = [metrics.horizontalAdvance(ch) * scale for ch in chars]
-        spots = arc_placements(advances, self.arc_radius_mm,
+        spots = arc_placements(advances, self.arc_baseline_radius_mm(),
                                getattr(self, "arc_center_deg", None),
                                bool(getattr(self, "arc_inside", False)),
                                self.letter_spacing_mm)
@@ -641,7 +672,7 @@ class TextObject(VectorObject):
                                     getattr(self, "follow_center", None),
                                     self.letter_spacing_mm,
                                     bool(getattr(self, "follow_reverse", False)),
-                                    getattr(self, "follow_gap_mm", 0.0))
+                                    getattr(self, "follow_gap_mm", 0.0) + self._anchor_shift_mm(metrics, scale))
         except ValueError:      # tracé inutilisable (un seul point, longueur nulle)
             return QPainterPath()
         out = QPainterPath()
@@ -1126,6 +1157,7 @@ class VectorCanvasView(QGraphicsView):
     insert_text_requested = pyqtSignal(float, float)  # clic droit > Texte (x_mm, y_mm)
     serial_duplicate_requested = pyqtSignal()        # clic droit > Dupliquer en série...
     jig_requested = pyqtSignal()                     # clic droit > Gabarit de placement...
+    medal_text_requested = pyqtSignal()              # clic droit > Texte de médaille...
 
     def __init__(self, layer_manager: LayerManager, parent=None):
         super().__init__(parent)
@@ -1189,6 +1221,11 @@ class VectorCanvasView(QGraphicsView):
         self._node_mode = False
         self._node_target_item = None
         self._node_handles = []
+        # Poignée qui fait glisser un texte le long du contour qu'il suit (voir _sync_follow_handle).
+        self._follow_handle = None
+        self._follow_handle_item = None
+        self._follow_dragging = False
+        self._follow_drag_pushed = False
         self._node_polylines = []  # list[list[QPointF]] en coordonnées locales objet
         self._node_drag_index = None  # (poly_idx, pt_idx) pendant un drag
         self._node_drag_pushed_undo = False
@@ -1555,6 +1592,13 @@ class VectorCanvasView(QGraphicsView):
             event.accept()
             return
 
+        if (event.button() == Qt.MouseButton.LeftButton and not self._draw_tool
+                and self._hit_follow_handle(event.position().toPoint())):
+            self._follow_dragging = True
+            self._follow_drag_pushed = False
+            event.accept()
+            return
+
         if event.button() == Qt.MouseButton.LeftButton and self._draw_tool == "measure":
             raw = self.mapToScene(event.position().toPoint())
             pt, snapped = self._snap_scene_pos(raw)
@@ -1715,6 +1759,12 @@ class VectorCanvasView(QGraphicsView):
             self.verticalScrollBar().setValue(
                 self.verticalScrollBar().value() - delta.y()
             )
+            event.accept()
+            return
+
+        # Glisser la poignée d'un texte le long de son contour
+        if self._follow_dragging and event.buttons() & Qt.MouseButton.LeftButton:
+            self._drag_follow_handle(event.position().toPoint())
             event.accept()
             return
 
@@ -2355,8 +2405,22 @@ class VectorCanvasView(QGraphicsView):
     def _on_selection_changed(self):
         _, obj = self.selected_object()
         self.selection_changed.emit(obj)
+        self._sync_follow_handle()
 
     def mouseReleaseEvent(self, event):
+        if self._follow_dragging and event.button() == Qt.MouseButton.LeftButton:
+            self._follow_dragging = False
+            self._follow_drag_pushed = False
+            event.accept()
+            return
+        self._mouse_release_core(event)
+        # Un objet qu'on vient de déplacer : les textes qui suivent son contour le suivent aussi, et la poignée
+        # du texte sélectionné est replacée.
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.resync_linked_texts([i.obj for i in self.selected_items_vector()])
+            self._sync_follow_handle()
+
+    def _mouse_release_core(self, event):
         if event.button() == Qt.MouseButton.MiddleButton:
             self._pan_last_pos = None
             self.setCursor(
@@ -3052,23 +3116,11 @@ class VectorCanvasView(QGraphicsView):
             best.append(best[0])
         return best
 
-    def make_text_follow_object(self):
-        """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
-        le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer).
-        Renvoie False si la sélection ne convient pas."""
-        pair = self.text_follow_candidates()
-        if pair is None:
-            return False
-        text_item, guide_item = pair
-        pts = self._guide_polyline(guide_item.obj)
-        if pts is None:
-            return False
-        pts = orient_path(pts)
-        if path_length(pts) < 1.0:
-            return False
+    def _apply_follow(self, text, guide_obj, pts, keep_settings=False):
+        """Pose `text` sur le contour `pts` (de `guide_obj`) : copie du tracé, origine, position par défaut.
+        `keep_settings` : texte déjà posé sur un tracé qu'on resynchronise, la position, le côté et la
+        distance choisis sont conservés."""
         origin = (min(x for x, _y in pts), min(y for _x, y in pts))
-        self.push_undo_snapshot()
-        text = text_item.obj
         # Le texte est calculé directement dans le repère du tracé : ni rotation ni miroir, origine = coin
         # bas-gauche du tracé.
         text.rotation_deg = 0.0
@@ -3079,13 +3131,210 @@ class VectorCanvasView(QGraphicsView):
         text.x_mm, text.y_mm = origin
         text.follow_points = relative_points(pts, origin)
         text.follow_closed = is_closed(pts)
-        text.follow_center = default_center_fraction(pts)
-        text.follow_reverse = False
-        text.follow_gap_mm = 0.0
+        text.follow_guide_id = guide_obj.id
+        if not keep_settings:
+            text.follow_center = default_center_fraction(pts)
+            text.follow_reverse = False
+            text.follow_gap_mm = 0.0
+
+    def make_text_follow_object(self):
+        """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
+        le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer). Si le
+        texte suivait déjà un contour, ses réglages (position, côté, distance) sont conservés : c'est une
+        resynchronisation. Renvoie False si la sélection ne convient pas."""
+        pair = self.text_follow_candidates()
+        if pair is None:
+            return False
+        text_item, guide_item = pair
+        pts = self._guide_polyline(guide_item.obj)
+        if pts is None:
+            return False
+        pts = orient_path(pts)
+        if path_length(pts) < 1.0:
+            return False
+        self.push_undo_snapshot()
+        text = text_item.obj
+        self._apply_follow(text, guide_item.obj, pts, keep_settings=bool(getattr(text, "follow_points", None)))
         text_item.refresh()
         self.scene_obj.clearSelection()
         text_item.setSelected(True)
         return True
+
+    def _object_by_id(self, obj_id):
+        for it in self.scene_obj.items():
+            if isinstance(it, VectorGraphicsItem) and it.obj.id == obj_id:
+                return it
+        return None
+
+    def linked_guide_item(self, text_obj):
+        """Élément de l'objet dont `text_obj` a copié le contour, s'il existe encore (sinon None)."""
+        guide_id = getattr(text_obj, "follow_guide_id", None)
+        if not guide_id or not getattr(text_obj, "follow_points", None):
+            return None
+        item = self._object_by_id(guide_id)
+        return item if item is not None and not isinstance(item.obj, TextObject) else None
+
+    def resync_text_guide(self, text_item, push_undo=True):
+        """Recopie le contour de l'objet guide dans le texte (le guide a bougé ou changé de taille), en
+        gardant la position, le côté et la distance. Renvoie False si le guide n'existe plus."""
+        guide_item = self.linked_guide_item(text_item.obj)
+        if guide_item is None:
+            return False
+        pts = self._guide_polyline(guide_item.obj)
+        if pts is None:
+            return False
+        pts = orient_path(pts)
+        if path_length(pts) < 1.0:
+            return False
+        if push_undo:
+            self.push_undo_snapshot()
+        self._apply_follow(text_item.obj, guide_item.obj, pts, keep_settings=True)
+        text_item.refresh()
+        return True
+
+    def resync_linked_texts(self, guide_objs):
+        """Resynchronise (sans nouvelle étape d'annulation) les textes liés aux objets `guide_objs` : appelé
+        quand on vient de déplacer ou modifier ces objets."""
+        ids = {o.id for o in guide_objs if not isinstance(o, TextObject)}
+        if not ids:
+            return 0
+        done = 0
+        for item in [i for i in self.scene_obj.items() if isinstance(i, VectorGraphicsItem)]:
+            if isinstance(item.obj, TextObject) and getattr(item.obj, "follow_guide_id", None) in ids:
+                if self.resync_text_guide(item, push_undo=False):
+                    done += 1
+        return done
+
+    # -- Texte de médaille : un texte en haut et un en bas, à l'intérieur d'un contour fermé -----------------
+
+    def medal_guide_item(self):
+        """L'élément sélectionné s'il s'agit d'un seul objet (hors texte) à contour fermé, sinon None."""
+        items = self.selected_items_vector()
+        if len(items) != 1 or isinstance(items[0].obj, TextObject):
+            return None
+        pts = self._guide_polyline(items[0].obj)
+        if pts is None or not is_closed(pts) or path_length(pts) < 1.0:
+            return None
+        return items[0]
+
+    def make_medal_texts(self, top_text, bottom_text, font_family, size_mm, margin_mm, layer_id,
+                         bold=False, italic=False):
+        """Pose `top_text` en haut et `bottom_text` en bas, à l'intérieur du contour fermé sélectionné : les
+        deux se lisent à l'endroit, la tête des lettres vers l'extérieur en haut, vers le centre en bas, à
+        `margin_mm` du trait. Un texte vide est ignoré. Renvoie la liste des objets texte créés."""
+        guide_item = self.medal_guide_item()
+        if guide_item is None:
+            return []
+        pts = orient_path(self._guide_polyline(guide_item.obj))
+        created = []
+        self.push_undo_snapshot()
+        for text, bottom in ((top_text, False), (bottom_text, True)):
+            if not text.strip():
+                continue
+            obj = TextObject(text=text, font_family=font_family, size_mm=size_mm, bold=bold, italic=italic,
+                             layer_id=layer_id)
+            self._apply_follow(obj, guide_item.obj, pts)
+            obj.follow_center = side_center_fraction(pts, "bottom" if bottom else "top")
+            if bottom:
+                # Lu de gauche à droite en bas : sens inversé, le haut des lettres vise le centre.
+                obj.follow_reverse = True
+                obj.text_anchor = "above"
+                obj.follow_gap_mm = margin_mm
+            else:
+                # En haut, à l'endroit : lettres accrochées sous le trait, vers le centre.
+                obj.follow_reverse = False
+                obj.text_anchor = "below"
+                obj.follow_gap_mm = -margin_mm
+            self.add_object(obj)
+            created.append(obj)
+        return created
+
+    def discard_added_object(self, item):
+        """Retire un objet qu'on vient d'ajouter pour un aperçu, et l'étape d'annulation prise juste avant :
+        la boîte de dialogue a été annulée."""
+        try:
+            self.objects.remove(item.obj)
+        except ValueError:
+            pass
+        try:
+            self.scene_obj.removeItem(item)
+        except RuntimeError:
+            pass
+        if self._undo_stack:
+            self._undo_stack.pop()
+        self._sync_follow_handle()
+
+    # -- Poignée : faire glisser un texte le long de son contour --------------------------------------------
+
+    def _follow_text_item(self):
+        """L'élément texte sélectionné s'il suit un contour (et seul), sinon None."""
+        items = self.selected_items_vector()
+        if len(items) != 1:
+            return None
+        obj = items[0].obj
+        if isinstance(obj, TextObject) and not obj.vertical and getattr(obj, "follow_points", None):
+            return items[0]
+        return None
+
+    def _follow_handle_scene_pos(self, item):
+        obj = item.obj
+        x, y = point_at_fraction(obj.follow_points, float(getattr(obj, "follow_center", 0.5)))
+        s = self.px_per_mm
+        # Le chemin local du texte est en Y vers le bas : même passage mm -> px que VectorGraphicsItem.
+        return item.mapToScene(QPointF(x * s, -y * s))
+
+    def _sync_follow_handle(self):
+        """Crée, déplace ou retire la poignée selon la sélection (un texte posé sur un contour)."""
+        item = self._follow_text_item()
+        if item is None:
+            if self._follow_handle is not None:
+                try:
+                    self.scene_obj.removeItem(self._follow_handle)
+                except RuntimeError:
+                    pass
+            self._follow_handle = None
+            self._follow_handle_item = None
+            return
+        if self._follow_handle is None or self._follow_handle_item is not item:
+            if self._follow_handle is not None:
+                try:
+                    self.scene_obj.removeItem(self._follow_handle)
+                except RuntimeError:
+                    pass
+            handle = QGraphicsEllipseItem(-6.0, -6.0, 12.0, 12.0)
+            handle.setBrush(QBrush(QColor("#00d4ff")))
+            handle.setPen(QPen(QColor("#102030"), 1))
+            handle.setZValue(2100)
+            # Taille constante à l'écran, quel que soit le zoom.
+            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
+            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
+            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
+            handle.setToolTip(tr("vector.follow_handle_tip"))
+            self.scene_obj.addItem(handle)
+            self._follow_handle = handle
+            self._follow_handle_item = item
+        self._follow_handle.setPos(self._follow_handle_scene_pos(item))
+
+    def _hit_follow_handle(self, view_pos):
+        if self._follow_handle is None:
+            return False
+        center = self.mapFromScene(self._follow_handle.pos())
+        return (view_pos - center).manhattanLength() <= 14
+
+    def _drag_follow_handle(self, view_pos):
+        """Le texte suit la souris le long de son contour (point le plus proche)."""
+        item = self._follow_handle_item
+        if item is None:
+            return
+        s = self.px_per_mm
+        local = item.mapFromScene(self.mapToScene(view_pos))
+        point = (local.x() / s, -local.y() / s)
+        if not self._follow_drag_pushed:
+            self.push_undo_snapshot()
+            self._follow_drag_pushed = True
+        item.obj.follow_center = project_fraction(item.obj.follow_points, point)
+        item.refresh()
+        self._follow_handle.setPos(self._follow_handle_scene_pos(item))
 
     def _populate_selection_menu(self, menu, selected):
         """Entrées du clic droit qui agissent sur la sélection courante."""
@@ -3114,9 +3363,18 @@ class VectorCanvasView(QGraphicsView):
             explode_action = menu.addAction(tr("vector.explode_path"))
             explode_action.triggered.connect(self.explode_selected)
 
-        if self.text_follow_candidates() is not None:
-            follow_action = menu.addAction(tr("vector.text_follow"))
+        pair = self.text_follow_candidates()
+        if pair is not None:
+            already = bool(getattr(pair[0].obj, "follow_points", None))
+            follow_action = menu.addAction(tr("vector.text_resync" if already else "vector.text_follow"))
             follow_action.triggered.connect(self.make_text_follow_object)
+        elif len(selected) == 1 and isinstance(selected[0].obj, TextObject):
+            if self.linked_guide_item(selected[0].obj) is not None:
+                resync_action = menu.addAction(tr("vector.text_resync"))
+                resync_action.triggered.connect(lambda: self.resync_text_guide(selected[0]))
+        if self.medal_guide_item() is not None:
+            medal_action = menu.addAction(tr("vector.medal"))
+            medal_action.triggered.connect(self.medal_text_requested.emit)
 
         if len(selected) == 1:
             nodes_action = menu.addAction(tr("vector.edit_nodes"))
@@ -3308,23 +3566,43 @@ class TextInsertDialog(QDialog):
     # Position d'un texte sur un cercle selon le côté choisi (degrés, 90 = haut, 270 = bas).
     _ARC_SIDE_DEG = {"top": 90.0, "bottom": 270.0, "left": 180.0, "right": 0.0}
 
-    def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None, on_preview=None):
+    def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None, on_preview=None,
+                 is_new=False):
         """`on_preview` : appelé après chaque réglage d'un texte déjà posé, pour redessiner l'objet pendant
         que la boîte est ouverte (aperçu en direct). L'objet est remis dans son état d'origine à la
-        fermeture : l'appelant applique ensuite `get_object()` si la boîte est acceptée."""
+        fermeture : l'appelant applique ensuite `get_object()` si la boîte est acceptée.
+        `is_new` : le texte vient d'être posé sur le canevas pour l'aperçu (il n'existait pas avant la boîte)."""
         super().__init__(parent)
-        self.setWindowTitle(tr("vector.dlg.text_title_new") if text_obj is None else tr("vector.dlg.text_title_edit"))
+        self.setWindowTitle(tr("vector.dlg.text_title_new") if (text_obj is None or is_new)
+                            else tr("vector.dlg.text_title_edit"))
         self.layer_manager = layer_manager
         self.editing = text_obj
         self._on_preview = on_preview if text_obj is not None else None
         self._original_state = dict(text_obj.__dict__) if text_obj is not None else None
         self._follow_points = list(getattr(text_obj, "follow_points", None) or [])
+        self._follow_guide_id = getattr(text_obj, "follow_guide_id", None)
         self._place_touched = False      # l'utilisateur a choisi lui-même la position
         self._syncing = False            # réglage modifié par le code, pas par l'utilisateur
 
         layout = QFormLayout(self)
 
-        self.edit_text = QLineEdit(text_obj.text if text_obj else tr("vector.dlg.text_default"))
+        # Préréglages : police, taille, disposition... enregistrés sous un nom.
+        self.combo_preset = QComboBox()
+        self.btn_preset_save = QPushButton(tr("vector.dlg.preset_save"))
+        self.btn_preset_delete = QPushButton(tr("vector.dlg.preset_delete"))
+        preset_row = QHBoxLayout()
+        preset_row.addWidget(self.combo_preset, 1)
+        preset_row.addWidget(self.btn_preset_save)
+        preset_row.addWidget(self.btn_preset_delete)
+        layout.addRow(tr("vector.dlg.preset"), preset_row)
+        self._reload_presets()
+        self.combo_preset.activated.connect(self._on_preset_chosen)
+        self.btn_preset_save.clicked.connect(self._save_preset)
+        self.btn_preset_delete.clicked.connect(self._delete_preset)
+
+        self.edit_text = QLineEdit(text_obj.text if (text_obj and not is_new) else tr("vector.dlg.text_default"))
+        if is_new:
+            self.edit_text.selectAll()      # on tape directement le texte voulu
         layout.addRow(tr("vector.dlg.text_label"), self.edit_text)
 
         self.combo_font = QFontComboBox()
@@ -3343,7 +3621,7 @@ class TextInsertDialog(QDialog):
         self.spin_size.setSuffix(" mm")
         layout.addRow(tr("vector.dlg.size_height"), self.spin_size)
 
-        self.spin_spacing = QDoubleSpinBox(); self.spin_spacing.setRange(-5.0, 50.0)
+        self.spin_spacing = QDoubleSpinBox(); self.spin_spacing.setRange(-5.0, 500.0)
         self.spin_spacing.setValue(text_obj.letter_spacing_mm if text_obj else 0.0)
         self.spin_spacing.setSuffix(" mm")
         layout.addRow(tr("vector.dlg.letter_spacing"), self.spin_spacing)
@@ -3395,6 +3673,25 @@ class TextInsertDialog(QDialog):
             layout.addRow(tr("vector.dlg.follow_gap"), self.spin_follow_gap)
             self.chk_follow_detach = QCheckBox(tr("vector.dlg.follow_detach"))
             layout.addRow(self.chk_follow_detach)
+
+        # Position des lettres par rapport au trait (cercle ou contour).
+        self.combo_anchor = QComboBox()
+        for anchor in ANCHORS:
+            self.combo_anchor.addItem(tr("vector.dlg.anchor_" + anchor), anchor)
+        current_anchor = getattr(text_obj, "text_anchor", "above")
+        self.combo_anchor.setCurrentIndex(max(0, self.combo_anchor.findData(current_anchor)))
+        layout.addRow(tr("vector.dlg.anchor"), self.combo_anchor)
+
+        # Étaler : règle l'espacement pour que le texte couvre une part du cercle ou du contour.
+        spread_row = QHBoxLayout()
+        self.spin_span = QDoubleSpinBox(); self.spin_span.setRange(1.0, 100.0)
+        self.spin_span.setDecimals(0); self.spin_span.setSuffix(" %"); self.spin_span.setValue(100.0)
+        self.btn_spread = QPushButton(tr("vector.dlg.spread_btn"))
+        self.btn_spread.setToolTip(tr("vector.dlg.spread_tip"))
+        self.btn_spread.clicked.connect(self._spread_text)
+        spread_row.addWidget(self.spin_span); spread_row.addWidget(self.btn_spread)
+        layout.addRow(tr("vector.dlg.spread"), spread_row)
+        self._update_arc_enabled()
 
         orient_row = QHBoxLayout()
         self.rb_horizontal = QRadioButton(tr("vector.dlg.horizontal"))
@@ -3507,7 +3804,8 @@ class TextInsertDialog(QDialog):
                    self.spin_spacing.valueChanged, self.spin_arc_radius.valueChanged,
                    self.combo_arc_side.currentIndexChanged, self.spin_arc_center.valueChanged,
                    self.rb_vertical.toggled, self.chk_mirror_h.toggled, self.chk_mirror_v.toggled,
-                   self.combo_layer.currentIndexChanged, self.spin_x.valueChanged, self.spin_y.valueChanged]
+                   self.combo_layer.currentIndexChanged, self.spin_x.valueChanged, self.spin_y.valueChanged,
+                   self.combo_anchor.currentIndexChanged]
         if self._has_follow:
             signals += [self.spin_follow_pos.valueChanged, self.chk_follow_reverse.toggled,
                         self.spin_follow_gap.valueChanged, self.chk_follow_detach.toggled]
@@ -3520,6 +3818,93 @@ class TextInsertDialog(QDialog):
             self._on_preview()
         except Exception:       # un réglage en cours de saisie ne doit jamais fermer la boîte
             pass
+
+    # -- Étaler le texte ---------------------------------------------------------------------------------
+
+    def _spread_text(self):
+        """Règle l'espacement des lettres pour que le texte couvre la part du cercle ou du contour demandée."""
+        if self.editing is None:
+            return
+        obj = self.get_object()
+        fraction = self.spin_span.value() / 100.0
+        wrap = fraction >= 0.999
+        if self._has_follow and not self.chk_follow_detach.isChecked():
+            span = fraction * path_length(self._follow_points)
+            wrap = wrap and is_closed(self._follow_points)
+        elif obj.arc_radius_mm > 0:
+            span = fraction * 2.0 * math.pi * obj.arc_baseline_radius_mm()
+        else:
+            return
+        spacing = spacing_to_span(obj.text_advances_mm(), span, wrap)
+        self.spin_spacing.setValue(min(self.spin_spacing.maximum(), max(self.spin_spacing.minimum(), spacing)))
+
+    # -- Préréglages -------------------------------------------------------------------------------------
+
+    def _reload_presets(self, select=None):
+        self.combo_preset.clear()
+        self.combo_preset.addItem(tr("vector.dlg.preset_none"), None)
+        for name in sorted(text_presets.load_user(), key=str.lower):
+            self.combo_preset.addItem(name, name)
+        idx = self.combo_preset.findData(select) if select else 0
+        self.combo_preset.setCurrentIndex(max(0, idx))
+        self.btn_preset_delete.setEnabled(self.combo_preset.currentData() is not None)
+
+    def _preset_values(self):
+        values = {
+            "font_family": self.combo_font.currentFont().family(),
+            "bold": self.chk_bold.isChecked(), "italic": self.chk_italic.isChecked(),
+            "size_mm": self.spin_size.value(), "letter_spacing_mm": self.spin_spacing.value(),
+            "text_anchor": self.combo_anchor.currentData(),
+        }
+        if self._has_follow:
+            values["follow_reverse"] = self.chk_follow_reverse.isChecked()
+            values["follow_gap_mm"] = self.spin_follow_gap.value()
+        else:
+            values["arc_radius_mm"] = self.spin_arc_radius.value()
+            values["arc_inside"] = bool(self.combo_arc_side.currentData())
+        return values
+
+    def _apply_preset(self, v):
+        if "font_family" in v:
+            self.combo_font.setCurrentFont(QFont(v["font_family"]))
+        if "bold" in v:
+            self.chk_bold.setChecked(v["bold"])
+        if "italic" in v:
+            self.chk_italic.setChecked(v["italic"])
+        if "size_mm" in v:
+            self.spin_size.setValue(v["size_mm"])
+        if "letter_spacing_mm" in v:
+            self.spin_spacing.setValue(v["letter_spacing_mm"])
+        if "text_anchor" in v:
+            self.combo_anchor.setCurrentIndex(max(0, self.combo_anchor.findData(v["text_anchor"])))
+        if self._has_follow:
+            if "follow_reverse" in v:
+                self.chk_follow_reverse.setChecked(v["follow_reverse"])
+            if "follow_gap_mm" in v:
+                self.spin_follow_gap.setValue(v["follow_gap_mm"])
+        else:
+            if "arc_radius_mm" in v:
+                self.spin_arc_radius.setValue(v["arc_radius_mm"])
+            if "arc_inside" in v:
+                self.combo_arc_side.setCurrentIndex(1 if v["arc_inside"] else 0)
+
+    def _on_preset_chosen(self, _index):
+        name = self.combo_preset.currentData()
+        self.btn_preset_delete.setEnabled(name is not None)
+        if name is not None:
+            self._apply_preset(text_presets.load_user().get(name, {}))
+
+    def _save_preset(self):
+        name, ok = QInputDialog.getText(self, tr("vector.dlg.preset_name_title"), tr("vector.dlg.preset_name_label"),
+                                        text=self.combo_preset.currentData() or "")
+        if ok and name.strip():
+            if text_presets.save_user(name, self._preset_values()):
+                self._reload_presets(select=name.strip())
+
+    def _delete_preset(self):
+        name = self.combo_preset.currentData()
+        if name is not None and text_presets.delete_user(name):
+            self._reload_presets()
 
     def showEvent(self, event):
         """Aperçu en direct : la boîte se range sur le côté droit de la fenêtre pour laisser voir le texte."""
@@ -3573,6 +3958,11 @@ class TextInsertDialog(QDialog):
         on = self.spin_arc_radius.value() > 0
         self.combo_arc_side.setEnabled(on)
         self.spin_arc_center.setEnabled(on)
+        curved = on or getattr(self, "_has_follow", False)
+        if hasattr(self, "combo_anchor"):
+            self.combo_anchor.setEnabled(curved)
+            self.spin_span.setEnabled(curved)
+            self.btn_spread.setEnabled(curved)
         if hasattr(self, "combo_place"):
             self.combo_place.setEnabled(on)
 
@@ -3591,10 +3981,14 @@ class TextInsertDialog(QDialog):
         obj.arc_radius_mm = self.spin_arc_radius.value()
         obj.arc_inside = bool(self.combo_arc_side.currentData())
         obj.arc_center_deg = self.spin_arc_center.value()
+        obj.text_anchor = self.combo_anchor.currentData() or "above"
         if self._has_follow:
             if self.chk_follow_detach.isChecked():
                 obj.follow_points = None        # redevient un texte droit
+                obj.follow_guide_id = None
             else:
+                obj.follow_points = list(self._follow_points)    # (l'aperçu a pu détacher le texte)
+                obj.follow_guide_id = self._follow_guide_id
                 obj.follow_center = self.spin_follow_pos.value() / 100.0
                 obj.follow_reverse = self.chk_follow_reverse.isChecked()
                 obj.follow_gap_mm = self.spin_follow_gap.value()
@@ -3605,6 +3999,55 @@ class TextInsertDialog(QDialog):
         obj.x_mm = self.spin_x.value()
         obj.y_mm = self.spin_y.value()
         return obj
+
+
+class MedalTextDialog(QDialog):
+    """Texte de médaille : un texte en haut et un en bas, à l'intérieur du contour fermé sélectionné."""
+
+    def __init__(self, layer_manager: LayerManager, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(tr("vector.medal_title"))
+        layout = QFormLayout(self)
+        self.edit_top = QLineEdit()
+        layout.addRow(tr("vector.medal.top"), self.edit_top)
+        self.edit_bottom = QLineEdit()
+        layout.addRow(tr("vector.medal.bottom"), self.edit_bottom)
+        self.combo_font = QFontComboBox()
+        layout.addRow(tr("vector.dlg.font"), self.combo_font)
+        style_row = QHBoxLayout()
+        self.chk_bold = QCheckBox(tr("vector.dlg.bold"))
+        self.chk_italic = QCheckBox(tr("vector.dlg.italic"))
+        style_row.addWidget(self.chk_bold); style_row.addWidget(self.chk_italic)
+        layout.addRow(tr("vector.dlg.style"), style_row)
+        self.spin_size = QDoubleSpinBox(); self.spin_size.setRange(1.0, 200.0)
+        self.spin_size.setValue(6.0); self.spin_size.setSuffix(" mm")
+        layout.addRow(tr("vector.dlg.size_height"), self.spin_size)
+        self.spin_margin = QDoubleSpinBox(); self.spin_margin.setRange(0.0, 50.0)
+        self.spin_margin.setDecimals(1); self.spin_margin.setValue(2.0); self.spin_margin.setSuffix(" mm")
+        layout.addRow(tr("vector.medal.margin"), self.spin_margin)
+        self.combo_layer = QComboBox()
+        for l in layer_manager.layers:
+            self.combo_layer.addItem(layer_label(l), l.id)
+        engrave = layer_manager.engrave_layer()
+        idx = self.combo_layer.findData(engrave.id) if engrave is not None else -1
+        if idx >= 0:
+            self.combo_layer.setCurrentIndex(idx)
+        layout.addRow(tr("ui.vector_layer"), self.combo_layer)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.accepted.connect(self._accept_if_text)
+        buttons.rejected.connect(self.reject)
+        layout.addRow(buttons)
+
+    def _accept_if_text(self):
+        if self.edit_top.text().strip() or self.edit_bottom.text().strip():
+            self.accept()
+
+    def values(self):
+        """Arguments de VectorCanvasView.make_medal_texts."""
+        return dict(top_text=self.edit_top.text(), bottom_text=self.edit_bottom.text(),
+                    font_family=self.combo_font.currentFont().family(), size_mm=self.spin_size.value(),
+                    margin_mm=self.spin_margin.value(), layer_id=self.combo_layer.currentData(),
+                    bold=self.chk_bold.isChecked(), italic=self.chk_italic.isChecked())
 
 
 class AssignLayerDialog(QDialog):

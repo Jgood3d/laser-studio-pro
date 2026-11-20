@@ -187,3 +187,57 @@ def relative_points(points, origin):
 
 def scaled_points(points, factor_x, factor_y):
     return [(x * factor_x, y * factor_y) for x, y in points]
+
+
+def point_at_fraction(points, fraction):
+    """Point (x, y) du tracé à `fraction` (0 à 1) de sa longueur, comme le voit le texte."""
+    pts = [tuple(p) for p in points]
+    cum = _cumulative(pts)
+    return _locate(pts, cum, is_closed(pts), fraction * cum[-1])
+
+
+def project_fraction(points, point):
+    """Fraction (0 à 1) de la longueur du tracé au point du tracé le plus proche de `point` (x, y) : sert à
+    faire glisser le texte à la souris le long de son contour."""
+    pts = [tuple(p) for p in points]
+    cum = _cumulative(pts)
+    total = cum[-1]
+    if len(pts) < 2 or total <= 0:
+        return 0.5
+    px, py = point
+    best_d2, best_s = None, 0.0
+    for i in range(len(pts) - 1):
+        (x1, y1), (x2, y2) = pts[i], pts[i + 1]
+        dx, dy = x2 - x1, y2 - y1
+        seg2 = dx * dx + dy * dy
+        t = 0.0 if seg2 <= 1e-18 else max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / seg2))
+        d2 = (px - (x1 + dx * t)) ** 2 + (py - (y1 + dy * t)) ** 2
+        if best_d2 is None or d2 < best_d2:
+            best_d2, best_s = d2, cum[i] + t * (cum[i + 1] - cum[i])
+    return min(1.0, max(0.0, best_s / total))
+
+
+def spacing_to_span(advances_mm, span_mm, wrap=False):
+    """Espacement entre les lettres pour que le texte couvre `span_mm` de tracé. `wrap` : le texte fait le
+    tour d'un contour fermé, il y a donc aussi un espace entre la dernière lettre et la première."""
+    n = len(advances_mm)
+    if n == 0:
+        return 0.0
+    extra = float(span_mm) - float(sum(advances_mm))
+    if wrap:
+        return extra / n
+    return extra / (n - 1) if n > 1 else 0.0
+
+
+# Position du texte par rapport au trait : décalage de la ligne de base, en fraction de la hauteur des
+# capitales, le long du haut des lettres (positif = vers le haut des lettres).
+ANCHORS = ("above", "center", "below")
+_ANCHOR_FACTOR = {"above": 0.0, "center": -0.5, "below": -1.0}
+
+
+def anchor_offset_mm(anchor, cap_height_mm):
+    """Décalage de la ligne de base : « above » la pose sur le trait (lettres au-dessus), « center » centre
+    les lettres sur le trait, « below » les accroche sous le trait (texte à l'intérieur d'un contour fermé,
+    à l'endroit en haut)."""
+    return _ANCHOR_FACTOR.get(anchor, 0.0) * cap_height_mm
+
