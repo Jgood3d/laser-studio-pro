@@ -54,7 +54,7 @@ Couleurs (Négatif)**, que vous pouvez aussi régler à la main.
 L'image est gravée avec la **puissance** et la **vitesse** d'un calque en
 mode *Gravure remplie*. Choisissez-le dans la liste *Calque de gravure* ;
 ses réglages se modifient dans l'onglet *Calques (Layers)*. Voir
-[Comprendre les couches et les matériaux](couches-et-materiaux.md).
+[Comprendre les calques et les matériaux](calques-et-materiaux.md).
 
 ## Les réglages de l'image
 

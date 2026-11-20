@@ -31,7 +31,7 @@ Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 - [Comment graver une image](graver-une-image.md)
 - [Comment graver ou découper avec une image vectorielle](graver-decouper-vectoriel.md)
 - [Images vectorielles](images-vectorielles.md) : qu'est-ce qu'un vecteur ?
-- [Comprendre les couches et les matériaux](couches-et-materiaux.md)
+- [Comprendre les calques et les matériaux](calques-et-materiaux.md)
 - [Comprendre les différents modes de gravure](modes-de-gravure.md) : puissance fixe ou variable, surbalayage
 - [Les outils](outils.md) : bibliothèque, générateurs, imbrication…
 
@@ -102,8 +102,8 @@ le choix fait dans **Paramètres › Configuration GRBL**.
 **L'ordre des calques** compte : ils sont exécutés de haut en bas. Placez
 la découpe en dernier, pour que la pièce ne bouge pas pendant la gravure.
 
-Pour aller plus loin : [Comprendre les couches et les
-matériaux](couches-et-materiaux.md) et [Comprendre les différents modes de
+Pour aller plus loin : [Comprendre les calques et les
+matériaux](calques-et-materiaux.md) et [Comprendre les différents modes de
 gravure](modes-de-gravure.md).
 
 ## Les trois onglets principaux
@@ -127,8 +127,8 @@ matériaux**. Un profil matériau (bois, bambou, cuir, verre, ardoise…)
 regroupe les réglages de tous les calques pour ce support. Créez un profil
 par matière, ajustez chaque calque, puis il suffit de choisir la matière
 pour retrouver les bons réglages. Les profils s'exportent et s'importent
-pour les partager. Voir [Comprendre les couches et les
-matériaux](couches-et-materiaux.md).
+pour les partager. Voir [Comprendre les calques et les
+matériaux](calques-et-materiaux.md).
 
 D'autres onglets complètent ces trois-là : *Vectorisation d'image* (une
 image devient un dessin vectoriel), *Séparation Couleur / Verre*,
