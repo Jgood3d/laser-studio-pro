@@ -243,24 +243,22 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
       - trou + contour extérieur de la base sur `cut_layer_id`
       - texte (remplissage) sur `engrave_layer_id`
 
-    Mode 2 couches (deux porte-clés côte à côte) :
-      - GAUCHE (fond) :
-          base (trou + contour) → découpe
-          contour fin du prénom → gravure (guide de collage)
-      - DROITE (dessus) :
-          base (trou + contour) → découpe
-          lettres solides du prénom → découpe (pièces à coller)
+    Mode 2 couches (deux porte-clés côte à côte par prénom) :
+      - GAUCHE (fond) : base découpe + contour prénom en gravure (guide)
+      - DROITE (dessus) : base découpe + lettres solides en découpe
+
+    En mode lot (plusieurs prénoms), chaque prénom est traité comme une pièce
+    indépendante pour que l'imbrication automatique les regroupe correctement.
     """
     from laser_studio.vector_layers import _merge_path_objects
 
-    two = getattr(result, "two_layers", False)
     objects = []
 
-    def _add_merged(contours, closed, tag, layer_id):
+    def _add_merged(contours, closed, tag, layer_id, ox, oy):
         if not contours:
             return
         objs = [
-            o for o in (_path_object(c, closed, tag, layer_id, offset_x_mm, offset_y_mm)
+            o for o in (_path_object(c, closed, tag, layer_id, ox, oy)
                         for c in contours)
             if o is not None
         ]
@@ -269,38 +267,43 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
         merged = _merge_path_objects(objs, source_tag=tag)
         objects.append(merged if merged is not None else objs[0])
 
-    def _add_base(base_contours, tag_prefix):
-        """Ajoute trou(s) puis contour extérieur (ordre de découpe)."""
+    def _add_base(base_contours, tag_prefix, ox, oy):
+        """Contour extérieur + trou(s) dans UN seul objet (imbrication les garde ensemble)."""
         if not base_contours:
             return
-        # Trous intérieurs d'abord
-        if len(base_contours) > 1:
-            _add_merged(base_contours[1:], True, f"{tag_prefix}:hole", cut_layer_id)
-        # Contour extérieur
-        outer = _path_object(
-            base_contours[0], True, f"{tag_prefix}:outline", cut_layer_id, offset_x_mm, offset_y_mm
+        # Un seul SvgPathObject compound : la plaque et son anneau restent liés
+        obj = _compound_path_object(
+            base_contours, f"{tag_prefix}:plate", cut_layer_id, ox, oy
         )
-        if outer is not None:
-            objects.append(outer)
+        if obj is not None:
+            objects.append(obj)
 
-    if two:
-        # ===== Pièce GAUCHE : fond + guide de collage =====
-        _add_base(result.base_contours, "keychain:bottom")
-        _add_merged(
-            getattr(result, "outline_contours", None) or [],
-            True, "keychain:glue_guide", engrave_layer_id
-        )
+    def _emit_one(res, ox, oy):
+        """Émet les objets d'un seul porte-clés (éventuellement 2 couches)."""
+        two = getattr(res, "two_layers", False)
+        if two:
+            _add_base(res.base_contours, "keychain:bottom", ox, oy)
+            _add_merged(
+                getattr(res, "outline_contours", None) or [],
+                True, "keychain:glue_guide", engrave_layer_id, ox, oy
+            )
+            _add_base(getattr(res, "top_base_contours", None) or [], "keychain:top", ox, oy)
+            _add_merged(
+                getattr(res, "top_text_contours", None) or [],
+                True, "keychain:letters", cut_layer_id, ox, oy
+            )
+        else:
+            if res.text_contours:
+                _add_merged(res.text_contours, True, "keychain:text", engrave_layer_id, ox, oy)
+            _add_base(res.base_contours, "keychain", ox, oy)
 
-        # ===== Pièce DROITE : base + lettres solides =====
-        _add_base(getattr(result, "top_base_contours", None) or [], "keychain:top")
-        _add_merged(
-            getattr(result, "top_text_contours", None) or [],
-            True, "keychain:letters", cut_layer_id
-        )
+    pieces = getattr(result, "pieces", None) or []
+    if pieces:
+        # Lot : chaque prénom a déjà ses coordonnées locales ; on applique seulement le décalage global
+        for res in pieces:
+            _emit_one(res, offset_x_mm, offset_y_mm)
     else:
-        # Mode classique
-        if result.text_contours:
-            _add_merged(result.text_contours, True, "keychain:text", engrave_layer_id)
-        _add_base(result.base_contours, "keychain")
+        # Un seul prénom
+        _emit_one(result, offset_x_mm, offset_y_mm)
 
     return objects
