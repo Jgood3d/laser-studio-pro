@@ -921,10 +921,11 @@ class VectorEditingMixin:
         new_items = [self.vector_canvas.add_object(obj) for obj in objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         self.vector_canvas.request_recenter(new_items)
+        done_key = "keychain.done_two_layers" if getattr(result, "two_layers", False) else "keychain.done"
         QMessageBox.information(
             self,
             tr("keychain.title"),
-            tr("keychain.done").format(w=result.width, h=result.height),
+            tr(done_key).format(w=result.width, h=result.height),
         )
     
     # ------------------------------------------------------------------

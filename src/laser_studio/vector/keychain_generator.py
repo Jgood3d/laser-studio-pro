@@ -1,9 +1,12 @@
 """Générateur de porte-clés personnalisés (prénom + base dilatée + anneau), façon NameKey.
 
 Repère LSP : Y vers le haut, en mm, coin bas-gauche de la pièce ramené à (0, 0).
-Produit deux ensembles de polygones fermés :
+Produit des ensembles de polygones fermés :
   - base_contours : contour extérieur de la base soudée à l'anneau + trou de l'anneau (calque Découpe)
-  - text_contours : tracé vectoriel du texte centré sur la base (calque Gravure)
+  - text_contours : tracé vectoriel du texte centré sur la base
+      * mode classique → calque Gravure (remplissage)
+      * mode 2 couches → calque Découpe (lettres solides à coller)
+  - outline_contours : contour fin du prénom (uniquement en mode 2 couches, guide de collage en Gravure)
 """
 from __future__ import annotations
 
@@ -20,7 +23,6 @@ RING_POSITIONS = ("Gauche", "Droite", "Haut", "Aucun")
 
 TEXT_REF_PX = 200.0
 FLATTEN_SCALE = 20.0
-
 
 class KeychainError(ValueError):
     """Paramètres invalides (le code sert de clé de traduction `keychain.err.<code>`)."""
@@ -43,6 +45,7 @@ class KeychainParams:
         ring_hole_d: float = 4.0,
         ring_overlap_mm: float = 2.0,
         bridge_isolated: bool = True,
+        two_layers: bool = False,
     ):
         self.text = text or ""
         self.text_height_mm = float(text_height_mm)
@@ -53,6 +56,7 @@ class KeychainParams:
         self.ring_hole_d = float(ring_hole_d)
         self.ring_overlap_mm = float(ring_overlap_mm)
         self.bridge_isolated = bool(bridge_isolated)
+        self.two_layers = bool(two_layers)
 
 
 class KeychainResult:
@@ -62,11 +66,20 @@ class KeychainResult:
         text_contours: List[Polygon],
         width: float,
         height: float,
+        outline_contours: Optional[List[Polygon]] = None,
+        two_layers: bool = False,
+        top_base_contours: Optional[List[Polygon]] = None,
+        top_text_contours: Optional[List[Polygon]] = None,
     ):
         self.base_contours = base_contours
         self.text_contours = text_contours
+        self.outline_contours = outline_contours or []
         self.width = width
         self.height = height
+        self.two_layers = bool(two_layers)
+        # Pièce de droite (couche dessus) — uniquement en mode 2 couches
+        self.top_base_contours = top_base_contours or []
+        self.top_text_contours = top_text_contours or []
 
 
 def _validate(params: KeychainParams) -> None:
@@ -267,9 +280,37 @@ def build_keychain(
         )
     )
 
+    outline_contours: List[Polygon] = []
+    top_base_contours: List[Polygon] = []
+    top_text_contours: List[Polygon] = []
+
+    if params.two_layers:
+        # Guide de collage = contours simples des lettres (pas de stroke → pas de double trait)
+        outline_contours = text_contours
+
+        # Deuxième porte-clés (couche dessus) placé à droite avec un petit espace
+        gap = 5.0  # mm entre les deux pièces
+        offset_x = final_rect.width() + gap
+
+        def _offset_polys(polys: List[Polygon], ox: float) -> List[Polygon]:
+            return [[(x + ox, y) for x, y in poly] for poly in polys]
+
+        top_base_contours = _offset_polys(base_contours, offset_x)
+        top_text_contours = _offset_polys(text_contours, offset_x)
+
+        total_width = final_rect.width() * 2 + gap
+        total_height = final_rect.height()
+    else:
+        total_width = final_rect.width()
+        total_height = final_rect.height()
+
     return KeychainResult(
         base_contours=base_contours,
         text_contours=text_contours,
-        width=final_rect.width(),
-        height=final_rect.height(),
+        width=total_width,
+        height=total_height,
+        outline_contours=outline_contours,
+        two_layers=params.two_layers,
+        top_base_contours=top_base_contours,
+        top_text_contours=top_text_contours,
     )

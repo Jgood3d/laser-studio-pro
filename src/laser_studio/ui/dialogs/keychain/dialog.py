@@ -49,18 +49,44 @@ class KeychainPreview(QWidget):
                     qp.closeSubpath()
                 return qp
 
-            # Base découpée
-            base_qp = to_qpath(self.result.base_contours)
-            p.setBrush(QColor(201, 164, 107, 75))
-            p.setPen(QPen(QColor("#ff4b4b"), 1.6))
-            p.drawPath(base_qp)
+            two = getattr(self.result, "two_layers", False)
 
-            # Texte gravé
-            if self.result.text_contours:
-                text_qp = to_qpath(self.result.text_contours)
-                p.setBrush(QColor(77, 166, 255, 160))
-                p.setPen(QPen(QColor("#4da6ff"), 1.0))
-                p.drawPath(text_qp)
+            # --- Pièce GAUCHE (fond) ---
+            if self.result.base_contours:
+                base_qp = to_qpath(self.result.base_contours)
+                p.setBrush(QColor(201, 164, 107, 75))
+                p.setPen(QPen(QColor("#ff4b4b"), 1.6))
+                p.drawPath(base_qp)
+
+            if two:
+                # Contour fin du prénom (guide de collage)
+                if getattr(self.result, "outline_contours", None):
+                    out_qp = to_qpath(self.result.outline_contours)
+                    p.setBrush(Qt.BrushStyle.NoBrush)
+                    p.setPen(QPen(QColor("#4da6ff"), 1.4))
+                    p.drawPath(out_qp)
+
+                # --- Pièce DROITE (dessus) ---
+                top_base = getattr(self.result, "top_base_contours", None) or []
+                if top_base:
+                    top_qp = to_qpath(top_base)
+                    p.setBrush(QColor(201, 164, 107, 55))
+                    p.setPen(QPen(QColor("#ff4b4b"), 1.6))
+                    p.drawPath(top_qp)
+
+                top_text = getattr(self.result, "top_text_contours", None) or []
+                if top_text:
+                    letters_qp = to_qpath(top_text)
+                    p.setBrush(QColor(120, 220, 140, 180))
+                    p.setPen(QPen(QColor("#3dba5c"), 1.0))
+                    p.drawPath(letters_qp)
+            else:
+                # Mode classique : texte gravé
+                if self.result.text_contours:
+                    text_qp = to_qpath(self.result.text_contours)
+                    p.setBrush(QColor(77, 166, 255, 160))
+                    p.setPen(QPen(QColor("#4da6ff"), 1.0))
+                    p.drawPath(text_qp)
 
             # Dimensions totales affichées en bas
             p.setPen(QColor("#a0a8b8"))
@@ -121,6 +147,11 @@ class KeychainGeneratorDialog(QDialog):
         self.chk_bridge = QCheckBox(tr("keychain.bridge_isolated"))
         self.chk_bridge.setChecked(saved.get("bridge_isolated", True))
         form.addRow("", self.chk_bridge)
+
+        self.chk_two_layers = QCheckBox(tr("keychain.two_layers"))
+        self.chk_two_layers.setChecked(saved.get("two_layers", False))
+        self.chk_two_layers.setToolTip(tr("keychain.two_layers_tip"))
+        form.addRow("", self.chk_two_layers)
 
         self.combo_ring = QComboBox()
         for key in kg.RING_POSITIONS:
@@ -193,6 +224,7 @@ class KeychainGeneratorDialog(QDialog):
             (self.spin_spacing, "valueChanged"),
             (self.spin_margin, "valueChanged"),
             (self.chk_bridge, "toggled"),
+            (self.chk_two_layers, "toggled"),
             (self.combo_ring, "currentIndexChanged"),
             (self.spin_ring_d, "valueChanged"),
             (self.spin_hole_d, "valueChanged"),
@@ -244,6 +276,7 @@ class KeychainGeneratorDialog(QDialog):
             ring_hole_d=self.spin_hole_d.value(),
             ring_overlap_mm=self.spin_overlap.value(),
             bridge_isolated=self.chk_bridge.isChecked(),
+            two_layers=self.chk_two_layers.isChecked(),
         )
 
     def settings(self) -> dict:
@@ -262,6 +295,7 @@ class KeychainGeneratorDialog(QDialog):
             "ring_hole_d": p.ring_hole_d,
             "ring_overlap_mm": p.ring_overlap_mm,
             "bridge_isolated": p.bridge_isolated,
+            "two_layers": p.two_layers,
         }
 
     def _update_preview(self):
