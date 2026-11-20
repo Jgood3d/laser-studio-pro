@@ -119,8 +119,9 @@ class KeychainGeneratorDialog(QDialog):
         form = QFormLayout()
 
         self.edit_text = QPlainTextEdit(saved.get("text", "Emma"))
-        self.edit_text.setMaximumHeight(58)
-        self.edit_text.setPlaceholderText("Prénom (2 lignes max)")
+        self.edit_text.setMinimumHeight(72)
+        self.edit_text.setMaximumHeight(110)
+        self.edit_text.setPlaceholderText(tr("keychain.text_placeholder"))
         form.addRow(tr("keychain.text"), self.edit_text)
 
         font_row = QHBoxLayout()
@@ -212,7 +213,7 @@ class KeychainGeneratorDialog(QDialog):
 
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
-        self._timer.setInterval(120)
+        self._timer.setInterval(180)
         self._timer.timeout.connect(self._update_preview)
 
         for widget, signal in (
@@ -304,6 +305,16 @@ class KeychainGeneratorDialog(QDialog):
             w.setEnabled(has_ring)
 
         ok = self.buttons.button(QDialogButtonBox.StandardButton.Ok)
+        names = [ln.strip() for ln in self.edit_text.toPlainText().splitlines() if ln.strip()]
+
+        # Lot (plusieurs prénoms) : pas de génération live (trop lent).
+        # On affiche juste le nombre et on active OK.
+        if len(names) > 1:
+            msg = tr("keychain.batch_preview").format(n=len(names))
+            self.preview.set_result(None, msg)
+            ok.setEnabled(True)
+            return
+
         try:
             family, bold, italic = self.font_options()
             res = kg.build_keychain(self.params(), family, bold, italic)

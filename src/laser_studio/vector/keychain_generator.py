@@ -1,12 +1,16 @@
 """Générateur de porte-clés personnalisés (prénom + base dilatée + anneau), façon NameKey.
 
 Repère LSP : Y vers le haut, en mm, coin bas-gauche de la pièce ramené à (0, 0).
+
+Supporte un ou plusieurs prénoms (un par ligne dans `params.text`).
+
 Produit des ensembles de polygones fermés :
-  - base_contours : contour extérieur de la base soudée à l'anneau + trou de l'anneau (calque Découpe)
-  - text_contours : tracé vectoriel du texte centré sur la base
+  - base_contours : contour(s) extérieur(s) de la/les base(s) + trou anneau (calque Découpe)
+  - text_contours : tracé vectoriel du/des texte(s)
       * mode classique → calque Gravure (remplissage)
-      * mode 2 couches → calque Découpe (lettres solides à coller)
-  - outline_contours : contour fin du prénom (uniquement en mode 2 couches, guide de collage en Gravure)
+      * mode 2 couches → lettres solides de la pièce de droite (calque Découpe)
+  - outline_contours : contours des lettres (mode 2 couches, guide de collage en Gravure)
+  - top_base_contours / top_text_contours : pièce de droite en mode 2 couches
 """
 from __future__ import annotations
 
@@ -186,13 +190,17 @@ def _remove_interior_voids(path: QPainterPath) -> QPainterPath:
     return solid.simplified()
 
 
-def build_keychain(
+def _offset_polys(polys: List[Polygon], ox: float, oy: float = 0.0) -> List[Polygon]:
+    return [[(x + ox, y + oy) for x, y in poly] for poly in polys]
+
+
+def _build_keychain_core(
     params: KeychainParams,
     family: str = "Sans Serif",
     bold: bool = True,
     italic: bool = False,
 ) -> KeychainResult:
-    """Génère les contours de découpe (base + trou) et de gravure (texte) du porte-clés."""
+    """Cœur de génération pour UN prénom."""
     _validate(params)
 
     raw_text = _build_raw_text_path(
@@ -205,7 +213,6 @@ def build_keychain(
     if raw_rect.height() <= 0 or raw_rect.width() <= 0:
         raise KeychainError("empty_text")
 
-    # Mise à l'échelle pour atteindre la hauteur demandée en mm, centré en (0, 0)
     scale = params.text_height_mm / raw_rect.height()
     cx_raw = raw_rect.center().x()
     cy_raw = raw_rect.center().y()
@@ -215,7 +222,6 @@ def build_keychain(
     text_path.setFillRule(Qt.FillRule.WindingFill)
     text_path = text_path.simplified()
 
-    # Dilatation du texte pour créer la base (contour extérieur arrondi)
     stroker = QPainterPathStroker()
     stroker.setWidth(params.margin_mm * 2.0)
     stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
@@ -225,11 +231,9 @@ def build_keychain(
     base_path = text_path.united(stroke_halo).simplified()
     base_path = _remove_interior_voids(base_path)
 
-    # Si un point sur un 'i' ou un accent forme un îlot séparé, on le relie au corps principal
     if params.bridge_isolated:
         sub_polys = _path_to_polygons(base_path, 0.0, 0.0)
         if len(sub_polys) > 1:
-            # Pont vertical/horizontal minimal vers le centre du texte
             main_rect = text_path.boundingRect()
             for pts in sub_polys:
                 xs = [p[0] for p in pts]
@@ -244,7 +248,6 @@ def build_keychain(
                 base_path = base_path.united(bridge_stroker.createStroke(bridge)).simplified()
             base_path = _remove_interior_voids(base_path)
 
-    # Ajout de l'anneau d'accroche
     base_rect = base_path.boundingRect()
     if params.ring_position != "Aucun":
         r_out = params.ring_outer_d / 2.0
@@ -257,9 +260,9 @@ def build_keychain(
         elif params.ring_position == "Droite":
             ring_cx = base_rect.right() + r_out - overlap
             ring_cy = base_rect.center().y()
-        else:  # "Haut"
+        else:
             ring_cx = base_rect.center().x()
-            ring_cy = base_rect.bottom() + r_out - overlap  # Y vers le haut : bottom() est le haut géométrique
+            ring_cy = base_rect.bottom() + r_out - overlap
 
         ring_outer = _circle_path(ring_cx, ring_cy, r_out)
         ring_hole = _circle_path(ring_cx, ring_cy, r_in)
@@ -272,7 +275,6 @@ def build_keychain(
     base_contours = _path_to_polygons(base_path, dx, dy)
     text_contours = _path_to_polygons(text_path, dx, dy)
 
-    # Trie la base pour que le contour extérieur soit toujours en index 0
     base_contours.sort(
         key=lambda c: -(
             (max(p[0] for p in c) - min(p[0] for p in c))
@@ -285,19 +287,11 @@ def build_keychain(
     top_text_contours: List[Polygon] = []
 
     if params.two_layers:
-        # Guide de collage = contours simples des lettres (pas de stroke → pas de double trait)
         outline_contours = text_contours
-
-        # Deuxième porte-clés (couche dessus) placé à droite avec un petit espace
-        gap = 5.0  # mm entre les deux pièces
+        gap = 5.0
         offset_x = final_rect.width() + gap
-
-        def _offset_polys(polys: List[Polygon], ox: float) -> List[Polygon]:
-            return [[(x + ox, y) for x, y in poly] for poly in polys]
-
         top_base_contours = _offset_polys(base_contours, offset_x)
         top_text_contours = _offset_polys(text_contours, offset_x)
-
         total_width = final_rect.width() * 2 + gap
         total_height = final_rect.height()
     else:
@@ -313,4 +307,106 @@ def build_keychain(
         two_layers=params.two_layers,
         top_base_contours=top_base_contours,
         top_text_contours=top_text_contours,
+    )
+
+
+def build_keychain(
+    params: KeychainParams,
+    family: str = "Sans Serif",
+    bold: bool = True,
+    italic: bool = False,
+) -> KeychainResult:
+    """Génère un ou plusieurs porte-clés.
+
+    - Un seul prénom → comportement historique.
+    - Plusieurs prénoms (un par ligne) → grille (max 4 par rangée), 5 mm d'écart.
+    """
+    names = [ln.strip() for ln in (params.text or "").splitlines() if ln.strip()]
+    if not names:
+        raise KeychainError("empty_text")
+
+    if len(names) == 1:
+        single = KeychainParams(
+            text=names[0],
+            text_height_mm=params.text_height_mm,
+            letter_spacing=params.letter_spacing,
+            margin_mm=params.margin_mm,
+            ring_position=params.ring_position,
+            ring_outer_d=params.ring_outer_d,
+            ring_hole_d=params.ring_hole_d,
+            ring_overlap_mm=params.ring_overlap_mm,
+            bridge_isolated=params.bridge_isolated,
+            two_layers=params.two_layers,
+        )
+        return _build_keychain_core(single, family, bold, italic)
+
+    # Plusieurs noms
+    results: List[KeychainResult] = []
+    for name in names:
+        single = KeychainParams(
+            text=name,
+            text_height_mm=params.text_height_mm,
+            letter_spacing=params.letter_spacing,
+            margin_mm=params.margin_mm,
+            ring_position=params.ring_position,
+            ring_outer_d=params.ring_outer_d,
+            ring_hole_d=params.ring_hole_d,
+            ring_overlap_mm=params.ring_overlap_mm,
+            bridge_isolated=params.bridge_isolated,
+            two_layers=params.two_layers,
+        )
+        results.append(_build_keychain_core(single, family, bold, italic))
+
+    gap = 5.0
+    cols = min(4, len(results))
+    n = len(results)
+    rows = (n + cols - 1) // cols
+
+    col_widths = [0.0] * cols
+    row_heights: List[float] = []
+    for r in range(rows):
+        row_h = 0.0
+        for c in range(cols):
+            i = r * cols + c
+            if i >= n:
+                break
+            col_widths[c] = max(col_widths[c], results[i].width)
+            row_h = max(row_h, results[i].height)
+        row_heights.append(row_h)
+
+    x_offsets = [0.0]
+    for c in range(cols - 1):
+        x_offsets.append(x_offsets[-1] + col_widths[c] + gap)
+    y_offsets = [0.0]
+    for r in range(rows - 1):
+        y_offsets.append(y_offsets[-1] + row_heights[r] + gap)
+
+    all_base: List[Polygon] = []
+    all_text: List[Polygon] = []
+    all_outline: List[Polygon] = []
+    all_top_base: List[Polygon] = []
+    all_top_text: List[Polygon] = []
+
+    for i, res in enumerate(results):
+        r, c = divmod(i, cols)
+        ox = x_offsets[c]
+        oy = y_offsets[r]
+        all_base.extend(_offset_polys(res.base_contours, ox, oy))
+        all_text.extend(_offset_polys(res.text_contours, ox, oy))
+        all_outline.extend(_offset_polys(res.outline_contours, ox, oy))
+        all_top_base.extend(_offset_polys(res.top_base_contours, ox, oy))
+        all_top_text.extend(_offset_polys(res.top_text_contours, ox, oy))
+
+    total_w = x_offsets[-1] + col_widths[min(cols, n) - 1] if n else 0.0
+    total_h = y_offsets[-1] + row_heights[-1] if rows else 0.0
+
+    return KeychainResult(
+        base_contours=all_base,
+        text_contours=all_text,
+        width=total_w,
+        height=total_h,
+        outline_contours=all_outline,
+        two_layers=params.two_layers,
+        top_base_contours=all_top_base,
+        top_text_contours=all_top_text,
     )
