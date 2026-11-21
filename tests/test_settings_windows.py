@@ -306,11 +306,11 @@ class MenuStructureTests(unittest.TestCase):
                       read(os.path.join("ui", "machine", "sent_gcode", "log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
         self.assertIn("c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
-                      read("laser_control_mixin.py"))
+                      read(os.path.join("ui", "app", "window_controller.py")))
         self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
                       read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
-        self.assertIn("start_stream=self._start_stream", ui_source())
+        self.assertIn("start_stream=self.engraver.start_stream", ui_source())
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
         src = ui_source()

@@ -2,7 +2,7 @@
 choisi dans l'éditeur vectoriel."""
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QDialog, QMessageBox
+from PyQt6.QtWidgets import QDialog
 
 from laser_studio.i18n import get_current_language, tr
 from laser_studio.library.catalog import library_roots, load_catalog
@@ -33,8 +33,14 @@ class LibraryController:
     """
 
     def __init__(self, parent, layer_manager, bed_height, add_to_vector_editor,
-                 roots=library_roots):
-        self._parent = parent
+                 roots=library_roots, dialogs=None):
+        self._parent = parent                   # parent de la fenêtre de la bibliothèque
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._layers = layer_manager
         self._bed_height = bed_height
         self._add_to_vector_editor = add_to_vector_editor
@@ -47,11 +53,11 @@ class LibraryController:
         """Fenêtre de la bibliothèque ; importe le modèle choisi."""
         from laser_studio.ui.dialogs.library import LibraryDialog
         if not self._layers.layers:
-            QMessageBox.warning(self._parent, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            self._dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         categories = self.catalog()
         if not categories:
-            QMessageBox.information(self._parent, tr("library.title"), tr("library.empty"))
+            self._dialogs.info(tr("library.title"), tr("library.empty"))
             return
         try:
             icon_size = int(_settings().value(ICON_SIZE_SETTING, 160))
@@ -79,11 +85,10 @@ class LibraryController:
             artwork = import_svg(item.svg_path, variants=variants, texts=texts,
                                  bed_h_mm=self._bed_height())
         except SvgImportError as e:
-            QMessageBox.critical(self._parent, tr("vector.svg_error_title"),
-                                 tr("vector.svg_error").format(error=e))
+            self._dialogs.error(tr("vector.svg_error_title"), tr("vector.svg_error").format(error=e))
             return []
         if not artwork.items:
-            QMessageBox.information(self._parent, tr("vector.svg_empty_title"), tr("vector.svg_empty"))
+            self._dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return []
         for role, obj in artwork.items:
             obj.layer_id = self.layer_for_role(role)

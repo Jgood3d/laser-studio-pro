@@ -9,7 +9,7 @@ from typing import Callable, List, Optional
 
 import numpy as np
 from PyQt6.QtCore import QObject, QSettings, pyqtSignal
-from PyQt6.QtWidgets import QMessageBox, QWidget
+from PyQt6.QtWidgets import QWidget
 
 from laser_studio.camera.capture import CameraDevice, list_cameras, CameraCapture
 from laser_studio.camera.lens_calibration import LensCalibration, undistort
@@ -47,14 +47,22 @@ class CameraController(QObject):
         bed_size: Callable[[], tuple],
         *,
         px_per_mm: float = 5.0,
+        dialogs=None,
     ):
         """
-        parent     : widget parent des boîtes de dialogue
+        parent     : widget parent (et des boîtes de dialogue par défaut)
         bed_size   : callable → (bed_w_mm, bed_h_mm)
         px_per_mm  : résolution de l'image d'overlay générée
+        dialogs    : UserDialogs (par défaut, celles de `parent`)
         """
         super().__init__(parent)
         self._parent = parent
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._bed_size = bed_size
         self._px_per_mm = px_per_mm
         self._profile: Optional[CameraProfile] = None
@@ -174,7 +182,7 @@ class CameraController(QObject):
 
     def _warn(self, message: str) -> None:
         self.status_changed.emit(message)
-        QMessageBox.warning(self._parent, tr("camera.dialog_title"), message)
+        self._dialogs.warning(tr("camera.dialog_title"), message)
 
     def status_summary(self) -> str:
         if self._profile is None:

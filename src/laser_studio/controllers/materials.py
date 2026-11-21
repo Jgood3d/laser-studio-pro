@@ -3,7 +3,6 @@ découpe enregistrées par matière."""
 
 import json
 
-from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 from laser_studio.controllers.layer_memory import settings_from
 from laser_studio.models.materials import MaterialsModel
@@ -239,9 +238,14 @@ class MaterialsController:
     """
 
     def __init__(
-        self, parent, combo, materials, current_settings, apply_settings
+        self, parent, combo, materials, current_settings, apply_settings, dialogs=None
     ):
-        self._parent = parent
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._combo = combo
         self._current_settings = current_settings
         self._apply_settings = apply_settings
@@ -314,12 +318,8 @@ class MaterialsController:
         return self.model.store(name, self._current_settings())
 
     def new_material(self):
-        name, ok = QInputDialog.getText(
-            self._parent,
-            tr("material.new_profile_title"),
-            tr("material.new_profile_prompt"),
-        )
-        if ok and name.strip():
+        name = self._dialogs.ask_text(tr("material.new_profile_title"), tr("material.new_profile_prompt"))
+        if name is not None and name.strip():
             name = name.strip()
             self.model.store(name, self._current_settings())
             self.model.select(name)
@@ -327,51 +327,25 @@ class MaterialsController:
     def delete_selected(self):
         name = self._combo.currentText()
         if name == DEFAULT_MATERIAL:
-            QMessageBox.warning(
-                self._parent,
-                tr("material.delete_forbidden_title"),
-                tr("material.delete_forbidden_body"),
-            )
+            self._dialogs.warning(tr("material.delete_forbidden_title"), tr("material.delete_forbidden_body"))
             return
-        reply = QMessageBox.question(
-            self._parent,
-            tr("material.delete_title"),
-            tr("material.delete_body").format(name=name),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        if self._dialogs.confirm_yes_no(tr("material.delete_title"), tr("material.delete_body").format(name=name)):
             self.model.remove(name)
 
     def export_materials(self):
-        path, _ = QFileDialog.getSaveFileName(
-            self._parent,
-            tr("material.export_title"),
-            "materiaux_laser.json",
-            "JSON (*.json)",
-        )
+        path = self._dialogs.save_file(tr("material.export_title"), "materiaux_laser.json", "JSON (*.json)")
         if not path:
             return
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.materials, f, indent=2, ensure_ascii=False)
-            QMessageBox.information(
-                self._parent,
-                tr("material.export_success_title"),
-                tr("material.export_success_body").format(
-                    count=len(self.materials), path=path
-                ),
-            )
+            self._dialogs.info(tr("material.export_success_title"),
+                               tr("material.export_success_body").format(count=len(self.materials), path=path))
         except Exception as e:
-            QMessageBox.critical(
-                self._parent,
-                tr("laser.error"),
-                tr("material.error_export").format(error=e),
-            )
+            self._dialogs.error(tr("laser.error"), tr("material.error_export").format(error=e))
 
     def import_materials(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self._parent, tr("material.import_title"), "", "JSON (*.json)"
-        )
+        path = self._dialogs.open_file(tr("material.import_title"), "JSON (*.json)")
         if not path:
             return
         try:
@@ -388,16 +362,7 @@ class MaterialsController:
                 else:
                     added += 1
                 self.model.store(name, material)
-            QMessageBox.information(
-                self._parent,
-                tr("material.import_success_title"),
-                tr("material.import_success_body").format(
-                    added=added, updated=updated
-                ),
-            )
+            self._dialogs.info(tr("material.import_success_title"),
+                               tr("material.import_success_body").format(added=added, updated=updated))
         except Exception as e:
-            QMessageBox.critical(
-                self._parent,
-                tr("laser.error"),
-                tr("material.error_import").format(error=e),
-            )
+            self._dialogs.error(tr("laser.error"), tr("material.error_import").format(error=e))

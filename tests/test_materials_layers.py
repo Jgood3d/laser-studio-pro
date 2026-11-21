@@ -233,7 +233,7 @@ class WindowWiringTests(unittest.TestCase):
         src = self.read("main_window.py")
         self.assertIn("self.layers_tab.material_combo,", src)
         self.assertIn("tab.material_selected.connect(self.materials.apply_selected)", src)
-        self.assertIn("self.combo_ports = connection.ports_combo", src)
+        self.assertIn("connection.connect_requested.connect(engraver.toggle_connection)", src)
         self.assertIn("connection.help_requested.connect(lambda: port_help_dialog(self).exec())", src)
         self.assertNotIn("MachineProfilesPage", src)
         self.assertFalse(os.path.exists(os.path.join(REPO, "src", "laser_studio", "ui", "settings", "machine_profiles")))

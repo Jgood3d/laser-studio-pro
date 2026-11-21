@@ -45,8 +45,8 @@ class JogControlPanel(QGroupBox):
     fenêtre, et plus tard un contrôleur, s'y abonne :
 
         panel = JogControlPanel(max_speed=6000)
-        panel.jog_requested.connect(laser.jog_move)
-        panel.home_requested.connect(laser.home_machine)
+        panel.jog_requested.connect(engraver.jog)
+        panel.home_requested.connect(engraver.home)
 
     Il reçoit l'état de la machine par set_connected(), set_max_speed() et
     set_position() (X, Y, Z affichés sous les commandes).

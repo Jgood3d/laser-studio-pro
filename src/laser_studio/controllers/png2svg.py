@@ -4,7 +4,6 @@ d'image » (Png2SvgTab)."""
 import os
 import tempfile
 
-from PyQt6.QtWidgets import QMessageBox
 
 from laser_studio.i18n import tr
 from laser_studio.vector_layers import extract_svg_objects
@@ -30,9 +29,14 @@ class Png2SvgController:
     """
 
     def __init__(
-        self, parent, layer_manager, bed_height, add_to_vector_editor
+        self, parent, layer_manager, bed_height, add_to_vector_editor, dialogs=None
     ):
-        self._parent = parent
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._layers = layer_manager
         self._bed_height = bed_height
         self._add_to_vector_editor = add_to_vector_editor
@@ -40,37 +44,20 @@ class Png2SvgController:
     def send_to_vector_editor(self, svg_text):
         """Ajoute les objets du SVG à l'éditeur vectoriel, puis le dit."""
         if not self._layers.layers:
-            QMessageBox.warning(
-                self._parent,
-                tr("vector.no_layer_title"),
-                tr("vector.no_layer_body"),
-            )
+            self._dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
         try:
             layer = self._layers.default_svg_layer()
             objects = self._svg_objects(svg_text, layer.id)
         except Exception as e:
-            QMessageBox.critical(
-                self._parent,
-                tr("vector.svg_error_title"),
-                tr("vector.svg_error").format(error=e),
-            )
+            self._dialogs.error(tr("vector.svg_error_title"), tr("vector.svg_error").format(error=e))
             return
         if not objects:
-            QMessageBox.information(
-                self._parent,
-                tr("vector.svg_empty_title"),
-                tr("vector.svg_empty"),
-            )
+            self._dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return
         self._add_to_vector_editor(objects)
-        QMessageBox.information(
-            self._parent,
-            tr("vector.svg_success_title"),
-            tr("vector.svg_success").format(
-                count=len(objects), layer=layer.name
-            ),
-        )
+        self._dialogs.info(tr("vector.svg_success_title"),
+                           tr("vector.svg_success").format(count=len(objects), layer=layer.name))
 
     def _svg_objects(self, svg_text, layer_id):
         """Objets vectoriels du SVG (extract_svg_objects attend un

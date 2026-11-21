@@ -15,7 +15,7 @@ class JobActionsPanel(QGroupBox):
     un signal, auquel la fenêtre (plus tard un contrôleur) s'abonne.
 
         panel = JobActionsPanel()
-        panel.frame_requested.connect(laser.run_frame)
+        panel.frame_requested.connect(engraver.frame)
 
     Les boutons sont construits à partir d'une liste d'actions (voir
     _actions) : les macros de l'utilisateur pourront s'y ajouter.

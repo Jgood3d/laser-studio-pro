@@ -115,15 +115,15 @@ class MainWiringTests(unittest.TestCase):
 class LaunchConfirmationTests(unittest.TestCase):
     def test_launch_confirmation_starts_with_the_safety_warning(self):
         try:
-            from laser_studio.laser_control_mixin import LaserControlMixin
+            from laser_studio.controllers.engraver import launch_confirmation_text
             from laser_studio.i18n import tr
         except ImportError:
-            self.skipTest("laser_control_mixin non importable ici")
-        text = LaserControlMixin._launch_confirmation_text()
+            self.skipTest("controllers.engraver non importable ici")
+        text = launch_confirmation_text()
         self.assertTrue(text.startswith(tr("startup.safety.body") + "\n" + tr("startup.safety.detail")))
         self.assertTrue(text.endswith(tr("laser.confirm_body")))    # vérifications et question à la fin
-        with open(os.path.join(REPO, "src", "laser_studio", "laser_control_mixin.py"), encoding="utf-8") as f:
-            self.assertIn('tr("laser.confirm_title"),\n            self._launch_confirmation_text(),', f.read())
+        with open(os.path.join(REPO, "src", "laser_studio", "controllers", "engraver.py"), encoding="utf-8") as f:
+            self.assertIn('self.dialogs.confirm_default_no(tr("laser.confirm_title"), launch_confirmation_text())', f.read())
 
 
 if __name__ == "__main__":

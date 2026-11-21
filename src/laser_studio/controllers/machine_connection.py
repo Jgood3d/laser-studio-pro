@@ -17,6 +17,7 @@ du graveur ; le sondage périodique est alors mis en pause par l'appelant
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import get_logger
+from laser_studio.grbl.commands import HOME, UNLOCK, READ_SETTINGS, jog_command, parse_grbl_settings  # noqa: F401
 from laser_studio.grbl.connection import LaserUSBController
 from laser_studio.workers import (
     CommandThread, GCodeStreamerThread, ReconnectThread, StatusPollThread,
@@ -28,18 +29,6 @@ log = get_logger()
 FEED_HOLD = b"!"
 CYCLE_START = b"~"
 SOFT_RESET = b"\x18"
-
-
-def parse_grbl_settings(response):
-    """Réponse de « $$ » -> {"$32": "1", "$22": "0", ...} (commentaires
-    « (...) » ignorés)."""
-    grbl_settings = {}
-    for line in (response or "").splitlines():
-        line = line.strip()
-        if line.startswith("$") and "=" in line:
-            key, value = line.split("=", 1)
-            grbl_settings[key.strip()] = value.split("(", 1)[0].strip()
-    return grbl_settings
 
 
 class MachineConnection(QObject):
@@ -137,7 +126,7 @@ class MachineConnection(QObject):
     def read_settings(self):
         """Réglages du graveur ($$) : {"$22": "1", ...} ; {} si le graveur
         ne répond pas. Peut lever une exception (port fermé...)."""
-        response = self.send_command("$$")
+        response = self.send_command(READ_SETTINGS)
         log.info("Connexion : réponse à $$ (%d caractères)", len(response or ""))
         return parse_grbl_settings(response)
 
@@ -154,16 +143,16 @@ class MachineConnection(QObject):
 
     def home(self):
         """Cycle de homing ($H) : la position devient référencée."""
-        self.run_commands("$H")
+        self.run_commands(HOME)
         self.homed = True
 
     def jog(self, dx_mm, dy_mm, speed):
         """Déplacement relatif de `dx_mm`, `dy_mm`, à `speed` mm/min."""
-        self.run_commands(f"$J=G91 G21 X{dx_mm:.3f} Y{dy_mm:.3f} F{speed}")
+        self.run_commands(jog_command(dx_mm, dy_mm, speed))
 
     def unlock(self):
         """Déverrouillage après une alarme ($X)."""
-        self.run_commands("$X")
+        self.run_commands(UNLOCK)
 
     def pause(self):
         self.usb.send_raw_byte(FEED_HOLD)

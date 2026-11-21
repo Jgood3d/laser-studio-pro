@@ -11,7 +11,6 @@ import os
 from dataclasses import dataclass
 from typing import Callable
 
-from PyQt6.QtWidgets import QMessageBox
 
 from laser_studio.core.debug_log import get_logger, log_gcode_summary
 from laser_common.files import get_background_writer
@@ -25,7 +24,7 @@ QUEUE_FILENAME = "laser_studio_pro_queue.json"
 
 @dataclass
 class Engraver:
-    """Ce que la file demande au graveur (voir LaserControlMixin)."""
+    """Ce que la file demande au graveur (voir EngraverController)."""
 
     # Le port est-il ouvert ?
     is_connected: Callable[[], bool]
@@ -62,10 +61,15 @@ class JobQueueController:
     G-Code envoyé (SentGcodeLog : clear_lines, append_lines).
     """
 
-    def __init__(self, tab, parent, engraver, current_gcode, log_to_console, sent_log):
+    def __init__(self, tab, parent, engraver, current_gcode, log_to_console, sent_log, dialogs=None):
         self._tab = tab
         self._sent_log = sent_log
-        self._parent = parent
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._engraver = engraver
         self._current_gcode = current_gcode
         self._log_to_console = log_to_console
@@ -79,9 +83,7 @@ class JobQueueController:
         """Ajoute le G-Code de la console à la file, sous un nom horodaté."""
         gcode = self._current_gcode()
         if not gcode.strip():
-            QMessageBox.warning(
-                self._parent, tr("queue.empty_title"), tr("queue.no_gcode")
-            )
+            self._dialogs.warning(tr("queue.empty_title"), tr("queue.no_gcode"))
             return
         time = datetime.datetime.now().strftime("%H:%M:%S")
         name = self._unique_name(f"Job {len(self.jobs) + 1} — {time}")
@@ -191,29 +193,17 @@ class JobQueueController:
         )
         if not self.jobs:
             log.warning("File : vide, abandon")
-            QMessageBox.warning(
-                self._parent,
-                tr("queue.empty_title"),
-                tr("queue.status_empty"),
-            )
+            self._dialogs.warning(tr("queue.empty_title"), tr("queue.status_empty"))
             return
         if not engraver.is_connected():
             log.warning("File : graveur non connecté, abandon")
-            QMessageBox.warning(
-                self._parent, tr("queue.usb_error"), tr("queue.usb_connect")
-            )
+            self._dialogs.warning(tr("queue.usb_error"), tr("queue.usb_connect"))
             return
         if not engraver.confirm_homed():
             log.info("File : annulée à l'avertissement « pas de homing »")
             return
-        reply = QMessageBox.question(
-            self._parent,
-            tr("queue.confirm_title"),
-            tr("queue.confirm_body").format(count=len(self.jobs)),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        if not self._dialogs.confirm_default_no(tr("queue.confirm_title"),
+                                                tr("queue.confirm_body").format(count=len(self.jobs))):
             log.info("File : annulée à la confirmation")
             return
         log.info(
@@ -233,9 +223,7 @@ class JobQueueController:
             self._log_to_console(tr("queue.finished_log"))
             self._engraver.resume_status_poll()
             self._engraver.jobs_finished()
-            QMessageBox.information(
-                self._parent, tr("queue.done_title"), tr("queue.done_body")
-            )
+            self._dialogs.info(tr("queue.done_title"), tr("queue.done_body"))
             self._tab.set_run_enabled(True)
             self.clear()
             return
@@ -275,11 +263,7 @@ class JobQueueController:
             self._tab.set_run_enabled(True)
             self._engraver.resume_status_poll()
             self._engraver.jobs_finished()
-            QMessageBox.warning(
-                self._parent,
-                tr("queue.stopped_title"),
-                tr("queue.stopped_body"),
-            )
+            self._dialogs.warning(tr("queue.stopped_title"), tr("queue.stopped_body"))
             return
         self._running_index += 1
         self._run_next()

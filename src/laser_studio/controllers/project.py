@@ -8,7 +8,6 @@ from io import BytesIO
 
 from PIL import Image
 from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 from laser_common.files import atomic_write_json, get_background_writer
 from laser_studio.core.paths import get_autosave_dir
@@ -36,12 +35,18 @@ class ProjectController:
     None). `restore(data, image)` : réapplique un projet ouvert (image PIL
     ou None). `show_recent_projects(paths)` : met à jour le menu Fichier.
     `log_to_console(text)` : message pour l'utilisateur (barre d'état).
+    `dialogs` : UserDialogs (par défaut, celles de `parent`).
     """
 
     def __init__(
-        self, parent, capture, restore, show_recent_projects, log_to_console
+        self, parent, capture, restore, show_recent_projects, log_to_console, dialogs=None
     ):
-        self._parent = parent
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._capture = capture
         self._restore = restore
         self._show_recent_projects = show_recent_projects
@@ -75,40 +80,22 @@ class ProjectController:
     def save(self):
         """Enregistre le projet. True s'il l'a été (False : annulé ou
         erreur)."""
-        path, _ = QFileDialog.getSaveFileName(
-            self._parent,
-            tr("project.save_title"),
-            "",
-            tr("project.file_filter"),
-        )
+        path = self._dialogs.save_file(tr("project.save_title"), "", tr("project.file_filter"))
         if not path:
             return False
         try:
             atomic_write_json(path, self.data(), indent=4)
             self._add_to_recent_projects(path)
             self.discard_autosave()
-            QMessageBox.information(
-                self._parent,
-                tr("project.save_success_title"),
-                tr("project.save_success"),
-            )
+            self._dialogs.info(tr("project.save_success_title"), tr("project.save_success"))
             return True
         except Exception as e:
-            QMessageBox.critical(
-                self._parent,
-                tr("laser.error"),
-                tr("project.save_error").format(error=e),
-            )
+            self._dialogs.error(tr("laser.error"), tr("project.save_error").format(error=e))
             return False
 
     def open(self):
         """Ouvre un projet choisi dans une boîte de dialogue."""
-        path, _ = QFileDialog.getOpenFileName(
-            self._parent,
-            tr("project.open_title"),
-            "",
-            tr("project.file_filter"),
-        )
+        path = self._dialogs.open_file(tr("project.open_title"), tr("project.file_filter"))
         if path:
             self.open_path(path)
 
@@ -122,17 +109,9 @@ class ProjectController:
             image = self.decode_image(encoded) if encoded else None
             self._restore(data, image)
             self._add_to_recent_projects(path)
-            QMessageBox.information(
-                self._parent,
-                tr("project.load_success_title"),
-                tr("project.load_success"),
-            )
+            self._dialogs.info(tr("project.load_success_title"), tr("project.load_success"))
         except Exception as e:
-            QMessageBox.critical(
-                self._parent,
-                tr("laser.error"),
-                tr("project.load_error").format(error=e),
-            )
+            self._dialogs.error(tr("laser.error"), tr("project.load_error").format(error=e))
 
     # -- projets récents
 
@@ -211,13 +190,7 @@ class ProjectController:
         path = os.path.join(get_autosave_dir(), AUTOSAVE_FILENAME)
         if not os.path.exists(path):
             return
-        reply = QMessageBox.question(
-            self._parent,
-            tr("project.autosave_recovery_title"),
-            tr("project.autosave_recovery_body"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        if self._dialogs.confirm_default_no(tr("project.autosave_recovery_title"),
+                                            tr("project.autosave_recovery_body")):
             self.open_path(path)
         self.discard_autosave()

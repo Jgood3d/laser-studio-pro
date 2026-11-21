@@ -45,11 +45,11 @@ class ConnectionPanel(QGroupBox):
     celui de la machine lui sont transmis :
 
         panel = ConnectionPanel(ports_model)
-        panel.refresh_requested.connect(laser.refresh_com_ports)
+        panel.refresh_requested.connect(engraver.refresh_ports)
         panel.help_requested.connect(show_port_help)
-        panel.connect_requested.connect(laser.toggle_connection)
-        panel.unlock_requested.connect(laser.unlock_alarm)
-        panel.command_submitted.connect(laser.send_console_command)
+        panel.connect_requested.connect(engraver.toggle_connection)
+        panel.unlock_requested.connect(engraver.unlock)
+        panel.command_submitted.connect(engraver.send_console_command)
         panel.set_connected(False)
         panel.set_state("Idle")
 
@@ -102,6 +102,17 @@ class ConnectionPanel(QGroupBox):
                 CONNECTED_COLOR if connected else DISCONNECTED_COLOR
             )
         )
+
+    def set_ports(self, labels, index=0):
+        """Remplace la liste des ports et sélectionne le libellé `index`."""
+        self.ports_combo.clear()
+        self.ports_combo.addItems(labels)
+        if labels:
+            self.ports_combo.setCurrentIndex(index)
+
+    def selected_port(self):
+        """Libellé du port choisi (« /dev/ttyUSB0 - USB Serial »), "" si aucun."""
+        return self.ports_combo.currentText()
 
     def set_state(self, state):
         """État GRBL reçu du graveur (« Idle », « Alarm »…), None si

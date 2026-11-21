@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.machine.connection import ConnectionPanel
 
     panel = ConnectionPanel(ports_model)
-    panel.connect_requested.connect(self.toggle_connection)
+    panel.connect_requested.connect(engraver.toggle_connection)
     panel.set_connected(True)
 """
 

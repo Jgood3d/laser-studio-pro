@@ -1,16 +1,24 @@
-"""« Inclure $H » décoché à la connexion quand la machine a le homing désactivé ($22=0)."""
+"""« Inclure $H » décoché à la connexion quand la machine a le homing désactivé ($22=0)
+(EngraverController.check_grbl_settings, cases grisées par la fenêtre)."""
 import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, REPO)                                   # stencil_studio (window_controller)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from laser_studio.i18n import tr
+    from laser_studio.controllers.engraver import EngraverController
     from laser_studio.controllers.machine_connection import MachineConnection
-    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.grbl.commands import parse_grbl_settings
+    from laser_studio.models.grbl import GrblConfig
+    from laser_studio.ui.app.window_controller import WindowControllerMixin
+    from job_fakes import FakeDialogs
 except ImportError:  # PyQt6, pyserial... manquants
-    LaserControlMixin = None
+    EngraverController = None
 
 
 class _Check:
@@ -50,21 +58,25 @@ class _USB:
         return self.response
 
 
-@unittest.skipIf(LaserControlMixin is None, "laser_control_mixin non importable ici")
+class _Window:
+    """Les deux cases homing de la fenêtre (Configuration GRBL, matrice de test)."""
+    _set_homing_available = WindowControllerMixin._set_homing_available if EngraverController else None
+
+
+@unittest.skipIf(EngraverController is None, "PyQt6 non importable ici")
 class GrblHomingSettingTests(unittest.TestCase):
     def connect_with(self, response, f=None):
         if f is None:
-            class Fake(LaserControlMixin):
-                pass
-            f = Fake.__new__(Fake)
+            f = _Window()
             f.txt_console = _Console()
-            f.log_message = f.txt_console.append   # messages : barre d'état (log_message)
             f.chk_homing = _Check(True)
             f.chk_mat_homing = _Check(True)
-            f.warnings = []
-            f._warn = lambda title, body: f.warnings.append(title)
-        f.connection = MachineConnection(usb=_USB(response))
-        f._check_grbl_laser_mode()
+            f.dialogs = FakeDialogs()
+        engraver = EngraverController(MachineConnection(usb=_USB(response)), GrblConfig(), f.dialogs,
+                                      set_homing_available=f._set_homing_available)
+        engraver.log.connect(f.txt_console.append)         # messages : barre d'état (log_message)
+        engraver.check_grbl_settings()
+        f.warnings = [title for kind, title, _text in f.dialogs.calls if kind == "warning"]
         return f
 
     def test_homing_disabled_unchecks_and_disables_both_options(self):
@@ -95,7 +107,7 @@ class GrblHomingSettingTests(unittest.TestCase):
         self.assertFalse(f.chk_homing.enabled)
 
     def test_parse_grbl_settings(self):
-        parsed = LaserControlMixin._parse_grbl_settings("Grbl 1.1h\n$22 = 0 (homing)\n$32=1\nerror:9\nok")
+        parsed = parse_grbl_settings("Grbl 1.1h\n$22 = 0 (homing)\n$32=1\nerror:9\nok")
         self.assertEqual(parsed, {"$22": "0", "$32": "1"})
 
     def test_homing_off_shows_the_message_once(self):

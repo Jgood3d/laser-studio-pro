@@ -47,6 +47,16 @@ def port_labels(ports):
     return [f"{p.device} - {p.description}" for p in usable]
 
 
+def preferred_index(labels, wanted):
+    """Indice du libellé dont le port est `wanted`, sinon 0 (premier port,
+    un port USB s'il y en a un)."""
+    if wanted:
+        for index, label in enumerate(labels):
+            if port_of(label) == wanted:
+                return index
+    return 0
+
+
 def port_of(label):
     """« /dev/ttyUSB0 - USB Serial » -> « /dev/ttyUSB0 »."""
     return label.split(" - ")[0]

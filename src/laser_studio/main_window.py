@@ -14,6 +14,7 @@ from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QStandardItemModel
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
+from laser_studio.controllers.engraver import EngraverController
 from laser_studio.controllers.job import JobController
 from laser_studio.ui.user_dialogs import UserDialogs
 from laser_studio.ui.machine import MachinePanel
@@ -54,7 +55,6 @@ from laser_studio.ui.binding import bind
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
 from laser_studio.vector_editing_mixin import VectorEditingMixin
-from laser_studio.laser_control_mixin import LaserControlMixin
 from laser_studio.separation_mixin import SeparationMixin
 
 
@@ -62,7 +62,7 @@ log = get_logger()
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
-                       VectorEditingMixin, LaserControlMixin,
+                       VectorEditingMixin,
                        SeparationMixin):
     def __init__(self):
         super().__init__()
@@ -71,9 +71,14 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         
         self.setAcceptDrops(True)
         
-        # Dialogue avec le graveur (port, threads, état « référencé ») : voir LaserControlMixin
-        # pour l'interface.
+        # Dialogue avec le graveur (port, threads, état « référencé ») ; son
+        # pilotage (connexion, jog, envoi d'un job, configuration $$) est dans
+        # self.engraver, construit plus bas.
         self.connection = MachineConnection(parent=self)
+        # Boîtes de dialogue des contrôleurs (messages, confirmations, fichiers),
+        # centrées sur la fenêtre : les contrôleurs n'ouvrent pas de QMessageBox
+        # eux-mêmes, ce qui permet de les tester sans fenêtre.
+        self.dialogs = UserDialogs(self)
         self.raw_image = None
         self.processed_array = None
         self.loaded_svg_path = None
@@ -99,7 +104,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # de l'interface par les fonctions ci-dessous ; la fenêtre affiche ses
         # résultats (WindowControllerMixin : console, aperçu 2D).
         self.job = JobController(
-            self.layer_manager, self.grbl, self.machine, self.image_settings, UserDialogs(self),
+            self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
             geometry=self._job_geometry,
             image=lambda: self.processed_array,
             svg_path=lambda: self.loaded_svg_path,
@@ -116,6 +121,15 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.job.imported.connect(self.show_imported_gcode)
         self.job.log.connect(self.log_message)
         self.job.status.connect(self.show_status_message)
+        # Graveur : port, connexion, pilotage, envoi des jobs, configuration GRBL.
+        self.engraver = EngraverController(
+            self.connection, self.grbl, self.dialogs,
+            selected_port=lambda: self.machine_panel.connection_panel.selected_port(),
+            current_gcode=lambda: self.txt_console.toPlainText(),
+            job_geometry=self._job_geometry,
+            set_homing_available=self._set_homing_available,
+            parent=self,
+        )
         
         self.process_timer = QTimer()
         self.process_timer.setSingleShot(True)
@@ -135,6 +149,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 self.app_menu_bar.file_menu.set_recent_projects(paths)
             ),
             log_to_console=self.log_message,
+            dialogs=self.dialogs,
         )
         self.autosave_timer = QTimer()
         self.autosave_timer.setInterval(5 * 60 * 1000)
@@ -148,7 +163,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.load_splitter_sizes()
         self.restore_remembered_algorithm()
         self.update_vector_work_area()
-        self.refresh_com_ports()
+        self.engraver.refresh_ports()
         # Différé (au lieu d'un appel direct ici) : à ce stade du __init__,
         # la fenêtre n'est pas encore affichée (main.py appelle showMaximized()
         # après la construction de FullLaserStudio, une fois l'écran de
@@ -252,7 +267,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Panneau machine sous les onglets, abonné à la logique de la machine.
 
         Les sous-panneaux émettent les demandes de l'utilisateur ; la fenêtre
-        les transmet aux méthodes de LaserControlMixin. La vitesse maximale
+        les transmet au contrôleur du graveur (self.engraver). La vitesse maximale
         du graveur (`spin_machine_max_speed`, qui doit déjà exister) borne le
         curseur de vitesse du pilotage. Renvoie la zone de défilement qui
         contient le panneau, placée sous les onglets dans `center_v_splitter`.
@@ -262,29 +277,28 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.machine.max_speed,
         )
         connection = self.machine_panel.connection_panel
-        # Nom historique de la liste des ports, remplie et lue par la logique (LaserControlMixin).
-        self.combo_ports = connection.ports_combo
-        connection.refresh_requested.connect(self.refresh_com_ports)
+        engraver = self.engraver
+        connection.refresh_requested.connect(engraver.refresh_ports)
         connection.help_requested.connect(lambda: port_help_dialog(self).exec())
-        connection.connect_requested.connect(self.toggle_connection)
+        connection.connect_requested.connect(engraver.toggle_connection)
         jog = self.machine_panel.jog_panel
-        jog.jog_requested.connect(self.jog_move)
-        jog.home_requested.connect(self.home_machine)
-        jog.pause_requested.connect(self.send_pause)
-        jog.resume_requested.connect(self.send_resume)
-        jog.reset_requested.connect(self.send_reset)
-        jog.emergency_stop_requested.connect(self.emergency_stop)
-        jog.send_job_requested.connect(self.send_job)
+        jog.jog_requested.connect(engraver.jog)
+        jog.home_requested.connect(engraver.home)
+        jog.pause_requested.connect(engraver.pause)
+        jog.resume_requested.connect(engraver.resume)
+        jog.reset_requested.connect(engraver.reset)
+        jog.emergency_stop_requested.connect(engraver.emergency_stop)
+        jog.send_job_requested.connect(lambda: engraver.send_job())
         self.tab_machine_params.max_speed_changed.connect(jog.set_max_speed)
 
         job_actions = self.machine_panel.job_actions_panel
-        job_actions.frame_requested.connect(self.run_frame)
-        job_actions.set_work_zero_requested.connect(self.set_work_zero)
-        job_actions.go_to_work_zero_requested.connect(self.go_to_work_zero)
-        job_actions.repeat_job_requested.connect(self.repeat_last_job)
+        job_actions.frame_requested.connect(engraver.frame)
+        job_actions.set_work_zero_requested.connect(engraver.set_work_zero)
+        job_actions.go_to_work_zero_requested.connect(engraver.go_to_work_zero)
+        job_actions.repeat_job_requested.connect(engraver.repeat_last_job)
 
-        connection.unlock_requested.connect(self.unlock_alarm)
-        connection.command_submitted.connect(self.send_console_command)
+        connection.unlock_requested.connect(engraver.unlock)
+        connection.command_submitted.connect(engraver.send_console_command)
         # Commandes verrouillées tant que non connecté
         self.update_connection_widgets()
 
@@ -322,6 +336,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 link_layers_to_focal=lambda: self.layers_tab.link_all_to_focal(),
             ),
             save_settings=self.save_machine_settings,
+            dialogs=self.dialogs,
         )
         page.profile_selected.connect(self.machines.on_selected)
         page.new_profile_requested.connect(self.machines.new_profile)
@@ -355,10 +370,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # « Inclure $H » : mémorisé aussi (décoché d'office pour un graveur
         # sans homing, il le reste aux démarrages suivants).
         page.homing_changed.connect(self.machines.schedule_persist)
-        page.read_settings_requested.connect(self.read_grbl_settings)
-        page.send_settings_requested.connect(self.send_grbl_settings)
-        page.export_settings_requested.connect(self.export_grbl_settings)
-        page.import_settings_requested.connect(self.import_grbl_settings)
+        page.read_settings_requested.connect(self.engraver.read_settings)
+        page.send_settings_requested.connect(self.engraver.send_settings)
+        page.export_settings_requested.connect(self.engraver.export_settings)
+        page.import_settings_requested.connect(self.engraver.import_settings)
         page.link_settings_to_profile_requested.connect(
             self.machines.update_profile
         )
@@ -405,6 +420,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             page,
             loaded_image=self._loaded_image_and_width,
             image_settings=self.tab_previews.settings.processing_settings,
+            dialogs=UserDialogs(page),          # centrées sur la fenêtre de la matrice
         )
         page.choose_image_requested.connect(self.matrix_image.choose_image)
         page.use_loaded_image_requested.connect(
@@ -412,7 +428,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         )
         page.image_test_toggled.connect(self.matrix_image.on_image_test_toggled)
         # Nom historique : décochée et grisée avec chk_homing quand le
-        # graveur n'a pas de homing ($22=0, voir LaserControlMixin).
+        # graveur n'a pas de homing ($22=0, voir EngraverController).
         self.chk_mat_homing = page.homing_check
         self.tab_matrix = page
 
@@ -491,6 +507,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             materials,
             current_settings=self._job_settings,
             apply_settings=self._apply_job_settings,
+            dialogs=self.dialogs,
         )
         tab = self.layers_tab
         tab.material_selected.connect(self.materials.apply_selected)
@@ -600,6 +617,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
+            dialogs=self.dialogs,
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.update_image_actions_state)
@@ -643,6 +661,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self, self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
+            dialogs=self.dialogs,
         )
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
@@ -931,17 +950,17 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
     def _build_job_queue_tab(self):
         """Onglet « File d'attente », abonné à la file (JobQueueController),
-        qui envoie ses jobs par la connexion au graveur (LaserControlMixin)."""
+        qui envoie ses jobs par le contrôleur du graveur (self.engraver)."""
         tab = JobQueueTab()
         engraver = Engraver(
             is_connected=self.connection.is_connected,
             last_state=lambda: self.connection.last_state,
-            confirm_homed=self._confirm_homed_before_job,
-            start_stream=self._start_stream,
-            stream_ended=self._stream_ended,
-            pause_status_poll=self._pause_status_poll,
-            resume_status_poll=self._resume_status_poll,
-            jobs_finished=self._notify_job_finished,
+            confirm_homed=self.engraver.confirm_homed,
+            start_stream=self.engraver.start_stream,
+            stream_ended=self.engraver.end_stream,
+            pause_status_poll=self.connection.pause_status_poll,
+            resume_status_poll=self.connection.resume_status_poll,
+            jobs_finished=self.engraver.notify_job_done,
         )
         self.job_queue = JobQueueController(
             tab,
@@ -950,6 +969,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             current_gcode=self.txt_console.toPlainText,
             log_to_console=self.log_message,
             sent_log=self.machine_panel.sent_gcode_log,
+            dialogs=self.dialogs,
         )
         tab.add_current_requested.connect(self.job_queue.add_current_gcode)
         tab.remove_selected_requested.connect(self.job_queue.remove_selected)

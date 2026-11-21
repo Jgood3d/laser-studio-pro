@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Callable
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from laser_studio.i18n import tr
 
@@ -55,8 +54,13 @@ class MachineProfilesController:
     démarrage terminé (persist_ready).
     """
 
-    def __init__(self, parent, combo, fields, save_settings):
-        self._parent = parent
+    def __init__(self, parent, combo, fields, save_settings, dialogs=None):
+        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
+        # qui répond à la place de l'utilisateur dans les tests.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(parent)
+        self._dialogs = dialogs
         self._combo = combo
         self._fields = fields
         self._save_settings = save_settings
@@ -143,10 +147,8 @@ class MachineProfilesController:
 
     def new_profile(self):
         """Nouveau profil, avec les réglages affichés."""
-        name, ok = QInputDialog.getText(
-            self._parent, tr("machine.new_title"), tr("machine.new_prompt")
-        )
-        if not ok or not name.strip():
+        name = self._dialogs.ask_text(tr("machine.new_title"), tr("machine.new_prompt"))
+        if name is None or not name.strip():
             return
         profile = {"name": name.strip()}
         profile.update(self._fields.capture())
@@ -165,11 +167,7 @@ class MachineProfilesController:
         # Le pas de remplissage des calques suit la focale validée : plus
         # besoin de lier chaque calque à la main.
         self._fields.link_layers_to_focal()
-        QMessageBox.information(
-            self._parent,
-            tr("machine.updated_title"),
-            tr("machine.updated_body").format(name=name),
-        )
+        self._dialogs.info(tr("machine.updated_title"), tr("machine.updated_body").format(name=name))
 
     def delete_profile(self):
         """Supprime le profil sélectionné (jamais le dernier)."""
@@ -177,20 +175,10 @@ class MachineProfilesController:
         if index is None:
             return
         if len(self.profiles) <= 1:
-            QMessageBox.warning(
-                self._parent,
-                tr("machine.cannot_delete_title"),
-                tr("machine.cannot_delete_body"),
-            )
+            self._dialogs.warning(tr("machine.cannot_delete_title"), tr("machine.cannot_delete_body"))
             return
         name = self.profiles[index]["name"]
-        reply = QMessageBox.question(
-            self._parent,
-            tr("machine.delete_title"),
-            tr("machine.delete_body").format(name=name),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        if self._dialogs.confirm_yes_no(tr("machine.delete_title"), tr("machine.delete_body").format(name=name)):
             self.profiles.pop(index)
             self.refresh_combo()
 

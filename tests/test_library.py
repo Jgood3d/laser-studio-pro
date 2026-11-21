@@ -613,11 +613,11 @@ class LibraryControllerTests(unittest.TestCase):
     def test_open_with_an_empty_library_says_so(self):
         layers = LayersModel()
         layers.load_list([])
-        with tempfile.TemporaryDirectory() as empty, \
-                mock.patch("laser_studio.controllers.library.QMessageBox.information") as info:
+        dialogs = mock.Mock()                            # boîtes de dialogue simulées (UserDialogs)
+        with tempfile.TemporaryDirectory() as empty:
             LibraryController(None, layers, bed_height=lambda: 300.0, add_to_vector_editor=list,
-                              roots=lambda: [empty]).open()
-        info.assert_called_once()
+                              roots=lambda: [empty], dialogs=dialogs).open()
+        dialogs.info.assert_called_once()
 
 
 if __name__ == "__main__":

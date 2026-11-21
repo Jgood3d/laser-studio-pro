@@ -1,7 +1,6 @@
 """Matrice de test à partir d'une image : image source et zone gravée."""
 
 from PIL import Image
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
 from laser_studio.i18n import tr
 from laser_studio.image import matrix as matrix_image
@@ -26,8 +25,14 @@ class MatrixImageController:
     tramage (voir ImageSettingsPanel.processing_settings).
     """
 
-    def __init__(self, page, loaded_image, image_settings):
+    def __init__(self, page, loaded_image, image_settings, dialogs=None):
         self._page = page
+        # Boîtes de dialogue (UserDialogs) : centrées sur la page de la matrice
+        # par défaut, ou un objet qui répond à la place de l'utilisateur.
+        if dialogs is None:
+            from laser_studio.ui.user_dialogs import UserDialogs
+            dialogs = UserDialogs(page)
+        self._dialogs = dialogs
         self._loaded_image = loaded_image
         self._image_settings = image_settings
 
@@ -35,12 +40,7 @@ class MatrixImageController:
         """Choix d'un fichier image pour le test, à sa taille réelle si sa
         résolution est plausible."""
         page = self._page
-        path, _ = QFileDialog.getOpenFileName(
-            page,
-            tr("ui.mat_image_file_title"),
-            "",
-            tr("ui.mat_image_file_filter"),
-        )
+        path = self._dialogs.open_file(tr("ui.mat_image_file_title"), tr("ui.mat_image_file_filter"))
         if not path:
             return
         try:
@@ -49,11 +49,7 @@ class MatrixImageController:
                 dpi = img.info.get("dpi")
                 gray = matrix_image.to_gray(img)
         except Exception as e:
-            QMessageBox.warning(
-                page,
-                tr("ui.mat_image_group"),
-                tr("ui.mat_image_open_error").format(error=e),
-            )
+            self._dialogs.warning(tr("ui.mat_image_group"), tr("ui.mat_image_open_error").format(error=e))
             return
         name = path.replace("\\", "/").rsplit("/", 1)[-1]
         page.set_source_image(gray, name, self._real_width_mm(gray, dpi))
@@ -77,11 +73,7 @@ class MatrixImageController:
         est donnée."""
         loaded = self._loaded_image()
         if loaded is None:
-            QMessageBox.information(
-                self._page,
-                tr("ui.mat_image_group"),
-                tr("ui.mat_image_loaded_none"),
-            )
+            self._dialogs.info(tr("ui.mat_image_group"), tr("ui.mat_image_loaded_none"))
             return
         image, width_mm = loaded
         self._page.set_source_image(
@@ -116,23 +108,17 @@ class MatrixImageController:
             self.use_loaded_image()
         src = page.source_image
         if src is None:
-            QMessageBox.warning(
-                page,
-                tr("ui.mat_image_missing_title"),
-                tr("ui.mat_image_missing_body"),
-            )
+            self._dialogs.warning(tr("ui.mat_image_missing_title"), tr("ui.mat_image_missing_body"))
             return None
         try:
             box, w_mm, h_mm = matrix_image.crop_box_px(
                 src.width, src.height, *page.tile_settings()
             )
         except ValueError as e:
-            QMessageBox.warning(page, tr("ui.mat_image_group"), str(e))
+            self._dialogs.warning(tr("ui.mat_image_group"), str(e))
             return None
         if int(w_mm * lines_mm) < 1 or int(h_mm * lines_mm) < 1:
-            QMessageBox.warning(
-                page, tr("ui.mat_image_group"), tr("ui.mat_tile_too_small")
-            )
+            self._dialogs.warning(tr("ui.mat_image_group"), tr("ui.mat_tile_too_small"))
             return None
         params = {
             "w_mm": w_mm,
@@ -154,9 +140,7 @@ class MatrixImageController:
         # Appel direct (et non start()) : synchrone, résultat prêt au retour.
         worker.run()
         if "arr" not in result:
-            QMessageBox.warning(
-                page, tr("ui.mat_image_group"), tr("ui.mat_tile_too_small")
-            )
+            self._dialogs.warning(tr("ui.mat_image_group"), tr("ui.mat_tile_too_small"))
             return None
         return {
             "arr": result["arr"],

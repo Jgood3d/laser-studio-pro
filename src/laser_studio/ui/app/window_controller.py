@@ -296,6 +296,7 @@ class WindowControllerMixin:
             self.camera = CameraController(
                 self,
                 bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
+                dialogs=self.dialogs,
             )
         CameraDialog(self.camera, self).exec()
 
@@ -363,3 +364,99 @@ class WindowControllerMixin:
             self.log_message(f"\n; ERREUR aperçu 2D : {e}")
             QMessageBox.warning(self, tr("gen.preview_error_title"),
                                 tr("gen.preview_error_body").format(error=e))
+
+    # -- graveur (EngraverController, MachineConnection) : affichage
+
+    def _connect_machine_signals(self):
+        """Abonne l'affichage aux signaux de la connexion au graveur et de son
+        contrôleur (self.engraver)."""
+        c = self.connection
+        c.connection_changed.connect(lambda _connected: self.update_connection_widgets())
+        c.status_updated.connect(self._on_status_updated)
+        c.log.connect(self.log_message)
+        c.position_lost.connect(lambda: self.log_message(tr("laser.position_lost_log")))
+        c.stream_progress.connect(
+            lambda current, total: self.machine_panel.progress_bar.setValue(
+                int((current / total) * 100) if total else 0))
+        c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)
+        c.stream_lines_acked.connect(lambda acked: self.tab_vector_2d.set_lines_acked(acked))
+        c.reconnecting.connect(lambda: self.log_message(tr("laser.reconnecting")))
+        e = self.engraver
+        e.log.connect(self.log_message)
+        e.ports_changed.connect(self.machine_panel.connection_panel.set_ports)
+        e.disconnected.connect(lambda: self._update_dro_display(None, None, None, None))
+        e.direct_job_started.connect(self._on_direct_job_started)
+        e.direct_job_finished.connect(lambda: self.machine_panel.jog_panel.set_send_enabled(True))
+        e.stream_starting.connect(self._on_stream_starting)
+        e.stream_ended.connect(self._on_stream_ended)
+        e.gcode_restored.connect(self.txt_console.setPlainText)
+        e.job_done.connect(self._beep_job_done)
+
+    def _on_status_updated(self, state, x, y, z):
+        """État et position du graveur (sondage hors job, thread d'envoi
+        pendant un job) : affichage, position de la tête sur l'aperçu 2D,
+        traits déjà gravés en rouge pendant un job."""
+        self._update_dro_display(state, x, y, z)
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview is None:
+            return
+        preview.set_head_position(x, y)
+        if self.connection.is_streaming():
+            preview.update_burn(x, y)
+
+    def _update_dro_display(self, state, x, y, z):
+        """Transmet l'état (cadre Connexion) et la position (sous le pilotage)
+        au panneau machine (MachinePanel.set_status)."""
+        machine_panel = getattr(self, "machine_panel", None)
+        if machine_panel is None:
+            return
+        machine_panel.set_status(state, x, y, z)
+        # Déconnecté : plus de position connue, le point de la tête disparaît de l'aperçu 2D.
+        if state is None and getattr(self, "tab_vector_2d", None) is not None:
+            self.tab_vector_2d.clear_head_position()
+
+    def _on_direct_job_started(self):
+        """« Envoyer au laser » : bouton d'envoi grisé pendant le job, « Répéter »
+        disponible, suivi du G-Code envoyé remis à zéro."""
+        self.machine_panel.jog_panel.set_send_enabled(False)
+        self.machine_panel.job_actions_panel.set_repeat_enabled(True)
+        self.machine_panel.sent_gcode_log.clear_lines()
+        self.machine_panel.sent_gcode_log.append_lines([tr("queue.sent_log_direct")])
+
+    def _on_stream_starting(self, gcode_text):
+        """Un envoi commence : barre de progression à zéro ; l'aperçu 2D doit
+        montrer le G-Code envoyé (un job de la file n'est pas forcément celui
+        affiché) et le tracé « déjà gravé » repart de zéro."""
+        self.machine_panel.progress_bar.setValue(0)
+        if gcode_text != getattr(self, "_last_gcode_text", None):
+            self.plot_gcode_preview(gcode_text)
+        else:
+            self.tab_vector_2d.reset_burn()
+
+    def _on_stream_ended(self, clean_finish):
+        """Un envoi se termine : repère de fin dans le suivi, aperçu 2D."""
+        self.machine_panel.sent_gcode_log.mark_end(clean_finish)
+        self.tab_vector_2d.finish_burn(clean_finish)
+
+    @staticmethod
+    def _beep_job_done():
+        """Signal sonore de fin de job (2 bips espacés), pour être prévenu même
+        sans regarder l'écran (gravure longue, utilisateur dans une autre pièce)."""
+        QTimer.singleShot(0, QApplication.beep)
+        QTimer.singleShot(250, QApplication.beep)
+
+    def _set_homing_available(self, available, tip):
+        """Cases « Inclure $H » (Configuration GRBL) et homing de la matrice de
+        test : grisées (et décochées) si le graveur n'a pas de homing.
+        Renvoie True si une case cochée a été décochée."""
+        unchecked = False
+        for name in ("chk_homing", "chk_mat_homing"):
+            checkbox = getattr(self, name, None)
+            if checkbox is None:
+                continue
+            if not available and checkbox.isChecked():
+                checkbox.setChecked(False)
+                unchecked = True
+            checkbox.setEnabled(available)
+            checkbox.setToolTip(tip)
+        return unchecked
