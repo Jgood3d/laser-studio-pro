@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title data-i18n="meta.title">Laser Studio Pro — Logiciel gratuit de pilotage laser/CNC GRBL & Stencil Studio</title>
-<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Stencil Studio, gravure d'image, découpe vectorielle, import DXF, générateur de boîtes lumineuses, imbrication auto. Windows et Linux." data-i18n-content="meta.description">
+<meta name="description" content="Laser Studio Pro : logiciel gratuit et open source pour piloter un laser ou une CNC GRBL. Stencil Studio, trames, Low Poly, boîtes LED, nesting, générateurs, caméra, séparation couleur/verre. Windows, Linux et macOS." data-i18n-content="meta.description">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Laser Studio Pro — pilotage laser/CNC GRBL & Stencil Studio" data-i18n-content="meta.og_title">
-<meta property="og:description" content="Du fichier SVG/DXF, pochoirs, trame et Low Poly jusqu'à l'envoi du G-Code, dans un seul logiciel gratuit." data-i18n-content="meta.og_description">
+<meta property="og:description" content="Du fichier SVG/DXF, pochoirs, trames et Low Poly jusqu'à l'envoi du G-Code, avec nesting, caméra et générateurs, dans un seul logiciel gratuit." data-i18n-content="meta.og_description">
 <meta property="og:image" content="laser_studio_pro_banner.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -242,10 +242,10 @@
     <div class="brand">LASER<span>_</span>STUDIO<span>_</span>PRO</div>
     <nav class="links">
       <a href="#news" data-i18n="nav.01">Nouveautés</a>
-      <a href="#results" data-i18n="nav.02">Réalisations</a>
-      <a href="#tests" data-i18n="nav.03">Tests de gravure</a>
       <a href="#features" data-i18n="nav.04">Fonctionnalités</a>
-      <a href="#gallery" data-i18n="nav.05">En images</a>
+      <a href="#gallery" data-i18n="nav.05">Galerie</a>
+      <a href="#results" data-i18n="nav.02">Réalisations</a>
+      <a href="#tests" data-i18n="nav.03">Tests</a>
       <a href="#howto" data-i18n="nav.06">Utilisation</a>
       <a href="#get-it" data-i18n="nav.07">Télécharger</a>
     </nav>
@@ -267,19 +267,19 @@
 
 <section class="hero">
   <div class="wrap">
-    <a class="version-pill mono" href="#news" data-i18n="hero.01"><b>Version 2.5.0</b> — voir les nouveautés Stencil Studio</a>
+    <a class="version-pill mono" href="#news" data-i18n="hero.01"><b>Version 2.5.0</b> — Stencil Studio, générateurs & caméra</a>
     <div class="kicker mono" data-i18n="hero.02">LOGICIEL LIBRE — PILOTAGE LASER / CNC GRBL & STENCIL STUDIO</div>
     <h1 data-i18n="hero.03">Pilote ton laser, crée tes pochoirs et génère ton G-Code dans un seul logiciel.</h1>
     <p class="lead" data-i18n="hero.04">
-      Laser Studio Pro rassemble en un seul outil gratuit tout pour préparer et envoyer vos travaux :
-      intégration complète de Stencil Studio (trames point/ligne, low-poly, boîtes lumineuses LED),
-      imbrication automatique, ordre de découpe intelligent et pilotage GRBL direct.
+      Laser Studio Pro regroupe tout le flux de travail : Stencil Studio (trames, Low Poly, boîtes LED),
+      éditeur vectoriel avec nesting et générateurs, séparation couleur/verre, caméra de calibration,
+      et pilotage GRBL direct — gratuit et open source.
     </p>
     <div class="hero-cta">
       <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener" data-i18n="hero.05">Télécharger la dernière version</a>
-      <a class="btn btn-ghost" href="#results" data-i18n="hero.06">Voir des réalisations</a>
+      <a class="btn btn-ghost" href="#features" data-i18n="hero.06">Voir les fonctionnalités</a>
     </div>
-    <p class="hero-note" data-i18n="hero.07">Pour Windows et Linux, avec une interface en français, anglais, allemand et espagnol.</p>
+    <p class="hero-note" data-i18n="hero.07">Windows, Linux et macOS — interface en français, anglais, allemand et espagnol.</p>
   </div>
 </section>
 
@@ -287,43 +287,44 @@
   <div class="wrap">
     <h2 data-i18n="news.01">Nouveautés de la version 2.5.0</h2>
     <p class="section-lead" data-i18n="news.02">
-      Publiée en novembre 2026. Cette version majeure intègre Stencil Studio, les trames géométriques, l'effet Low Poly et le générateur de boîtes lumineuses LED.
+      Publiée en novembre 2026. Cette version majeure intègre Stencil Studio, enrichit les générateurs
+      (boîte 3D, puzzle, ornements…), ajoute le module caméra et affine l’ensemble du flux de travail.
     </p>
     <div class="grid">
       <div class="feature">
         <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
-        <h3 data-i18n="news.04">Intégration Stencil Studio</h3>
-        <p data-i18n="news.05">Bouton d'accès direct dans la barre de menus pour ouvrir l'environnement complet dédié à la création artistique et aux pochoirs.</p>
+        <h3 data-i18n="news.04">Stencil Studio intégré</h3>
+        <p data-i18n="news.05">Accès direct depuis le menu : trames point/ligne, effet Low Poly, génération de pochoirs et export vers l’éditeur vectoriel.</p>
       </div>
       <div class="feature">
         <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
-        <h3 data-i18n="news.06">Trames Point & Ligne</h3>
-        <p data-i18n="news.07">Transforme n'importe quelle photo ou illustration en motifs de points ou de hachures géométriques stylisés prêts pour le laser.</p>
+        <h3 data-i18n="news.06">Boîtes lumineuses LED</h3>
+        <p data-i18n="news.09">Création automatisée de caissons complets avec passages de câbles, rainures et assemblage par encoches.</p>
       </div>
       <div class="feature">
         <span class="badge badge-new" data-i18n="news.03">Nouveau</span>
-        <h3 data-i18n="news.08">Effet Low-Poly & Boîte Lumineuse</h3>
-        <p data-i18n="news.09">Vectorisation polygonale esthétique et création automatisée de boîtiers complets avec intégration de rétro-éclairage LED.</p>
+        <h3 data-i18n="news.08">Module caméra</h3>
+        <p data-i18n="news.18">Capture, calibration d’objectif et alignement du plateau (homographie) pour placer précisément les pièces.</p>
       </div>
       <div class="feature">
-        <span class="badge" data-i18n="news.10">Inclus</span>
-        <h3 data-i18n="news.11">Imbrication Auto (Nesting)</h3>
-        <p data-i18n="news.12">Rangement intelligent des pièces sur la feuille de matière pour minimiser les pertes, avec gestion des trous et des rotations.</p>
+        <span class="badge" data-i18n="news.10">Création</span>
+        <h3 data-i18n="news.11">Générateurs enrichis</h3>
+        <p data-i18n="news.12">Boîte à encoches avec aperçu 3D, puzzle jigsaw, ornements, porte-clés et gabarit de placement (jig).</p>
       </div>
       <div class="feature">
         <span class="badge" data-i18n="news.13">Sécurité</span>
         <h3 data-i18n="news.14">Ordre de découpe sûr</h3>
-        <p data-i18n="news.15">Les gravures s'exécutent en premier, et les détails intérieurs sont découpés avant les contours externes de la pièce.</p>
+        <p data-i18n="news.15">Gravure avant découpe, intérieurs avant contours : la pièce ne bouge pas avant que ses détails soient terminés.</p>
       </div>
       <div class="feature">
-        <span class="badge" data-i18n="news.16">Robustesse</span>
-        <h3 data-i18n="news.17">Optimisations & Tests</h3>
-        <p data-i18n="news.18">Correction des zones de croisement en remplissage, décalage aller/retour et suite complète de tests de fiabilité.</p>
+        <span class="badge" data-i18n="news.16">Productivité</span>
+        <h3 data-i18n="news.17">Nesting & bibliothèque</h3>
+        <p data-i18n="news.07">Imbrication automatique (rotations, trous, écart) et bibliothèque de modèles prêts à personnaliser.</p>
       </div>
     </div>
     <p class="news-more" data-i18n="news.19">
       Le détail complet et les versions précédentes sont dans le
-      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
+      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/Dev/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>.
     </p>
   </div>
 </section>
@@ -445,37 +446,88 @@
 <section id="features">
   <div class="wrap">
     <h2 data-i18n="features.01">Tout le flux de travail, dans un seul logiciel</h2>
-    <p class="section-lead" data-i18n="features.02">De l'image ou du dessin vectoriel jusqu'à la gravure, sans jongler entre plusieurs outils.</p>
-    <div class="grid">
+    <p class="section-lead" data-i18n="features.02">
+      De l’image ou du dessin vectoriel jusqu’à l’envoi du G-Code, sans jongler entre plusieurs outils.
+      Architecture modulaire : création, édition, calibration et pilotage.
+    </p>
+
+    <!-- Groupe 1 : Création artistique -->
+    <h3 class="gallery-sub" style="margin-top:8px;margin-bottom:18px;" data-i18n="features.group1">Création artistique</h3>
+    <div class="grid" style="margin-bottom:48px;">
       <div class="feature">
         <div class="tag mono" data-i18n="features.03">STENCIL STUDIO</div>
-        <h3 data-i18n="features.04">Pochoirs, Trames & Low Poly</h3>
-        <p data-i18n="features.05">Module artistique complet : conversion en trame point/ligne, génération de polygones et création de boîtes lumineuses LED.</p>
+        <h3 data-i18n="features.04">Pochoirs, trames & Low Poly</h3>
+        <p data-i18n="features.05">Module dédié : conversion en trame point ou ligne, vectorisation polygonale (Low Poly) et export direct vers l’éditeur vectoriel.</p>
       </div>
       <div class="feature">
-        <div class="tag mono" data-i18n="features.06">ÉDITION</div>
-        <h3 data-i18n="features.07">Imbrication & Éditeur Vectoriel</h3>
-        <p data-i18n="features.08">Imbrication automatique (nesting) pour optimiser la matière, import SVG/DXF, générateur de boîtes et calques réordonnables.</p>
+        <div class="tag mono" data-i18n="features.06">BOÎTES LED</div>
+        <h3 data-i18n="features.07">Caissons lumineux</h3>
+        <p data-i18n="features.08">Génération automatisée de boîtes avec passages de câbles, rainures d’alimentation et assemblage par encoches.</p>
       </div>
       <div class="feature">
-        <div class="tag mono" data-i18n="features.09">IMAGE</div>
-        <h3 data-i18n="features.10">Traitement & Netteté</h3>
-        <p data-i18n="features.11">Luminosité, contraste, gamma, filtre de netteté des contours, choix de matière et assistants de gain de point.</p>
+        <div class="tag mono" data-i18n="features.09">BIBLIOTHÈQUE</div>
+        <h3 data-i18n="features.10">Modèles prêts à l’emploi</h3>
+        <p data-i18n="features.11">Catalogue de totems, médailles et autres modèles avec variantes, textes modifiables et import intelligent par rôle (Cut / Engrave / Mark).</p>
+      </div>
+    </div>
+
+    <!-- Groupe 2 : Édition vectorielle -->
+    <h3 class="gallery-sub" style="margin-bottom:18px;" data-i18n="features.group2">Édition vectorielle & générateurs</h3>
+    <div class="grid" style="margin-bottom:48px;">
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.12">ÉDITEUR</div>
+        <h3 data-i18n="features.13">SVG, DXF & calques</h3>
+        <p data-i18n="features.14">Import SVG/DXF, édition de nœuds, dégroupage, alignement, duplication en série et calques avec réglages mémorisés par machine.</p>
       </div>
       <div class="feature">
-        <div class="tag mono" data-i18n="features.12">CALIBRAGE</div>
-        <h3 data-i18n="features.13">Matériaux & matrice de test</h3>
-        <p data-i18n="features.14">Base de données de matériaux avec leurs réglages, et une grille de test pour calibrer précisément puissance et vitesse.</p>
+        <div class="tag mono" data-i18n="features.15">NESTING</div>
+        <h3 data-i18n="features.16">Imbrication automatique</h3>
+        <p data-i18n="features.17">Placement intelligent des pièces (rotations, écart, marge, emboîtement dans les creux). Les trous et détails suivent leur pièce.</p>
       </div>
       <div class="feature">
-        <div class="tag mono" data-i18n="features.15">CONTRÔLE</div>
-        <h3 data-i18n="features.16">Pilotage GRBL en direct</h3>
-        <p data-i18n="features.17">Connexion USB, ordre de découpe sûr (trous d'abord), déplacements manuels, homing et file d'attente.</p>
+        <div class="tag mono" data-i18n="features.18">GÉNÉRATEURS</div>
+        <h3 data-i18n="features.19">Boîte 3D, puzzle, ornements…</h3>
+        <p data-i18n="features.20">Boîte à encoches avec aperçu 3D, puzzle jigsaw, ornements, porte-clés et gabarit de placement (jig) — le tout exportable en un clic.</p>
+      </div>
+    </div>
+
+    <!-- Groupe 3 : Image & calibration -->
+    <h3 class="gallery-sub" style="margin-bottom:18px;" data-i18n="features.group3">Image, séparation & calibration</h3>
+    <div class="grid" style="margin-bottom:48px;">
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.21">IMAGE</div>
+        <h3 data-i18n="features.22">Traitement & tramage</h3>
+        <p data-i18n="features.23">Luminosité, contraste, gamma, netteté, choix de matière (fond clair/noir) et résolution liée à la taille du spot laser.</p>
       </div>
       <div class="feature">
-        <div class="tag mono" data-i18n="features.18">FIABILITÉ</div>
-        <h3 data-i18n="features.19">Projets & import G-Code</h3>
-        <p data-i18n="features.20">Sauvegarde de projet atomique, récupération automatique après un plantage, et import d'un G-Code déjà généré ailleurs.</p>
+        <div class="tag mono" data-i18n="features.24">SÉPARATION</div>
+        <h3 data-i18n="features.25">Couleur / verre</h3>
+        <p data-i18n="features.26">Calque noir à graver + calque couleur à imprimer, simulation du rétro-éclairage et export PDF à l’échelle 1:1.</p>
+      </div>
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.27">CAMÉRA</div>
+        <h3 data-i18n="features.28">Calibration & alignement</h3>
+        <p data-i18n="features.29">Capture, calibration d’objectif et homographie du plateau pour superposer précisément le fond caméra et placer les pièces.</p>
+      </div>
+    </div>
+
+    <!-- Groupe 4 : Pilotage & fiabilité -->
+    <h3 class="gallery-sub" style="margin-bottom:18px;" data-i18n="features.group4">Pilotage machine & fiabilité</h3>
+    <div class="grid">
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.30">GRBL</div>
+        <h3 data-i18n="features.31">Pilotage en direct</h3>
+        <p data-i18n="features.32">Connexion USB, jog, homing, console, ordre de découpe sûr (intérieurs d’abord), file d’attente et simulation de graveur.</p>
+      </div>
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.33">PROFILS</div>
+        <h3 data-i18n="features.34">Machines & matériaux</h3>
+        <p data-i18n="features.35">Profils machine (dimensions, focale, $$ GRBL), base de matériaux avec réglages par calque et matrice de test puissance/vitesse.</p>
+      </div>
+      <div class="feature">
+        <div class="tag mono" data-i18n="features.36">PROJETS</div>
+        <h3 data-i18n="features.37">Sauvegarde & thèmes</h3>
+        <p data-i18n="features.38">Sauvegarde automatique atomique, import/export de projets, 7 thèmes d’interface (dont Jarvis HUD) et packs d’icônes embarqués.</p>
       </div>
     </div>
   </div>
@@ -488,26 +540,44 @@
       Les écrans qui comptent, avec ce qu'il faut retenir de chacun. Clique sur une capture pour l'agrandir.
     </p>
 
-    <!-- Nouveautés 2.5.0 : Stencil Studio (Trame & Low Poly) -->
+    <!-- Nouveautés 2.5.0 : Stencil Studio — Trames -->
     <article class="spot">
       <figure class="frame">
-        <div class="frame-bar"><span>Stencil Studio</span><span class="badge badge-new" data-i18n="gallery.stencil_badge">Nouveau v2.5.0 : Trame & Low Poly</span></div>
+        <div class="frame-bar"><span>Stencil Studio</span><span class="badge badge-new" data-i18n="gallery.stencil_badge">Nouveau v2.5.0 : Trames</span></div>
         <div class="frame-img">
-          <img src="shot-stencil-dot-line.png" alt="Trame par point, ligne et effet Low Poly dans Stencil Studio" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.stencil_dot">
+          <img src="shot-stencil-dot-line.png" alt="Trame par point et par ligne dans Stencil Studio" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.stencil_dot">
         </div>
       </figure>
       <div class="spot-text">
-        <h3 data-i18n="gallery.stencil_title">Trame par point, ligne et Low Poly</h3>
-        <p data-i18n="gallery.stencil_desc">Transforme tes images en motifs artistiques géométriques prêts pour la gravure laser.</p>
+        <h3 data-i18n="gallery.stencil_title">Trames point & ligne</h3>
+        <p data-i18n="gallery.stencil_desc">Transforme tes images en motifs géométriques prêts pour la gravure laser.</p>
         <ul class="points">
-          <li data-i18n="gallery.stencil_p1"><b>Trame point et ligne</b> : conversion de nuances de gris en motifs tramés géométriques.</li>
-          <li data-i18n="gallery.stencil_p2"><b>Effet Low Poly</b> : réduction vectorielle en polygones artistiques stylisés.</li>
+          <li data-i18n="gallery.stencil_p1"><b>Trame point</b> : conversion des nuances de gris en points de densité variable.</li>
+          <li data-i18n="gallery.stencil_p2"><b>Trame ligne</b> : hachures géométriques stylisées, idéales pour le bois et le plexi.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- Nouveautés 2.5.0 : Low Poly -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span>Stencil Studio</span><span class="badge badge-new" data-i18n="gallery.lowpoly_badge">Nouveau v2.5.0 : Low Poly</span></div>
+        <div class="frame-img">
+          <img src="shot-stencil-lowpoly.png" alt="Effet Low Poly : vectorisation polygonale artistique dans Stencil Studio" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.stencil_lowpoly">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3 data-i18n="gallery.lowpoly_title">Effet Low Poly</h3>
+        <p data-i18n="gallery.lowpoly_desc">Réduction vectorielle en polygones artistiques, exportable vers l’éditeur pour la découpe ou la gravure.</p>
+        <ul class="points">
+          <li data-i18n="gallery.lowpoly_p1"><b>Vectorisation polygonale</b> : contrôle du nombre de facettes et du style.</li>
+          <li data-i18n="gallery.lowpoly_p2"><b>Export direct</b> vers les calques Cut / Engrave de Laser Studio Pro.</li>
         </ul>
       </div>
     </article>
 
     <!-- Nouveautés 2.5.0 : Boîte lumineuse -->
-    <article class="spot reverse">
+    <article class="spot">
       <figure class="frame">
         <div class="frame-bar"><span>Stencil Studio</span><span class="badge badge-new" data-i18n="gallery.lightbox_badge">Nouveau v2.5.0 : Boîte lumineuse</span></div>
         <div class="frame-img">
@@ -518,8 +588,62 @@
         <h3 data-i18n="gallery.lightbox_title">Boîte complète avec éclairage</h3>
         <p data-i18n="gallery.lightbox_desc">Conçois des caissons lumineux assemblables sur mesure.</p>
         <ul class="points">
-          <li data-i18n="gallery.lightbox_p1"><b>Intégration LED</b> : prévoyez automatiquement les passages de câbles et rainures d'alimentation.</li>
+          <li data-i18n="gallery.lightbox_p1"><b>Intégration LED</b> : passages de câbles et rainures d’alimentation prévus automatiquement.</li>
           <li data-i18n="gallery.lightbox_p2"><b>Assemblage par encoches</b> : structure rigide prête pour la découpe laser.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- Caméra (P1) -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span data-i18n="gallery.camera_bar">Module caméra</span><span class="badge badge-new" data-i18n="gallery.camera_badge">Nouveau v2.5.0</span></div>
+        <div class="frame-img">
+          <img src="shot-camera-align.png" alt="Calibration et alignement du plateau via la caméra" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.camera">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3 data-i18n="gallery.camera_title">Caméra : calibration & alignement</h3>
+        <p data-i18n="gallery.camera_desc">Place précisément tes pièces grâce au fond plateau calibré.</p>
+        <ul class="points">
+          <li data-i18n="gallery.camera_p1"><b>Calibration d’objectif</b> et correction de distorsion.</li>
+          <li data-i18n="gallery.camera_p2"><b>Homographie du plateau</b> : superpose le flux caméra à l’espace machine pour un placement au mm.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- Bibliothèque (P1) -->
+    <article class="spot">
+      <figure class="frame">
+        <div class="frame-bar"><span data-i18n="gallery.library_bar">Bibliothèque</span><span class="badge" data-i18n="gallery.library_badge">Modèles</span></div>
+        <div class="frame-img">
+          <img src="shot-library.png" alt="Bibliothèque de modèles : totems, médailles et variantes" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.library">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3 data-i18n="gallery.library_title">Bibliothèque de modèles</h3>
+        <p data-i18n="gallery.library_desc">Totems, médailles et autres modèles prêts à personnaliser.</p>
+        <ul class="points">
+          <li data-i18n="gallery.library_p1"><b>Catégories & variantes</b> : textes modifiables, rôles Cut / Engrave / Mark.</li>
+          <li data-i18n="gallery.library_p2"><b>Import intelligent</b> : chaque rôle arrive sur le bon calque de l’éditeur.</li>
+        </ul>
+      </div>
+    </article>
+
+    <!-- Boîte 3D / générateur (P1) -->
+    <article class="spot reverse">
+      <figure class="frame">
+        <div class="frame-bar"><span data-i18n="gallery.box3d_bar">Générateur de boîte</span><span class="badge" data-i18n="gallery.box3d_badge">Aperçu 3D</span></div>
+        <div class="frame-img">
+          <img src="shot-box-3d-preview.png" alt="Générateur de boîte à encoches avec aperçu 3D de la boîte assemblée" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.box3d">
+        </div>
+      </figure>
+      <div class="spot-text">
+        <h3 data-i18n="gallery.box3d_title">Boîte à encoches + aperçu 3D</h3>
+        <p data-i18n="gallery.box3d_desc">Dimensions X/Y/Z, cloisons, décor texte ou SVG, et visualisation 3D avant découpe.</p>
+        <ul class="points">
+          <li data-i18n="gallery.box3d_p1"><b>Aperçu 3D</b> de la boîte assemblée pour valider proportions et emboîtements.</li>
+          <li data-i18n="gallery.box3d_p2"><b>Préréglages</b> et export direct vers les calques de l’éditeur vectoriel.</li>
         </ul>
       </div>
     </article>
@@ -533,7 +657,7 @@
         </div>
       </figure>
       <div class="spot-text">
-        <h3 data-i18n="news.04">Imbrication automatique (Nesting)</h3>
+        <h3 data-i18n="gallery.nesting_title">Imbrication automatique (Nesting)</h3>
         <p data-i18n="gallery.05">Optimise l'utilisation de ta matière en rangeant intelligemment tes découpes.</p>
         <ul class="points">
           <li data-i18n="gallery.06"><b>Placement optimisé</b> : tri de la plus grande à la plus petite pièce, en bas à gauche de la feuille.</li>
@@ -637,6 +761,32 @@
     <h3 class="gallery-sub" data-i18n="gallery.38">Et aussi</h3>
     <div class="gallery">
       <figure class="frame">
+        <div class="frame-bar"><span data-i18n="gallery.vec_bar">Éditeur vectoriel</span></div>
+        <div class="frame-img">
+          <img src="shot-vector-editor.png" alt="Éditeur vectoriel : calques, outils et canevas" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.vector">
+        </div>
+        <figcaption class="frame-cap">
+          <h3 data-i18n="gallery.vec_title">Éditeur vectoriel</h3>
+          <ul class="points">
+            <li data-i18n="gallery.vec_p1">Calques Cut / Engrave / Mark, alignement et édition de nœuds.</li>
+            <li data-i18n="gallery.vec_p2">Import SVG/DXF, générateurs et duplication en série.</li>
+          </ul>
+        </figcaption>
+      </figure>
+      <figure class="frame">
+        <div class="frame-bar"><span data-i18n="gallery.studio_bar">Stencil Studio</span></div>
+        <div class="frame-img">
+          <img src="shot-stencil-studio.png" alt="Vue d’ensemble de Stencil Studio" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.studio">
+        </div>
+        <figcaption class="frame-cap">
+          <h3 data-i18n="gallery.studio_title">Stencil Studio</h3>
+          <ul class="points">
+            <li data-i18n="gallery.studio_p1">Environnement dédié pochoirs, trames et Low Poly.</li>
+            <li data-i18n="gallery.studio_p2">Export SVG/DXF vers l’éditeur Laser Studio Pro.</li>
+          </ul>
+        </figcaption>
+      </figure>
+      <figure class="frame">
         <div class="frame-bar"><span data-i18n="gallery.39">Onglet PNG / JPEG → SVG</span></div>
         <div class="frame-img">
           <img src="shot-png2svg.png" alt="Conversion d'une image en tracé vectoriel SVG avec aperçu" loading="lazy" onerror="this.closest('.frame').classList.add('no-img')" data-i18n-alt="alt.17">
@@ -689,12 +839,12 @@
       <div class="step">
         <div class="num">01</div>
         <h3 data-i18n="howto.02">Importer / Créer</h3>
-        <p data-i18n="howto.03">Une image, un fichier SVG/DXF, un pochoir dans Stencil Studio ou une boîte sur-mesure.</p>
+        <p data-i18n="howto.03">Image, SVG/DXF, modèle de la bibliothèque, pochoir Stencil Studio, boîte, puzzle ou ornement.</p>
       </div>
       <div class="step">
         <div class="num">02</div>
-        <h3 data-i18n="howto.04">Régler</h3>
-        <p data-i18n="howto.05">Dimensions, matériau, trame, imbrication, puissance, vitesse et netteté.</p>
+        <h3 data-i18n="howto.04">Régler & optimiser</h3>
+        <p data-i18n="howto.05">Matériau, trame, nesting, caméra d’alignement, puissance, vitesse et ordre de découpe.</p>
       </div>
       <div class="step">
         <div class="num">03</div>
@@ -715,17 +865,18 @@
     <div>
       <h2 data-i18n="get-it.01">Gratuit, open source</h2>
       <p class="section-lead" data-i18n="get-it.02">
-        Le code source complet et les exécutables Windows / Linux sont disponibles sur GitHub.
+        Code source complet et binaires Windows, Linux et macOS disponibles sur GitHub (branche Dev pour la dernière version).
       </p>
-      <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro" target="_blank" rel="noopener">github.com/Jgood3d/laser-studio-pro</a>
+      <a class="btn btn-primary" href="https://github.com/Jgood3d/laser-studio-pro/releases" target="_blank" rel="noopener">Télécharger les releases</a>
+      <a class="btn btn-ghost" style="margin-left:10px;" href="https://github.com/Jgood3d/laser-studio-pro" target="_blank" rel="noopener">Voir le dépôt</a>
     </div>
     <div class="panel mono">
-      <div style="color:var(--text); margin-bottom:8px;" data-i18n="get-it.03">Depuis les sources :</div>
-      <pre>git clone https://github.com/Jgood3d/laser-studio-pro
+      <div style="color:var(--text); margin-bottom:8px;" data-i18n="get-it.03">Depuis les sources (branche Dev) :</div>
+      <pre>git clone -b Dev https://github.com/Jgood3d/laser-studio-pro
 cd laser-studio-pro
-pip install -r requirements-windows.txt
+pip install -r requirements-linux.txt   # ou requirements-windows.txt
 python main.py</pre>
-      <div data-i18n="get-it.04">Sous Linux, utilise <code>requirements-linux.txt</code> à la place.</div>
+      <div data-i18n="get-it.04">Python 3.10 à 3.14. Environnement virtuel recommandé.</div>
     </div>
   </div>
 </section>
@@ -737,8 +888,9 @@ python main.py</pre>
       Si tu veux le soutenir : <a href="https://ko-fi.com/jb3dlaser" target="_blank" rel="noopener">ko-fi.com/jb3dlaser</a> ☕
     </p>
     <p data-i18n="footer.02">
-      Version 2.5.0 —
-      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/main/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>
+      Version 2.5.0 (branche Dev) —
+      <a href="https://github.com/Jgood3d/laser-studio-pro/blob/Dev/CHANGELOG.md" target="_blank" rel="noopener">journal des modifications</a>
+      · <a href="https://github.com/Jgood3d/laser-studio-pro/blob/Dev/ARCHITECTURE.md" target="_blank" rel="noopener">architecture</a>
     </p>
   </div>
 </footer>
