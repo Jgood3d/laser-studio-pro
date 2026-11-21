@@ -849,20 +849,36 @@ class VectorEditingMixin:
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._ornament_settings = dialog.settings()
-        from laser_studio.vector import ornament_generator
+        from laser_studio.vector import ornament_batch, ornament_generator
         from laser_studio.vector.importers import ornament_engrave_to_objects
         from laser_studio.vector.ornament_region import build_ornament_parts
-        try:
-            family, bold, italic = dialog.font_options()
-            parts = build_ornament_parts(dialog.params(), family, bold, italic)
-        except ornament_generator.OrnamentError as e:
-            QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
-            return
-        geometry, contours = parts.geometry, parts.cut
-        objects = ornament_to_objects(contours, dialog.cut_layer_id(), offset_x_mm=10.0, offset_y_mm=10.0)
-        # Prénom gravé sur la bande : le prénom et le filet vont sur le calque de gravure, au même repère que la découpe.
-        objects += ornament_engrave_to_objects(parts.name, parts.frame, dialog.engrave_layer_id(),
-                                               offset_x_mm=10.0, offset_y_mm=10.0)
+        names = dialog.names() or [""]
+        family, bold, italic = dialog.font_options()
+        built, failed = [], []
+        for name in names:
+            try:
+                built.append((name, build_ornament_parts(dialog.params(name), family, bold, italic)))
+            except ornament_generator.OrnamentError as e:
+                if len(names) == 1:
+                    QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
+                    return
+                failed.append(name)
+        # Rangement en grille d'après la boîte réelle de chaque boule (découpe + gravure du prénom et du filet).
+        boxes = []
+        for _name, parts in built:
+            box = ornament_batch.contours_bounds(list(parts.cut) + list(parts.name) + list(parts.frame))
+            boxes.append(box or (0.0, 0.0, 0.0, 0.0))
+        offsets, extent = ornament_batch.grid_offsets(boxes)
+        objects, ball_count = [], 0
+        for (_name, parts), (dx, dy) in zip(built, offsets):
+            ox, oy = 10.0 + dx, 10.0 + dy
+            ball = ornament_to_objects(parts.cut, dialog.cut_layer_id(), offset_x_mm=ox, offset_y_mm=oy)
+            # Prénom gravé sur la bande : le prénom et le filet vont sur le calque de gravure, au même repère.
+            ball += ornament_engrave_to_objects(parts.name, parts.frame, dialog.engrave_layer_id(),
+                                                offset_x_mm=ox, offset_y_mm=oy)
+            if ball:
+                objects += ball
+                ball_count += 1
         if not objects:
             QMessageBox.warning(self, tr("ornament.title"), tr("ornament.empty"))
             return
@@ -870,10 +886,24 @@ class VectorEditingMixin:
         new_items = [self.vector_canvas.add_object(obj) for obj in objects]
         self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
         self.vector_canvas.request_recenter(new_items)
-        QMessageBox.information(
-            self, tr("ornament.title"),
-            tr("ornament.done").format(w=geometry.width, h=geometry.height, count=len(contours)),
-        )
+        if ball_count == 1:
+            geometry, contours = built[0][1].geometry, built[0][1].cut
+            QMessageBox.information(
+                self, tr("ornament.title"),
+                tr("ornament.done").format(w=geometry.width, h=geometry.height, count=len(contours)),
+            )
+            return
+        message = tr("ornament.done_batch").format(n=ball_count, w=extent[0], h=extent[1])
+        if failed:
+            message += "\n\n" + tr("ornament.batch_failed").format(names=", ".join(failed))
+        message += "\n\n" + tr("ornament.batch_nest_ask")
+        answer = QMessageBox.question(self, tr("ornament.title"), message)
+        if answer == QMessageBox.StandardButton.Yes:
+            # Les boules créées sont sélectionnées : l'imbrication s'ouvre avec « sélection » comme périmètre.
+            self.vector_canvas.scene_obj.clearSelection()
+            for item in new_items:
+                item.setSelected(True)
+            self.open_nesting()
 
     def open_keychain_generator(self):
         """Fenêtre du générateur de porte-clés prénom : crée la base découpée et le texte gravé."""
