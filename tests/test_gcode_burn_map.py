@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio import workers
+    from laser_studio.gcode.raster import IMAGE_MARGIN_MM
 except ImportError as exc:  # dépendance manquante (PyQt6, svg.path...)
     workers = None
     _IMPORT_ERROR = exc
@@ -39,9 +40,9 @@ class _Params(dict):
 
 def generate_gcode(arr, overscan=0.0, algo="Seuil Simple (Binaire)"):
     h, w = arr.shape
-    # Décalage opposé à la marge de l'image (workers.IMAGE_MARGIN_MM) : image à l'origine du
+    # Décalage opposé à la marge de l'image (gcode.raster.IMAGE_MARGIN_MM) : image à l'origine du
     # plateau, comme le suppose power_map.
-    margin = workers.IMAGE_MARGIN_MM
+    margin = IMAGE_MARGIN_MM
     params = _Params(
         width_mm=float(w), height_mm=float(h), origin_pos="bottom_left",
         offset_x=-margin, offset_y=-margin, power_engrave=100.0, speed_engrave=1000,

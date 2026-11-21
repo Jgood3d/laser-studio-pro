@@ -82,11 +82,12 @@ laser-studio-pro/
 │       ├── main_window.py            # FullLaserStudio : assemble les mixins, construit la fenêtre (init_ui, _build_*)
 │       ├── image_processing_mixin.py # image, filtres, matière, undo image
 │       ├── vector_editing_mixin.py   # import, dessin, alignement, nesting, duplication en série, générateurs
-│       ├── gcode_generation_mixin.py # génération du G-Code (image + vectoriel), aperçu 2D
+│       ├── gcode_generation_mixin.py # lancement de la génération du G-Code (paramètres lus dans l'interface), aperçu 2D
 │       ├── laser_control_mixin.py    # connexion au graveur côté interface
 │       ├── separation_mixin.py       # séparation couleur côté interface
 │       ├── vector_layers.py          # calques (LayerManagerWidget) + canevas (VectorCanvasView) + objets + nœuds / explode
-│       ├── workers.py                # threads (QThread) : traitement d'image, envoi du G-Code, sondage d'état, matrice de test…
+│       ├── workers.py                # threads (QThread) : traitement d'image, envoi du G-Code, sondage d'état ; la génération y appelle gcode/
+│       ├── gcode/                    # génération du G-Code sans Qt : job (assemblage), raster (image), svg_cut, vector (calques), test_matrix, calibration (aller/retour), common
 │       ├── core/                     # socle sans interface : version, paths (chemins, ressources), constants, debug_log
 │       ├── models/                   # modèles de données (QObject à signaux) : layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), settings (base SettingsModel), change_log (journal)
 │       ├── i18n/                     # traductions : translations.py (textes FR / EN / DE / ES), language.py (langue, tr)
@@ -191,7 +192,7 @@ laser-studio-pro/
 | **laser_common/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
 | **core/constants.py** | Valeurs fixes (lien ko-fi, splash, JOG, barre d'état) | `ui/` |
 | **models/settings.py**, **machine.py**, **grbl.py** | `SettingsModel` : réglages nommés (`FIELDS` : type et défaut), lus comme des attributs, modifiés par `update()` qui convertit, n'émet `changed({nom: valeur})` que pour ce qui change et écrit l'ancienne et la nouvelle valeur dans le journal. `MachineConfig` (`machine`) : plateau, spot, vitesse et accélération max (`to_profile` / `apply_profile` pour les profils machine). `GrblConfig` (`grbl`) : commande laser (`M4` / `M3`), S-Max, homing, surbalayage, décalage aller/retour, ordre de découpe sûr, G-Code de début et de fin, réglages `$$` ; `profile_values` / `apply_profile` / `mechanical_values` pour les profils machine. Les pages Paramètres du graveur et Configuration GRBL ne sont plus que des vues liées à ces modèles | Créés par `main_window` ; lus par la génération, l'éditeur vectoriel, le traitement d'image, Stencil Studio (`lsp_bridge`) |
-| **models/layer_modes.py** | Codes des modes de calque (`engrave_fill`, `cut`, `mark`), indépendants de la langue, enregistrés dans les projets, les profils et les commentaires du G-Code ; seul leur affichage est traduit (`LAYER_MODE_TR_KEYS`, `models.layers.layer_label`). `normalize_mode()` convertit les anciens libellés français (« Gravure Remplie », « Découpe », « Marquage (Contour) ») à la lecture. Sans Qt | `models/layers`, `vector/order`, génération, Stencil Studio |
+| **models/layer_modes.py** | Codes des modes de calque (`engrave_fill`, `cut`, `mark`), indépendants de la langue, enregistrés dans les projets, les profils et les commentaires du G-Code ; seul leur affichage est traduit (`LAYER_MODE_TR_KEYS`, `models.layers.layer_label`). `normalize_mode()` convertit les anciens libellés français (« Gravure Remplie », « Découpe », « Marquage (Contour) ») à la lecture. Aussi `layer_laser_cmd` / `layer_overscan_enabled` (commande laser et surbalayage effectifs d'un calque, objet ou dictionnaire). Sans Qt | `models/layers`, `vector/order`, `gcode/`, Stencil Studio |
 | **models/image_settings.py** | `ImageSettings` (`SettingsModel`) : réglages de tramage de « Graver une image » (luminosité, contraste, gamma, netteté, négatif, matière, miroirs, algorithme), liés aux champs de l'onglet et aux miroirs de la barre d'outils (`ImageProcessingMixin._bind_image_settings`) ; `choose_material()` coche ou décoche le négatif, `to_project()` / `load_project()` pour les projets, `processing_params()` pour le traitement. `ImageSettingsHistory` : annuler / refaire, changements rapprochés regroupés en une étape | `main_window`, `image_processing_mixin`, `separation_mixin`, génération |
 | **image/resolution.py** | Lignes/mm, DPI, focale, et classement de l'écart entre les lignes par rapport au spot (`resolution_quality`). Sans Qt | `image_processing_mixin` |
 | **models/change_log.py** | Journal des changements des modèles : une ligne par changement, sauf pour les textes saisis au clavier (G-Code de début et de fin, `$$`, nom d'un calque), écrits une seule fois à la fin de la saisie | `models/` |
@@ -235,7 +236,8 @@ laser-studio-pro/
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons (le G-Code envoyé est suivi dans le panneau machine). Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé (`SentGcodeLog`, panneau machine) sert aussi à l'envoi direct (`LaserControlMixin._start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
 | **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `vector_layers`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
-| **gcode_generation_mixin.py** | Génération G-Code image + vectoriel, aperçu 2D | `workers`, `vector_layers` |
+| **gcode_generation_mixin.py** | Lance la génération (paramètres lus dans l'interface, contrôles avant génération), estimation, export, aperçu 2D | `workers`, `gcode`, `vector_layers` |
+| **gcode/** | Génération du G-Code, fonctions pures sans Qt (aucun import de PyQt6, vérifié par `tests/test_gcode_package.py`) : `build_job_gcode` (en-tête, image, découpe SVG, calques vectoriels, fin ; résultat `GcodeResult`), `raster_image_gcode` et `image_origin` (gravure d'image, surbalayage, décalage des lignes retour), `svg_cut_gcode`, `build_vector_layers_gcode` (gravure remplie, découpe, marquage ; commande et surbalayage de chaque calque), `build_test_matrix_gcode`, `bidir_test_gcode` | `workers` (`AdvancedGCodeWorker`, `TestMatrixWorker` : simples enveloppes de thread), `gcode_generation_mixin`, `laser_control_mixin` |
 | **laser_control_mixin.py** | Connexion au graveur côté interface : boîtes de dialogue, panneau machine, aperçu 2D, abonnés aux signaux de `MachineConnection` | `controllers/machine_connection` |
 | **controllers/machine_connection.py** | `MachineConnection` (`QObject`, sans boîte de dialogue) : port série, threads (sondage de l'état, envoi du job, commandes, reconnexion après coupure), état « référencé » (`homed`), dernier job envoyé, `read_settings()` ($$). Signaux : `connection_changed`, `status_updated`, `log`, `position_lost`, `stream_progress` / `stream_lines_sent` / `stream_lines_acked`, `reconnecting` / `reconnected` | `grbl.connection`, `workers` |
 | **separation_mixin.py** | Séparation couleur côté interface : boîtes de dialogue, aperçus affichés, test du gain ; abonné aux signaux de `SeparationController` | `controllers/separation`, `workers` |
@@ -246,7 +248,7 @@ laser-studio-pro/
 
 | Fichier | Rôle | Utilisé par |
 |---------|------|-------------|
-| **vector_layers.py** | Tableau des calques (`LayerManagerWidget`, vue de `LayersModel` ; `LayerManager` reste un alias de `LayersModel` ; colonnes Couleur, Nom, Mode, Puissance, Vitesse, Passes, Pas, Surbalayage — grisée hors gravure remplie —, Laser — Auto / M4 / M3 —, Actif), `build_vector_layers_gcode` (commande et surbalayage de chaque calque), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** (supporte aussi l'affichage de l'image de fond du plateau issue de la caméra) | Éditeur, G-Code, profils, caméra |
+| **vector_layers.py** | Tableau des calques (`LayerManagerWidget`, vue de `LayersModel` ; `LayerManager` reste un alias de `LayersModel` ; colonnes Couleur, Nom, Mode, Puissance, Vitesse, Passes, Pas, Surbalayage — grisée hors gravure remplie —, Laser — Auto / M4 / M3 —, Actif), `extract_vector_layer_data` (objets → polygones en mm pour `gcode/vector`), objets (`TextObject`, `ShapeObject`, `SvgPathObject`), **`VectorCanvasView`** (supporte aussi l'affichage de l'image de fond du plateau issue de la caméra) | Éditeur, G-Code, profils, caméra |
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
 | **vector/svg_import.py** | Import SVG selon la convention des modèles (`resources/library/README.md`) : seuls les calques `Cut`, `Engrave` (noir gravé, blanc creusé) et `Mark` sont importés ; options = sous-calques d'un groupe, un seul visible (`find_variant_groups`) ; textes en objets texte modifiables (`TextObject`, calés sur le rendu SVG) et remplaçables (`find_texts`) ; aperçu tel qu'importé (`svg_preview`) ; unités et transformations cumulées. Utilisé par la bibliothèque ; à valider pour remplacer `extract_svg_objects` | `controllers/library`, `ui/dialogs/library` |
 | **library/catalog.py** | Catalogue de la bibliothèque, sans Qt : catégories et modèles des dossiers `resources/library/` (à côté de l'exécutable et dans le bundle), `_category.json`, `info.json`, aperçu, readme | `controllers/library` |
@@ -332,7 +334,7 @@ main.py
         │         ├─ set_vector_draw_tool (line/rect/ellipse)
         │         ├─ explode_selected / enter_node_edit
         │         └─ nesting / box_generator / puzzle_generator
-        ├─ GcodeGenerationMixin ──► workers + vector_layers G-Code
+        ├─ GcodeGenerationMixin ──► workers (threads) ──► gcode/ (G-Code sans Qt)
         └─ LaserControlMixin ──► grbl.connection / grbl.simulator
 ```
 
@@ -413,6 +415,7 @@ Menu Outils → Caméra (CameraDialog)
 | Texte | Texte sur un cercle (médailles, tampons), voir `vector/text_on_arc.py` ; texte le long de n'importe quel objet, voir `vector/text_on_path.py` |
 | Dessin | Boutons séparés cercle / ellipse, tracés d'un seul geste ; le rectangle garde ses 3 points ; icônes `draw-circle` et `text-follow-path` (Breeze et Jarvis) |
 | Modes de calque | Codes indépendants de la langue (`models/layer_modes`) ; matériau choisi enregistré automatiquement |
+| G-Code | Génération sortie des threads et de `vector_layers` dans le paquet `gcode/`, sans Qt et testée seule ; G-Code inchangé |
 | Build | `packaging/pyinstaller/` (spec commun, filtre), AppImage, workflows `tests.yml` / `release.yml` ; numpy 2, OpenCV headless |
 | Caméra | Module `camera/` (calibration objectif, alignement homographique du plateau) + assistants (`ui/dialogs/camera/`) + superposition sur le canevas vectoriel |
 

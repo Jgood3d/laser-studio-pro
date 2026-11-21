@@ -1,4 +1,4 @@
-"""Marge de l'image à graver (workers.IMAGE_MARGIN_MM) : avec un décalage du job à 0, le surbalayage
+"""Marge de l'image à graver (gcode.raster.IMAGE_MARGIN_MM) : avec un décalage du job à 0, le surbalayage
 ne fait plus partir la tête en X négatif."""
 import os
 import re
@@ -10,9 +10,9 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio import workers
+    from laser_studio import gcode, workers
 except ImportError:  # dépendance manquante (PyQt6, svg.path...)
-    workers = None
+    gcode = workers = None
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
@@ -45,12 +45,12 @@ def _engraving_moves(gcode):
 @unittest.skipIf(workers is None, "workers non importable ici")
 class ImageMarginTests(unittest.TestCase):
     def test_image_origin(self):
-        m = workers.IMAGE_MARGIN_MM
+        m = gcode.IMAGE_MARGIN_MM
         self.assertEqual(m, 10.0)                          # même marge qu'à l'import d'un SVG/DXF
-        self.assertEqual(workers.image_origin(_params()), (m, m))
-        self.assertEqual(workers.image_origin(_params(offset_x=5.0, offset_y=-3.0)), (5.0 + m, -3.0 + m))
+        self.assertEqual(gcode.image_origin(_params()), (m, m))
+        self.assertEqual(gcode.image_origin(_params(offset_x=5.0, offset_y=-3.0)), (5.0 + m, -3.0 + m))
         # Origine « Centre » : le décalage désigne le centre de l'image, sans marge.
-        self.assertEqual(workers.image_origin(_params(origin_pos="center", offset_x=50.0, offset_y=40.0)),
+        self.assertEqual(gcode.image_origin(_params(origin_pos="center", offset_x=50.0, offset_y=40.0)),
                          (40.0, 35.0))
 
     def test_overscan_stays_positive_with_a_zero_offset(self):
@@ -75,9 +75,9 @@ class ImageMarginTests(unittest.TestCase):
         frame = source("laser_control_mixin.py")
         frame = frame[frame.index("def run_frame"):]
         self.assertIn("image_origin(", frame[:frame.index("cmds = [")])                    # cadrage
-        work = source("workers.py")
+        work = source(os.path.join("gcode", "job.py"))
         # Calques vectoriels : décalage du job seul (leurs objets ont déjà leur marge à l'import).
-        self.assertIn("self.vector_layers_data, base_offset_x, base_offset_y, h_mm", work)
+        self.assertIn("vector_layers_data, base_offset_x, base_offset_y, h_mm", work)
 
 
 if __name__ == "__main__":

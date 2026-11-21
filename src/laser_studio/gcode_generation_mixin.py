@@ -12,8 +12,8 @@ from laser_studio.vector_layers import (
 )
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
-from laser_studio.workers import MATRIX_CUT, MATRIX_ENGRAVE
-from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, bidir_test_gcode, image_origin
+from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
+from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.i18n import tr
 
@@ -533,7 +533,7 @@ class GcodeGenerationMixin:
 
     def generate_bidir_test(self):
         """Génère le motif de calibrage du décalage aller/retour (voir
-        workers.bidir_test_gcode) avec la vitesse, la puissance et la résolution
+        gcode.calibration.bidir_test_gcode) avec la vitesse, la puissance et la résolution
         actuelles, puis l'affiche comme n'importe quel G-Code généré."""
         if self.grbl.overscan_enabled:
             overscan = self.grbl.overscan_dist_mm if self.grbl.overscan_mode == 0 else 2.5

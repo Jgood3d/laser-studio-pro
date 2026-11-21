@@ -6,7 +6,7 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
 from laser_studio.controllers.machine_connection import parse_grbl_settings
-from laser_studio.workers import image_origin
+from laser_studio.gcode.raster import image_origin
 from laser_studio.i18n import tr
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled

@@ -32,6 +32,8 @@ Profils matériaux : plus de bouton « Enregistrer ». Le matériau choisi repre
 
 Modes des calques : enregistrés sous un code indépendant de la langue (`engrave_fill`, `cut`, `mark`) dans les projets, les profils machine et les commentaires du G-Code, au lieu du libellé français. Les anciens projets, profils et G-Code sont relus et convertis. Un projet enregistré avec cette version n'est plus lu correctement par une version antérieure (les modes y reviennent à « Découpe »).
 
+Génération du G-Code : sortie des threads (`workers.py`) et de `vector_layers.py` dans un paquet `gcode/` sans Qt, testé seul. Le G-Code produit est identique, vérifié au caractère près sur 35 jobs (images binaires et en niveaux de gris, M3 / M4, surbalayage, décalage retour, découpe SVG, calques vectoriels, matrices de test, motif aller/retour).
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 
