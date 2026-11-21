@@ -229,7 +229,7 @@ def title_of(cls, index):
 # -- dessin
 
 PALETTE = {
-    "laser_control_mixin.py": "#d9534f",
+    "controllers/engraver.py": "#d9534f",
     "controllers/machine_profiles.py": "#8e44ad",
     "controllers/job.py": "#e67e22",
     "image_processing_mixin.py": "#16a085",

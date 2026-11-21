@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.machine.job_actions import JobActionsPanel
 
     panel = JobActionsPanel()
-    panel.frame_requested.connect(self.run_frame)
+    panel.frame_requested.connect(engraver.frame)
 """
 
 from laser_studio.ui.machine.job_actions.panel import JobActionsPanel

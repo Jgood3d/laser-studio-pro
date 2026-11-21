@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.machine import MachinePanel
 
     panel = MachinePanel(ports_model, max_speed=6000)
-    panel.jog_panel.jog_requested.connect(self.jog_move)
+    panel.jog_panel.jog_requested.connect(engraver.jog)
 """
 
 from laser_studio.ui.machine.panel import MachinePanel

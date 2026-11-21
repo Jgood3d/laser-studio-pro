@@ -32,6 +32,10 @@ class FakeDialogs:
         self._record("confirm", title, text)
         return self.answer
 
+    def confirm_default_no(self, title, text):
+        self._record("confirm_default_no", title, text)
+        return self.answer
+
     def ask_yes_no(self, title, text):
         self._record("ask_yes_no", title, text)
         return self.answer

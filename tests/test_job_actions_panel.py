@@ -9,7 +9,9 @@ sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
-    from laser_studio.laser_control_mixin import LaserControlMixin
+    from unittest import mock
+    from laser_studio.controllers.engraver import EngraverController
+    from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.job_actions import JobActionsPanel
     from laser_studio.i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
@@ -71,12 +73,10 @@ class WorkZeroTests(unittest.TestCase):
     """La logique fabrique les commandes de l'origine de travail."""
 
     def make(self):
-        class Fake(LaserControlMixin):
-            pass
-        f = Fake.__new__(Fake)
-        f.sent = []
-        f.send_manual_direct_cmd = f.sent.append
-        return f
+        engraver = EngraverController(mock.Mock(), GrblConfig(), mock.Mock())
+        engraver.sent = []
+        engraver.send_direct = engraver.sent.append
+        return engraver
 
     def test_set_work_zero(self):
         f = self.make()

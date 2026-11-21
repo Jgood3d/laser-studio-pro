@@ -35,6 +35,11 @@ class UserDialogs:
         """Question Oui / Annuler, Oui par défaut. True si Oui."""
         return QMessageBox.question(self.parent, title, text, _YES | _CANCEL, _YES) == _YES
 
+    def confirm_default_no(self, title, text):
+        """Question Oui / Non, Non par défaut (action à risque : lancer un job,
+        écrire la configuration du graveur). True si Oui."""
+        return QMessageBox.question(self.parent, title, text, _YES | _NO, _NO) == _YES
+
     def ask_yes_no(self, title, text):
         """Avertissement Oui / Non, sans bouton par défaut. True si Oui."""
         return QMessageBox.warning(self.parent, title, text, _YES | _NO) == _YES

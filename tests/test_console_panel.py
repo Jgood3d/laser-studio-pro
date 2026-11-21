@@ -10,7 +10,8 @@ try:
     from PyQt6.QtCore import Qt
     from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication, QPushButton
-    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.controllers.engraver import EngraverController
+    from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.console import DirectConsolePanel
 except ImportError:  # PyQt6, pyserial... manquants
     DirectConsolePanel = None
@@ -70,13 +71,11 @@ class SendManualCommandTests(unittest.TestCase):
     """La logique reçoit la commande et l'envoie, sans lire de widget."""
 
     def make(self, connected=True):
-        class Fake(LaserControlMixin):
-            pass
-        f = Fake.__new__(Fake)
-        f.connection = mock.Mock(is_connected=lambda: connected)
-        f.sent = []
-        f.connection.run_commands = f.sent.append
-        return f
+        connection = mock.Mock(is_connected=lambda: connected)
+        engraver = EngraverController(connection, GrblConfig(), mock.Mock())
+        engraver.sent = []
+        connection.run_commands = engraver.sent.append
+        return engraver
 
     def test_command_is_sent(self):
         f = self.make()

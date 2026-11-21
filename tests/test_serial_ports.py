@@ -8,9 +8,12 @@ from unittest import mock
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from PyQt6.QtWidgets import QApplication, QComboBox
+    from PyQt6.QtGui import QStandardItemModel
+    from PyQt6.QtWidgets import QApplication
     from laser_studio.grbl import ports
-    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.controllers.engraver import EngraverController
+    from laser_studio.models.grbl import GrblConfig
+    from laser_studio.ui.machine.connection import ConnectionPanel
 except ImportError:  # PyQt6, pyserial... manquants
     ports = None
 
@@ -62,18 +65,21 @@ class SerialPortsTests(unittest.TestCase):
             "/dev/ttyS4 - 16550A UART",
         ])
 
-    def window(self):
-        class Fake(LaserControlMixin):
-            pass
-        f = Fake.__new__(Fake)
-        f.combo_ports = QComboBox()
-        self.addCleanup(f.combo_ports.deleteLater)
+    def window(self, connection=None):
+        """Panneau Connexion et contrôleur du graveur, branchés comme dans la fenêtre."""
+        f = SimpleNamespace()
+        f.panel = ConnectionPanel(QStandardItemModel())
+        self.addCleanup(f.panel.deleteLater)
+        f.combo_ports = f.panel.ports_combo
+        f.engraver = EngraverController(connection or mock.Mock(), GrblConfig(), mock.Mock(),
+                                        selected_port=f.panel.selected_port)
+        f.engraver.ports_changed.connect(f.panel.set_ports)
         return f
 
     def refresh(self, f, system_ports):
         with mock.patch("serial.tools.list_ports.comports", return_value=system_ports), \
-                mock.patch("laser_studio.laser_control_mixin.simulation_enabled", return_value=False):
-            f.refresh_com_ports()
+                mock.patch("laser_studio.controllers.engraver.simulation_enabled", return_value=False):
+            f.engraver.refresh_ports()
 
     def test_last_port_is_selected_at_startup(self):
         ports.save_last_port("/dev/ttyUSB10")
@@ -95,16 +101,16 @@ class SerialPortsTests(unittest.TestCase):
         self.assertEqual(f.combo_ports.currentText(), "/dev/ttyUSB2 - USB Serial")
 
     def test_successful_connection_remembers_the_port(self):
-        f = self.window()
+        connection = mock.Mock()
+        connection.is_connected.return_value = False
+        connection.connect.return_value = True
+        f = self.window(connection)
         self.refresh(f, SYSTEM_PORTS)
         f.combo_ports.setCurrentText("/dev/ttyUSB2 - USB Serial")
-        f.connection = mock.Mock()
-        f.connection.is_connected.return_value = False
-        f.connection.connect.return_value = True
-        for name in ("log_message", "_check_grbl_laser_mode"):
-            setattr(f, name, mock.Mock())
-        f.toggle_connection()
-        f.connection.connect.assert_called_once_with("/dev/ttyUSB2")
+        f.engraver.check_grbl_settings = mock.Mock()
+        f.engraver.toggle_connection()
+        connection.connect.assert_called_once_with("/dev/ttyUSB2")
+        f.engraver.check_grbl_settings.assert_called_once()
         self.assertEqual(ports.load_last_port(), "/dev/ttyUSB2")
 
 

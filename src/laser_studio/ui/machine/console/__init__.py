@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.machine.console import DirectConsolePanel
 
     panel = DirectConsolePanel()
-    panel.command_submitted.connect(self.send_console_command)
+    panel.command_submitted.connect(engraver.send_console_command)
 """
 
 from laser_studio.ui.machine.console.panel import DirectConsolePanel

@@ -25,7 +25,7 @@ QUEUE_FILENAME = "laser_studio_pro_queue.json"
 
 @dataclass
 class Engraver:
-    """Ce que la file demande au graveur (voir LaserControlMixin)."""
+    """Ce que la file demande au graveur (voir EngraverController)."""
 
     # Le port est-il ouvert ?
     is_connected: Callable[[], bool]

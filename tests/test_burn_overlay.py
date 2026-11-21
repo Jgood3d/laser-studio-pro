@@ -80,7 +80,7 @@ class BurnOverlayTests(unittest.TestCase):
     def test_new_job_on_the_same_gcode_starts_from_zero(self):
         self.tab.set_lines_acked(7)
         self.tab.update_burn(25.0, 0.0)
-        self.win._prepare_burn_overlay(GCODE)          # même G-Code : simple remise à zéro
+        self.win.engraver.stream_starting.emit(GCODE)  # envoi du même G-Code : simple remise à zéro
         self.assertEqual((self.tab.burn.done, self.red_points()), (0, []))
 
 

@@ -26,7 +26,7 @@ class MachineStateView(QWidget):
     n'apparaît qu'en alarme, et émet unlock_requested :
 
         view = MachineStateView()
-        view.unlock_requested.connect(laser.unlock_alarm)
+        view.unlock_requested.connect(engraver.unlock)
         view.set_state("Alarm")
     """
 

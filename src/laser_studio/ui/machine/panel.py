@@ -24,9 +24,9 @@ class MachinePanel(QWidget):
     auxquels la fenêtre (plus tard un contrôleur) s'abonne directement :
 
         panel = MachinePanel(ports_model, max_speed=6000)
-        panel.connection_panel.connect_requested.connect(laser.toggle)
-        panel.connection_panel.unlock_requested.connect(laser.unlock_alarm)
-        panel.jog_panel.jog_requested.connect(laser.jog_move)
+        panel.connection_panel.connect_requested.connect(engraver.toggle_connection)
+        panel.connection_panel.unlock_requested.connect(engraver.unlock)
+        panel.jog_panel.jog_requested.connect(engraver.jog)
         panel.set_connected(False)
         panel.set_status("Idle", 12.5, 30.0, 0.0)
         panel.sent_gcode_log.append_lines(["G21"])

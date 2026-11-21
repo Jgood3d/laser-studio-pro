@@ -1,4 +1,4 @@
-"""Panneau de pilotage (JogControlPanel) : signaux émis, état reçu, et jog_move()."""
+"""Panneau de pilotage (JogControlPanel) : signaux émis, état reçu, et EngraverController.jog()."""
 import os
 import sys
 import unittest
@@ -7,6 +7,7 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, REPO)                                   # stencil_studio (window_controller)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 
@@ -14,7 +15,8 @@ try:
     from PyQt6.QtGui import QStandardItemModel
     from PyQt6.QtWidgets import QApplication, QPushButton, QToolButton
     from laser_studio.controllers.machine_connection import MachineConnection
-    from laser_studio.laser_control_mixin import LaserControlMixin
+    from laser_studio.controllers.engraver import EngraverController
+    from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.controls import JogControlPanel
     from laser_studio.ui.machine import MachinePanel
     from laser_studio.ui.app.window_controller import WindowControllerMixin
@@ -29,23 +31,21 @@ class JogMoveTests(unittest.TestCase):
     """La logique reçoit des millimètres et fabrique la commande GRBL."""
 
     def make(self):
-        class Fake(LaserControlMixin):
-            pass
-        f = Fake.__new__(Fake)
-        f.connection = MachineConnection(usb=mock.Mock(is_connected=lambda: True))
-        f.sent = []
-        f.connection.run_commands = f.sent.append
-        return f
+        connection = MachineConnection(usb=mock.Mock(is_connected=lambda: True))
+        engraver = EngraverController(connection, GrblConfig(), mock.Mock())
+        engraver.sent = []
+        connection.run_commands = engraver.sent.append
+        return engraver
 
     def test_millimetres_become_a_jog_command(self):
         f = self.make()
-        f.jog_move(1.0, 0.0, 6000)
-        f.jog_move(-1.0, 1.0, 6000)
+        f.jog(1.0, 0.0, 6000)
+        f.jog(-1.0, 1.0, 6000)
         self.assertEqual(f.sent, ["$J=G91 G21 X1.000 Y0.000 F6000", "$J=G91 G21 X-1.000 Y1.000 F6000"])
 
     def test_small_step(self):
         f = self.make()
-        f.jog_move(0.0, -0.1, 300)
+        f.jog(0.0, -0.1, 300)
         self.assertEqual(f.sent, ["$J=G91 G21 X0.000 Y-0.100 F300"])
 
 
@@ -155,6 +155,11 @@ class _Box:
 
 @unittest.skipIf(JogControlPanel is None, "window_controller non importable ici")
 class CommandsLockTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Application commune : créée dans un test, elle serait détruite à sa fin avec ses widgets.
+        cls.app = QApplication.instance() or QApplication([])
+
     def make(self, connected):
         class Fake(WindowControllerMixin):
             pass
