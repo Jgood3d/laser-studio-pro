@@ -14,6 +14,8 @@ from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QStandardItemModel
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
+from laser_studio.controllers.job import JobController
+from laser_studio.ui.user_dialogs import UserDialogs
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.connection import port_help_dialog
 from laser_studio.ui.machine.job_position import JobPositionBox
@@ -93,15 +95,28 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.image_settings = ImageSettings(self)
         self.image_history = ImageSettingsHistory(self.image_settings)
 
-        # Gravure d'une image : vitesse et puissance lues dans le calque de
-        # gravure (engrave_speed / engrave_power, voir GcodeGenerationMixin).
-        # Ancien mode SVG : découpe d'un SVG entier (loaded_svg_path), avec un
-        # seul réglage. Plus accessible depuis l'interface, mais encore lu dans
-        # les anciens projets et les profils matériaux (voir set_cut_settings).
-        self.cut_enabled = False
-        self.cut_speed = 300
-        self.cut_power = 90
-        self.cut_passes = 2
+        # Job : paramètres, contrôles avant génération, génération du G-Code
+        # (thread), estimation, export / import, matrice de test. Il lit l'état
+        # de l'interface par les fonctions ci-dessous ; la fenêtre affiche ses
+        # résultats (GcodeGenerationMixin).
+        self.job = JobController(
+            self.layer_manager, self.grbl, self.machine, self.image_settings, UserDialogs(self),
+            geometry=self._job_geometry,
+            image=lambda: self.processed_array,
+            svg_path=lambda: self.loaded_svg_path,
+            vector_objects=lambda: self.vector_canvas.objects,
+            optimize_path=lambda: self.chk_optimize_path.isChecked(),
+            lines_mm=lambda: self.spin_lmm.value(),
+            material_summary=self.material_summary_text,
+            parent=self,
+        )
+        self.job.started.connect(self.on_gcode_generation_started)
+        self.job.progress.connect(self.on_gcode_generation_progress)
+        self.job.generated.connect(self.on_gcode_generated)
+        self.job.failed.connect(self.on_gcode_generation_error)
+        self.job.imported.connect(self.show_imported_gcode)
+        self.job.log.connect(self.log_message)
+        self.job.status.connect(self.show_status_message)
         
         self.process_timer = QTimer()
         self.process_timer.setSingleShot(True)
@@ -335,7 +350,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         Affichée dans une fenêtre du menu Paramètres (show_settings_window).
         """
         page = GrblConfigPage()
-        page.bidir_test_requested.connect(self.generate_bidir_test)
+        page.bidir_test_requested.connect(self.job.generate_bidir_test)
         # Décalage aller/retour : mémorisé dans le profil de la machine.
         page.scan_offset_changed.connect(self.machines.schedule_persist)
         # « Inclure $H » : mémorisé aussi (décoché d'office pour un graveur
@@ -402,6 +417,16 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.chk_mat_homing = page.homing_check
         self.tab_matrix = page
 
+    def _job_geometry(self):
+        """Taille et position du job, lues dans l'interface (voir JobController)."""
+        return {
+            'width_mm': self.spin_w.value(),
+            'height_mm': self.spin_h.value(),
+            'origin_pos': self.job_position_box.origin(),
+            'offset_x': self.spin_off_x.value(),
+            'offset_y': self.spin_off_y.value(),
+        }
+
     def _loaded_image_and_width(self):
         """(image, largeur en mm) de « Graver une image », ou None."""
         if getattr(self, "raw_image", None) is None:
@@ -412,11 +437,11 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Réglages en cours, au format d'un matériau (voir MaterialsController) : ceux de chaque
         calque, et les anciennes valeurs de gravure image et de découpe SVG."""
         return {
-            "sp_e": self.engrave_speed,
-            "pw_e": self.engrave_power,
-            "sp_c": self.cut_speed,
-            "pw_c": self.cut_power,
-            "pass_c": self.cut_passes,
+            "sp_e": self.job.engrave_speed,
+            "pw_e": self.job.engrave_power,
+            "sp_c": self.job.cut_speed,
+            "pw_c": self.job.cut_power,
+            "pass_c": self.job.cut_passes,
             "layers": capture_material_layers(self.layer_manager),
         }
 
@@ -426,7 +451,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         (un ancien matériau sp_e / pw_e est repris dans ce calque, voir complete_material).
         layers=False : profil machine qui vient de restaurer ses propres calques, à ne pas
         écraser. Le tableau, le canevas et le profil suivent le modèle des calques."""
-        self.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
+        self.job.set_cut_settings(material["sp_c"], material["pw_c"], material["pass_c"])
         if layers:
             with self._material_autosave_paused():
                 apply_material_to_layers(self.layer_manager, material)
@@ -435,7 +460,11 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
         l'aperçu 2D, où le G-Code apparaît. En cas d'erreur, la fenêtre
         reste ouverte pour corriger les réglages."""
-        if not self.generate_test_matrix():
+        # Lignes/mm toujours identiques à l'onglet « Graver une image ».
+        self._sync_matrix_lmm_from_image()
+        page = self.tab_matrix
+        if not self.job.generate_test_matrix(page.matrix_params(), page.is_engraving(),
+                                             page.image_test_enabled(), self.matrix_image.build_tile):
             return
         self.tab_matrix.window().close()
         self.show_main_tab("tab_vector_2d")
@@ -862,7 +891,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         tab.display_options_changed.connect(
             self._on_preview_options_changed
         )
-        tab.plot_clicked.connect(self._on_plot_clicked)
+        tab.plot_clicked.connect(self.job.apply_matrix_cell)
         # Séparateur aperçu / statistiques : position mémorisée (load_splitter_sizes).
         tab.splitter.splitterMoved.connect(self.save_splitter_sizes)
         # Noms historiques, lus par la génération et la connexion au graveur.
@@ -1077,12 +1106,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             **self.image_settings.to_project(),
             "safe_cut_order": self.grbl.safe_cut_order,
             "lmm": self.spin_lmm.value(),
-            "speed_engrave": self.engrave_speed,
-            "power_engrave": self.engrave_power,
-            "enable_cut": self.cut_enabled,
-            "speed_cut": self.cut_speed,
-            "power_cut": self.cut_power,
-            "passes_cut": self.cut_passes,
+            "speed_engrave": self.job.engrave_speed,
+            "power_engrave": self.job.engrave_power,
+            "enable_cut": self.job.cut_enabled,
+            "speed_cut": self.job.cut_speed,
+            "power_cut": self.job.cut_power,
+            "passes_cut": self.job.cut_passes,
             "materials_db": self.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
             "svg_path": self.loaded_svg_path,
@@ -1124,10 +1153,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque
         # de gravure. Avec des calques, ce sont eux qui font foi (rechargés plus bas).
         if "layers" not in data:
-            self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
-        self.cut_enabled = bool(data.get("enable_cut", False))
-        self.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
-                              data.get("passes_cut", 2))
+            self.job.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
+        self.job.cut_enabled = bool(data.get("enable_cut", False))
+        self.job.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
+                                  data.get("passes_cut", 2))
 
         if "materials_db" in data:
             self.materials.set_materials(data["materials_db"])

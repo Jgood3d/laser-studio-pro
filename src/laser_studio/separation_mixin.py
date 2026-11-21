@@ -182,7 +182,7 @@ class SeparationMixin:
                 tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h),
             )
             return
-        params = self._build_gcode_params()
+        params = self.job.build_params()
         params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg", enable_cut=False)
         self._gain_test_worker = AdvancedGCodeWorker(arr, None, params, None)
         self._gain_test_worker.finished.connect(self._on_gain_test_ready)

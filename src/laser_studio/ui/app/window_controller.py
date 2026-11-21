@@ -76,7 +76,9 @@ class WindowControllerMixin:
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
         # Fichier
         actions.save_project_requested.connect(self.project.save)
-        actions.gcode_export_requested.connect(self.export_gcode_with_ext)
+        actions.gcode_export_requested.connect(
+            lambda extension: self.job.export_gcode(extension, self.txt_console.toPlainText())
+        )
         actions.open_project_requested.connect(self.project.open)
         actions.recent_project_requested.connect(self.project.open_path)
         actions.quit_requested.connect(self.close)
@@ -128,9 +130,9 @@ class WindowControllerMixin:
         actions.mirror_changed.connect(self.update_image_processing)
         actions.image_reset_requested.connect(self.reset_image_settings)
         # G-code
-        actions.estimate_requested.connect(self.estimate_job_time)
-        actions.generate_requested.connect(self.generate_job)
-        actions.gcode_import_requested.connect(self.import_gcode_file)
+        actions.estimate_requested.connect(self.job.estimate)
+        actions.generate_requested.connect(self.job.generate)
+        actions.gcode_import_requested.connect(self.job.import_gcode)
         actions.keychain_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_keychain_generator)
         )

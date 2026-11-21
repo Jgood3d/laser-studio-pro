@@ -3,9 +3,7 @@ premier à son dernier pixel gravé — sans changer les pixels gravés (rejeu d
 import os
 import re
 import sys
-import types
 import unittest
-from unittest import mock
 
 import numpy as np
 
@@ -13,13 +11,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # test_gcode_burn_map
 
 from test_gcode_burn_map import generate_gcode, power_map, workers  # noqa: E402
-from laser_studio.models.layers import LayersModel  # noqa: E402
-from laser_studio.models.grbl import GrblConfig  # noqa: E402
 
 try:
-    import laser_studio.gcode_generation_mixin as ggm
+    from laser_studio.controllers.job import estimate_duration_text
+    from job_fakes import make_job
 except ImportError:  # PyQt6 manquant
-    ggm = None
+    make_job = None
 
 
 def disc(size=60, ring=4):
@@ -91,33 +88,17 @@ class RasterTrimTests(unittest.TestCase):
         self.assertLess(swept, 0.8 * full)
 
 
-class _Spin:
-    def __init__(self, v):
-        self.v = v
-
-    def value(self):
-        return self.v
-
-
-@unittest.skipIf(ggm is None, "gcode_generation_mixin non importable ici")
+@unittest.skipIf(make_job is None, "PyQt6 non importable ici")
 class QuickEstimateTests(unittest.TestCase):
     def test_estimate_follows_the_trimmed_rows(self):
-        class App(ggm.GcodeGenerationMixin):
-            pass
-        app = App()
         arr = np.full((10, 60), 255, np.uint8)
         arr[[2, 7], 10:40] = 0                      # 2 lignes de 30 px (30 mm), 8 lignes vides
-        app.processed_array = arr
-        app.spin_w = _Spin(60.0)
-        app.layer_manager = LayersModel()
-        app.layer_manager.update(app.layer_manager.engrave_layer().id, speed=600)
-        app.grbl = GrblConfig()
-        app.grbl.update(overscan_enabled=False)
-        app.loaded_svg_path = None
-        with mock.patch.object(ggm.QMessageBox, "information") as box:
-            app.estimate_job_time()
+        job, dialogs = make_job(image=arr, geometry_kw={'width_mm': 60.0})
+        job.layers.update(job.layers.engrave_layer().id, speed=600)
+        job.grbl.update(overscan_enabled=False)
+        job.estimate()
         # 2 x 30 mm à 600 mm/min = 6 s (avant : 10 lignes x 60 mm = 60 s)
-        self.assertIn(app._format_duration(6.0), box.call_args[0][2])
+        self.assertIn(estimate_duration_text(6.0), dialogs.last_text("info"))
 
 
 if __name__ == "__main__":

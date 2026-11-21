@@ -12,6 +12,9 @@ from laser_studio.vector.font import VectorFont
 # Mode de la matrice de test (params['mode']) : codes indépendants de la langue.
 MATRIX_ENGRAVE, MATRIX_CUT = "engrave", "cut"
 
+# Place laissée aux étiquettes à gauche (vitesses) et en bas (puissances / passes) de la grille, en mm.
+LABELS_OFFSET_X, LABELS_OFFSET_Y = 22.0, 14.0
+
 
 def _round_half_up(value):
     """Arrondi arithmétique standard (.5 arrondit toujours vers le haut),
@@ -65,8 +68,8 @@ def build_test_matrix_gcode(params):
     total_time_sec = 0.0
     power_samples = []
 
-    offset_labels_x = 22.0
-    offset_labels_y = 14.0
+    offset_labels_x = LABELS_OFFSET_X
+    offset_labels_y = LABELS_OFFSET_Y
 
     mat_off_x = params.get('matrix_offset_x', 0.0)
     mat_off_y = params.get('matrix_offset_y', 0.0)
@@ -250,3 +253,38 @@ def build_test_matrix_gcode(params):
 
     avg_p = float(np.mean(power_samples)) if power_samples else 0.0
     return GcodeResult("\n".join(gcode), len(gcode), avg_p, matrix_duration_text(total_time_sec))
+
+
+def matrix_cell_at(params, x_mm, y_mm):
+    """Case de la matrice `params` (ceux de build_test_matrix_gcode) au point
+    (x_mm, y_mm) du plateau : (vitesse mm/min, puissance %) en gravure,
+    (vitesse mm/min, passes) en découpe, valeurs arrondies. None hors des
+    cases (marges, étiquettes, espace entre deux cases)."""
+    start_x = params.get('matrix_offset_x', 0.0) + LABELS_OFFSET_X
+    start_y = params.get('matrix_offset_y', 0.0) + LABELS_OFFSET_Y
+    # Case : carré, ou zone d'image (largeur x hauteur) pour un test à partir d'une image.
+    cell_w = float(params.get('cell_w') or params['size_square'])
+    cell_h = float(params.get('cell_h') or params['size_square'])
+    gap = params['gap']
+
+    speeds = np.linspace(params['min_speed'], params['max_speed'], int(params['steps_speed']))
+    mode = params.get('mode', MATRIX_ENGRAVE)
+    if mode == MATRIX_ENGRAVE:
+        col_values = np.linspace(params['min_power'], params['max_power'], int(params['steps_power']))
+    else:
+        col_values = np.unique(np.round(np.linspace(
+            params['min_passes'], params['max_passes'], int(params['steps_passes'])))).astype(int)
+
+    col = int((x_mm - start_x) // (cell_w + gap))
+    row = int((y_mm - start_y) // (cell_h + gap))
+    if not (0 <= col < len(col_values) and 0 <= row < len(speeds)):
+        return None
+    cell_x0 = start_x + col * (cell_w + gap)
+    cell_y0 = start_y + row * (cell_h + gap)
+    if not (cell_x0 <= x_mm <= cell_x0 + cell_w and cell_y0 <= y_mm <= cell_y0 + cell_h):
+        return None  # clic dans l'espace entre les cases, pas dans une case
+
+    speed = round(float(speeds[row]))
+    if mode == MATRIX_ENGRAVE:
+        return speed, round(float(col_values[col]))
+    return speed, int(col_values[col])

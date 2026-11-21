@@ -183,7 +183,7 @@ class CalibrationTests(unittest.TestCase):
 
 
 try:
-    from PyQt6.QtCore import QCoreApplication
+    from PyQt6.QtWidgets import QApplication as QCoreApplication  # QApplication : la fenêtre est créée dans le même processus
     from laser_studio import workers
 except ImportError:  # PyQt6 absent
     workers = None

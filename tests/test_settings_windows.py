@@ -282,9 +282,14 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
-        src = read("gcode_generation_mixin.py")
-        start = src[:src.index("        self.worker.start()")]
-        self.assertTrue(start.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
+        job = read(os.path.join("controllers", "job.py"))
+        start = job[:job.index("        self.worker.start()")]
+        self.assertTrue(start.rstrip().endswith("self.started.emit()"))
+        self.assertIn("self.job.started.connect(self.on_gcode_generation_started)", read("main_window.py"))
+        view = read("gcode_generation_mixin.py")
+        view = view[view.index("def on_gcode_generation_started"):]
+        view = view[:view.index("\n    def ")]
+        self.assertTrue(view.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()
