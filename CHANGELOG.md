@@ -40,6 +40,8 @@ Aperçu 2D : lecture du G-Code, choix image ou traits, fond de matière, image r
 
 Graveur : connexion, pilotage, envoi des jobs et configuration GRBL sortis de la fenêtre dans un contrôleur `EngraverController` ; commandes GRBL rassemblées dans `grbl/commands.py` (sans Qt). La fenêtre perd le mixin `LaserControlMixin`. Comportement inchangé ; parcours complet testé avec le graveur simulé.
 
+Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à partir d'une image, vectorisation, bibliothèque, caméra) : leurs boîtes de dialogue passent par `UserDialogs`, transmis par la fenêtre, au lieu d'ouvrir `QMessageBox` / `QFileDialog` / `QInputDialog` eux-mêmes. Mêmes questions, mêmes boutons ; les contrôleurs se testent sans fenêtre.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

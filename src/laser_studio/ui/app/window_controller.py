@@ -296,6 +296,7 @@ class WindowControllerMixin:
             self.camera = CameraController(
                 self,
                 bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
+                dialogs=self.dialogs,
             )
         CameraDialog(self.camera, self).exec()
 

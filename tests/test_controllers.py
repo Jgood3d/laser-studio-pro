@@ -11,6 +11,7 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # job_fakes
 
 try:
     from PIL import Image
@@ -18,6 +19,7 @@ try:
     from PyQt6.QtWidgets import (
         QApplication,
         QComboBox,
+        QFileDialog,
         QInputDialog,
         QMessageBox,
     )
@@ -347,8 +349,9 @@ class ProjectControllerTests(_QtTest):
         )
 
     def save_to(self, path):
+        # Le contrôleur passe par UserDialogs, qui ouvre la boîte Qt : on l'intercepte.
         with mock.patch.object(
-            project_module.QFileDialog,
+            QFileDialog,
             "getSaveFileName",
             return_value=(path, ""),
         ):
@@ -449,6 +452,22 @@ class MaterialsControllerTests(_QtTest):
             combo.setCurrentText("Verre")
             controller.delete_selected()
         self.assertNotIn("Verre", controller.materials)
+
+    def test_dialogs_are_injected(self):
+        """Avec des boîtes de dialogue simulées : aucune boîte Qt, réponses choisies."""
+        from job_fakes import FakeDialogs
+        controller, combo = self.make()
+        controller._dialogs = dialogs = FakeDialogs(answer=False, text="  Cuir  ")
+        controller.new_material()
+        self.assertEqual(combo.currentText(), "Cuir")
+        controller.delete_selected()                     # suppression refusée
+        self.assertIn("Cuir", controller.materials)
+        combo.setCurrentText("Personnalisé")
+        controller.delete_selected()                     # le profil par défaut ne se supprime pas
+        self.assertEqual(dialogs.kinds(), ["ask_text", "confirm_yes_no", "warning"])
+        dialogs.text = None                              # saisie annulée
+        controller.new_material()
+        self.assertNotIn("", controller.materials)
 
     def test_replacing_the_list(self):
         controller, combo = self.make()

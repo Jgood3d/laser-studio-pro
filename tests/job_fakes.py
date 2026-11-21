@@ -12,8 +12,8 @@ class FakeDialogs:
     la place de l'utilisateur (`answer` pour confirm / ask_yes_no, `path`
     pour les choix de fichier)."""
 
-    def __init__(self, answer=True, path=""):
-        self.answer, self.path = answer, path
+    def __init__(self, answer=True, path="", text=None):
+        self.answer, self.path, self.text = answer, path, text
         self.calls = []
 
     def _record(self, kind, title, text):
@@ -35,6 +35,14 @@ class FakeDialogs:
     def confirm_default_no(self, title, text):
         self._record("confirm_default_no", title, text)
         return self.answer
+
+    def confirm_yes_no(self, title, text):
+        self._record("confirm_yes_no", title, text)
+        return self.answer
+
+    def ask_text(self, title, label):
+        self._record("ask_text", title, label)
+        return self.text
 
     def ask_yes_no(self, title, text):
         self._record("ask_yes_no", title, text)

@@ -9,7 +9,7 @@ mêmes méthodes et qui répond à la place de l'utilisateur.
     if dialogs.confirm(tr("gen.confirm_title"), texte):
         ...
 """
-from PyQt6.QtWidgets import QFileDialog, QMessageBox
+from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
 
 _YES = QMessageBox.StandardButton.Yes
 _NO = QMessageBox.StandardButton.No
@@ -40,6 +40,11 @@ class UserDialogs:
         écrire la configuration du graveur). True si Oui."""
         return QMessageBox.question(self.parent, title, text, _YES | _NO, _NO) == _YES
 
+    def confirm_yes_no(self, title, text):
+        """Question Oui / Non, bouton par défaut choisi par Qt (suppression
+        d'un élément). True si Oui."""
+        return QMessageBox.question(self.parent, title, text, _YES | _NO) == _YES
+
     def ask_yes_no(self, title, text):
         """Avertissement Oui / Non, sans bouton par défaut. True si Oui."""
         return QMessageBox.warning(self.parent, title, text, _YES | _NO) == _YES
@@ -53,3 +58,8 @@ class UserDialogs:
         """Fichier choisi à ouvrir, ou "" si annulé."""
         path, _ = QFileDialog.getOpenFileName(self.parent, title, "", file_filter)
         return path
+
+    def ask_text(self, title, label):
+        """Texte saisi (non nettoyé), ou None si annulé."""
+        text, ok = QInputDialog.getText(self.parent, title, label)
+        return text if ok else None

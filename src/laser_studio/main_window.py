@@ -75,6 +75,10 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # pilotage (connexion, jog, envoi d'un job, configuration $$) est dans
         # self.engraver, construit plus bas.
         self.connection = MachineConnection(parent=self)
+        # Boîtes de dialogue des contrôleurs (messages, confirmations, fichiers),
+        # centrées sur la fenêtre : les contrôleurs n'ouvrent pas de QMessageBox
+        # eux-mêmes, ce qui permet de les tester sans fenêtre.
+        self.dialogs = UserDialogs(self)
         self.raw_image = None
         self.processed_array = None
         self.loaded_svg_path = None
@@ -100,7 +104,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # de l'interface par les fonctions ci-dessous ; la fenêtre affiche ses
         # résultats (WindowControllerMixin : console, aperçu 2D).
         self.job = JobController(
-            self.layer_manager, self.grbl, self.machine, self.image_settings, UserDialogs(self),
+            self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
             geometry=self._job_geometry,
             image=lambda: self.processed_array,
             svg_path=lambda: self.loaded_svg_path,
@@ -119,7 +123,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.job.status.connect(self.show_status_message)
         # Graveur : port, connexion, pilotage, envoi des jobs, configuration GRBL.
         self.engraver = EngraverController(
-            self.connection, self.grbl, UserDialogs(self),
+            self.connection, self.grbl, self.dialogs,
             selected_port=lambda: self.machine_panel.connection_panel.selected_port(),
             current_gcode=lambda: self.txt_console.toPlainText(),
             job_geometry=self._job_geometry,
@@ -145,6 +149,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 self.app_menu_bar.file_menu.set_recent_projects(paths)
             ),
             log_to_console=self.log_message,
+            dialogs=self.dialogs,
         )
         self.autosave_timer = QTimer()
         self.autosave_timer.setInterval(5 * 60 * 1000)
@@ -331,6 +336,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 link_layers_to_focal=lambda: self.layers_tab.link_all_to_focal(),
             ),
             save_settings=self.save_machine_settings,
+            dialogs=self.dialogs,
         )
         page.profile_selected.connect(self.machines.on_selected)
         page.new_profile_requested.connect(self.machines.new_profile)
@@ -414,6 +420,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             page,
             loaded_image=self._loaded_image_and_width,
             image_settings=self.tab_previews.settings.processing_settings,
+            dialogs=UserDialogs(page),          # centrées sur la fenêtre de la matrice
         )
         page.choose_image_requested.connect(self.matrix_image.choose_image)
         page.use_loaded_image_requested.connect(
@@ -500,6 +507,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             materials,
             current_settings=self._job_settings,
             apply_settings=self._apply_job_settings,
+            dialogs=self.dialogs,
         )
         tab = self.layers_tab
         tab.material_selected.connect(self.materials.apply_selected)
@@ -609,6 +617,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
+            dialogs=self.dialogs,
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.update_image_actions_state)
@@ -652,6 +661,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self, self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
             add_to_vector_editor=self._add_objects_to_vector_editor,
+            dialogs=self.dialogs,
         )
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
@@ -959,6 +969,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             current_gcode=self.txt_console.toPlainText,
             log_to_console=self.log_message,
             sent_log=self.machine_panel.sent_gcode_log,
+            dialogs=self.dialogs,
         )
         tab.add_current_requested.connect(self.job_queue.add_current_gcode)
         tab.remove_selected_requested.connect(self.job_queue.remove_selected)
