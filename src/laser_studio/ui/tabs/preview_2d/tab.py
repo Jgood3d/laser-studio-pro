@@ -1,17 +1,27 @@
-"""Onglet « Visualisation 2D G-Code »."""
+"""Onglet « Visualisation 2D G-Code » : dessin de l'aperçu du G-Code (modèle :
+gcode/preview.py), position de la tête et traits déjà gravés pendant un job."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import Qt, QSettings, pyqtSignal
-from PyQt6.QtWidgets import QCheckBox, QComboBox, QLabel, QSplitter, QVBoxLayout, QWidget
+from PyQt6.QtCore import QPointF, QRectF, QSettings, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QPainterPath, QPolygonF
+from PyQt6.QtWidgets import (
+    QCheckBox, QComboBox, QGraphicsPathItem, QLabel, QSplitter, QVBoxLayout, QWidget,
+)
+import numpy as np
 
+from laser_studio.gcode.preview import (
+    DEFAULT_PREVIEW_MATERIAL, KIND_LAYER, KIND_MATRIX, KIND_RASTER, KIND_SVG_CUT, PREVIEW_MATERIALS,
+    PREVIEW_MATERIAL_ORDER, BurnTracker, cut_contours, is_cut_group, is_raster_group,
+    material_background_rect, parse_preview, raster_image,
+)
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
 from laser_studio.ui.widgets import FloatingToolBar
 
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
 SIDE_PANEL_LEFT_MARGIN = 6
-# Presets matière de l'aperçu (clés partagées avec gcode_generation_mixin).
-_PREVIEW_MATERIAL_KEYS = ("light", "wood", "bamboo", "slate", "acrylic_black")
+BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job
+RAPID_PEN_COLOR = "#555555"
 
 
 class Preview2DTab(QWidget):
@@ -21,13 +31,15 @@ class Preview2DTab(QWidget):
     la position du job sur le plateau, puis les statistiques du job
     (job_stats_panel).
 
-    Il ne dessine pas le G-Code lui-même : la génération dessine dans
-    `plot_widget`, et place la tête du laser avec `position_marker`. Les
-    options et les clics émettent des signaux :
+    show_gcode() dessine le G-Code (lu par gcode.preview.parse_preview) ;
+    set_head_position() place la tête du laser ; pendant un job, les traits
+    déjà gravés passent en rouge (set_lines_acked, update_burn, finish_burn).
+    Les options et les clics émettent des signaux :
 
         tab = Preview2DTab(job_position_box)
+        tab.show_gcode(gcode, layer_colors={"Découpe": "#ff3b30"})
         tab.display_options_changed.connect(self.redraw_preview)
-        tab.plot_clicked.connect(self._on_plot_clicked)
+        tab.plot_clicked.connect(job.apply_matrix_cell)
 
     Les cases restent lisibles directement (flip_check, negative_check,
     hide_rapid_check, optimize_path_check). « Optimiser le chemin »
@@ -43,10 +55,15 @@ class Preview2DTab(QWidget):
     display_options_changed = pyqtSignal()
     # Clic sur l'aperçu, en mm dans le repère du lit.
     plot_clicked = pyqtSignal(float, float)
+    # Message pour la console (partie de l'aperçu impossible à dessiner).
+    log = pyqtSignal(str)
 
     def __init__(self, job_position_box, parent=None):
         super().__init__(parent)
         self.job_position_box = job_position_box
+        # Suivi de la gravure du G-Code affiché, et son tracé rouge.
+        self.burn = BurnTracker()
+        self.burn_overlay = None
         self.job_stats_panel = JobStatsPanel()
         self.side_panel = self._side_panel()
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -96,10 +113,10 @@ class Preview2DTab(QWidget):
         self.material_label = QLabel(tr("preview.material_label"))
         self.material_combo = QComboBox()
         self.material_combo.setToolTip(tr("preview.material_tip"))
-        for key in _PREVIEW_MATERIAL_KEYS:
+        for key in PREVIEW_MATERIAL_ORDER:
             self.material_combo.addItem(tr(f"preview.material.{key}"), key)
         # Dernier choix mémorisé (sinon fond clair, comme avant).
-        saved = QSettings().value("preview_material", "light")
+        saved = QSettings().value("preview_material", DEFAULT_PREVIEW_MATERIAL)
         idx = self.material_combo.findData(saved)
         self.material_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.material_combo.currentIndexChanged.connect(self._on_material_changed)
@@ -128,7 +145,7 @@ class Preview2DTab(QWidget):
 
     def _on_material_changed(self, *_args):
         """Mémorise le preset et redessine l'aperçu."""
-        key = self.material_combo.currentData() or "light"
+        key = self.material_combo.currentData() or DEFAULT_PREVIEW_MATERIAL
         QSettings().setValue("preview_material", key)
         self.display_options_changed.emit()
 
@@ -177,3 +194,218 @@ class Preview2DTab(QWidget):
         view_box = self.plot_widget.getPlotItem().vb
         pos = view_box.mapSceneToView(event.scenePos())
         self.plot_clicked.emit(pos.x(), pos.y())
+
+    # -- options d'affichage
+
+    def material_preset(self):
+        """Preset matière choisi (fond + couleur de brûlure), « light » si
+        inconnu."""
+        key = self.material_combo.currentData() or DEFAULT_PREVIEW_MATERIAL
+        return PREVIEW_MATERIALS.get(key) or PREVIEW_MATERIALS[DEFAULT_PREVIEW_MATERIAL]
+
+    def _negative(self):
+        return self.negative_check.isChecked()
+
+    # -- position de la tête
+
+    def set_head_position(self, x, y):
+        """Place le point rouge de la tête (position renvoyée par GRBL, MPos
+        ou WPos selon $10, sans compensation d'un décalage G92/G54 : repère
+        visuel de suivi, pas une mesure de précision)."""
+        self.position_marker.setData([x], [y])
+
+    def clear_head_position(self):
+        """Plus de position connue (graveur déconnecté) : le point disparaît."""
+        self.position_marker.setData([], [])
+
+    # -- suivi de la gravure en direct
+
+    def reset_burn(self):
+        """Nouveau job sur le G-Code affiché : plus rien n'est gravé."""
+        if self.burn_overlay is None:
+            return
+        self.burn.reset()
+        self.burn_overlay.setData([], [])
+
+    def set_lines_acked(self, acked):
+        """Lignes acceptées par GRBL jusqu'ici (GCodeStreamerThread.lines_acked)."""
+        self.burn.lines_acked = acked
+
+    def update_burn(self, x, y):
+        """Avance le tracé rouge d'après la position de la tête."""
+        if self.burn_overlay is not None and self.burn.update(x, y):
+            self._draw_burn()
+
+    def finish_burn(self, clean_finish):
+        """Fin du job : tout est rouge s'il s'est terminé normalement, sinon le
+        tracé montre jusqu'où la gravure est allée."""
+        if self.burn_overlay is not None and self.burn.finish(clean_finish):
+            self._draw_burn()
+
+    def _draw_burn(self):
+        xs, ys = self.burn.points()
+        self.burn_overlay.setData(xs, ys, connect="finite")
+
+    # -- dessin de l'aperçu
+
+    def show_gcode(self, gcode_text, layer_colors=None, matrix_engrave=False):
+        """Dessine le G-Code. `layer_colors` : couleur de chaque calque, par
+        nom ; `matrix_engrave` : une matrice de test est en mode gravure
+        (affichée en image, sinon en traits)."""
+        plot = self.plot_widget
+        plot.clear()
+        preview = parse_preview(gcode_text, layer_colors)
+        raster_keys = {g.key for g in preview.groups if is_raster_group(g, matrix_engrave)}
+        raster_groups = [g for g in preview.groups if g.key in raster_keys]
+
+        self.info_text_item = pg.TextItem(
+            html='<div style="color: #ffffff; background-color: rgba(0,0,0,170); padding: 4px;">'
+                 f'{self._legend(preview, raster_keys)}</div>',
+            anchor=(0, 0),
+        )
+        plot.addItem(self.info_text_item)
+        # plot.clear() a aussi retiré le point de la tête : on le remet, sans
+        # qu'il compte dans le cadrage automatique de la vue.
+        plot.addItem(self.position_marker, ignoreBounds=True)
+        self.burn = BurnTracker(preview.burn_line_idx, preview.burn_segments)
+        self.burn_overlay = pg.PlotDataItem(pen=pg.mkPen(color=BURN_COLOR, width=2.2), connect="finite")
+        self.burn_overlay.setZValue(900)                # au-dessus des tracés, sous le point de la tête
+        plot.addItem(self.burn_overlay, ignoreBounds=True)
+
+        # Fond de matière : à l'intérieur des découpes (la pièce telle qu'elle sortira), les
+        # zones non gravées de la gravure restant alors transparentes ; sans découpe, sous tout
+        # le job. En négatif, toujours sous tout le job (vue inversée, opaque).
+        material_inside_cut = False
+        if raster_groups:
+            if not self._negative():
+                cut_segments = [(g.xs, g.ys) for g in preview.groups if is_cut_group(g)]
+                material_inside_cut = self._draw_material_inside_cut(cut_segments)
+            if not material_inside_cut:
+                self._draw_material_background(raster_groups, preview.groups)
+
+        for group in raster_groups:
+            self._draw_raster(group, material_inside_cut)
+
+        hide_rapid = self.hide_rapid_check.isChecked()
+        rapid_pen = pg.mkPen(color=RAPID_PEN_COLOR, width=1, style=Qt.PenStyle.DotLine)
+        if preview.rapid[0] and not hide_rapid:
+            plot.plot(*preview.rapid, pen=rapid_pen, connect="finite")
+        if preview.travel[0] and not hide_rapid:
+            # G1 à puissance nulle : un déplacement, pas de la gravure — même style que le G0.
+            plot.plot(*preview.travel, pen=rapid_pen, connect="finite")
+        if preview.overscan[0]:
+            # Sur une matrice de test tramée, des centaines de lignes de surbalayage se
+            # superposent en barres rouges pleines qui cachent les bords des cases :
+            # on les affiche plus fines et translucides pour garder l'image lisible.
+            matrix_as_image = any(g.kind == KIND_MATRIX for g in raster_groups)
+            ov_pen = (pg.mkPen(color=(255, 51, 85, 80), width=1, style=Qt.PenStyle.DashLine)
+                      if matrix_as_image
+                      else pg.mkPen(color="#ff3355", width=2, style=Qt.PenStyle.DashLine))
+            plot.plot(*preview.overscan, pen=ov_pen, connect="finite")
+        for group in preview.groups:
+            if group.key not in raster_keys:
+                plot.plot(group.xs, group.ys, pen=pg.mkPen(color=group.color, width=1.8), connect="finite")
+
+        plot.enableAutoRange()
+        plot.autoRange()
+
+    @staticmethod
+    def _group_label(group):
+        if group.kind == KIND_RASTER:
+            return tr("gen.legend_raster")
+        if group.kind == KIND_MATRIX:
+            return tr("gen.legend_test_matrix")
+        if group.kind == KIND_SVG_CUT:
+            return tr("gen.legend_svg_cut")
+        if group.kind == KIND_LAYER:
+            return tr("gen.legend_layer").format(name=group.name)
+        return tr("gen.legend_unknown")
+
+    def _legend(self, preview, raster_keys):
+        """Légende : déplacements, surbalayage, traits gravés, puis chaque groupe."""
+        rows = (
+            f'<div><span style="color:#888888">■</span> {tr("gen.legend_g0").format(n=len(preview.rapid[0]) // 3)}</div>'
+            f'<div><span style="color:#ff3355">■</span> {tr("gen.legend_overscan").format(n=len(preview.overscan[0]) // 3)}</div>'
+            f'<div><span style="color:{BURN_COLOR}">■</span> {tr("gen.legend_burned")}</div>'
+        )
+        if preview.travel[0]:
+            rows += (f'<div><span style="color:#888888">■</span> '
+                     f'{tr("gen.legend_g1_travel").format(n=len(preview.travel[0]) // 3)}</div>')
+        # Pastille des images = couleurs du preset matière (fond + brûlure).
+        preset = self.material_preset()
+        mat_hex = "#%02x%02x%02x" % tuple(preset["material_rgb"])
+        burn_hex = "#%02x%02x%02x" % tuple(preset["burn_rgb"])
+        raster_swatch = f'<span style="color:{burn_hex}; background-color:{mat_hex}">■</span>'
+        for group in preview.groups:
+            label = self._group_label(group)
+            n_segs = len(group.xs) // 3
+            if group.key in raster_keys:
+                swatch = (raster_swatch if group.kind in (KIND_RASTER, KIND_MATRIX)
+                          else f'<span style="color:{group.color}">■</span>')
+                rows += f'<div>{swatch} {tr("gen.legend_layer_raster_note").format(label=label, n=n_segs)}</div>'
+            else:
+                rows += (f'<div><span style="color:{group.color}">■</span> '
+                         f'{tr("gen.legend_layer_segments").format(label=label, n=n_segs)}</div>')
+        return rows
+
+    def _draw_material_inside_cut(self, cut_segments):
+        """Matière à l'intérieur des découpes seulement (les trous restent
+        vides), comme la pièce qui sortira de la machine. False s'il n'y a
+        aucun contour de découpe fermé."""
+        contours = cut_contours(cut_segments)
+        if not contours:
+            return False
+        path = QPainterPath()
+        path.setFillRule(Qt.FillRule.OddEvenFill)       # contour plein, trous vides
+        for chain in contours:
+            path.addPolygon(QPolygonF([QPointF(x, y) for x, y in chain]))
+            path.closeSubpath()
+        item = QGraphicsPathItem(path)
+        item.setBrush(QColor(*self.material_preset()["material_rgb"]))
+        item.setPen(pg.mkPen(None))
+        item.setZValue(-60)                             # sous la gravure (-50)
+        self.plot_widget.addItem(item)
+        return True
+
+    def _draw_material_background(self, raster_groups, groups):
+        """Fond de la couleur de la matière sous tout le job, plus une marge.
+        En négatif, la couleur des zones non gravées (celle de la brûlure)."""
+        rect = material_background_rect([g.strokes for g in raster_groups], [(g.xs, g.ys) for g in groups])
+        if rect is None:
+            return
+        preset = self.material_preset()
+        rgb = preset["burn_rgb"] if self._negative() else preset["material_rgb"]
+        background = pg.ImageItem(np.array([[rgb]], dtype=np.uint8))
+        background.setLevels([0, 255])
+        background.setRect(QRectF(*rect))
+        background.setZValue(-60)                       # sous la gravure (-50)
+        self.plot_widget.addItem(background)
+
+    def _draw_raster(self, group, transparent_unburned):
+        """Image reconstituée de la gravure d'un groupe, sous les tracés."""
+        try:
+            preset = self.material_preset()
+            # Image et matrice de test : jamais teintées ; un calque : teinté de sa couleur.
+            if group.kind in (KIND_RASTER, KIND_MATRIX):
+                burn_rgb = preset["burn_rgb"]
+            else:
+                burn_rgb = pg.mkColor(group.color).getRgb()[:3]
+            # Matrice de test : faibles puissances relevées pour que chaque case reste visible.
+            gamma = 0.5 if group.kind == KIND_MATRIX else 1.0
+            result = raster_image(group.strokes, preset["material_rgb"], burn_rgb, gamma=gamma,
+                                  negative=self._negative(), transparent_unburned=transparent_unburned,
+                                  flip=self.flip_check.isChecked())
+            if result is None:
+                return
+            pixels, rect = result
+            image_item = pg.ImageItem(pixels)
+            # Rendus déjà à l'échelle 0-255 : pas d'étirement automatique du contraste.
+            image_item.setLevels([0, 255])
+            image_item.setRect(QRectF(*rect))
+            image_item.setZValue(-50)
+            # Vue d'ensemble : pyqtgraph moyenne les pixels au lieu d'en prendre un sur N
+            # (sinon un tramage fin devient un bruit gris illisible tant qu'on n'a pas zoomé).
+            image_item.setAutoDownsample(True)
+            self.plot_widget.addItem(image_item)
+        except Exception as e:
+            self.log.emit(f"; Aperçu image raster indisponible : {e}")

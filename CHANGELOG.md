@@ -36,6 +36,8 @@ Génération du G-Code : sortie des threads (`workers.py`) et de `vector_layers.
 
 Préparation du job (paramètres, contrôles avant génération, lancement, estimation, export et import du G-Code, matrice de test, motif aller/retour) : sortie de la fenêtre dans un contrôleur `JobController`, testé sans fenêtre. Les boîtes de dialogue passent par `UserDialogs`. Comportement inchangé.
 
+Aperçu 2D : lecture du G-Code, choix image ou traits, fond de matière, image reconstituée et suivi de la gravure en direct dans un modèle sans Qt (`gcode/preview.py`), dessin dans l'onglet Visualisation 2D. La fenêtre perd le mixin `GcodeGenerationMixin`. Dessin identique, vérifié élément par élément sur 47 aperçus.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

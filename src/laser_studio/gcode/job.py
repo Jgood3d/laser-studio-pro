@@ -19,7 +19,7 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
     params['enable_cut'] (ou None).
     vector_layers_data : calques vectoriels (voir
     vector_layers.extract_vector_layer_data), ou None.
-    params : réglages du job (voir GcodeGenerationMixin._build_gcode_params).
+    params : réglages du job (voir JobController.build_params).
     progress : fonction appelée avec l'avancement (0 à 100), facultative.
 
     Renvoie un GcodeResult."""

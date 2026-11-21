@@ -27,7 +27,8 @@ from laser_studio.gcode.common import (  # noqa: E402
 
 MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcode.raster",
            "laser_studio.gcode.svg_cut", "laser_studio.gcode.vector", "laser_studio.gcode.job",
-           "laser_studio.gcode.test_matrix", "laser_studio.gcode.calibration", "laser_studio.models.layer_modes")
+           "laser_studio.gcode.test_matrix", "laser_studio.gcode.calibration", "laser_studio.gcode.preview",
+           "laser_studio.models.layer_modes")
 
 
 def job_params(**kw):

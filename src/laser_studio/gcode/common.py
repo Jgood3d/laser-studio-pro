@@ -3,7 +3,7 @@ la distance de surbalayage et la mise en forme de la durée estimée."""
 from typing import NamedTuple
 
 # Mode de surbalayage (params['overscan_mode']) : valeur indépendante de la
-# langue, fournie par la fenêtre (voir GcodeGenerationMixin._overscan_mode_value).
+# langue, fournie par la fenêtre (voir JobController.overscan_mode_value).
 OVERSCAN_PERCENT = "Pourcentage (%)"
 OVERSCAN_FIXED = "Distance Fixe (mm)"
 

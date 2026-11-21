@@ -54,7 +54,6 @@ from laser_studio.ui.binding import bind
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
 from laser_studio.vector_editing_mixin import VectorEditingMixin
-from laser_studio.gcode_generation_mixin import GcodeGenerationMixin
 from laser_studio.laser_control_mixin import LaserControlMixin
 from laser_studio.separation_mixin import SeparationMixin
 
@@ -63,7 +62,7 @@ log = get_logger()
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
-                       VectorEditingMixin, GcodeGenerationMixin, LaserControlMixin,
+                       VectorEditingMixin, LaserControlMixin,
                        SeparationMixin):
     def __init__(self):
         super().__init__()
@@ -98,7 +97,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # Job : paramètres, contrôles avant génération, génération du G-Code
         # (thread), estimation, export / import, matrice de test. Il lit l'état
         # de l'interface par les fonctions ci-dessous ; la fenêtre affiche ses
-        # résultats (GcodeGenerationMixin).
+        # résultats (WindowControllerMixin : console, aperçu 2D).
         self.job = JobController(
             self.layer_manager, self.grbl, self.machine, self.image_settings, UserDialogs(self),
             geometry=self._job_geometry,
@@ -882,27 +881,19 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         return action
 
     def _build_2d_preview_tab(self):
-        """Onglet « Visualisation 2D G-Code », abonné à la génération.
-
-        La génération dessine dans son graphique (plot_widget) et y place
-        la tête du laser (gcode_position_marker).
-        """
+        """Onglet « Visualisation 2D G-Code » : il dessine le G-Code généré ou
+        importé (plot_gcode_preview), la position de la tête et les traits
+        déjà gravés pendant un job."""
         tab = Preview2DTab(self.job_position_box)
         tab.display_options_changed.connect(
             self._on_preview_options_changed
         )
         tab.plot_clicked.connect(self.job.apply_matrix_cell)
+        tab.log.connect(self.log_message)
         # Séparateur aperçu / statistiques : position mémorisée (load_splitter_sizes).
         tab.splitter.splitterMoved.connect(self.save_splitter_sizes)
-        # Noms historiques, lus par la génération et la connexion au graveur.
-        self.chk_flip_raster_preview = tab.flip_check
-        self.chk_negative_raster_preview = tab.negative_check
-        self.chk_hide_rapid_moves = tab.hide_rapid_check
+        # Nom historique, lu par le job (optimize_path).
         self.chk_optimize_path = tab.optimize_path_check
-        self.combo_preview_material = tab.material_combo
-        self.plot_widget = tab.plot_widget
-        self.gcode_position_marker = tab.position_marker
-        self.info_text_item = tab.info_text_item
         self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))
         self.tab_vector_2d = tab
 

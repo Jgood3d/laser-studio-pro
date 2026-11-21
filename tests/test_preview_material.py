@@ -6,10 +6,7 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
-try:
-    from laser_studio.gcode_generation_mixin import GcodeGenerationMixin
-except ImportError:  # PyQt6, pyqtgraph manquants
-    GcodeGenerationMixin = None
+from laser_studio.gcode.preview import cut_contours  # noqa: E402
 
 NAN = float("nan")
 
@@ -28,7 +25,6 @@ def circle(cx, cy, r, n=24):
     return pts + [pts[0]]
 
 
-@unittest.skipIf(GcodeGenerationMixin is None, "gcode_generation_mixin non importable ici")
 class CutContoursTests(unittest.TestCase):
     def test_contour_hole_passes_and_open_paths(self):
         outer, hole = circle(40, 40, 40), circle(40, 75, 2)
@@ -37,13 +33,13 @@ class CutContoursTests(unittest.TestCase):
         open_line = segments([(0, 0), (10, 0), (10, 5)])
         # Deux passes : chaque contour figure deux fois.
         layer = (xs + hx + xs + hx + open_line[0], ys + hy + ys + hy + open_line[1])
-        contours = GcodeGenerationMixin._cut_contours([layer])
+        contours = cut_contours([layer])
         self.assertEqual(len(contours), 2)                            # contour et trou, une fois chacun
         widths = sorted(round(max(x for x, _ in c) - min(x for x, _ in c)) for c in contours)
         self.assertEqual(widths, [4, 80])
 
     def test_no_cut(self):
-        self.assertEqual(GcodeGenerationMixin._cut_contours([]), [])
+        self.assertEqual(cut_contours([]), [])
 
 
 if __name__ == "__main__":

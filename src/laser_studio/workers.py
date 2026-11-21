@@ -247,7 +247,7 @@ class GCodeStreamerThread(QThread):
     # _flush_sent_lines) : un signal par ligne saturerait l'interface sur un long job.
     lines_sent = pyqtSignal(list)
     # Nombre de lignes acceptées par GRBL (« ok » reçus), au même rythme : sert à suivre la
-    # gravure en temps réel sur l'aperçu 2D (voir GCodeGenerationMixin.update_burn_overlay).
+    # gravure en temps réel sur l'aperçu 2D (voir Preview2DTab.update_burn).
     lines_acked = pyqtSignal(int)
     SENT_LINES_INTERVAL = 0.1
 
