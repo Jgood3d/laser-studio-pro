@@ -3,7 +3,7 @@ from PyQt6.QtCore import QSize, Qt, QTimer
 from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout,
-    QFrame, QHBoxLayout, QLabel, QLineEdit, QListWidget, QListWidgetItem, QPushButton, QScrollArea, QSpinBox,
+    QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox,
     QVBoxLayout, QWidget,
 )
 
@@ -11,6 +11,7 @@ from laser_studio.i18n import tr
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import ornament_generator as og
 from laser_studio.vector import ornament_presets
+from laser_studio.vector.ornament_batch import parse_names
 from laser_studio.vector.ornament_region import build_ornament_parts
 
 # Couleurs de l'aperçu : la découpe en rouge (comme le laser la suit), la gravure en bleu.
@@ -173,8 +174,11 @@ class OrnamentGeneratorDialog(QDialog):
         left.addWidget(self.btn_gallery)
         form = QFormLayout()
 
-        self.edit_name = QLineEdit(saved.get("name", "Emma"))
-        self.edit_name.setMaxLength(40)
+        # Un prénom par ligne = une boule par ligne (comme pour les porte-clés).
+        self.edit_name = QPlainTextEdit(saved.get("name", "Emma"))
+        self.edit_name.setMinimumHeight(72)
+        self.edit_name.setMaximumHeight(110)
+        self.edit_name.setPlaceholderText(tr("ornament.name_placeholder"))
         form.addRow(tr("ornament.name"), self.edit_name)
 
         font_row = QHBoxLayout()
@@ -396,7 +400,7 @@ class OrnamentGeneratorDialog(QDialog):
 
     def _open_gallery(self):
         family, bold, italic = self.font_options()
-        gallery = OrnamentGalleryDialog(self, self.edit_name.text().strip(), family, bold, italic,
+        gallery = OrnamentGalleryDialog(self, (self.names() or [""])[0], family, bold, italic,
                                         self.spin_d.value(), self.spin_ring.value())
         if gallery.exec() == QDialog.DialogCode.Accepted and gallery.selected_key():
             self.apply_preset(gallery.selected_key())
@@ -444,10 +448,17 @@ class OrnamentGeneratorDialog(QDialog):
     def font_options(self):
         return self.combo_font.currentFont().family(), self.chk_bold.isChecked(), self.chk_italic.isChecked()
 
-    def params(self):
+    def names(self):
+        """Les prénoms saisis, un par ligne (une boule chacun)."""
+        return parse_names(self.edit_name.toPlainText())
+
+    def params(self, name=None):
+        """Paramètres d'une boule ; sans `name`, celle du premier prénom (aperçu)."""
+        if name is None:
+            name = (self.names() or [""])[0]
         return og.OrnamentParams(
             diameter=self.spin_d.value(), ring_width=self.spin_ring.value(), hanger=self.combo_hanger.currentData(),
-            hole_diameter=self.spin_hole.value(), name=self.edit_name.text().strip(),
+            hole_diameter=self.spin_hole.value(), name=name,
             name_size=0.0 if self.chk_auto_size.isChecked() else self.spin_size.value(),
             name_offset=None if self.chk_auto_offset.isChecked() else self.spin_offset.value(),
             support=self.combo_support.currentData(), motif=self.combo_motif.currentData(),
@@ -463,7 +474,7 @@ class OrnamentGeneratorDialog(QDialog):
         p = self.params()
         family, bold, italic = self.font_options()
         return {
-            "name": p.name, "font": family, "bold": bold, "italic": italic, "diameter": p.diameter,
+            "name": "\n".join(self.names()), "font": family, "bold": bold, "italic": italic, "diameter": p.diameter,
             "ring_width": p.ring_width, "hanger": p.hanger, "hole_diameter": p.hole_diameter,
             "motif": p.motif, "flake_layout": p.flake_layout, "flake_style": p.flake_style,
             "flake_count": p.flake_count, "flake_size": p.flake_size, "name_offset": p.name_offset,
@@ -502,7 +513,11 @@ class OrnamentGeneratorDialog(QDialog):
             ok.setEnabled(False)
             return
         self.preview.set_contours(contours, name=parts.name, frame=parts.frame)
-        self.lbl_warning.setText(tr("ornament.warn.floating") if geometry.floating_name else "")
+        warning = tr("ornament.warn.floating") if geometry.floating_name else ""
+        if len(self.names()) > 1:
+            batch = tr("ornament.batch_preview").format(n=len(self.names()), name=self.names()[0])
+            warning = (warning + "\n" + batch) if warning else batch
+        self.lbl_warning.setText(warning)
         ok.setEnabled(bool(contours))
 
 

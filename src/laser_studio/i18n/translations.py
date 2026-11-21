@@ -2016,6 +2016,36 @@ TRANSLATIONS = {
         "de": "Weihnachtskugel {w:.1f}×{h:.1f} mm ({count} Konturen) auf der Schnittebene erzeugt.",
         "es": "Bola de Navidad {w:.1f}×{h:.1f} mm ({count} contornos) generada en la capa de corte.",
     },
+    "ornament.name_placeholder": {
+        "fr": "Un prénom par ligne = une boule par ligne\n(ex. Emma\nLéa\nNoah)",
+        "en": "One name per line = one ornament per line\n(e.g. Emma\nLéa\nNoah)",
+        "de": "Ein Name pro Zeile = eine Kugel pro Zeile\n(z.B. Emma\nLéa\nNoah)",
+        "es": "Un nombre por línea = una bola por línea\n(ej. Emma\nLéa\nNoah)",
+    },
+    "ornament.batch_preview": {
+        "fr": "{n} boules seront générées au clic sur OK (aperçu : « {name} »).",
+        "en": "{n} ornaments will be generated when you click OK (preview: \"{name}\").",
+        "de": "{n} Kugeln werden beim Klick auf OK erzeugt (Vorschau: „{name}“).",
+        "es": "Se generarán {n} bolas al pulsar Aceptar (vista previa: «{name}»).",
+    },
+    "ornament.done_batch": {
+        "fr": "{n} boules de Noël générées, rangées en grille ({w:.0f}×{h:.0f} mm).",
+        "en": "{n} Christmas ornaments generated, laid out in a grid ({w:.0f}×{h:.0f} mm).",
+        "de": "{n} Weihnachtskugeln erzeugt, im Raster angeordnet ({w:.0f}×{h:.0f} mm).",
+        "es": "{n} bolas de Navidad generadas, dispuestas en cuadrícula ({w:.0f}×{h:.0f} mm).",
+    },
+    "ornament.batch_failed": {
+        "fr": "Non générées (paramètres incompatibles) : {names}",
+        "en": "Not generated (incompatible settings): {names}",
+        "de": "Nicht erzeugt (inkompatible Einstellungen): {names}",
+        "es": "No generadas (parámetros incompatibles): {names}",
+    },
+    "ornament.batch_nest_ask": {
+        "fr": "Lancer l'imbrication automatique maintenant pour optimiser la place sur la feuille ?",
+        "en": "Run automatic nesting now to make the best use of the sheet?",
+        "de": "Automatische Anordnung jetzt starten, um das Material optimal zu nutzen?",
+        "es": "¿Iniciar ahora el anidado automático para aprovechar mejor la plancha?",
+    },
     "ornament.name": {
         "fr": "Prénom :",
         "en": "Name:",
