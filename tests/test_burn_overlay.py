@@ -1,4 +1,4 @@
-"""Gravure en temps réel sur l'aperçu 2D : les traits gravés passent en rouge (update_burn_overlay)."""
+"""Gravure en temps réel sur l'aperçu 2D : les traits gravés passent en rouge (Preview2DTab.update_burn)."""
 import os
 import sys
 import tempfile
@@ -41,46 +41,47 @@ class BurnOverlayTests(unittest.TestCase):
 
     def setUp(self):
         self.win.plot_gcode_preview(GCODE)
+        self.tab = self.win.tab_vector_2d
 
     def red_points(self):
-        xs, _ys = self.win.burn_overlay.getData()
+        xs, _ys = self.tab.burn_overlay.getData()
         return [] if xs is None else [round(float(v), 3) for v in xs if v == v]
 
     def test_segments_are_mapped_to_streamed_lines(self):
-        self.assertEqual(list(self.win._burn_line_idx), [4, 5, 6])
-        self.assertEqual(len(self.win._burn_segs), 3)
+        self.assertEqual(list(self.tab.burn.line_idx), [4, 5, 6])
+        self.assertEqual(len(self.tab.burn.segments), 3)
 
     def test_head_in_the_middle_of_the_second_stroke(self):
-        self.win.on_lines_acked(7)                     # GRBL a tout accepté
-        self.win.update_burn_overlay(15.0, 0.0)        # tête au milieu du trait 1
-        self.assertEqual(self.win._burn_done, 1)       # trait 0 gravé
+        self.tab.set_lines_acked(7)                     # GRBL a tout accepté
+        self.tab.update_burn(15.0, 0.0)        # tête au milieu du trait 1
+        self.assertEqual(self.tab.burn.done, 1)       # trait 0 gravé
         self.assertEqual(self.red_points(), [0.0, 10.0, 10.0, 15.0])   # + trait 1 jusqu'à la tête
 
     def test_nothing_is_red_before_grbl_accepts_the_lines(self):
-        self.win.on_lines_acked(4)                     # aucun trait gravé encore accepté
-        self.win.update_burn_overlay(15.0, 0.0)
-        self.assertEqual(self.win._burn_done, 0)
+        self.tab.set_lines_acked(4)                     # aucun trait gravé encore accepté
+        self.tab.update_burn(15.0, 0.0)
+        self.assertEqual(self.tab.burn.done, 0)
         self.assertEqual(self.red_points(), [])
 
     def test_never_goes_back_and_finishes_all_red(self):
-        self.win.on_lines_acked(7)
-        self.win.update_burn_overlay(25.0, 0.0)
-        self.win.update_burn_overlay(5.0, 0.0)          # rapport en retard : on ne recule pas
-        self.assertEqual(self.win._burn_done, 2)
-        self.win.finish_burn_overlay(True)
-        self.assertEqual(self.win._burn_done, 3)
+        self.tab.set_lines_acked(7)
+        self.tab.update_burn(25.0, 0.0)
+        self.tab.update_burn(5.0, 0.0)          # rapport en retard : on ne recule pas
+        self.assertEqual(self.tab.burn.done, 2)
+        self.tab.finish_burn(True)
+        self.assertEqual(self.tab.burn.done, 3)
 
     def test_interrupted_job_keeps_what_was_engraved(self):
-        self.win.on_lines_acked(7)
-        self.win.update_burn_overlay(12.0, 0.0)
-        self.win.finish_burn_overlay(False)
-        self.assertEqual(self.win._burn_done, 1)
+        self.tab.set_lines_acked(7)
+        self.tab.update_burn(12.0, 0.0)
+        self.tab.finish_burn(False)
+        self.assertEqual(self.tab.burn.done, 1)
 
     def test_new_job_on_the_same_gcode_starts_from_zero(self):
-        self.win.on_lines_acked(7)
-        self.win.update_burn_overlay(25.0, 0.0)
+        self.tab.set_lines_acked(7)
+        self.tab.update_burn(25.0, 0.0)
         self.win._prepare_burn_overlay(GCODE)          # même G-Code : simple remise à zéro
-        self.assertEqual((self.win._burn_done, self.red_points()), (0, []))
+        self.assertEqual((self.tab.burn.done, self.red_points()), (0, []))
 
 
 if __name__ == "__main__":

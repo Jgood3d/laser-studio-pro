@@ -6,7 +6,7 @@ from laser_studio.vector_layers import (
     MedalTextDialog
 )
 from laser_studio.i18n import tr
-from laser_studio.models.layers import ENGRAVE_MODE, layer_label
+from laser_studio.models.layers import layer_label
 from laser_studio.vector import box_generator
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
@@ -55,15 +55,6 @@ class VectorEditingMixin:
         """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
         deviennent celles de la gravure (LayersModel.engrave_layer)."""
         self.layer_manager.select_engrave_layer(layer_id)
-
-    def _ensure_engrave_layer_for_image(self):
-        """Appelé avant la génération du G-Code d'une image (Image Tramage /
-        Séparation couleur) : la gravure utilise le calque de gravure
-        (LayersModel.engrave_layer). S'il n'y a aucun calque en mode Gravure
-        Remplie, le premier calque sert, et un message le signale."""
-        layer = self.layer_manager.engrave_layer()
-        if layer is None or layer.mode != ENGRAVE_MODE:
-            self.show_status_message(tr("vector.no_engrave_layer"))
 
     def insert_text_object(self, x_mm=None, y_mm=None):
         """Insère un texte. Si x_mm/y_mm sont donnés (clic droit sur le canevas),

@@ -3,12 +3,14 @@
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe ce qui agit sur toute la fenêtre : thème,
 langue, onglets annexes, état de la connexion, actions de la barre
-d'outils sur l'image de l'onglet courant. Il deviendra un vrai
-contrôleur, séparé de la fenêtre.
+d'outils sur l'image de l'onglet courant, affichage des résultats du job
+(console, statistiques, barre de progression, aperçu 2D). Il deviendra un
+vrai contrôleur, séparé de la fenêtre.
 """
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtCore import QSettings, Qt, QTimer
+from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import set_language, tr
 from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.help import HelpDialog
@@ -76,7 +78,9 @@ class WindowControllerMixin:
         """Abonne la fenêtre aux signaux du menu et de la barre d'outils."""
         # Fichier
         actions.save_project_requested.connect(self.project.save)
-        actions.gcode_export_requested.connect(self.export_gcode_with_ext)
+        actions.gcode_export_requested.connect(
+            lambda extension: self.job.export_gcode(extension, self.txt_console.toPlainText())
+        )
         actions.open_project_requested.connect(self.project.open)
         actions.recent_project_requested.connect(self.project.open_path)
         actions.quit_requested.connect(self.close)
@@ -128,9 +132,9 @@ class WindowControllerMixin:
         actions.mirror_changed.connect(self.update_image_processing)
         actions.image_reset_requested.connect(self.reset_image_settings)
         # G-code
-        actions.estimate_requested.connect(self.estimate_job_time)
-        actions.generate_requested.connect(self.generate_job)
-        actions.gcode_import_requested.connect(self.import_gcode_file)
+        actions.estimate_requested.connect(self.job.estimate)
+        actions.generate_requested.connect(self.job.generate)
+        actions.gcode_import_requested.connect(self.job.import_gcode)
         actions.keychain_generator_requested.connect(
             lambda: self._run_in_vector_editor(self.open_keychain_generator)
         )
@@ -294,3 +298,68 @@ class WindowControllerMixin:
                 bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
             )
         CameraDialog(self.camera, self).exec()
+
+    # -- résultats du job (JobController) : console, statistiques, aperçu 2D
+
+    def on_gcode_generation_started(self):
+        """Génération lancée : barre de progression, et l'aperçu 2D est montré
+        aussitôt (il se remplit à la fin, voir on_gcode_generated)."""
+        self.statusBar().show_progress(0, tr("gen.in_progress"))
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
+
+    def on_gcode_generation_progress(self, pct):
+        self.statusBar().show_progress(pct, tr("gen.in_progress_pct").format(pct=pct))
+
+    def on_gcode_generation_error(self, error_text):
+        self.statusBar().hide_progress()
+        self.log_message(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
+        QMessageBox.critical(self, tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
+
+    def on_gcode_generated(self, gcode_str, num_lines, avg_power, time_str):
+        """G-Code prêt : console, statistiques, aperçu 2D."""
+        self.statusBar().show_progress(100, tr("gen.done"))
+        self.statusBar().hide_progress(delay_ms=1500)
+        self.txt_console.setPlainText(gcode_str)
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                                     tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
+                                                     tr("gen.stat_time").format(value=time_str))
+        # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
+        self.app_actions.set_gcode_export_enabled(True)
+        self.plot_gcode_preview(gcode_str)
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
+
+    def show_imported_gcode(self, gcode_text, path):
+        """Affiche un fichier G-Code importé (JobController.import_gcode) dans
+        la console et l'aperçu 2D."""
+        self.txt_console.setPlainText(gcode_text)
+        num_lines = len([l for l in gcode_text.split('\n') if l.strip()])
+        self.tab_vector_2d.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
+                                                     tr("gen.stat_power_imported"),
+                                                     tr("gen.stat_time_imported"))
+        self.plot_gcode_preview(gcode_text)
+        # « Fichier > Enregistrer le G-Code » : le G-Code importé peut être réenregistré.
+        self.app_actions.set_gcode_export_enabled(True)
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
+        self.log_message(tr("gcode.imported_from").format(path=path))
+
+    def _layer_colors(self):
+        """Couleur de chaque calque, par nom (le premier calque d'un nom donné)."""
+        colors = {}
+        for layer in self.layer_manager.layers:
+            colors.setdefault(layer.name, layer.color)
+        return colors
+
+    def plot_gcode_preview(self, gcode_text):
+        """Dessine `gcode_text` dans l'aperçu 2D (Preview2DTab.show_gcode)."""
+        self._last_gcode_text = gcode_text
+        matrix = self.job.last_test_matrix_params or {}
+        try:
+            self.tab_vector_2d.show_gcode(gcode_text, self._layer_colors(),
+                                          matrix_engrave=matrix.get("mode") == MATRIX_ENGRAVE)
+        except Exception as e:
+            # Ne jamais laisser l'aperçu 2D silencieusement vide : si le G-Code
+            # (notamment un fichier importé d'un autre outil) contient une
+            # ligne inattendue qui fait planter l'analyse, on le signale.
+            self.log_message(f"\n; ERREUR aperçu 2D : {e}")
+            QMessageBox.warning(self, tr("gen.preview_error_title"),
+                                tr("gen.preview_error_body").format(error=e))

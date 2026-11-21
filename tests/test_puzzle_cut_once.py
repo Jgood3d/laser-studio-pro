@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 from laser_studio.vector import puzzle_generator as pg  # noqa: E402
 
 try:
-    from laser_studio.vector_layers import build_vector_layers_gcode
+    from laser_studio.gcode.vector import build_vector_layers_gcode
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False

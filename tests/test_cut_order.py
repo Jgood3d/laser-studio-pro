@@ -13,7 +13,7 @@ from ui_source import project_state_source, ui_source  # noqa: E402
 from laser_studio.vector import order as vo
 
 try:
-    from laser_studio.vector_layers import build_vector_layers_gcode
+    from laser_studio.gcode.vector import build_vector_layers_gcode
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
@@ -131,9 +131,9 @@ class WiringTests(unittest.TestCase):
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
         self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
         self.assertIn("self.chk_safe_cut_order = page.safe_cut_order_check", ui_source())
-        self.assertIn("'safe_cut_order':", self.src("gcode_generation_mixin.py"))
-        self.assertIn("safe_cut_order=bool(self.params.get('safe_cut_order', True))", self.src("workers.py"))
-        self.assertIn("safe_cut_order=False", self.src("vector_layers.py"))
+        self.assertIn("'safe_cut_order':", self.src(os.path.join("controllers", "job.py")))
+        self.assertIn("safe_cut_order=bool(params.get('safe_cut_order', True))", self.src(os.path.join("gcode", "job.py")))
+        self.assertIn("safe_cut_order=False", self.src(os.path.join("gcode", "vector.py")))
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
         pj = project_state_source()

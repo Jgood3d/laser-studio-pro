@@ -273,18 +273,21 @@ class MenuStructureTests(unittest.TestCase):
         tab = read(os.path.join("ui", "tabs", "preview_2d", "tab.py"))
         bar = tab[tab.index("self.options_toolbar = FloatingToolBar("):]
         bar = bar[:bar.index("self.plot_widget,")]
-        for check, name in (("flip_check", "chk_flip_raster_preview"),
-                            ("negative_check", "chk_negative_raster_preview"),
-                            ("hide_rapid_check", "chk_hide_rapid_moves"),
-                            ("optimize_path_check", "chk_optimize_path")):
+        for check in ("flip_check", "negative_check", "hide_rapid_check", "optimize_path_check"):
             self.assertIn(f"self.{check}", bar, check)
-            self.assertEqual(src.count(f"self.{name} = tab.{check}"), 1, name)   # ancien nom, lu par la logique
+        # Les options d'affichage sont lues par l'onglet lui-même ; « Optimiser le chemin » par le job.
+        self.assertEqual(src.count("self.chk_optimize_path = tab.optimize_path_check"), 1)
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
-        src = read("gcode_generation_mixin.py")
-        start = src[:src.index("        self.worker.start()")]
-        self.assertTrue(start.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
+        job = read(os.path.join("controllers", "job.py"))
+        start = job[:job.index("        self.worker.start()")]
+        self.assertTrue(start.rstrip().endswith("self.started.emit()"))
+        self.assertIn("self.job.started.connect(self.on_gcode_generation_started)", read("main_window.py"))
+        view = read(os.path.join("ui", "app", "window_controller.py"))
+        view = view[view.index("def on_gcode_generation_started"):]
+        view = view[:view.index("\n    def ")]
+        self.assertTrue(view.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()

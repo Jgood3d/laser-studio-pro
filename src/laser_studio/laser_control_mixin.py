@@ -6,7 +6,7 @@ import serial.tools.list_ports
 from PyQt6.QtWidgets import (QApplication, QMessageBox, QFileDialog)
 from PyQt6.QtCore import QTimer
 from laser_studio.controllers.machine_connection import parse_grbl_settings
-from laser_studio.workers import image_origin
+from laser_studio.gcode.raster import image_origin
 from laser_studio.i18n import tr
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
@@ -30,8 +30,7 @@ class LaserControlMixin:
             lambda current, total: self.machine_panel.progress_bar.setValue(
                 int((current / total) * 100) if total else 0))
         c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)
-        if hasattr(self, "on_lines_acked"):
-            c.stream_lines_acked.connect(self.on_lines_acked)
+        c.stream_lines_acked.connect(lambda acked: self.tab_vector_2d.set_lines_acked(acked))
         c.reconnecting.connect(lambda: self.log_message(tr("laser.reconnecting")))
         c.reconnected.connect(self._on_reconnect_result)
 
@@ -101,20 +100,20 @@ class LaserControlMixin:
         pendant un job) : affichage, marqueur de position sur l'aperçu 2D,
         traits déjà gravés en rouge pendant un job."""
         self._update_dro_display(state, x, y, z)
-        if hasattr(self, "update_gcode_position_marker"):
-            self.update_gcode_position_marker(x, y)
-        if hasattr(self, "update_burn_overlay") and self.connection.is_streaming():
-            self.update_burn_overlay(x, y)
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview is None:
+            return
+        preview.set_head_position(x, y)
+        if self.connection.is_streaming():
+            preview.update_burn(x, y)
 
     def _prepare_burn_overlay(self, gcode_text):
         """Au début d'un envoi : l'aperçu 2D doit montrer le G-Code envoyé (un job de la file n'est
         pas forcément celui affiché) ; le calque « déjà gravé » repart de zéro."""
-        if not hasattr(self, "plot_gcode_preview"):
-            return
         if gcode_text != getattr(self, "_last_gcode_text", None):
             self.plot_gcode_preview(gcode_text)
         else:
-            self.reset_burn_overlay()
+            self.tab_vector_2d.reset_burn()
 
     def _update_dro_display(self, state, x, y, z):
         """Transmet l'état (cadre Connexion) et la position (sous le pilotage)
@@ -124,8 +123,8 @@ class LaserControlMixin:
             return
         machine_panel.set_status(state, x, y, z)
         # Déconnecté : plus de position connue, le point rouge de l'aperçu 2D disparaît.
-        if state is None and hasattr(self, "gcode_position_marker"):
-            self.gcode_position_marker.setData([], [])
+        if state is None and getattr(self, "tab_vector_2d", None) is not None:
+            self.tab_vector_2d.clear_head_position()
 
     def read_grbl_settings(self):
         """Lit l'intégralité de la configuration GRBL ($$) depuis la machine
@@ -411,8 +410,7 @@ class LaserControlMixin:
         suivi, contrôle de la position, aperçu 2D."""
         self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self.connection.check_position_after_stream()
-        if hasattr(self, "finish_burn_overlay"):
-            self.finish_burn_overlay(clean_finish)
+        self.tab_vector_2d.finish_burn(clean_finish)
 
     def _pause_status_poll(self):
         """Pendant un envoi, c'est le thread d'envoi qui interroge l'état."""

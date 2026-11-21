@@ -23,8 +23,8 @@ log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 # Modes des calques : codes indépendants de la langue (voir layer_modes.py).
 # ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
 from laser_studio.models.layer_modes import (  # noqa: E402
-    CONTOUR_MODES, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT, MODE_FILL,
-    MODE_MARK, normalize_mode,
+    CONTOUR_MODES, LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT,
+    MODE_FILL, MODE_MARK, layer_laser_cmd, layer_overscan_enabled, normalize_mode,
 )
 
 ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
@@ -45,9 +45,6 @@ BASE_LAYER_DEFAULTS = {
     "mark": ("layers.default_name_mark", DEFAULT_LAYER_COLORS[1], MODE_MARK, 75.0, 2000, 1, 0.06),
 }
 
-# Commande laser d'un calque : "" = celle de Configuration GRBL (réglage global), sinon "M4" (puissance
-# dynamique) ou "M3" (puissance constante) pour ce calque seulement.
-LAYER_LASER_CMDS = ("", "M4", "M3")
 
 # Réglages modifiables d'un calque, avec leur type. L'identifiant et le rôle
 # ne se modifient pas (les objets du canevas sont rattachés par identifiant).
@@ -163,26 +160,6 @@ class LaserLayer:
             layer.passes = 1
         layer.mode = normalize_mode(getattr(layer, "mode", MODE_CUT))
         return layer
-
-
-def _layer_value(layer, key, default):
-    """Réglage `key` d'un calque donné comme objet (LaserLayer) ou comme dictionnaire (to_dict) ;
-    `default` si le calque ne l'a pas (projet enregistré avant l'ajout du réglage)."""
-    if isinstance(layer, dict):
-        return layer.get(key, default)
-    return getattr(layer, key, default)
-
-
-def layer_overscan_enabled(layer, global_enabled):
-    """True si le surbalayage s'applique à ce calque : activé dans Configuration GRBL (`global_enabled`)
-    ET pour le calque. Un calque sans ce réglage (ancien projet) suit le réglage global."""
-    return bool(global_enabled) and bool(_layer_value(layer, "overscan", True))
-
-
-def layer_laser_cmd(layer, global_cmd):
-    """Commande laser ("M4" ou "M3") de ce calque : la sienne, sinon celle de Configuration GRBL."""
-    cmd = _layer_value(layer, "laser_cmd", "")
-    return cmd if cmd in ("M4", "M3") else global_cmd
 
 
 def _describe(layer):

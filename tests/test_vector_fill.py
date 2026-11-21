@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, HERE)
 
 try:
-    from laser_studio.vector_layers import build_vector_layers_gcode, _scanline_fill_union
+    from laser_studio.gcode.vector import build_vector_layers_gcode, _scanline_fill_union
     HAS_BUILD = callable(build_vector_layers_gcode) and callable(_scanline_fill_union) and \
         not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
@@ -137,8 +137,8 @@ class WiringTests(unittest.TestCase):
 
     def test_groups_and_offset_are_wired_end_to_end(self):
         self.assertIn('"polygon_groups": []', self.src("vector_layers.py"))
-        self.assertIn("_scanline_fill_union(groups, y)", self.src("vector_layers.py"))
-        self.assertIn("scan_offset=float(self.params.get('scan_offset_mm', 0.0) or 0.0)", self.src("workers.py"))
+        self.assertIn("_scanline_fill_union(groups, y)", self.src(os.path.join("gcode", "vector.py")))
+        self.assertIn("scan_offset=scan_offset_mm(params)", self.src(os.path.join("gcode", "job.py")))
 
 
 if __name__ == "__main__":
