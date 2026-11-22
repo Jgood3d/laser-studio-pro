@@ -2,7 +2,8 @@
 #
 # Version publiée : l'archive du tag v%%{version} sur GitHub.
 # Version de développement : `make -f .copr/Makefile srpm` construit l'archive
-# depuis le dépôt git et définit `commit` et `snapdate` (Release 1.AAAAMMJJgit<commit>).
+# depuis le dépôt git et définit `commit`, `snapdate` et `commitcount`
+# (Release 1.AAAAMMJJ.<nombre de commits>git<commit>).
 
 %global forgeurl https://github.com/Jgood3d/laser-studio-pro
 %global app_id io.github.jgood3d.LaserStudioPro
@@ -11,7 +12,9 @@
 
 %if %{defined commit}
 %global shortcommit %(c=%{commit}; echo ${c:0:7})
-%global snapinfo .%{snapdate}git%{shortcommit}
+# Le nombre de commits départage les versions d'un même jour : le hash seul les
+# classerait au hasard, et dnf ne proposerait pas toujours la plus récente.
+%global snapinfo .%{snapdate}.%{commitcount}git%{shortcommit}
 %endif
 
 Name:           laser-studio-pro

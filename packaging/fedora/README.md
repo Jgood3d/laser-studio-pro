@@ -45,7 +45,7 @@ sudo dnf install laser-studio-pro
 Prérequis : `sudo dnf install rpm-build rpmlint mock`.
 
 ```bash
-# Paquet source depuis le commit courant (version 2.5.0-1.AAAAMMJJgit<commit>)
+# Paquet source depuis le commit courant (version 2.5.0-1.AAAAMMJJ.<nombre de commits>git<commit>)
 make -f .copr/Makefile srpm outdir=dist/srpm
 
 # Construction dans un Fedora 44 propre, comme sur Copr (tests compris)
