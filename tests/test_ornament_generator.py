@@ -24,6 +24,17 @@ def params(**kw):
     return og.OrnamentParams(**kw)
 
 
+def _reaches_into_ring(g, poly):
+    """Vrai pour une suspente : un contour qui monte jusque sous le bord extérieur de l'anneau, en s'enfonçant
+    dans l'anneau au-dessus de son bord intérieur (un flocon ou une barre n'y arrive pas de cette façon)."""
+    if poly is g.bar or poly is g.top_bar:
+        return False
+    xs = [p[0] for p in poly]
+    x = (min(xs) + max(xs)) / 2.0
+    top = max(p[1] for p in poly)
+    return top > math.sqrt(max(g.inner_radius ** 2 - x ** 2, 0.0)) and top < g.radius and max(xs) - min(xs) < 0.5 * g.radius
+
+
 class SnowflakeTests(unittest.TestCase):
     def test_every_style_is_one_simple_polygon(self):
         for style in og.FLAKE_STYLES:
@@ -78,7 +89,7 @@ class LayoutTests(unittest.TestCase):
     def test_hanging_flakes_are_tied_to_the_ring_by_a_stem(self):
         g = og.build_ornament(params(flake_layout="Suspendus", flake_count=3, flake_size=16))
         self.assertEqual(len(g.flakes), 3)
-        stems = [s for s in g.solids if len(s) == 4]
+        stems = [s for s in g.solids if _reaches_into_ring(g, s)]
         self.assertEqual(len(stems), 3)
         for f, stem in zip(g.flakes, stems):
             top = max(p[1] for p in stem)
@@ -307,8 +318,7 @@ class MotifLayoutTests(unittest.TestCase):
         for motif in og.UPRIGHT_MOTIFS:
             g = self.build(motif, "Suspendus")
             # Une suspente est un rectangle fin qui monte jusque dans l'anneau.
-            stems = [p for p in g.solids if len(p) == 4 and p is not g.bar and (p[2][0] - p[0][0]) < 3.0
-                     and max(y for _x, y in p) > math.sqrt(max(g.inner_radius ** 2 - p[0][0] ** 2, 0.0))]
+            stems = [p for p in g.solids if p is not g.bar and _reaches_into_ring(g, p)]
             self.assertEqual(len(stems), 3, motif)
 
     def test_star_layouts_reuse_the_radial_placement(self):
