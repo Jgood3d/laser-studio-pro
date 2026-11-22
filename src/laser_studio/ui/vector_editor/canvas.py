@@ -50,6 +50,8 @@ class VectorCanvasView(QGraphicsView):
         self.document.objects_reset.connect(self._on_objects_reset)
         self.px_per_mm = 4.0
         self.grid_items = []
+        self._camera_item = None        # image de la caméra posée sous la grille (voir set_camera_background)
+        self._camera_opacity = 0.7
 
         self.scene_obj = QGraphicsScene(self)
         self.setScene(self.scene_obj)
@@ -314,6 +316,51 @@ class VectorCanvasView(QGraphicsView):
         s = self.px_per_mm
         work_h_px = self.work_h_mm * s
         return QPointF(x_mm * s, work_h_px - y_mm * s)
+
+    # -- image de la caméra en fond du plateau ------------------------------------------------------------
+    def set_camera_background(self, image_bgr, bed_w_mm, bed_h_mm):
+        """Pose l'image de la caméra (déjà redressée sur le plateau : haut de l'image = Y max) sous la grille et
+        sous les objets, à l'échelle du plateau, pour placer ce qu'on grave sur la vraie matière."""
+        import cv2
+        import numpy as np
+        from PyQt6.QtGui import QImage, QPixmap
+        from PyQt6.QtWidgets import QGraphicsPixmapItem
+
+        self.clear_camera_background()
+        if image_bgr is None or getattr(image_bgr, "size", 0) == 0:
+            return
+        code = cv2.COLOR_GRAY2RGB if image_bgr.ndim == 2 else cv2.COLOR_BGR2RGB
+        rgb = np.ascontiguousarray(cv2.cvtColor(image_bgr, code))
+        h, w = rgb.shape[:2]
+        qimg = QImage(rgb.data, w, h, 3 * w, QImage.Format.Format_RGB888).copy()
+        item = QGraphicsPixmapItem(QPixmap.fromImage(qimg))
+        item.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
+        s = self.px_per_mm
+        item.setTransform(QTransform.fromScale(bed_w_mm * s / w, bed_h_mm * s / h))
+        item.setPos(self.mm_to_scene(0.0, bed_h_mm))        # coin haut-gauche du plateau
+        item.setZValue(-97)                                  # au-dessus du fond (-100), sous la grille (-95)
+        item.setOpacity(self._camera_opacity)
+        item.setAcceptedMouseButtons(Qt.MouseButton.NoButton)  # ne gêne ni la sélection ni les outils
+        self.scene_obj.addItem(item)
+        self._camera_item = item
+
+    def clear_camera_background(self):
+        item = self._camera_item
+        self._camera_item = None
+        if item is not None:
+            try:
+                self.scene_obj.removeItem(item)
+            except RuntimeError:
+                pass
+
+    def set_camera_background_opacity(self, value):
+        """Opacité de l'image de la caméra, de 0,05 à 1."""
+        self._camera_opacity = max(0.05, min(1.0, float(value)))
+        if self._camera_item is not None:
+            try:
+                self._camera_item.setOpacity(self._camera_opacity)
+            except RuntimeError:
+                self._camera_item = None
 
     def set_draw_tool(self, tool, layer_id=None):
         """Active un outil : None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.

@@ -35,6 +35,7 @@ from laser_studio.camera.lens_calibration import (
 )
 from laser_studio.controllers.camera import CameraController
 from laser_studio.i18n import tr
+from laser_studio.ui.dialogs.camera import preparation
 
 # Coins intérieurs du damier (standard OpenCV 9×6)
 PATTERN_SIZE = (9, 6)
@@ -102,6 +103,9 @@ class LensCalibrationWizard(QDialog):
         btn_save = QPushButton(tr("camera.lens_wizard.save_board"))
         btn_save.clicked.connect(self._save_chessboard)
         row.addWidget(btn_save)
+        btn_print = QPushButton(tr("camera.print.board_button"))
+        btn_print.clicked.connect(self._print_chessboard)
+        row.addWidget(btn_print)
         row.addStretch()
         lay.addLayout(row)
         lay.addStretch()
@@ -268,6 +272,11 @@ class LensCalibrationWizard(QDialog):
                 tr("camera.lens_wizard.title"),
                 tr("camera.lens_wizard.board_saved").format(path=path),
             )
+
+    def _print_chessboard(self):
+        """Imprime le damier à l'échelle réelle (feuille paysage, cases de 30 mm
+        au plus), pour le coller sur une surface plane."""
+        preparation.print_board(self)
 
     def _run_calibration(self):
         try:

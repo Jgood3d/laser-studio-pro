@@ -308,6 +308,11 @@ class WindowControllerMixin:
                 bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
                 dialogs=self.dialogs,
             )
+            # L'image de la caméra (redressée sur le plateau) s'affiche sous la grille de l'éditeur vectoriel.
+            canvas = self.vector_canvas
+            self.camera.overlay_ready.connect(canvas.set_camera_background)
+            self.camera.overlay_cleared.connect(canvas.clear_camera_background)
+            self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
         CameraDialog(self.camera, self).exec()
 
     # -- résultats du job (JobController) : console, statistiques, aperçu 2D
@@ -438,6 +443,7 @@ class WindowControllerMixin:
         montrer le G-Code envoyé (un job de la file n'est pas forcément celui
         affiché) et le tracé « déjà gravé » repart de zéro."""
         self.machine_panel.progress_bar.setValue(0)
+        self._update_bottom_panel_visibility()          # job en cours : panneau visible partout
         if gcode_text != getattr(self, "_last_gcode_text", None):
             self.plot_gcode_preview(gcode_text)
         else:
@@ -447,6 +453,7 @@ class WindowControllerMixin:
         """Un envoi se termine : repère de fin dans le suivi, aperçu 2D."""
         self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self.tab_vector_2d.finish_burn(clean_finish)
+        QTimer.singleShot(0, self._update_bottom_panel_visibility)   # une fois l'envoi vraiment terminé
 
     @staticmethod
     def _beep_job_done():

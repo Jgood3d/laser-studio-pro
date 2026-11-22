@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
     QLabel,
+    QApplication,
     QMessageBox,
     QPushButton,
     QSpinBox,
@@ -39,6 +40,7 @@ from laser_studio.camera.workspace_alignment import (
 )
 from laser_studio.controllers.camera import CameraController
 from laser_studio.i18n import tr
+from laser_studio.ui.dialogs.camera import preparation
 
 
 def _numpy_to_qpixmap(bgr: np.ndarray, max_w: int = 520) -> QPixmap:
@@ -79,12 +81,14 @@ class WorkspaceAlignmentWizard(QDialog):
 
         root = QVBoxLayout(self)
         root.addWidget(self._stack)
-        self._buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
-        self._next_btn = self._buttons.addButton(
-            tr("camera.wizard.next"), QDialogButtonBox.ButtonRole.AcceptRole
+        self._buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Ok
         )
         self._buttons.rejected.connect(self._close)
         self._buttons.accepted.connect(self._on_next)
+        next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
+        if next_btn:
+            next_btn.setText(tr("camera.wizard.next"))
         root.addWidget(self._buttons)
 
     # ------------------------------------------------------------------ pages
@@ -97,26 +101,27 @@ class WorkspaceAlignmentWizard(QDialog):
         lay.addWidget(intro)
 
         form = QFormLayout()
+        saved = getattr(self._ctrl, "align_tag_params", None) or {}   # derniers réglages de cette session
         self.spin_margin = QDoubleSpinBox()
         self.spin_margin.setRange(5.0, 80.0)
-        self.spin_margin.setValue(20.0)
+        self.spin_margin.setValue(saved.get("margin", 20.0))
         self.spin_margin.setSuffix(" mm")
         form.addRow(tr("camera.align_wizard.margin"), self.spin_margin)
 
         self.spin_tag = QDoubleSpinBox()
         self.spin_tag.setRange(8.0, 60.0)
-        self.spin_tag.setValue(20.0)
+        self.spin_tag.setValue(saved.get("tag", 20.0))
         self.spin_tag.setSuffix(" mm")
         form.addRow(tr("camera.align_wizard.tag_size"), self.spin_tag)
 
         self.spin_cols = QSpinBox()
         self.spin_cols.setRange(2, 5)
-        self.spin_cols.setValue(3)
+        self.spin_cols.setValue(saved.get("cols", 3))
         form.addRow(tr("camera.align_wizard.cols"), self.spin_cols)
 
         self.spin_rows = QSpinBox()
         self.spin_rows.setRange(2, 5)
-        self.spin_rows.setValue(3)
+        self.spin_rows.setValue(saved.get("rows", 3))
         form.addRow(tr("camera.align_wizard.rows"), self.spin_rows)
         lay.addLayout(form)
 
@@ -127,12 +132,37 @@ class WorkspaceAlignmentWizard(QDialog):
         for wdg in (self.spin_margin, self.spin_tag, self.spin_cols, self.spin_rows):
             wdg.valueChanged.connect(self._update_target_summary)
 
+        # Les vrais AprilTags à graver : placés dans l'éditeur vectoriel, aux positions du plateau.
+        self.btn_add_tags = QPushButton(tr("camera.align_wizard.add_tags"))
+        self.btn_add_tags.clicked.connect(self._add_tags_to_editor)
+        lay.addWidget(self.btn_add_tags)
+
+        # Ou les imprimer, à leur taille réelle, pour les découper et les poser sur le plateau.
+        self.btn_print_tags = QPushButton(tr("camera.print.tags_button"))
+        self.btn_print_tags.clicked.connect(self._print_tags)
+        lay.addWidget(self.btn_print_tags)
+        self.btn_template = QPushButton(tr("camera.prepare.template"))
+        self.btn_template.clicked.connect(self._add_template)
+        lay.addWidget(self.btn_template)
+
         hint = QLabel(tr("camera.align_wizard.engrave_hint"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: gray;")
         lay.addWidget(hint)
         lay.addStretch()
         return w
+
+    def _print_tags(self):
+        """Imprime les AprilTags à taille réelle (numéro et position du centre
+        sur chaque légende), à découper puis poser aux positions indiquées."""
+        if not self._targets:
+            QMessageBox.warning(self, tr("camera.align_wizard.title"), self._lbl_targets.text())
+            return
+        preparation.print_tags(self, self._targets)
+
+    def _add_template(self):
+        """Gabarit (cadres et numéros) des tags dans l'éditeur vectoriel, à marquer au laser."""
+        preparation.add_template_to_editor(self, self._targets)
 
     def _build_capture(self) -> QWidget:
         w = QWidget()
@@ -174,6 +204,11 @@ class WorkspaceAlignmentWizard(QDialog):
                 grid=(self.spin_cols.value(), self.spin_rows.value()),
             )
             self._targets = targets
+            # Mémorisés pour rouvrir l'assistant avec les mêmes positions que celles qu'on a gravées.
+            self._ctrl.align_tag_params = {
+                "margin": self.spin_margin.value(), "tag": self.spin_tag.value(),
+                "cols": self.spin_cols.value(), "rows": self.spin_rows.value(),
+            }
             self._lbl_targets.setText(
                 tr("camera.align_wizard.targets_ok").format(
                     n=len(targets),
@@ -207,7 +242,9 @@ class WorkspaceAlignmentWizard(QDialog):
                 return
             self._stack.setCurrentIndex(1)
             self._preview_timer.start(120)
-            self._next_btn.setText(tr("camera.align_wizard.compute"))
+            next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
+            if next_btn:
+                next_btn.setText(tr("camera.align_wizard.compute"))
         elif idx == 1:
             if self._last_frame is None:
                 QMessageBox.warning(
@@ -312,7 +349,9 @@ class WorkspaceAlignmentWizard(QDialog):
         except ValueError as e:
             self._lbl_result.setText(tr("camera.align_wizard.failed").format(error=e))
             self._stack.setCurrentIndex(2)
-            self._next_btn.setText(tr("camera.wizard.close"))
+            next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
+            if next_btn:
+                next_btn.setText(tr("camera.wizard.close"))
             return
         self._ctrl.update_alignment(alignment)
         self._lbl_result.setText(
@@ -323,10 +362,68 @@ class WorkspaceAlignmentWizard(QDialog):
             )
         )
         self._stack.setCurrentIndex(2)
-        self._next_btn.setText(tr("camera.wizard.close"))
+        next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
+        if next_btn:
+            next_btn.setText(tr("camera.wizard.close"))
         cancel = self._buttons.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel:
             cancel.setEnabled(False)
+
+    def _find_editor_window(self):
+        """La fenêtre principale (celle qui porte l'éditeur vectoriel) : on remonte les parents, puis on cherche
+        parmi les fenêtres de l'application."""
+        def is_editor(widget):
+            return hasattr(widget, "vector_canvas") and hasattr(widget, "layer_manager")
+
+        widget = self.parent()
+        while widget is not None:
+            if is_editor(widget):
+                return widget
+            widget = widget.parent()
+        for widget in QApplication.topLevelWidgets():
+            if is_editor(widget):
+                return widget
+        return None
+
+    def _add_tags_to_editor(self):
+        """Crée les AprilTags (gravure) dans l'éditeur vectoriel, aux positions calculées pour le plateau."""
+        title = tr("camera.align_wizard.title")
+        if not self._targets:
+            QMessageBox.warning(self, title, tr("camera.align_wizard.bad_grid"))
+            return
+        editor = self._find_editor_window()
+        if editor is None:
+            QMessageBox.warning(self, title, tr("camera.align_wizard.tags_unavailable"))
+            return
+        try:
+            from laser_studio.vector.importers import apriltags_to_objects
+
+            if not editor.layer_manager.layers:
+                QMessageBox.warning(self, title, tr("vector.no_layer_body"))
+                return
+            layer = editor.layer_manager.engrave_layer() or editor.layer_manager.layers[0]
+            objects = apriltags_to_objects(self._targets, layer.id)
+            if not objects:
+                QMessageBox.warning(self, title, tr("camera.align_wizard.tags_unavailable"))
+                return
+            canvas = editor.vector_canvas
+            canvas.push_undo_snapshot()
+            items = [canvas.add_object(obj) for obj in objects]
+            canvas.scene_obj.clearSelection()
+            for item in items:
+                item.setSelected(True)
+        except Exception as e:  # on montre la vraie cause plutôt qu'un message vague
+            import traceback
+
+            traceback.print_exc()
+            QMessageBox.critical(self, title, f"{type(e).__name__}: {e}")
+            return
+        QMessageBox.information(
+            self, title,
+            tr("camera.align_wizard.tags_added").format(
+                n=len(self._targets), layer=layer.name, size=f"{self.spin_tag.value():.0f}",
+            ),
+        )
 
     def engrave_paths(self) -> list:
         """Contours à graver pour le motif d'alignement (utilisable par l'appelant)."""

@@ -106,6 +106,55 @@ def _tag_image(tag_id: int, size_px: int = 200, border_bits: int = 1) -> np.ndar
     return img
 
 
+def apriltag_black_cells(tag_id: int, border_bits: int = 1) -> np.ndarray:
+    """Grille des cases d'un AprilTag 36h11 (8×8 avec sa bordure) : True = case noire."""
+    img = _tag_image(tag_id, size_px=6 + 2 * border_bits, border_bits=border_bits)
+    return img == 0
+
+
+def apriltag_engrave_polygons(target: AlignmentTarget) -> List[List[Tuple[float, float]]]:
+    """Le vrai motif d'un AprilTag, à graver : rectangles (mm, Y vers le haut) des cases NOIRES, centré sur la
+    cible. Les cases noires voisines sont regroupées en rectangles (une ligne de cases, puis fusion verticale des
+    lignes identiques). Les cases blanches ne sont pas gravées : c'est la matière claire qui les fait.
+
+    Le tag fait `target.size_mm` de côté, bordure noire comprise ; il lui faut une zone claire tout autour."""
+    cells = apriltag_black_cells(target.tag_id)
+    n_rows, n_cols = cells.shape
+    cell = target.size_mm / n_cols
+    x_left = target.cx_mm - target.size_mm / 2.0
+    y_top = target.cy_mm + target.size_mm / 2.0
+
+    rects = []      # [col_debut, col_fin, ligne_debut, ligne_fin] (fin exclue)
+    open_runs = {}  # (col_debut, col_fin) -> rectangle encore extensible vers le bas
+    for r in range(n_rows):
+        runs, c = [], 0
+        while c < n_cols:
+            if cells[r, c]:
+                c0 = c
+                while c < n_cols and cells[r, c]:
+                    c += 1
+                runs.append((c0, c))
+            else:
+                c += 1
+        still_open = {}
+        for run in runs:
+            rect = open_runs.get(run)
+            if rect is not None and rect[3] == r:
+                rect[3] = r + 1
+            else:
+                rect = [run[0], run[1], r, r + 1]
+                rects.append(rect)
+            still_open[run] = rect
+        open_runs = still_open
+
+    polygons = []
+    for c0, c1, r0, r1 in rects:
+        xa, xb = x_left + c0 * cell, x_left + c1 * cell
+        ya, yb = y_top - r1 * cell, y_top - r0 * cell
+        polygons.append([(xa, ya), (xb, ya), (xb, yb), (xa, yb)])
+    return polygons
+
+
 def targets_to_engrave_paths(
     targets: Sequence[AlignmentTarget],
     kerf_mm: float = 0.0,
