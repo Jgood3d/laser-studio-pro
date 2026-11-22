@@ -19,6 +19,19 @@ L’historique détaillé des versions est dans [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Installation
 
+### Fedora (Copr)
+
+Sous Fedora 43, 44 et 45 (x86_64 et aarch64), Laser Studio Pro s’installe depuis le dépôt [Copr](https://copr.fedorainfracloud.org/coprs/alemorvan/laser-studio-pro/), avec les bibliothèques de Fedora :
+
+```bash
+sudo dnf copr enable alemorvan/laser-studio-pro
+sudo dnf install laser-studio-pro
+```
+
+L’application apparaît dans le menu des applications (Stencil Studio par un clic droit sur son icône) et se lance aussi avec `laser-studio-pro`. Les mises à jour arrivent avec celles du système. La détection du sujet par IA de Stencil Studio est facultative : `sudo dnf install --setopt=install_weak_deps=False python3-onnxruntime`. L’accès au port série demande d’appartenir au groupe `dialout` (voir plus bas).
+
+### Avec pip (Windows, Linux, macOS)
+
 Python 3.10 à 3.14 convient : le Python fourni par la distribution suffit (Ubuntu 22.04 et suivantes, Debian 12 et 13, Fedora récentes). Installez les dépendances selon votre système :
 
 ```bash

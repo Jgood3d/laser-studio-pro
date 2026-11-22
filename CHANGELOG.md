@@ -9,6 +9,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ### Ajouté
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
 
+Fedora : paquet RPM dans le dépôt Copr `alemorvan/laser-studio-pro` (Fedora 43, 44 et 45, x86_64 et aarch64) : `sudo dnf copr enable alemorvan/laser-studio-pro` puis `sudo dnf install laser-studio-pro`.
+
 Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
 
 Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel) :
@@ -28,6 +30,8 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Stencil Studio : quand la détection du sujet par IA manque, le message propose la commande `dnf install` sous Fedora (Python du système), `pip install` ailleurs.
+
 La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
 
 Profils matériaux : plus de bouton « Enregistrer ». Le matériau choisi reprend aussitôt chaque modification d'un calque.

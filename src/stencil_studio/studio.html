@@ -1551,7 +1551,7 @@ function renderStats(){
   else if (s.qr_scan === "inverted") extras.push(T("The QR code reads inverted (light on dark): most phones read it anyway."));
   if (s.qr_small) extras.push(T("WARNING: modules are only {m} mm: too small to {a} reliably. Enlarge the code or shorten the text.", {m:s.qr_module_mm, a:S.qr_mode === "cut" ? T("cut") : T("engrave")}));
   if (s.qr_clamped) extras.push(T("The code was reduced to fit the plate."));
-  if (s.ai_missing) extras.push(T("AI detection unavailable ({e}): classic method used. Install it with: pip install onnxruntime", {e:String(s.ai_missing).slice(0, 80)}));
+  if (s.ai_missing) extras.push(T("AI detection unavailable ({e}): classic method used. Install it with: {cmd}", {e:String(s.ai_missing).slice(0, 80), cmd:s.ai_install || "pip install onnxruntime"}));
   if (s.subject_failed) extras.push(T("WARNING: subject detection failed, mask ignored. Draw a Subject box or untick the isolation."));
   else if (s.subject_pct != null && s.subject_pct < 35 && !B)
     extras.push(T("The mask covers only {p} % of the frame: check the Original view (dark areas = rejected) or draw a Subject box.", {p:s.subject_pct}));
