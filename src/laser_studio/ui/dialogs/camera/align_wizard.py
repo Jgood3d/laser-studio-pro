@@ -79,14 +79,12 @@ class WorkspaceAlignmentWizard(QDialog):
 
         root = QVBoxLayout(self)
         root.addWidget(self._stack)
-        self._buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Cancel | QDialogButtonBox.StandardButton.Next
+        self._buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        self._next_btn = self._buttons.addButton(
+            tr("camera.wizard.next"), QDialogButtonBox.ButtonRole.AcceptRole
         )
         self._buttons.rejected.connect(self._close)
         self._buttons.accepted.connect(self._on_next)
-        next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Next)
-        if next_btn:
-            next_btn.setText(tr("camera.wizard.next"))
         root.addWidget(self._buttons)
 
     # ------------------------------------------------------------------ pages
@@ -209,9 +207,7 @@ class WorkspaceAlignmentWizard(QDialog):
                 return
             self._stack.setCurrentIndex(1)
             self._preview_timer.start(120)
-            next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Next)
-            if next_btn:
-                next_btn.setText(tr("camera.align_wizard.compute"))
+            self._next_btn.setText(tr("camera.align_wizard.compute"))
         elif idx == 1:
             if self._last_frame is None:
                 QMessageBox.warning(
@@ -316,9 +312,7 @@ class WorkspaceAlignmentWizard(QDialog):
         except ValueError as e:
             self._lbl_result.setText(tr("camera.align_wizard.failed").format(error=e))
             self._stack.setCurrentIndex(2)
-            next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Next)
-            if next_btn:
-                next_btn.setText(tr("camera.wizard.close"))
+            self._next_btn.setText(tr("camera.wizard.close"))
             return
         self._ctrl.update_alignment(alignment)
         self._lbl_result.setText(
@@ -329,9 +323,7 @@ class WorkspaceAlignmentWizard(QDialog):
             )
         )
         self._stack.setCurrentIndex(2)
-        next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Next)
-        if next_btn:
-            next_btn.setText(tr("camera.wizard.close"))
+        self._next_btn.setText(tr("camera.wizard.close"))
         cancel = self._buttons.button(QDialogButtonBox.StandardButton.Cancel)
         if cancel:
             cancel.setEnabled(False)
