@@ -2046,6 +2046,30 @@ TRANSLATIONS = {
         "de": "Automatische Anordnung jetzt starten, um das Material optimal zu nutzen?",
         "es": "¿Iniciar ahora el anidado automático para aprovechar mejor la plancha?",
     },
+    "ornament.sheet_tip": {
+        "fr": "Dimensions du matériau : elles décident du nombre de boules par rangée et sont reprises par l'imbrication.",
+        "en": "Material size: it sets how many ornaments fit per row and is reused by nesting.",
+        "de": "Materialgröße: bestimmt, wie viele Kugeln pro Reihe passen, und wird von der Anordnung übernommen.",
+        "es": "Tamaño del material: decide cuántas bolas caben por fila y lo reutiliza el anidado.",
+    },
+    "ornament.batch_grid": {
+        "fr": "Rangement prévu : {cols} colonne(s) × {rows} rangée(s).",
+        "en": "Planned layout: {cols} column(s) × {rows} row(s).",
+        "de": "Geplantes Raster: {cols} Spalte(n) × {rows} Reihe(n).",
+        "es": "Disposición prevista: {cols} columna(s) × {rows} fila(s).",
+    },
+    "ornament.batch_too_big_preview": {
+        "fr": "Attention : les boules ne tiennent pas toutes sur ce matériau.",
+        "en": "Warning: the ornaments do not all fit on this material.",
+        "de": "Achtung: Nicht alle Kugeln passen auf dieses Material.",
+        "es": "Atención: las bolas no caben todas en este material.",
+    },
+    "ornament.batch_overflow": {
+        "fr": "Attention : l'ensemble dépasse le matériau ({w:.0f}×{h:.0f} mm). L'imbrication placera ce qui tient, le reste sera à découper sur une autre feuille.",
+        "en": "Warning: the layout exceeds the material ({w:.0f}×{h:.0f} mm). Nesting will place what fits; the rest goes on another sheet.",
+        "de": "Achtung: Die Anordnung überschreitet das Material ({w:.0f}×{h:.0f} mm). Die Anordnung platziert, was passt; der Rest kommt auf ein weiteres Blatt.",
+        "es": "Atención: el conjunto supera el material ({w:.0f}×{h:.0f} mm). El anidado colocará lo que quepa; el resto irá en otra plancha.",
+    },
     "ornament.name": {
         "fr": "Prénom :",
         "en": "Name:",
@@ -2123,6 +2147,24 @@ TRANSLATIONS = {
         "en": "Motif size:",
         "de": "Motivgröße:",
         "es": "Tamaño de los motivos:",
+    },
+    "ornament.stem": {
+        "fr": "Largeur de la suspente :",
+        "en": "Hanging stem width:",
+        "de": "Breite des Aufhängers:",
+        "es": "Ancho del colgante:",
+    },
+    "ornament.stem_auto": {
+        "fr": "Auto",
+        "en": "Auto",
+        "de": "Auto",
+        "es": "Auto",
+    },
+    "ornament.stem_tip": {
+        "fr": "Largeur du fil qui relie le motif à l'anneau. Auto : proportionnelle à la taille du motif (2 mm au minimum). Le pied de la suspente s'évase du côté de l'anneau.",
+        "en": "Width of the stem linking the motif to the ring. Auto: proportional to the motif size (2 mm minimum). The stem flares out at the ring end.",
+        "de": "Breite des Stegs zwischen Motiv und Ring. Auto: proportional zur Motivgröße (mindestens 2 mm). Der Steg verbreitert sich am Ring.",
+        "es": "Ancho del hilo que une el motivo con el aro. Auto: proporcional al tamaño del motivo (mínimo 2 mm). El pie se ensancha junto al aro.",
     },
     "ornament.drop": {
         "fr": "Descendre le motif :",

@@ -11,6 +11,7 @@ from laser_studio.i18n import tr
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import ornament_generator as og
 from laser_studio.vector import ornament_presets
+from laser_studio.vector import ornament_batch
 from laser_studio.vector.ornament_batch import parse_names
 from laser_studio.vector.ornament_region import build_ornament_parts
 
@@ -155,7 +156,7 @@ class OrnamentGalleryDialog(QDialog):
 
 
 class OrnamentGeneratorDialog(QDialog):
-    def __init__(self, parent=None, layers=None, saved_settings=None):
+    def __init__(self, parent=None, layers=None, saved_settings=None, sheet=(300.0, 200.0)):
         super().__init__(parent)
         self.setWindowTitle(tr("ornament.title"))
         self.resize(1100, 760)
@@ -240,6 +241,11 @@ class OrnamentGeneratorDialog(QDialog):
         self.spin_drop = self._spin(-10, 60, saved.get("motif_drop", 0.0), " mm")
         self.spin_drop.setToolTip(tr("ornament.drop_tip"))
         form.addRow(tr("ornament.drop"), self.spin_drop)
+        # Largeur de la suspente (le fil qui relie le motif à l'anneau) ; 0 = automatique.
+        self.spin_stem = self._spin(0, 8, saved.get("stem_width", 0.0), " mm")
+        self.spin_stem.setSpecialValueText(tr("ornament.stem_auto"))
+        self.spin_stem.setToolTip(tr("ornament.stem_tip"))
+        form.addRow(tr("ornament.stem"), self.spin_stem)
 
         self.combo_fill = QComboBox()
         for key in og.FILLS:
@@ -300,6 +306,13 @@ class OrnamentGeneratorDialog(QDialog):
         if self.combo_engrave_layer.count() > 0:
             self.combo_engrave_layer.setCurrentIndex(engrave_index)
         form.addRow(tr("ornament.engrave_layer"), self.combo_engrave_layer)
+        # Dimensions du matériau : elles décident du nombre de boules par rangée, et sont reprises par l'imbrication.
+        self.spin_sheet_w = self._spin(10, 5000, float(sheet[0]), " mm")
+        self.spin_sheet_h = self._spin(10, 5000, float(sheet[1]), " mm")
+        self.spin_sheet_w.setToolTip(tr("ornament.sheet_tip"))
+        self.spin_sheet_h.setToolTip(tr("ornament.sheet_tip"))
+        form.addRow(tr("nest.sheet_w"), self.spin_sheet_w)
+        form.addRow(tr("nest.sheet_h"), self.spin_sheet_h)
         left.addLayout(form)
 
         self.lbl_warning = QLabel()
@@ -347,12 +360,14 @@ class OrnamentGeneratorDialog(QDialog):
             (self.spin_hole, "valueChanged"), (self.combo_motif, "currentIndexChanged"),
             (self.combo_layout, "currentIndexChanged"), (self.combo_style, "currentIndexChanged"),
             (self.spin_count, "valueChanged"), (self.spin_flake, "valueChanged"), (self.spin_drop, "valueChanged"),
+            (self.spin_stem, "valueChanged"),
             (self.chk_auto_offset, "toggled"), (self.spin_offset, "valueChanged"),
             (self.chk_auto_size, "toggled"), (self.spin_size, "valueChanged"),
             (self.combo_support, "currentIndexChanged"), (self.combo_name_mode, "currentIndexChanged"),
             (self.spin_band, "valueChanged"), (self.chk_frame, "toggled"), (self.combo_crown, "currentIndexChanged"),
             (self.combo_fill, "currentIndexChanged"), (self.combo_fill_zone, "currentIndexChanged"),
             (self.spin_fill_pitch, "valueChanged"),
+            (self.spin_sheet_w, "valueChanged"), (self.spin_sheet_h, "valueChanged"),
         ):
             getattr(widget, signal).connect(self._schedule)
         self._update_preview()
@@ -418,6 +433,7 @@ class OrnamentGeneratorDialog(QDialog):
         self.spin_count.setValue(s["flake_count"])
         self.spin_flake.setValue(s["flake_size"])
         self.spin_drop.setValue(s["motif_drop"])
+        self.spin_stem.setValue(s.get("stem_width", 0.0))
         self._select(self.combo_name_mode, s["name_mode"])
         self._select(self.combo_support, s["support"])
         self.spin_band.setValue(s["band_height"])
@@ -448,6 +464,10 @@ class OrnamentGeneratorDialog(QDialog):
     def font_options(self):
         return self.combo_font.currentFont().family(), self.chk_bold.isChecked(), self.chk_italic.isChecked()
 
+    def sheet(self):
+        """Dimensions du matériau (largeur, hauteur) en mm."""
+        return self.spin_sheet_w.value(), self.spin_sheet_h.value()
+
     def names(self):
         """Les prénoms saisis, un par ligne (une boule chacun)."""
         return parse_names(self.edit_name.toPlainText())
@@ -464,7 +484,7 @@ class OrnamentGeneratorDialog(QDialog):
             support=self.combo_support.currentData(), motif=self.combo_motif.currentData(),
             flake_layout=self.combo_layout.currentData(), flake_style=self.combo_style.currentData(),
             flake_count=self.spin_count.value(), flake_size=self.spin_flake.value(),
-            motif_drop=self.spin_drop.value(), name_mode=self.combo_name_mode.currentData(),
+            motif_drop=self.spin_drop.value(), stem_width=self.spin_stem.value(), name_mode=self.combo_name_mode.currentData(),
             band_height=self.spin_band.value(), band_frame=self.chk_frame.isChecked(),
             crown=self.combo_crown.currentData(), fill=self.combo_fill.currentData(),
             fill_zone=self.combo_fill_zone.currentData(), fill_pitch=self.spin_fill_pitch.value(),
@@ -478,7 +498,7 @@ class OrnamentGeneratorDialog(QDialog):
             "ring_width": p.ring_width, "hanger": p.hanger, "hole_diameter": p.hole_diameter,
             "motif": p.motif, "flake_layout": p.flake_layout, "flake_style": p.flake_style,
             "flake_count": p.flake_count, "flake_size": p.flake_size, "name_offset": p.name_offset,
-            "name_size": p.name_size, "support": p.support, "motif_drop": p.motif_drop,
+            "name_size": p.name_size, "support": p.support, "motif_drop": p.motif_drop, "stem_width": p.stem_width,
             "name_mode": p.name_mode, "band_height": p.band_height, "band_frame": p.band_frame,
             "crown": p.crown, "fill": p.fill, "fill_zone": p.fill_zone, "fill_pitch": p.fill_pitch,
         }
@@ -492,6 +512,7 @@ class OrnamentGeneratorDialog(QDialog):
         # La guirlande va toujours en haut, d'un côté à l'autre : la disposition ne s'applique pas.
         self.combo_layout.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_drop.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
+        self.spin_stem.setEnabled(flakes and self.combo_motif.currentData() != "Guirlande")
         self.spin_hole.setEnabled(self.combo_hanger.currentData() != "Aucun")
         engraved = self.is_engraved()
         # Prénom gravé : la bande remplace les barres ; le calque de gravure et le filet n'ont de sens que là.
@@ -516,6 +537,16 @@ class OrnamentGeneratorDialog(QDialog):
         warning = tr("ornament.warn.floating") if geometry.floating_name else ""
         if len(self.names()) > 1:
             batch = tr("ornament.batch_preview").format(n=len(self.names()), name=self.names()[0])
+            box = ornament_batch.contours_bounds(list(parts.cut) + list(parts.name) + list(parts.frame))
+            if box:
+                n, sheet_w, sheet_h = len(self.names()), *self.sheet()
+                bw, bh = box[2] - box[0], box[3] - box[1]
+                cols = ornament_batch.columns_for_width(n, bw, sheet_w - 2 * ornament_batch.SHEET_MARGIN_MM)
+                rows = (n + cols - 1) // cols
+                need_h = rows * bh + (rows - 1) * ornament_batch.GAP_MM + 2 * ornament_batch.SHEET_MARGIN_MM
+                batch += "\n" + tr("ornament.batch_grid").format(cols=cols, rows=rows)
+                if need_h > sheet_h or bw + 2 * ornament_batch.SHEET_MARGIN_MM > sheet_w:
+                    batch += "\n" + tr("ornament.batch_too_big_preview")
             warning = (warning + "\n" + batch) if warning else batch
         self.lbl_warning.setText(warning)
         ok.setEnabled(bool(contours))

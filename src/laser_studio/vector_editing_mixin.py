@@ -610,6 +610,17 @@ class VectorEditingMixin:
             message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
         QMessageBox.information(self, tr("vector.dxf_title"), message)
 
+    def _sheet_default(self):
+        """Taille de feuille proposée : la dernière saisie (boules ou imbrication), sinon le plateau de la machine."""
+        prev = getattr(self, "_nesting_settings", None) or {}
+        return prev.get("sheet_w", self.machine.bed_w), prev.get("sheet_h", self.machine.bed_h)
+
+    def _remember_sheet(self, width, height):
+        """Garde la taille de feuille choisie pour les prochaines fenêtres (boules de Noël, imbrication).
+        Elle ne dépend pas du matériau choisi : c'est toi qui la fixes à chaque fois."""
+        self._nesting_settings = {**(getattr(self, "_nesting_settings", None) or {}),
+                                  "sheet_w": width, "sheet_h": height}
+
     def open_nesting(self):
         """Placement automatique : range les pièces sélectionnées (ou toutes) sur la feuille pour
         gaspiller le moins de matière possible. Un trou ou un détail gravé reste avec sa pièce."""
@@ -620,11 +631,14 @@ class VectorEditingMixin:
         if not candidates:
             QMessageBox.information(self, tr("nest.title"), tr("nest.no_objects"))
             return
+        sheet_w, sheet_h = self._sheet_default()
+        init = {**(getattr(self, "_nesting_settings", None) or {}), "sheet_w": sheet_w, "sheet_h": sheet_h}
         dialog = NestingDialog(self, self.machine.bed_w, self.machine.bed_h,
-                               len(selected), len(candidates), getattr(self, "_nesting_settings", None))
+                               len(selected), len(candidates), init)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._nesting_settings = dialog.settings()
+        self._remember_sheet(dialog.options()["sheet_w"], dialog.options()["sheet_h"])
         objects = selected if dialog.scope() == "selection" and selected else candidates
         options = dialog.options()
         pieces, members = build_pieces(objects)
@@ -842,33 +856,47 @@ class VectorEditingMixin:
         if not self.layer_manager.layers:
             QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
+        # Taille de la feuille de matière : à choisir dans la fenêtre (dernière saisie, sinon le plateau).
         dialog = OrnamentGeneratorDialog(
             parent=self, layers=self.layer_manager.layers,
             saved_settings=getattr(self, "_ornament_settings", None),
+            sheet=self._sheet_default(),
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         self._ornament_settings = dialog.settings()
+        sheet_w, sheet_h = dialog.sheet()
+        # L'imbrication reprendra cette taille de feuille.
+        self._remember_sheet(sheet_w, sheet_h)
         from laser_studio.vector import ornament_batch, ornament_generator
         from laser_studio.vector.importers import ornament_engrave_to_objects
         from laser_studio.vector.ornament_region import build_ornament_parts
         names = dialog.names() or [""]
         family, bold, italic = dialog.font_options()
         built, failed = [], []
-        for name in names:
-            try:
-                built.append((name, build_ornament_parts(dialog.params(name), family, bold, italic)))
-            except ornament_generator.OrnamentError as e:
-                if len(names) == 1:
-                    QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
-                    return
-                failed.append(name)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)   # une série de boules peut prendre un moment
+        try:
+            for name in names:
+                try:
+                    built.append((name, build_ornament_parts(dialog.params(name), family, bold, italic)))
+                except ornament_generator.OrnamentError as e:
+                    if len(names) == 1:
+                        QApplication.restoreOverrideCursor()
+                        QMessageBox.warning(self, tr("ornament.title"), ornament_error_text(e))
+                        return
+                    failed.append(name)
+        finally:
+            while QApplication.overrideCursor() is not None:
+                QApplication.restoreOverrideCursor()
         # Rangement en grille d'après la boîte réelle de chaque boule (découpe + gravure du prénom et du filet).
         boxes = []
         for _name, parts in built:
             box = ornament_batch.contours_bounds(list(parts.cut) + list(parts.name) + list(parts.frame))
             boxes.append(box or (0.0, 0.0, 0.0, 0.0))
-        offsets, extent = ornament_batch.grid_offsets(boxes)
+        # Colonnes : autant que la largeur du matériau le permet (10 mm de marge de chaque côté).
+        widest = max((b[2] - b[0] for b in boxes), default=0.0)
+        cols = ornament_batch.columns_for_width(len(boxes), widest, sheet_w - 2 * ornament_batch.SHEET_MARGIN_MM)
+        offsets, extent = ornament_batch.grid_offsets(boxes, max_cols=cols)
         objects, ball_count = [], 0
         for (_name, parts), (dx, dy) in zip(built, offsets):
             ox, oy = 10.0 + dx, 10.0 + dy
@@ -896,6 +924,9 @@ class VectorEditingMixin:
         message = tr("ornament.done_batch").format(n=ball_count, w=extent[0], h=extent[1])
         if failed:
             message += "\n\n" + tr("ornament.batch_failed").format(names=", ".join(failed))
+        if (extent[0] + 2 * ornament_batch.SHEET_MARGIN_MM > sheet_w
+                or extent[1] + 2 * ornament_batch.SHEET_MARGIN_MM > sheet_h):
+            message += "\n\n" + tr("ornament.batch_overflow").format(w=sheet_w, h=sheet_h)
         message += "\n\n" + tr("ornament.batch_nest_ask")
         answer = QMessageBox.question(self, tr("ornament.title"), message)
         if answer == QMessageBox.StandardButton.Yes:
