@@ -1217,6 +1217,8 @@ class VectorCanvasView(QGraphicsView):
         self._measure_p1 = None
         self._measure_preview = None
         self._measure_labels = []  # annotations persistantes jusqu'à nouvel outil
+        self._measure_text = None       # texte qui suit le trait pendant qu'on le tire
+        self._measure_press_px = None   # position écran du premier appui (pour reconnaître un glissé)
         # Mode édition de nœuds (sommets d'un SvgPathObject)
         self._node_mode = False
         self._node_target_item = None
@@ -1473,12 +1475,15 @@ class VectorCanvasView(QGraphicsView):
 
     def _clear_measure_temp(self):
         self._measure_p1 = None
-        if self._measure_preview is not None:
-            try:
-                self.scene_obj.removeItem(self._measure_preview)
-            except RuntimeError:
-                pass
-            self._measure_preview = None
+        self._measure_press_px = None
+        for attr in ("_measure_preview", "_measure_text"):
+            item = getattr(self, attr)
+            if item is not None:
+                try:
+                    self.scene_obj.removeItem(item)
+                except RuntimeError:
+                    pass
+                setattr(self, attr, None)
 
     def clear_measure_labels(self):
         for it in self._measure_labels:
@@ -1606,19 +1611,12 @@ class VectorCanvasView(QGraphicsView):
                 self._show_snap_indicator(pt)
             if self._measure_p1 is None:
                 self._measure_p1 = pt
+                self._measure_press_px = event.position().toPoint()
                 if self._measure_preview is None:
                     self._measure_preview = self.scene_obj.addPath(QPainterPath(), self._preview_pen())
                     self._measure_preview.setZValue(1000)
             else:
-                self._finalize_measure(self._measure_p1, pt)
-                self._measure_p1 = None
-                if self._measure_preview is not None:
-                    try:
-                        self.scene_obj.removeItem(self._measure_preview)
-                    except RuntimeError:
-                        pass
-                    self._measure_preview = None
-                self._hide_snap_indicator()
+                self._end_measure(pt)
             event.accept()
             return
 
@@ -1892,6 +1890,8 @@ class VectorCanvasView(QGraphicsView):
                 path.moveTo(self._measure_p1)
                 path.lineTo(end)
                 self._measure_preview.setPath(path)
+            # La mesure s'affiche pendant qu'on tire le trait, à côté de lui.
+            self._update_measure_text(self._measure_p1, end)
             event.accept()
             return
 
@@ -2413,6 +2413,16 @@ class VectorCanvasView(QGraphicsView):
             self._follow_drag_pushed = False
             event.accept()
             return
+        # Outil mesure : un trait tiré (appui, glissé, relâché) se termine au relâchement. Un simple clic ne
+        # termine rien : le second clic donne l'autre extrémité.
+        if (event.button() == Qt.MouseButton.LeftButton and self._draw_tool == "measure"
+                and self._measure_p1 is not None and self._measure_press_px is not None):
+            released = event.position().toPoint()
+            if (released - self._measure_press_px).manhattanLength() >= 8:
+                pt, _snapped = self._snap_scene_pos(self.mapToScene(released))
+                self._end_measure(pt)
+                event.accept()
+                return
         self._mouse_release_core(event)
         # Un objet qu'on vient de déplacer : les textes qui suivent son contour le suivent aussi, et la poignée
         # du texte sélectionné est replacée.
@@ -2816,17 +2826,52 @@ class VectorCanvasView(QGraphicsView):
             mirror_v=mirror_v,
         )
 
+    def _measure_label_text(self, p1_scene, p2_scene):
+        """Texte d'une mesure : distance, puis ΔX / ΔY."""
+        x1, y1 = self.scene_to_mm(p1_scene)
+        x2, y2 = self.scene_to_mm(p2_scene)
+        dx, dy = x2 - x1, y2 - y1
+        label = f"{math.hypot(dx, dy):.2f} mm"
+        if abs(dx) > 0.01 or abs(dy) > 0.01:
+            label += f"  (ΔX {dx:+.2f}  ΔY {dy:+.2f})"
+        return label
+
+    def _place_measure_text(self, text_item, p1_scene, p2_scene):
+        """Taille constante à l'écran ; centré au-dessus du milieu du trait, ou à droite s'il est presque vertical."""
+        view_scale = max(abs(self.transform().m11()), 0.01)
+        text_item.setScale(1.0 / view_scale)
+        rect = text_item.boundingRect()
+        w, h = rect.width() / view_scale, rect.height() / view_scale
+        gap = 8.0 / view_scale
+        mx, my = (p1_scene.x() + p2_scene.x()) / 2, (p1_scene.y() + p2_scene.y()) / 2
+        if abs(p2_scene.y() - p1_scene.y()) > 2.0 * abs(p2_scene.x() - p1_scene.x()):
+            text_item.setPos(mx + gap, my - h / 2)
+        else:
+            text_item.setPos(mx - w / 2, my - h - gap)
+
+    def _update_measure_text(self, p1_scene, p2_scene):
+        """Met à jour (en le créant au besoin) le texte de mesure qui accompagne le trait en cours."""
+        from PyQt6.QtWidgets import QGraphicsSimpleTextItem
+
+        if self._measure_text is None:
+            self._measure_text = QGraphicsSimpleTextItem()
+            self._measure_text.setBrush(QBrush(QColor("#ffcc66")))
+            self._measure_text.setZValue(1501)
+            self.scene_obj.addItem(self._measure_text)
+        self._measure_text.setText(self._measure_label_text(p1_scene, p2_scene))
+        self._place_measure_text(self._measure_text, p1_scene, p2_scene)
+
+    def _end_measure(self, p2_scene):
+        """Termine la mesure : l'annotation reste affichée, le trait et le texte provisoires disparaissent."""
+        p1_scene = self._measure_p1
+        self._clear_measure_temp()
+        self._hide_snap_indicator()
+        if p1_scene is not None:
+            self._finalize_measure(p1_scene, p2_scene)
+
     def _finalize_measure(self, p1_scene, p2_scene):
         """Ajoute une annotation de mesure (distance + ΔX / ΔY) sur le canevas."""
         from PyQt6.QtWidgets import QGraphicsSimpleTextItem
-
-        x1, y1 = self.scene_to_mm(p1_scene)
-        x2, y2 = self.scene_to_mm(p2_scene)
-        dist = math.hypot(x2 - x1, y2 - y1)
-        dx, dy = x2 - x1, y2 - y1
-        label = f"{dist:.2f} mm"
-        if abs(dx) > 0.01 or abs(dy) > 0.01:
-            label += f"  (ΔX {dx:+.2f}  ΔY {dy:+.2f})"
 
         path = QPainterPath()
         path.moveTo(p1_scene)
@@ -2836,15 +2881,11 @@ class VectorCanvasView(QGraphicsView):
         line_item = self.scene_obj.addPath(path, pen)
         line_item.setZValue(1500)
 
-        mid = QPointF((p1_scene.x() + p2_scene.x()) / 2, (p1_scene.y() + p2_scene.y()) / 2)
-        text_item = QGraphicsSimpleTextItem(label)
+        text_item = QGraphicsSimpleTextItem(self._measure_label_text(p1_scene, p2_scene))
         text_item.setBrush(QBrush(QColor("#ffcc66")))
-        text_item.setPos(mid.x() + 4, mid.y() - 16)
         text_item.setZValue(1501)
-        # Échelle texte approximativement constante à l'écran
-        view_scale = max(abs(self.transform().m11()), 0.01)
-        text_item.setScale(1.0 / view_scale)
         self.scene_obj.addItem(text_item)
+        self._place_measure_text(text_item, p1_scene, p2_scene)
         self._measure_labels.extend([line_item, text_item])
 
     def mouseDoubleClickEvent(self, event):
