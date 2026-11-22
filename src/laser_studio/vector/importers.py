@@ -8,7 +8,8 @@ extract_svg_objects)."""
 from PyQt6.QtGui import QPainterPath
 
 from laser_studio.vector.box_generator import BoxDecor  # noqa: F401  (réexporté : vector.importers.BoxDecor)
-from laser_studio.vector_layers import SvgPathObject, TextObject, extract_svg_objects
+from laser_studio.models.vector_objects import SvgPathObject, TextObject
+from laser_studio.vector.svg_extract import extract_svg_objects
 
 
 def _path_object(points, closed, tag, layer_id, shift_x, shift_y):
@@ -67,7 +68,7 @@ def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungrou
     Le coin inférieur gauche de l'ensemble du dessin est ancré à
     (offset_x_mm, offset_y_mm), positions relatives conservées.
     """
-    from laser_studio.vector_layers import _merge_path_objects
+    from laser_studio.vector.svg_extract import _merge_path_objects
 
     bounds = drawing.bounds()
     if bounds is None:
@@ -187,7 +188,7 @@ def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
 
     On ne crée surtout pas un contour fermé par pièce : deux pièces voisines partagent leur frontière, le
     laser la découperait deux fois."""
-    from laser_studio.vector_layers import _merge_path_objects
+    from laser_studio.vector.svg_extract import _merge_path_objects
 
     objects = []
     outline = _path_object(result.outline, True, "puzzle:outline", layer_id, offset_x_mm, offset_y_mm) \
@@ -246,7 +247,7 @@ def ornament_to_objects(contours, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
 
     `contours` vient de `ornament_region.assemble` : le premier est l'extérieur. Chaque contour y est déjà
     unique (la matière est soudée), donc rien n'est découpé deux fois."""
-    from laser_studio.vector_layers import _merge_path_objects
+    from laser_studio.vector.svg_extract import _merge_path_objects
 
     if not contours:
         return []
@@ -288,7 +289,7 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
     En mode lot (plusieurs prénoms), chaque prénom est traité comme une pièce
     indépendante pour que l'imbrication automatique les regroupe correctement.
     """
-    from laser_studio.vector_layers import _merge_path_objects
+    from laser_studio.vector.svg_extract import _merge_path_objects
 
     objects = []
 
