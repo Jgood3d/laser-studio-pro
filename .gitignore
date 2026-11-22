@@ -25,6 +25,8 @@ build_venv/
 *.json
 # Exception : fiches des modèles de la bibliothèque (info.json, _category.json).
 !src/laser_studio/resources/library/**/*.json
+# Exception : réglages partagés de Claude Code (hook de mise à jour du dépôt).
+!.claude/settings.json
 
 # Fichiers système
 .DS_Store

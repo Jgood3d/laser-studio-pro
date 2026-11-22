@@ -11,7 +11,7 @@ Application PyQt6 open-source en Python dédiée à la gravure laser, la découp
 - `controllers/engraver.py` & `grbl/commands.py` (communication) ; `gcode/` (génération sans Qt) & `controllers/job.py` : Communication et génération de G-code.
 
 ## Bonnes pratiques
-- Maintenir une structure modulaire via des mixins Python.
+- Avant toute modification, suivre le skill `contribuer` (`.claude/skills/contribuer/SKILL.md`) : dépôt mis à jour (git pull), code dans `src/`, découpage modèle / vue / contrôleur (pas de nouveau mixin), PEP 8, documentation à jour, vérifications avant le commit.
 - Assurer la portabilité multi-plateforme (Linux Mint / Windows).
 
 ## Processus de Build & Déploiement
