@@ -2,7 +2,6 @@
 objets déplaçables, outils de dessin, mesure, édition des nœuds, annulation."""
 import math
 import time
-import uuid
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPainterPath, QPen, QBrush, QTransform, QPainter, QKeySequence
 from PyQt6.QtWidgets import (
@@ -16,9 +15,10 @@ from laser_studio.vector.text_on_path import (
     side_center_fraction, point_at_fraction, project_fraction,
 )
 from laser_studio.models.layers import LayersModel, layer_label
+from laser_studio.models.vector_document import VectorDocument
 from laser_studio.models.vector_objects import ShapeObject, SvgPathObject, TextObject, VectorObject
+from laser_studio.vector import path_ops
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
-from laser_studio.vector.svg_extract import _qpainterpath_to_subpaths
 
 # Ancien nom du modèle des calques (models/layers.py).
 LayerManager = LayersModel
@@ -37,10 +37,16 @@ class VectorCanvasView(QGraphicsView):
     jig_requested = pyqtSignal()                     # clic droit > Gabarit de placement...
     medal_text_requested = pyqtSignal()              # clic droit > Texte de médaille...
 
-    def __init__(self, layer_manager: LayerManager, parent=None):
+    def __init__(self, layer_manager: LayerManager, parent=None, document=None):
         super().__init__(parent)
         self.layer_manager = layer_manager
-        self.objects = []  # list[VectorObject]
+        # Document (objets, annuler / refaire, presse-papiers) : le canevas en est la vue. Il crée ou retire
+        # ses éléments graphiques quand le document le signale (voir _on_object_added…).
+        self.document = document if document is not None else VectorDocument(self)
+        self._items = {}  # id(objet) -> VectorGraphicsItem
+        self.document.object_added.connect(self._on_object_added)
+        self.document.object_removed.connect(self._on_object_removed)
+        self.document.objects_reset.connect(self._on_objects_reset)
         self.px_per_mm = 4.0
         self.grid_items = []
 
@@ -57,9 +63,6 @@ class VectorCanvasView(QGraphicsView):
         # vue : un flip posé sur la QGraphicsView pouvait être silencieusement
         # annulé par fitInView(), ce qui cassait tout l'alignement.)
         self._pan_last_pos = None
-        self._undo_stack = []
-        self._redo_stack = []
-        self._max_undo = 30
         self._group_drag_items = []
         self._group_drag_last_scene_pos = None
         self._group_drag_anchor_item = None
@@ -830,35 +833,67 @@ class VectorCanvasView(QGraphicsView):
         super().mouseMoveEvent(event)
 
     # -- gestion des objets ---------------------------------------------------
+    @property
+    def objects(self):
+        """Objets du document (lecture ; pour modifier, passer par self.document)."""
+        return self.document.objects
+
     def add_object(self, obj: VectorObject):
-        self.objects.append(obj)
+        """Ajoute `obj` au document ; renvoie son élément graphique."""
+        self.document.add(obj)
+        return self._items[id(obj)]
+
+    def item_for(self, obj):
+        """Élément graphique de `obj`, ou None."""
+        return self._items.get(id(obj))
+
+    def _create_item(self, obj):
         item = VectorGraphicsItem(obj, self.layer_manager, self)
         item.double_click_callback = lambda o=obj: self.edit_requested.emit(o)
         self.scene_obj.addItem(item)
+        self._items[id(obj)] = item
         return item
+
+    def _on_object_added(self, obj):
+        self._create_item(obj)
+
+    def _on_object_removed(self, obj):
+        item = self._items.pop(id(obj), None)
+        if item is not None:
+            try:
+                self.scene_obj.removeItem(item)
+            except RuntimeError:
+                pass
+
+    def _on_objects_reset(self):
+        """Tout le document a changé (annuler, refaire, charger) : nouveaux éléments."""
+        for item in list(self.scene_obj.items()):
+            if isinstance(item, VectorGraphicsItem):
+                self.scene_obj.removeItem(item)
+        self._items = {}
+        for obj in self.document.objects:
+            self._create_item(obj)
+
+    def _remove_item(self, item):
+        """Retire l'objet de `item` du document, et l'élément de la scène même si
+        son objet n'y était plus."""
+        if not self.document.remove(item.obj):
+            try:
+                self.scene_obj.removeItem(item)
+            except RuntimeError:
+                pass
 
     def remove_selected(self):
         self.exit_node_edit()
         self.push_undo_snapshot()
         for item in list(self.scene_obj.selectedItems()):
             if isinstance(item, VectorGraphicsItem):
-                try:
-                    self.objects.remove(item.obj)
-                except ValueError:
-                    pass
-                self.scene_obj.removeItem(item)
+                self._remove_item(item)
 
     def duplicate_selected(self):
         self.push_undo_snapshot()
-        new_items = []
-        for item in list(self.scene_obj.selectedItems()):
-            if isinstance(item, VectorGraphicsItem):
-                clone = VectorObject.from_dict(item.obj.to_dict())
-                clone.id = uuid.uuid4().hex[:8]
-                clone.x_mm += 5
-                clone.y_mm += 5
-                new_items.append(self.add_object(clone))
-        return new_items
+        objects = [item.obj for item in list(self.scene_obj.selectedItems()) if isinstance(item, VectorGraphicsItem)]
+        return [self._items[id(clone)] for clone in self.document.duplicate(objects)]
 
     def group_selected(self):
         """Regroupe les objets sélectionnés (Ctrl+clic, rectangle ou Ctrl+A)
@@ -874,42 +909,18 @@ class VectorCanvasView(QGraphicsView):
             return None
         order = {id(o): i for i, o in enumerate(self.objects)}
         items.sort(key=lambda it: order.get(id(it.obj), 0))
-
-        combined = QPainterPath()
-        for it in items:
-            combined.addPath(it.obj.world_path())
-        bbox = combined.boundingRect()
-        if bbox.isNull():
+        group_obj = path_ops.group_objects([it.obj for it in items])
+        if group_obj is None:
             return None
-
         self.push_undo_snapshot()
-
-        # Repère monde (origine bas-gauche, Y vers le haut) -> repère local
-        # d'un SvgPathObject (ancré sur le coin bas-gauche de la boîte
-        # englobante, Y vers le bas), comme dans extract_svg_objects.
-        x0, y0 = bbox.left(), bbox.top()
-        to_local = QTransform(1, 0, 0, -1, -x0, y0)
-        local = to_local.map(combined)
-
-        group_obj = SvgPathObject(
-            local_path_data=local, source_tag="group",
-            layer_id=items[0].obj.layer_id, x_mm=x0, y_mm=y0,
-        )
-
-        for it in items:
-            self.objects.remove(it.obj)
-            self.scene_obj.removeItem(it)
-        new_item = self.add_object(group_obj)
+        self.document.replace([it.obj for it in items], [group_obj])
+        new_item = self._items[id(group_obj)]
         new_item.setSelected(True)
         return new_item
 
     def _can_ungroup_item(self, item):
         """True si l'item est un SvgPathObject avec au moins 2 sous-tracés."""
-        obj = getattr(item, "obj", None)
-        if not isinstance(obj, SvgPathObject):
-            return False
-        subs = _qpainterpath_to_subpaths(obj.local_path())
-        return len(subs) >= 2
+        return path_ops.can_ungroup(getattr(item, "obj", None))
 
     def ungroup_selected(self):
         """Dégroupe les SvgPathObject sélectionnés : chaque sous-tracé devient
@@ -924,39 +935,12 @@ class VectorCanvasView(QGraphicsView):
         self.push_undo_snapshot()
         new_items = []
         for it in expandable:
-            obj = it.obj
-            subs = _qpainterpath_to_subpaths(obj.local_path())
-            # Transforme chaque sous-tracé local en objet monde indépendant.
-            # world_transform mappe le repère local de l'objet parent.
-            wt = obj.world_transform()
-            children = []
-            for sub in subs:
-                if sub.elementCount() == 0:
-                    continue
-                world_sub = wt.map(sub)
-                bbox = world_sub.boundingRect()
-                if bbox.width() <= 0 and bbox.height() <= 0:
-                    continue
-                x0, y0 = bbox.left(), bbox.top()
-                to_local = QTransform(1, 0, 0, -1, -x0, y0)
-                local = to_local.map(world_sub)
-                child = SvgPathObject(
-                    local_path_data=local,
-                    source_tag=getattr(obj, "source_tag", "path") or "path",
-                    layer_id=obj.layer_id,
-                    x_mm=x0,
-                    y_mm=y0,
-                )
-                children.append(child)
-
-            if len(children) < 2:
+            children = path_ops.ungroup_object(it.obj)
+            if not children:
                 # Rien d'utile à séparer : on laisse l'objet tel quel.
                 continue
-
-            self.objects.remove(obj)
-            self.scene_obj.removeItem(it)
-            for child in children:
-                new_items.append(self.add_object(child))
+            self.document.replace([it.obj], children)
+            new_items += [self._items[id(child)] for child in children]
 
         for it in new_items:
             it.setSelected(True)
@@ -966,61 +950,16 @@ class VectorCanvasView(QGraphicsView):
     # Exploser en segments + édition de nœuds
     # ------------------------------------------------------------------
 
-    @staticmethod
-    def _path_to_polylines(path: QPainterPath):
-        """Convertit un QPainterPath en polylignes (liste de listes de QPointF).
-
-        Les courbes sont aplaties via toSubpathPolygons (précision suffisante
-        pour l'édition laser : segments / encoches).
-        """
-        polylines = []
-        for poly in path.toSubpathPolygons(QTransform()):
-            pts = [QPointF(p) for p in poly]
-            if len(pts) >= 2:
-                polylines.append(pts)
-        return polylines
-
-    @staticmethod
-    def _polylines_to_path(polylines):
-        path = QPainterPath()
-        for pts in polylines:
-            if len(pts) < 2:
-                continue
-            path.moveTo(pts[0])
-            for p in pts[1:]:
-                path.lineTo(p)
-        return path
-
-    @staticmethod
-    def _world_path_to_svg_object(world_path: QPainterPath, layer_id, source_tag="segment"):
-        """Crée un SvgPathObject ancré sur le bbox monde d'un petit tracé."""
-        bbox = world_path.boundingRect()
-        if bbox.width() <= 0 and bbox.height() <= 0:
-            # Segment purement horizontal/vertical : bbox peut avoir une dim nulle.
-            if world_path.elementCount() == 0:
-                return None
-        x0, y0 = bbox.left(), bbox.top()
-        # Même convention que group/ungroup : Y monde haut -> local avec flip
-        to_local = QTransform(1, 0, 0, -1, -x0, y0)
-        local = to_local.map(world_path)
-        return SvgPathObject(
-            local_path_data=local,
-            source_tag=source_tag,
-            layer_id=layer_id,
-            x_mm=x0,
-            y_mm=y0,
-        )
+    # Fonctions de tracé (vector/path_ops.py), gardées sous leurs anciens noms.
+    _path_to_polylines = staticmethod(path_ops.path_to_polylines)
+    _polylines_to_path = staticmethod(path_ops.polylines_to_path)
+    _world_path_to_svg_object = staticmethod(path_ops.world_path_to_svg_object)
 
     def _can_explode_item(self, item):
-        obj = getattr(item, "obj", None)
-        if obj is None:
-            return False
         # Tout objet avec une géométrie de chemin (forme, svg, texte) peut être explosé
         # en segments s'il a au moins une arête.
-        path = obj.world_path()
-        polys = self._path_to_polylines(path)
-        n_edges = sum(max(0, len(pts) - 1) for pts in polys)
-        return n_edges >= 1
+        obj = getattr(item, "obj", None)
+        return obj is not None and path_ops.can_explode(obj)
 
     def explode_selected(self):
         """Découpe chaque objet sélectionné en **segments indépendants**
@@ -1035,28 +974,11 @@ class VectorCanvasView(QGraphicsView):
         self.push_undo_snapshot()
         new_items = []
         for it in targets:
-            obj = it.obj
-            polys = self._path_to_polylines(obj.world_path())
-            segments = []
-            for pts in polys:
-                for i in range(len(pts) - 1):
-                    a, b = pts[i], pts[i + 1]
-                    if (a - b).manhattanLength() < 1e-6:
-                        continue
-                    seg = QPainterPath()
-                    seg.moveTo(a)
-                    seg.lineTo(b)
-                    child = self._world_path_to_svg_object(
-                        seg, obj.layer_id, source_tag="segment"
-                    )
-                    if child is not None:
-                        segments.append(child)
+            segments = path_ops.explode_object(it.obj)
             if not segments:
                 continue
-            self.objects.remove(obj)
-            self.scene_obj.removeItem(it)
-            for child in segments:
-                new_items.append(self.add_object(child))
+            self.document.replace([it.obj], segments)
+            new_items += [self._items[id(child)] for child in segments]
 
         for it in new_items:
             it.setSelected(True)
@@ -1068,15 +990,11 @@ class VectorCanvasView(QGraphicsView):
         if isinstance(obj, SvgPathObject):
             return item
         # Bake world path into a new SvgPathObject at same position
-        world = obj.world_path()
-        baked = self._world_path_to_svg_object(
-            world, obj.layer_id, source_tag=getattr(obj, "kind", "path")
-        )
+        baked = path_ops.bake_object(obj)
         if baked is None:
             return None
-        self.objects.remove(obj)
-        self.scene_obj.removeItem(item)
-        return self.add_object(baked)
+        self.document.replace([obj], [baked])
+        return self._items[id(baked)]
 
     def enter_node_edit(self, item=None):
         """Active le mode nœuds sur l'item donné (ou la sélection unique)."""
@@ -1248,11 +1166,7 @@ class VectorCanvasView(QGraphicsView):
                 item = self._node_target_item
                 self.exit_node_edit()
                 if item is not None:
-                    try:
-                        self.objects.remove(item.obj)
-                        self.scene_obj.removeItem(item)
-                    except (ValueError, RuntimeError):
-                        pass
+                    self.document.remove(item.obj)
                 return True
             self._apply_node_polylines_to_object()
             return True
@@ -1904,81 +1818,33 @@ class VectorCanvasView(QGraphicsView):
     def copy_selected(self):
         """Ctrl+C : copie les objets sélectionnés dans un presse-papiers
         interne (propre à l'éditeur, pas le presse-papiers système)."""
-        selected = [it.obj for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)]
-        if selected:
-            self._clipboard = [o.to_dict() for o in selected]
+        self.document.copy([it.obj for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)])
 
     def paste_clipboard(self):
         """Ctrl+V : colle les objets copiés, légèrement décalés pour rester
         visibles distinctement de l'original."""
-        if not getattr(self, "_clipboard", None):
+        if not self.document.has_clipboard():
             return
         self.push_undo_snapshot()
         for item in list(self.scene_obj.selectedItems()):
             item.setSelected(False)
-        for d in self._clipboard:
-            try:
-                clone = VectorObject.from_dict(d)
-            except Exception:
-                continue
-            clone.id = uuid.uuid4().hex[:8]
-            clone.x_mm += 5
-            clone.y_mm += 5
-            new_item = self.add_object(clone)
-            new_item.setSelected(True)
+        for clone in self.document.paste():
+            self._items[id(clone)].setSelected(True)
 
     def push_undo_snapshot(self):
         """À appeler AVANT toute action qui modifie les objets (ajout,
         suppression, déplacement, redimensionnement...), pour pouvoir revenir
-        en arrière avec Ctrl+Z ou le bouton Annuler."""
-        try:
-            snapshot = [o.to_dict() for o in self.objects]
-        except Exception:
-            return
-        self._undo_stack.append(snapshot)
-        if len(self._undo_stack) > self._max_undo:
-            self._undo_stack.pop(0)
-        # Toute nouvelle action invalide le futur "refaire" (comportement
-        # standard undo/redo : impossible de "refaire" une branche qu'une
-        # nouvelle action vient de remplacer).
-        self._redo_stack.clear()
-
-    def _current_snapshot(self):
-        return [o.to_dict() for o in self.objects]
-
-    def _restore_snapshot(self, snapshot):
-        for item in list(self.scene_obj.items()):
-            if isinstance(item, VectorGraphicsItem):
-                self.scene_obj.removeItem(item)
-        self.objects = []
-        for d in snapshot:
-            try:
-                self.add_object(VectorObject.from_dict(d))
-            except Exception:
-                continue
+        en arrière avec Ctrl+Z ou le bouton Annuler (VectorDocument.push_snapshot)."""
+        self.document.push_snapshot()
 
     def undo(self):
-        if not self._undo_stack:
-            return
-        current = self._current_snapshot()
-        snapshot = self._undo_stack.pop()
-        self._redo_stack.append(current)
-        if len(self._redo_stack) > self._max_undo:
-            self._redo_stack.pop(0)
-        self._restore_snapshot(snapshot)
+        self.document.undo()
 
     def redo(self):
         """Ctrl+Y (ou Ctrl+Maj+Z selon la plateforme, via
         QKeySequence.StandardKey.Redo) : rétablit la dernière action annulée
         par undo()."""
-        if not self._redo_stack:
-            return
-        current = self._current_snapshot()
-        snapshot = self._redo_stack.pop()
-        self._undo_stack.append(current)
-        if len(self._undo_stack) > self._max_undo:
-            self._undo_stack.pop(0)
-        self._restore_snapshot(snapshot)
+        self.document.redo()
 
     def contextMenuEvent(self, event):
         """Clic droit : actions sur la sélection (calque, taille, groupe...) et,
@@ -2171,16 +2037,8 @@ class VectorCanvasView(QGraphicsView):
     def discard_added_object(self, item):
         """Retire un objet qu'on vient d'ajouter pour un aperçu, et l'étape d'annulation prise juste avant :
         la boîte de dialogue a été annulée."""
-        try:
-            self.objects.remove(item.obj)
-        except ValueError:
-            pass
-        try:
-            self.scene_obj.removeItem(item)
-        except RuntimeError:
-            pass
-        if self._undo_stack:
-            self._undo_stack.pop()
+        self._remove_item(item)
+        self.document.drop_last_snapshot()
         self._sync_follow_handle()
 
     # -- Poignée : faire glisser un texte le long de son contour --------------------------------------------
@@ -2464,12 +2322,7 @@ class VectorCanvasView(QGraphicsView):
 
     # -- (dé)sérialisation ----------------------------------------------------
     def serialize_objects(self):
-        return [o.to_dict() for o in self.objects]
+        return self.document.serialize()
 
     def load_objects(self, data):
-        for item in list(self.scene_obj.items()):
-            if isinstance(item, VectorGraphicsItem):
-                self.scene_obj.removeItem(item)
-        self.objects = []
-        for d in (data or []):
-            self.add_object(VectorObject.from_dict(d))
+        self.document.load(data)

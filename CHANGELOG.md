@@ -44,6 +44,8 @@ Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à pa
 
 Éditeur vectoriel : `vector_layers.py` (4 300 lignes) découpé en modules, sans changer le code : objets du dessin (`models/vector_objects.py`), canevas et boîtes de saisie (`ui/vector_editor/`), tableau des calques (`ui/tabs/layers/layer_table.py`), import SVG classique (`vector/svg_extract.py`), conversion pour le G-Code (`vector/layer_data.py`). `vector_layers.py` réexporte tous les noms pour le code existant.
 
+Éditeur vectoriel : la liste des objets, l'historique d'annulation et le presse-papiers sortent du canevas dans un modèle `VectorDocument` (`models/vector_document.py`), testable sans canevas ; grouper, dégrouper, exploser et convertir en tracé dans `vector/path_ops.py`. Le canevas devient une vue du document. Comportement inchangé.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

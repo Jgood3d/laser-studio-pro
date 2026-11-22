@@ -45,6 +45,7 @@ from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
+from laser_studio.models.vector_document import VectorDocument
 from laser_studio.ui.vector_editor.canvas import VectorCanvasView
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
@@ -84,6 +85,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.loaded_svg_path = None
         # Modèle des calques (models/layers.py) : seule source des réglages des calques.
         self.layer_manager = LayersModel(self)
+        # Document de l'éditeur vectoriel (objets, annuler / refaire, presse-papiers) ;
+        # le canevas (self.vector_canvas) en est la vue.
+        self.vector_document = VectorDocument(self)
         # Réglages de la machine (plateau, spot, limites) et configuration GRBL : les pages de
         # réglages y sont liées (ui/binding.py), la logique les lit ici.
         self.machine = MachineConfig(self)
@@ -108,7 +112,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             geometry=self._job_geometry,
             image=lambda: self.processed_array,
             svg_path=lambda: self.loaded_svg_path,
-            vector_objects=lambda: self.vector_canvas.objects,
+            vector_objects=lambda: self.vector_document.objects,
             optimize_path=lambda: self.chk_optimize_path.isChecked(),
             lines_mm=lambda: self.spin_lmm.value(),
             material_summary=self.material_summary_text,
@@ -783,7 +787,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             )
         ]
 
-        self.vector_canvas = VectorCanvasView(self.layer_manager)
+        self.vector_canvas = VectorCanvasView(self.layer_manager, document=self.vector_document)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
         self.vector_create_toolbar = FloatingToolBar(
             [*vector_create_actions, None, *self._vector_draw_buttons.values()],
