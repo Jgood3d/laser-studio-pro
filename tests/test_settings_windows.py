@@ -261,7 +261,8 @@ class MenuStructureTests(unittest.TestCase):
     def test_one_fullscreen_button_for_every_tab(self):
         # Un seul « Plein écran », dans la barre principale à côté de ko-fi, pour l'onglet affiché.
         src = read("main_window.py")
-        body = src[src.index("def toggle_current_tab_fullscreen"):]
+        window = read(os.path.join("ui", "app", "window_controller.py"))
+        body = window[window.index("def toggle_current_tab_fullscreen"):]
         body = body[:body.index("\n    def ", 10)]
         for call in ("self.toggle_fullscreen_vector_editor()", "self._toggle_fullscreen_png2svg()",
                      "self._open_tab_fullscreen(", "_restore_tab_close_button(tab)"):
@@ -372,10 +373,7 @@ class ShowWindowTests(unittest.TestCase):
             self.skipTest("window_controller non importable ici")
 
     def make(self, with_pages=True):
-        # show_settings_window est une méthode de la fenêtre (QMainWindow) : empruntée telle quelle.
-        self.main = importlib.import_module("laser_studio.main_window")
-        cls = type("Window", (self.mod.WindowControllerMixin,),
-                   {"show_settings_window": self.main.FullLaserStudio.show_settings_window})
+        cls = type("Window", (self.mod.WindowControllerMixin,), {})
         obj = cls.__new__(cls)
         if with_pages:
             obj.tab_machine_params = object()
@@ -396,7 +394,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_window_is_created_once_and_reused(self):
         self.Recorder.created = []
         obj = self.make()
-        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             obj.show_settings_window("machine_params")
             obj.show_settings_window("machine_params")
             obj.show_settings_window("grbl")
@@ -412,7 +410,7 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make()
         obj.tab_machine_params, obj.tab_matrix = object(), object()
-        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
         pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
@@ -504,17 +502,17 @@ class ShowWindowTests(unittest.TestCase):
         self.assertEqual(calls, ["tab_vector_editor", "puzzle"])
 
     def test_preview_2d_splitter_position_is_remembered(self):
-        main = importlib.import_module("laser_studio.main_window")
+        controller = self.mod.WindowControllerMixin
         stored = {}                                      # faux QSettings : pas de vrais réglages touchés
         fake = mock.Mock()
         fake.return_value.setValue.side_effect = stored.__setitem__
         fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
         obj = types.SimpleNamespace(tab_vector_2d=types.SimpleNamespace(splitter=mock.Mock()))
         obj.tab_vector_2d.splitter.sizes.return_value = [900, 0]     # statistiques repliées : gardé
-        with mock.patch.object(main, "QSettings", fake):
-            main.FullLaserStudio.save_splitter_sizes(obj)
+        with mock.patch.object(self.mod, "QSettings", fake):
+            controller.save_splitter_sizes(obj)
             self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
-            main.FullLaserStudio.load_splitter_sizes(obj)
+            controller.load_splitter_sizes(obj)
         obj.tab_vector_2d.splitter.setSizes.assert_called_once_with([900, 0])
 
     def test_job_queue_visibility_is_remembered_and_shown_by_default(self):
@@ -585,7 +583,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []
         obj = self.make(with_pages=False)
-        with mock.patch.object(self.main, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             obj.show_settings_window("grbl")
         self.assertEqual(self.Recorder.created, [])
 
