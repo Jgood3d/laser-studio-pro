@@ -25,9 +25,16 @@ sudo dnf install laser-studio-pro
   dossier installé n'étant pas modifiable, Stencil Studio le télécharge de
   toute façon dans `~/.local/share/StencilStudio/models` au premier usage de
   la détection du sujet par IA.
-- **Dépendances facultatives** : `python3-onnxruntime` est recommandé (détection
-  du sujet par IA). `numba` (accélération du tramage) n'existe pas dans
-  Fedora 44 ; l'application s'en passe.
+- **Dépendances facultatives** : `python3-onnxruntime` (détection du sujet par
+  IA dans Stencil Studio) est seulement suggéré : il exige `sympy`, qui
+  recommande LaTeX et matplotlib, soit plus de 200 paquets et environ 1 Go.
+  Pour l'avoir : `sudo dnf install --setopt=install_weak_deps=False
+  python3-onnxruntime` (sans LaTeX). `numba` (accélération du tramage)
+  n'existe pas dans Fedora 44 ; l'application s'en passe.
+- **Poids restant** : le `python3-opencv` de Fedora dépend de tous les modules
+  d'OpenCV, y compris `opencv-viz` (affichage 3D, inutilisé ici) qui entraîne
+  VTK, OpenCASCADE, PDAL et Qt 5. `python3-pyqtgraph` exige aussi PyQt5. Ce
+  sont des choix des paquets Fedora : le spec ne peut pas les éviter.
 - **Entrée de menu et fiche AppStream** : celles de `packaging/linux/`.
 
 ## Construire et vérifier en local

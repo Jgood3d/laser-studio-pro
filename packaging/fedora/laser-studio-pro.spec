@@ -39,8 +39,10 @@ BuildRequires:  appstream
 # Police de Stencil Studio : celle du système, pas une copie (voir %%install).
 Requires:       dejavu-sans-fonts
 Requires:       hicolor-icon-theme
-# Détection du sujet par IA dans Stencil Studio : facultative.
-Recommends:     python3-onnxruntime
+# Détection du sujet par IA dans Stencil Studio : facultative. Suggests et non
+# Recommends : onnxruntime exige sympy, qui recommande LaTeX et matplotlib
+# (plus de 200 paquets, environ 1 Go installé).
+Suggests:       python3-onnxruntime
 
 %description
 Laser Studio Pro prepares images and vector drawings for laser engraving and
