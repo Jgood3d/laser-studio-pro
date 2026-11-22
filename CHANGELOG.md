@@ -43,6 +43,7 @@ Graveur : connexion, pilotage, envoi des jobs et configuration GRBL sortis de la
 Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à partir d'une image, vectorisation, bibliothèque, caméra) : leurs boîtes de dialogue passent par `UserDialogs`, transmis par la fenêtre, au lieu d'ouvrir `QMessageBox` / `QFileDialog` / `QInputDialog` eux-mêmes. Mêmes questions, mêmes boutons ; les contrôleurs se testent sans fenêtre.
 
 ### Corrigé
+Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 
 Installation et compilation :
