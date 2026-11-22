@@ -11,7 +11,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ui_source import ui_source  # noqa: E402
+from ui_source import ui_files, ui_source  # noqa: E402
 
 
 def read(name):
@@ -224,7 +224,9 @@ class MenuStructureTests(unittest.TestCase):
         # Plus aucun bouton dans l'onglet Image & Filtres : seul l'aiguillage les appelle.
         for call in ("self.rotate_image_left", "self.rotate_image_right", "self.clear_image()"):
             self.assertEqual(src.count(call), 1, call)
-        self.assertNotIn("chk_mirror", src)
+        # (la boîte de saisie d'un texte, dans l'éditeur vectoriel, a ses propres cases miroir)
+        image_src = "\n".join(read(name) for name in ui_files() if not name.startswith(os.path.join("ui", "vector_editor")))
+        self.assertNotIn("chk_mirror", image_src)
         # Annuler / refaire ont quitté l'onglet Image & Filtres (raccourcis conservés) ; réinitialiser
         # et la connexion restent aussi sur leur page.
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)

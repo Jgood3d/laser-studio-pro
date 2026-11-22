@@ -20,7 +20,8 @@ except ImportError:
     i18n = None
 
 LONG = 40
-UI_FILES = (*ui_files(), "separation_mixin.py", "vector_layers.py", "image_processing_mixin.py")
+# Le paquet ui/ comprend l'éditeur vectoriel (ui/vector_editor/) et le tableau des calques.
+UI_FILES = (*ui_files(), "separation_mixin.py", "image_processing_mixin.py")
 
 
 def long_combos():

@@ -6,7 +6,7 @@ import tempfile
 
 
 from laser_studio.i18n import tr
-from laser_studio.vector_layers import extract_svg_objects
+from laser_studio.vector.svg_extract import extract_svg_objects
 
 
 class Png2SvgController:

@@ -26,7 +26,7 @@ from laser_studio.gcode.test_matrix import matrix_cell_at
 from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
-from laser_studio.vector_layers import extract_vector_layer_data
+from laser_studio.vector.layer_data import extract_vector_layer_data
 from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.

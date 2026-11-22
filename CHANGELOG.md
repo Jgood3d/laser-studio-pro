@@ -42,6 +42,8 @@ Graveur : connexion, pilotage, envoi des jobs et configuration GRBL sortis de la
 
 Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à partir d'une image, vectorisation, bibliothèque, caméra) : leurs boîtes de dialogue passent par `UserDialogs`, transmis par la fenêtre, au lieu d'ouvrir `QMessageBox` / `QFileDialog` / `QInputDialog` eux-mêmes. Mêmes questions, mêmes boutons ; les contrôleurs se testent sans fenêtre.
 
+Éditeur vectoriel : `vector_layers.py` (4 300 lignes) découpé en modules, sans changer le code : objets du dessin (`models/vector_objects.py`), canevas et boîtes de saisie (`ui/vector_editor/`), tableau des calques (`ui/tabs/layers/layer_table.py`), import SVG classique (`vector/svg_extract.py`), conversion pour le G-Code (`vector/layer_data.py`). `vector_layers.py` réexporte tous les noms pour le code existant.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

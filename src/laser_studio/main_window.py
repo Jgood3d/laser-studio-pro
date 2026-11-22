@@ -45,7 +45,7 @@ from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
-from laser_studio.vector_layers import VectorCanvasView
+from laser_studio.ui.vector_editor.canvas import VectorCanvasView
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig

@@ -1,10 +1,12 @@
 """Édition des objets vectoriels (texte, formes, SVG) sur le canevas."""
 from PyQt6.QtWidgets import (QVBoxLayout, QPushButton, QFileDialog, QMessageBox, QDialog, QApplication)
 from PyQt6.QtCore import Qt
-from laser_studio.vector_layers import (
-    TextInsertDialog, ShapeInsertDialog, TextObject, SvgPathObject, extract_svg_objects, AssignLayerDialog,
-    MedalTextDialog
-)
+from laser_studio.models.vector_objects import SvgPathObject, TextObject
+from laser_studio.ui.vector_editor.assign_layer_dialog import AssignLayerDialog
+from laser_studio.ui.vector_editor.medal_dialog import MedalTextDialog
+from laser_studio.ui.vector_editor.shape_dialog import ShapeInsertDialog
+from laser_studio.ui.vector_editor.text_dialog import TextInsertDialog
+from laser_studio.vector.svg_extract import extract_svg_objects
 from laser_studio.i18n import tr
 from laser_studio.models.layers import layer_label
 from laser_studio.vector import box_generator

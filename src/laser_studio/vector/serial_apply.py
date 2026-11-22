@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from laser_studio.vector import nesting as ng
 from laser_studio.vector import serial_duplicate as sd
 from laser_studio.vector.nesting_apply import apply_result, object_polygons
-from laser_studio.vector_layers import VectorObject
+from laser_studio.models.vector_objects import VectorObject
 
 
 def object_bounds(obj):
