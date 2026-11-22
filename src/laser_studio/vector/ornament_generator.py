@@ -66,6 +66,9 @@ SUPPORTS = ("Barre", "Bandeau", "Aucun")  # Bandeau : une barre sous le prénom 
 CIRCLE_POINTS = 180
 # Largeur de matière minimale d'un flocon ou d'une suspente que le laser tient sans casser (mm).
 MIN_STEM_MM = 1.2
+# Suspente d'un motif (le fil qui le relie à l'anneau) : largeur automatique, plus large que la tige d'un flocon.
+STEM_AUTO_MIN_MM = 2.0
+STEM_AUTO_RATIO = 0.12
 
 
 class OrnamentError(ValueError):
@@ -95,6 +98,7 @@ class OrnamentParams:
         flake_count=3,
         flake_size=16.0,
         motif_drop=0.0,
+        stem_width=0.0,
         seed=1,
         name_mode="Découpé",
         band_height=0.0,
@@ -125,6 +129,8 @@ class OrnamentParams:
         # descendent (la suspente ou la tige s'allonge), ceux du bas montent ; négatif = ils se rapprochent de
         # l'anneau. Une tige garde toujours le contact avec l'anneau.
         self.motif_drop = float(motif_drop)
+        # Largeur de la suspente en mm ; 0 = automatique (selon la taille du motif).
+        self.stem_width = float(stem_width)
         self.seed = int(seed)
         # Gravé : le prénom est gravé sur une bande pleine qui traverse la boule (la bande est découpée avec la boule).
         self.name_mode = name_mode
@@ -369,11 +375,61 @@ def _stem_polygon(x0, y0, x1, y1, w):
     return [(x0 + nx, y0 + ny), (x1 + nx, y1 + ny), (x1 - nx, y1 - ny), (x0 - nx, y0 - ny)]
 
 
+def _stem_width(params, size):
+    """Largeur de la suspente d'un motif : celle demandée, sinon automatique ; jamais sous MIN_STEM_MM."""
+    if params.stem_width > 0.0:
+        return max(params.stem_width, MIN_STEM_MM)
+    return max(STEM_AUTO_MIN_MM, STEM_AUTO_RATIO * size)
+
+
+def _stem_embed(size):
+    """Profondeur dont la suspente s'enfonce dans le motif : assez pour sortir de la pointe fine du motif et
+    s'ancrer là où il est plus large (au lieu d'un col étroit sous la suspente)."""
+    return min(max(1.5, 0.12 * size), 3.0)
+
+
+def _stem_shapes(x0, y0, x1, y1, w, r_in=None, r_out=None):
+    """Suspente de (x0, y0), côté motif, à (x1, y1), côté anneau : une tige de largeur `w` et un pied évasé du côté
+    de l'anneau (la largeur double sur 1,5 mm), pour un point d'ancrage plus large. Les formes se recouvrent
+    et sont fusionnées avec l'anneau et le motif plus loin.
+
+    `r_in` / `r_out` : rayons intérieur et extérieur de l'anneau (centre de la boule en 0, 0). Le bord intérieur de
+    l'anneau est une courbe : pour une suspente décentrée, un pied qui s'arrête à plat laisse un petit cran du
+    côté du centre. Le pied est donc prolongé dans l'anneau jusqu'à ce que ses deux coins y soient bien enfoncés,
+    sans jamais ressortir par l'extérieur."""
+    shapes = [_stem_polygon(x0, y0, x1, y1, w)]
+    dx, dy = x1 - x0, y1 - y0
+    n = math.hypot(dx, dy)
+    foot = 1.5
+    if n < 2 * foot + 1.0:
+        return shapes
+    ux, uy = dx / n, dy / n
+    nx, ny = -uy, ux
+    fx, fy = x1 - ux * (1.0 + foot), y1 - uy * (1.0 + foot)    # début de l'évasement ; il atteint 2 w au bord
+
+    def corners(t):
+        half = w / 2.0 + (w / 2.0) * (t / foot)
+        px, py = fx + ux * t, fy + uy * t
+        return (px + nx * half, py + ny * half), (px - nx * half, py - ny * half)
+
+    t_end = foot
+    if r_in is not None and r_out is not None:
+        while t_end < foot + 2.5:
+            c1, c2 = corners(t_end)
+            r1, r2 = math.hypot(*c1), math.hypot(*c2)
+            if min(r1, r2) >= r_in + 0.5 or max(r1, r2) + 0.1 > r_out - 0.3:
+                break
+            t_end += 0.1
+    c1, c2 = corners(t_end)
+    shapes.append([(fx + nx * w / 2, fy + ny * w / 2), c1, c2, (fx - nx * w / 2, fy - ny * w / 2)])
+    return shapes
+
+
 def _hanging_flakes(params, geo, rng):
     """Flocons suspendus à l'anneau par une fine suspente, comme sur la boule « Emma »."""
     n, size, r_in = params.flake_count, params.flake_size, geo.inner_radius
     a = size / 2.0
-    stem = max(MIN_STEM_MM, 0.07 * size)
+    stem = _stem_width(params, size)
     x_max = min(0.58 * r_in, 0.5 * (n - 1) * (size + 3.0)) if n > 1 else 0.0
     for i in range(n):
         x = 0.0 if n == 1 else -x_max + 2 * x_max * i / (n - 1)
@@ -388,8 +444,8 @@ def _hanging_flakes(params, geo, rng):
         hang = base_hang + extra
         cy = top - hang - a
         geo.flakes.append(Flake(x, cy, a, 90.0, _radial_polygon(params, i, x, cy, a, 90.0)))
-        # La suspente part de la pointe haute du flocon et s'enfonce de 1 mm dans l'anneau.
-        geo.solids.append(rect_polygon(x - stem / 2, cy + a - 0.5, x + stem / 2, top + 1.0))
+        # La suspente s'enfonce dans le flocon (ancrage) et de 1 mm dans l'anneau, où elle s'évase.
+        geo.solids += _stem_shapes(x, cy + a - _stem_embed(size), x, top + 1.0, stem, r_in, geo.radius)
         _note_edge(geo, upper=cy - a)
 
 
@@ -414,7 +470,8 @@ def _ring_flakes(params, geo, rng, top, bottom):
             r_flake = rho - move
             cx, cy = r_flake * ca, r_flake * sa
             if move > 1.7:   # le bras (qui s'enfonce de 2 mm) ne touche plus l'anneau : une tige radiale relie le flocon à l'anneau
-                geo.solids.append(_stem_polygon(cx, cy, (r_in + 1.0) * ca, (r_in + 1.0) * sa, max(MIN_STEM_MM, 0.07 * size)))
+                geo.solids += _stem_shapes(cx, cy, (r_in + 1.0) * ca, (r_in + 1.0) * sa, _stem_width(params, size),
+                                           r_in, geo.radius)
             rot = ang
             geo.flakes.append(Flake(cx, cy, a, rot, _radial_polygon(params, len(geo.flakes), cx, cy, a, rot)))
             _note_edge(geo, upper=cy - a if side > 0 else None, lower=cy + a if side < 0 else None)
@@ -450,7 +507,7 @@ def _upright_motifs(params, geo):
         return all(math.hypot(px, py) <= geo.radius - 0.8 for poly in shape.solids + shape.late for px, py in poly)
 
     if params.flake_layout == "Suspendus":
-        stem = max(MIN_STEM_MM, 0.07 * size)
+        stem = _stem_width(params, size)
         x_max = min(0.58 * r_in, 0.5 * (n - 1) * (width + 3.0)) if n > 1 else 0.0
         for i in range(n):
             x = 0.0 if n == 1 else -x_max + 2 * x_max * i / (n - 1)
@@ -467,8 +524,7 @@ def _upright_motifs(params, geo):
                 if extra == 0.0 or inside(placed):
                     break
                 extra = max(extra - 0.2, 0.0) if extra > 0 else min(extra + 0.2, 0.0)
-            geo.solids.append([(x - stem / 2, anchor_y - 0.5), (x + stem / 2, anchor_y - 0.5),
-                               (x + stem / 2, top + 1.0), (x - stem / 2, top + 1.0)])
+            geo.solids += _stem_shapes(x, anchor_y - _stem_embed(size), x, top + 1.0, stem, r_in, geo.radius)
             _add_shape(geo, placed, x, anchor_y - base.height / 2.0, radius, 0.0)
             _note_edge(geo, upper=placed.ymin)
         return
@@ -526,13 +582,14 @@ def _upright_motifs(params, geo):
                 placed = moved
                 if move > 0.0:
                     ring_y = math.sqrt(max(r_in * r_in - x * x, 0.0))
-                    stem = max(MIN_STEM_MM, 0.07 * size)
+                    stem = _stem_width(params, size)
+                    embed = _stem_embed(size)
                     if side > 0:
                         y_a = _axis_y(placed, +1)
-                        geo.solids.append(rect_polygon(x - stem / 2, y_a - 0.5, x + stem / 2, ring_y + 1.0))
+                        geo.solids += _stem_shapes(x, y_a - embed, x, ring_y + 1.0, stem, r_in, geo.radius)
                     else:
                         y_a = _axis_y(placed, -1)
-                        geo.solids.append(rect_polygon(x - stem / 2, -ring_y - 1.0, x + stem / 2, y_a + 0.5))
+                        geo.solids += _stem_shapes(x, y_a + embed, x, -ring_y - 1.0, stem, r_in, geo.radius)
             _note_edge(geo, upper=placed.ymin if side > 0 else None, lower=placed.ymax if side < 0 else None)
             _add_shape(geo, placed, x, (placed.ymin + placed.ymax) / 2.0, radius, 0.0)
 

@@ -8,6 +8,7 @@ la boîte englobante réelle des contours de découpe, donc quelle que soit l'or
 MAX_BALLS = 100
 GAP_MM = 5.0
 MAX_COLS = 4
+SHEET_MARGIN_MM = 10.0   # marge entre le bord du matériau et les boules (les boules démarrent à 10 mm)
 
 
 def parse_names(text):
@@ -24,6 +25,14 @@ def contours_bounds(contours):
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
     return min(xs), min(ys), max(xs), max(ys)
+
+
+def columns_for_width(n, cell_w, max_width, gap=GAP_MM, default=MAX_COLS):
+    """Nombre de colonnes qui tiennent dans `max_width` (au moins 1, au plus `n`). Sans largeur connue : `default`."""
+    if not max_width or max_width <= 0 or cell_w <= 0:
+        return max(1, min(default, n))
+    fit = int((max_width + gap) // (cell_w + gap))
+    return max(1, min(fit, n))
 
 
 def grid_offsets(boxes, gap=GAP_MM, max_cols=MAX_COLS):
