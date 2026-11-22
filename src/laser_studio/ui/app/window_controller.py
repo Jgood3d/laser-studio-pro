@@ -8,7 +8,9 @@ d'outils sur l'image de l'onglet courant, affichage des résultats du job
 vrai contrôleur, séparé de la fenêtre.
 """
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from contextlib import contextmanager
+
+from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QPushButton, QVBoxLayout
 from PyQt6.QtCore import QSettings, Qt, QTimer
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import set_language, tr
@@ -93,19 +95,19 @@ class WindowControllerMixin:
         )
         actions.main_tab_requested.connect(self.show_main_tab)
         actions.vector_import_requested.connect(
-            lambda: self._run_in_vector_editor(self.import_svg_to_vector_editor)
+            lambda: self._run_in_vector_editor(self.vector_editor.import_dialog)
         )
         actions.box_generator_requested.connect(
-            lambda: self._run_in_vector_editor(self.open_box_generator)
+            lambda: self._run_in_vector_editor(self.vector_editor.open_box_generator)
         )
         actions.puzzle_generator_requested.connect(
-            lambda: self._run_in_vector_editor(self.open_puzzle_generator)
+            lambda: self._run_in_vector_editor(self.vector_editor.open_puzzle_generator)
         )
         actions.library_requested.connect(
             lambda: self._run_in_vector_editor(self.library.open)
         )
         actions.ornament_generator_requested.connect(
-            lambda: self._run_in_vector_editor(self.open_ornament_generator)
+            lambda: self._run_in_vector_editor(self.vector_editor.open_ornament_generator)
         )
         actions.camera_requested.connect(self.open_camera_dialog)
         # Affichage
@@ -136,7 +138,7 @@ class WindowControllerMixin:
         actions.generate_requested.connect(self.job.generate)
         actions.gcode_import_requested.connect(self.job.import_gcode)
         actions.keychain_generator_requested.connect(
-            lambda: self._run_in_vector_editor(self.open_keychain_generator)
+            lambda: self._run_in_vector_editor(self.vector_editor.open_keychain_generator)
         )
 
     def show_documentation(self, page="index.md"):
@@ -460,3 +462,126 @@ class WindowControllerMixin:
             checkbox.setEnabled(available)
             checkbox.setToolTip(tip)
         return unchecked
+
+    # -- éditeur vectoriel : affichage (la logique est dans VectorEditorController)
+
+    def update_vector_work_area(self, *args):
+        """Synchronise la zone de travail de l'éditeur vectoriel avec les
+        dimensions physiques du graveur (onglet 'Paramètres Machine'), et non
+        plus avec les dimensions du job en cours."""
+        if hasattr(self, "vector_canvas") and hasattr(self, "machine"):
+            self.vector_canvas.set_work_area(self.machine.bed_w, self.machine.bed_h)
+
+    def on_layers_changed(self):
+        """Les calques ont changé (LayersModel.changed : couleur, mode,
+        puissance, ajout/suppression...) : on rafraîchit les couleurs des
+        objets du canevas et la liste « Calque de gravure » de l'onglet image.
+        Le tableau de l'onglet Calques se met à jour seul, abonné au modèle."""
+        if hasattr(self, "vector_canvas"):
+            self.vector_canvas.refresh_all()
+        self._refresh_engrave_layer_combo()
+
+    def _refresh_engrave_layer_combo(self):
+        """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés, supprimés,
+        renommés ou changés de mode). Sans effet tant que l'onglet n'est pas construit."""
+        combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None), "engrave_layer_combo", None)
+        if combo is not None:
+            layer = self.layer_manager.engrave_layer()
+            combo.set_layers(self.layer_manager.layers, layer.id if layer else None)
+
+    def _on_engrave_layer_chosen(self, layer_id):
+        """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
+        deviennent celles de la gravure (LayersModel.engrave_layer)."""
+        self.layer_manager.select_engrave_layer(layer_id)
+
+    def set_vector_draw_tool(self, tool):
+        """Active un outil de dessin à la souris sur le canevas vectoriel.
+
+        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
+        Rectangle : 3 points. Cercle (du centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) :
+        un seul clic-glisser. Échap ou clic droit annule l'outil.
+        """
+        if not hasattr(self, "vector_canvas"):
+            return
+        if tool and tool not in (None, "select") and not self.layer_manager.layers:
+            self.dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            tool = None
+        layer = self.layer_manager.default_svg_layer() if self.layer_manager.layers else None
+        layer_id = layer.id if layer else None
+        resolved = None if tool in (None, "select") else tool
+        self.vector_canvas.set_draw_tool(resolved, layer_id=layer_id)
+        for key, btn in getattr(self, "_vector_draw_buttons", {}).items():
+            btn.blockSignals(True)
+            btn.setChecked(key == resolved)
+            btn.blockSignals(False)
+
+    def toggle_fullscreen_vector_editor(self):
+        """Ouvre l'éditeur vectoriel (texte/formes/SVG) dans une fenêtre à
+        part, maximisée, pour travailler plus confortablement. Fermer cette
+        fenêtre (bouton dédié, Échap, ou la croix) remet l'éditeur à sa place
+        normale dans l'onglet."""
+        idx = self.main_tabs_view.indexOf(self.tab_vector_editor)
+        if idx == -1:
+            return  # déjà sorti (fenêtre plein écran probablement déjà ouverte)
+
+        dialog = QDialog(self)
+        # Fenêtre indépendante à part entière (pas une simple boîte de
+        # dialogue) : ça lui donne les boutons minimiser/agrandir/fermer
+        # standards de Windows et un vrai comportement plein écran.
+        dialog.setWindowFlags(Qt.WindowType.Window)
+        dialog.setWindowTitle(tr("vector.fullscreen_title"))
+
+        dlg_layout = QVBoxLayout(dialog)
+        dlg_layout.setContentsMargins(4, 4, 4, 4)
+
+        btn_close_fullscreen = QPushButton(
+    tr("vector.close_fullscreen")
+)
+        btn_close_fullscreen.setStyleSheet("background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;")
+        btn_close_fullscreen.clicked.connect(dialog.close)
+        dlg_layout.addWidget(btn_close_fullscreen)
+
+        dlg_layout.addWidget(self.tab_vector_editor)
+        self.tab_vector_editor.setVisible(True)
+
+        def restore(_result=None):
+            dlg_layout.removeWidget(self.tab_vector_editor)
+            self.tab_vector_editor.setParent(None)
+            self.main_tabs_view.insertTab(
+    idx,
+    self.tab_vector_editor,
+    tr("tab.vector_editor")
+)
+            self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
+            self.tab_vector_editor.setVisible(True)
+            self.vector_canvas.request_recenter()
+
+        dialog.finished.connect(restore)
+        dialog.show()
+        dialog.setWindowState(Qt.WindowState.WindowMaximized)
+        # Recentre la vue sur le contenu une fois la fenêtre maximisée.
+        self.vector_canvas.request_recenter()
+
+    def set_vector_snap_enabled(self, enabled):
+        self.vector_canvas.snap_enabled = bool(enabled)
+
+    def set_vector_snap_step(self, value):
+        self.vector_canvas.snap_step_mm = float(value)
+
+    def _image_frame(self):
+        """(x, y, largeur, hauteur) en mm de l'image de « Graver une image »,
+        pour caler le puzzle dessus (VectorEditorController)."""
+        if not (hasattr(self, "spin_w") and hasattr(self, "spin_h")):
+            return None
+        ox = float(self.spin_off_x.value()) if hasattr(self, "spin_off_x") else 0.0
+        oy = float(self.spin_off_y.value()) if hasattr(self, "spin_off_y") else 0.0
+        return ox, oy, float(self.spin_w.value()), float(self.spin_h.value())
+
+    @contextmanager
+    def _busy_cursor(self):
+        """Curseur d'attente pendant un calcul long (imbrication, série)."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            yield
+        finally:
+            QApplication.restoreOverrideCursor()

@@ -148,7 +148,7 @@ class VectorToolbarTests(unittest.TestCase):
         for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
                     "vector.explode_path", "vector.edit_nodes", "vector.text_follow", "ui.vector_undo", "ui.vector_redo"):
             self.assertIn(f'("{key}"', edit, key)
-        align = src[src.index("vector_align_actions = ["):src.index("self.vector_canvas = VectorCanvasView(")]
+        align = src[src.index("vector_align_actions = ["):src.index("layout_vector_editor.addWidget(self.vector_canvas, 1)")]
         for key in ("ui.vector_align_left", "ui.vector_align_center_h", "ui.vector_align_right",
                     "ui.vector_align_top", "ui.vector_align_middle_v", "ui.vector_align_bottom",
                     "ui.vector_distribute_h", "ui.vector_distribute_v"):

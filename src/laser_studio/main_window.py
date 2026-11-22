@@ -16,6 +16,8 @@ from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.controllers.engraver import EngraverController
 from laser_studio.controllers.job import JobController
+from laser_studio.controllers.vector_editor import VectorEditorController
+from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets, VectorPropertiesPanel
 from laser_studio.ui.user_dialogs import UserDialogs
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.connection import port_help_dialog
@@ -55,7 +57,6 @@ from laser_studio.ui.binding import bind
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
-from laser_studio.vector_editing_mixin import VectorEditingMixin
 from laser_studio.separation_mixin import SeparationMixin
 
 
@@ -63,7 +64,6 @@ log = get_logger()
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
-                       VectorEditingMixin,
                        SeparationMixin):
     def __init__(self):
         super().__init__()
@@ -658,6 +658,16 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         aura fini son travail sur le vectoriel."""
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
+        # Canevas (vue du document) et contrôleur de l'éditeur, créés d'abord pour y brancher les boutons ;
+        # le canevas prend sa place dans la mise en page plus bas.
+        self.vector_canvas = VectorCanvasView(self.layer_manager, document=self.vector_document)
+        self.vector_editor = VectorEditorController(
+            self.vector_document, self.vector_canvas, self.layer_manager, self.machine, self.dialogs, self,
+            image_frame=self._image_frame, busy=self._busy_cursor,
+        )
+        self.vector_editor.show_editor.connect(lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_editor))
+        self.vector_editor.status.connect(self.show_status_message)
+        editor = self.vector_editor
 
         # Boutons d'outils (rangée du haut), avec une icône du pack Breeze embarqué.
         # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
@@ -669,22 +679,22 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         )
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
-        btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
+        btn_import_svg_vector.clicked.connect(editor.import_dialog)
         btn_box_generator = QPushButton(tr("ui.vector_box_generator"))
         btn_box_generator.setToolTip(tr("ui.vector_box_generator_tip"))
-        btn_box_generator.clicked.connect(self.open_box_generator)
+        btn_box_generator.clicked.connect(editor.open_box_generator)
         btn_puzzle_generator = QPushButton(tr("ui.vector_puzzle_generator"))
         btn_puzzle_generator.setToolTip(tr("ui.vector_puzzle_generator_tip"))
-        btn_puzzle_generator.clicked.connect(self.open_puzzle_generator)
+        btn_puzzle_generator.clicked.connect(editor.open_puzzle_generator)
         btn_ornament_generator = QPushButton(tr("ui.vector_ornament_generator"))
         btn_ornament_generator.setToolTip(tr("ui.vector_ornament_generator_tip"))
-        btn_ornament_generator.clicked.connect(self.open_ornament_generator)
+        btn_ornament_generator.clicked.connect(editor.open_ornament_generator)
         btn_keychain_generator = QPushButton(tr("ui.vector_keychain_generator"))
         btn_keychain_generator.setToolTip(tr("ui.vector_keychain_generator_tip"))
-        btn_keychain_generator.clicked.connect(self.open_keychain_generator)
+        btn_keychain_generator.clicked.connect(editor.open_keychain_generator)
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
-        btn_nesting.clicked.connect(self.open_nesting)
+        btn_nesting.clicked.connect(editor.open_nesting)
         for button, icon in ((btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
                              (btn_puzzle_generator, "games-config-board"), (btn_ornament_generator, "draw-ellipse"),
                              (btn_keychain_generator, "keychain"), (btn_nesting, "object-group")):
@@ -698,18 +708,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_edit_actions = [
             self._vector_action(tr(key), tr(key).lstrip("↻↶↷ "), slot, icon) if key else None
             for key, icon, slot in (
-                ("ui.vector_edit_selection", "document-edit", self.edit_selected_vector_object),
-                ("ui.vector_rotate_90", "object-rotate-right", self.rotate_selected_vector_object),
-                ("ui.vector_duplicate", "edit-duplicate", self.duplicate_selected_vector_object),
-                ("ui.vector_serial_duplicate", "view-grid", self.open_serial_duplicate),
-                ("ui.vector_jig", "draw-rectangle", self.open_jig_generator),
-                ("ui.vector_delete", "edit-delete", self.delete_selected_vector_object),
-                ("ui.vector_delete_all", "edit-clear-all", self.delete_all_vector_objects),
+                ("ui.vector_edit_selection", "document-edit", editor.edit_selected),
+                ("ui.vector_rotate_90", "object-rotate-right", editor.rotate_selected),
+                ("ui.vector_duplicate", "edit-duplicate", editor.duplicate_selected),
+                ("ui.vector_serial_duplicate", "view-grid", editor.open_serial_duplicate),
+                ("ui.vector_jig", "draw-rectangle", editor.open_jig_generator),
+                ("ui.vector_delete", "edit-delete", editor.delete_selected),
+                ("ui.vector_delete_all", "edit-clear-all", editor.delete_all),
                 (None, None, None),
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
                 ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
-                ("vector.text_follow", "text-follow-path", self.make_text_follow_selection),
-                ("vector.medal", "insert-text", self.open_medal_text),
+                ("vector.text_follow", "text-follow-path", editor.make_text_follow_selection),
+                ("vector.medal", "insert-text", editor.open_medal_text),
                 (None, None, None),
                 ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
@@ -721,8 +731,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_create_actions = [
             self._vector_action(tr(key), tr(key).lstrip("+ "), slot, icon)
             for key, icon, slot in (
-                ("ui.vector_add_text", "insert-text", self.insert_text_object),
-                ("ui.vector_add_shape", "shape-choose", self.insert_shape_object),
+                ("ui.vector_add_text", "insert-text", editor.insert_text),
+                ("ui.vector_add_shape", "shape-choose", editor.insert_shape),
             )
         ]
         # Bibliothèque de modèles : ajoute aussi des objets (la rangée du haut est pleine).
@@ -774,20 +784,19 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_align_actions = [
             self._vector_action(tr(key).split(" ", 1)[0], tr(f"{key}_tip"), slot) if key else None
             for key, slot in (
-                ("ui.vector_align_left", lambda: self.align_vector_selection("left")),
-                ("ui.vector_align_center_h", lambda: self.align_vector_selection("center_h")),
-                ("ui.vector_align_right", lambda: self.align_vector_selection("right")),
+                ("ui.vector_align_left", lambda: editor.align("left")),
+                ("ui.vector_align_center_h", lambda: editor.align("center_h")),
+                ("ui.vector_align_right", lambda: editor.align("right")),
                 (None, None),
-                ("ui.vector_align_top", lambda: self.align_vector_selection("top")),
-                ("ui.vector_align_middle_v", lambda: self.align_vector_selection("middle_v")),
-                ("ui.vector_align_bottom", lambda: self.align_vector_selection("bottom")),
+                ("ui.vector_align_top", lambda: editor.align("top")),
+                ("ui.vector_align_middle_v", lambda: editor.align("middle_v")),
+                ("ui.vector_align_bottom", lambda: editor.align("bottom")),
                 (None, None),
-                ("ui.vector_distribute_h", lambda: self.distribute_vector_selection("h")),
-                ("ui.vector_distribute_v", lambda: self.distribute_vector_selection("v")),
+                ("ui.vector_distribute_h", lambda: editor.distribute("h")),
+                ("ui.vector_distribute_v", lambda: editor.distribute("v")),
             )
         ]
 
-        self.vector_canvas = VectorCanvasView(self.layer_manager, document=self.vector_document)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
         self.vector_create_toolbar = FloatingToolBar(
             [*vector_create_actions, None, *self._vector_draw_buttons.values()],
@@ -812,22 +821,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         pos_row1.addWidget(QLabel(tr("ui.vector_x_mm")))
         self.spin_vec_x = QDoubleSpinBox(); self.spin_vec_x.setRange(-1000.0, 1000.0); self.spin_vec_x.setDecimals(2)
         self.spin_vec_x.setMaximumWidth(90)
-        self.spin_vec_x.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_x)
         pos_row1.addWidget(QLabel(tr("ui.vector_y_mm")))
         self.spin_vec_y = QDoubleSpinBox(); self.spin_vec_y.setRange(-1000.0, 1000.0); self.spin_vec_y.setDecimals(2)
         self.spin_vec_y.setMaximumWidth(90)
-        self.spin_vec_y.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_y)
         pos_row1.addWidget(QLabel(tr("ui.vector_rotation_deg")))
         self.spin_vec_rot = QDoubleSpinBox(); self.spin_vec_rot.setRange(-360.0, 360.0); self.spin_vec_rot.setDecimals(1)
         self.spin_vec_rot.setMaximumWidth(70)
-        self.spin_vec_rot.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_rot)
         pos_row1.addWidget(QLabel(tr("ui.vector_layer")))
         self.combo_vec_layer = QComboBox()
         self.combo_vec_layer.setMinimumWidth(120)
-        self.combo_vec_layer.currentIndexChanged.connect(self.on_vector_layer_spin_changed)
         pos_row1.addWidget(self.combo_vec_layer, 1)
         pos_form.addLayout(pos_row1)
 
@@ -842,7 +847,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_vec_w.setDecimals(2)
         self.spin_vec_w.setSuffix(" mm")
         self.spin_vec_w.setMaximumWidth(100)
-        self.spin_vec_w.valueChanged.connect(self.on_vector_size_spin_changed)
         pos_row_size.addWidget(self.spin_vec_w)
         pos_row_size.addWidget(QLabel(tr("ui.vector_height_mm")))
         self.spin_vec_h = QDoubleSpinBox()
@@ -850,7 +854,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_vec_h.setDecimals(2)
         self.spin_vec_h.setSuffix(" mm")
         self.spin_vec_h.setMaximumWidth(100)
-        self.spin_vec_h.valueChanged.connect(self.on_vector_size_spin_changed)
         pos_row_size.addWidget(self.spin_vec_h)
         self.chk_vec_anchor_lock = QCheckBox(tr("ui.vector_anchor_lock"))
         self.chk_vec_anchor_lock.setChecked(True)
@@ -881,14 +884,21 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         pos_box.setVisible(False)
         self.pos_box_vector = pos_box
         layout_vector_editor.addWidget(pos_box)
-        # Le canevas prend tout l'espace vertical restant
-        self.vector_canvas.selection_changed.connect(self.on_vector_selection_changed)
-        self.vector_canvas.object_moved.connect(self.on_vector_object_moved)
-        self.vector_canvas.edit_requested.connect(self.edit_vector_object)
-        self.vector_canvas.insert_text_requested.connect(self.insert_text_object)
-        self.vector_canvas.serial_duplicate_requested.connect(self.open_serial_duplicate)
-        self.vector_canvas.jig_requested.connect(self.open_jig_generator)
-        self.vector_canvas.medal_text_requested.connect(self.open_medal_text)
+        # Panneau des propriétés : rempli d'après la sélection, saisies transmises au contrôleur.
+        self.vector_properties = VectorPropertiesPanel(
+            PropertiesWidgets(
+                label=self.lbl_vector_selection, box=pos_box, x=self.spin_vec_x, y=self.spin_vec_y,
+                rotation=self.spin_vec_rot, layer=self.combo_vec_layer, size_row=self.pos_size_anchor_widget,
+                width=self.spin_vec_w, height=self.spin_vec_h, anchor_lock=self.chk_vec_anchor_lock,
+                anchor=self.combo_vec_anchor,
+            ),
+            self.layer_manager, self.vector_canvas, editor, parent=self,
+        )
+        self.vector_canvas.edit_requested.connect(editor.edit_object)
+        self.vector_canvas.insert_text_requested.connect(editor.insert_text)
+        self.vector_canvas.serial_duplicate_requested.connect(editor.open_serial_duplicate)
+        self.vector_canvas.jig_requested.connect(editor.open_jig_generator)
+        self.vector_canvas.medal_text_requested.connect(editor.open_medal_text)
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
@@ -1248,8 +1258,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                 self.load_image_from_path(file_path)
                 break
-            if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "_import_vector_file"):
-                self._import_vector_file(file_path)
+            if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "vector_editor"):
+                self.vector_editor.import_file(file_path)
                 break
 
     # -- État de la fenêtre : panneau machine, séparateur, onglets

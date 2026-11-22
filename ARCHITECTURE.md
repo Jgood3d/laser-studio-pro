@@ -34,7 +34,6 @@ main.py
         │
         ├─ WindowControllerMixin (ui/app/window_controller.py) signaux du menu, thème, résultats du job (console, aperçu 2D), affichage du graveur (position, suivi d'envoi)
         ├─ ImageProcessingMixin  (image_processing_mixin.py)
-        ├─ VectorEditingMixin    (vector_editing_mixin.py)
         └─ SeparationMixin       (separation_mixin.py)  interface de la séparation (logique : controllers/separation.py, vue : ui/tabs/separation/)
         │
         │  Et crée les contrôleurs (controllers/), des objets ordinaires
@@ -43,6 +42,7 @@ main.py
         ├─ connection    = MachineConnection      port série, threads, état « référencé »
         ├─ engraver      = EngraverController     pilotage du graveur : ports, connexion, jog, envoi des jobs, configuration $$
         ├─ job           = JobController          paramètres, génération du G-Code, estimation, export, matrice de test
+        ├─ vector_editor = VectorEditorController éditeur vectoriel : import, insertion, alignement, générateurs, imbrication, série
         ├─ project       = ProjectController      fichier du projet, récents, sauvegarde automatique
         ├─ machines      = MachineProfilesController profils machine (champs : ProfileFields)
         ├─ matrix_image  = MatrixImageController  matrice de test à partir d'une image
@@ -81,7 +81,6 @@ laser-studio-pro/
 │       ├── main.py / __main__.py     # démarrage (python -m laser_studio)
 │       ├── main_window.py            # FullLaserStudio : assemble les mixins, construit la fenêtre (init_ui, _build_*)
 │       ├── image_processing_mixin.py # image, filtres, matière, undo image
-│       ├── vector_editing_mixin.py   # import, dessin, alignement, nesting, duplication en série, générateurs
 │       ├── separation_mixin.py       # séparation couleur côté interface
 │       ├── vector_layers.py          # ancien emplacement de l'éditeur vectoriel : réexporte les noms (code existant, Stencil Studio)
 │       ├── workers.py                # threads (QThread) : traitement d'image, envoi du G-Code, sondage d'état ; la génération y appelle gcode/
@@ -96,6 +95,7 @@ laser-studio-pro/
 │       │   ├── svg_extract.py                         # import SVG classique (extract_svg_objects)
 │       │   ├── layer_data.py                          # objets -> polygones par calque pour le G-Code (extract_vector_layer_data)
 │       │   ├── path_ops.py                            # grouper, dégrouper, exploser, convertir en tracé (QtGui)
+│       │   ├── arrange.py                             # boîte d'un groupe, alignement, répartition, ancrage d'une forme (QtGui)
 │       │   ├── order.py / nudge.py / font.py          # ordre de coupe, déplacement clavier, polices
 │       │   ├── text_on_path.py / text_on_arc.py       # texte le long d'un tracé / sur un cercle
 │       │   ├── box_generator.py / box_3d.py / box_presets.py
@@ -106,7 +106,7 @@ laser-studio-pro/
 │       │   ├── serial_duplicate.py / serial_apply.py
 │       │   └── jig.py
 │       ├── camera/                   # module caméra sans Qt : capture, lens_calibration (objectif), workspace_alignment (homographie du plateau), storage
-│       ├── controllers/              # contrôleurs : job, png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety (remplacent des mixins)
+│       ├── controllers/              # contrôleurs : job, png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety, vector_editor (remplacent des mixins)
 │       ├── resources/                # images : icône (.ico, 512 px), bannière, « Buy me a coffee »
 │       │   └── icons/                # thèmes d’icônes FreeDesktop embarqués
 │       │       ├── breeze/           # pack par défaut (LGPL-3) : 16x16, 22x22, 32x32
@@ -140,7 +140,7 @@ laser-studio-pro/
 │           │   ├── console/          # ConsoleTab (Console / G-Code)
 │           │   └── job_queue/        # JobQueueTab (file d'attente)
 │           ├── settings/             # window.py (SettingsWindow) et pages : machine_params/, grbl_config/, test_matrix/ (TestMatrixPage, ImageTestGroup, TilePicker)
-│           ├── vector_editor/        # éditeur vectoriel : canvas.py (VectorCanvasView), item.py (VectorGraphicsItem), boîtes text_dialog, medal_dialog, shape_dialog, assign_layer_dialog
+│           ├── vector_editor/        # éditeur vectoriel : canvas.py (VectorCanvasView), item.py (VectorGraphicsItem), properties_panel.py (VectorPropertiesPanel), boîtes text_dialog, medal_dialog, shape_dialog, assign_layer_dialog
 │           └── dialogs/              # fenêtres des outils
 │               ├── library/          # LibraryDialog (grille, catégories, recherche), LibraryItemDialog (fiche, variantes)
 │               ├── box_generator/    # BoxGeneratorDialog + preview.py (BoxPreview) + preview_3d.py (Box3DView)
@@ -219,7 +219,7 @@ laser-studio-pro/
 | **ui/app/menu/** | `AppActions` crée toutes les actions (icône, libellé, raccourci, état) et émet les signaux (`save_project_requested`, `mirror_changed`, `camera_requested`, `keychain_generator_requested`…) ; les outils de l'éditeur vectoriel (`vector_tool_actions` : import, boîte, puzzle, boules de Noël, porte-clés) ouvrent d'abord son onglet. `AppMenuBar` et un fichier par `QMenu` (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar` (mêmes actions + « Générer » et, à droite, le bouton ko-fi) ne font que les ranger | `ui/buy_me_a_coffee` |
 | **ui/app/window_controller.py** | Contrôleur de la fenêtre : abonne la fenêtre aux signaux de `AppActions`, `change_theme`, langue, `update_connection_widgets`, actions de la barre d'outils sur l'image de l'onglet courant, ouverture Stencil Studio, ouverture de la fenêtre Caméra ; affiche les résultats de `JobController` (console, statistiques, barre de progression, `plot_gcode_preview` vers l'aperçu 2D) | `app_theme`, `ui/app/menu`, `stencil_studio.studio_dialog`, `controllers/camera` |
 | **ui/widgets/floating_toolbar.py**, **tab_close_button.py** | `FloatingToolBar` : petite barre d'outils posée par-dessus un aperçu, un canevas ou une table (aperçus d'image, séparation, PNG→SVG, aperçu 2D, onglet Calques) ; `TabCloseButton` : croix de fermeture sur un seul onglet (onglets ouverts depuis le menu Outils) | `main_window`, `ui/tabs/*` |
-| **ui/tabs/image/** | `ImageTab` : onglet « Graver une image », réglages à gauche (`ImageSettingsPanel` : taille + offset, réglages photo, matière, tramage, résolution, **calque de gravure** — `EngraveLayerComboBox`, calques en mode gravure seulement, signal `engrave_layer_changed(id)` sur choix de l'utilisateur ; la fenêtre le transmet à `LayersModel.select_engrave_layer` et remplit la liste via `_refresh_engrave_layer_combo`, `vector_editing_mixin`), aperçus originale / tramé côte à côte. Émet `compare_requested`, `fullscreen_requested` ; le panneau émet `processing_changed`, `size_changed`, `material_changed`, `resolution_mode_changed`… | Construit et abonné dans `main_window._build_image_tab`, qui garde les anciens noms des champs (`spin_w`, `slider_bright`, `combo_algo`, `spin_lmm`…) |
+| **ui/tabs/image/** | `ImageTab` : onglet « Graver une image », réglages à gauche (`ImageSettingsPanel` : taille + offset, réglages photo, matière, tramage, résolution, **calque de gravure** — `EngraveLayerComboBox`, calques en mode gravure seulement, signal `engrave_layer_changed(id)` sur choix de l'utilisateur ; la fenêtre le transmet à `LayersModel.select_engrave_layer` et remplit la liste via `_refresh_engrave_layer_combo`, `ui/app/window_controller.py`), aperçus originale / tramé côte à côte. Émet `compare_requested`, `fullscreen_requested` ; le panneau émet `processing_changed`, `size_changed`, `material_changed`, `resolution_mode_changed`… | Construit et abonné dans `main_window._build_image_tab`, qui garde les anciens noms des champs (`spin_w`, `slider_bright`, `combo_algo`, `spin_lmm`…) |
 | **ui/machine/job_position/** | `JobPositionBox` : cadre « Position du job » (origine du repère, lue par code : `origin()` / `set_origin()`) | Construit dans `main_window._build_image_tab`, placé en haut de la colonne de droite de `Preview2DTab` |
 | **ui/machine/sent_gcode/** | `SentGcodeLog` : suivi du G-Code envoyé (`clear_lines`, `append_lines`, `mark_end`) | Placé à gauche par `MachinePanel` ; alimenté par `JobQueueController` (`sent_log`) et l'envoi direct (`EngraverController`, affichage par `WindowControllerMixin`) |
 | **ui/machine/** | `MachinePanel` : assemble sous les onglets la rangée G-Code envoyé / connexion / pilotage / actions de job, et la barre de progression du job. Pas de signaux à lui : la fenêtre s'abonne à ceux de ses sous-panneaux ; `set_connected()` verrouille les commandes, `set_status()` répartit l'état GRBL (Connexion) et la position (sous le pilotage) | Construit et abonné dans `main_window._build_machine_panel` |
@@ -237,7 +237,9 @@ laser-studio-pro/
 | **ui/tabs/console/** | `ConsoleTab` : onglet « Console / G-Code », masqué au démarrage (menu Affichage). Console `console_edit` ; les statistiques (`JobStatsPanel` : lignes, puissance moyenne, temps estimé, fichier `job_stats_panel.py` de `ui/tabs/preview_2d/`) sont à droite de l'aperçu 2D, l'export dans « Fichier > Enregistrer le G-Code » | Construit dans `main_window._build_console_tab`, qui garde le nom `txt_console` utilisé partout |
 | **ui/tabs/job_queue/** | `JobQueueTab` : onglet « File d'attente ». Liste réordonnable, boutons (le G-Code envoyé est suivi dans le panneau machine). Émet `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | Construit dans `main_window._build_job_queue_tab`, piloté par `JobQueueController` ; le suivi du G-Code envoyé (`SentGcodeLog`, panneau machine) sert aussi à l'envoi direct (`EngraverController.start_stream`) |
 | **image_processing_mixin.py** | Image, filtres, matière, undo image | `workers`, `image.filters`, `image.size` |
-| **vector_editing_mixin.py** | Import SVG/DXF, outils dessin (`set_vector_draw_tool`), alignement, nesting, duplication en série, boîtes | `ui/vector_editor`, `models/vector_objects`, `vector/svg_extract`, `vector/importers`, `vector/dxf`, `vector/nesting*`, `vector/serial_*` |
+| **controllers/vector_editor.py** | `VectorEditorController` (`QObject`) : actions de l'éditeur vectoriel sur le `VectorDocument` et le canevas — import SVG / DXF (`import_dialog`, `import_file`, aussi pour le glisser-déposer), insertion et modification de textes et de formes, texte sur contour, médaille, pivoter, dupliquer, supprimer, tout supprimer, calque / position / taille de la sélection (panneau des propriétés), alignement et répartition, imbrication, duplication en série, gabarit, générateurs (boîte, puzzle, boules de Noël, porte-clés) dont il garde les derniers réglages. Messages par `UserDialogs`. Signaux `show_editor`, `properties_changed(obj)`, `status(str)` | `main_window`, `ui/app/window_controller` (menu Outils) |
+| **ui/vector_editor/properties_panel.py** | `VectorPropertiesPanel` : panneau sous le canevas (description, X / Y, rotation, calque, largeur / hauteur avec ancrage), rempli d'après la sélection ; les saisies vont au contrôleur. Widgets construits par la fenêtre (`PropertiesWidgets`) | `main_window` |
+| **vector/arrange.py** | Disposition : `group_bounds`, `align_offsets`, `distribute_offsets`, coins et ancrage d'une forme (`shape_world_anchor`), `resize_shape` | `controllers/vector_editor`, `ui/vector_editor/properties_panel` |
 | **ui/user_dialogs.py** | `UserDialogs` : messages (`info`, `warning`, `error`), questions (`confirm` Oui / Annuler, `confirm_default_no` Oui / Non avec Non par défaut, `confirm_yes_no`, `ask_yes_no`), saisie de texte (`ask_text`) et choix de fichier (`save_file`, `open_file`). Une instance par fenêtre (`main_window.dialogs`), passée à **tous les contrôleurs** : aucun n'ouvre de `QMessageBox` / `QFileDialog` / `QInputDialog` lui-même (vérifié par `tests/test_user_dialogs.py`). Dans les tests, remplacé par `tests/job_fakes.FakeDialogs`, qui répond à la place de l'utilisateur | `controllers/*` |
 | **gcode/** | Génération du G-Code, fonctions pures sans Qt (aucun import de PyQt6, vérifié par `tests/test_gcode_package.py`) : `build_job_gcode` (en-tête, image, découpe SVG, calques vectoriels, fin ; résultat `GcodeResult`), `raster_image_gcode` et `image_origin` (gravure d'image, surbalayage, décalage des lignes retour), `svg_cut_gcode`, `build_vector_layers_gcode` (gravure remplie, découpe, marquage ; commande et surbalayage de chaque calque), `build_test_matrix_gcode`, `bidir_test_gcode` ; `preview` : modèle de l'aperçu 2D (`parse_preview`, `is_raster_group`, `cut_contours`, `material_background_rect`, `raster_image`, `BurnTracker`, presets matière) | `workers` (`AdvancedGCodeWorker`, `TestMatrixWorker` : simples enveloppes de thread), `controllers/job`, `controllers/engraver` (cadrage : `image_origin`) |
 | **controllers/engraver.py** | `EngraverController` : ports et connexion (vérification de `$22` et `$32` après connexion), pilotage (jog, homing, zéro, cadrage, pause, reset, console directe), envoi d'un job (« Envoyer au laser » avec ses confirmations, répétition, fin de job, reconnexion), configuration GRBL (`$$` : lire, envoyer, exporter, importer). Questions par `UserDialogs`, résultats par signaux (`ports_changed`, `stream_starting`, `stream_ended`, `direct_job_started`…) ; `start_stream` / `end_stream` servent aussi à la file d'attente | `controllers/machine_connection`, `grbl/commands`, `main_window`, `window_controller` |
@@ -251,25 +253,25 @@ laser-studio-pro/
 
 | Fichier | Rôle | Utilisé par |
 |---------|------|-------------|
-| **models/vector_document.py** | `VectorDocument` (`QObject`) : les objets du dessin, dans l'ordre (`add`, `remove`, `replace`, `object_by_id`, `serialize`, `load`), annuler / refaire (`push_snapshot`, `undo`, `redo`, `drop_last_snapshot`, 30 étapes), presse-papiers de l'éditeur (`copy`, `paste`, `duplicate`). Signaux `object_added`, `object_removed`, `objects_reset`. Créé par la fenêtre (`main_window.vector_document`) et passé au canevas, qui en est la vue | `ui/vector_editor/canvas`, `controllers/job` |
+| **models/vector_document.py** | `VectorDocument` (`QObject`) : les objets du dessin, dans l'ordre (`add`, `remove`, `replace`, `object_by_id`, `serialize`, `load`), annuler / refaire (`push_snapshot`, `undo`, `redo`, `drop_last_snapshot`, 30 étapes), presse-papiers de l'éditeur (`copy`, `paste`, `duplicate`). Signaux `object_added`, `object_removed`, `objects_reset`, `objects_changed` (`notify_changed` après modification d'objets existants). Créé par la fenêtre (`main_window.vector_document`) et passé au canevas, qui en est la vue | `ui/vector_editor/canvas`, `controllers/job`, `controllers/vector_editor` |
 | **vector/path_ops.py** | Opérations de géométrie qui fabriquent de nouveaux objets sans toucher au document : `group_objects`, `ungroup_object`, `explode_object`, `bake_object` (forme ou texte en tracé), `can_ungroup`, `can_explode`, `path_to_polylines`, `polylines_to_path` | `ui/vector_editor/canvas` |
 | **models/vector_objects.py** | Objets du dessin : `VectorObject` (position en mm, rotation, miroirs, calque, `world_path()`), `TextObject` (police, taille, texte sur un cercle ou le long d'un tracé), `ShapeObject`, `SvgPathObject` ; `to_dict` / `from_dict` | Canevas, générateurs, import, G-Code |
-| **ui/vector_editor/** | `VectorCanvasView` (`canvas.py`) : vue du `VectorDocument` (un élément graphique par objet, créé ou retiré d'après ses signaux ; `objects` renvoie la liste du document) ; zone de travail en mm, grille, zoom, objets déplaçables, outils de dessin et de mesure, accroche, édition des nœuds, exploser, grouper, annuler / refaire, copier / coller, texte sur un tracé, image de fond du plateau issue de la caméra. `VectorGraphicsItem` (`item.py`) : un objet sur le canevas. Boîtes de saisie : `TextInsertDialog`, `MedalTextDialog`, `ShapeInsertDialog`, `AssignLayerDialog` | `main_window`, `vector_editing_mixin` |
+| **ui/vector_editor/** | `VectorCanvasView` (`canvas.py`) : vue du `VectorDocument` (un élément graphique par objet, créé ou retiré d'après ses signaux ; `objects` renvoie la liste du document) ; zone de travail en mm, grille, zoom, objets déplaçables, outils de dessin et de mesure, accroche, édition des nœuds, exploser, grouper, annuler / refaire, copier / coller, texte sur un tracé, image de fond du plateau issue de la caméra. `VectorGraphicsItem` (`item.py`) : un objet sur le canevas. Boîtes de saisie : `TextInsertDialog`, `MedalTextDialog`, `ShapeInsertDialog`, `AssignLayerDialog` | `main_window`, `controllers/vector_editor` |
 | **ui/tabs/layers/layer_table.py** | `LayerManagerWidget` : tableau des calques, vue de `LayersModel` (colonnes Couleur, Nom, Mode, Puissance, Vitesse, Passes, Pas, Surbalayage — grisée hors gravure remplie —, Laser — Auto / M4 / M3 —, Actif) | `ui/tabs/layers/tab.py` |
 | **vector/svg_extract.py** / **vector/layer_data.py** | Import SVG classique (`extract_svg_objects`) ; objets → polygones en mm par calque pour `gcode/vector` (`extract_vector_layer_data`) | Import, `controllers/png2svg`, `controllers/job` |
 | **vector_layers.py** | Ancien emplacement : réexporte tous les noms ci-dessus (et `LayerManager`, ancien nom de `LayersModel`) pour le code existant et Stencil Studio. Pour du code neuf, importer depuis les nouveaux modules | Stencil Studio, tests |
-| **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `vector_editing_mixin` |
+| **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `controllers/vector_editor` |
 | **vector/svg_import.py** | Import SVG selon la convention des modèles (`resources/library/README.md`) : seuls les calques `Cut`, `Engrave` (noir gravé, blanc creusé) et `Mark` sont importés ; options = sous-calques d'un groupe, un seul visible (`find_variant_groups`) ; textes en objets texte modifiables (`TextObject`, calés sur le rendu SVG) et remplaçables (`find_texts`) ; aperçu tel qu'importé (`svg_preview`) ; unités et transformations cumulées. Utilisé par la bibliothèque ; à valider pour remplacer `extract_svg_objects` | `controllers/library`, `ui/dialogs/library` |
 | **library/catalog.py** | Catalogue de la bibliothèque, sans Qt : catégories et modèles des dossiers `resources/library/` (à côté de l'exécutable et dans le bundle), `_category.json`, `info.json`, aperçu, readme | `controllers/library` |
 | **controllers/library.py** | `LibraryController` : ouvre la bibliothèque (taille des aperçus mémorisée), importe le modèle choisi avec ses variantes, chaque rôle sur le calque de base de même rôle | `main_window`, `window_controller` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
 | **vector/text_on_path.py** | Texte le long d'un tracé quelconque, sans Qt : `path_placements(advances, points, center_fraction, spacing, reverse, gap)` donne `(x, y, rotation)` de chaque lettre (direction = corde sous la largeur de la lettre ; prolongement droit au-delà d'un tracé ouvert, bouclage sur un tracé fermé). `orient_path` (fermé : sens horaire ; ouvert : de gauche à droite), `default_center_fraction`, `is_closed`, `relative_points`, `scaled_points`. Testé dans `tests/test_text_on_path.py` | `vector_layers.TextObject._follow_path` |
 | **vector/text_on_arc.py** | Texte sur un cercle, sans Qt : `arc_placements(advances, rayon, centre, intérieur, espacement)` donne `(x, y, rotation)` de chaque lettre (repère mathématique, Y vers le haut, centre du cercle en (0, 0) ; 90° = haut, 270° = bas), `arc_span_deg`, `text_length`, `default_center_deg`. Extérieur : lettres vers l'extérieur, lu dans le sens horaire ; intérieur : lettres vers le centre, lu de gauche à droite en bas. Testé dans `tests/test_text_on_arc.py` | `vector_layers.TextObject` |
-| **vector/box_generator.py** / **box_3d.py** / **box_presets.py** | Boîte à encoches, modèle 3D de la boîte assemblée (aperçu), préréglages nommés | `vector_editing_mixin`, `ui/dialogs/box_generator` |
-| **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Puzzle jigsaw, imbrication | `vector_editing_mixin`, `ui/dialogs` |
-| **vector/ornament_generator.py** / **ornament_motifs.py** / **ornament_region.py** / **keychain_generator.py** | Boules de Noël (géométrie, motifs, soudure) et porte-clés prénom (voir §8.0 et §8.2) | `vector_editing_mixin`, `ui/dialogs/ornament`, `ui/dialogs/keychain` |
-| **vector/serial_duplicate.py** / **vector/serial_apply.py** | Duplication en série : exemplaires, texte par exemplaire, grille (logique pure, testée sans Qt) ; passerelle vers le canevas et l'imbrication | `vector_editing_mixin`, `ui/dialogs/serial_duplicate` |
-| **vector/jig.py** | Gabarit de placement : géométrie de la plaque et des poches (logique pure, testée sans Qt) ; les objets sont créés par `vector/importers.jig_to_objects` | `vector_editing_mixin`, `ui/dialogs/jig` |
+| **vector/box_generator.py** / **box_3d.py** / **box_presets.py** | Boîte à encoches, modèle 3D de la boîte assemblée (aperçu), préréglages nommés | `controllers/vector_editor`, `ui/dialogs/box_generator` |
+| **vector/puzzle_generator.py** / **vector/nesting.py** / **vector/nesting_apply.py** | Puzzle jigsaw, imbrication | `controllers/vector_editor`, `ui/dialogs` |
+| **vector/ornament_generator.py** / **ornament_motifs.py** / **ornament_region.py** / **keychain_generator.py** | Boules de Noël (géométrie, motifs, soudure) et porte-clés prénom (voir §8.0 et §8.2) | `controllers/vector_editor`, `ui/dialogs/ornament`, `ui/dialogs/keychain` |
+| **vector/serial_duplicate.py** / **vector/serial_apply.py** | Duplication en série : exemplaires, texte par exemplaire, grille (logique pure, testée sans Qt) ; passerelle vers le canevas et l'imbrication | `controllers/vector_editor`, `ui/dialogs/serial_duplicate` |
+| **vector/jig.py** | Gabarit de placement : géométrie de la plaque et des poches (logique pure, testée sans Qt) ; les objets sont créés par `vector/importers.jig_to_objects` | `controllers/vector_editor`, `ui/dialogs/jig` |
 
 #### Générateur de boîte (`vector/box_generator.py`)
 
@@ -338,9 +340,9 @@ main.py
         │                 │       (theme_for_lsp / sync_theme_from_lsp)
         │                 └─► CameraController ──► camera/ (capture, lens_calibration, workspace_alignment, storage)
         │                                      └─► ui/dialogs/camera/ (dialog, lens_wizard, align_wizard)
-        ├─ VectorEditingMixin ──► VectorCanvasView (ui/vector_editor/canvas)
+        ├─ VectorEditorController (controllers/vector_editor) ──► VectorDocument ◄── VectorCanvasView (ui/vector_editor/canvas)
         │         ├─ import SVG/DXF (groupé)
-        │         ├─ set_vector_draw_tool (line/rect/ellipse)
+        │         ├─ panneau des propriétés (ui/vector_editor/properties_panel)
         │         ├─ explode_selected / enter_node_edit
         │         └─ nesting / box_generator / puzzle_generator
         ├─ JobController (controllers/job) ──► workers (threads) ──► gcode/ (G-Code sans Qt)
@@ -438,7 +440,7 @@ Menu Outils → Caméra (CameraDialog)
 | **vector/puzzle_generator.py** | Géométrie jigsaw (ergot à col étroit et tête ronde qui déborde : 3 Béziers, dimensionné sur la plus petite dimension d'une pièce, hauteur plafonnée par `MAX_TAB_DEPTH` = 0,30) + grille ondulée ; validation ; `PuzzleResult` : `pieces` (aperçu seulement), **`outline`** (contour extérieur fermé, agrandi de kerf/2) et **`edges`** (arêtes internes, chacune une seule fois, tracés ouverts) |
 | **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme, calque de découpe) |
 | **vector/importers.puzzle_to_objects** | `outline` + `edges` → 2 `SvgPathObject` (contour fermé ; arêtes internes regroupées en un objet) |
-| **vector_editing_mixin.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
+| **VectorEditorController.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
 | **main_window._build_vector_editor_tab** | Bouton toolbar « 🧩 Puzzle » |
 | **i18n/translations.py** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
 
@@ -468,7 +470,7 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 | **vector/ornament_region.py** | Soudure avec les opérations booléennes de `QPainterPath` : texte (`QFont` → contour), union des formes, soustraction du vide intérieur et du trou, rognage au disque. Renvoie les contours à découper, le premier est l'extérieur |
 | **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification) |
 | **vector/importers.ornament_to_objects** | Contours → 2 `SvgPathObject` : l'extérieur, et un objet qui regroupe tous les contours intérieurs |
-| **vector_editing_mixin.open_ornament_generator** | Ouverture du dialogue et placement sur le canevas |
+| **VectorEditorController.open_ornament_generator** | Ouverture du dialogue et placement sur le canevas |
 | **i18n/translations.py** | Clés `menu.tools.ornament`, `ui.vector_ornament_generator*`, `ornament.*`, `ornament.err.*` |
 
 Principes : le prénom, les flocons et l'anneau sont **soudés** en une seule pièce avant d'être envoyés au laser : un contour qui traverse de la matière serait découpé à l'intérieur d'une lettre. Les lettres sont d'abord fusionnées (écritures cursives), leurs contreformes (a, e, o) restent des contours à part. Le prénom est tenu à l'anneau par une barre posée sur la ligne de base (choix « Barre », par défaut) ; sans elle il doit toucher l'anneau des deux côtés (`floating_name` avertit sinon). Un point de i ou un accent reste détaché et tombe. Tests : `tests/test_ornament_generator.py` (formes et disposition sans Qt ; soudure avec le vrai Qt, ignorée sans lui).
@@ -492,7 +494,7 @@ Fichier : **stencil_studio/lsp_bridge.py** (`ensure_multi_layer`, `kind_for_laye
 | **vector/keychain_generator.py** | Géométrie pure, sans Qt (`build_keychain`, `KeychainParams`, `KeychainResult`, `KeychainError`) : prénom, base dilatée soudée à l'anneau. Deux ensembles de polygones fermés : `base_contours` (base + trou d'anneau → calque Découpe) et `text_contours` (texte centré sur la base → calque Gravure). Repère LSP (mm, Y vers le haut, coin bas-gauche en (0, 0)) |
 | **ui/dialogs/keychain/** | `KeychainGeneratorDialog` + `KeychainPreview` : aperçu en direct découpe + gravure ; `error_text()` |
 | **vector/importers.keychain_to_objects** | Contours → objets sur le calque de découpe et celui de gravure |
-| **vector_editing_mixin.open_keychain_generator** | Ouverture du dialogue (réglages mémorisés dans `_keychain_settings`) et placement sur le canevas ; lancé par le bouton de l'éditeur, le menu Outils (`keychain_generator_requested`) |
+| **VectorEditorController.open_keychain_generator** | Ouverture du dialogue (réglages mémorisés dans `keychain_settings`) et placement sur le canevas ; lancé par le bouton de l'éditeur, le menu Outils (`keychain_generator_requested`) |
 
 ## 9. Commandes utiles
 

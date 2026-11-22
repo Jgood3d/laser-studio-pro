@@ -46,6 +46,8 @@ Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à pa
 
 Éditeur vectoriel : la liste des objets, l'historique d'annulation et le presse-papiers sortent du canevas dans un modèle `VectorDocument` (`models/vector_document.py`), testable sans canevas ; grouper, dégrouper, exploser et convertir en tracé dans `vector/path_ops.py`. Le canevas devient une vue du document. Comportement inchangé.
 
+Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

@@ -46,6 +46,7 @@ class VectorCanvasView(QGraphicsView):
         self._items = {}  # id(objet) -> VectorGraphicsItem
         self.document.object_added.connect(self._on_object_added)
         self.document.object_removed.connect(self._on_object_removed)
+        self.document.objects_changed.connect(self._on_objects_changed)
         self.document.objects_reset.connect(self._on_objects_reset)
         self.px_per_mm = 4.0
         self.grid_items = []
@@ -864,6 +865,12 @@ class VectorCanvasView(QGraphicsView):
                 self.scene_obj.removeItem(item)
             except RuntimeError:
                 pass
+
+    def _on_objects_changed(self, objects):
+        for obj in objects:
+            item = self._items.get(id(obj))
+            if item is not None:
+                item.refresh()
 
     def _on_objects_reset(self):
         """Tout le document a changé (annuler, refaire, charger) : nouveaux éléments."""

@@ -82,9 +82,9 @@ class WiringTests(unittest.TestCase):
         main = read("main_window.py")
         self.assertIn("settings.engrave_layer_changed.connect(self._on_engrave_layer_chosen)", main)
         self.assertIn("self._refresh_engrave_layer_combo()", main)
-        mixin = read("vector_editing_mixin.py")
-        self.assertIn("def _on_engrave_layer_chosen(self, layer_id):", mixin)
-        self.assertIn("self._refresh_engrave_layer_combo()", mixin)
+        window = read(os.path.join("ui", "app", "window_controller.py"))
+        self.assertIn("def _on_engrave_layer_chosen(self, layer_id):", window)
+        self.assertIn("self._refresh_engrave_layer_combo()", window)
 
     def test_translations_exist_in_all_languages(self):
         import importlib.util

@@ -201,13 +201,13 @@ class WiringTests(unittest.TestCase):
 
     def test_button_method_undo_and_active_layers(self):
         ui = ui_source()
-        self.assertIn("btn_nesting.clicked.connect(self.open_nesting)", ui)
+        self.assertIn("btn_nesting.clicked.connect(editor.open_nesting)", ui)
         self.assertIn("toolbar_vector.addWidget(btn_nesting)", ui)
-        src = self.src("vector_editing_mixin.py")
-        body = src[src.index("def open_nesting"):src.index("def open_box_generator")]
+        src = self.src(os.path.join("controllers", "vector_editor.py"))
+        body = src[src.index("def open_nesting"):src.index("def open_serial_duplicate")]
         self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(canvas, members, result)"))
         self.assertIn("layer.enabled", body)
-        self.assertIn("QApplication.restoreOverrideCursor()", body)
+        self.assertIn("with self._busy():", body)              # curseur d'attente pendant le calcul
 
 
 if __name__ == "__main__":

@@ -43,6 +43,8 @@ class VectorDocument(QObject):
     Signaux, émis après la modification :
     - object_added(obj) ;
     - object_removed(obj) ;
+    - objects_changed(liste) : ces objets ont changé (position, calque, taille…) :
+      les vues les redessinent ;
     - objects_reset() : toute la liste a changé (annuler, refaire, charger).
 
     `objects` se lit librement ; pour le modifier, passer par add, remove,
@@ -51,6 +53,7 @@ class VectorDocument(QObject):
 
     object_added = pyqtSignal(object)
     object_removed = pyqtSignal(object)
+    objects_changed = pyqtSignal(list)
     objects_reset = pyqtSignal()
 
     def __init__(self, parent=None):
@@ -84,6 +87,12 @@ class VectorDocument(QObject):
             self.remove(obj)
         for obj in new_objects:
             self.add(obj)
+
+    def notify_changed(self, objects):
+        """Signale que `objects` ont été modifiés (les vues les redessinent)."""
+        objects = list(objects)
+        if objects:
+            self.objects_changed.emit(objects)
 
     def object_by_id(self, obj_id):
         for obj in self.objects:
