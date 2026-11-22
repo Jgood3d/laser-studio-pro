@@ -46,7 +46,7 @@ def source_files():
             "*.py",
             "ui/**/*.py",
             "controllers/*.py",
-            "../../stencil_studio/*.py",
+            "../stencil_studio/*.py",
         )
     ]
     return sorted(os.path.relpath(f, ROOT) for files in pattern for f in files)

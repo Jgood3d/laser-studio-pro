@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
+
 Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
 
 Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel) :
@@ -49,6 +51,7 @@ Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à pa
 Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
 
 ### Corrigé
+Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 
 Installation et compilation :

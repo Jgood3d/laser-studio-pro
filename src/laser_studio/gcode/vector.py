@@ -60,6 +60,25 @@ def _scanline_fill_segments(polygons, y):
     return segments
 
 
+def _overscan_runs(segments, overscan):
+    """Regroupe les segments d'une ligne (déjà dans le sens du balayage) qui seront gravés d'une seule passe.
+
+    Deux segments voisins vont dans le même groupe quand l'écart qui les sépare ne dépasse pas deux fois le
+    surbalayage : avec un surbalayage par segment, la sortie de l'un dépasserait l'entrée du suivant et la
+    tête ferait demi-tour. Au-delà, chaque groupe garde son surbalayage et la tête saute en G0 vers le
+    suivant, toujours vers l'avant. Sans surbalayage, chaque segment est seul dans son groupe."""
+    runs = []
+    for seg in segments:
+        if runs and overscan > 0:
+            prev_sx, prev_ex = runs[-1][-1]
+            direction = 1.0 if prev_ex >= prev_sx else -1.0
+            if (seg[0] - prev_ex) * direction <= 2.0 * overscan:
+                runs[-1].append(seg)
+                continue
+        runs.append([seg])
+    return runs
+
+
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                                laser_cmd, s_max, overscan_dist=0.0, safe_cut_order=False, scan_offset=0.0):
     """Construit le G-Code (Phase "Calques Vectoriels") pour tous les calques actifs,
@@ -123,62 +142,50 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                 if segments:
                     ordered = segments if line_idx % 2 == 0 else list(reversed(
                         [(b + scan_offset, a + scan_offset) for a, b in segments]))
-                    for seg in ordered:
-                        sx_mm, ex_mm = seg[0], seg[1]
-                        direction = 1.0 if ex_mm >= sx_mm else -1.0
-                        real_sx, real_sy = to_gcode_xy(sx_mm, y)
-                        real_ex, real_ey = to_gcode_xy(ex_mm, y)
-
+                    for run in _overscan_runs(ordered, layer_overscan):
                         if layer_overscan > 0:
-                            pre_x, pre_y = to_gcode_xy(
-                                sx_mm - direction * layer_overscan, y
-                            )
-                            post_x, post_y = to_gcode_xy(
-                                ex_mm + direction * layer_overscan, y
-                            )
+                            # Une seule passe pour tout le groupe : surbalayage avant le premier segment et
+                            # après le dernier ; entre deux segments, la tête continue dans le même sens,
+                            # laser à 0 (comme la gravure d'image). Avant, chaque segment avait son propre
+                            # surbalayage : entre deux lettres proches, la tête dépassait la lettre puis
+                            # revenait en arrière pour reprendre l'élan avant la suivante.
+                            first_sx, last_ex = run[0][0], run[-1][1]
+                            direction = 1.0 if run[0][1] >= first_sx else -1.0
+                            pre_x, pre_y = to_gcode_xy(first_sx - direction * layer_overscan, y)
+                            post_x, post_y = to_gcode_xy(last_ex + direction * layer_overscan, y)
 
                             # Déplacement avant balayage avec laser éteint.
-                            gcode.append(
-                                f"G0 X{pre_x:.3f} Y{pre_y:.3f}"
-                            )
-                            gcode.append(f"{cmd} S0")
-                            gcode.append(
-                                f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}"
-                            )
-
-                            # Gravure du segment réel.
-                            gcode.append(f"{cmd} S{power_val}")
-                            gcode.append(
-                                f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
-                            )
+                            gcode.append(f"G0 X{pre_x:.3f} Y{pre_y:.3f}")
+                            for k, (sx_mm, ex_mm) in enumerate(run):
+                                real_sx, real_sy = to_gcode_xy(sx_mm, y)
+                                real_ex, real_ey = to_gcode_xy(ex_mm, y)
+                                # Approche (surbalayage, ou écart depuis le segment précédent) laser éteint.
+                                gcode.append(f"{cmd} S0")
+                                gcode.append(f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}")
+                                # Gravure du segment réel.
+                                gcode.append(f"{cmd} S{power_val}")
+                                gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
+                                power_samples.append(layer["power"])
 
                             # Sortie de balayage avec laser éteint.
                             gcode.append(f"{cmd} S0")
-                            gcode.append(
-                                f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}"
-                            )
+                            gcode.append(f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}")
 
-                            total_time_seconds += (
-                                abs(post_x - pre_x) / max(speed, 1)
-                            ) * 60.0
+                            total_time_seconds += (abs(post_x - pre_x) / max(speed, 1)) * 60.0
                         else:
-                            gcode.append(
-                                f"G0 X{real_sx:.3f} Y{real_sy:.3f}"
-                            )
+                            sx_mm, ex_mm = run[0]
+                            real_sx, real_sy = to_gcode_xy(sx_mm, y)
+                            real_ex, real_ey = to_gcode_xy(ex_mm, y)
+                            gcode.append(f"G0 X{real_sx:.3f} Y{real_sy:.3f}")
                             gcode.append(f"{cmd} S{power_val}")
-                            gcode.append(
-                                f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}"
-                            )
+                            gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
 
-                            total_time_seconds += (
-                                abs(real_ex - real_sx) / max(speed, 1)
-                            ) * 60.0
+                            total_time_seconds += (abs(real_ex - real_sx) / max(speed, 1)) * 60.0
 
                             # Prépare le prochain déplacement avec le laser
                             # éteint, sans arrêter complètement le mode M4.
                             gcode.append(f"{cmd} S0")
-
-                        power_samples.append(layer["power"])
+                            power_samples.append(layer["power"])
                 y += step
                 line_idx += 1
         else:
