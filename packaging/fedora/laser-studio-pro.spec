@@ -19,9 +19,9 @@ Version:        2.5.0
 Release:        1%{?snapinfo}%{?dist}
 Summary:        Prepare and engrave images and drawings on GRBL lasers
 
-# Code : GPL-3.0-or-later. Polices embarquées (resources/fonts/) : OFL-1.1.
-# Icônes Breeze et Jarvis (resources/icons/) : LGPL-3.0-or-later.
-License:        GPL-3.0-or-later AND OFL-1.1 AND LGPL-3.0-or-later
+# Code : GPL-3.0-or-later. Icônes Breeze et Jarvis (resources/icons/) : LGPL-3.0-or-later.
+# Polices embarquées (OFL-1.1) : retirées, remplacées par celles du système (voir %%prep).
+License:        GPL-3.0-or-later AND LGPL-3.0-or-later
 URL:            %{forgeurl}
 Source:         %{forgeurl}/archive/v%{version}/%{name}-%{version}.tar.gz
 
@@ -31,13 +31,18 @@ BuildRequires:  python3-devel
 BuildRequires:  desktop-file-utils
 BuildRequires:  libappstream-glib
 %if %{with tests}
-# Fenêtres créées hors écran pendant les tests ; police DejaVu de Stencil Studio.
+# Polices vérifiées par les tests (tests/test_bundled_fonts.py, Stencil Studio).
 BuildRequires:  dejavu-sans-fonts
+BuildRequires:  google-rubik-fonts
+BuildRequires:  impallari-dancing-script-fonts
 BuildRequires:  appstream
 %endif
 
-# Police de Stencil Studio : celle du système, pas une copie (voir %%install).
+# Polices des modèles de la bibliothèque et de Stencil Studio : celles du système,
+# pas des copies (voir %%prep et %%install). Qt les trouve sous le même nom.
 Requires:       dejavu-sans-fonts
+Requires:       google-rubik-fonts
+Requires:       impallari-dancing-script-fonts
 Requires:       hicolor-icon-theme
 # Détection du sujet par IA dans Stencil Studio : facultative. Suggests et non
 # Recommends : onnxruntime exige sympy, qui recommande LaTeX et matplotlib
@@ -59,6 +64,9 @@ sed -i 's/"opencv-python-headless"/"opencv"/' pyproject.toml
 # Modèle de détourage de Stencil Studio : téléchargé au premier usage dans le
 # profil de l'utilisateur, car le dossier installé n'est pas modifiable.
 rm src/stencil_studio/models/u2netp.onnx
+# Polices embarquées (Rubik, Dancing Script) : celles des paquets Fedora, en
+# Requires. Sans le dossier, l'application s'appuie sur les polices du système.
+rm -r src/laser_studio/resources/fonts
 # Modules lancés seuls dans le dépôt : installés, ce ne sont plus des scripts.
 for f in $(grep -rl --include='*.py' '^#!' src); do
     sed -i '1{/^#!/d}' "$f"
@@ -104,7 +112,6 @@ export QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox"
 
 %files -f %{pyproject_files}
 %license LICENSE
-%license src/laser_studio/resources/fonts/OFL-*.txt
 %license src/laser_studio/resources/icons/breeze/COPYING.LGPL-3
 %doc README.md CHANGELOG.md
 %{_bindir}/laser-studio-pro

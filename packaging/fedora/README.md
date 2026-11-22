@@ -18,9 +18,12 @@ sudo dnf install laser-studio-pro
 - **OpenCV** : Fedora le fournit sous le nom `opencv` (`python3-opencv`), sans
   variante headless ; le spec remplace `opencv-python-headless` dans
   `pyproject.toml` au moment de la construction.
-- **Police de Stencil Studio** : `fonts/DejaVuSans-Bold.ttf` devient un lien
-  vers la police du système (`dejavu-sans-fonts`), comme le demandent les
-  règles de Fedora pour les polices déjà empaquetées.
+- **Polices** : les règles de Fedora interdisent d'embarquer une police déjà
+  empaquetée. Le dossier `resources/fonts/` (Rubik, Dancing Script, pour les
+  modèles de la bibliothèque) est retiré au profit de `google-rubik-fonts` et
+  `impallari-dancing-script-fonts`, que Qt trouve sous le même nom. Le
+  `fonts/DejaVuSans-Bold.ttf` de Stencil Studio devient un lien vers la police
+  de `dejavu-sans-fonts`.
 - **Modèle de détourage** (`models/u2netp.onnx`) : pas dans le paquet. Le
   dossier installé n'étant pas modifiable, Stencil Studio le télécharge de
   toute façon dans `~/.local/share/StencilStudio/models` au premier usage de
