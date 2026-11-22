@@ -22,7 +22,7 @@ class LibraryController:
         library = LibraryController(
             self, self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
-            add_to_vector_editor=self._add_objects_to_vector_editor,
+            add_to_vector_editor=self.vector_editor.add_objects,
         )
         action.triggered.connect(library.open)
 

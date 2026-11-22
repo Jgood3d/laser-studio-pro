@@ -42,6 +42,12 @@ Graveur : connexion, pilotage, envoi des jobs et configuration GRBL sortis de la
 
 Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à partir d'une image, vectorisation, bibliothèque, caméra) : leurs boîtes de dialogue passent par `UserDialogs`, transmis par la fenêtre, au lieu d'ouvrir `QMessageBox` / `QFileDialog` / `QInputDialog` eux-mêmes. Mêmes questions, mêmes boutons ; les contrôleurs se testent sans fenêtre.
 
+Éditeur vectoriel : `vector_layers.py` (4 300 lignes) découpé en modules, sans changer le code : objets du dessin (`models/vector_objects.py`), canevas et boîtes de saisie (`ui/vector_editor/`), tableau des calques (`ui/tabs/layers/layer_table.py`), import SVG classique (`vector/svg_extract.py`), conversion pour le G-Code (`vector/layer_data.py`). `vector_layers.py` réexporte tous les noms pour le code existant.
+
+Éditeur vectoriel : la liste des objets, l'historique d'annulation et le presse-papiers sortent du canevas dans un modèle `VectorDocument` (`models/vector_document.py`), testable sans canevas ; grouper, dégrouper, exploser et convertir en tracé dans `vector/path_ops.py`. Le canevas devient une vue du document. Comportement inchangé.
+
+Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
+
 ### Corrigé
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

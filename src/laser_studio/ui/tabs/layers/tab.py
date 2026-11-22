@@ -7,7 +7,7 @@ from PyQt6.QtWidgets import QComboBox, QLabel, QToolBar, QVBoxLayout, QWidget
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import palette_icon
 from laser_studio.ui.widgets import FloatingToolBar
-from laser_studio.vector_layers import LayerManagerWidget
+from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
 
 # Icône (pack Breeze embarqué) et infobulle de chaque action de la barre, dans
 # l'ordre de LayerManagerWidget.layer_actions : ajouter, supprimer, monter,

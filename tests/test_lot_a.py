@@ -151,7 +151,7 @@ def types_ns(**kw):
 
 # --- flèches du clavier -----------------------------------------------------------------------
 def load_nudge():
-    with open(os.path.join(ROOT, "vector_layers.py"), encoding="utf-8") as f:
+    with open(os.path.join(ROOT, "ui", "vector_editor", "canvas.py"), encoding="utf-8") as f:
         tree = ast.parse(f.read())
     func = next(n for c in tree.body if isinstance(c, ast.ClassDef) and c.name == "VectorCanvasView"
                 for n in c.body if isinstance(n, ast.FunctionDef) and n.name == "nudge_selection")
@@ -243,7 +243,7 @@ class NudgeTests(unittest.TestCase):
         self.assertFalse(nudge_selection(c, 1, 0, 0))
 
     def test_key_handler_is_wired_to_the_four_arrows(self):
-        src = read("vector_layers.py")
+        src = read(os.path.join("ui", "vector_editor", "canvas.py"))
         body = src[src.index("def keyPressEvent", src.index("class VectorCanvasView")):src.index("def nudge_selection")]
         for key in ("Key_Left", "Key_Right", "Key_Up", "Key_Down"):
             self.assertIn(f"Qt.Key.{key}", body)

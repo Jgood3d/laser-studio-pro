@@ -6,16 +6,17 @@ apportent le contenu des onglets et la logique.
 """
 from contextlib import contextmanager
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabBar, QTabWidget,
+                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QSettings, QTimer
 from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QStandardItemModel
 
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
-from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.controllers.engraver import EngraverController
 from laser_studio.controllers.job import JobController
+from laser_studio.controllers.vector_editor import VectorEditorController
+from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets, VectorPropertiesPanel
 from laser_studio.ui.user_dialogs import UserDialogs
 from laser_studio.ui.machine import MachinePanel
 from laser_studio.ui.machine.connection import port_help_dialog
@@ -23,8 +24,7 @@ from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.settings.grbl_config import GrblConfigPage
 from laser_studio.ui.settings.machine_params import MachineParamsPage
 from laser_studio.ui.settings.test_matrix import TestMatrixPage
-from laser_studio.ui.settings.window import SettingsWindow
-from laser_studio.ui.statusbar import StatusBar, status_text
+from laser_studio.ui.statusbar import StatusBar
 from laser_studio.ui.tabs.console import ConsoleTab
 from laser_studio.ui.tabs.image import ImageTab
 from laser_studio.ui.tabs.job_queue import JobQueueTab
@@ -33,7 +33,7 @@ from laser_studio.ui.tabs.png2svg import Png2SvgTab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation import SeparationTab
 from laser_studio.ui.utils import palette_icon
-from laser_studio.ui.widgets import FloatingToolBar, FullscreenWindow, TabCloseButton
+from laser_studio.ui.widgets import FloatingToolBar
 
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
 from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, MaterialsController,
@@ -45,7 +45,8 @@ from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
-from laser_studio.vector_layers import VectorCanvasView
+from laser_studio.models.vector_document import VectorDocument
+from laser_studio.ui.vector_editor.canvas import VectorCanvasView
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
@@ -54,15 +55,11 @@ from laser_studio.ui.binding import bind
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
-from laser_studio.vector_editing_mixin import VectorEditingMixin
 from laser_studio.separation_mixin import SeparationMixin
 
 
-log = get_logger()
-
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
                        ImageProcessingMixin,
-                       VectorEditingMixin,
                        SeparationMixin):
     def __init__(self):
         super().__init__()
@@ -84,6 +81,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.loaded_svg_path = None
         # Modèle des calques (models/layers.py) : seule source des réglages des calques.
         self.layer_manager = LayersModel(self)
+        # Document de l'éditeur vectoriel (objets, annuler / refaire, presse-papiers) ;
+        # le canevas (self.vector_canvas) en est la vue.
+        self.vector_document = VectorDocument(self)
         # Réglages de la machine (plateau, spot, limites) et configuration GRBL : les pages de
         # réglages y sont liées (ui/binding.py), la logique les lit ici.
         self.machine = MachineConfig(self)
@@ -108,7 +108,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             geometry=self._job_geometry,
             image=lambda: self.processed_array,
             svg_path=lambda: self.loaded_svg_path,
-            vector_objects=lambda: self.vector_canvas.objects,
+            vector_objects=lambda: self.vector_document.objects,
             optimize_path=lambda: self.chk_optimize_path.isChecked(),
             lines_mm=lambda: self.spin_lmm.value(),
             material_summary=self.material_summary_text,
@@ -471,21 +471,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             with self._material_autosave_paused():
                 apply_material_to_layers(self.layer_manager, material)
 
-    def _generate_test_matrix_and_show(self):
-        """Génère la matrice de test, puis ferme sa fenêtre et affiche
-        l'aperçu 2D, où le G-Code apparaît. En cas d'erreur, la fenêtre
-        reste ouverte pour corriger les réglages."""
-        # Lignes/mm toujours identiques à l'onglet « Graver une image ».
-        self._sync_matrix_lmm_from_image()
-        page = self.tab_matrix
-        if not self.job.generate_test_matrix(page.matrix_params(), page.is_engraving(),
-                                             page.image_test_enabled(), self.matrix_image.build_tile):
-            return
-        self.tab_matrix.window().close()
-        self.show_main_tab("tab_vector_2d")
-        self.raise_()
-        self.activateWindow()
-
     def _build_layers_tab(self):
         """Onglet « Calques », abonné à la logique des calques.
 
@@ -616,7 +601,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self,
             self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
-            add_to_vector_editor=self._add_objects_to_vector_editor,
+            add_to_vector_editor=lambda objects: self.vector_editor.add_objects(objects),
             dialogs=self.dialogs,
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
@@ -654,33 +639,43 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         aura fini son travail sur le vectoriel."""
         tab_vector_editor = QWidget()
         layout_vector_editor = QVBoxLayout(tab_vector_editor)
+        # Canevas (vue du document) et contrôleur de l'éditeur, créés d'abord pour y brancher les boutons ;
+        # le canevas prend sa place dans la mise en page plus bas.
+        self.vector_canvas = VectorCanvasView(self.layer_manager, document=self.vector_document)
+        self.vector_editor = VectorEditorController(
+            self.vector_document, self.vector_canvas, self.layer_manager, self.machine, self.dialogs, self,
+            image_frame=self._image_frame, busy=self._busy_cursor,
+        )
+        self.vector_editor.show_editor.connect(lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_editor))
+        self.vector_editor.status.connect(self.show_status_message)
+        editor = self.vector_editor
 
         # Boutons d'outils (rangée du haut), avec une icône du pack Breeze embarqué.
         # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
         self.library = LibraryController(
             self, self.layer_manager,
             bed_height=lambda: self.machine.bed_h,
-            add_to_vector_editor=self._add_objects_to_vector_editor,
+            add_to_vector_editor=lambda objects: self.vector_editor.add_objects(objects),
             dialogs=self.dialogs,
         )
         btn_import_svg_vector = QPushButton(tr("ui.vector_import_svg"))
         btn_import_svg_vector.setStyleSheet("background-color: #3a6b3a; color: white;")
-        btn_import_svg_vector.clicked.connect(self.import_svg_to_vector_editor)
+        btn_import_svg_vector.clicked.connect(editor.import_dialog)
         btn_box_generator = QPushButton(tr("ui.vector_box_generator"))
         btn_box_generator.setToolTip(tr("ui.vector_box_generator_tip"))
-        btn_box_generator.clicked.connect(self.open_box_generator)
+        btn_box_generator.clicked.connect(editor.open_box_generator)
         btn_puzzle_generator = QPushButton(tr("ui.vector_puzzle_generator"))
         btn_puzzle_generator.setToolTip(tr("ui.vector_puzzle_generator_tip"))
-        btn_puzzle_generator.clicked.connect(self.open_puzzle_generator)
+        btn_puzzle_generator.clicked.connect(editor.open_puzzle_generator)
         btn_ornament_generator = QPushButton(tr("ui.vector_ornament_generator"))
         btn_ornament_generator.setToolTip(tr("ui.vector_ornament_generator_tip"))
-        btn_ornament_generator.clicked.connect(self.open_ornament_generator)
+        btn_ornament_generator.clicked.connect(editor.open_ornament_generator)
         btn_keychain_generator = QPushButton(tr("ui.vector_keychain_generator"))
         btn_keychain_generator.setToolTip(tr("ui.vector_keychain_generator_tip"))
-        btn_keychain_generator.clicked.connect(self.open_keychain_generator)
+        btn_keychain_generator.clicked.connect(editor.open_keychain_generator)
         btn_nesting = QPushButton(tr("ui.vector_nesting"))
         btn_nesting.setToolTip(tr("ui.vector_nesting_tip"))
-        btn_nesting.clicked.connect(self.open_nesting)
+        btn_nesting.clicked.connect(editor.open_nesting)
         for button, icon in ((btn_import_svg_vector, "document-import"), (btn_box_generator, "draw-cuboid"),
                              (btn_puzzle_generator, "games-config-board"), (btn_ornament_generator, "draw-ellipse"),
                              (btn_keychain_generator, "keychain"), (btn_nesting, "object-group")):
@@ -694,18 +689,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_edit_actions = [
             self._vector_action(tr(key), tr(key).lstrip("↻↶↷ "), slot, icon) if key else None
             for key, icon, slot in (
-                ("ui.vector_edit_selection", "document-edit", self.edit_selected_vector_object),
-                ("ui.vector_rotate_90", "object-rotate-right", self.rotate_selected_vector_object),
-                ("ui.vector_duplicate", "edit-duplicate", self.duplicate_selected_vector_object),
-                ("ui.vector_serial_duplicate", "view-grid", self.open_serial_duplicate),
-                ("ui.vector_jig", "draw-rectangle", self.open_jig_generator),
-                ("ui.vector_delete", "edit-delete", self.delete_selected_vector_object),
-                ("ui.vector_delete_all", "edit-clear-all", self.delete_all_vector_objects),
+                ("ui.vector_edit_selection", "document-edit", editor.edit_selected),
+                ("ui.vector_rotate_90", "object-rotate-right", editor.rotate_selected),
+                ("ui.vector_duplicate", "edit-duplicate", editor.duplicate_selected),
+                ("ui.vector_serial_duplicate", "view-grid", editor.open_serial_duplicate),
+                ("ui.vector_jig", "draw-rectangle", editor.open_jig_generator),
+                ("ui.vector_delete", "edit-delete", editor.delete_selected),
+                ("ui.vector_delete_all", "edit-clear-all", editor.delete_all),
                 (None, None, None),
                 ("vector.explode_path", "object-ungroup", lambda: self.vector_canvas.explode_selected()),
                 ("vector.edit_nodes", "format-node-curve", lambda: self.vector_canvas.enter_node_edit()),
-                ("vector.text_follow", "text-follow-path", self.make_text_follow_selection),
-                ("vector.medal", "insert-text", self.open_medal_text),
+                ("vector.text_follow", "text-follow-path", editor.make_text_follow_selection),
+                ("vector.medal", "insert-text", editor.open_medal_text),
                 (None, None, None),
                 ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
@@ -717,8 +712,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_create_actions = [
             self._vector_action(tr(key), tr(key).lstrip("+ "), slot, icon)
             for key, icon, slot in (
-                ("ui.vector_add_text", "insert-text", self.insert_text_object),
-                ("ui.vector_add_shape", "shape-choose", self.insert_shape_object),
+                ("ui.vector_add_text", "insert-text", editor.insert_text),
+                ("ui.vector_add_shape", "shape-choose", editor.insert_shape),
             )
         ]
         # Bibliothèque de modèles : ajoute aussi des objets (la rangée du haut est pleine).
@@ -770,20 +765,19 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         vector_align_actions = [
             self._vector_action(tr(key).split(" ", 1)[0], tr(f"{key}_tip"), slot) if key else None
             for key, slot in (
-                ("ui.vector_align_left", lambda: self.align_vector_selection("left")),
-                ("ui.vector_align_center_h", lambda: self.align_vector_selection("center_h")),
-                ("ui.vector_align_right", lambda: self.align_vector_selection("right")),
+                ("ui.vector_align_left", lambda: editor.align("left")),
+                ("ui.vector_align_center_h", lambda: editor.align("center_h")),
+                ("ui.vector_align_right", lambda: editor.align("right")),
                 (None, None),
-                ("ui.vector_align_top", lambda: self.align_vector_selection("top")),
-                ("ui.vector_align_middle_v", lambda: self.align_vector_selection("middle_v")),
-                ("ui.vector_align_bottom", lambda: self.align_vector_selection("bottom")),
+                ("ui.vector_align_top", lambda: editor.align("top")),
+                ("ui.vector_align_middle_v", lambda: editor.align("middle_v")),
+                ("ui.vector_align_bottom", lambda: editor.align("bottom")),
                 (None, None),
-                ("ui.vector_distribute_h", lambda: self.distribute_vector_selection("h")),
-                ("ui.vector_distribute_v", lambda: self.distribute_vector_selection("v")),
+                ("ui.vector_distribute_h", lambda: editor.distribute("h")),
+                ("ui.vector_distribute_v", lambda: editor.distribute("v")),
             )
         ]
 
-        self.vector_canvas = VectorCanvasView(self.layer_manager)
         layout_vector_editor.addWidget(self.vector_canvas, 1)  # stretch: occupe l'espace restant
         self.vector_create_toolbar = FloatingToolBar(
             [*vector_create_actions, None, *self._vector_draw_buttons.values()],
@@ -808,22 +802,18 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         pos_row1.addWidget(QLabel(tr("ui.vector_x_mm")))
         self.spin_vec_x = QDoubleSpinBox(); self.spin_vec_x.setRange(-1000.0, 1000.0); self.spin_vec_x.setDecimals(2)
         self.spin_vec_x.setMaximumWidth(90)
-        self.spin_vec_x.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_x)
         pos_row1.addWidget(QLabel(tr("ui.vector_y_mm")))
         self.spin_vec_y = QDoubleSpinBox(); self.spin_vec_y.setRange(-1000.0, 1000.0); self.spin_vec_y.setDecimals(2)
         self.spin_vec_y.setMaximumWidth(90)
-        self.spin_vec_y.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_y)
         pos_row1.addWidget(QLabel(tr("ui.vector_rotation_deg")))
         self.spin_vec_rot = QDoubleSpinBox(); self.spin_vec_rot.setRange(-360.0, 360.0); self.spin_vec_rot.setDecimals(1)
         self.spin_vec_rot.setMaximumWidth(70)
-        self.spin_vec_rot.valueChanged.connect(self.on_vector_position_spin_changed)
         pos_row1.addWidget(self.spin_vec_rot)
         pos_row1.addWidget(QLabel(tr("ui.vector_layer")))
         self.combo_vec_layer = QComboBox()
         self.combo_vec_layer.setMinimumWidth(120)
-        self.combo_vec_layer.currentIndexChanged.connect(self.on_vector_layer_spin_changed)
         pos_row1.addWidget(self.combo_vec_layer, 1)
         pos_form.addLayout(pos_row1)
 
@@ -838,7 +828,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_vec_w.setDecimals(2)
         self.spin_vec_w.setSuffix(" mm")
         self.spin_vec_w.setMaximumWidth(100)
-        self.spin_vec_w.valueChanged.connect(self.on_vector_size_spin_changed)
         pos_row_size.addWidget(self.spin_vec_w)
         pos_row_size.addWidget(QLabel(tr("ui.vector_height_mm")))
         self.spin_vec_h = QDoubleSpinBox()
@@ -846,7 +835,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.spin_vec_h.setDecimals(2)
         self.spin_vec_h.setSuffix(" mm")
         self.spin_vec_h.setMaximumWidth(100)
-        self.spin_vec_h.valueChanged.connect(self.on_vector_size_spin_changed)
         pos_row_size.addWidget(self.spin_vec_h)
         self.chk_vec_anchor_lock = QCheckBox(tr("ui.vector_anchor_lock"))
         self.chk_vec_anchor_lock.setChecked(True)
@@ -877,14 +865,21 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         pos_box.setVisible(False)
         self.pos_box_vector = pos_box
         layout_vector_editor.addWidget(pos_box)
-        # Le canevas prend tout l'espace vertical restant
-        self.vector_canvas.selection_changed.connect(self.on_vector_selection_changed)
-        self.vector_canvas.object_moved.connect(self.on_vector_object_moved)
-        self.vector_canvas.edit_requested.connect(self.edit_vector_object)
-        self.vector_canvas.insert_text_requested.connect(self.insert_text_object)
-        self.vector_canvas.serial_duplicate_requested.connect(self.open_serial_duplicate)
-        self.vector_canvas.jig_requested.connect(self.open_jig_generator)
-        self.vector_canvas.medal_text_requested.connect(self.open_medal_text)
+        # Panneau des propriétés : rempli d'après la sélection, saisies transmises au contrôleur.
+        self.vector_properties = VectorPropertiesPanel(
+            PropertiesWidgets(
+                label=self.lbl_vector_selection, box=pos_box, x=self.spin_vec_x, y=self.spin_vec_y,
+                rotation=self.spin_vec_rot, layer=self.combo_vec_layer, size_row=self.pos_size_anchor_widget,
+                width=self.spin_vec_w, height=self.spin_vec_h, anchor_lock=self.chk_vec_anchor_lock,
+                anchor=self.combo_vec_anchor,
+            ),
+            self.layer_manager, self.vector_canvas, editor, parent=self,
+        )
+        self.vector_canvas.edit_requested.connect(editor.edit_object)
+        self.vector_canvas.insert_text_requested.connect(editor.insert_text)
+        self.vector_canvas.serial_duplicate_requested.connect(editor.open_serial_duplicate)
+        self.vector_canvas.jig_requested.connect(editor.open_jig_generator)
+        self.vector_canvas.medal_text_requested.connect(editor.open_medal_text)
 
         self.main_tabs_view.addTab(tab_vector_editor, tr("ui.tab_vector_editor"))
         self.tab_vector_editor = tab_vector_editor
@@ -925,28 +920,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab
         self._add_console_close_button()
-
-    def _add_console_close_button(self):
-        """Croix sur l'onglet Console."""
-        self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
-
-    def _restore_tab_close_button(self, tab):
-        """Remet la croix d'un onglet masquable (Console, File d'attente) au retour du plein écran :
-        Qt la supprime quand l'onglet sort de la barre."""
-        for optional_tab, action in ((self.tab_console_gcode, self.app_actions.gcode_console),
-                                     (self.tab_job_queue, self.app_actions.job_queue)):
-            if tab is optional_tab:
-                self._add_tab_close_button(tab, action)
-
-    def _add_tab_close_button(self, tab, action):
-        """Croix sur l'onglet `tab` : le ferme en décochant `action` (case du menu Affichage), qui
-        masque l'onglet et mémorise le choix."""
-        index = self.main_tabs_view.indexOf(tab)
-        if index == -1:
-            return
-        button = TabCloseButton()
-        button.clicked.connect(lambda: action.setChecked(False))
-        self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
 
     def _build_job_queue_tab(self):
         """Onglet « File d'attente », abonné à la file (JobQueueController),
@@ -1244,168 +1217,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
                 self.load_image_from_path(file_path)
                 break
-            if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "_import_vector_file"):
-                self._import_vector_file(file_path)
+            if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "vector_editor"):
+                self.vector_editor.import_file(file_path)
                 break
-
-    # -- État de la fenêtre : panneau machine, séparateur, onglets
-
-    def _on_main_tab_changed(self, idx):
-      if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:
-          self.separation_refresh_if_dirty()
-
-    def _job_in_progress(self):
-        connection = getattr(self, "connection", None)
-        return bool(connection is not None and connection.is_streaming())
-
-    def _update_bottom_panel_visibility(self, *_args):
-        panel = getattr(self, "center_bottom_widget", None)
-        if panel is None:
-            return
-        current = self.main_tabs_view.currentWidget()
-        tabs_with_panel = (self.tab_vector_2d, self.tab_console_gcode, self.tab_job_queue)
-        show = self._job_in_progress() or any(current is t for t in tabs_with_panel)
-        if show and panel.isHidden():
-            panel.setVisible(True)
-            sizes = getattr(self, "_bottom_panel_sizes", None)
-            if sizes:
-                QTimer.singleShot(0, lambda s=sizes: self.center_v_splitter.setSizes(s))
-        elif not show and not panel.isHidden():
-            sizes = self.center_v_splitter.sizes()
-            if all(v > 0 for v in sizes):
-                self._bottom_panel_sizes = sizes
-            panel.setVisible(False)
-
-    def save_splitter_sizes(self, *_args):
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        if hasattr(self, "center_v_splitter"):
-            panel = getattr(self, "center_bottom_widget", None)
-            if panel is not None and panel.isHidden():
-                sizes = getattr(self, "_bottom_panel_sizes", None)
-            else:
-                sizes = self.center_v_splitter.sizes()
-            if sizes and all(v > 0 for v in sizes):
-                settings.setValue("center_v_splitter_sizes", sizes)
-        # Aperçu 2D / colonne de droite (position du job, statistiques) : un côté peut être replié.
-        preview = getattr(self, "tab_vector_2d", None)
-        if preview is not None:
-            sizes = preview.splitter.sizes()
-            if sum(sizes) > 0:
-                settings.setValue("preview_2d_side_sizes", sizes)
-
-    def load_splitter_sizes(self):
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        # Tailles de l'ancienne colonne de gauche, supprimée : plus utilisées.
-        settings.remove("main_splitter_sizes")
-        settings.remove("left_v_splitter_sizes")
-        center_v_sizes = settings.value("center_v_splitter_sizes", None)
-        if center_v_sizes and hasattr(self, "center_v_splitter"):
-            try:
-                loaded_sizes = [int(s) for s in center_v_sizes]
-                if all(v > 0 for v in loaded_sizes):
-                    self._bottom_panel_sizes = loaded_sizes
-                    self.center_v_splitter.setSizes(loaded_sizes)
-            except (TypeError, ValueError):
-                pass
-        # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.
-        settings.remove("preview_2d_splitter_sizes")
-        preview_sizes = settings.value("preview_2d_side_sizes", None)
-        preview = getattr(self, "tab_vector_2d", None)
-        if preview_sizes and preview is not None:
-            try:
-                loaded_sizes = [int(s) for s in preview_sizes]
-                if len(loaded_sizes) == 2 and min(loaded_sizes) >= 0 and sum(loaded_sizes) > 0:
-                    preview.splitter.setSizes(loaded_sizes)
-            except (TypeError, ValueError):
-                pass
-
-    # -- Fenêtres annexes : plein écran d'un onglet, réglages, messages
-
-    def _toggle_fullscreen_png2svg(self):
-        """Plein écran de « Vectorisation d'image », avec son propre titre."""
-        self._open_tab_fullscreen(
-            self.tab_png2svg,
-            tr("png2svg.fullscreen_title"),
-            tr("png2svg.close_fullscreen"),
-            tr("png2svg.tab_title"),
-        )
-
-    def _add_objects_to_vector_editor(self, objects):
-        """Ajoute des objets au canevas vectoriel (annulable d'un coup),
-        affiche l'éditeur et centre la vue sur eux."""
-        self.vector_canvas.push_undo_snapshot()
-        new_items = [self.vector_canvas.add_object(obj) for obj in objects]
-        self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
-        self.vector_canvas.request_recenter(new_items)
-
-    def toggle_current_tab_fullscreen(self):
-        """Plein écran de l'onglet affiché (bouton « Plein écran » de la barre d'outils, F11).
-
-        L'éditeur vectoriel garde sa propre fenêtre (toggle_fullscreen_vector_editor), la
-        vectorisation son titre ; les autres onglets passent par la fenêtre commune, avec le titre
-        de l'onglet."""
-        tab = self.main_tabs_view.currentWidget()
-        if tab is None:
-            return
-        if tab is self.tab_vector_editor:
-            self.toggle_fullscreen_vector_editor()
-        elif tab is self.tab_png2svg:
-            self._toggle_fullscreen_png2svg()
-        else:
-            title = self.main_tabs_view.tabText(self.main_tabs_view.indexOf(tab))
-            self._open_tab_fullscreen(tab, title, tr("vector.close_fullscreen"), title,
-                                      on_restored=lambda: self._restore_tab_close_button(tab))
-
-    def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
-                             on_restored=None):
-        """Sort `tab_widget` des onglets dans une FullscreenWindow, et l'y remet
-        à la même place quand elle se ferme (puis appelle `on_restored`).
-        Sans effet si l'onglet est déjà en plein écran."""
-        index = self.main_tabs_view.indexOf(tab_widget)
-        if index == -1:
-            return
-        window = FullscreenWindow(self, tab_widget, window_title, close_text)
-
-        def restore():
-            self.main_tabs_view.insertTab(index, tab_widget, tab_title)
-            self.main_tabs_view.setCurrentWidget(tab_widget)
-            tab_widget.setVisible(True)
-            tab_widget.updateGeometry()
-            self.main_tabs_view.update()
-            self.update()
-            self.repaint()
-            if on_restored is not None:
-                on_restored()
-
-        window.content_released.connect(restore)
-        window.show_maximized()
-
-    def show_settings_window(self, kind):
-        """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »
-        (kind="machine_params"), « Configuration GRBL » (kind="grbl") ou « Matrice de test »
-        (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
-        windows = self.__dict__.setdefault("_settings_windows", {})
-        if kind not in windows:
-            page, title = {
-                "grbl": (getattr(self, "tab_grbl_config", None), tr("tab.grbl_config")),
-                "machine_params": (getattr(self, "tab_machine_params", None), tr("tab.machine_params")),
-                "test_matrix": (getattr(self, "tab_matrix", None), tr("tab.test_matrix")),
-            }[kind]
-            if page is None:
-                return
-            windows[kind] = SettingsWindow(self, title, page, kind)
-        windows[kind].bring_to_front()
-
-    def show_status_message(self, text, tooltip=None):
-        """Raccourci vers StatusBar.show_info, utilisé par les mixins et Stencil Studio."""
-        self.statusBar().show_info(text, tooltip)
-
-    def log_message(self, text):
-        """Message d'une action (connexion, GRBL, file, projet…) : barre d'état, et journal de
-        débogage pour l'historique. Jamais dans la console : elle ne contient que le G-Code
-        généré, relu par l'export et la file d'attente."""
-        text = str(text)
-        log.info("Message : %s", text.strip())
-        short = status_text(text)
-        if short:
-            self.show_status_message(short, text.strip())

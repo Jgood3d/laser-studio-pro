@@ -37,9 +37,8 @@ from dataclasses import dataclass, field
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QFont, QPainterPath, QPainterPathStroker, QPolygonF, QTransform
 
-from laser_studio.vector_layers import (
-    SvgPathObject, TextObject, _merge_path_objects, _svg_path_element_to_single,
-)
+from laser_studio.models.vector_objects import SvgPathObject, TextObject
+from laser_studio.vector.svg_extract import _merge_path_objects, _svg_path_element_to_single
 
 ROLE_CUT = "cut"
 ROLE_ENGRAVE = "engrave"
