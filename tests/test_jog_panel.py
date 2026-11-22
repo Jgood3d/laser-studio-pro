@@ -7,7 +7,6 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
-sys.path.insert(0, REPO)                                   # stencil_studio (window_controller)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_source  # noqa: E402
 

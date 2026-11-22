@@ -34,7 +34,7 @@ ICON = os.path.join(REPO_ROOT, "src", "laser_studio", "resources", "laser_studio
 # Pillow qu'ils utilisent.
 datas = [
     (os.path.join(REPO_ROOT, "src", "laser_studio", "resources"), "resources"),
-    (os.path.join(REPO_ROOT, "stencil_studio"), "stencil_studio"),
+    (os.path.join(REPO_ROOT, "src", "stencil_studio"), "stencil_studio"),
 ]
 hiddenimports = [
     "serial",
@@ -55,7 +55,7 @@ hiddenimports = [
 
 a = Analysis(
     [os.path.join(REPO_ROOT, "main.py")],
-    pathex=[os.path.join(REPO_ROOT, "src"), REPO_ROOT],
+    pathex=[os.path.join(REPO_ROOT, "src")],
     binaries=[],
     datas=datas,
     hiddenimports=hiddenimports,
