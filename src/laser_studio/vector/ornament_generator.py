@@ -389,67 +389,40 @@ def _stem_embed(size):
 
 
 def _stem_shapes(x0, y0, x1, y1, w, r_in=None, r_out=None):
-    """Suspente de (x0, y0), côté motif, à (x1, y1), côté anneau : UN seul contour.
+    """Suspente de (x0, y0), côté motif, à (x1, y1), côté anneau : une tige de largeur `w` et un pied évasé du côté
+    de l'anneau (la largeur double sur 1,5 mm), pour un point d'ancrage plus large. Les formes se recouvrent
+    et sont fusionnées avec l'anneau et le motif plus loin.
 
-    - côté anneau : la tige de largeur `w` monte droit et finit par un arc au milieu de la bande de l'anneau :
-      ses deux flancs y sont toujours enfoncés, même décentrée, sans cran côté centre ni dépassement côté
-      extérieur. Pas d'évasement : à grande largeur, il dessinait une pointe qui dépassait de l'anneau ;
-    - côté motif : la tige se resserre en douceur (courbe en S) jusqu'à MIN_STEM_MM, la largeur du bras du motif,
-      au lieu de finir par une marche brutale sur un bras fin. Ce resserrement commence dans le motif : il n'est
-      visible que lorsque la suspente est large.
-
-    Le contour est fusionné avec l'anneau et le motif plus loin."""
+    `r_in` / `r_out` : rayons intérieur et extérieur de l'anneau (centre de la boule en 0, 0). Le bord intérieur de
+    l'anneau est une courbe : pour une suspente décentrée, un pied qui s'arrête à plat laisse un petit cran du
+    côté du centre. Le pied est donc prolongé dans l'anneau jusqu'à ce que ses deux coins y soient bien enfoncés,
+    sans jamais ressortir par l'extérieur."""
+    shapes = [_stem_polygon(x0, y0, x1, y1, w)]
     dx, dy = x1 - x0, y1 - y0
     n = math.hypot(dx, dy)
-    if n < 1e-9:
-        return [_stem_polygon(x0, y0, x1, y1, w)]
+    foot = 1.5
+    if n < 2 * foot + 1.0:
+        return shapes
     ux, uy = dx / n, dy / n
     nx, ny = -uy, ux
+    fx, fy = x1 - ux * (1.0 + foot), y1 - uy * (1.0 + foot)    # début de l'évasement ; il atteint 2 w au bord
 
-    half = w / 2.0
-    rm = None                       # côté anneau : arc au milieu de la bande de l'anneau
-    if r_in is not None and r_out is not None and r_out > r_in:
-        rm = (r_in + r_out) / 2.0
+    def corners(t):
+        half = w / 2.0 + (w / 2.0) * (t / foot)
+        px, py = fx + ux * t, fy + uy * t
+        return (px + nx * half, py + ny * half), (px - nx * half, py - ny * half)
 
-    def wall_end(sign):
-        """Point du flanc (sign = +1 gauche, -1 droit) qui atteint le rayon `rm`, ou le bout `x1, y1`."""
-        if rm is None:
-            return x1 + sign * nx * half, y1 + sign * ny * half
-        lo, hi = 0.0, n + r_out
-        for _ in range(40):
-            mid = (lo + hi) / 2.0
-            if math.hypot(x0 + ux * mid + sign * nx * half, y0 + uy * mid + sign * ny * half) < rm:
-                lo = mid
-            else:
-                hi = mid
-        return x0 + ux * hi + sign * nx * half, y0 + uy * hi + sign * ny * half
-
-    end_l, end_r = wall_end(+1), wall_end(-1)
-    n = max(math.hypot(end_l[0] - x0, end_l[1] - y0), math.hypot(end_r[0] - x0, end_r[1] - y0)) if rm else n
-
-    narrow = min(w, MIN_STEM_MM)
-    neck = min(2.5 * (w - narrow) / 2.0, 0.6 * n)   # longueur du resserrement
-    left, right = [], []
-    steps = 10 if neck > 1e-6 and w - narrow > 1e-6 else 0
-    for i in range(steps + 1):
-        t = i / steps if steps else 0.0
-        smooth = t * t * (3.0 - 2.0 * t)
-        half = (narrow + (w - narrow) * smooth) / 2.0
-        d = neck * t
-        px, py = x0 + ux * d, y0 + uy * d
-        left.append((px + nx * half, py + ny * half))
-        right.append((px - nx * half, py - ny * half))
-    if not steps:
-        half = w / 2.0
-        left.append((x0 + nx * half, y0 + ny * half))
-        right.append((x0 - nx * half, y0 - ny * half))
-    cap = [end_l]
-    if rm is not None:
-        a0, a1 = math.atan2(end_l[1], end_l[0]), math.atan2(end_r[1], end_r[0])
-        da = (a1 - a0 + math.pi) % (2 * math.pi) - math.pi
-        cap += [(rm * math.cos(a0 + da * k / 6.0), rm * math.sin(a0 + da * k / 6.0)) for k in range(1, 6)]
-    cap.append(end_r)
-    return [left + cap + right[::-1]]
+    t_end = foot
+    if r_in is not None and r_out is not None:
+        while t_end < foot + 2.5:
+            c1, c2 = corners(t_end)
+            r1, r2 = math.hypot(*c1), math.hypot(*c2)
+            if min(r1, r2) >= r_in + 0.5 or max(r1, r2) + 0.1 > r_out - 0.3:
+                break
+            t_end += 0.1
+    c1, c2 = corners(t_end)
+    shapes.append([(fx + nx * w / 2, fy + ny * w / 2), c1, c2, (fx - nx * w / 2, fy - ny * w / 2)])
+    return shapes
 
 
 def _hanging_flakes(params, geo, rng):

@@ -36,6 +36,8 @@ class CameraController(QObject):
     """
 
     overlay_ready = pyqtSignal(object, float, float)  # np.ndarray, bed_w, bed_h
+    overlay_cleared = pyqtSignal()                    # retirer l'image de la caméra de l'éditeur vectoriel
+    overlay_opacity_changed = pyqtSignal(float)       # 0,05 … 1
     status_changed = pyqtSignal(str)
     profile_changed = pyqtSignal()
 
@@ -154,6 +156,13 @@ class CameraController(QObject):
         self.overlay_ready.emit(warped, bed_w, bed_h)
         self.status_changed.emit(tr("camera.status.overlay_ok"))
         return True
+
+    def clear_overlay(self) -> None:
+        """Retire l'image de la caméra de l'éditeur vectoriel."""
+        self.overlay_cleared.emit()
+
+    def set_overlay_opacity(self, value: float) -> None:
+        self.overlay_opacity_changed.emit(float(value))
 
     def update_lens(self, lens: LensCalibration) -> None:
         if self._profile is None:

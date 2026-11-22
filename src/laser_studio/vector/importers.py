@@ -8,8 +8,7 @@ extract_svg_objects)."""
 from PyQt6.QtGui import QPainterPath
 
 from laser_studio.vector.box_generator import BoxDecor  # noqa: F401  (réexporté : vector.importers.BoxDecor)
-from laser_studio.models.vector_objects import SvgPathObject, TextObject
-from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.vector_layers import SvgPathObject, TextObject, extract_svg_objects
 
 
 def _path_object(points, closed, tag, layer_id, shift_x, shift_y):
@@ -68,7 +67,7 @@ def dxf_to_objects(drawing, layer_id, offset_x_mm=10.0, offset_y_mm=10.0, ungrou
     Le coin inférieur gauche de l'ensemble du dessin est ancré à
     (offset_x_mm, offset_y_mm), positions relatives conservées.
     """
-    from laser_studio.vector.svg_extract import _merge_path_objects
+    from laser_studio.vector_layers import _merge_path_objects
 
     bounds = drawing.bounds()
     if bounds is None:
@@ -188,7 +187,7 @@ def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
 
     On ne crée surtout pas un contour fermé par pièce : deux pièces voisines partagent leur frontière, le
     laser la découperait deux fois."""
-    from laser_studio.vector.svg_extract import _merge_path_objects
+    from laser_studio.vector_layers import _merge_path_objects
 
     objects = []
     outline = _path_object(result.outline, True, "puzzle:outline", layer_id, offset_x_mm, offset_y_mm) \
@@ -203,13 +202,51 @@ def puzzle_to_objects(result, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
     return objects
 
 
+def apriltags_to_objects(targets, layer_id):
+    """AprilTags d'alignement caméra -> un objet de gravure (remplissage) par tag, aux positions exactes du
+    plateau (mm machine : les coordonnées des cibles sont absolues, donc aucun décalage)."""
+    from laser_studio.camera.workspace_alignment import apriltag_engrave_polygons
+
+    objects = []
+    for target in targets:
+        obj = _compound_path_object(apriltag_engrave_polygons(target), f"apriltag:{target.tag_id}",
+                                    layer_id, 0.0, 0.0)
+        if obj is not None:
+            objects.append(obj)
+    return objects
+
+
+def apriltag_template_to_objects(targets, layer_id, bed_w_mm=None, label_mm=4.0):
+    """Gabarit de pose des AprilTags imprimés : pour chaque tag, un cadre carré (le côté du tag, aux positions
+    exactes du plateau : coordonnées machine absolues) et son numéro, posé à côté du cadre. Le laser les marque sur
+    le plateau ; il n'y a plus qu'à coller chaque tag imprimé dans son cadre, sous le bon numéro.
+
+    Le numéro est à droite du cadre, ou à gauche pour les tags de la moitié droite du plateau (`bed_w_mm`)."""
+    objects = []
+    for target in targets:
+        half = target.size_mm / 2.0
+        x0, x1 = target.cx_mm - half, target.cx_mm + half
+        y0, y1 = target.cy_mm - half, target.cy_mm + half
+        frame = _path_object([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], True,
+                             f"apriltag_frame:{target.tag_id}", layer_id, 0.0, 0.0)
+        if frame is not None:
+            objects.append(frame)
+        text = str(target.tag_id)
+        text_w = label_mm * 0.7 * len(text)            # largeur approchée du numéro
+        on_left = bed_w_mm is not None and target.cx_mm > bed_w_mm / 2.0
+        label_x = x0 - 1.5 - text_w if on_left else x1 + 1.5
+        objects.append(TextObject(text=text, font_family="Arial", size_mm=label_mm, layer_id=layer_id,
+                                  x_mm=label_x, y_mm=target.cy_mm - label_mm / 2.0))
+    return objects
+
+
 def ornament_to_objects(contours, layer_id, offset_x_mm=10.0, offset_y_mm=10.0):
     """Boule de Noël -> objets de découpe : le contour extérieur, et UN objet qui regroupe tous les contours
     intérieurs (trou de la ficelle, contreformes des lettres, vides entre les flocons).
 
     `contours` vient de `ornament_region.assemble` : le premier est l'extérieur. Chaque contour y est déjà
     unique (la matière est soudée), donc rien n'est découpé deux fois."""
-    from laser_studio.vector.svg_extract import _merge_path_objects
+    from laser_studio.vector_layers import _merge_path_objects
 
     if not contours:
         return []
@@ -251,7 +288,7 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
     En mode lot (plusieurs prénoms), chaque prénom est traité comme une pièce
     indépendante pour que l'imbrication automatique les regroupe correctement.
     """
-    from laser_studio.vector.svg_extract import _merge_path_objects
+    from laser_studio.vector_layers import _merge_path_objects
 
     objects = []
 

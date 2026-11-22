@@ -4,35 +4,37 @@ Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe ce qui agit sur toute la fenêtre : thème,
 langue, onglets annexes, état de la connexion, actions de la barre
 d'outils sur l'image de l'onglet courant, affichage des résultats du job
-(console, statistiques, barre de progression, aperçu 2D), panneau du bas
-et séparateurs, plein écran d'un onglet, fenêtres de réglages, messages de
-la barre d'état. Il deviendra un
+(console, statistiques, barre de progression, aperçu 2D). Il deviendra un
 vrai contrôleur, séparé de la fenêtre.
 """
 
 from contextlib import contextmanager
 
-from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox, QPushButton, QTabBar, QVBoxLayout
+from PyQt6.QtWidgets import QApplication, QMessageBox, QTabBar
 from PyQt6.QtCore import QSettings, Qt, QTimer
-from laser_studio.core.debug_log import get_logger
+from laser_studio.gcode.raster import image_origin
+from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import set_language, tr
 from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from laser_studio.ui.support import SupportDialog
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.statusbar import status_text
-from laser_studio.ui.support import SupportDialog
-from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
 from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
-
-log = get_logger()
 
 # Onglets facultatifs (menu Affichage) : clé de UIConfig qui mémorise s'ils
 # sont affichés, et état au premier démarrage.
 GCODE_CONSOLE_SETTING = "show_gcode_console"
 JOB_QUEUE_SETTING = "show_job_queue"
+# Onglets où le panneau machine (sous les onglets) est affiché ; un job en
+# cours l'affiche aussi, quel que soit l'onglet.
+BOTTOM_PANEL_TABS = ("tab_vector_2d", "tab_console_gcode", "tab_job_queue")
+# Séparateurs mémorisés (UIConfig).
+PREVIEW_2D_SIZES_SETTING = "preview_2d_side_sizes"
+CENTER_SPLITTER_SETTING = "center_splitter_sizes"
 OPTIONAL_TABS = {
     "tab_console_gcode": (GCODE_CONSOLE_SETTING, False),
     "tab_job_queue": (JOB_QUEUE_SETTING, True),
@@ -40,6 +42,273 @@ OPTIONAL_TABS = {
 
 
 class WindowControllerMixin:
+    # -- éditeur vectoriel et calques : relais vers le canevas et le modèle
+
+    def update_vector_work_area(self, *_args):
+        """La zone de travail de l'éditeur vectoriel suit le plateau de la machine."""
+        if hasattr(self, "vector_canvas") and hasattr(self, "machine"):
+            self.vector_canvas.set_work_area(self.machine.bed_w, self.machine.bed_h)
+
+    def on_layers_changed(self):
+        """Les calques ont changé (couleur, mode, ajout, suppression…) : couleurs
+        du canevas et liste « Calque de gravure » rafraîchies."""
+        if hasattr(self, "vector_canvas"):
+            self.vector_canvas.refresh_all()
+        self._refresh_engrave_layer_combo()
+
+    def _refresh_engrave_layer_combo(self):
+        """Liste « Calque de gravure » de l'onglet image remise à jour (sans
+        effet tant que l'onglet n'est pas construit)."""
+        combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None),
+                        "engrave_layer_combo", None)
+        if combo is not None:
+            layer = self.layer_manager.engrave_layer()
+            combo.set_layers(self.layer_manager.layers, layer.id if layer else None)
+
+    def _on_engrave_layer_chosen(self, layer_id):
+        """Calque de gravure choisi dans l'onglet image : sa vitesse et sa
+        puissance deviennent celles de la gravure."""
+        self.layer_manager.select_engrave_layer(layer_id)
+
+    def set_vector_draw_tool(self, tool):
+        """Outil de dessin à la souris sur le canevas vectoriel : None / 'select',
+        'line', 'rect', 'circle', 'ellipse' ou 'measure'. Un seul bouton coché."""
+        if not hasattr(self, "vector_canvas"):
+            return
+        if tool and not self.layer_manager.layers:
+            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
+            tool = None
+        layer = self.layer_manager.default_svg_layer() if self.layer_manager.layers else None
+        resolved = None if tool in (None, "select") else tool
+        self.vector_canvas.set_draw_tool(resolved, layer_id=layer.id if layer else None)
+        for key, button in getattr(self, "_vector_draw_buttons", {}).items():
+            button.blockSignals(True)
+            button.setChecked(key == resolved)
+            button.blockSignals(False)
+
+    def set_vector_snap_enabled(self, enabled):
+        self.vector_canvas.snap_enabled = bool(enabled)
+
+    def set_vector_snap_step(self, value):
+        self.vector_canvas.snap_step_mm = float(value)
+
+    # -- état de la fenêtre : panneau du bas, séparateurs mémorisés
+
+    def _update_bottom_panel_visibility(self, *_args):
+        """Panneau machine (sous les onglets) : affiché dans l'aperçu 2D, la
+        console G-Code et la file d'attente, et tant qu'un job est en cours,
+        quel que soit l'onglet (Pause, Reset et Arrêt d'urgence accessibles)."""
+        panel = getattr(self, "center_bottom_widget", None)
+        tabs = getattr(self, "main_tabs_view", None)
+        if panel is None or tabs is None:
+            return
+        current = tabs.currentWidget()
+        on_panel_tab = any(
+            current is not None and current is getattr(self, attr, None)
+            for attr in BOTTOM_PANEL_TABS
+        )
+        connection = getattr(self, "connection", None)
+        streaming = connection is not None and connection.is_streaming()
+        panel.setVisible(on_panel_tab or streaming)
+
+    def _on_main_tab_changed(self, *_args):
+        """Changement d'onglet : l'éditeur vectoriel recadre sa vue à
+        l'affichage (l'onglet n'avait pas sa taille définitive avant)."""
+        tabs = getattr(self, "main_tabs_view", None)
+        editor = getattr(self, "tab_vector_editor", None)
+        canvas = getattr(self, "vector_canvas", None)
+        if tabs is not None and canvas is not None and tabs.currentWidget() is editor:
+            canvas.request_recenter()
+
+    def save_splitter_sizes(self, *_args):
+        """Mémorise la position des séparateurs : aperçu 2D / statistiques, et
+        hauteur du panneau du bas."""
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        preview = getattr(self, "tab_vector_2d", None)
+        if preview is not None:
+            settings.setValue(PREVIEW_2D_SIZES_SETTING, list(preview.splitter.sizes()))
+        splitter = getattr(self, "center_v_splitter", None)
+        if splitter is not None:
+            sizes = list(splitter.sizes())
+            if len(sizes) == 2 and all(size > 0 for size in sizes):   # panneau masqué : inchangé
+                settings.setValue(CENTER_SPLITTER_SETTING, sizes)
+        settings.sync()  # écriture immédiate sous Windows
+
+    def load_splitter_sizes(self):
+        """Restaure les séparateurs mémorisés par save_splitter_sizes."""
+        settings = QSettings("LaserStudioPro", "UIConfig")
+        for attr, key in (("tab_vector_2d", PREVIEW_2D_SIZES_SETTING), ("center_v_splitter", None)):
+            target = getattr(self, attr, None)
+            if target is None:
+                continue
+            splitter = target.splitter if attr == "tab_vector_2d" else target
+            saved = settings.value(key or CENTER_SPLITTER_SETTING, None)
+            try:
+                sizes = [int(size) for size in saved]
+            except (TypeError, ValueError):
+                continue                                 # rien de mémorisé, ou illisible
+            if len(sizes) == 2:
+                splitter.setSizes(sizes)
+
+    # -- plein écran d'un onglet, croix des onglets masquables
+
+    def toggle_current_tab_fullscreen(self):
+        """Plein écran de l'onglet affiché (bouton de la barre principale, F11).
+
+        L'éditeur vectoriel et PNG ⇒ SVG ont leur propre ouverture ; les
+        autres onglets sortent dans une fenêtre à part, avec leur titre.
+        """
+        tabs = self.main_tabs_view
+        tab = tabs.currentWidget()
+        if tab is self.tab_vector_editor:
+            self.toggle_fullscreen_vector_editor()
+            return
+        if tab is self.tab_png2svg:
+            self._toggle_fullscreen_png2svg()
+            return
+        title = tabs.tabText(tabs.currentIndex())
+        self._open_tab_fullscreen(
+            tab, title, tr("vector.close_fullscreen"), title,
+            on_restored=lambda: self._restore_tab_close_button(tab))
+
+    def toggle_fullscreen_vector_editor(self):
+        """L'éditeur vectoriel dans une fenêtre à part, maximisée. La fermer
+        remet l'éditeur dans ses onglets, la vue recadrée."""
+        self._open_tab_fullscreen(
+            self.tab_vector_editor, tr("vector.fullscreen_title"),
+            tr("vector.close_fullscreen"), tr("tab.vector_editor"),
+            on_restored=self.vector_canvas.request_recenter)
+        self.vector_canvas.request_recenter()
+
+    def _toggle_fullscreen_png2svg(self):
+        """PNG ⇒ SVG dans une fenêtre à part, maximisée."""
+        self._open_tab_fullscreen(
+            self.tab_png2svg, tr("png2svg.fullscreen_title"),
+            tr("png2svg.close_fullscreen"), tr("png2svg.tab_title"))
+
+    def _open_tab_fullscreen(self, tab, title, close, tab_title, on_restored=None):
+        """Sort `tab` des onglets dans une fenêtre maximisée (FullscreenWindow).
+
+        `close` : texte du bouton rouge ; `tab_title` : titre de l'onglet à
+        sa remise ; `on_restored()` : appelée une fois l'onglet remis. Déjà
+        sorti : sa fenêtre est ramenée au premier plan.
+        """
+        tabs = self.main_tabs_view
+        index = tabs.indexOf(tab)
+        if index == -1:
+            tab.window().raise_()
+            tab.window().activateWindow()
+            return
+        window = FullscreenWindow(self, tab, title, close)
+
+        def put_back():
+            tabs.insertTab(min(index, tabs.count()), tab, tab_title)
+            tabs.setTabVisible(tabs.indexOf(tab), True)
+            tabs.setCurrentWidget(tab)
+            tab.setVisible(True)
+            if on_restored is not None:
+                on_restored()
+
+        window.content_released.connect(put_back)
+        window.show_maximized()
+
+    def _add_console_close_button(self):
+        """Croix sur l'onglet « Console / G-Code » : le masque (menu Affichage)."""
+        self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
+
+    def _add_tab_close_button(self, tab, action):
+        """Croix sur l'onglet `tab` seul : elle décoche `action` (l'action
+        cochable du menu Affichage qui l'affiche), ce qui le masque."""
+        self.__dict__.setdefault("_tab_close_actions", {})[tab] = action
+        self._restore_tab_close_button(tab)
+
+    def _restore_tab_close_button(self, tab):
+        """(Re)pose la croix de `tab` : un onglet sorti en plein écran puis
+        remis perd son bouton."""
+        action = self.__dict__.get("_tab_close_actions", {}).get(tab)
+        index = self.main_tabs_view.indexOf(tab)
+        if action is None or index == -1:
+            return
+        button = TabCloseButton()
+        button.clicked.connect(lambda: action.setChecked(False))
+        self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
+
+    # -- curseur d'attente, cadre de l'image, matrice de test
+
+    @contextmanager
+    def _busy_cursor(self):
+        """Curseur d'attente pendant un calcul long (générateurs, boules)."""
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            yield
+        finally:
+            QApplication.restoreOverrideCursor()
+
+    def _image_frame(self):
+        """(x, y, largeur, hauteur) en mm de l'image de « Graver une image »
+        sur le plateau, pour y caler le puzzle ; None sans image."""
+        if getattr(self, "raw_image", None) is None:
+            return None
+        geometry = self._job_geometry()
+        x, y = image_origin(geometry)
+        return x, y, geometry["width_mm"], geometry["height_mm"]
+
+    def _generate_test_matrix_and_show(self):
+        """« Générer » de la page Matrice de test : lance la génération ; si
+        elle démarre, ferme la fenêtre et montre l'aperçu 2D. Sinon (test
+        image sans image, zone trop petite…), la fenêtre reste ouverte."""
+        page = self.tab_matrix
+        started = self.job.generate_test_matrix(
+            page.matrix_params(), page.is_engraving(),
+            image_test=page.image_test_enabled(),
+            build_tile=self.matrix_image.build_tile)
+        if not started:
+            return
+        window = page.window()
+        if window is not self:
+            window.close()
+        self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)
+
+    def show_settings_window(self, kind):
+        """Ouvre (ou remet au premier plan) la fenêtre de réglages `kind` du
+        menu Paramètres : « machine_params », « grbl » ou « test_matrix ».
+
+        Chaque fenêtre est créée à la première demande, puis réutilisée ; elle
+        héberge la page déjà construite (tab_machine_params, tab_grbl_config,
+        tab_matrix). Page absente : demande ignorée.
+        """
+        pages = {
+            "machine_params": ("tab_machine_params", "tab.machine_params"),
+            "grbl": ("tab_grbl_config", "tab.grbl_config"),
+            "test_matrix": ("tab_matrix", "tab.test_matrix"),
+        }
+        if kind not in pages:
+            return
+        page_attr, title_key = pages[kind]
+        page = getattr(self, page_attr, None)
+        if page is None:
+            return
+        windows = self.__dict__.setdefault("_settings_windows", {})
+        window = windows.get(kind)
+        if window is None:
+            window = SettingsWindow(self, tr(title_key), page, kind)
+            windows[kind] = window
+        window.bring_to_front()
+
+    def show_status_message(self, text, tooltip=None):
+        """Message d'information dans la barre d'état (efface après un délai).
+
+        `tooltip` : texte complet pour l'infobulle (ex. chemin du fichier).
+        """
+        self.statusBar().show_info(text, tooltip)
+
+    def log_message(self, text):
+        """Message du graveur / du job : affiché dans la barre d'état, jamais
+        dans la console du G-Code. Repères de console retirés, lignes jointes
+        par « — » ; l'infobulle garde le texte d'origine."""
+        text = str(text)
+        self.show_status_message(status_text(text), text.strip())
+
     def change_theme(self, theme_name):
         """Bascule de thème à la volée et mémorise le code.
 
@@ -308,6 +577,11 @@ class WindowControllerMixin:
                 bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
                 dialogs=self.dialogs,
             )
+            # L'image de la caméra (redressée sur le plateau) s'affiche sous la grille de l'éditeur vectoriel.
+            canvas = self.vector_canvas
+            self.camera.overlay_ready.connect(canvas.set_camera_background)
+            self.camera.overlay_cleared.connect(canvas.clear_camera_background)
+            self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
         CameraDialog(self.camera, self).exec()
 
     # -- résultats du job (JobController) : console, statistiques, aperçu 2D
@@ -438,6 +712,7 @@ class WindowControllerMixin:
         montrer le G-Code envoyé (un job de la file n'est pas forcément celui
         affiché) et le tracé « déjà gravé » repart de zéro."""
         self.machine_panel.progress_bar.setValue(0)
+        self._update_bottom_panel_visibility()          # job en cours : panneau visible partout
         if gcode_text != getattr(self, "_last_gcode_text", None):
             self.plot_gcode_preview(gcode_text)
         else:
@@ -447,6 +722,7 @@ class WindowControllerMixin:
         """Un envoi se termine : repère de fin dans le suivi, aperçu 2D."""
         self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self.tab_vector_2d.finish_burn(clean_finish)
+        QTimer.singleShot(0, self._update_bottom_panel_visibility)   # une fois l'envoi vraiment terminé
 
     @staticmethod
     def _beep_job_done():
@@ -470,324 +746,3 @@ class WindowControllerMixin:
             checkbox.setEnabled(available)
             checkbox.setToolTip(tip)
         return unchecked
-
-    # -- éditeur vectoriel : affichage (la logique est dans VectorEditorController)
-
-    def update_vector_work_area(self, *args):
-        """Synchronise la zone de travail de l'éditeur vectoriel avec les
-        dimensions physiques du graveur (onglet 'Paramètres Machine'), et non
-        plus avec les dimensions du job en cours."""
-        if hasattr(self, "vector_canvas") and hasattr(self, "machine"):
-            self.vector_canvas.set_work_area(self.machine.bed_w, self.machine.bed_h)
-
-    def on_layers_changed(self):
-        """Les calques ont changé (LayersModel.changed : couleur, mode,
-        puissance, ajout/suppression...) : on rafraîchit les couleurs des
-        objets du canevas et la liste « Calque de gravure » de l'onglet image.
-        Le tableau de l'onglet Calques se met à jour seul, abonné au modèle."""
-        if hasattr(self, "vector_canvas"):
-            self.vector_canvas.refresh_all()
-        self._refresh_engrave_layer_combo()
-
-    def _refresh_engrave_layer_combo(self):
-        """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés, supprimés,
-        renommés ou changés de mode). Sans effet tant que l'onglet n'est pas construit."""
-        combo = getattr(getattr(getattr(self, "tab_previews", None), "settings", None), "engrave_layer_combo", None)
-        if combo is not None:
-            layer = self.layer_manager.engrave_layer()
-            combo.set_layers(self.layer_manager.layers, layer.id if layer else None)
-
-    def _on_engrave_layer_chosen(self, layer_id):
-        """Calque de gravure choisi dans la liste de l'onglet image : sa vitesse et sa puissance
-        deviennent celles de la gravure (LayersModel.engrave_layer)."""
-        self.layer_manager.select_engrave_layer(layer_id)
-
-    def set_vector_draw_tool(self, tool):
-        """Active un outil de dessin à la souris sur le canevas vectoriel.
-
-        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
-        Rectangle : 3 points. Cercle (du centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) :
-        un seul clic-glisser. Échap ou clic droit annule l'outil.
-        """
-        if not hasattr(self, "vector_canvas"):
-            return
-        if tool and tool not in (None, "select") and not self.layer_manager.layers:
-            self.dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
-            tool = None
-        layer = self.layer_manager.default_svg_layer() if self.layer_manager.layers else None
-        layer_id = layer.id if layer else None
-        resolved = None if tool in (None, "select") else tool
-        self.vector_canvas.set_draw_tool(resolved, layer_id=layer_id)
-        for key, btn in getattr(self, "_vector_draw_buttons", {}).items():
-            btn.blockSignals(True)
-            btn.setChecked(key == resolved)
-            btn.blockSignals(False)
-
-    def toggle_fullscreen_vector_editor(self):
-        """Ouvre l'éditeur vectoriel (texte/formes/SVG) dans une fenêtre à
-        part, maximisée, pour travailler plus confortablement. Fermer cette
-        fenêtre (bouton dédié, Échap, ou la croix) remet l'éditeur à sa place
-        normale dans l'onglet."""
-        idx = self.main_tabs_view.indexOf(self.tab_vector_editor)
-        if idx == -1:
-            return  # déjà sorti (fenêtre plein écran probablement déjà ouverte)
-
-        dialog = QDialog(self)
-        # Fenêtre indépendante à part entière (pas une simple boîte de
-        # dialogue) : ça lui donne les boutons minimiser/agrandir/fermer
-        # standards de Windows et un vrai comportement plein écran.
-        dialog.setWindowFlags(Qt.WindowType.Window)
-        dialog.setWindowTitle(tr("vector.fullscreen_title"))
-
-        dlg_layout = QVBoxLayout(dialog)
-        dlg_layout.setContentsMargins(4, 4, 4, 4)
-
-        btn_close_fullscreen = QPushButton(
-    tr("vector.close_fullscreen")
-)
-        btn_close_fullscreen.setStyleSheet("background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;")
-        btn_close_fullscreen.clicked.connect(dialog.close)
-        dlg_layout.addWidget(btn_close_fullscreen)
-
-        dlg_layout.addWidget(self.tab_vector_editor)
-        self.tab_vector_editor.setVisible(True)
-
-        def restore(_result=None):
-            dlg_layout.removeWidget(self.tab_vector_editor)
-            self.tab_vector_editor.setParent(None)
-            self.main_tabs_view.insertTab(
-    idx,
-    self.tab_vector_editor,
-    tr("tab.vector_editor")
-)
-            self.main_tabs_view.setCurrentWidget(self.tab_vector_editor)
-            self.tab_vector_editor.setVisible(True)
-            self.vector_canvas.request_recenter()
-
-        dialog.finished.connect(restore)
-        dialog.show()
-        dialog.setWindowState(Qt.WindowState.WindowMaximized)
-        # Recentre la vue sur le contenu une fois la fenêtre maximisée.
-        self.vector_canvas.request_recenter()
-
-    def set_vector_snap_enabled(self, enabled):
-        self.vector_canvas.snap_enabled = bool(enabled)
-
-    def set_vector_snap_step(self, value):
-        self.vector_canvas.snap_step_mm = float(value)
-
-    def _image_frame(self):
-        """(x, y, largeur, hauteur) en mm de l'image de « Graver une image »,
-        pour caler le puzzle dessus (VectorEditorController)."""
-        if not (hasattr(self, "spin_w") and hasattr(self, "spin_h")):
-            return None
-        ox = float(self.spin_off_x.value()) if hasattr(self, "spin_off_x") else 0.0
-        oy = float(self.spin_off_y.value()) if hasattr(self, "spin_off_y") else 0.0
-        return ox, oy, float(self.spin_w.value()), float(self.spin_h.value())
-
-    @contextmanager
-    def _busy_cursor(self):
-        """Curseur d'attente pendant un calcul long (imbrication, série)."""
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        try:
-            yield
-        finally:
-            QApplication.restoreOverrideCursor()
-
-    # -- état de la fenêtre : panneau du bas, séparateurs, onglets
-
-    def _on_main_tab_changed(self, idx):
-      if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:
-          self.separation_refresh_if_dirty()
-
-    def _job_in_progress(self):
-        connection = getattr(self, "connection", None)
-        return bool(connection is not None and connection.is_streaming())
-
-    def _update_bottom_panel_visibility(self, *_args):
-        panel = getattr(self, "center_bottom_widget", None)
-        if panel is None:
-            return
-        current = self.main_tabs_view.currentWidget()
-        tabs_with_panel = (self.tab_vector_2d, self.tab_console_gcode, self.tab_job_queue)
-        show = self._job_in_progress() or any(current is t for t in tabs_with_panel)
-        if show and panel.isHidden():
-            panel.setVisible(True)
-            sizes = getattr(self, "_bottom_panel_sizes", None)
-            if sizes:
-                QTimer.singleShot(0, lambda s=sizes: self.center_v_splitter.setSizes(s))
-        elif not show and not panel.isHidden():
-            sizes = self.center_v_splitter.sizes()
-            if all(v > 0 for v in sizes):
-                self._bottom_panel_sizes = sizes
-            panel.setVisible(False)
-
-    def save_splitter_sizes(self, *_args):
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        if hasattr(self, "center_v_splitter"):
-            panel = getattr(self, "center_bottom_widget", None)
-            if panel is not None and panel.isHidden():
-                sizes = getattr(self, "_bottom_panel_sizes", None)
-            else:
-                sizes = self.center_v_splitter.sizes()
-            if sizes and all(v > 0 for v in sizes):
-                settings.setValue("center_v_splitter_sizes", sizes)
-        # Aperçu 2D / colonne de droite (position du job, statistiques) : un côté peut être replié.
-        preview = getattr(self, "tab_vector_2d", None)
-        if preview is not None:
-            sizes = preview.splitter.sizes()
-            if sum(sizes) > 0:
-                settings.setValue("preview_2d_side_sizes", sizes)
-
-    def load_splitter_sizes(self):
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        # Tailles de l'ancienne colonne de gauche, supprimée : plus utilisées.
-        settings.remove("main_splitter_sizes")
-        settings.remove("left_v_splitter_sizes")
-        center_v_sizes = settings.value("center_v_splitter_sizes", None)
-        if center_v_sizes and hasattr(self, "center_v_splitter"):
-            try:
-                loaded_sizes = [int(s) for s in center_v_sizes]
-                if all(v > 0 for v in loaded_sizes):
-                    self._bottom_panel_sizes = loaded_sizes
-                    self.center_v_splitter.setSizes(loaded_sizes)
-            except (TypeError, ValueError):
-                pass
-        # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.
-        settings.remove("preview_2d_splitter_sizes")
-        preview_sizes = settings.value("preview_2d_side_sizes", None)
-        preview = getattr(self, "tab_vector_2d", None)
-        if preview_sizes and preview is not None:
-            try:
-                loaded_sizes = [int(s) for s in preview_sizes]
-                if len(loaded_sizes) == 2 and min(loaded_sizes) >= 0 and sum(loaded_sizes) > 0:
-                    preview.splitter.setSizes(loaded_sizes)
-            except (TypeError, ValueError):
-                pass
-
-
-    # -- plein écran d'un onglet, fenêtres de réglages, croix des onglets masquables
-
-    def toggle_current_tab_fullscreen(self):
-        """Plein écran de l'onglet affiché (bouton « Plein écran » de la barre d'outils, F11).
-
-        L'éditeur vectoriel garde sa propre fenêtre (toggle_fullscreen_vector_editor), la
-        vectorisation son titre ; les autres onglets passent par la fenêtre commune, avec le titre
-        de l'onglet."""
-        tab = self.main_tabs_view.currentWidget()
-        if tab is None:
-            return
-        if tab is self.tab_vector_editor:
-            self.toggle_fullscreen_vector_editor()
-        elif tab is self.tab_png2svg:
-            self._toggle_fullscreen_png2svg()
-        else:
-            title = self.main_tabs_view.tabText(self.main_tabs_view.indexOf(tab))
-            self._open_tab_fullscreen(tab, title, tr("vector.close_fullscreen"), title,
-                                      on_restored=lambda: self._restore_tab_close_button(tab))
-
-    def _toggle_fullscreen_png2svg(self):
-        """Plein écran de « Vectorisation d'image », avec son propre titre."""
-        self._open_tab_fullscreen(
-            self.tab_png2svg,
-            tr("png2svg.fullscreen_title"),
-            tr("png2svg.close_fullscreen"),
-            tr("png2svg.tab_title"),
-        )
-
-    def _open_tab_fullscreen(self, tab_widget, window_title, close_text, tab_title,
-                             on_restored=None):
-        """Sort `tab_widget` des onglets dans une FullscreenWindow, et l'y remet
-        à la même place quand elle se ferme (puis appelle `on_restored`).
-        Sans effet si l'onglet est déjà en plein écran."""
-        index = self.main_tabs_view.indexOf(tab_widget)
-        if index == -1:
-            return
-        window = FullscreenWindow(self, tab_widget, window_title, close_text)
-
-        def restore():
-            self.main_tabs_view.insertTab(index, tab_widget, tab_title)
-            self.main_tabs_view.setCurrentWidget(tab_widget)
-            tab_widget.setVisible(True)
-            tab_widget.updateGeometry()
-            self.main_tabs_view.update()
-            self.update()
-            self.repaint()
-            if on_restored is not None:
-                on_restored()
-
-        window.content_released.connect(restore)
-        window.show_maximized()
-
-    def show_settings_window(self, kind):
-        """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »
-        (kind="machine_params"), « Configuration GRBL » (kind="grbl") ou « Matrice de test »
-        (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
-        windows = self.__dict__.setdefault("_settings_windows", {})
-        if kind not in windows:
-            page, title = {
-                "grbl": (getattr(self, "tab_grbl_config", None), tr("tab.grbl_config")),
-                "machine_params": (getattr(self, "tab_machine_params", None), tr("tab.machine_params")),
-                "test_matrix": (getattr(self, "tab_matrix", None), tr("tab.test_matrix")),
-            }[kind]
-            if page is None:
-                return
-            windows[kind] = SettingsWindow(self, title, page, kind)
-        windows[kind].bring_to_front()
-
-    def _add_console_close_button(self):
-        """Croix sur l'onglet Console."""
-        self._add_tab_close_button(self.tab_console_gcode, self.app_actions.gcode_console)
-
-    def _restore_tab_close_button(self, tab):
-        """Remet la croix d'un onglet masquable (Console, File d'attente) au retour du plein écran :
-        Qt la supprime quand l'onglet sort de la barre."""
-        for optional_tab, action in ((self.tab_console_gcode, self.app_actions.gcode_console),
-                                     (self.tab_job_queue, self.app_actions.job_queue)):
-            if tab is optional_tab:
-                self._add_tab_close_button(tab, action)
-
-    def _add_tab_close_button(self, tab, action):
-        """Croix sur l'onglet `tab` : le ferme en décochant `action` (case du menu Affichage), qui
-        masque l'onglet et mémorise le choix."""
-        index = self.main_tabs_view.indexOf(tab)
-        if index == -1:
-            return
-        button = TabCloseButton()
-        button.clicked.connect(lambda: action.setChecked(False))
-        self.main_tabs_view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
-
-
-    # -- matrice de test
-
-    def _generate_test_matrix_and_show(self):
-        """Génère la matrice de test, puis ferme sa fenêtre et affiche
-        l'aperçu 2D, où le G-Code apparaît. En cas d'erreur, la fenêtre
-        reste ouverte pour corriger les réglages."""
-        # Lignes/mm toujours identiques à l'onglet « Graver une image ».
-        self._sync_matrix_lmm_from_image()
-        page = self.tab_matrix
-        if not self.job.generate_test_matrix(page.matrix_params(), page.is_engraving(),
-                                             page.image_test_enabled(), self.matrix_image.build_tile):
-            return
-        self.tab_matrix.window().close()
-        self.show_main_tab("tab_vector_2d")
-        self.raise_()
-        self.activateWindow()
-
-
-    # -- messages : barre d'état et journal
-
-    def show_status_message(self, text, tooltip=None):
-        """Raccourci vers StatusBar.show_info, utilisé par les mixins et Stencil Studio."""
-        self.statusBar().show_info(text, tooltip)
-
-    def log_message(self, text):
-        """Message d'une action (connexion, GRBL, file, projet…) : barre d'état, et journal de
-        débogage pour l'historique. Jamais dans la console : elle ne contient que le G-Code
-        généré, relu par l'export et la file d'attente."""
-        text = str(text)
-        log.info("Message : %s", text.strip())
-        short = status_text(text)
-        if short:
-            self.show_status_message(short, text.strip())
