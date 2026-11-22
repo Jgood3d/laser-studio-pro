@@ -1,5 +1,5 @@
-"""Cohérence de la version : application, journal des modifications, README, notes de version et fiche
-AppStream (packaging/linux/*.metainfo.xml)."""
+"""Cohérence de la version : application, journal des modifications, README, notes de version, fiche
+AppStream (packaging/linux/*.metainfo.xml) et spec RPM (packaging/fedora/)."""
 import glob
 import os
 import re
@@ -43,6 +43,11 @@ class ReleaseConsistencyTests(unittest.TestCase):
         self.assertEqual(releases[0][0], self.app_version(),
                          "la 1re <release> de la fiche AppStream doit être la version de l'application")
         self.assertIn(releases[0], self.changelog_versions(), "date différente de celle du CHANGELOG")
+
+    def test_rpm_spec_version_matches_app_version(self):
+        spec = read("packaging/fedora/laser-studio-pro.spec")
+        self.assertEqual(re.search(r"^Version:\s*(\S+)", spec, re.M).group(1), self.app_version(),
+                         "Version: du spec RPM (packaging/fedora/) doit être la version de l'application")
 
     def test_readme_announces_the_current_version(self):
         self.assertIn(f"## Nouveautés de la version {self.app_version()}", read("README.md"))
