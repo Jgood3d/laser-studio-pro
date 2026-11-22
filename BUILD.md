@@ -161,6 +161,12 @@ qui démarre sans décompression dans `/tmp`. Le script télécharge
 `appimagetool` dans `build/` (ou utilise celui indiqué par la variable
 `APPIMAGETOOL`).
 
+L'entrée de menu vient de `packaging/linux/io.github.jgood3d.LaserStudioPro.desktop`,
+commune aux paquets Linux : son nom suit l'identifiant `APP_ID` de
+`src/laser_studio/core/version.py`, et le script remplace seulement la
+commande (`Exec`) par l'exécutable `LaserStudioPro`. Après une modification :
+`desktop-file-validate packaging/linux/io.github.jgood3d.LaserStudioPro.desktop`.
+
 ---
 
 ## Taille de l'exécutable
