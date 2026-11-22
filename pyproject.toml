@@ -34,3 +34,5 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 laser_studio = ["resources/**/*"]
+# Stencil Studio : page de l'interface, traductions, police, modèle de détourage.
+stencil_studio = ["studio.html", "locales/*.json", "fonts/*.ttf", "models/*.onnx"]

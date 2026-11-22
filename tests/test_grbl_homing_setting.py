@@ -6,7 +6,6 @@ import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
-sys.path.insert(0, REPO)                                   # stencil_studio (window_controller)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
