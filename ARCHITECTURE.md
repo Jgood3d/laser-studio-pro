@@ -71,7 +71,7 @@ laser-studio-pro/
 ├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
-│   ├── linux/                        # build-linux.sh, build-appimage.sh, io.github.jgood3d.LaserStudioPro.desktop (entrée de menu)
+│   ├── linux/                        # build-linux.sh, build-appimage.sh, io.github.jgood3d.LaserStudioPro.desktop (entrée de menu), .metainfo.xml (fiche AppStream des logithèques)
 │   ├── macos/                        # LaserStudioPro.spec, build_macos.sh, run_macos.sh, requirements-macos.txt, laser_studio_pro.icns, README.md
 │   └── pyinstaller/                  # LaserStudioPro.spec (commun Windows / Linux), bundle_filter.py (filtre des fichiers inutiles)
 ├── src/

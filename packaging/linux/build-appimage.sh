@@ -60,7 +60,7 @@ echo "=========================================="
 echo "AppDir..."
 echo "=========================================="
 rm -rf "$APPDIR"
-mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo" \
     "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 cp -a "$DIST/." "$APPDIR/usr/bin/"
 
@@ -72,6 +72,8 @@ cp "$ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/$APP_ID.png"
 # PyInstaller au lieu de la commande installée par pip (laser-studio-pro).
 sed "s/^Exec=laser-studio-pro/Exec=$APP/" "$DESKTOP" > "$APPDIR/$APP_ID.desktop"
 cp "$APPDIR/$APP_ID.desktop" "$APPDIR/usr/share/applications/"
+# Fiche AppStream (description, captures, versions) pour les logithèques.
+cp "packaging/linux/$APP_ID.metainfo.xml" "$APPDIR/usr/share/metainfo/"
 
 cat > "$APPDIR/AppRun" <<EOF
 #!/bin/sh
