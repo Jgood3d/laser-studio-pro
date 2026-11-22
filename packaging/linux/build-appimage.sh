@@ -10,7 +10,7 @@
 # Pourquoi une AppImage plutôt que l'exécutable unique (--onefile) : un seul
 # fichier aussi, mais rien n'est décompressé dans /tmp à chaque lancement
 # (démarrage bien plus rapide pour ~400 Mo), et l'icône et l'entrée de menu
-# sont fournies (.desktop).
+# sont fournies (packaging/linux/$APP_ID.desktop).
 #
 # appimagetool est téléchargé dans build/ s'il n'est pas fourni par la
 # variable APPIMAGETOOL. Il tourne sans FUSE (APPIMAGE_EXTRACT_AND_RUN),
@@ -23,7 +23,8 @@ cd "$REPO_ROOT"
 VERSION="${1:-$(sed -n 's/^APP_VERSION = "\(.*\)"/\1/p' src/laser_studio/core/version.py)}"
 ARCH="x86_64"
 APP="LaserStudioPro"
-APP_ID="laser-studio-pro"
+APP_ID="io.github.jgood3d.LaserStudioPro"     # = APP_ID de src/laser_studio/core/version.py
+DESKTOP="packaging/linux/$APP_ID.desktop"
 DIST="dist/$APP"
 APPDIR="build/AppDir"
 OUTPUT="dist/$APP-$VERSION-$ARCH.AppImage"
@@ -59,7 +60,7 @@ echo "=========================================="
 echo "AppDir..."
 echo "=========================================="
 rm -rf "$APPDIR"
-mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" \
+mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo" \
     "$APPDIR/usr/share/icons/hicolor/512x512/apps"
 cp -a "$DIST/." "$APPDIR/usr/bin/"
 
@@ -67,17 +68,12 @@ ICON="src/laser_studio/resources/laser_studio_pro_512.png"
 cp "$ICON" "$APPDIR/$APP_ID.png"
 cp "$ICON" "$APPDIR/usr/share/icons/hicolor/512x512/apps/$APP_ID.png"
 
-cat > "$APPDIR/$APP_ID.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=Laser Studio Pro
-Comment=Pilotage GRBL pour graveur et découpeuse laser
-Exec=$APP
-Icon=$APP_ID
-Categories=Graphics;Engineering;
-Terminal=false
-EOF
+# Fichier .desktop commun aux paquets Linux ; ici, Exec lance l'exécutable
+# PyInstaller au lieu de la commande installée par pip (laser-studio-pro).
+sed "s/^Exec=laser-studio-pro/Exec=$APP/" "$DESKTOP" > "$APPDIR/$APP_ID.desktop"
 cp "$APPDIR/$APP_ID.desktop" "$APPDIR/usr/share/applications/"
+# Fiche AppStream (description, captures, versions) pour les logithèques.
+cp "packaging/linux/$APP_ID.metainfo.xml" "$APPDIR/usr/share/metainfo/"
 
 cat > "$APPDIR/AppRun" <<EOF
 #!/bin/sh

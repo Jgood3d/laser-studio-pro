@@ -48,8 +48,10 @@ Pour sortir la version X.Y.Z :
 2. sur `main`, mettre la version partout (les tests vérifient qu'elles
    concordent) : `APP_VERSION` dans `src/laser_studio/core/version.py`,
    section `## [X.Y.Z] — date` en tête de `CHANGELOG.md`,
-   `## Nouveautés de la version X.Y.Z` dans `README.md`, et
-   `RELEASE_NOTES_X.Y.Z.md` (texte de la release) ;
+   `## Nouveautés de la version X.Y.Z` dans `README.md`,
+   `RELEASE_NOTES_X.Y.Z.md` (texte de la release), et une ligne
+   `<release version="X.Y.Z" date="…">` en tête de `<releases>` dans
+   `packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml` ;
 3. poser et pousser le tag : `git tag -a vX.Y.Z -m "Version X.Y.Z"` puis
    `git push origin vX.Y.Z` (le tag doit être égal à `APP_VERSION`) ;
 4. attendre la fin du workflow Release, relire le brouillon dans
@@ -160,6 +162,18 @@ Résultat : `dist/LaserStudioPro-VERSION-x86_64.AppImage`, un seul fichier,
 qui démarre sans décompression dans `/tmp`. Le script télécharge
 `appimagetool` dans `build/` (ou utilise celui indiqué par la variable
 `APPIMAGETOOL`).
+
+L'entrée de menu vient de `packaging/linux/io.github.jgood3d.LaserStudioPro.desktop`,
+commune aux paquets Linux : son nom suit l'identifiant `APP_ID` de
+`src/laser_studio/core/version.py`, et le script remplace seulement la
+commande (`Exec`) par l'exécutable `LaserStudioPro`. La fiche AppStream
+`packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml` (description,
+captures de `docs/`, versions) est copiée dans `usr/share/metainfo/`.
+Après une modification de l'un ou de l'autre :
+```bash
+desktop-file-validate packaging/linux/io.github.jgood3d.LaserStudioPro.desktop
+appstreamcli validate --no-net packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml
+```
 
 ---
 

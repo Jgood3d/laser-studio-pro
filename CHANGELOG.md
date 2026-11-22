@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
+
 Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
 
 Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel) :

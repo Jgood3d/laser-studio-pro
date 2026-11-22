@@ -1,4 +1,5 @@
-"""Cohérence de la version : application, journal des modifications, README et notes de version."""
+"""Cohérence de la version : application, journal des modifications, README, notes de version et fiche
+AppStream (packaging/linux/*.metainfo.xml)."""
 import glob
 import os
 import re
@@ -32,6 +33,16 @@ class ReleaseConsistencyTests(unittest.TestCase):
         for (v1, d1), (v2, d2) in zip(versions, versions[1:]):
             self.assertGreater(as_tuple(v1), as_tuple(v2), f"{v1} doit être plus récente que {v2}")
             self.assertGreaterEqual(d1, d2, f"la date de {v1} ({d1}) précède celle de {v2} ({d2})")
+
+    def test_appstream_first_release_matches_app_version_and_changelog_date(self):
+        metainfo = glob.glob(os.path.join(REPO, "packaging", "linux", "*.metainfo.xml"))
+        self.assertEqual(len(metainfo), 1)
+        releases = re.findall(r'<release version="([\d.]+)" date="(\d{4}-\d{2}-\d{2})"',
+                              read(os.path.relpath(metainfo[0], REPO)))
+        self.assertTrue(releases)
+        self.assertEqual(releases[0][0], self.app_version(),
+                         "la 1re <release> de la fiche AppStream doit être la version de l'application")
+        self.assertIn(releases[0], self.changelog_versions(), "date différente de celle du CHANGELOG")
 
     def test_readme_announces_the_current_version(self):
         self.assertIn(f"## Nouveautés de la version {self.app_version()}", read("README.md"))

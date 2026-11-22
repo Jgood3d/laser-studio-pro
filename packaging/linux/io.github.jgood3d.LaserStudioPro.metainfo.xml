@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Fiche AppStream : ce que GNOME Logiciels, Discover ou Flathub affichent de
+     l'application. À valider après chaque modification avec appstreamcli
+     (commande exacte dans BUILD.md, partie Linux).
+     À chaque nouvelle version, ajouter une ligne <release> en tête de <releases>
+     (le test tests/test_desktop_entry.py le vérifie). -->
+<component type="desktop-application">
+  <id>io.github.jgood3d.LaserStudioPro</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Laser Studio Pro</name>
+  <summary>Prepare and engrave images and drawings on GRBL lasers</summary>
+  <summary xml:lang="fr">Préparer et graver images et dessins sur les lasers GRBL</summary>
+
+  <developer id="io.github.jgood3d">
+    <name>Jgood3d</name>
+  </developer>
+
+  <description>
+    <p>
+      Laser Studio Pro prepares images and vector drawings for laser engraving and cutting,
+      then drives GRBL engravers and cutters over USB.
+    </p>
+    <p xml:lang="fr">
+      Laser Studio Pro prépare images et dessins vectoriels pour la gravure et la découpe laser,
+      puis pilote les graveurs et découpeuses GRBL par USB.
+    </p>
+    <ul>
+      <li>Image engraving: dithering, grayscale, resolution matched to the laser spot</li>
+      <li xml:lang="fr">Gravure d'images : tramage, niveaux de gris, résolution adaptée au spot du laser</li>
+      <li>Vector editor with layers: SVG and DXF import, text, shapes, nesting, cutting order</li>
+      <li xml:lang="fr">Éditeur vectoriel avec calques : import SVG et DXF, texte, formes, imbrication, ordre de découpe</li>
+      <li>Generators: finger-joint boxes, puzzles, name keychains, Christmas ornaments</li>
+      <li xml:lang="fr">Générateurs : boîtes à encoches, puzzles, porte-clés prénom, boules de Noël</li>
+      <li>Stencil Studio: dot and line screens, low poly, stencils ready to cut</li>
+      <li xml:lang="fr">Stencil Studio : trames de points et de lignes, low poly, pochoirs prêts à découper</li>
+      <li>Guided calibration: test matrix, bidirectional offset, camera alignment on the bed</li>
+      <li xml:lang="fr">Calibrage guidé : matrice de test, décalage aller/retour, alignement de la caméra sur le plateau</li>
+      <li>Machine control: jog, framing, job queue, 2D preview of the G-code</li>
+      <li xml:lang="fr">Pilotage de la machine : déplacements, cadrage, file d'attente, aperçu 2D du G-code</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">io.github.jgood3d.LaserStudioPro.desktop</launchable>
+  <provides>
+    <binary>laser-studio-pro</binary>
+  </provides>
+
+  <url type="homepage">https://jgood3d.github.io/laser-studio-pro/</url>
+  <url type="bugtracker">https://github.com/Jgood3d/laser-studio-pro/issues</url>
+  <url type="vcs-browser">https://github.com/Jgood3d/laser-studio-pro</url>
+  <url type="donation">https://ko-fi.com/jb3dlaser</url>
+
+  <screenshots>
+    <screenshot type="default">
+      <caption>Vector editor with layers</caption>
+      <caption xml:lang="fr">Éditeur vectoriel avec calques</caption>
+      <image>https://raw.githubusercontent.com/Jgood3d/laser-studio-pro/main/docs/shot-vector-editor.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Image engraving and filters</caption>
+      <caption xml:lang="fr">Gravure d'image et filtres</caption>
+      <image>https://raw.githubusercontent.com/Jgood3d/laser-studio-pro/main/docs/shot-image-filters.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>2D preview of the G-code</caption>
+      <caption xml:lang="fr">Aperçu 2D du G-code</caption>
+      <image>https://raw.githubusercontent.com/Jgood3d/laser-studio-pro/main/docs/shot-2d-preview.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Machine control</caption>
+      <caption xml:lang="fr">Pilotage de la machine</caption>
+      <image>https://raw.githubusercontent.com/Jgood3d/laser-studio-pro/main/docs/shot-machine-control.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>Stencil Studio</caption>
+      <image>https://raw.githubusercontent.com/Jgood3d/laser-studio-pro/main/docs/shot-stencil-studio.png</image>
+    </screenshot>
+  </screenshots>
+
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <content_rating type="oars-1.1"/>
+
+  <releases>
+    <release version="2.5.0" date="2026-11-01">
+      <description>
+        <p>Stencil Studio: dot and line screens, low poly effect, and complete boxes with lighting, opened from the main menu.</p>
+      </description>
+    </release>
+    <release version="2.4.0" date="2026-10-20"/>
+    <release version="2.3.0" date="2026-10-11"/>
+    <release version="2.2.0" date="2026-10-04"/>
+    <release version="2.1.0" date="2026-09-28"/>
+    <release version="1.7.0" date="2026-09-21"/>
+  </releases>
+</component>

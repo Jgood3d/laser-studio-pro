@@ -13,6 +13,7 @@ from PyQt6 import QtWebEngineWidgets
 from laser_studio.core.constants import SPLASH_SCREEN_DURATION
 from laser_studio.core.debug_log import setup_debug_logging
 from laser_studio.core.paths import find_resource
+from laser_studio.core.version import APP_ID
 from laser_studio.i18n import tr
 from laser_studio.ui.app.qt_messages import install_qt_message_filters
 from laser_studio.ui.splashscreen import StartupSplash
@@ -28,6 +29,8 @@ def main():
     install_qt_message_filters()
     setup_debug_logging()
     app = QApplication(sys.argv)
+    # Sous Linux, la fenêtre est rattachée à son fichier .desktop (icône du dock sous Wayland).
+    app.setDesktopFileName(APP_ID)
 
     # 1. Afficher l'écran de démarrage le plus tôt possible (il charge
     # lui-même la bannière)
