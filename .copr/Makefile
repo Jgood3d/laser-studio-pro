@@ -10,25 +10,24 @@
 TOP := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 spec ?= $(TOP)/packaging/fedora/laser-studio-pro.spec
 outdir ?= $(TOP)/dist/srpm
-# git refuse un dépôt dont il n'est pas le propriétaire (cas du chroot de Copr).
-GIT := git -c safe.directory='*' -C $(TOP)
-
+# - Une seule commande shell : make évaluerait des $(shell git ...) avant la
+#   première ligne de la recette, donc avant que dnf installe git dans le chroot.
+# - safe.directory : git refuse un dépôt dont il n'est pas le propriétaire
+#   (cas du chroot de Copr).
+# - commit et snapdate sont inscrits dans la copie du spec mise dans le SRPM :
+#   des --define seraient perdus quand Copr (ou mock) reconstruit le SRPM.
 srpm:
-	command -v git >/dev/null && command -v rpmbuild >/dev/null || dnf -y install git rpm-build
-	$(eval NAME := $(shell rpmspec -q --srpm --qf '%{name}' $(spec)))
-	$(eval VERSION := $(shell rpmspec -q --srpm --qf '%{version}' $(spec)))
-	$(eval COMMIT := $(shell $(GIT) rev-parse HEAD))
-	$(eval SNAPDATE := $(shell $(GIT) log -1 --format=%cd --date=format:%Y%m%d))
-	$(eval WORK := $(shell mktemp -d))
-	$(GIT) archive --format=tar.gz --prefix=$(NAME)-$(VERSION)/ \
-		-o $(WORK)/$(NAME)-$(VERSION).tar.gz HEAD
-	# commit et snapdate inscrits dans la copie du spec mise dans le SRPM : des
-	# --define seraient perdus quand Copr (ou mock) reconstruit le SRPM.
-	{ echo "%global commit $(COMMIT)"; echo "%global snapdate $(SNAPDATE)"; cat $(spec); } \
-		> $(WORK)/$(NAME).spec
-	rpmbuild -bs $(WORK)/$(NAME).spec \
-		--define "_sourcedir $(WORK)" \
-		--define "_srcrpmdir $(outdir)"
-	rm -rf $(WORK)
+	set -e; \
+	command -v git >/dev/null && command -v rpmbuild >/dev/null || dnf -y install git rpm-build; \
+	git="git -c safe.directory=* -C $(TOP)"; \
+	name=$$(rpmspec -q --srpm --qf '%{name}' $(spec)); \
+	version=$$(rpmspec -q --srpm --qf '%{version}' $(spec)); \
+	commit=$$($$git rev-parse HEAD); \
+	snapdate=$$($$git log -1 --format=%cd --date=format:%Y%m%d); \
+	work=$$(mktemp -d); \
+	$$git archive --format=tar.gz --prefix="$$name-$$version/" -o "$$work/$$name-$$version.tar.gz" HEAD; \
+	{ echo "%global commit $$commit"; echo "%global snapdate $$snapdate"; cat $(spec); } > "$$work/$$name.spec"; \
+	rpmbuild -bs "$$work/$$name.spec" --define "_sourcedir $$work" --define "_srcrpmdir $(outdir)"; \
+	rm -r "$$work"
 
 .PHONY: srpm

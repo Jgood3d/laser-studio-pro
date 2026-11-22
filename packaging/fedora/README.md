@@ -5,9 +5,13 @@ bibliothèques Python de Fedora (PyQt6, OpenCV, NumPy…), sans PyInstaller :
 le paquet ne pèse que quelques Mo, et les bibliothèques sont mises à jour
 par Fedora.
 
-Il est publié sur [Copr](https://copr.fedorainfracloud.org/), le service de
-dépôts RPM de Fedora : `sudo dnf copr enable <compte>/laser-studio-pro`, puis
-`sudo dnf install laser-studio-pro`.
+Il est publié sur Copr, le service de dépôts RPM de Fedora, dans le projet
+[alemorvan/laser-studio-pro](https://copr.fedorainfracloud.org/coprs/alemorvan/laser-studio-pro/) :
+
+```bash
+sudo dnf copr enable alemorvan/laser-studio-pro
+sudo dnf install laser-studio-pro
+```
 
 ## Choix du paquet
 
@@ -49,24 +53,41 @@ vite pendant la mise au point.
 
 ## Publier sur Copr
 
-Une seule fois : créer le projet, puis un paquet construit depuis le dépôt
-GitHub avec `.copr/Makefile` (méthode « make srpm ») :
+Le projet a été créé une fois pour toutes, avec un paquet construit depuis la
+branche `Dev` du dépôt GitHub par `.copr/Makefile` (méthode « make srpm ») :
 
 ```bash
 copr-cli create laser-studio-pro \
-    --chroot fedora-44-x86_64 --chroot fedora-rawhide-x86_64 \
+    --chroot fedora-43-x86_64 --chroot fedora-44-x86_64 \
+    --chroot fedora-45-x86_64 --chroot fedora-rawhide-x86_64 \
+    --chroot fedora-43-aarch64 --chroot fedora-44-aarch64 \
+    --chroot fedora-45-aarch64 --chroot fedora-rawhide-aarch64 \
     --description "Laser Studio Pro: prepare and engrave images and drawings on GRBL lasers"
 copr-cli add-package-scm laser-studio-pro --name laser-studio-pro \
-    --clone-url https://github.com/Jgood3d/laser-studio-pro --commit main \
+    --clone-url https://github.com/Jgood3d/laser-studio-pro --commit Dev \
     --method make_srpm --spec packaging/fedora/laser-studio-pro.spec \
     --webhook-rebuild on
+```
+
+Construire la dernière version de `Dev` :
+
+```bash
 copr-cli build-package laser-studio-pro --name laser-studio-pro
 ```
 
-Pour une reconstruction automatique à chaque push, ajouter le webhook indiqué
-par Copr (*Settings → Integrations*) dans *Settings → Webhooks* du dépôt
-GitHub. Un second paquet, sur la branche `Dev`, peut servir de version de
-développement.
+Essayer une autre branche sans changer le paquet (par exemple celle d'une pull
+request) :
+
+```bash
+copr-cli buildscm laser-studio-pro --clone-url <dépôt> --commit <branche> \
+    --method make_srpm --spec packaging/fedora/laser-studio-pro.spec
+```
+
+Pour une reconstruction automatique à chaque push sur `Dev`, ajouter le webhook
+indiqué par Copr (*Settings → Integrations*) dans *Settings → Webhooks* du
+dépôt GitHub. Le paquet est noarch, mais `dnf copr enable` cherche la version
+correspondant à l'architecture de la machine : d'où les chroots aarch64
+(Raspberry Pi, Mac Apple Silicon sous Asahi).
 
 ## À chaque nouvelle version
 
