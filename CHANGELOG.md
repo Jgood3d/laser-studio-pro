@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Éditeur vectoriel : loupes « Zoom avant » et « Zoom arrière » dans la barre d'édition, aussi par Ctrl++ et Ctrl+- (zoom centré sur le milieu de la vue).
+
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
 
 Fedora : paquet RPM dans le dépôt Copr `alemorvan/laser-studio-pro` (Fedora 43, 44 et 45, x86_64 et aarch64) : `sudo dnf copr enable alemorvan/laser-studio-pro` puis `sudo dnf install laser-studio-pro`.
@@ -54,7 +56,15 @@ Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à pa
 
 Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
 
+Séparation couleur / verre : `separation_mixin.py` supprimé. L'ouverture, la rotation et le retrait de l'image, le rafraîchissement des aperçus et l'export passent dans `SeparationController`, avec des boîtes de dialogue simulables dans les tests ; l'onglet `SeparationTab` affiche lui-même aperçus, nom du fichier et résolution ; le test du gain de point rejoint `JobController`, à côté du motif aller/retour. Comportement inchangé, vérifié dans la fenêtre (chargement, aperçus, rotation, test du gain, export, suppression).
+
+Graver une image : `image_processing_mixin.py` supprimé, la fenêtre n'hérite plus que de `WindowControllerMixin`. Le traitement et le tramage sortent de `workers.py` dans `image/dithering.py`, sans Qt (pixels identiques, vérifiés sur 144 traitements et 60 vignettes de comparaison) ; la grille du test du gain de point dans `image/gain_test.py`. Chargement, rotation, retrait, proportions, traitement dans un thread et comparaison des algorithmes passent dans un contrôleur `ImageController` ; la résolution (lignes/mm, DPI, focale) est tenue à jour par le cadre `ResolutionBox` lui-même, qui prend la focale transmise par les Paramètres Machine au lieu de la relire dans le modèle. Comportement inchangé, vérifié dans la fenêtre.
+
+Fenêtre principale : `WindowControllerMixin` remplacé par des objets, la fenêtre n'hérite plus d'aucun mixin. Les onglets (affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs) passent dans `MainTabs` (`ui/app/tabs.py`), l'affichage des résultats du job et de l'état du graveur dans `JobDisplay` (`ui/app/job_display.py`), « Pivoter », « Supprimer » et les miroirs de la barre d'outils dans `ImageToolbarActions` (`ui/app/image_actions.py`) ; `WindowController` garde les menus, le thème, la langue, l'aide, la caméra, les fenêtres de réglages, la résolution et les outils de dessin. Ce qui s'enregistre et se restaure (réglages machine au démarrage et à la fermeture, champs d'un profil machine, état d'un projet, recopie des calques dans le matériau choisi) passe dans `WindowState` (`ui/app/window_state.py`). Les menus sont abonnés une fois toute la fenêtre construite. Comportement inchangé, vérifié dans la fenêtre (onglets, plein écran, panneau du bas, génération, barre d'outils de l'image, outils de dessin, réglages, focale, thème).
+
 ### Corrigé
+Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.
+
 Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
 

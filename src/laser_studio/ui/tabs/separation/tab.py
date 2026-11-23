@@ -1,6 +1,9 @@
-"""Onglet « Séparation Couleur / Verre » : réglages et aperçus."""
+"""Onglet « Séparation Couleur / Verre » : réglages et aperçus. La logique est
+dans controllers.separation.SeparationController ; l'onglet émet des signaux
+quand l'utilisateur agit et affiche ce que le contrôleur lui envoie."""
 
 from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QImage
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -19,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.ui.binding import bind
 from laser_studio.ui.widgets import ZoomableGraphicsView
 
 IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".bmp", ".webp", ".tif", ".tiff")
@@ -69,6 +73,7 @@ class SeparationTab(QWidget):
         super().__init__(parent)
         self._image_ratio = None  # largeur / hauteur de l'image chargée
         self._block = False  # évite les boucles entre largeur et hauteur
+        self._preview_sizes = {}  # taille de l'image de chaque aperçu (cadrage gardé si inchangée)
         self.setAcceptDrops(True)
         outer = QVBoxLayout(self)
         outer.setContentsMargins(4, 4, 4, 4)
@@ -297,6 +302,55 @@ class SeparationTab(QWidget):
         if tip_key:
             slider.setToolTip(tr(tip_key))
         return slider
+
+    # -- modèle et contrôleur
+
+    def bind_settings(self, settings):
+        """Lie les champs de l'onglet aux réglages `settings` (SeparationSettings)."""
+        for widget, field in (
+            (self.plate_width_spin, "plate_w"),
+            (self.plate_height_spin, "plate_h"),
+            (self.print_dpi_spin, "print_dpi"),
+            (self.gain_slider, "gain"),
+            (self.saturation_slider, "saturation"),
+            (self.lightness_slider, "lightness"),
+            (self.mirror_print_check, "mirror_print"),
+            (self.diffusion_slider, "diffusion"),
+            (self.intensity_slider, "intensity"),
+        ):
+            bind(widget, settings, field)
+
+    def set_source(self, ratio, file_name):
+        """Image chargée, pivotée (proportions, nom du fichier) ou retirée
+        (None) : SeparationController.source_changed."""
+        self.set_image_ratio(ratio)
+        if ratio is None:
+            self.file_label.setText(tr("sep.no_image_loaded"))
+            self.clear_previews()
+        elif file_name:
+            self.file_label.setText(file_name)
+
+    def show_preview(self, index, image):
+        """Affiche l'image PIL `image` dans l'aperçu `index`. Le zoom est
+        gardé tant que la taille de l'image ne change pas."""
+        view = self.preview_views[index]
+        if self._preview_sizes.get(index) != image.size:
+            view.clear_image()
+            self._preview_sizes[index] = image.size
+        w, h = image.size
+        # QImage lit `data` sans le copier : il doit vivre jusqu'au copy().
+        if image.mode == "L":
+            data = image.tobytes()
+            qimg = QImage(data, w, h, w, QImage.Format.Format_Grayscale8)
+        else:
+            data = image.convert("RGB").tobytes()
+            qimg = QImage(data, w, h, 3 * w, QImage.Format.Format_RGB888)
+        view.set_image(qimg.copy())
+
+    def clear_previews(self):
+        for view in self.preview_views:
+            view.clear_image()
+        self._preview_sizes = {}
 
     # -- état reçu de la fenêtre
 

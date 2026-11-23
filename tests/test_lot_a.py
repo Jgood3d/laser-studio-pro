@@ -34,7 +34,7 @@ class HomingTests(unittest.TestCase):
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
         self.assertNotIn("chk_homing", read(os.path.join("controllers", "machine_profiles.py")))
-        window = read("main_window.py")
+        window = read(os.path.join("ui", "app", "window_state.py"))
         profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
         self.assertNotIn("chk_homing", profiles)
         self.assertNotIn("chk_homing", project_state_source())
@@ -74,10 +74,13 @@ class NaturalSizeTests(unittest.TestCase):
 
 
 try:
-    import laser_studio.image_processing_mixin as ipm
+    from PyQt6.QtWidgets import QApplication
+    from laser_studio.controllers.image import ImageController
+    from laser_studio.models.image_settings import ImageSettings
     from laser_studio.models.machine import MachineConfig
+    from job_fakes import FakeDialogs
 except ImportError:
-    ipm = None
+    ImageController = None
 
 
 class Spin:
@@ -88,20 +91,23 @@ class Spin:
     def setValue(self, v): self._v = float(v)
 
 
-@unittest.skipIf(ipm is None, "image_processing_mixin non importable ici")
+@unittest.skipIf(ImageController is None, "PyQt6 non importable ici")
 class LoadImageTests(unittest.TestCase):
+    """Chargement d'une image dans « Graver une image » (ImageController.load_path)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
     def make(self, bed=(400.0, 400.0)):
-        class Fake(ipm.ImageProcessingMixin):
-            def display_source_image(self): pass
-            def update_image_processing(self, *a): pass
-        f = Fake.__new__(Fake)
-        f.spin_w, f.spin_h = Spin(100.0), Spin(100.0)
-        f.machine = MachineConfig()
+        f = types_ns(spin_w=Spin(100.0), spin_h=Spin(100.0), console=[], machine=MachineConfig())
         f.machine.update(bed_w=bed[0], bed_h=bed[1])
-        f.block_aspect_signal = False
-        f.console = []
-        f.txt_console = types_ns(append=f.console.append)
-        f.show_status_message = lambda text, tooltip=None: f.console.append(text)   # barre d'état
+        f.image = ImageController(
+            ImageSettings(), f.machine, FakeDialogs(),
+            size_mm=lambda: (f.spin_w.value(), f.spin_h.value()),
+            set_size=lambda w, h: (f.spin_w.setValue(w), f.spin_h.setValue(h)),
+            keep_ratio=lambda: True, lines_mm=lambda: 10.0)
+        f.image.status.connect(lambda text, _tooltip: f.console.append(text))   # barre d'état
         return f
 
     def load(self, image, bed=(400.0, 400.0), **save_kw):
@@ -109,7 +115,8 @@ class LoadImageTests(unittest.TestCase):
             path = os.path.join(d, "x." + save_kw.pop("ext", "png"))
             image.save(path, **save_kw)
             f = self.make(bed)
-            f.load_image_from_path(path)
+            f.image.load_path(path)
+            f.image.timer.stop()                       # pas de tramage dans ces tests
         return f
 
     def test_png_with_a_resolution_uses_its_real_size(self):
@@ -139,7 +146,7 @@ class LoadImageTests(unittest.TestCase):
 
     def test_aspect_flag_is_released_and_never_100_mm_by_default(self):
         f = self.load(Image.new("L", (200, 100), 128), dpi=(254, 254))
-        self.assertFalse(f.block_aspect_signal)
+        self.assertFalse(f.image._applying_size)
         self.assertAlmostEqual(f.spin_w.value(), 20.0, delta=0.05)
         self.assertAlmostEqual(f.spin_h.value(), 10.0, delta=0.05)
 

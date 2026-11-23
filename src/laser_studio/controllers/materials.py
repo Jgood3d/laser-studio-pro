@@ -17,9 +17,9 @@ from laser_studio.models.layer_modes import MODE_CUT as CUT_MODE, MODE_FILL as E
 # Base de matériaux utilisée (1) au tout premier lancement de l'application,
 # avant tout profil machine, et (2) comme repli pour un ancien profil machine
 # enregistré avant l'ajout de la liaison materials_db <-> profil (voir
-# main_window._apply_machine_profile). Une nouvelle machine créée après cet ajout
+# WindowState.apply_machine_profile). Une nouvelle machine créée après cet ajout
 # démarre avec une COPIE de cette base, qu'elle peut ensuite personnaliser
-# sans affecter les autres profils (voir main_window._capture_machine_profile).
+# sans affecter les autres profils (voir WindowState.capture_machine_profile).
 DEFAULT_MATERIALS_DB = {
     "Personnalisé": {
         "sp_e": 2000,

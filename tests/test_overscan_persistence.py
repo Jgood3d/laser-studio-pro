@@ -81,12 +81,12 @@ class OverscanPersistenceTests(unittest.TestCase):
                            "overscan_dist_mm": 3.2, "overscan_pct": 5.0}.items():
             self.assertEqual(values[key], value, key)
         self.assertNotIn("smax", values)                 # pas un réglage du profil
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "ui", "app", "window_state.py"), encoding="utf-8") as f:
             src = f.read()
-        capture = src[src.index("def _capture_machine_profile"):src.index("def _apply_machine_profile")]
-        self.assertIn("**self.grbl.profile_values()", capture)  # « Mettre à jour le profil »
-        apply = src[src.index("def _apply_machine_profile"):src.index("def _machine_memory")]
-        self.assertIn("self.grbl.apply_profile(profile)", apply)  # changement, démarrage
+        capture = src[src.index("def capture_machine_profile"):src.index("def apply_machine_profile")]
+        self.assertIn("**w.grbl.profile_values()", capture)  # « Mettre à jour le profil »
+        apply = src[src.index("def apply_machine_profile"):src.index("def machine_memory")]
+        self.assertIn("w.grbl.apply_profile(profile)", apply)  # changement, démarrage
 
     def test_homing_choice_survives_a_restart(self):
         """« Inclure $H » décoché (graveur sans homing) : décoché au prochain

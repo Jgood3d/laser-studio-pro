@@ -3,8 +3,8 @@
 dialogue : la fenêtre s'abonne à ses signaux et affiche ce qu'il faut.
 
     connection = MachineConnection(parent=window)
-    connection.status_updated.connect(window._on_status_updated)
-    connection.connection_changed.connect(window.update_connection_widgets)
+    connection.status_updated.connect(job_display.status_updated)
+    connection.connection_changed.connect(lambda _connected: job_display.update_connection())
     if connection.connect("/dev/ttyUSB0"):
         settings = connection.read_settings()      # {"$22": "1", "$32": "1", ...}
         connection.home()

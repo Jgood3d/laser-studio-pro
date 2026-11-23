@@ -14,7 +14,7 @@ try:
     from laser_studio.controllers.machine_connection import MachineConnection
     from laser_studio.grbl.commands import parse_grbl_settings
     from laser_studio.models.grbl import GrblConfig
-    from laser_studio.ui.app.window_controller import WindowControllerMixin
+    from laser_studio.ui.app.job_display import set_homing_available
     from job_fakes import FakeDialogs
 except ImportError:  # PyQt6, pyserial... manquants
     EngraverController = None
@@ -59,7 +59,9 @@ class _USB:
 
 class _Window:
     """Les deux cases homing de la fenêtre (Configuration GRBL, matrice de test)."""
-    _set_homing_available = WindowControllerMixin._set_homing_available if EngraverController else None
+
+    def _set_homing_available(self, available, tip):
+        return set_homing_available((self.chk_homing, self.chk_mat_homing), available, tip)
 
 
 @unittest.skipIf(EngraverController is None, "PyQt6 non importable ici")

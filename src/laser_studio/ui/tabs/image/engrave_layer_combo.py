@@ -24,7 +24,7 @@ class EngraveLayerComboBox(QComboBox):
     la remplit (comme MaterialComboBox) :
 
         combo = EngraveLayerComboBox()
-        combo.layer_selected.connect(self._on_engrave_layer_chosen)
+        combo.layer_selected.connect(layer_manager.select_engrave_layer)
         combo.set_layers(layer_manager.layers, current_id)
     """
 

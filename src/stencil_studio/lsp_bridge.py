@@ -206,14 +206,14 @@ def import_exported_file(window, path):
         elif path.lower().endswith(".svg"):
             stats = _import_svg_routed(window, path)
         else:
-            window._import_vector_file(path)
+            window.vector_editor.import_file(path)
             stats = None
         _notify_import(window, path, stats)
         return stats
     except Exception as e:
         _say(window, f">>> Stencil Studio : import impossible ({e}), repli import standard.")
         try:
-            window._import_vector_file(path)
+            window.vector_editor.import_file(path)
         except Exception as e2:
             _say(window, f">>> Stencil Studio : échec import standard ({e2}).")
             _status(window, f"Stencil Studio : échec import — {e2}")

@@ -14,7 +14,7 @@ class Png2SvgTab(QWidget):
 
         tab = Png2SvgTab()
         tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)
-        tab.image_changed.connect(self.update_image_actions_state)
+        tab.image_changed.connect(image_actions.update_state)
     """
 
     # Texte du SVG généré, à ajouter à l'éditeur vectoriel.

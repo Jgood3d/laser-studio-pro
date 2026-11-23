@@ -4864,6 +4864,18 @@ TRANSLATIONS = {
         "de": "↷ Wiederholen (Ctrl+Y)",
         "es": "↷ Rehacer (Ctrl+Y)",
     },
+    "ui.vector_zoom_in": {
+        "fr": "Zoom avant (Ctrl++)",
+        "en": "Zoom in (Ctrl++)",
+        "de": "Vergrößern (Ctrl++)",
+        "es": "Acercar (Ctrl++)",
+    },
+    "ui.vector_zoom_out": {
+        "fr": "Zoom arrière (Ctrl+-)",
+        "en": "Zoom out (Ctrl+-)",
+        "de": "Verkleinern (Ctrl+-)",
+        "es": "Alejar (Ctrl+-)",
+    },
     "ui.vector_align_box": {
         "fr": "Alignement / Distribution",
         "en": "Alignment / Distribution",

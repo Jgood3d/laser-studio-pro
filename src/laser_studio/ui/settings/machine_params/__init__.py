@@ -5,7 +5,7 @@ Utilisation :
     from laser_studio.ui.settings.machine_params import MachineParamsPage
 
     page = MachineParamsPage()
-    page.focal_changed.connect(self._on_machine_focal_changed)
+    page.focal_changed.connect(window_controller.machine_focal_changed)
 """
 
 from laser_studio.ui.settings.machine_params.page import MachineParamsPage
