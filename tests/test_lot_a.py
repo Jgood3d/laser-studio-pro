@@ -34,7 +34,7 @@ class HomingTests(unittest.TestCase):
 
     def test_it_is_not_overridden_by_machine_profiles_or_projects(self):
         self.assertNotIn("chk_homing", read(os.path.join("controllers", "machine_profiles.py")))
-        window = read("main_window.py")
+        window = read(os.path.join("ui", "app", "window_state.py"))
         profiles = window[window.index("    # -- Réglages machine"):window.index("    # -- Projet : état")]
         self.assertNotIn("chk_homing", profiles)
         self.assertNotIn("chk_homing", project_state_source())

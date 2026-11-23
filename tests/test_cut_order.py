@@ -137,8 +137,8 @@ class WiringTests(unittest.TestCase):
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
         pj = project_state_source()
-        self.assertIn('"safe_cut_order": self.grbl.safe_cut_order', pj)
-        self.assertIn('self.grbl.update(safe_cut_order=data.get("safe_cut_order", True))', pj)
+        self.assertIn('"safe_cut_order": w.grbl.safe_cut_order', pj)
+        self.assertIn('w.grbl.update(safe_cut_order=data.get("safe_cut_order", True))', pj)
 
 
 if __name__ == "__main__":

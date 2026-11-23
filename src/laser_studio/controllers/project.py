@@ -26,7 +26,7 @@ class ProjectController:
     dictionnaire, que la fenêtre fournit et réapplique.
 
         project = ProjectController(
-            self, capture=self._capture_project, restore=self._restore_project,
+            self, capture=state.capture_project, restore=state.restore_project,
             show_recent_projects=..., log_to_console=...,
         )
         actions.save_project_requested.connect(project.save)

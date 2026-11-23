@@ -136,8 +136,8 @@ class IntegrationSourceTests(unittest.TestCase):
 
     def test_project_saves_and_restores_it_with_a_default(self):
         pj = project_state_source()
-        self.assertIn("**self.image_settings.to_project()", pj)
-        self.assertIn("self.image_settings.load_project(data)", pj)
+        self.assertIn("**w.image_settings.to_project()", pj)
+        self.assertIn("w.image_settings.load_project(data)", pj)
         from laser_studio.models.image_settings import ImageSettings
         settings = ImageSettings()
         settings.update(sharpness=25)
