@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Debian et Ubuntu : paquet `.deb` (Debian 13 et plus récentes, Ubuntu 25.04 et plus récentes), avec les bibliothèques Python du système : `sudo apt install ./laser-studio-pro_<version>_all.deb`. Joint à chaque release ; construit par `packaging/debian/build-deb.sh`.
+
 Graver une image et Visualisation 2D G-Code : loupes « Zoom avant » et « Zoom arrière » dans la barre d'outils (aussi Ctrl++ et Ctrl+-), zoom centré sur la vue. Dans « Graver une image », l'originale et le rendu tramé zooment ensemble.
 
 Graver une image : effet bande dessinée, à la manière du filtre « Bande dessinée » de GIMP. Deux curseurs, « BD : rayon » (rayon du masque, en mm sur la pièce) et « BD : noir » (pourcentage de noir), noircissent le bord des traits avant le tramage. Enregistré dans le projet, annulable par Ctrl+Z.

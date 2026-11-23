@@ -71,11 +71,12 @@ laser-studio-pro/
 ├── requirements-linux.txt / requirements-windows.txt   # dépendances par plateforme
 ├── requirements_principal.txt        # versions exactes figées pour les builds
 ├── .copr/Makefile                    # paquet source (SRPM) construit par Copr depuis le commit courant, voir packaging/fedora/
-├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage, Windows, macOS, release en brouillon), macos-build.yml
+├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage et .deb, Windows, macOS, release en brouillon), macos-build.yml
 ├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
 │   ├── fedora/                       # laser-studio-pro.spec (paquet RPM, Copr), README.md
+│   ├── debian/                       # build-deb.sh, debian/ (control, rules : paquet .deb, bibliothèques Debian), README.md
 │   ├── linux/                        # build-linux.sh, build-appimage.sh, io.github.jgood3d.LaserStudioPro.desktop (entrée de menu), .metainfo.xml (fiche AppStream des logithèques)
 │   ├── macos/                        # LaserStudioPro.spec, build_macos.sh, run_macos.sh, requirements-macos.txt, laser_studio_pro.icns, README.md
 │   └── pyinstaller/                  # LaserStudioPro.spec (commun Windows / Linux), bundle_filter.py (filtre des fichiers inutiles)

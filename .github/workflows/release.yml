@@ -1,6 +1,6 @@
 name: Release
 
-# Compile Laser Studio Pro pour Linux (AppImage), Windows (installeur) et
+# Compile Laser Studio Pro pour Linux (AppImage et paquet .deb), Windows (installeur) et
 # macOS (.dmg arm64 et x86_64), puis crée la release GitHub en BROUILLON avec
 # tous les fichiers : un mainteneur la relit et clique sur « Publier ».
 #
@@ -229,9 +229,55 @@ jobs:
           path: dist/${{ env.DMG_NAME }}
           retention-days: 30
 
+  # Paquet .deb (Debian 13, Ubuntu 25.04 et plus récentes) : bibliothèques Python de Debian, voir
+  # packaging/debian/README.md. Construit dans Debian 13, puis installé et lancé dans le même conteneur.
+  debian:
+    needs: tests
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    steps:
+      - name: Outils de construction
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends git ca-certificates build-essential debhelper dh-python \
+            pybuild-plugin-pyproject python3-all python3-setuptools desktop-file-utils appstream
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # nombre de commits : version de développement ordonnée
+
+      - name: Paquet
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          packaging/debian/build-deb.sh
+          ls -lh dist/deb
+
+      # Installé avec ses dépendances Debian, il doit démarrer et rester ouvert (timeout : code 124).
+      # Utilisateur normal : le moteur web de Stencil Studio refuse root.
+      - name: Vérifier que le paquet s'installe et démarre
+        env:
+          QT_QPA_PLATFORM: offscreen
+          NOWARNING: "1"
+        run: |
+          apt-get install -y ./dist/deb/*.deb
+          useradd -m essai
+          set +e
+          su essai -c "QT_QPA_PLATFORM=offscreen NOWARNING=1 timeout 30 laser-studio-pro"
+          code=$?
+          echo "Code de sortie : $code"
+          [ "$code" -eq 124 ]
+
+      - name: Artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LaserStudioPro-debian
+          path: dist/deb/*.deb
+          retention-days: 30
+
   release:
     if: github.ref_type == 'tag'
-    needs: [linux, windows, macos]
+    needs: [linux, windows, macos, debian]
     runs-on: ubuntu-latest
     permissions:
       contents: write   # créer la release et y déposer les fichiers
