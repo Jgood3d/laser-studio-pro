@@ -1,7 +1,7 @@
 """Réglages de l'onglet « Graver une image » (panneau de gauche)."""
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtCore import QPointF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QPen, QPolygonF, QShortcut
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -14,10 +14,14 @@ from PyQt6.QtWidgets import (
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS
 from laser_studio.ui.binding import bind
+from laser_studio.ui.utils import painted_icon
 from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
 from laser_studio.ui.widgets import SliderWithButtons
+
+# Hauteur du bouton « Charger Image » (px) : la cible la plus utilisée de l'onglet.
+LOAD_BUTTON_HEIGHT = 56
 
 
 class ImageSettingsPanel(QWidget):
@@ -58,6 +62,10 @@ class ImageSettingsPanel(QWidget):
         super().__init__(parent)
         layout = QFormLayout(self)
         load_button = QPushButton(tr("img.load"))
+        # Grande cible : image dessinée à gauche du libellé, bouton plus haut que les autres champs.
+        load_button.setIcon(self._picture_icon())
+        load_button.setIconSize(QSize(32, 32))
+        load_button.setMinimumHeight(LOAD_BUTTON_HEIGHT)
         load_button.clicked.connect(self.load_requested)
         layout.addRow(load_button)  # toute la largeur du panneau
         self._build_size_fields()
@@ -72,6 +80,8 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.contrast"), self._contrast_row)
         layout.addRow(tr("img.gamma"), self._gamma_row)
         layout.addRow(tr("img.sharpness"), self._sharpness_row)
+        layout.addRow(tr("img.cartoon_radius"), self._cartoon_radius_row)
+        layout.addRow(tr("img.cartoon_black"), self._cartoon_black_row)
         layout.addRow(tr("img.material_bg"), self._material_combo())
         layout.addRow("", self.invert_check)
         layout.addRow(tr("img.algorithm"), self._algorithm_combo())
@@ -79,6 +89,19 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
         self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
+
+    def _picture_icon(self):
+        """Icône « image » : cadre, montagnes et soleil, dans la couleur du texte du thème."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(3, 5, 26, 22, 3, 3)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(22, 12), 3, 3)
+            painter.drawPolygon(QPolygonF([QPointF(5, 25), QPointF(13, 14), QPointF(19, 21), QPointF(22, 18),
+                                           QPointF(27, 25)]))
+        return painted_icon(self.palette(), draw)
 
     def bind_settings(self, settings):
         """Lie les champs du tramage (curseurs, négatif, matière, algorithme)
@@ -89,6 +112,8 @@ class ImageSettingsPanel(QWidget):
             (self.contrast_slider, "contrast"),
             (self.gamma_slider, "gamma"),
             (self.sharpness_slider, "sharpness"),
+            (self.cartoon_radius_slider, "cartoon_radius"),
+            (self.cartoon_black_slider, "cartoon_black"),
             (self.invert_check, "invert"),
         ):
             bind(widget, settings, field)
@@ -126,6 +151,8 @@ class ImageSettingsPanel(QWidget):
             "contrast": self.contrast_slider.value(),
             "gamma": self.gamma_slider.value(),
             "sharp": self.sharpness_slider.value(),
+            "cartoon_r": self.cartoon_radius_slider.value(),
+            "cartoon_k": self.cartoon_black_slider.value(),
             "invert": self.invert_check.isChecked(),
             "algo": self.algorithm_combo.currentText(),
         }
@@ -158,6 +185,14 @@ class ImageSettingsPanel(QWidget):
         self.gamma_slider = self._gamma_row.slider
         self.sharpness_slider = self._sharpness_row.slider
         self.sharpness_slider.setToolTip(tr("img.sharpness_tip"))
+        # Effet bande dessinée (comme le filtre de GIMP) : rayon du masque en dixièmes de mm, 0 = sans effet.
+        self._cartoon_radius_row = self._slider_row(
+            0, 50, 0, formatter=lambda v: f"{v / 10.0:.1f} mm" if v else tr("img.cartoon_off"))
+        self._cartoon_black_row = self._slider_row(0, 100, 20, formatter=lambda v: f"{v} %")
+        self.cartoon_radius_slider = self._cartoon_radius_row.slider
+        self.cartoon_black_slider = self._cartoon_black_row.slider
+        self.cartoon_radius_slider.setToolTip(tr("img.cartoon_radius_tip"))
+        self.cartoon_black_slider.setToolTip(tr("img.cartoon_black_tip"))
         self.invert_check = QCheckBox(tr("img.invert"))
         self.invert_check.stateChanged.connect(self.processing_changed)
 

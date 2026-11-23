@@ -64,6 +64,8 @@ ses réglages se modifient dans l'onglet *Calques (Layers)*. Voir
 | Contraste  | Écarte les clairs et les sombres : l'image devient plus franche |
 | Gamma      | Éclaircit ou assombrit les tons moyens, sans toucher au noir et au blanc |
 | Netteté    | Accentue les contours : visages, petits détails et textes ressortent mieux. Au-delà de 60, des halos peuvent apparaître |
+| BD : rayon | Effet bande dessinée, comme le filtre « Bande dessinée » de GIMP : noircit le bord des traits. Le rayon (en mm sur la pièce) est la zone à laquelle chaque point est comparé : petit rayon, traits fins ; grand rayon, traits épais et aplats noirs. « sans » : aucun effet |
+| BD : noir  | Part de l'image qui devient noire avec l'effet bande dessinée : plus haut, plus de noir autour des traits |
 
 Chaque réglage s'annule avec **Ctrl+Z** et se refait avec **Ctrl+Y**.
 **Réinitialiser Réglages Image** remet tout à zéro. La case **Afficher

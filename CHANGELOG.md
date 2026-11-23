@@ -7,6 +7,10 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Graver une image : effet bande dessinée, à la manière du filtre « Bande dessinée » de GIMP. Deux curseurs, « BD : rayon » (rayon du masque, en mm sur la pièce) et « BD : noir » (pourcentage de noir), noircissent le bord des traits avant le tramage. Enregistré dans le projet, annulable par Ctrl+Z.
+
+Graver une image : le bouton « Charger Image » est plus grand, avec une image, pour être trouvé du premier coup.
+
 Macros : vos propres boutons de commandes G-code, sous les actions de job (décaler la tête, origine machine, pointeur…). **Outils › Macros…** ou le bouton à droite des actions de job ouvre l'éditeur : nom, infobulle, confirmation, profils machine où la macro apparaît, G-code. Une macro part seulement graveur connecté et jamais pendant un job ; si elle allume le laser, elle est marquée d'un ⚠ et toujours confirmée (Non par défaut). Enregistrées dans `macros.yaml`, exportables et importables (nouvelle dépendance : PyYAML).
 
 Caméra, alignement sur le plateau :

@@ -3,7 +3,8 @@
     out_arr, dither_img = process_image(raw_image, params)
 
 `params` : w_mm, h_mm, lmm (taille et résolution de gravure), mirror_h,
-mirror_v, bright, contrast, gamma (× 100), sharp, invert et algo, au format
+mirror_v, bright, contrast, gamma (× 100), sharp, cartoon_r (dixièmes de mm),
+cartoon_k (% de noir), invert et algo, au format
 de ImageSettings.processing_params complété par la taille. Le calcul tourne
 dans un thread (controllers/workers.ImageProcessingWorker) ; la comparaison des
 algorithmes (comparison_thumbnails) est assez rapide pour le thread de
@@ -12,7 +13,7 @@ l'interface.
 import numpy as np
 from PIL import Image, ImageEnhance
 
-from laser_studio.image.filters import sharpen_image
+from laser_studio.image.filters import cartoon_detail_px, cartoon_filter, cartoon_radius_px, sharpen_image
 
 try:
     from numba import njit
@@ -182,7 +183,7 @@ def _adjust_tones(img, bright, contrast, gamma):
 
 def process_image(raw_image, params):
     """Image prête à graver : `raw_image` (PIL, niveaux de gris) mise à la taille
-    de gravure (w_mm × h_mm à lmm lignes/mm), miroirs, tons, netteté, négatif
+    de gravure (w_mm × h_mm à lmm lignes/mm), miroirs, tons, effet bande dessinée, netteté, négatif
     puis tramage. Renvoie (tableau uint8 : 0 = brûlé, image PIL du tableau), ou
     None s'il n'y a pas d'image ou si la taille fait moins d'un pixel."""
     if not raw_image:
@@ -200,6 +201,9 @@ def process_image(raw_image, params):
         img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
 
     arr = _adjust_tones(img, params['bright'], params['contrast'], params['gamma'] / 100.0)
+
+    # Effet bande dessinée : sur les tons réglés, avant la netteté (qui accentue ses traits).
+    arr = _cartoon(arr, params, lmm)
 
     # Netteté : après les réglages de tons, juste avant l'inversion et le tramage.
     sharp = float(params.get('sharp', 0) or 0)
@@ -220,13 +224,25 @@ def process_image(raw_image, params):
     return out_arr, Image.fromarray(out_arr)
 
 
-def comparison_thumbnails(raw_image, brightness, contrast, gamma, sharpness, invert):
+def _cartoon(arr, params, px_per_mm):
+    """Effet bande dessinée de `params` (cartoon_r en dixièmes de mm, cartoon_k en %), à `px_per_mm`."""
+    radius_mm = float(params.get('cartoon_r', 0) or 0) / 10.0
+    if radius_mm <= 0 or not px_per_mm:
+        return arr
+    return cartoon_filter(arr, cartoon_radius_px(radius_mm, px_per_mm), params.get('cartoon_k', 20),
+                          cartoon_detail_px(px_per_mm))
+
+
+def comparison_thumbnails(raw_image, brightness, contrast, gamma, sharpness, invert, cartoon=None):
     """[(algorithme, tableau tramé)] : une vignette de `raw_image` par algorithme de
     COMPARED_ALGORITHMS, avec les réglages de tons actuels (gamma × 100).
-    Calculé sur une miniature basse résolution : quasi instantané."""
+    `cartoon` : (cartoon_r, cartoon_k, largeur de gravure en mm) pour appliquer l'effet bande
+    dessinée à l'échelle de la vignette. Calculé sur une miniature basse résolution : quasi instantané."""
     img = raw_image.copy()
     img.thumbnail((THUMBNAIL_SIZE, THUMBNAIL_SIZE), Image.Resampling.LANCZOS)
     arr = _adjust_tones(img, brightness, contrast, gamma / 100.0)
+    if cartoon is not None and cartoon[2] > 0:
+        arr = _cartoon(arr, {'cartoon_r': cartoon[0], 'cartoon_k': cartoon[1]}, img.width / cartoon[2])
     if sharpness > 0:
         arr = np.array(sharpen_image(Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8)), sharpness),
                        dtype=np.float32)
