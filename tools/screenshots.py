@@ -77,7 +77,7 @@ def main():
     install_breeze_icon_theme()
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
-    from laser_studio import main_window
+    from laser_studio.ui.app import main_window
 
     window = main_window.FullLaserStudio()
     apply_saved_theme(app)
@@ -111,7 +111,7 @@ def main():
     while window.job_display.last_gcode_text is None and time.time() < end:
         pump(0.2)
     pump(1.0)
-    window.png2svg_widget._load_image_path(SAMPLE_IMAGE)
+    window.tab_png2svg.converter._load_image_path(SAMPLE_IMAGE)
     pump(1.5)
     window.separation.load_path(SEPARATION_IMAGE)
     pump(1.5)
@@ -139,7 +139,7 @@ def main():
     from laser_studio.ui.dialogs.nesting import NestingDialog
     from laser_studio.ui.support import SupportDialog
 
-    bed = (window.spin_machine_w.value(), window.spin_machine_h.value())
+    bed = (window.machine.bed_w, window.machine.bed_h)
     dialogs = (
         AboutDialog(window),
         SupportDialog(window),

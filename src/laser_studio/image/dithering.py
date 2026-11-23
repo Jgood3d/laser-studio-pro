@@ -5,7 +5,7 @@
 `params` : w_mm, h_mm, lmm (taille et résolution de gravure), mirror_h,
 mirror_v, bright, contrast, gamma (× 100), sharp, invert et algo, au format
 de ImageSettings.processing_params complété par la taille. Le calcul tourne
-dans un thread (workers.ImageProcessingWorker) ; la comparaison des
+dans un thread (controllers/workers.ImageProcessingWorker) ; la comparaison des
 algorithmes (comparison_thumbnails) est assez rapide pour le thread de
 l'interface.
 """

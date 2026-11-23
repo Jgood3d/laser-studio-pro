@@ -3,7 +3,6 @@ AppStream (packaging/linux/*.metainfo.xml) et spec RPM (packaging/fedora/)."""
 import glob
 import os
 import re
-import sys
 import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -3,10 +3,11 @@
 Photo -> silhouette de découpe laser (pochoir avec ponts), export SVG / DXF en mm.
 
 ## Lancer
-Double-clic sur `lancer_studio.bat` (installe les dépendances la première fois), ou :
+Double-clic sur `lancer_studio.bat` (installe les dépendances la première fois), ou, depuis le dossier
+qui **contient** `stencil_studio/` :
 
-    py -m pip install -r requirements.txt
-    py studio.py
+    py -m pip install -r stencil_studio/requirements.txt
+    py -m stencil_studio
 
 Le navigateur s'ouvre sur http://127.0.0.1:8765 (tout reste sur ton PC).
 
@@ -20,10 +21,21 @@ Le navigateur s'ouvre sur http://127.0.0.1:8765 (tout reste sur ton PC).
 6. **Exporter** en SVG ou DXF. Les réglages peuvent être enregistrés / rechargés (JSON).
 
 ## Fichiers
-- `core.py` : traitement (indépendant de l'interface, réutilisable dans le logiciel)
-- `studio.py` + `studio.html` : interface (les deux doivent être dans le même dossier)
+- `core.py`, `lightbox.py`, `engrave.py`, `subject_ai.py` : calcul (sans interface, réutilisable dans le logiciel)
+- `server.py` : serveur local (127.0.0.1) qui sert la page et son API ; `python -m stencil_studio` le lance avec le navigateur
+- `models/` : données sans interface — `session.py` (photo, repères peints), `presets.py` (réglages enregistrés)
+- `controllers/` : `api.py` (aperçu, visage, export demandés par la page), `studio.py` (fenêtre du Studio dans LSP : ouverture, préchauffage, repli, thème)
+- `ui/` : `studio.html` (la page), `dialog.py` (fenêtre Qt qui l'affiche), `window.py` (fenêtre en processus séparé), `themes.py` (couleurs)
+- `resources/` : police DejaVu et modèle de détourage (`models/u2netp.onnx`, téléchargé au premier usage si absent)
 - `lasercut_stencil.py` : version ligne de commande
 - `i18n.py` + `locales/*.json` : traductions (`tr("English text")`). Ajouter une langue = ajouter un `xx.json`.
+
+## Structure modèle / vue / contrôleur
+- `studio.py` est découpé : serveur HTTP (`server.py`), API de calcul (`controllers/api.py`), photo et repères (`models/session.py`), réglages enregistrés (`models/presets.py`). Les réponses de l'API sont identiques (vérifié sur 38 requêtes : aperçus et exports de chaque type de sortie, caisson, test de flexion, langues).
+- `studio_dialog.py` devient la vue `ui/dialog.py` (`StudioDialog`) et le contrôleur `controllers/studio.py` (`StencilStudioController`). Le Studio n'importe plus rien de Laser Studio Pro : LSP lui passe ses couleurs, sa langue et ses boîtes de dialogue, et reçoit chaque export SVG / DXF par le signal `export_ready(chemin)`.
+- `lsp_bridge.py` part dans LSP (`laser_studio/controllers/stencil_import.py`) : le rangement dans les calques (CUT, FRAME, ENGRAVE, LAYER_n) passe par le modèle des calques de LSP.
+- `studio_window.py` devient `ui/window.py` ; `studio.html` passe dans `ui/`, la police et le modèle de détourage dans `resources/`. Les copies `fr.json`, `de.json`, `es.json` à la racine (identiques à `locales/`) sont supprimées.
+- Lancement seul : `python -m stencil_studio` (depuis le dossier qui contient `stencil_studio/`).
 
 ## Démarrage rapide
 Ouvrir l'image, choisir un **style** (menu « Partir d'un style »), puis corriger le sujet avec le pinceau
@@ -48,7 +60,7 @@ Ouvrir l'image, choisir un **style** (menu « Partir d'un style »), puis corrig
 ## Vérifier que tous les fichiers sont à jour
 Au lancement, la console affiche : `Versions : core.py 2026.10.27 | studio.html 2026.10.27`.
 Les deux numéros doivent être **identiques**. Sinon (ou si l'interface affiche un bandeau rouge « ATTENTION »),
-remplacer **tous** les fichiers : `core.py`, `studio.py`, `studio.html`, `i18n.py`, `lasercut_stencil.py`, `locales/`.
+remplacer **tout** le dossier `stencil_studio/`.
 
 ## Autotest
 `py selftest.py` vérifie que OpenCV / numpy / scipy de ce PC donnent les résultats attendus (image synthétique).

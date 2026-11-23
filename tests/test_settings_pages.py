@@ -8,7 +8,6 @@ ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
-    from PyQt6.QtGui import QStandardItemModel, QStandardItem
     from PyQt6.QtWidgets import QApplication, QPushButton, QScrollArea
     from laser_studio.i18n import tr
     from laser_studio.ui.settings.grbl_config import GrblConfigPage

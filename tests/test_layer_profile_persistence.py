@@ -15,7 +15,7 @@ try:
     from laser_studio.controllers import machine_profiles as mp
     from laser_studio.controllers.layer_memory import apply_saved_layers
     from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
-    from laser_studio.vector_layers import LayerManager
+    from laser_studio.models.layers import LayersModel
     from laser_studio.i18n import tr
 except ImportError:  # PyQt6 manquant
     MachineProfilesController = None
@@ -48,7 +48,7 @@ class LayerProfileTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def make(self, profiles, index=0):
-        self.manager = LayerManager()
+        self.manager = LayersModel()
         self.captured = {"w": 400.0}
         self.applied, self.linked, self.saved = [], [], []
         combo = QComboBox()
@@ -90,7 +90,7 @@ class LayerProfileTests(unittest.TestCase):
         saved = json.loads(c.to_json())  # aller-retour disque
         ids = [layer.id for layer in self.manager.layers]
 
-        other = LayerManager()  # nouveau démarrage : calques par défaut
+        other = LayersModel()  # nouveau démarrage : calques par défaut
         self.assertTrue(apply_saved_layers(other, saved[0]["layers"], full=True))
         self.assertEqual([layer.id for layer in other.layers], ids)
         self.assertEqual((other.layers[0].name, other.layers[0].power, other.layers[0].speed),
@@ -99,14 +99,14 @@ class LayerProfileTests(unittest.TestCase):
         self.assertEqual((other.layers[3].name, other.layers[3].passes), ("Mon calque", 4))
 
     def test_default_marking_layer(self):
-        mark = LayerManager().layers[2]
+        mark = LayersModel().layers[2]
         self.assertEqual((mark.name, mark.mode, mark.power, mark.speed, mark.passes, mark.line_interval,
                           mark.color),
                          (tr("layers.default_name_mark"), "mark", 75.0, 2000, 1, 0.06, "#34c759"))
 
     def test_load_applies_the_last_profile_fully(self):
         c = self.make([])
-        layers = LayerManager()
+        layers = LayersModel()
         layers.layers[0].speed = 4321
         raw = json.dumps([{"name": "A"}, {"name": "B", "layers": layers.to_list()}])
         c.load(raw, "B", {"name": "Défaut"})
@@ -134,7 +134,7 @@ class LayerProfileTests(unittest.TestCase):
     # -- changement de machine (calques existants)
 
     def test_switching_machine_only_updates_settings_by_id(self):
-        manager = LayerManager()
+        manager = LayersModel()
         ids = [layer.id for layer in manager.layers]
         names = [layer.name for layer in manager.layers]
         other = [dict(layer.to_dict(), power=11.0, speed=999, passes=7, enabled=False)
@@ -148,21 +148,21 @@ class LayerProfileTests(unittest.TestCase):
                              (11.0, 999, 7, False))
 
     def test_switching_machine_falls_back_to_position(self):
-        manager = LayerManager()
+        manager = LayersModel()
         apply_saved_layers(manager, [{"id": "zzz1", "power": 20.0, "speed": 3000},
                                      {"id": "zzz2", "power": 70.0, "speed": 400}])
         self.assertEqual((manager.layers[0].power, manager.layers[0].speed), (20.0, 3000))
         self.assertEqual((manager.layers[1].power, manager.layers[1].speed), (70.0, 400))
 
     def test_switching_never_adds_or_removes_layers(self):
-        manager = LayerManager()
+        manager = LayersModel()
         n = len(manager.layers)
         apply_saved_layers(manager, [{"power": 1.0}])  # moins de calques
         apply_saved_layers(manager, [{"power": 2.0}] * (n + 3))  # plus de calques
         self.assertEqual(len(manager.layers), n)
 
     def test_profile_without_layers_changes_nothing(self):
-        manager = LayerManager()
+        manager = LayersModel()
         before = manager.to_list()
         for saved in (None, [], "oups", [None, 3]):
             apply_saved_layers(manager, saved, full=True)
@@ -170,7 +170,7 @@ class LayerProfileTests(unittest.TestCase):
         self.assertEqual(manager.to_list(), before)
 
     def test_corrupted_values_do_not_crash(self):
-        manager = LayerManager()
+        manager = LayersModel()
         apply_saved_layers(manager, [{"id": manager.layers[0].id, "power": "abc",
                                       "speed": None, "passes": 3}])
         layer = manager.layers[0]

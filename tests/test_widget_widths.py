@@ -18,6 +18,10 @@ try:
     from laser_studio import i18n
 except ImportError:
     i18n = None
+try:
+    from laser_studio.ui.vector_editor import tab as vector_tab
+except ImportError:  # PyQt6 manquant
+    vector_tab = None
 
 LONG = 40
 # Le paquet ui/ comprend l'éditeur vectoriel (ui/vector_editor/) et le tableau des calques.
@@ -59,7 +63,6 @@ class WidgetWidthTests(unittest.TestCase):
         self.assertIn((os.path.join("ui", "tabs", "image", "material_combo.py"), "self"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
-        src = ui_source()
         with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:
             combo = f.read()
         self.assertIn("self.setSizeAdjustPolicy(\n            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon", combo)
@@ -84,7 +87,7 @@ class SplitterTests(unittest.TestCase):
         src = self.source()
         # Le widget de conversion PNG → SVG a son propre panneau de gauche
         # (left_widget) : seule la fenêtre principale est concernée ici.
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "ui", "app", "main_window.py"), encoding="utf-8") as f:
             self.assertNotRegex(f.read(), r"\bleft_widget\b")
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)
@@ -96,82 +99,58 @@ class SplitterTests(unittest.TestCase):
                                   r'"font-weight: bold; padding: 3px;"')
 
 
-@unittest.skipIf(i18n is None, "i18n non importable ici")
+@unittest.skipIf(i18n is None or vector_tab is None, "i18n / PyQt6 non importables ici")
 class VectorToolbarTests(unittest.TestCase):
-    """Barre d'outils de l'éditeur vectoriel : une rangée (importer et outils), libellés
-    entièrement visibles. Créer / dessiner, édition et alignement sont dans des barres
+    """Barre d'outils de l'éditeur vectoriel (ui/vector_editor/tab.py) : une rangée (importer et outils),
+    libellés entièrement visibles. Créer / dessiner, édition et alignement sont dans des barres
     flottantes du canevas."""
 
     def rows(self):
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
-            src = f.read().replace("\r\n", "\n")
-        block = src[src.index("toolbar_vector = QHBoxLayout()"):src.index("layout_vector_editor.addLayout(toolbar_vector)")]
-        # Boutons créés avant la rangée (leurs icônes sont posées entre-temps).
-        keys = dict(re.findall(r'(btn_\w+) = QPushButton\(tr\("([^"]+)"\)\)', src))
-        rows = {}
-        for layout, button in re.findall(r"(toolbar_vector\w*)\.addWidget\((btn_\w+)\)", block):
-            rows.setdefault(layout, []).append(keys[button])
-        # Boutons ajoutés par une boucle : for w in (btn_a, btn_b): toolbar.addWidget(w)
-        for names, layout in re.findall(r"for w in \(([^)]*)\):\s*\n\s*(toolbar_vector\w*)\.addWidget\(w\)", block):
-            rows.setdefault(layout, []).extend(keys[n.strip()] for n in names.split(",") if n.strip())
-        return rows
+        return {"top": [key for _name, key, _tip, _icon in vector_tab.TOP_BUTTONS]}
 
     def estimated_width(self, keys):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
     def test_one_row_with_import_and_tools(self):
-        rows = self.rows()
-        self.assertEqual(rows, {"toolbar_vector": ["ui.vector_import_svg",
-                                                   "ui.vector_box_generator",
-                                                   "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
-                                                   "ui.vector_keychain_generator", "ui.vector_nesting"]})
+        self.assertEqual(self.rows(), {"top": ["ui.vector_import_svg", "ui.vector_box_generator",
+                                               "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
+                                               "ui.vector_keychain_generator", "ui.vector_nesting"]})
+        icons = [icon for *_rest, icon in vector_tab.TOP_BUTTONS]
+        for icon in ("document-import", "draw-cuboid", "games-config-board", "keychain", "object-group"):
+            self.assertIn(icon, icons)
 
     def test_create_and_draw_tools_float_on_the_left_with_icons(self):
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        pairs = {(key, icon) for _name, key, icon in vector_tab.CREATE_ACTIONS + vector_tab.DRAW_TOOLS}
+        for pair in (("ui.vector_add_text", "insert-text"), ("ui.vector_add_shape", "shape-choose"),
+                     ("ui.vector_tool_select", "tool-pointer"), ("ui.vector_tool_line", "draw-line"),
+                     ("ui.vector_tool_rect", "draw-rectangle"), ("ui.vector_tool_circle", "draw-circle"),
+                     ("ui.vector_tool_ellipse", "draw-ellipse"), ("ui.vector_tool_measure", "measure")):
+            self.assertIn(pair, pairs)
+        with open(os.path.join(ROOT, "ui", "vector_editor", "tab.py"), encoding="utf-8") as f:
             src = f.read()
-        create = src[src.index("vector_create_actions = ["):src.index("# Une seule rangée en haut")]
-        for key, icon in (("ui.vector_add_text", "insert-text"), ("ui.vector_add_shape", "shape-choose"),
-                          ("ui.vector_tool_select", "tool-pointer"), ("ui.vector_tool_line", "draw-line"),
-                          ("ui.vector_tool_rect", "draw-rectangle"), ("ui.vector_tool_circle", "draw-circle"),
-                          ("ui.vector_tool_ellipse", "draw-ellipse"),
-                          ("ui.vector_tool_measure", "measure")):
-            self.assertIn(f'"{key}", "{icon}"', create, key)
-        self.assertIn('self.vector_canvas, anchor="left")', src)
-        for icon in ("document-import", "draw-cuboid", "games-config-board", "keychain", "object-group"):
-            self.assertIn(f'"{icon}"', src[src.index("# Boutons d'outils"):src.index("vector_create_actions")], icon)
+        self.assertIn('self.canvas, anchor="left")', src)
+        self.assertIn('self.canvas, anchor="right"', src)
+        self.assertIn("FloatingToolBar(edit_actions, self.canvas, top_margin=8)", src)
+        # Alignement : pictogramme seul sur le bouton, action complète en infobulle (4 langues).
+        self.assertIn('tr(key).split(" ", 1)[0], tr(f"{key}_tip")', src)
 
     def test_edit_and_align_actions_float_over_the_canvas(self):
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
-            src = f.read()
-        edit = src[src.index("vector_edit_actions = ["):src.index("# Créer et dessiner")]
+        edit = [entry[1] for entry in vector_tab.EDIT_ACTIONS if entry]
         for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
                     "vector.explode_path", "vector.edit_nodes", "vector.text_follow", "ui.vector_undo", "ui.vector_redo"):
-            self.assertIn(f'("{key}"', edit, key)
-        align = src[src.index("vector_align_actions = ["):src.index("layout_vector_editor.addWidget(self.vector_canvas, 1)")]
+            self.assertIn(key, edit)
+        align = [entry[1] for entry in vector_tab.ALIGN_ACTIONS if entry]
         for key in ("ui.vector_align_left", "ui.vector_align_center_h", "ui.vector_align_right",
                     "ui.vector_align_top", "ui.vector_align_middle_v", "ui.vector_align_bottom",
                     "ui.vector_distribute_h", "ui.vector_distribute_v"):
-            self.assertIn(f'("{key}"', align, key)
-        self.assertIn("FloatingToolBar(vector_edit_actions, self.vector_canvas", src)
-        self.assertIn('vector_align_actions, self.vector_canvas, anchor="right"', src)
-        # Alignement : pictogramme seul sur le bouton, action complète en infobulle (4 langues).
-        self.assertIn('tr(key).split(" ", 1)[0], tr(f"{key}_tip")', src)
-        for key in ("ui.vector_align_left", "ui.vector_distribute_v"):
+            self.assertIn(key, align)
             self.assertEqual(sorted(i18n.TRANSLATIONS[f"{key}_tip"]), ["de", "en", "es", "fr"])
 
     def test_each_row_is_narrow_enough_in_every_language(self):
         for layout, keys in self.rows().items():
             self.assertLessEqual(self.estimated_width(keys), 1000, f"{layout} : {self.estimated_width(keys)} px")
 
-    def test_import_and_box_generator_buttons_are_on_the_first_row(self):
-        first = self.rows()["toolbar_vector"]
-        self.assertIn("ui.vector_import_svg", first)
-        self.assertIn("ui.vector_box_generator", first)
-        self.assertIn("ui.vector_puzzle_generator", first)
-        self.assertIn("ui.vector_ornament_generator", first)
-        self.assertIn("ui.vector_keychain_generator", first)
-        self.assertIn("ui.vector_nesting", first)
 
 
 if __name__ == "__main__":

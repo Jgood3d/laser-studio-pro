@@ -3,7 +3,7 @@ remplie par balayage de lignes, découpe et marquage des contours (phase 3
 d'un job).
 
 Les données d'entrée sont déjà purement numériques (polygones en mm, réglages
-des calques en dictionnaires) : voir vector_layers.extract_vector_layer_data,
+des calques en dictionnaires) : voir vector.layer_data.extract_vector_layer_data,
 qui les prépare dans le thread de l'interface."""
 import math
 

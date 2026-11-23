@@ -371,7 +371,7 @@ class WorkspaceAlignmentWizard(QDialog):
             return
         try:
             display = self._process_frame(frame)
-        except Exception:
+        except Exception:   # à chaque image : l'image brute est montrée plutôt que rien
             display = frame
         self._preview.setPixmap(_numpy_to_qpixmap(display))
 
@@ -408,7 +408,7 @@ class WorkspaceAlignmentWizard(QDialog):
         self._update_captures_status()
         try:
             display = self._process_frame(frame)
-        except Exception:
+        except Exception:   # à chaque image : l'image brute est montrée plutôt que rien
             display = frame
         self._preview.setPixmap(_numpy_to_qpixmap(display))
 

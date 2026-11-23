@@ -47,7 +47,7 @@ def svg_cut_gcode(svg_path, params, image_x, image_y):
             try:
                 path_len = parsed.length()
                 num_samples = max(10, int(path_len / 0.2))
-            except Exception:
+            except Exception:   # longueur incalculable (tracé dégénéré) : échantillonnage par défaut
                 num_samples = 50
 
             for i in range(1, num_samples + 1):

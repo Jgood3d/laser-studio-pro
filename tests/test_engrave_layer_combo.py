@@ -79,13 +79,13 @@ class EngraveLayerComboTests(unittest.TestCase):
 
 class WiringTests(unittest.TestCase):
     def test_window_is_subscribed_and_list_is_refreshed(self):
-        main = read("main_window.py")
-        self.assertIn("settings.engrave_layer_changed.connect(self.layer_manager.select_engrave_layer)", main)
-        self.assertIn("self.window_controller.refresh_engrave_layer_combo()", main)
+        main = read(os.path.join("ui", "app", "main_window.py"))
+        builder = read(os.path.join("ui", "tabs", "image", "builder.py"))
+        self.assertIn("settings.engrave_layer_changed.connect(layers.select_engrave_layer)", builder)
         # Calques ajoutés, supprimés, renommés : la liste suit le modèle.
-        self.assertIn("self.layer_manager.changed.connect(self.window_controller.refresh_engrave_layer_combo)", main)
-        window = read(os.path.join("ui", "app", "window_controller.py"))
-        self.assertIn("def refresh_engrave_layer_combo(self, *_args):", window)
+        self.assertIn("refresh_engrave_layers()", builder)
+        self.assertIn("layers.changed.connect(refresh_engrave_layers)", builder)
+        self.assertIn("self.layer_manager, self.dialogs", main)        # le builder reçoit le modèle des calques
 
     def test_translations_exist_in_all_languages(self):
         import importlib.util

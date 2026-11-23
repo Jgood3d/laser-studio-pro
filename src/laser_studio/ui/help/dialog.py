@@ -11,7 +11,7 @@ le navigateur du système.
 from PyQt6.QtCore import QUrl
 from PyQt6.QtGui import QIcon, QKeySequence
 from PyQt6.QtWidgets import (
-    QApplication, QDialog, QLabel, QStyle, QTextBrowser, QToolBar,
+    QApplication, QDialog, QStyle, QTextBrowser, QToolBar,
     QVBoxLayout,
 )
 

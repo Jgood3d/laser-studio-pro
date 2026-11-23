@@ -1,7 +1,6 @@
 """Graveur GRBL simulé (variable LASER_STUDIO_SIMULATION) : protocole, mouvements, temps réel, intégration."""
 import os
 import sys
-import threading
 import time
 import unittest
 from unittest import mock
@@ -108,7 +107,7 @@ class SimulatedGrblTests(unittest.TestCase):
 
 
 try:
-    from laser_studio.workers import GCodeStreamerThread
+    from laser_studio.controllers.workers import GCodeStreamerThread
 except ImportError:
     GCodeStreamerThread = None
 

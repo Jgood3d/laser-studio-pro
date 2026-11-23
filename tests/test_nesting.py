@@ -146,7 +146,6 @@ class ShapeAwareTests(unittest.TestCase):
         plate, hole, other = rect(40, 40), circle(8, cx=20, cy=20), rect(30, 30, 100, 0)
         self.assertEqual(ng.group_by_containment([[plate], [hole], [other]]), [[0, 1], [2]])
         outer, hole2 = rect(100, 100), rect(20, 20, 10, 10)
-        shapes = [[outer, hole2], [rect(5, 5, 15, 15)], [[(60, 60), (80, 70)]], [rect(30, 30, 200, 0)]]
         groups = ng.group_by_containment([[outer, hole2], [rect(5, 5, 15, 15)], [[(60, 60), (80, 70)]][0:1] and [[(60, 60), (80, 70)]], [rect(30, 30, 200, 0)]])
         self.assertIn([0, 2], groups)       # le trait gravé suit la plaque
         self.assertIn([1], groups)          # l'îlot dans le trou est une pièce à part

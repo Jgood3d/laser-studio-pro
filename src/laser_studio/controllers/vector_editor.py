@@ -19,6 +19,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
 from laser_studio.i18n import tr
+from laser_studio.controllers.stencil_import import import_summary, remove_temporary_export, route_objects
 from laser_studio.models.vector_objects import SvgPathObject, TextObject
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
 from laser_studio.ui.dialogs.jig import JigDialog, error_message as jig_error_message
@@ -39,12 +40,18 @@ from laser_studio.vector.importers import (
     box_to_objects, decor_to_objects, dxf_to_objects, index_to_objects, jig_to_objects, keychain_to_objects,
     motif_to_objects, ornament_to_objects, puzzle_to_objects,
 )
+from laser_studio.vector import placement
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
+from laser_studio.vector.serial_duplicate import union_bounds
 from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.core.debug_log import get_logger
 
-# Marge (mm) entre le bord du plateau et les pièces d'un générateur.
-GENERATOR_OFFSET_MM = 10.0
+log = get_logger()
+
+# Les générateurs fabriquent leurs pièces à l'origine ; import_objects les place ensuite (marge de
+# surbalayage, ou à côté des objets présents).
+GENERATOR_OFFSET_MM = 0.0
 
 
 class VectorEditorController(QObject):
@@ -59,22 +66,28 @@ class VectorEditorController(QObject):
     - image_frame() : (x, y, largeur, hauteur) en mm de l'image de « Graver
       une image », pour caler le puzzle dessus, ou None ;
     - busy() : gestionnaire de contexte pendant un calcul long (curseur
-      d'attente).
+      d'attente) ;
+    - overscan_margin(largeur_mm) : marge à gauche (mm) laissée au
+      surbalayage devant un dessin importé de cette largeur (0 s'il est
+      désactivé).
 
     Signaux :
     - show_editor() : afficher l'onglet de l'éditeur (après un import, un
       générateur) ;
     - properties_changed(objet ou None) : la sélection a changé de forme,
       de place ou de calque (panneau des propriétés à remettre à jour) ;
-    - status(texte) : message pour la barre d'état.
+    - status(texte) : message pour la barre d'état ;
+    - draw_tool_changed(outil ou None) : outil de la souris actif (boutons
+      de l'onglet à cocher).
     """
 
     show_editor = pyqtSignal()
     properties_changed = pyqtSignal(object)
     status = pyqtSignal(str)
+    draw_tool_changed = pyqtSignal(object)
 
     def __init__(self, document, canvas, layers, machine, dialogs, parent=None, *,
-                 image_frame=lambda: None, busy=nullcontext):
+                 image_frame=lambda: None, busy=nullcontext, overscan_margin=lambda width_mm: 0.0):
         super().__init__(parent)
         self.document = document
         self.canvas = canvas
@@ -84,6 +97,7 @@ class VectorEditorController(QObject):
         self._parent = parent
         self._image_frame = image_frame
         self._busy = busy
+        self._overscan_margin = overscan_margin
         # Derniers réglages de chaque fenêtre, repris à sa prochaine ouverture.
         self.box_settings = None
         self.puzzle_settings = None
@@ -95,6 +109,38 @@ class VectorEditorController(QObject):
 
     # -- outils
 
+    def commands(self):
+        """Action de chaque commande de l'onglet (VectorEditorTab.command), sauf la bibliothèque."""
+        canvas = self.canvas
+        commands = {
+            "import": self.import_dialog, "box": self.open_box_generator, "puzzle": self.open_puzzle_generator,
+            "ornament": self.open_ornament_generator, "keychain": self.open_keychain_generator,
+            "nesting": self.open_nesting, "edit": self.edit_selected, "rotate": self.rotate_selected,
+            "duplicate": self.duplicate_selected, "serial": self.open_serial_duplicate,
+            "jig": self.open_jig_generator, "delete": self.delete_selected, "delete_all": self.delete_all,
+            "explode": canvas.explode_selected, "nodes": canvas.enter_node_edit,
+            "text_follow": self.make_text_follow_selection, "medal": self.open_medal_text,
+            "undo": canvas.undo, "redo": canvas.redo, "zoom_in": canvas.zoom_in, "zoom_out": canvas.zoom_out,
+            "text": self.insert_text, "shape": self.insert_shape,
+            "distribute_h": lambda: self.distribute("h"), "distribute_v": lambda: self.distribute("v"),
+        }
+        for edge in ("left", "center_h", "right", "top", "middle_v", "bottom"):
+            commands[f"align_{edge}"] = lambda edge=edge: self.align(edge)
+        return commands
+
+    def choose_draw_tool(self, tool):
+        """Outil de dessin à la souris sur le canevas.
+
+        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'. Rectangle : 3 points. Cercle (du
+        centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) : un seul clic-glisser. Échap ou clic
+        droit annule l'outil. Sans calque, l'outil n'est pas activé (message)."""
+        resolved = None if tool in (None, "select") else tool
+        if resolved and not self._require_layers():
+            resolved = None
+        layer = self.layers.default_svg_layer() if self.layers.layers else None
+        self.canvas.set_draw_tool(resolved, layer_id=layer.id if layer else None)
+        self.draw_tool_changed.emit(resolved)
+
     def _require_layers(self):
         """Vrai s'il existe au moins un calque ; sinon, le dit."""
         if self.layers.layers:
@@ -105,15 +151,49 @@ class VectorEditorController(QObject):
     def selected_objects(self):
         return [item.obj for item in self.canvas.selected_items_vector()]
 
-    def add_objects(self, objects, show=True):
-        """Ajoute `objects` (une étape d'annulation), affiche l'éditeur si
-        `show` et cadre la vue dessus. Renvoie leurs éléments graphiques."""
-        self.canvas.push_undo_snapshot()
+    def add_objects(self, objects, show=True, snapshot=True):
+        """Ajoute `objects` (une étape d'annulation, sauf `snapshot` faux : déjà prise), affiche l'éditeur
+        si `show` et cadre la vue dessus. Renvoie leurs éléments graphiques."""
+        if snapshot:
+            self.canvas.push_undo_snapshot()
         items = [self.canvas.add_object(obj) for obj in objects]
         if show:
             self.show_editor.emit()
         self.canvas.request_recenter(items)
         return items
+
+    def import_objects(self, objects, show=True, keep_position=False):
+        """Ajoute un dessin importé (fichier, bibliothèque, générateur, Stencil Studio, vectorisation) en le
+        plaçant (vector/placement.py) : coin bas-gauche à la marge du surbalayage ; si l'éditeur contient
+        déjà des objets, l'utilisateur choisit d'ajouter sans y toucher, de les remplacer, ou de placer le
+        dessin à leur droite ou au-dessus. `keep_position` : le dessin a déjà sa place (puzzle calé sur
+        l'image) ; « ajouter » et « remplacer » ne le déplacent pas. Une seule étape d'annulation. Renvoie
+        les éléments ajoutés (liste vide si l'utilisateur annule)."""
+        new_bounds = union_bounds([object_bounds(o) for o in objects])
+        if new_bounds is None:
+            return self.add_objects(objects, show)
+        existing = self.canvas.objects
+        mode = placement.ADD
+        if existing:
+            mode = self.dialogs.choose(tr("vector.place_title"), tr("vector.place_question").format(
+                count=len(existing)), [(key, tr(f"vector.place_{key}")) for key in placement.MODES])
+            if mode is None:
+                return []
+        existing_bounds = union_bounds([object_bounds(o) for o in existing]) if existing else None
+        if keep_position and (existing_bounds is None or mode in (placement.ADD, placement.REPLACE)):
+            dx = dy = 0.0
+        else:
+            margin_x = self._overscan_margin(new_bounds[2] - new_bounds[0])
+            dx, dy = placement.placement_offset(new_bounds, existing_bounds, mode, margin_x=margin_x)
+        for obj in objects:
+            obj.x_mm += dx
+            obj.y_mm += dy
+        self.canvas.push_undo_snapshot()
+        if mode == placement.REPLACE:
+            self.canvas.exit_node_edit()
+            self.canvas.load_objects([])
+            self.properties_changed.emit(None)
+        return self.add_objects(objects, show, snapshot=False)
 
     # -- insérer, modifier
 
@@ -131,7 +211,7 @@ class VectorEditorController(QObject):
         canvas.push_undo_snapshot()
         item = canvas.add_object(obj)
         dialog = TextInsertDialog(self.layers, text_obj=obj, parent=self._parent, is_new=True,
-                                  on_preview=lambda: (item.refresh(), canvas._sync_follow_handle()))
+                                  on_preview=lambda: (item.refresh(), canvas.follow_handle.sync()))
         if dialog.exec():
             # La boîte a remis le texte dans son état d'origine : on applique les réglages choisis.
             dialog.get_object()
@@ -174,14 +254,14 @@ class VectorEditorController(QObject):
         canvas = self.canvas
         if isinstance(obj, TextObject):
             dialog = TextInsertDialog(self.layers, text_obj=obj, parent=self._parent,
-                                      on_preview=lambda: (item.refresh(), canvas._sync_follow_handle()))
+                                      on_preview=lambda: (item.refresh(), canvas.follow_handle.sync()))
             if dialog.exec():
                 # La boîte a remis le texte dans son état d'origine : on enregistre l'annulation, puis on applique.
                 canvas.push_undo_snapshot()
                 dialog.get_object()
                 item.refresh()
                 self.properties_changed.emit(obj)
-            canvas._sync_follow_handle()
+            canvas.follow_handle.sync()
         elif isinstance(obj, SvgPathObject):
             dialog = AssignLayerDialog(self.layers, svg_obj=obj, title=tr("vector.svg_properties"), parent=self._parent)
             if dialog.exec():
@@ -362,9 +442,38 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return
-        self.add_objects(objects)
+        if not self.import_objects(objects):
+            return
         self.dialogs.info(tr("vector.svg_success_title"),
                           tr("vector.svg_success").format(count=len(objects), layer=default_layer.name))
+
+    def import_stencil_export(self, path):
+        """Fichier SVG ou DXF exporté par Stencil Studio : objets rangés dans les calques de LSP d'après
+        leur calque d'origine (controllers/stencil_import.py), en une étape d'annulation. En cas
+        d'échec, import standard (import_file), qui explique le problème. Le fichier temporaire est
+        ensuite supprimé."""
+        try:
+            stats = None
+            lower = path.lower()
+            if lower.endswith((".dxf", ".svg")) and self.layers.layers:
+                default_layer = self.layers.default_svg_layer()
+                if lower.endswith(".dxf"):
+                    objects = dxf_to_objects(dxf_import.read_dxf(path), default_layer.id)
+                else:
+                    objects = extract_svg_objects(path, default_layer.id, self.machine.bed_h, ungroup=True)
+                if not objects:
+                    raise ValueError(tr("vector.svg_empty"))
+                stats = route_objects(objects, self.layers, default_layer.id, focal=self.machine.focal)
+                if not self.import_objects(objects):
+                    return
+            else:
+                self.import_file(path)
+            self.status.emit(import_summary(path, stats))
+        except Exception as e:  # fichier illisible ou vide : l'import standard affiche l'erreur
+            self.status.emit(tr("stencil.import_fallback").format(error=e))
+            self.import_file(path)
+        finally:
+            remove_temporary_export(path)
 
     def _import_dxf(self, path, default_layer):
         """Import d'un DXF (texte ASCII) : tracés regroupés par calque DXF, calque LSP par défaut."""
@@ -390,7 +499,8 @@ class VectorEditorController(QObject):
                 message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
             self.dialogs.info(tr("vector.dxf_title"), message)
             return
-        self.add_objects(objects)
+        if not self.import_objects(objects):
+            return
         message = tr("vector.dxf_success").format(
             count=len(objects), layer=default_layer.name, unit=dxf_import.units_label(drawing))
         if skipped:
@@ -554,10 +664,11 @@ class VectorEditorController(QObject):
                 self.dialogs.warning(tr("box.title"), tr("box.decor_error").format(error=e))
         decor_objects += motif_to_objects(result, dialog.engrave_layer_id(), offset, offset)
         decor_objects += index_to_objects(result, dialog.engrave_layer_id(), offset, offset)
-        self.add_objects([obj for _, obj in panels] + decor_objects)
+        if not self.import_objects([obj for _, obj in panels] + decor_objects):
+            return
         message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
-        if result.width > self.machine.bed_w - 2 * offset or result.height > self.machine.bed_h - 2 * offset:
+        if result.width > self.machine.bed_w or result.height > self.machine.bed_h:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.machine.bed_w, bed_h=self.machine.bed_h)
         self.dialogs.info(tr("box.title"), message)
 
@@ -568,6 +679,7 @@ class VectorEditorController(QObject):
         try:
             target_rect = self._image_frame()
         except Exception:
+            log.warning("Puzzle : cadre de l'image illisible, puzzle non calé", exc_info=True)
             target_rect = None
         dialog = PuzzleGeneratorDialog(
             parent=self._parent,
@@ -592,7 +704,7 @@ class VectorEditorController(QObject):
             else:
                 try:
                     text = text.format(**e.info)
-                except Exception:
+                except (KeyError, IndexError, ValueError):     # traduction sans les bons champs
                     pass
             self.dialogs.warning(tr("puzzle.title"), text)
             return
@@ -604,7 +716,10 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.warning(tr("puzzle.title"), tr("puzzle.empty"))
             return
-        self.add_objects(objects)
+        # Position choisie dans la fenêtre du puzzle (par défaut calée sur l'image) : gardée, sauf si
+        # l'utilisateur le place à côté des objets présents.
+        if not self.import_objects(objects, keep_position=True):
+            return
         self.dialogs.info(tr("puzzle.title"), tr("puzzle.done").format(
             nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces)))
 
@@ -663,7 +778,9 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.warning(tr("ornament.title"), tr("ornament.empty"))
             return
-        new_items = self.add_objects(objects)
+        new_items = self.import_objects(objects)
+        if not new_items:
+            return
         if ball_count == 1:
             geometry, contours = built[0][1].geometry, built[0][1].cut
             self.dialogs.info(tr("ornament.title"), tr("ornament.done").format(
@@ -709,8 +826,7 @@ class VectorEditorController(QObject):
             offset_x_mm=GENERATOR_OFFSET_MM,
             offset_y_mm=GENERATOR_OFFSET_MM,
         )
-        if not objects:
+        if not objects or not self.import_objects(objects):
             return
-        self.add_objects(objects)
         done_key = "keychain.done_two_layers" if getattr(result, "two_layers", False) else "keychain.done"
         self.dialogs.info(tr("keychain.title"), tr(done_key).format(w=result.width, h=result.height))

@@ -1,5 +1,4 @@
 """Tests pure-logique de l'alignement caméra (sans ouverture de webcam)."""
-import math
 import os
 import sys
 import tempfile

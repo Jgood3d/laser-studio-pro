@@ -29,7 +29,7 @@ ICON = os.path.join(REPO_ROOT, "src", "laser_studio", "resources", "laser_studio
 
 # Images, logo, icônes Breeze : tout src/laser_studio/resources/ (cherché par
 # find_resource). Stencil Studio : le dossier est copié en données
-# (studio.html, locales, polices…) ET ses modules sont déclarés en
+# (ui/studio.html, locales, resources/ : police et modèle d'IA) ET ses modules sont déclarés en
 # hiddenimports, pour que PyInstaller embarque aussi cv2 / numpy / scipy /
 # Pillow qu'ils utilisent.
 datas = [
@@ -40,13 +40,16 @@ hiddenimports = [
     "serial",
     "PyQt6.QtWebEngineWidgets",
     "PyQt6.QtWebEngineCore",
-    "stencil_studio.studio_dialog",
-    "stencil_studio.studio_window",
-    "stencil_studio.studio",
+    "stencil_studio.controllers.studio",
+    "stencil_studio.controllers.api",
+    "stencil_studio.server",
+    "stencil_studio.ui.dialog",
+    "stencil_studio.ui.window",
+    "stencil_studio.models.session",
+    "stencil_studio.models.presets",
     "stencil_studio.core",
     "stencil_studio.engrave",
     "stencil_studio.lightbox",
-    "stencil_studio.lsp_bridge",
     "stencil_studio.subject_ai",
     "stencil_studio.i18n",
     "scipy.spatial",

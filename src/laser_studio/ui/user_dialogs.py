@@ -9,7 +9,10 @@ mêmes méthodes et qui répond à la place de l'utilisateur.
     if dialogs.confirm(tr("gen.confirm_title"), texte):
         ...
 """
-from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMessageBox
+from PyQt6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QInputDialog, QLabel, QMessageBox,
+                             QPushButton, QVBoxLayout)
+
+from laser_studio.i18n import tr
 
 _YES = QMessageBox.StandardButton.Yes
 _NO = QMessageBox.StandardButton.No
@@ -67,3 +70,42 @@ class UserDialogs:
         """Texte saisi (non nettoyé), ou None si annulé."""
         text, ok = QInputDialog.getText(self.parent, title, label)
         return text if ok else None
+
+    def choose(self, title, text, choices):
+        """Choix entre plusieurs réponses, plus Annuler. `choices` : liste de (clé, libellé), le premier
+        étant le bouton par défaut. Renvoie la clé choisie, ou None si annulé (bouton ou Échap)."""
+        return ChoiceDialog(title, text, choices, self.parent).choose()
+
+
+class ChoiceDialog(QDialog):
+    """Question et une réponse par bouton, empilés sur toute la largeur dans l'ordre donné (les libellés
+    restent lisibles en entier, quel que soit le style du bureau), puis Annuler."""
+
+    def __init__(self, title, text, choices, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle(title)
+        self.key = None
+        layout = QVBoxLayout(self)
+        label = QLabel(text)
+        label.setWordWrap(True)
+        layout.addWidget(label)
+        self.buttons = {}
+        for index, (key, choice) in enumerate(choices):
+            button = QPushButton(choice)
+            button.setAutoDefault(index == 0)
+            button.setDefault(index == 0)
+            button.clicked.connect(lambda _checked=False, k=key: self._pick(k))
+            layout.addWidget(button)
+            self.buttons[key] = button
+        cancel = QDialogButtonBox(QDialogButtonBox.StandardButton.Cancel)
+        cancel.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("common.cancel"))
+        cancel.rejected.connect(self.reject)
+        layout.addWidget(cancel)
+        self.setMinimumWidth(380)
+
+    def _pick(self, key):
+        self.key = key
+        self.accept()
+
+    def choose(self):
+        return self.key if self.exec() == QDialog.DialogCode.Accepted else None

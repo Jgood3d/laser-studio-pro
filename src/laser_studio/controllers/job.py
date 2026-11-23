@@ -3,7 +3,7 @@ G-Code dans un thread, estimation rapide, export et import du G-Code, matrice
 de test et motif aller/retour.
 
 Le G-Code lui-même est calculé par le paquet gcode/ (sans Qt), dans les
-threads de workers.py. Ce contrôleur ne touche pas aux widgets : il lit
+threads de controllers/workers.py. Ce contrôleur ne touche pas aux widgets : il lit
 l'état de l'interface par des fonctions qu'on lui donne, pose ses questions
 par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
 
@@ -25,9 +25,14 @@ from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
 from laser_studio.gcode.test_matrix import matrix_cell_at
 from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
+from laser_studio.vector import placement
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
 from laser_studio.vector.layer_data import extract_vector_layer_data
-from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, build_gain_test_array
+from laser_studio.controllers.workers import AdvancedGCodeWorker, TestMatrixWorker
+from laser_studio.image.gain_test import build_gain_test_array
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)
@@ -183,6 +188,20 @@ class JobController(QObject):
             self.status.emit(tr("vector.no_engrave_layer"))
 
     # -- paramètres
+
+    def overscan_margin(self, width_mm):
+        """Marge à gauche (mm) laissée au surbalayage devant un dessin vectoriel importé de largeur
+        `width_mm` (voir vector/placement.py) ; 0 si le surbalayage est désactivé."""
+        percent = self.overscan_mode_value() == OVERSCAN_PERCENT
+        return placement.overscan_margin(self.grbl.overscan_enabled, percent, self.grbl.overscan_dist_mm,
+                                         self.grbl.overscan_pct, width_mm)
+
+    def image_frame(self):
+        """(x, y, largeur, hauteur) en mm de l'image à graver sur le plateau, marge de surbalayage
+        comprise (gcode.image_origin) : sert à caler le puzzle sur l'image."""
+        params = self.build_params()
+        x, y = image_origin(params)
+        return float(x), float(y), float(params['width_mm']), float(params['height_mm'])
 
     def overscan_mode_value(self):
         """Mode de surbalayage sous une forme indépendante de la langue : les
@@ -401,13 +420,13 @@ class JobController(QObject):
                     if d:
                         try:
                             total_len_svg += parse_path(d).length(error=1e-3)
-                        except Exception:
-                            pass
+                        except Exception:       # tracé illisible : ignoré dans l'estimation
+                            log.debug("Estimation : tracé SVG illisible ignoré", exc_info=True)
                 t = (total_len_svg / max(self.cut_speed, 1)) * 60.0 * self.cut_passes
                 total_seconds += t
                 details.append(tr("gcode.svg_details").format(duration=estimate_duration_text(t)))
             except Exception:
-                pass
+                log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
 
         objects = list(self._vector_objects())
         for layer in self.layers.layers:
@@ -588,5 +607,5 @@ class JobController(QObject):
             else:
                 self.set_cut_settings(speed, round(params.get('single_power', self.cut_power)), value)
                 self.log.emit(f">>> Case matrice appliquée : {speed} mm/min, {value} passe(s) (découpe)")
-        except Exception:
-            pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+        except Exception:  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+            log.warning("Clic sur la matrice de test : case non appliquée", exc_info=True)

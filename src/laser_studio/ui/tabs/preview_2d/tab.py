@@ -2,7 +2,7 @@
 gcode/preview.py), position de la tête et traits déjà gravés pendant un job."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import QPointF, QRectF, QSettings, Qt, pyqtSignal
+from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QGraphicsPathItem, QLabel, QSplitter, QVBoxLayout, QWidget,
@@ -17,6 +17,7 @@ from laser_studio.gcode.preview import (
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
 from laser_studio.ui.widgets import FloatingToolBar
+from laser_studio.core.preferences import app_preferences
 
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
 SIDE_PANEL_LEFT_MARGIN = 6
@@ -116,7 +117,7 @@ class Preview2DTab(QWidget):
         for key in PREVIEW_MATERIAL_ORDER:
             self.material_combo.addItem(tr(f"preview.material.{key}"), key)
         # Dernier choix mémorisé (sinon fond clair, comme avant).
-        saved = QSettings().value("preview_material", DEFAULT_PREVIEW_MATERIAL)
+        saved = app_preferences().get("preview_material", DEFAULT_PREVIEW_MATERIAL)
         idx = self.material_combo.findData(saved)
         self.material_combo.setCurrentIndex(idx if idx >= 0 else 0)
         self.material_combo.currentIndexChanged.connect(self._on_material_changed)
@@ -146,7 +147,7 @@ class Preview2DTab(QWidget):
     def _on_material_changed(self, *_args):
         """Mémorise le preset et redessine l'aperçu."""
         key = self.material_combo.currentData() or DEFAULT_PREVIEW_MATERIAL
-        QSettings().setValue("preview_material", key)
+        app_preferences().set("preview_material", key)
         self.display_options_changed.emit()
 
     @staticmethod

@@ -8,7 +8,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from laser_studio.vector_layers import LayerManager, LayerManagerWidget
+    from laser_studio.models.layers import LayersModel
+    from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
 except ImportError:  # PyQt6 manquant
     LayerManagerWidget = None
 
@@ -20,7 +21,7 @@ class LayerFocalLinkTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def test_contour_layers_keep_their_own_interval(self):
-        manager = LayerManager()                       # gravure, découpe, marquage
+        manager = LayersModel()                       # gravure, découpe, marquage
         widget = LayerManagerWidget(manager, focal_getter=lambda: 0.1)
         self.addCleanup(widget.deleteLater)
         manager.layers[1].line_interval_linked = True  # ancien profil : découpe liée

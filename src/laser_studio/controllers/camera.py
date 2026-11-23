@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Callable, List, Optional
 
 import numpy as np
-from PyQt6.QtCore import QObject, QSettings, pyqtSignal
+from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QWidget
 
 from laser_studio.camera.capture import CameraDevice, list_cameras, CameraCapture
@@ -24,6 +24,7 @@ from laser_studio.camera.workspace_alignment import (
     warp_to_bed,
 )
 from laser_studio.i18n import tr
+from laser_studio.core.preferences import app_preferences
 
 
 class CameraController(QObject):
@@ -79,8 +80,7 @@ class CameraController(QObject):
         return self._profile
 
     def _load_active_profile(self) -> None:
-        settings = QSettings()
-        device_id = settings.value(self.SETTINGS_KEY, "", type=str)
+        device_id = str(app_preferences().get(self.SETTINGS_KEY, "") or "")
         if device_id:
             self._profile = load_profile(device_id)
         else:
@@ -93,7 +93,7 @@ class CameraController(QObject):
             profile = CameraProfile(device_id=device_id, display_name=display_name or device_id)
             save_profile(profile)
         self._profile = profile
-        QSettings().setValue(self.SETTINGS_KEY, device_id)
+        app_preferences().set(self.SETTINGS_KEY, device_id)
         self.profile_changed.emit()
         self.status_changed.emit(tr("camera.status.active").format(name=profile.display_name))
         return profile

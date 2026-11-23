@@ -1,11 +1,11 @@
 """Thèmes clair / sombre / Dusk / Warm dim de Laser Studio Pro (palette + feuille de style)."""
 from pathlib import Path
 
-from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon, QPalette, QColor
 
 from laser_studio.core.paths import resource_candidates
+from laser_studio.core.preferences import ui_preferences
 
 
 # ---------------------------------------------------------------------------
@@ -201,6 +201,14 @@ THEMES = {
         "disabled": "#4a6a78",
     },
 }
+
+
+def page_colors(theme_name):
+    """Couleurs d'une page web intégrée (Stencil Studio) pour le thème `theme_name` :
+    {bg, panel, panel2, line, fg, mut, acc, acc2, onacc}."""
+    c = THEMES[normalize_theme_name(theme_name)]
+    return {"bg": c["base"], "panel": c["window"], "panel2": c["alt"], "line": c["border"], "fg": c["text"],
+            "mut": c["muted"], "acc": c["accent"], "acc2": c["accent_hover"], "onacc": c["on_accent"]}
 
 
 def _qcolor(hex_color: str) -> QColor:
@@ -610,15 +618,19 @@ def available_themes():
     return [(code, THEMES[code]["label_key"]) for code in order]
 
 
+def current_theme_name():
+    """Code du thème choisi (réglage app_theme), normalisé."""
+    return normalize_theme_name(ui_preferences().get("app_theme", "dark"))
+
+
 def apply_saved_theme(app: QApplication):
     """Applique le thème enregistré dans les préférences (« dark » par défaut).
 
     La valeur est normalisée puis réécrite proprement, pour remplacer les
     anciens libellés ou les types inattendus renvoyés sous Windows.
     """
-    settings = QSettings("LaserStudioPro", "UIConfig")
-    name = normalize_theme_name(settings.value("app_theme", "dark"))
-    settings.setValue("app_theme", name)
+    name = current_theme_name()
+    ui_preferences().set("app_theme", name)
     return apply_app_theme(app, name)
 
 
@@ -671,6 +683,4 @@ def install_breeze_icon_theme():
     Le pack vit dans resources/icons/<breeze|jarvis>/, cherché comme les
     images de l'application (voir core.paths.resource_candidates).
     """
-    settings = QSettings("LaserStudioPro", "UIConfig")
-    ui = normalize_theme_name(settings.value("app_theme", "dark"))
-    return apply_icon_theme_for_ui(ui)
+    return apply_icon_theme_for_ui(current_theme_name())

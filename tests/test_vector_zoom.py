@@ -72,11 +72,12 @@ class ZoomTests(unittest.TestCase):
         self.assertAlmostEqual(self.scale(), 1.0)
 
     def test_buttons_are_in_the_edit_toolbar_with_their_icons(self):
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        from laser_studio.ui.vector_editor.tab import EDIT_ACTIONS
+        self.assertIn(("zoom_in", "ui.vector_zoom_in", "zoom-in"), EDIT_ACTIONS)
+        self.assertIn(("zoom_out", "ui.vector_zoom_out", "zoom-out"), EDIT_ACTIONS)
+        with open(os.path.join(ROOT, "controllers", "vector_editor.py"), encoding="utf-8") as f:
             src = f.read()
-        edit = src[src.index("vector_edit_actions = ["):src.index("# Créer et dessiner")]
-        self.assertIn('("ui.vector_zoom_in", "zoom-in", lambda: self.vector_canvas.zoom_in())', edit)
-        self.assertIn('("ui.vector_zoom_out", "zoom-out", lambda: self.vector_canvas.zoom_out())', edit)
+        self.assertIn('"zoom_in": canvas.zoom_in, "zoom_out": canvas.zoom_out', src)
         for name in ("zoom-in", "zoom-out"):
             self.assertTrue(os.path.exists(os.path.join(
                 ROOT, "resources", "icons", "breeze", "22x22", "actions", f"{name}.svg")), name)

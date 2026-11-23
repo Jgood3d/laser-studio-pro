@@ -1,6 +1,6 @@
 """Paquet gcode/ : génération du G-Code sans Qt.
 
-Vérifie que le paquet n'importe pas PyQt6, que les threads de workers.py
+Vérifie que le paquet n'importe pas PyQt6, que les threads de controllers/workers.py
 produisent exactement le G-Code des fonctions pures, et le contenu du G-Code
 (puissance S, commande laser, surbalayage, décalage retour, en-tête et fin).
 """
@@ -82,7 +82,7 @@ class RasterTests(unittest.TestCase):
         arr = np.array([[0, 0, 255, 255]], dtype=np.uint8)            # 2 pixels brûlés sur 4
         result = build_job_gcode(arr, None, job_params(height_mm=1.0))
         self.assertIsInstance(result, GcodeResult)
-        self.assertIn("G1 X12.000 F1000 S350", lines(result))         # 35 % de S1000, jusqu'au bord du 2e pixel
+        self.assertIn("G1 X2.000 F1000 S350", lines(result))          # 35 % de S1000, jusqu'au bord du 2e pixel
         self.assertNotIn("OVERSCAN", result.gcode)
         self.assertEqual(result.avg_power, 35.0)
 
@@ -102,11 +102,13 @@ class RasterTests(unittest.TestCase):
 
     def test_overscan_and_return_offset(self):
         arr = np.zeros((2, 4), dtype=np.uint8)
-        g = lines(build_job_gcode(arr, None, job_params(enable_overscan=True, image_overscan=True, scan_offset_mm=0.2)))
+        params = job_params(enable_overscan=True, image_overscan=True, scan_offset_mm=0.2)
+        g = lines(build_job_gcode(arr, None, params))
         starts = [line for line in g if line.endswith("OVERSCAN_START")]
-        x0, _ = image_origin(job_params())
-        self.assertEqual(starts[0], f"G0 X{x0 - 2.5:.3f} Y{11.0:.3f} ; OVERSCAN_START")         # aller
-        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:.3f} Y{10.0:.3f} ; OVERSCAN_START")  # retour décalé
+        x0, _ = image_origin(params)
+        self.assertEqual(x0, 2.5)                                     # marge = surbalayage : départ à X0
+        self.assertEqual(starts[0], f"G0 X{x0 - 2.5:.3f} Y{1.0:.3f} ; OVERSCAN_START")          # aller
+        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:.3f} Y{0.0:.3f} ; OVERSCAN_START")   # retour décalé
 
     def test_overscan_off_for_the_engrave_layer(self):
         arr = np.zeros((1, 4), dtype=np.uint8)
@@ -114,7 +116,9 @@ class RasterTests(unittest.TestCase):
         self.assertNotIn("OVERSCAN", g)
 
     def test_image_origin(self):
-        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0)), (15.0, 7.0))
+        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0)), (5.0, -3.0))   # sans surbalayage
+        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0, enable_overscan=True,
+                                                 image_overscan=True)), (7.5, -3.0))
         self.assertEqual(image_origin(job_params(origin_pos=ORIGIN_CENTER, offset_x=50.0, offset_y=40.0)),
                          (48.0, 39.0))
 
@@ -185,7 +189,7 @@ class CalibrationTests(unittest.TestCase):
 
 try:
     from PyQt6.QtWidgets import QApplication as QCoreApplication  # QApplication : la fenêtre est créée dans le même processus
-    from laser_studio import workers
+    from laser_studio.controllers import workers
 except ImportError:  # PyQt6 absent
     workers = None
 

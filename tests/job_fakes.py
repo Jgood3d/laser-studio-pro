@@ -48,6 +48,11 @@ class FakeDialogs:
         self._record("ask_yes_no", title, text)
         return self.answer
 
+    def choose(self, title, text, choices):
+        """Renvoie `self.choice` (clé), sinon la première proposée."""
+        self._record("choose", title, text)
+        return getattr(self, "choice", choices[0][0])
+
     def save_file(self, title, default_name, file_filter):
         self._record("save_file", title, default_name)
         return self.path
@@ -88,3 +93,24 @@ def make_job(image=None, objects=(), dialogs=None, geometry_kw=None, svg_path=No
     )
     job.holder = holder
     return job, dialogs
+
+
+def memory_preferences(test, **initial):
+    """Préférences en mémoire pendant le test `test` (rien d'écrit chez l'utilisateur) ; renvoie les
+    magasins par fichier : stores["UIConfig"].values, stores["MachineConfig"].values…"""
+    from laser_studio.core import preferences
+    context = preferences.in_memory(**initial)
+    stores = context.__enter__()
+    test.addCleanup(context.__exit__, None, None, None)
+    return stores
+
+
+def start_memory_preferences(cls):
+    """Préférences en mémoire pour toute une classe de tests : à appeler dans setUpClass, AVANT de
+    construire la fenêtre. Changer XDG_CONFIG_HOME ne suffit pas : QSettings garde le dossier choisi à
+    sa première utilisation dans le processus, et la fenêtre écrirait chez l'utilisateur."""
+    from laser_studio.core import preferences
+    context = preferences.in_memory()
+    stores = context.__enter__()
+    cls.addClassCleanup(context.__exit__, None, None, None)
+    return stores

@@ -12,6 +12,7 @@ ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ui_source import ui_files, ui_source  # noqa: E402
+from job_fakes import memory_preferences  # noqa: E402
 
 
 def read(name):
@@ -232,7 +233,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
-        self.assertIn("settings.undo_requested.connect(self.image_history.undo)", src)
+        self.assertIn("settings.undo_requested.connect(image_history.undo)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
         self.assertNotIn("MachineProfilesPage", src)            # fenêtre Matériaux et connexion supprimée
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
@@ -253,14 +254,14 @@ class MenuStructureTests(unittest.TestCase):
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
-        self.assertEqual(src.count("self.window_controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
+        self.assertEqual(src.count("compare=controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
         uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
         self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
         self.assertEqual(src.count("._fullscreen_control"), 0)
 
     def test_one_fullscreen_button_for_every_tab(self):
         # Un seul « Plein écran », dans la barre principale à côté de ko-fi, pour l'onglet affiché.
-        src = read("main_window.py")
+        src = read(os.path.join("ui", "app", "main_window.py"))
         tabs = read(os.path.join("ui", "app", "tabs.py"))
         body = tabs[tabs.index("def toggle_current_fullscreen"):]
         body = body[:body.index("\n    def ", 10)]
@@ -279,14 +280,14 @@ class MenuStructureTests(unittest.TestCase):
         for check in ("flip_check", "negative_check", "hide_rapid_check", "optimize_path_check"):
             self.assertIn(f"self.{check}", bar, check)
         # Les options d'affichage sont lues par l'onglet lui-même ; « Optimiser le chemin » par le job.
-        self.assertEqual(src.count("self.chk_optimize_path = tab.optimize_path_check"), 1)
+        self.assertEqual(src.count("self.tab_vector_2d.optimize_path_check.isChecked()"), 1)
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
         job = read(os.path.join("controllers", "job.py"))
         start = job[:job.index("        self.worker.start()")]
         self.assertTrue(start.rstrip().endswith("self.started.emit()"))
-        main = read("main_window.py")
+        main = read(os.path.join("ui", "app", "main_window.py"))
         self.assertIn("self.job.started.connect(display.generation_started)", main)
         self.assertIn("show_preview=lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)", main)
         view = read(os.path.join("ui", "app", "job_display.py"))
@@ -315,7 +316,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
                       read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
-        self.assertIn("start_stream=self.engraver.start_stream", ui_source())
+        self.assertIn("start_stream=engraver.start_stream", ui_source())
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
         src = ui_source()
@@ -328,7 +329,6 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(text.count("\n"), 1, lang)
 
     def test_resolution_stack_does_not_stretch(self):
-        src = ui_source()
         self.assertIn("self.stack.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)",
                       read(os.path.join("ui", "tabs", "image", "resolution_box.py")).replace("(\n            ", "(").replace(",\n            ", ", ").replace("\n        )", ")"))
 
@@ -336,21 +336,21 @@ class MenuStructureTests(unittest.TestCase):
         src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
-        self.assertIn("self.tab_grbl_config = page", src)
+        self.assertIn("self.tab_grbl_config = build_grbl_config_page(", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
         src = ui_source()
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
-        self.assertIn("self.tab_machine_params = page", src)
-        self.assertIn("self.tab_matrix = page", src)
+        self.assertIn("self.tab_machine_params, self.machines = build_machine_params_page(", src)
+        self.assertIn("self.tab_matrix, self.matrix_image = build_test_matrix_page(", src)
 
     def test_other_tabs_are_still_there(self):
         src = ui_source()
         # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
         # ancrage : cadre « Position du job », dans l'onglet Visualisation 2D ; Calques : onglet central.
         self.assertIn('layout.addRow(tr("dim.width"), self.width_spin)', src)
-        self.assertIn("self.spin_w = settings.width_spin", src)
+        self.assertIn("self.tab_previews.settings.size_mm()", src)
         self.assertIn("layout.addWidget(self.job_position_box)", src)
         self.assertIn('layout.addRow(tr("dim.origin"), self.origin_combo)', src)
         self.assertIn('"origin_pos": w.job_position_box.origin()', src)   # code, pas le libellé traduit
@@ -359,20 +359,12 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn('tr("tab.dimensions")', src)
         self.assertIn("self._settings_scroll = self._side_scroll(self.settings)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
-        self.assertIn("self.main_tabs_view.addTab(tab_vector_editor", src)
-        self.assertIn('self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))', src)
-        order = [src.index(k) for k in ("self._build_vector_editor_tab()",
-                                         'self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))',
-                                         "self._build_2d_preview_tab()")]
+        self.assertIn('tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))', src)
+        self.assertIn('tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))', src)
+        order = [src.index(k) for k in ('tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))',
+                                         'tabs.addTab(self.layers_tab, tr("tab.layers"))',
+                                         'tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))')]
         self.assertEqual(order, sorted(order))
-
-
-def fake_qsettings(stored):
-    """Faux QSettings : pas de vrais réglages touchés."""
-    fake = mock.Mock()
-    fake.return_value.setValue.side_effect = stored.__setitem__
-    fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
-    return fake
 
 
 class ShowWindowTests(unittest.TestCase):
@@ -388,10 +380,12 @@ class ShowWindowTests(unittest.TestCase):
         # Sans __init__ : la fenêtre est un simple espace de noms, pas un QObject.
         controller = self.mod.WindowController.__new__(self.mod.WindowController)
         controller.window = types.SimpleNamespace(tabs=mock.Mock())
-        controller._settings_windows = {}
+        controller._settings_windows, controller._settings_pages, controller._main_tabs = {}, {}, {}
         if with_pages:
             controller.window.tab_machine_params = object()
             controller.window.tab_grbl_config = object()
+            controller.add_settings_page("machine_params", controller.window.tab_machine_params, "tab.machine_params")
+            controller.add_settings_page("grbl", controller.window.tab_grbl_config, "tab.grbl_config")
         return controller
 
     class Recorder:
@@ -424,6 +418,8 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make()
         obj.window.tab_machine_params, obj.window.tab_matrix = object(), object()
+        obj.add_settings_page("machine_params", obj.window.tab_machine_params, "tab.machine_params")
+        obj.add_settings_page("test_matrix", obj.window.tab_matrix, "tab.test_matrix")
         with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
@@ -450,6 +446,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_menu_shows_a_tab_by_its_name(self):
         obj = self.make()
         obj.window.tab_separation = object()
+        obj.add_main_tab("tab_separation", obj.window.tab_separation)
         obj.show_main_tab("tab_separation")
         obj.window.tabs.show.assert_called_once_with(obj.window.tab_separation)
         obj.show_main_tab("tab_inconnu")                       # ignoré
@@ -457,23 +454,23 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_dithering_algorithm_is_remembered(self):
         module = importlib.import_module("laser_studio.controllers.image")
-        stored = {}
+        stored = memory_preferences(self)["UIConfig"].values
         obj = types.SimpleNamespace(image_settings=mock.Mock())
         controller = module.ImageController
-        with mock.patch.object(module, "QSettings", fake_qsettings(stored)):
-            controller.restore_remembered_algorithm(obj)
-            obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
-            controller.remember_algorithm(obj, "Atkinson")
-            controller.restore_remembered_algorithm(obj)
-            obj.image_settings.update.assert_called_once_with(algorithm="Atkinson")
-            stored[module.ALGORITHM_SETTING] = "Algorithme disparu"   # plus dans la liste : ignoré
-            controller.restore_remembered_algorithm(obj)
-            self.assertEqual(obj.image_settings.update.call_count, 1)
-            obj.remember_algorithm = lambda name: controller.remember_algorithm(obj, name)
-            controller.choose_algorithm(obj, "Stucki")               # choix dans la comparaison : mémorisé
-            self.assertEqual(stored[module.ALGORITHM_SETTING], "Stucki")
-        src = read("main_window.py")
-        self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)", src)
+        controller.restore_remembered_algorithm(obj)
+        obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
+        controller.remember_algorithm(obj, "Atkinson")
+        controller.restore_remembered_algorithm(obj)
+        obj.image_settings.update.assert_called_once_with(algorithm="Atkinson")
+        stored[module.ALGORITHM_SETTING] = "Algorithme disparu"   # plus dans la liste : ignoré
+        controller.restore_remembered_algorithm(obj)
+        self.assertEqual(obj.image_settings.update.call_count, 1)
+        obj.remember_algorithm = lambda name: controller.remember_algorithm(obj, name)
+        controller.choose_algorithm(obj, "Stucki")               # choix dans la comparaison : mémorisé
+        self.assertEqual(stored[module.ALGORITHM_SETTING], "Stucki")
+        src = read(os.path.join("ui", "app", "main_window.py"))
+        self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)",
+                      read(os.path.join("ui", "tabs", "image", "builder.py")))
         self.assertIn("self.image.restore_remembered_algorithm()", src)
         self.assertIn("dialog.algorithm_chosen.connect(image.choose_algorithm)",
                       read(os.path.join("ui", "app", "window_controller.py")))
@@ -585,32 +582,30 @@ class MainTabsTests(unittest.TestCase):
         queue = object()
         self.tabs.add_optional(queue, self.mod.JOB_QUEUE_SETTING, mock.Mock())
         self.view.indexOf.return_value = 3
-        stored = {}
-        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
-            self.assertTrue(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))   # affichée au départ
-            self.tabs.set_optional_visible(queue, True)
-            self.assertEqual(stored, {})                          # inchangé : rien d'écrit
-            self.tabs.set_optional_visible(queue, False)
-            self.view.setTabVisible.assert_called_with(3, False)
-            self.assertEqual(stored, {"show_job_queue": False})
-            self.assertFalse(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))
+        stored = memory_preferences(self)["UIConfig"].values
+        self.assertTrue(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))   # affichée au départ
+        self.tabs.set_optional_visible(queue, True)
+        self.assertEqual(stored, {})                          # inchangé : rien d'écrit
+        self.tabs.set_optional_visible(queue, False)
+        self.view.setTabVisible.assert_called_with(3, False)
+        self.assertEqual(stored, {"show_job_queue": False})
+        self.assertFalse(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))
 
     def test_gcode_console_visibility_is_remembered(self):
         console, action = object(), mock.Mock()
         self.tabs.add_optional(console, self.mod.GCODE_CONSOLE_SETTING, action)
-        stored = {}
-        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
-            self.tabs.restore_optional_tabs()
-            action.setChecked.assert_called_once_with(False)     # masquée la première fois
-            self.view.indexOf.return_value = 7
-            self.tabs.set_optional_visible(console, True)
-            self.view.setTabVisible.assert_called_with(7, True)
-            self.assertTrue(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
-            self.view.indexOf.return_value = -1                  # en plein écran : onglet pas touché
-            self.view.setTabVisible.reset_mock()
-            self.tabs.set_optional_visible(console, False)
-            self.view.setTabVisible.assert_not_called()
-            self.assertFalse(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
+        memory_preferences(self)
+        self.tabs.restore_optional_tabs()
+        action.setChecked.assert_called_once_with(False)     # masquée la première fois
+        self.view.indexOf.return_value = 7
+        self.tabs.set_optional_visible(console, True)
+        self.view.setTabVisible.assert_called_with(7, True)
+        self.assertTrue(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
+        self.view.indexOf.return_value = -1                  # en plein écran : onglet pas touché
+        self.view.setTabVisible.reset_mock()
+        self.tabs.set_optional_visible(console, False)
+        self.view.setTabVisible.assert_not_called()
+        self.assertFalse(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
 
     def test_current_tab_fullscreen_dispatch(self):
         calls = []
@@ -624,14 +619,13 @@ class MainTabsTests(unittest.TestCase):
         self.assertEqual(calls, ["vectoriel", tr("png2svg.fullscreen_title"), "Visualisation 2D"])
 
     def test_preview_2d_splitter_position_is_remembered(self):
-        stored = {}
+        stored = memory_preferences(self)["UIConfig"].values
         self.preview_splitter.sizes.return_value = [900, 0]  # statistiques repliées : gardé
         self.tabs.splitter.sizes.return_value = [600, 200]
-        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
-            self.tabs.save_splitter_sizes()
-            self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
-            self.assertEqual(stored["center_v_splitter_sizes"], [600, 200])
-            self.tabs.load_splitter_sizes()
+        self.tabs.save_splitter_sizes()
+        self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
+        self.assertEqual(stored["center_v_splitter_sizes"], [600, 200])
+        self.tabs.load_splitter_sizes()
         self.preview_splitter.setSizes.assert_called_once_with([900, 0])
         self.tabs.splitter.setSizes.assert_called_once_with([600, 200])
 
@@ -639,16 +633,6 @@ class MainTabsTests(unittest.TestCase):
 # --- SettingsWindow avec de faux widgets Qt ---------------------------------------------------
 class FakeQt:
     store = {}
-
-    class QSettings:
-        def __init__(self, *a):
-            pass
-
-        def value(self, key, default=None):
-            return FakeQt.store.get(key, default)
-
-        def setValue(self, key, value):
-            FakeQt.store[key] = value
 
     class QDialog:
         def __init__(self, parent=None):
@@ -685,8 +669,8 @@ class FakeQt:
 
 
 def load_window_module():
+    importlib.import_module("laser_studio.core.preferences")    # le vrai module, avant les faux widgets
     fake_core = types.ModuleType("PyQt6.QtCore")
-    fake_core.QSettings = FakeQt.QSettings
     fake_widgets = types.ModuleType("PyQt6.QtWidgets")
     fake_widgets.QDialog, fake_widgets.QScrollArea, fake_widgets.QVBoxLayout = FakeQt.QDialog, FakeQt.QScrollArea, FakeQt.QVBoxLayout
     with mock.patch.dict(sys.modules, {"PyQt6.QtCore": fake_core, "PyQt6.QtWidgets": fake_widgets}):
@@ -698,7 +682,7 @@ def load_window_module():
 
 class SettingsWindowTests(unittest.TestCase):
     def setUp(self):
-        FakeQt.store = {}
+        FakeQt.store = memory_preferences(self)["UIConfig"].values
         self.sw = load_window_module()
 
     def test_page_is_hosted_in_a_scroll_area_and_window_is_not_modal(self):

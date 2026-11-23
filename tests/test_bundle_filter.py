@@ -25,7 +25,7 @@ class BundleFilterTests(unittest.TestCase):
                      "PyQt6/Qt6/bin/Qt6WebChannel.dll", "PyQt6/Qt6/lib/libQt6Positioning.so.6",
                      "PyQt6/Qt6/lib/libQt6Test.so.6", "PyQt6/QtQuick.abi3.so",
                      "PyQt6/Qt6/resources/qtwebengine_resources.pak", "PyQt6/Qt6/resources/icudtl.dat",
-                     "resources/icons/breeze/22x22/actions/edit-undo.svg", "stencil_studio/studio.html"):
+                     "resources/icons/breeze/22x22/actions/edit-undo.svg", "stencil_studio/ui/studio.html"):
             self.assertFalse(is_unused(path), path)
 
     def test_only_our_four_languages_are_kept(self):

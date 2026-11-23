@@ -6,8 +6,7 @@
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe les actions qui touchent plusieurs parties de la
 fenêtre : thème, langue, aide, caméra, fenêtres de réglages, matrice de test,
-résolution et focale de « Graver une image », outils de dessin de l'éditeur
-vectoriel.
+résolution et focale de « Graver une image », Stencil Studio.
 
 Le reste a son propre objet, créé par la fenêtre : MainTabs (onglets,
 plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
@@ -17,18 +16,20 @@ La fenêtre (`window`) est le point d'assemblage : le contrôleur y lit les
 modèles, contrôleurs et pages qu'elle a construits.
 """
 
-from PyQt6.QtCore import QObject, QSettings, QTimer
+from PyQt6.QtCore import QObject, QTimer
 from PyQt6.QtWidgets import QApplication
 
-from laser_studio.i18n import set_language, tr
+from laser_studio.core.preferences import ui_preferences
+from laser_studio.i18n import get_current_language, set_language, tr
 from laser_studio.ui.about import AboutDialog
+from laser_studio.ui.app.theme import apply_app_theme, current_theme_name, normalize_theme_name, page_colors
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.support import SupportDialog
 from laser_studio.ui.utils import busy_cursor
-from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
+from stencil_studio.controllers.studio import StencilStudioController
 
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
 STENCIL_PRELOAD_DELAY_MS = 3000
@@ -40,7 +41,12 @@ class WindowController(QObject):
         self.window = window
         self._help_dialog = None
         self._settings_windows = {}
+        # Pages des fenêtres de réglages (kind -> (page, clé du titre)) et onglets que le menu peut
+        # demander par leur nom, inscrits par la fenêtre (add_settings_page, add_main_tab).
+        self._settings_pages = {}
+        self._main_tabs = {}
         self.camera = None
+        self.stencil_studio = None
 
     # -- menu et barre d'outils
 
@@ -51,7 +57,7 @@ class WindowController(QObject):
         # Fichier
         actions.save_project_requested.connect(w.project.save)
         actions.gcode_export_requested.connect(
-            lambda extension: w.job.export_gcode(extension, w.txt_console.toPlainText()))
+            lambda extension: w.job.export_gcode(extension, w.tab_console_gcode.gcode()))
         actions.open_project_requested.connect(w.project.open)
         actions.recent_project_requested.connect(w.project.open_path)
         actions.quit_requested.connect(w.close)
@@ -59,7 +65,7 @@ class WindowController(QObject):
         actions.settings_window_requested.connect(self.show_settings_window)
         actions.language_selected.connect(self.select_language)
         actions.theme_selected.connect(self.change_theme)
-        actions.stencil_studio_requested.connect(lambda: open_stencil_studio(w))
+        actions.stencil_studio_requested.connect(lambda: self.stencil().open())
         actions.main_tab_requested.connect(self.show_main_tab)
         editor = w.vector_editor
         actions.vector_import_requested.connect(lambda: self.run_in_vector_editor(editor.import_dialog))
@@ -93,33 +99,35 @@ class WindowController(QObject):
         actions.generate_requested.connect(w.job.generate)
         actions.gcode_import_requested.connect(w.job.import_gcode)
 
+    def stencil(self):
+        """Contrôleur de Stencil Studio, créé à la première demande. Ses exports SVG / DXF arrivent
+        dans l'éditeur vectoriel, rangés dans les calques (VectorEditorController.import_stencil_export)."""
+        if self.stencil_studio is None:
+            w = self.window
+            self.stencil_studio = StencilStudioController(
+                w, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
+                dialogs=w.dialogs, parent=self)
+            self.stencil_studio.export_ready.connect(w.vector_editor.import_stencil_export)
+        return self.stencil_studio
+
     def schedule_stencil_preload(self):
         """Préchauffe Stencil Studio en arrière-plan une fois la fenêtre
         affichée : « Outils > Stencil Studio » s'ouvre ensuite sans attente."""
-        QTimer.singleShot(STENCIL_PRELOAD_DELAY_MS, lambda: preload_stencil_studio(self.window))
+        QTimer.singleShot(STENCIL_PRELOAD_DELAY_MS, lambda: self.stencil().preload())
 
     def change_theme(self, theme_name):
         """Bascule de thème à la volée et mémorise le code.
 
         Codes possibles : dark, light, dusk, warm.
         """
-        # Importé ici : le thème n'est chargé qu'au premier changement.
-        from laser_studio.ui.app.theme import apply_app_theme, normalize_theme_name
-
         theme_name = normalize_theme_name(theme_name)
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        settings.setValue("app_theme", theme_name)
-        settings.sync()  # écriture immédiate sous Windows
+        ui_preferences().set("app_theme", theme_name)
         apply_app_theme(QApplication.instance(), theme_name)
         self.window.app_actions.set_theme(theme_name)
 
         # Stencil Studio ouvert : même thème que LSP
-        dlg = getattr(self.window, "_stencil_studio_dialog", None)
-        if dlg is not None:
-            try:
-                dlg.sync_theme_from_lsp(theme_name)
-            except Exception:
-                pass
+        if self.stencil_studio is not None:
+            self.stencil_studio.set_theme(page_colors(theme_name))
 
     def select_language(self, lang_code):
         """Langue choisie dans le menu : appliquée au prochain démarrage."""
@@ -133,10 +141,13 @@ class WindowController(QObject):
             self._help_dialog = HelpDialog(self.window)
         self._help_dialog.show_page(page)
 
-    def show_main_tab(self, tab_attr):
-        """Affiche l'onglet central dont l'attribut de la fenêtre est
-        `tab_attr` (ex. "tab_separation", envoyé par le menu Outils)."""
-        tab = getattr(self.window, tab_attr, None)
+    def add_main_tab(self, name, tab):
+        """Onglet que le menu Outils peut demander par son nom (ex. "tab_separation")."""
+        self._main_tabs[name] = tab
+
+    def show_main_tab(self, name):
+        """Affiche l'onglet central inscrit sous `name` (envoyé par le menu Outils) ; nom inconnu : rien."""
+        tab = self._main_tabs.get(name)
         if tab is not None:
             self.window.tabs.show(tab)
 
@@ -180,23 +191,17 @@ class WindowController(QObject):
 
     def set_camera_background_enabled(self, enabled):
         """Interrupteur « Fond caméra » de l'éditeur vectoriel : capture et affiche, ou retire l'image."""
-        toggle = self.window.vector_camera_toggle
         if enabled:
             if not self.refresh_camera_background():
-                toggle.blockSignals(True)      # pas de caméra prête : l'interrupteur revient sur « éteint »
-                toggle.setChecked(False)
-                toggle.blockSignals(False)
+                # Pas de caméra prête : l'interrupteur revient sur « éteint ».
+                self.window.tab_vector_editor.show_camera_background(False)
         elif self.camera is not None:
             self.camera.clear_overlay()
 
     def refresh_camera_clicked(self):
         """Bouton « Actualiser l'image » : recapture, et allume l'interrupteur si l'image est posée."""
-        ok = self.refresh_camera_background()
-        toggle = self.window.vector_camera_toggle
-        if ok and not toggle.isChecked():
-            toggle.blockSignals(True)
-            toggle.setChecked(True)
-            toggle.blockSignals(False)
+        if self.refresh_camera_background():
+            self.window.tab_vector_editor.show_camera_background(True)
 
     def show_settings_window(self, kind):
         """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »
@@ -204,16 +209,15 @@ class WindowController(QObject):
         (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
         windows = self._settings_windows
         if kind not in windows:
-            w = self.window
-            page, title = {
-                "grbl": (getattr(w, "tab_grbl_config", None), tr("tab.grbl_config")),
-                "machine_params": (getattr(w, "tab_machine_params", None), tr("tab.machine_params")),
-                "test_matrix": (getattr(w, "tab_matrix", None), tr("tab.test_matrix")),
-            }[kind]
-            if page is None:
-                return
-            windows[kind] = SettingsWindow(w, title, page, kind)
+            if kind not in self._settings_pages:
+                return                     # page pas (encore) construite
+            page, title_key = self._settings_pages[kind]
+            windows[kind] = SettingsWindow(self.window, tr(title_key), page, kind)
         windows[kind].bring_to_front()
+
+    def add_settings_page(self, kind, page, title_key):
+        """Page affichée par show_settings_window(kind), titre tr(`title_key`)."""
+        self._settings_pages[kind] = (page, title_key)
 
     # -- onglets
 
@@ -249,19 +253,6 @@ class WindowController(QObject):
 
     # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
 
-    def resolution_changed(self, _lines_mm):
-        """Résolution de gravure changée (saisie, DPI, focale, réglages restaurés) :
-        la matrice de test et la Séparation la reprennent, l'image est retraitée.
-        La matrice et la Séparation, construites après l'onglet image, sont
-        absentes lors des tout premiers réglages."""
-        w = self.window
-        if hasattr(w, "tab_matrix"):
-            self.sync_matrix_lines_mm()
-        separation = getattr(w, "separation", None)
-        if separation is not None:
-            separation.resolution_changed()
-        w.image.schedule_processing()
-
     def machine_focal_changed(self, focal):
         """La focale est une caractéristique physique du laser : tout
         changement dans les Paramètres Machine recale lignes/mm, DPI et
@@ -288,40 +279,3 @@ class WindowController(QObject):
         dialog = DitherComparisonDialog(self.window, thumbnails)
         dialog.algorithm_chosen.connect(image.choose_algorithm)
         dialog.exec()
-
-    def refresh_engrave_layer_combo(self, *_args):
-        """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés,
-        supprimés, renommés ou changés de mode)."""
-        layers = self.window.layer_manager
-        layer = layers.engrave_layer()
-        self.window.tab_previews.settings.engrave_layer_combo.set_layers(layers.layers,
-                                                                         layer.id if layer else None)
-
-    # -- éditeur vectoriel : outils de la souris, zone de travail
-
-    def set_vector_draw_tool(self, tool):
-        """Active un outil de dessin à la souris sur le canevas vectoriel.
-
-        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
-        Rectangle : 3 points. Cercle (du centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) :
-        un seul clic-glisser. Échap ou clic droit annule l'outil.
-        """
-        w = self.window
-        layers = w.layer_manager
-        if tool and tool not in (None, "select") and not layers.layers:
-            w.dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
-            tool = None
-        layer = layers.default_svg_layer() if layers.layers else None
-        layer_id = layer.id if layer else None
-        resolved = None if tool in (None, "select") else tool
-        w.vector_canvas.set_draw_tool(resolved, layer_id=layer_id)
-        for key, btn in w.vector_draw_buttons.items():
-            btn.blockSignals(True)
-            btn.setChecked(key == resolved)
-            btn.blockSignals(False)
-
-    def update_vector_work_area(self, *_args):
-        """Zone de travail de l'éditeur vectoriel aux dimensions physiques du
-        graveur (Paramètres Machine), et non à celles du job en cours."""
-        machine = self.window.machine
-        self.window.vector_canvas.set_work_area(machine.bed_w, machine.bed_h)

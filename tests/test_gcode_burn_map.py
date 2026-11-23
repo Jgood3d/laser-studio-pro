@@ -22,8 +22,7 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio import workers
-    from laser_studio.gcode.raster import IMAGE_MARGIN_MM
+    from laser_studio.controllers import workers
 except ImportError as exc:  # dépendance manquante (PyQt6, svg.path...)
     workers = None
     _IMPORT_ERROR = exc
@@ -40,12 +39,12 @@ class _Params(dict):
 
 def generate_gcode(arr, overscan=0.0, algo="Seuil Simple (Binaire)"):
     h, w = arr.shape
-    # Décalage opposé à la marge de l'image (gcode.raster.IMAGE_MARGIN_MM) : image à l'origine du
-    # plateau, comme le suppose power_map.
-    margin = IMAGE_MARGIN_MM
+    # Décalage opposé à la marge de l'image (le surbalayage, voir gcode.raster.image_origin) : image à
+    # l'origine du plateau, comme le suppose power_map.
+    margin = overscan
     params = _Params(
         width_mm=float(w), height_mm=float(h), origin_pos="bottom_left",
-        offset_x=-margin, offset_y=-margin, power_engrave=100.0, speed_engrave=1000,
+        offset_x=-margin, offset_y=0.0, power_engrave=100.0, speed_engrave=1000,
         enable_overscan=overscan > 0, overscan_mode="mm", overscan_dist=overscan,
         laser_cmd="M4", s_max=S_MAX, algo=algo, enable_cut=False,
     )
@@ -101,7 +100,7 @@ def _ascii(m, thr=0.5):
     return ["".join("#" if v > thr else "." for v in row) for row in m]
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici (PyQt6/svg.path manquants ?)")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici (PyQt6/svg.path manquants ?)")
 class BinaryBurnMapTests(unittest.TestCase):
     def assert_burn_matches(self, arr, overscan=0.0):
         h, w = arr.shape
@@ -152,7 +151,7 @@ class BinaryBurnMapTests(unittest.TestCase):
         self.assert_burn_matches(np.zeros((4, 20), np.uint8))
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici (PyQt6/svg.path manquants ?)")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici (PyQt6/svg.path manquants ?)")
 class GrayscalePowerTests(unittest.TestCase):
     def test_power_follows_pixel_darkness(self):
         # Niveaux de gris : puissance proportionnelle à (255 - valeur) / 255.

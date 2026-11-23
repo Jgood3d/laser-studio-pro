@@ -7,11 +7,14 @@ import os
 from io import BytesIO
 
 from PIL import Image
-from PyQt6.QtCore import QSettings
 
 from laser_common.files import atomic_write_json, get_background_writer
 from laser_studio.core.paths import get_autosave_dir
 from laser_studio.i18n import tr
+from laser_studio.core.preferences import ui_preferences
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
 # Projets récents gardés dans le menu Fichier.
@@ -117,21 +120,14 @@ class ProjectController:
 
     @staticmethod
     def _recent_projects():
-        recents = QSettings("LaserStudioPro", "UIConfig").value(
-            "recent_projects", []
-        )
-        if isinstance(recents, str):
-            recents = [recents]
-        return list(recents or [])
+        return ui_preferences().get_list("recent_projects")
 
     def _add_to_recent_projects(self, path):
         recents = self._recent_projects()
         if path in recents:
             recents.remove(path)
         recents.insert(0, path)
-        QSettings("LaserStudioPro", "UIConfig").setValue(
-            "recent_projects", recents[:MAX_RECENT_PROJECTS]
-        )
+        ui_preferences().set("recent_projects", recents[:MAX_RECENT_PROJECTS])
         self.refresh_recent_projects()
 
     def refresh_recent_projects(self):
@@ -170,7 +166,7 @@ class ProjectController:
 
             writer.submit(path, produce)
         except Exception:
-            pass
+            log.exception("Sauvegarde automatique du projet impossible")
 
     def discard_autosave(self):
         """Oublie la sauvegarde automatique (projet enregistré, ou fermeture
@@ -181,7 +177,7 @@ class ProjectController:
             # le fichier juste après un enregistrement.
             get_background_writer().discard(path)
         except Exception:
-            pass
+            log.warning("Sauvegarde automatique non oubliée", exc_info=True)
 
     def offer_autosave_recovery(self):
         """Au démarrage : propose de récupérer la dernière sauvegarde

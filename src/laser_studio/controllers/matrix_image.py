@@ -100,8 +100,8 @@ class MatrixImageController:
         h_mm, grayscale}, ou None (message affiché). Calcul court
         (quelques centaines de pixels de côté) : fait ici, sans thread.
         """
-        # Import tardif : workers dépend de Qt et de numba.
-        from laser_studio.workers import ImageProcessingWorker
+        # Import tardif : controllers/workers dépend de Qt et de numba.
+        from laser_studio.controllers.workers import ImageProcessingWorker
 
         page = self._page
         if page.source_image is None and self._loaded_image() is not None:

@@ -39,6 +39,10 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.
+
+Éditeur vectoriel : quand il contient déjà des objets, un import (fichier SVG / DXF, bibliothèque, générateurs de boîte, de puzzle, de boule de Noël et de porte-clés, vectorisation, Stencil Studio) demande quoi faire du nouveau dessin : l'ajouter sans toucher aux objets, supprimer les objets présents, l'ajouter à leur droite ou au-dessus. Le puzzle garde sa position calée sur l'image, sauf à droite ou au-dessus. Ctrl+Z annule le tout d'un coup.
+
 Stencil Studio : quand la détection du sujet par IA manque, le message propose la commande `dnf install` sous Fedora (Python du système), `pip install` ailleurs.
 
 La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
@@ -69,7 +73,27 @@ Graver une image : `image_processing_mixin.py` supprimé, la fenêtre n'hérite 
 
 Fenêtre principale : `WindowControllerMixin` remplacé par des objets, la fenêtre n'hérite plus d'aucun mixin. Les onglets (affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs) passent dans `MainTabs` (`ui/app/tabs.py`), l'affichage des résultats du job et de l'état du graveur dans `JobDisplay` (`ui/app/job_display.py`), « Pivoter », « Supprimer » et les miroirs de la barre d'outils dans `ImageToolbarActions` (`ui/app/image_actions.py`) ; `WindowController` garde les menus, le thème, la langue, l'aide, la caméra, les fenêtres de réglages, la résolution et les outils de dessin. Ce qui s'enregistre et se restaure (réglages machine au démarrage et à la fermeture, champs d'un profil machine, état d'un projet, recopie des calques dans le matériau choisi) passe dans `WindowState` (`ui/app/window_state.py`). Les menus sont abonnés une fois toute la fenêtre construite. Comportement inchangé, vérifié dans la fenêtre (onglets, plein écran, panneau du bas, génération, barre d'outils de l'image, outils de dessin, réglages, focale, thème).
 
+Stencil Studio : découpé comme Laser Studio en modèles (`models/` : photo et repères, réglages enregistrés), contrôleurs (`controllers/` : API de calcul, fenêtre dans Laser Studio) et interface (`ui/` : page web, fenêtre Qt, fenêtre séparée, couleurs) ; le serveur local est dans `server.py`, la police et le modèle de détourage dans `resources/`. Les réponses de l'API sont identiques (vérifié sur 38 requêtes). Le Studio n'importe plus rien de Laser Studio : il reçoit ses couleurs, sa langue et ses messages, et annonce ses exports. Seul, il se lance par `python -m stencil_studio`. Le rangement de ses exports dans les calques passe dans `controllers/stencil_import.py` côté Laser Studio, par le modèle des calques. Copies inutiles des traductions supprimées.
+
+Fenêtre principale : déplacée dans `ui/app/main_window.py` et réduite à l'assemblage (1 077 → 466 lignes). Chaque partie de l'interface a son builder (`ui/…/builder.py`) qui crée la vue et sa logique et les relie, sans connaître la fenêtre. L'onglet de l'éditeur vectoriel devient une vue à part (`ui/vector_editor/tab.py`, `VectorEditorTab`), ses actions et le choix de l'outil de dessin passent par `VectorEditorController`. Les alias historiques des champs (`spin_w`, `chk_homing`, `txt_console`…) sont supprimés : on lit la page ou le modèle (`size_mm()`, `bind_settings()`, `ConsoleTab.gcode()`…). La zone de travail de l'éditeur suit directement le modèle de la machine. Comportement inchangé, vérifié dans la fenêtre.
+
+Préférences : toutes les lectures et écritures des réglages mémorisés (thème, langue, onglets, séparateurs, projets récents, dernier port, profils machine, caméra…) passent par `core/preferences.py`, qui convertit les valeurs relues et écrit tout de suite. Les tests utilisent des préférences en mémoire au lieu de simuler QSettings. `grbl/` n'importe plus Qt, et un test vérifie qu'aucun dossier de calcul n'importe QtWidgets.
+
+Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window.py` (onglets et plein écran, panneau du bas, outils de dessin, barre d'outils de l'image, génération et affichage du G-Code, résolution et focale, thème et langue, fermeture, projet, export de Stencil Studio), avec des préférences en mémoire.
+
+Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel) supprimé, chacun importe depuis le vrai module ; l'ancien nom `LayerManager` disparaît au profit de `LayersModel`. `workers.py` devient `controllers/workers.py`, sans ses réexportations. `WindowController` ne va plus chercher d'attributs de la fenêtre par leur nom : pages de réglages et onglets du menu Outils lui sont inscrits, la résolution est branchée sur la matrice de test et la Séparation à leur création.
+
+Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 000 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement, poignée du texte sur contour), qui gardent chacun leur état ; le menu du clic droit, le texte sur contour et les opérations sur une sélection groupée ont aussi leurs fichiers. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
+
+Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
+
 ### Corrigé
+Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).
+
+Stencil Studio : l'autotest (`selftest.py`) échouait. Ses tests de séparation par couleur dataient d'avant le passage automatique aux tons pour les photos ombrées et d'avant la règle « le nombre de plaques demandé est toujours respecté » avec la pipette ; ils utilisent maintenant une image en aplats, comparent les couleurs avec une tolérance, et vérifient aussi ces deux règles. Il est lancé par la suite de tests (`tests/test_stencil_selftest.py`).
+
+Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
+
 Caméra : le fond de l'éditeur vectoriel est de nouveau redressé sur tout le plateau (l'image apparaissait minuscule et déplacée : la projection `warp_to_bed` utilisait la matrice dans le mauvais sens).
 
 Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.

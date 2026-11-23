@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Préférences et données de l'application isolées : le test ne touche pas à celles de l'utilisateur.
 _TMP = tempfile.mkdtemp()
@@ -14,7 +15,7 @@ os.environ.setdefault("XDG_DATA_HOME", _TMP)
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from laser_studio import main_window
+    from laser_studio.ui.app import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 
@@ -36,7 +37,9 @@ class BurnOverlayTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
         # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
-        mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+        mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
+        from job_fakes import start_memory_preferences
+        start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
         cls.win = main_window.FullLaserStudio()
 
     def setUp(self):

@@ -11,13 +11,9 @@ sans le savoir : le port s'ouvre, mais personne ne répond.
 
 import re
 
-from PyQt6.QtCore import QSettings
+from laser_studio.core.preferences import ui_preferences
 
 LAST_PORT_KEY = "last_port"
-
-
-def _settings():
-    return QSettings("LaserStudioPro", "UIConfig")
 
 
 def is_usable(port):
@@ -64,8 +60,8 @@ def port_of(label):
 
 def load_last_port():
     """Dernier port auquel on s'est connecté avec succès ("" si aucun)."""
-    return str(_settings().value(LAST_PORT_KEY, "") or "")
+    return str(ui_preferences().get(LAST_PORT_KEY, "") or "")
 
 
 def save_last_port(port):
-    _settings().setValue(LAST_PORT_KEY, port)
+    ui_preferences().set(LAST_PORT_KEY, port)

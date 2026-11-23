@@ -7,9 +7,8 @@ contient la partie « pure » (testable sans interface) :
 * `to_gray` : image PIL -> niveaux de gris (transparence sur fond blanc) ;
 * `crop_box_px` / `frame_fraction` : où et quelle taille a la zone dans l'image ;
 * `tile_raster_gcode` : G-Code d'une zone déjà tramée (même balayage aller/retour, même
-  surbalayage et même calcul de puissance que workers.AdvancedGCodeWorker).
+  surbalayage et même calcul de puissance que controllers/workers.AdvancedGCodeWorker).
 """
-import math
 
 import numpy as np
 from PIL import Image
