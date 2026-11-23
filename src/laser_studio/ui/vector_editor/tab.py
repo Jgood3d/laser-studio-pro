@@ -8,14 +8,16 @@ propriétés de la sélection.
     editor.draw_tool_changed.connect(tab.show_draw_tool)
 
 C'est une vue : chaque bouton émet `command(nom)` (noms dans COMMANDS),
-les outils de la souris `draw_tool_requested(outil)` ; la grille magnétique
+les outils de la souris `draw_tool_requested(outil)`, l'interrupteur « Fond
+caméra » `camera_background_toggled(actif)` et son bouton « Actualiser »
+`camera_refresh_requested()` ; la grille magnétique
 règle le canevas directement. Le panneau des propriétés
 (VectorPropertiesPanel) remplit `properties_widgets`.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QPushButton, QVBoxLayout, QWidget)
+                             QPushButton, QStyle, QVBoxLayout, QWidget)
 
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import palette_icon
@@ -89,6 +91,8 @@ class VectorEditorTab(QWidget):
 
     command = pyqtSignal(str)
     draw_tool_requested = pyqtSignal(object)
+    camera_background_toggled = pyqtSignal(bool)
+    camera_refresh_requested = pyqtSignal()
 
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
@@ -161,6 +165,18 @@ class VectorEditorTab(QWidget):
         create_actions = [self._action(tr(key), tr(key).lstrip("+ "), name, icon) for name, key, icon in CREATE_ACTIONS]
         create_actions.append(self._action(tr("ui.vector_library"), tr("ui.vector_library_tip"), "library",
                                            "view-app-grid"))
+        # Fond caméra : interrupteur (capture et affiche l'image de la caméra sous la grille, pour placer le
+        # travail sur la vraie matière) et bouton pour la recapturer, sans passer par la fenêtre Caméra.
+        self.camera_toggle = QAction(tr("ui.vector_camera_toggle"), self)
+        self.camera_toggle.setToolTip(tr("ui.vector_camera_toggle_tip"))
+        self.camera_toggle.setIcon(palette_icon("camera-photo", self.palette(),
+                                                self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)))
+        self.camera_toggle.setCheckable(True)
+        self.camera_toggle.toggled.connect(self.camera_background_toggled.emit)
+        camera_refresh = self._action(tr("ui.vector_camera_refresh"), tr("ui.vector_camera_refresh_tip"),
+                                      icon_name="view-refresh")
+        camera_refresh.triggered.connect(lambda _checked=False: self.camera_refresh_requested.emit())
+        create_actions += [self.camera_toggle, camera_refresh]
         self.draw_buttons = {}
         for tool, key, icon in DRAW_TOOLS:
             action = self._action(tr(key), f"{tr(key)} — {tr(key + '_tip')}", icon_name=icon)
@@ -250,6 +266,12 @@ class VectorEditorTab(QWidget):
         return spin
 
     # -- état
+
+    def show_camera_background(self, shown):
+        """Coche ou décoche l'interrupteur « Fond caméra », sans émettre de demande."""
+        blocked = self.camera_toggle.blockSignals(True)
+        self.camera_toggle.setChecked(shown)
+        self.camera_toggle.blockSignals(blocked)
 
     def show_draw_tool(self, tool):
         """Coche le bouton de l'outil de la souris `tool` (None : sélection), sans émettre de demande."""

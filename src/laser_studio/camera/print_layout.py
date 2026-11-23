@@ -15,12 +15,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Callable, List, Sequence, Tuple
 
-from laser_studio.camera.workspace_alignment import AlignmentTarget, apriltag_engrave_polygons
+from laser_studio.camera.workspace_alignment import (
+    AlignmentTarget,
+    apriltag_engrave_polygons,
+    tag_cut_side_mm,
+    tag_quiet_mm,
+)
 
 PAGE_MARGIN_MM = 10.0
-TAG_QUIET_MM = 6.0          # zone claire autour d'un tag (nécessaire à sa détection)
 TAG_LABEL_MM = 12.0         # hauteur du texte sous chaque tag
-TICK_MM = 3.0               # repères au milieu de chaque côté du tag
 MAX_SQUARE_MM = 30.0
 
 
@@ -76,8 +79,10 @@ def apriltag_pages(
     if not targets:
         return []
     size = targets[0].size_mm
-    cell_w = size + 2 * TAG_QUIET_MM
-    cell_h = size + 2 * TAG_QUIET_MM + TAG_LABEL_MM
+    quiet = tag_quiet_mm(size)
+    side = tag_cut_side_mm(size)                  # carré à découper : le tag, bord noir compris
+    cell_w = side + 2 * quiet                     # le papier blanc autour sert à tenir et à couper
+    cell_h = side + 2 * quiet + TAG_LABEL_MM
     footer_h = 8.0
     n_cols = int((page_w_mm - 2 * PAGE_MARGIN_MM) // cell_w)
     n_rows = int((page_h_mm - 2 * PAGE_MARGIN_MM - footer_h) // cell_h)
@@ -94,25 +99,22 @@ def apriltag_pages(
             col, row = k % n_cols, k // n_cols
             cx = left + col * cell_w + cell_w / 2.0
             cy_top = PAGE_MARGIN_MM + row * cell_h
-            cy = cy_top + TAG_QUIET_MM + size / 2.0
-            _add_tag(page, target, cx, cy, left + col * cell_w, cy_top, cell_w, cell_h, label(target))
+            cy = cy_top + quiet + side / 2.0
+            _add_tag(page, target, cx, cy, side, label(target))
         page.items.append(("text", PAGE_MARGIN_MM, page_h_mm - PAGE_MARGIN_MM - 4.0,
                            page_w_mm - 2 * PAGE_MARGIN_MM, footer(targets[0]), 9))
         pages.append(page)
     return pages
 
 
-def _add_tag(page, target, cx, cy, cell_x, cell_y, cell_w, cell_h, text):
-    """Un tag centré en (cx, cy) dans la cellule (cell_x, cell_y, cell_w, cell_h)."""
-    half = target.size_mm / 2.0
+def _add_tag(page, target, cx, cy, side, text):
+    """Un tag centré en (cx, cy), son carré de découpe (`side` de côté, en pointillé sur le bord du tag) et sa
+    légende sous le tag. Le papier autour reste blanc."""
     local = AlignmentTarget(target.tag_id, 0.0, 0.0, target.size_mm)
     for polygon in apriltag_engrave_polygons(local):
         xs = [p[0] for p in polygon]
         ys = [p[1] for p in polygon]
         # Repère du motif : Y vers le haut, centré ; la page a Y vers le bas.
         page.items.append(("rect", cx + min(xs), cy - max(ys), max(xs) - min(xs), max(ys) - min(ys)))
-    page.items.append(("frame", cell_x + 1.0, cell_y, cell_w - 2.0, cell_h - 1.0))
-    for dx, dy in ((-1, 0), (1, 0), (0, -1), (0, 1)):
-        x1, y1 = cx + dx * half, cy + dy * half
-        page.items.append(("line", x1, y1, x1 + dx * TICK_MM, y1 + dy * TICK_MM))
-    page.items.append(("text", cell_x, cy + half + TAG_QUIET_MM, cell_w, text, 8))
+    page.items.append(("frame", cx - side / 2.0, cy - side / 2.0, side, side))
+    page.items.append(("text", cx - side / 2.0 - 4.0, cy + side / 2.0 + 2.0, side + 8.0, text, 8))

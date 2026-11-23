@@ -7,6 +7,13 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Caméra, alignement sur le plateau :
+- 4 AprilTags de 40 mm aux coins du plateau par défaut (au lieu de 9 de 20 mm), à 20 mm du bord ; l'orientation d'un tag collé n'a plus d'importance. L'homographie utilise les 4 coins de chaque tag.
+- Détection renforcée (affinage des coins, contraste renforcé, image agrandie ×2 si des tags manquent) ; les tags gravés sur une matière sombre peinte (en négatif) sont reconnus.
+- L'assistant fait 2 à 3 captures et fusionne les tags vus : le portique peut en cacher une partie, il suffit de le déplacer entre deux captures. Il affiche la taille d'une case en pixels (6 px ou plus recommandé) et propose le choix de la résolution de la caméra (la correction de distorsion suit la résolution).
+- Gabarit des tags imprimés : un cadre de 40×40 mm (taille du tag) marqué au laser à la position de chaque tag, avec son numéro ; le carré à découper de la feuille imprimée a la même taille. Un alignement incohérent (tag trop grand ou trop petit une fois ramené en mm, erreur supérieure à 5 mm) est refusé.
+- Éditeur vectoriel : interrupteur « Fond caméra » et bouton « Actualiser l'image caméra » dans la barre de gauche, sans passer par la fenêtre Caméra.
+
 Éditeur vectoriel : loupes « Zoom avant » et « Zoom arrière » dans la barre d'édition, aussi par Ctrl++ et Ctrl+- (zoom centré sur le milieu de la vue).
 
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
@@ -76,7 +83,7 @@ Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window
 
 Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel) supprimé, chacun importe depuis le vrai module ; l'ancien nom `LayerManager` disparaît au profit de `LayersModel`. `workers.py` devient `controllers/workers.py`, sans ses réexportations. `WindowController` ne va plus chercher d'attributs de la fenêtre par leur nom : pages de réglages et onglets du menu Outils lui sont inscrits, la résolution est branchée sur la matrice de test et la Séparation à leur création.
 
-Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 360 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement), qui gardent chacun leur état. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
+Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 000 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement, poignée du texte sur contour), qui gardent chacun leur état ; le menu du clic droit, le texte sur contour et les opérations sur une sélection groupée ont aussi leurs fichiers. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
 
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
@@ -86,6 +93,8 @@ Titre de la fenêtre principale traduit (il restait en anglais quelle que soit l
 Stencil Studio : l'autotest (`selftest.py`) échouait. Ses tests de séparation par couleur dataient d'avant le passage automatique aux tons pour les photos ombrées et d'avant la règle « le nombre de plaques demandé est toujours respecté » avec la pipette ; ils utilisent maintenant une image en aplats, comparent les couleurs avec une tolérance, et vérifient aussi ces deux règles. Il est lancé par la suite de tests (`tests/test_stencil_selftest.py`).
 
 Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
+
+Caméra : le fond de l'éditeur vectoriel est de nouveau redressé sur tout le plateau (l'image apparaissait minuscule et déplacée : la projection `warp_to_bed` utilisait la matrice dans le mauvais sens).
 
 Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.
 

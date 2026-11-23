@@ -28,6 +28,7 @@ from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.support import SupportDialog
+from laser_studio.ui.utils import busy_cursor
 from stencil_studio.controllers.studio import StencilStudioController
 
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
@@ -156,11 +157,10 @@ class WindowController(QObject):
         self.window.tabs.show(self.window.tab_vector_editor)
         command()
 
-    def open_camera_dialog(self):
-        """Ouvre le dialogue Caméra (choix appareil, état, actions)."""
-        # Importés ici : OpenCV n'est chargé qu'à la première ouverture.
+    def _ensure_camera(self):
+        """Le contrôleur Caméra (créé une fois), branché sur le fond de l'éditeur vectoriel."""
+        # Importé ici : OpenCV n'est chargé qu'à la première utilisation.
         from laser_studio.controllers.camera import CameraController
-        from laser_studio.ui.dialogs.camera import CameraDialog
 
         w = self.window
         if self.camera is None:
@@ -174,7 +174,34 @@ class WindowController(QObject):
             self.camera.overlay_ready.connect(canvas.set_camera_background)
             self.camera.overlay_cleared.connect(canvas.clear_camera_background)
             self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
-        CameraDialog(self.camera, w).exec()
+        return self.camera
+
+    def open_camera_dialog(self):
+        """Ouvre le dialogue Caméra (choix appareil, état, actions)."""
+        from laser_studio.ui.dialogs.camera import CameraDialog
+
+        CameraDialog(self._ensure_camera(), self.window).exec()
+
+    def refresh_camera_background(self):
+        """Capture la caméra et met l'image en fond de l'éditeur vectoriel (bouton de la barre de l'éditeur).
+        Renvoie True si l'image est posée."""
+        camera = self._ensure_camera()
+        with busy_cursor():
+            return bool(camera.refresh_overlay())
+
+    def set_camera_background_enabled(self, enabled):
+        """Interrupteur « Fond caméra » de l'éditeur vectoriel : capture et affiche, ou retire l'image."""
+        if enabled:
+            if not self.refresh_camera_background():
+                # Pas de caméra prête : l'interrupteur revient sur « éteint ».
+                self.window.tab_vector_editor.show_camera_background(False)
+        elif self.camera is not None:
+            self.camera.clear_overlay()
+
+    def refresh_camera_clicked(self):
+        """Bouton « Actualiser l'image » : recapture, et allume l'interrupteur si l'image est posée."""
+        if self.refresh_camera_background():
+            self.window.tab_vector_editor.show_camera_background(True)
 
     def show_settings_window(self, kind):
         """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »

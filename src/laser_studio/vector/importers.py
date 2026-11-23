@@ -218,14 +218,18 @@ def apriltags_to_objects(targets, layer_id):
 
 
 def apriltag_template_to_objects(targets, layer_id, bed_w_mm=None, label_mm=4.0):
-    """Gabarit de pose des AprilTags imprimés : pour chaque tag, un cadre carré (le côté du tag, aux positions
-    exactes du plateau : coordonnées machine absolues) et son numéro, posé à côté du cadre. Le laser les marque sur
-    le plateau ; il n'y a plus qu'à coller chaque tag imprimé dans son cadre, sous le bon numéro.
+    """Gabarit de pose des AprilTags imprimés : pour chaque tag, un cadre carré centré sur la position du tag,
+    de la taille du tag (40×40 mm pour un tag de 40 mm), et son
+    numéro posé à côté. Les coordonnées sont les coordonnées machine absolues. Le laser marque les cadres sur le
+    plateau ; il n'y a plus qu'à découper chaque tag le long de son pointillé et à le poser dans son cadre,
+    sous le bon numéro : sa position est alors celle du calcul.
 
     Le numéro est à droite du cadre, ou à gauche pour les tags de la moitié droite du plateau (`bed_w_mm`)."""
+    from laser_studio.camera.workspace_alignment import tag_cut_side_mm
+
     objects = []
     for target in targets:
-        half = target.size_mm / 2.0
+        half = tag_cut_side_mm(target.size_mm) / 2.0
         x0, x1 = target.cx_mm - half, target.cx_mm + half
         y0, y1 = target.cy_mm - half, target.cy_mm + half
         frame = _path_object([(x0, y0), (x1, y0), (x1, y1), (x0, y1)], True,
