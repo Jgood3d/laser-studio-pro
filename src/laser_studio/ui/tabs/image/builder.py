@@ -1,18 +1,17 @@
 """Onglet « Graver une image » (vue ImageTab) et sa logique (ImageController), reliés.
 
     tab, image = build_image_tab(image_settings, image_history, machine, layers, dialogs, image_actions,
-                                 resolution_changed=..., configure_focal=..., compare=..., status=...)
+                                 configure_focal=..., compare=..., status=...)
 """
 from laser_studio.controllers.image import ImageController
 from laser_studio.ui.tabs.image.tab import ImageTab
 
 
 def build_image_tab(image_settings, image_history, machine, layers, dialogs, image_actions, *,
-                    resolution_changed, configure_focal, compare, status, parent=None):
+                    configure_focal, compare, status, parent=None):
     """Champs liés à `image_settings` (annuler / refaire : `image_history`) ; taille réduite au plateau
     de `machine` ; liste « Calque de gravure » d'après `layers` ; actions de la barre d'outils
-    inscrites dans `image_actions`. Rappels : `resolution_changed(lignes/mm)` (matrice, Séparation),
-    `configure_focal()` (bouton de la focale), `compare()` (comparaison des algorithmes),
+    inscrites dans `image_actions`. Rappels : `configure_focal()` (bouton de la focale), `compare()` (comparaison des algorithmes),
     `status(texte, infobulle)`. Renvoie (ImageTab, ImageController)."""
     tab = ImageTab()
     settings = tab.settings
@@ -34,10 +33,9 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     # Calque de gravure choisi : sa vitesse et sa puissance deviennent celles de la gravure.
     settings.engrave_layer_changed.connect(layers.select_engrave_layer)
     settings.size_changed.connect(image.dimension_changed)
-    # Résolution changée (saisie, DPI, focale, réglages restaurés) : image retraitée, puis la
-    # matrice de test et la Séparation la reprennent.
+    # Résolution changée (saisie, DPI, focale, réglages restaurés) : image retraitée (la matrice
+    # de test et la Séparation se branchent sur settings.resolution_changed à leur création).
     settings.resolution_changed.connect(image.schedule_processing)
-    settings.resolution_changed.connect(resolution_changed)
     settings.configure_focal_requested.connect(configure_focal)
     # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
     settings.algorithm_combo.textActivated.connect(image.remember_algorithm)

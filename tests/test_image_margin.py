@@ -10,7 +10,8 @@ import numpy as np
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio import gcode, workers
+    from laser_studio import gcode
+    from laser_studio.controllers import workers
 except ImportError:  # dépendance manquante (PyQt6, svg.path...)
     gcode = workers = None
 

@@ -1,4 +1,4 @@
-"""Tramage sans Qt (image/dithering.py) : cas limites et anciens noms de workers.py."""
+"""Tramage sans Qt (image/dithering.py) : cas limites."""
 import os
 import sys
 import unittest
@@ -34,18 +34,6 @@ class ProcessImageTests(unittest.TestCase):
     def test_grayscale_keeps_the_tones(self):
         arr, _ = dithering.process_image(Image.new("L", (40, 20), 100), dict(PARAMS, algo=dithering.GRAYSCALE))
         self.assertTrue(np.all(np.abs(arr.astype(int) - 100) <= 1))
-
-
-class OldNamesTests(unittest.TestCase):
-    def test_workers_still_exports_the_old_names(self):
-        try:
-            from laser_studio import workers
-        except ImportError:  # PyQt6 manquant
-            self.skipTest("PyQt6 non importable ici")
-        from laser_studio.image import gain_test
-        self.assertIs(workers.build_gain_test_array, gain_test.build_gain_test_array)
-        self.assertIs(workers.apply_error_diffusion, dithering.apply_error_diffusion)
-        self.assertEqual(workers._HAS_NUMBA, dithering.HAS_NUMBA)
 
 
 if __name__ == "__main__":

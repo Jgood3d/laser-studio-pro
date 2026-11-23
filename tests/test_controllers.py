@@ -30,7 +30,7 @@ try:
     from laser_studio.controllers import project as project_module
     from laser_studio.controllers.png2svg import Png2SvgController
     from laser_studio.controllers.project import ProjectController
-    from laser_studio.vector_layers import LayerManager
+    from laser_studio.models.layers import LayersModel
 except ImportError:  # PyQt6, Pillow... manquants
     JobQueueController = None
 
@@ -64,7 +64,7 @@ class Png2SvgControllerTests(_QtTest):
         added = []
         controller = Png2SvgController(
             None,
-            layers or LayerManager(),
+            layers or LayersModel(),
             bed_height=lambda: 300.0,
             add_to_vector_editor=added.extend,
         )
@@ -89,7 +89,7 @@ class Png2SvgControllerTests(_QtTest):
         self.assertEqual((added, self.messages), ([], ["critical"]))
 
     def test_without_layer_nothing_happens(self):
-        layers = LayerManager()
+        layers = LayersModel()
         layers.layers = []
         controller, added = self.make(layers)
         controller.send_to_vector_editor(SVG)

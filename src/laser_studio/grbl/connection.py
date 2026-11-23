@@ -28,7 +28,7 @@ class LaserUSBController:
         self.last_z = None
         # Retenus même après une déconnexion (voir disconnect) : nécessaires
         # pour tenter une reconnexion automatique sur le MÊME port après une
-        # coupure USB en cours de job (voir ReconnectThread dans workers.py).
+        # coupure USB en cours de job (voir ReconnectThread dans controllers/workers.py).
         self.last_port = None
         self.last_baudrate = 115200
 

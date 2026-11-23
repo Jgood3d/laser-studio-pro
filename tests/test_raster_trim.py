@@ -44,7 +44,7 @@ def moves(gcode):
     return out
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici (PyQt6/svg.path manquants ?)")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici (PyQt6/svg.path manquants ?)")
 class RasterTrimTests(unittest.TestCase):
     def assert_same_burn(self, arr, overscan, algo="Seuil Simple (Binaire)"):
         h, w = arr.shape

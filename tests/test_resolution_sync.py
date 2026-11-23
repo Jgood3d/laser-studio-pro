@@ -145,4 +145,6 @@ class SeparationHooksStillPresentTests(unittest.TestCase):
                       self.source("ui", "tabs", "separation", "builder.py"))
 
     def test_resolution_reaches_the_separation(self):
-        self.assertIn("separation.resolution_changed()", self.source("ui", "app", "window_controller.py"))
+        main = self.source("ui", "app", "main_window.py")
+        self.assertIn("settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())", main)
+        self.assertIn("settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)", main)

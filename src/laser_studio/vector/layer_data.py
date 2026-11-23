@@ -5,7 +5,6 @@ from PyQt6.QtGui import QTransform
 from laser_studio.models.layers import ENGRAVE_MODE, LayersModel
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 def _optimize_polygon_order(polygons):
@@ -44,7 +43,7 @@ def _optimize_polygon_order(polygons):
 # puisque extract_vector_layer_data s'exécute dans le thread principal Qt.
 MAX_POLYGONS_FOR_PATH_OPTIMIZATION = 1500
 
-def extract_vector_layer_data(objects, layer_manager: LayerManager, optimize_path=True):
+def extract_vector_layer_data(objects, layer_manager: LayersModel, optimize_path=True):
     """À appeler dans le thread principal (Qt). Convertit chaque VectorObject en
     polygones purement numériques (mm), groupés par calque. Aucun objet Qt
     n'est conservé ensuite -> peut être passé sans risque à un QThread.

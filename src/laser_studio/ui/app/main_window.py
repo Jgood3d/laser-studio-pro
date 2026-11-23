@@ -316,6 +316,12 @@ class FullLaserStudio(QMainWindow):
             loaded_image=self._loaded_image_and_width,
             image_settings=self.tab_previews.settings.processing_settings)
         self.tab_grbl_config = build_grbl_config_page(self.grbl, self.job, self.engraver, self.machines)
+        for kind, page, title_key in (("machine_params", self.tab_machine_params, "tab.machine_params"),
+                                      ("grbl", self.tab_grbl_config, "tab.grbl_config"),
+                                      ("test_matrix", self.tab_matrix, "tab.test_matrix")):
+            controller.add_settings_page(kind, page, title_key)
+        # Résolution de « Graver une image » reprise par la matrice de test (même densité de lignes).
+        self.tab_previews.settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)
 
     def _build_image_tab(self):
         """Onglet « Graver une image » (build_image_tab) et cadre « Position du job ». Construit tôt :
@@ -324,8 +330,7 @@ class FullLaserStudio(QMainWindow):
         controller = self.window_controller
         self.tab_previews, self.image = build_image_tab(
             self.image_settings, self.image_history, self.machine, self.layer_manager, self.dialogs,
-            self.image_actions, resolution_changed=controller.resolution_changed,
-            configure_focal=controller.goto_focal_settings, compare=controller.show_dither_comparison,
+            self.image_actions, configure_focal=controller.goto_focal_settings, compare=controller.show_dither_comparison,
             status=self.show_status_message, parent=self)
         self.resolution_box = self.tab_previews.settings.resolution_box
         # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
@@ -359,10 +364,14 @@ class FullLaserStudio(QMainWindow):
             self.layer_manager, self.machine, self.dialogs, self.image_actions, self,
             add_to_vector_editor=lambda objects: self.vector_editor.add_objects(objects))
         tabs.addTab(self.tab_png2svg, tr("png2svg.tab_title"))
+        self.window_controller.add_main_tab("tab_png2svg", self.tab_png2svg)
         self.tab_separation, self.separation = build_separation_tab(
             self.image_settings, self.image, self.job, self.dialogs, self.image_actions, self,
             lines_mm=self.resolution_box.lines_per_mm)
         tabs.addTab(self.tab_separation, tr("sep.tab_title"))
+        # Résolution de « Graver une image » reprise par la Séparation (affichage, tonalité renvoyée).
+        self.tab_previews.settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())
+        self.window_controller.add_main_tab("tab_separation", self.tab_separation)
         editor = build_vector_editor(
             self.vector_document, self.layer_manager, self.machine, self.dialogs, self,
             image_frame=self._image_frame, status=self.show_status_message, show_tab=tabs.setCurrentWidget)

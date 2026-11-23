@@ -18,9 +18,7 @@ from laser_studio.gcode.job import build_job_gcode
 from laser_studio.gcode.test_matrix import build_test_matrix_gcode
 from laser_studio.i18n import tr
 # Calculs sans Qt, réexportés ici pour le code existant (anciens noms).
-from laser_studio.image.dithering import HAS_NUMBA as _HAS_NUMBA, process_image  # noqa: F401
-from laser_studio.image.dithering import apply_bayer_dither, apply_error_diffusion  # noqa: F401
-from laser_studio.image.gain_test import GAIN_TEST_GAINS, GAIN_TEST_TONES, build_gain_test_array  # noqa: F401
+from laser_studio.image.dithering import process_image
 
 
 class ImageProcessingWorker(QThread):
@@ -37,14 +35,6 @@ class ImageProcessingWorker(QThread):
         result = process_image(self.raw_image, self.params)
         if result is not None:
             self.finished.emit(*result)
-
-    @staticmethod
-    def apply_error_diffusion(arr_in, algo):
-        return apply_error_diffusion(arr_in, algo)
-
-    @staticmethod
-    def apply_bayer_dither(arr_in, algo):
-        return apply_bayer_dither(arr_in, algo)
 
 
 # Début d'une ligne que GRBL sait lire : un mot G-Code (lettre suivie d'une valeur), une commande « $ »,

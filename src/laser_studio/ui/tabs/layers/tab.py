@@ -38,8 +38,8 @@ class LayersTab(QWidget):
     jour. Il n'y a pas de bouton « Enregistrer » : le matériau choisi suit
     chaque changement de calque (MaterialsController.store_current_settings).
 
-    Dessous, la liste des calques (LayerManagerWidget, encore dans
-    vector_layers.py), dont elle relaie le signal layers_changed, émis à
+    Dessous, la liste des calques (LayerManagerWidget, ui/tabs/layers/layer_table.py),
+    dont elle relaie le signal layers_changed, émis à
     chaque modification d'un calque :
 
         tab = LayersTab(layer_manager, ["MDF 4mm"], focal_getter=lambda: 0.1)

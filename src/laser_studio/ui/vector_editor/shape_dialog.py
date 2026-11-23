@@ -7,13 +7,12 @@ from laser_studio.models.layers import LayersModel, layer_label
 from laser_studio.models.vector_objects import ShapeObject
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 class ShapeInsertDialog(QDialog):
     """Boîte de dialogue pour insérer OU modifier une forme géométrique."""
 
-    def __init__(self, layer_manager: LayerManager, shape_obj: "ShapeObject" = None, parent=None):
+    def __init__(self, layer_manager: LayersModel, shape_obj: "ShapeObject" = None, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("vector.dlg.shape_title_new") if shape_obj is None else tr("vector.dlg.shape_title_edit"))
         self.layer_manager = layer_manager

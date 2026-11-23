@@ -40,6 +40,10 @@ class WindowController(QObject):
         self.window = window
         self._help_dialog = None
         self._settings_windows = {}
+        # Pages des fenêtres de réglages (kind -> (page, clé du titre)) et onglets que le menu peut
+        # demander par leur nom, inscrits par la fenêtre (add_settings_page, add_main_tab).
+        self._settings_pages = {}
+        self._main_tabs = {}
         self.camera = None
         self.stencil_studio = None
 
@@ -136,10 +140,13 @@ class WindowController(QObject):
             self._help_dialog = HelpDialog(self.window)
         self._help_dialog.show_page(page)
 
-    def show_main_tab(self, tab_attr):
-        """Affiche l'onglet central dont l'attribut de la fenêtre est
-        `tab_attr` (ex. "tab_separation", envoyé par le menu Outils)."""
-        tab = getattr(self.window, tab_attr, None)
+    def add_main_tab(self, name, tab):
+        """Onglet que le menu Outils peut demander par son nom (ex. "tab_separation")."""
+        self._main_tabs[name] = tab
+
+    def show_main_tab(self, name):
+        """Affiche l'onglet central inscrit sous `name` (envoyé par le menu Outils) ; nom inconnu : rien."""
+        tab = self._main_tabs.get(name)
         if tab is not None:
             self.window.tabs.show(tab)
 
@@ -175,16 +182,15 @@ class WindowController(QObject):
         (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
         windows = self._settings_windows
         if kind not in windows:
-            w = self.window
-            page, title = {
-                "grbl": (getattr(w, "tab_grbl_config", None), tr("tab.grbl_config")),
-                "machine_params": (getattr(w, "tab_machine_params", None), tr("tab.machine_params")),
-                "test_matrix": (getattr(w, "tab_matrix", None), tr("tab.test_matrix")),
-            }[kind]
-            if page is None:
-                return
-            windows[kind] = SettingsWindow(w, title, page, kind)
+            if kind not in self._settings_pages:
+                return                     # page pas (encore) construite
+            page, title_key = self._settings_pages[kind]
+            windows[kind] = SettingsWindow(self.window, tr(title_key), page, kind)
         windows[kind].bring_to_front()
+
+    def add_settings_page(self, kind, page, title_key):
+        """Page affichée par show_settings_window(kind), titre tr(`title_key`)."""
+        self._settings_pages[kind] = (page, title_key)
 
     # -- onglets
 
@@ -219,18 +225,6 @@ class WindowController(QObject):
         self.window.tab_matrix.set_lines_mm(self.window.resolution_box.lines_per_mm())
 
     # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
-
-    def resolution_changed(self, _lines_mm):
-        """Résolution de gravure changée (saisie, DPI, focale, réglages restaurés) :
-        la matrice de test et la Séparation la reprennent (l'image est retraitée
-        par son propre onglet). La matrice et la Séparation, construites après
-        l'onglet image, sont absentes lors des tout premiers réglages."""
-        w = self.window
-        if hasattr(w, "tab_matrix"):
-            self.sync_matrix_lines_mm()
-        separation = getattr(w, "separation", None)
-        if separation is not None:
-            separation.resolution_changed()
 
     def machine_focal_changed(self, focal):
         """La focale est une caractéristique physique du laser : tout

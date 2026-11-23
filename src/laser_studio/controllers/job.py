@@ -3,7 +3,7 @@ G-Code dans un thread, estimation rapide, export et import du G-Code, matrice
 de test et motif aller/retour.
 
 Le G-Code lui-même est calculé par le paquet gcode/ (sans Qt), dans les
-threads de workers.py. Ce contrôleur ne touche pas aux widgets : il lit
+threads de controllers/workers.py. Ce contrôleur ne touche pas aux widgets : il lit
 l'état de l'interface par des fonctions qu'on lui donne, pose ses questions
 par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
 
@@ -27,7 +27,8 @@ from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
 from laser_studio.vector.layer_data import extract_vector_layer_data
-from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, build_gain_test_array
+from laser_studio.controllers.workers import AdvancedGCodeWorker, TestMatrixWorker
+from laser_studio.image.gain_test import build_gain_test_array
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)

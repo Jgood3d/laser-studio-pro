@@ -1,6 +1,6 @@
 """Paquet gcode/ : génération du G-Code sans Qt.
 
-Vérifie que le paquet n'importe pas PyQt6, que les threads de workers.py
+Vérifie que le paquet n'importe pas PyQt6, que les threads de controllers/workers.py
 produisent exactement le G-Code des fonctions pures, et le contenu du G-Code
 (puissance S, commande laser, surbalayage, décalage retour, en-tête et fin).
 """
@@ -185,7 +185,7 @@ class CalibrationTests(unittest.TestCase):
 
 try:
     from PyQt6.QtWidgets import QApplication as QCoreApplication  # QApplication : la fenêtre est créée dans le même processus
-    from laser_studio import workers
+    from laser_studio.controllers import workers
 except ImportError:  # PyQt6 absent
     workers = None
 

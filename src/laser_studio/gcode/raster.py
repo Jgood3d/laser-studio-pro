@@ -10,7 +10,7 @@ from laser_studio.gcode.common import overscan_distance, scan_offset_mm
 GRAYSCALE_ALGO = "Niveaux de Gris"
 
 # Marge de l'image à graver par rapport à l'origine du job (mm), comme à l'import d'un SVG/DXF
-# (vector_layers.extract_svg_objects) : sans elle, le surbalayage de la première colonne ferait
+# (vector.svg_extract.extract_svg_objects) : sans elle, le surbalayage de la première colonne ferait
 # partir la tête en X négatif dès que le décalage du job vaut 0.
 IMAGE_MARGIN_MM = 10.0
 

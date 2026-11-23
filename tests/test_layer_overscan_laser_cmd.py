@@ -23,7 +23,7 @@ except ImportError:
 
 try:
     import numpy as np
-    from laser_studio.workers import AdvancedGCodeWorker
+    from laser_studio.controllers.workers import AdvancedGCodeWorker
     HAS_WORKER = True
 except ImportError:
     HAS_WORKER = False

@@ -108,7 +108,7 @@ class SimulatedGrblTests(unittest.TestCase):
 
 
 try:
-    from laser_studio.workers import GCodeStreamerThread
+    from laser_studio.controllers.workers import GCodeStreamerThread
 except ImportError:
     GCodeStreamerThread = None
 

@@ -16,7 +16,6 @@ from laser_studio.models.layers import LayersModel, layer_label
 from laser_studio.models.vector_objects import TextObject
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 class TextInsertDialog(QDialog):
@@ -25,7 +24,7 @@ class TextInsertDialog(QDialog):
     # Position d'un texte sur un cercle selon le côté choisi (degrés, 90 = haut, 270 = bas).
     _ARC_SIDE_DEG = {"top": 90.0, "bottom": 270.0, "left": 180.0, "right": 0.0}
 
-    def __init__(self, layer_manager: LayerManager, text_obj: TextObject = None, parent=None, on_preview=None,
+    def __init__(self, layer_manager: LayersModel, text_obj: TextObject = None, parent=None, on_preview=None,
                  is_new=False):
         """`on_preview` : appelé après chaque réglage d'un texte déjà posé, pour redessiner l'objet pendant
         que la boîte est ouverte (aperçu en direct). L'objet est remis dans son état d'origine à la

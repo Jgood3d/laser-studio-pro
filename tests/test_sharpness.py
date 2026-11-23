@@ -15,7 +15,7 @@ from ui_source import project_state_source, ui_source  # noqa: E402
 from laser_studio.image import filters as imf
 
 try:
-    from laser_studio import workers
+    from laser_studio.controllers import workers
 except ImportError:
     workers = None
 
@@ -65,7 +65,7 @@ class SharpenFilterTests(unittest.TestCase):
         self.assertEqual(imf.sharpen_radius(100), 4.0)
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici")
 class WorkerPipelineTests(unittest.TestCase):
     def params(self, **kw):
         p = dict(w_mm=20.0, h_mm=20.0, lmm=3.2, mirror_h=False, mirror_v=False, bright=0, contrast=0,

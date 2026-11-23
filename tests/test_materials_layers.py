@@ -15,15 +15,15 @@ try:
         DEFAULT_MATERIALS_DB, apply_material_to_layers, capture_material_layers,
     )
     from laser_studio.i18n import tr
-    from laser_studio.vector_layers import LayerManager
+    from laser_studio.models.layers import LayersModel
 except ImportError:  # PyQt6 manquant
-    LayerManager = None
+    LayersModel = None
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class MaterialLayersTests(unittest.TestCase):
     def test_saved_material_restores_every_layer(self):
-        manager = LayerManager()                       # gravure, découpe, marquage
+        manager = LayersModel()                       # gravure, découpe, marquage
         engrave, cut, mark = manager.layers
         engrave.power, engrave.speed, mark.line_interval = 12.0, 3456, 0.05
         material = {"layers": capture_material_layers(manager)}
@@ -34,7 +34,7 @@ class MaterialLayersTests(unittest.TestCase):
         self.assertEqual(engrave.mode, "cut")
 
     def test_layers_found_by_position_when_ids_differ(self):
-        source, target = LayerManager(), LayerManager()
+        source, target = LayersModel(), LayersModel()
         source.layers[1].speed = 777
         material = {"layers": capture_material_layers(source)}
         apply_material_to_layers(target, material)      # autres identifiants : par position
@@ -42,7 +42,7 @@ class MaterialLayersTests(unittest.TestCase):
         self.assertEqual(len(target.layers), 3)         # ni ajout ni suppression
 
     def test_old_material_goes_to_engrave_and_cut_layers(self):
-        manager = LayerManager()
+        manager = LayersModel()
         engrave, cut, mark = manager.layers
         mark_before = (mark.power, mark.speed, mark.passes)
         mdf = DEFAULT_MATERIALS_DB["MDF 4mm"]
@@ -52,7 +52,7 @@ class MaterialLayersTests(unittest.TestCase):
         self.assertEqual((mark.power, mark.speed, mark.passes), mark_before)
 
     def test_old_material_without_cut_leaves_cut_layers(self):
-        manager = LayerManager()
+        manager = LayersModel()
         cut = manager.layers[1]
         manager.update(cut.id, power=55.0, speed=123, passes=4)     # réglages de l'utilisateur, pas ceux par défaut
         before = (cut.speed, cut.power, cut.passes)
@@ -63,19 +63,19 @@ class MaterialLayersTests(unittest.TestCase):
         self.assertEqual((engrave.speed, engrave.power), (ardoise["sp_e"], float(ardoise["pw_e"])))
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class BaseLayersTests(unittest.TestCase):
     """Trois calques de base (gravure, découpe, marquage) : toujours présents, nom fixe."""
 
     def test_new_manager_has_the_three_base_layers(self):
-        manager = LayerManager()
+        manager = LayersModel()
         self.assertEqual([(l.role, l.name, l.mode) for l in manager.layers],
                          [("engrave", tr("layers.default_name_engrave"), "engrave_fill"),
                           ("cut", tr("layers.default_name_cut"), "cut"),
                           ("mark", tr("layers.default_name_mark"), "mark")])
 
     def test_old_saved_layers_are_adopted_or_completed(self):
-        manager = LayerManager()
+        manager = LayersModel()
         # Calques enregistrés avant les rôles : une gravure renommée, un calque libre.
         manager.load_list([{"id": "a1", "name": "Gravure Texte", "mode": "engrave_fill", "power": 20.0},
                            {"id": "b2", "name": "Logo", "mode": "engrave_fill"}])
@@ -91,8 +91,8 @@ class BaseLayersTests(unittest.TestCase):
         from unittest import mock
         from PyQt6.QtWidgets import QMessageBox
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from laser_studio.vector_layers import LayerManagerWidget
-        manager = LayerManager()
+        from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
+        manager = LayersModel()
         manager.add_layer()
         widget = LayerManagerWidget(manager)
         self.addCleanup(widget.deleteLater)
@@ -109,15 +109,15 @@ class BaseLayersTests(unittest.TestCase):
         self.assertEqual(len(manager.layers), 3)
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class LayerTableColumnsTests(unittest.TestCase):
     """Colonnes du tableau des calques assez larges pour leur contenu (bug : largeur par défaut
     de 100 px, en-têtes coupés et champs qui débordaient sur la colonne voisine)."""
 
     def test_every_column_fits_its_header_and_widgets(self):
         app = QApplication.instance() or QApplication([])
-        from laser_studio.vector_layers import LayerManagerWidget
-        widget = LayerManagerWidget(LayerManager(), focal_getter=lambda: 0.1)
+        from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
+        widget = LayerManagerWidget(LayersModel(), focal_getter=lambda: 0.1)
         self.addCleanup(widget.deleteLater)
         widget.resize(1500, 300)
         widget.show()
@@ -130,7 +130,7 @@ class LayerTableColumnsTests(unittest.TestCase):
             self.assertGreaterEqual(table.columnWidth(col), need, title)
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class MaterialCompletionTests(unittest.TestCase):
     def test_old_material_gets_the_three_base_entries(self):
         from laser_studio.controllers.materials import complete_material
@@ -170,7 +170,7 @@ class MaterialCompletionTests(unittest.TestCase):
                              ["cut", "engrave", "mark"], name)
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class LayersTabMaterialsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -178,7 +178,7 @@ class LayersTabMaterialsTests(unittest.TestCase):
 
     def make(self):
         from laser_studio.ui.tabs.layers import LayersTab
-        tab = LayersTab(LayerManager(), ["Personnalisé", "MDF 4mm"])
+        tab = LayersTab(LayersModel(), ["Personnalisé", "MDF 4mm"])
         self.addCleanup(tab.deleteLater)
         return tab
 
@@ -203,7 +203,7 @@ class LayersTabMaterialsTests(unittest.TestCase):
         self.assertEqual(received, [1])
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class PortHelpTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -243,7 +243,7 @@ class WindowWiringTests(unittest.TestCase):
         self.assertIn("self.apply_job_settings(material, layers=False)", self.read("ui", "app", "window_state.py"))
 
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class MaterialChoiceRefreshesTheTableTests(unittest.TestCase):
     """Dans la vraie fenêtre : choisir un matériau redessine les cases du tableau (bug : les
     calques changeaient en mémoire, mais le tableau gardait les anciennes valeurs).
@@ -285,7 +285,7 @@ win.deleteLater(); app.processEvents()
         mdf = DEFAULT_MATERIALS_DB["MDF 4mm"]
         self.assertEqual(line.split()[1:], [str(float(mdf["pw_e"])), str(mdf["sp_e"])])
 
-@unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")
+@unittest.skipIf(LayersModel is None, "PyQt6 non importable ici")
 class MaterialPersistenceTests(unittest.TestCase):
     """Matériau choisi et réglages recopiés automatiquement dans le matériau, retrouvés au démarrage
     suivant.

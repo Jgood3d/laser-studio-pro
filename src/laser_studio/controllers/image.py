@@ -12,7 +12,7 @@ contrôleur agit et prévient par les siens.
     image.load_path("photo.jpg")
 
 Le calcul du tramage est dans image.dithering (sans Qt), lancé dans un
-thread par workers.ImageProcessingWorker.
+thread par controllers/workers.ImageProcessingWorker.
 """
 import os
 
@@ -22,7 +22,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS, comparison_thumbnails
 from laser_studio.image.size import natural_size_mm, read_dpi
-from laser_studio.workers import ImageProcessingWorker
+from laser_studio.controllers.workers import ImageProcessingWorker
 from laser_studio.core.preferences import ui_preferences
 
 # Clé de UIConfig : dernier algorithme de tramage choisi par l'utilisateur.

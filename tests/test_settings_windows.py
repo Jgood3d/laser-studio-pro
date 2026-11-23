@@ -381,10 +381,12 @@ class ShowWindowTests(unittest.TestCase):
         # Sans __init__ : la fenêtre est un simple espace de noms, pas un QObject.
         controller = self.mod.WindowController.__new__(self.mod.WindowController)
         controller.window = types.SimpleNamespace(tabs=mock.Mock())
-        controller._settings_windows = {}
+        controller._settings_windows, controller._settings_pages, controller._main_tabs = {}, {}, {}
         if with_pages:
             controller.window.tab_machine_params = object()
             controller.window.tab_grbl_config = object()
+            controller.add_settings_page("machine_params", controller.window.tab_machine_params, "tab.machine_params")
+            controller.add_settings_page("grbl", controller.window.tab_grbl_config, "tab.grbl_config")
         return controller
 
     class Recorder:
@@ -417,6 +419,8 @@ class ShowWindowTests(unittest.TestCase):
         self.Recorder.created = []
         obj = self.make()
         obj.window.tab_machine_params, obj.window.tab_matrix = object(), object()
+        obj.add_settings_page("machine_params", obj.window.tab_machine_params, "tab.machine_params")
+        obj.add_settings_page("test_matrix", obj.window.tab_matrix, "tab.test_matrix")
         with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
@@ -443,6 +447,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_menu_shows_a_tab_by_its_name(self):
         obj = self.make()
         obj.window.tab_separation = object()
+        obj.add_main_tab("tab_separation", obj.window.tab_separation)
         obj.show_main_tab("tab_separation")
         obj.window.tabs.show.assert_called_once_with(obj.window.tab_separation)
         obj.show_main_tab("tab_inconnu")                       # ignoré

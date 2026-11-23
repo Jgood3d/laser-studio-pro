@@ -1,5 +1,5 @@
 """Génération du G-Code, sans Qt : fonctions pures, testables sans fenêtre ni
-machine. Les threads de workers.py ne font que les appeler.
+machine. Les threads de controllers/workers.py ne font que les appeler.
 
 - job.build_job_gcode : un job complet (image, découpe SVG, calques vectoriels) ;
 - raster : gravure d'une image tramée ;

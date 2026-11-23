@@ -11,7 +11,6 @@ if TYPE_CHECKING:  # annotation seulement : canvas importe ce module
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView  # noqa: F401
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 class VectorGraphicsItem(QGraphicsPathItem):
@@ -25,7 +24,7 @@ class VectorGraphicsItem(QGraphicsPathItem):
     objet par objet, directement dans la matrice de chaque item.
     """
 
-    def __init__(self, obj: VectorObject, layer_manager: LayerManager, canvas: "VectorCanvasView"):
+    def __init__(self, obj: VectorObject, layer_manager: LayersModel, canvas: "VectorCanvasView"):
         super().__init__()
         self.obj = obj
         self.layer_manager = layer_manager

@@ -1,5 +1,5 @@
 """Import SVG des modèles de la bibliothèque (et, une fois validé, pour
-remplacer extract_svg_objects de vector_layers.py).
+remplacer extract_svg_objects de vector/svg_extract.py).
 
 Convention (voir resources/library/README.md) :
 - calque (ou groupe) « Cut » : découpe, dessinée en rouge ;

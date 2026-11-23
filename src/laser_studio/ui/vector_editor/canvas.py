@@ -21,7 +21,6 @@ from laser_studio.vector import path_ops
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 # Facteur de zoom d'un cran de molette, et d'un clic sur les loupes (ou Ctrl++ / Ctrl+-).
 WHEEL_ZOOM_STEP = 1.15
@@ -41,7 +40,7 @@ class VectorCanvasView(QGraphicsView):
     jig_requested = pyqtSignal()                     # clic droit > Gabarit de placement...
     medal_text_requested = pyqtSignal()              # clic droit > Texte de médaille...
 
-    def __init__(self, layer_manager: LayerManager, parent=None, document=None):
+    def __init__(self, layer_manager: LayersModel, parent=None, document=None):
         super().__init__(parent)
         self.layer_manager = layer_manager
         # Document (objets, annuler / refaire, presse-papiers) : le canevas en est la vue. Il crée ou retire
