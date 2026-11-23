@@ -71,14 +71,29 @@ def tr_calls():
 @unittest.skipIf(i18n is None, "i18n non importable ici")
 class TranslationTests(unittest.TestCase):
     def test_no_duplicate_keys(self):
-        with open(os.path.join(ROOT, "i18n", "translations.py"), encoding="utf-8") as f:
-            tree = ast.parse(f.read())
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "TRANSLATIONS":
-                counts = collections.Counter(
-                    k.value for k in node.value.keys if isinstance(k, ast.Constant))
-                dup = sorted(k for k, c in counts.items() if c > 1)
-                self.assertEqual(dup, [], f"Clés définies plusieurs fois (la dernière écrase les autres) : {dup}")
+        """Dans un module de i18n/texts/, une clé répétée écraserait la première sans rien dire (entre deux
+        modules, translations._merge refuse de charger)."""
+        folder = os.path.join(ROOT, "i18n", "texts")
+        counts = collections.Counter()
+        for name in sorted(os.listdir(folder)):
+            if not name.endswith(".py") or name == "__init__.py":
+                continue
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                tree = ast.parse(f.read())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") == "TEXTS":
+                    counts.update(k.value for k in node.value.keys if isinstance(k, ast.Constant))
+        dup = sorted(k for k, c in counts.items() if c > 1)
+        self.assertEqual(dup, [], f"Clés définies plusieurs fois (la dernière écrase les autres) : {dup}")
+        self.assertEqual(sum(counts.values()), len(i18n.TRANSLATIONS))
+
+    def test_a_key_in_two_modules_stops_loading(self):
+        from types import SimpleNamespace
+        from laser_studio.i18n.translations import _merge
+        a = SimpleNamespace(__name__="a", TEXTS={"x": {"fr": "1"}})
+        b = SimpleNamespace(__name__="b", TEXTS={"x": {"fr": "2"}})
+        with self.assertRaises(ImportError):
+            _merge((a, b))
 
     def test_every_key_has_every_language(self):
         langs = list(i18n.SUPPORTED_LANGUAGES)

@@ -116,7 +116,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
   - `vector/svg_import.py` — import SVG de la bibliothèque, selon la convention des modèles : calques `Cut` (découpe, rouge), `Engrave` (gravure, noir ; le blanc est creusé) et `Mark` (marquage), le reste ignoré ; options en sous-calques ; textes modifiables et remplaçables ; unités et transformations prises en compte. Destiné à remplacer l’import SVG de `vector/svg_extract.py` une fois validé
   - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
-- `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
+- `i18n/` — système de traduction multilingue : `texts/` (les textes dans chaque langue, un module par zone : app, vector, box, ornament, generators, camera, image, machine, materials), `translations.py` (les assemble), `errors.py` (message d'une erreur de générateur), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale
 - `ui/app/main_window.py` — fenêtre principale, sans mixin : assemblage (modèles, contrôleurs partagés, builder de chaque partie de l’interface, objets de `ui/app/`), fermeture, glisser-déposer, messages
@@ -286,7 +286,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/ui/app/main_window.py
+py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/i18n/texts/*.py src/laser_studio/ui/app/main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

@@ -87,7 +87,7 @@ laser-studio-pro/
 │   │   ├── gcode/                    # génération du G-Code sans Qt : job (assemblage), raster (image), svg_cut, vector (calques), test_matrix, calibration (aller/retour), preview (modèle de l'aperçu 2D), common
 │   │   ├── core/                     # socle : version, paths (chemins, ressources), constants, debug_log, preferences (réglages mémorisés)
 │   │   ├── models/                   # modèles de données (QObject à signaux) : vector_document (VectorDocument : objets, annuler / refaire, presse-papiers), vector_objects (objets du dessin : TextObject, ShapeObject, SvgPathObject), layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), settings (base SettingsModel), change_log (journal)
-│   │   ├── i18n/                     # traductions : translations.py (textes FR / EN / DE / ES), language.py (langue, tr), errors.py (message d'une erreur de générateur)
+│   │   ├── i18n/                     # traductions : texts/ (textes FR / EN / DE / ES, un module par zone), translations.py (les assemble, refuse une clé en double), language.py (langue, tr), errors.py (message d'une erreur de générateur)
 │   │   ├── grbl/                     # dialogue avec le graveur, sans Qt : commands (commandes GRBL, lecture de $$), streaming (envoi d'un job : tampon de 127 octets, réponses), connection, simulator, ports (ports série proposés + dernier port utilisé)
 │   │   ├── image/                    # traitement d'image sans Qt : dithering (tramage), filters, size, resolution, matrix, separation, gain_test, vectorize
 │   │   ├── vector/                   # géométrie vectorielle ; QtGui (QPainterPath, QTransform, QFont) accepté comme bibliothèque de géométrie, jamais QtWidgets (tests/test_pure_modules.py)
@@ -219,7 +219,7 @@ laser-studio-pro/
 | **core/debug_log.py** | Logging debug / résumés G-Code | `controllers/engraver`, `controllers/job_queue`, `grbl`, `controllers/workers`, `models/` |
 | **models/layers.py** | `LayersModel` (`QObject`) : la liste des calques (`LaserLayer`), seule source de leurs réglages. Toute modification passe par `update()`, `add_layer()`, `remove_layer()`, `move_layer()` ou `load_list()`, qui émettent `layer_changed`, `layer_added`, `layer_removed`, `layers_reordered` ou `layers_reset`, puis `changed`, et écrivent l'ancienne et la nouvelle valeur dans le journal de débogage (`laser_studio.gravure.modeles`). `engrave_layer()` : calque de la gravure des images (celui choisi dans l'onglet image, `select_engrave_layer()` → signal `engrave_layer_selected`, sinon le premier calque de gravure), dont la vitesse et la puissance sont lues à chaque usage (`engrave_speed` / `engrave_power`). Chaque calque a aussi `overscan` (surbalayage, vrai par défaut) et `laser_cmd` (`""` = commande de Configuration GRBL, `M4` dynamique ou `M3` constante, voir `LAYER_LASER_CMDS`) ; `layer_overscan_enabled()` et `layer_laser_cmd()` donnent la valeur effective d'un calque (objet ou `to_dict`) en la combinant avec le réglage global, qui reste maître pour le surbalayage (mode et distance). Un ancien projet sans ces champs garde les valeurs par défaut | `main_window`, `LayerManagerWidget`, `controllers/materials`, `controllers/layer_memory`, génération |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
-| **i18n/** | Traductions FR / EN / DE / ES : `translations.py` (dictionnaire `TRANSLATIONS`, y compris thèmes, nœuds, explode, outils dessin, caméra), `language.py` (langue mémorisée, `tr()`), `errors.py` (`generator_error_text` : clé `<générateur>.err.<code>` remplie avec les infos de l'erreur). `from i18n import tr` | Toute l’UI |
+| **i18n/** | Traductions FR / EN / DE / ES : `texts/` (un dictionnaire `TEXTS` par zone : app, vector, box, ornament, generators, camera, image, machine, materials), `translations.py` (assemble `TRANSLATIONS`, ImportError si une clé est définie deux fois), `language.py` (langue mémorisée, `tr()`), `errors.py` (`generator_error_text` : clé `<générateur>.err.<code>` remplie avec les infos de l'erreur). `from i18n import tr` | Toute l’UI |
 | **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `controllers/machine_connection`, `controllers/workers` |
 | **grbl/streaming.py** | Envoi d'un job, partie sans Qt ni port : `gcode_lines` (lignes de la console que GRBL sait lire), `classify` (ok, erreur, statut, autre), `CharacterCountingStream` (prochaine ligne si elle tient dans le tampon de 127 octets, lignes en attente de leur « ok »). `GCodeStreamerThread` (controllers/workers.py) ne fait plus que les lectures et écritures au bon rythme, l'attente de Idle et l'arrêt sur erreur | `controllers/workers` |
 | **grbl/simulator.py** | `SimulatedGrblSerial` : graveur GRBL 1.1 simulé (`LASER_STUDIO_SIMULATION`), imite la partie de pyserial utilisée | `grbl.connection`, `controllers/engraver` (port « SIMULATION ») |
@@ -432,7 +432,7 @@ Menu Outils → Caméra (CameraDialog)
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
 4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + la préférence `app_theme` (`current_theme_name`, relue par `apply_saved_theme`) ; Stencil Studio reçoit ses couleurs par `page_colors`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
-6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
+6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans le module de sa zone, `i18n/texts/<zone>.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
 8. **Logique caméra découplée de Qt** : les calculs de distorsion (`lens_calibration.py`), d'homographie (`workspace_alignment.py`) et de capture (`capture.py`) résident dans `camera/` sans dépendance PyQt6 pour rester testables unitairement.
 9. **Calcul sans interface** : `gcode/`, `grbl/`, `image/`, `camera/`, `library/` n'importent pas Qt ; `vector/` utilise QtGui et les valeurs de QtCore comme bibliothèque de géométrie, jamais QtWidgets. Vérifié par `tests/test_pure_modules.py`.
@@ -478,7 +478,7 @@ Menu Outils → Caméra (CameraDialog)
 | **vector/importers.puzzle_to_objects** | `outline` + `edges` → 2 `SvgPathObject` (contour fermé ; arêtes internes regroupées en un objet) |
 | **VectorEditorController.open_puzzle_generator** | Ouverture dialogue + placement sur canevas |
 | **ui/vector_editor/tab.py** (`TOP_BUTTONS`) | Bouton « 🧩 Puzzle » de la rangée des outils |
-| **i18n/translations.py** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
+| **i18n/texts/** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
 
 Flux :
 
@@ -507,7 +507,7 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 | **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification) |
 | **vector/importers.ornament_to_objects** | Contours → 2 `SvgPathObject` : l'extérieur, et un objet qui regroupe tous les contours intérieurs |
 | **VectorEditorController.open_ornament_generator** | Ouverture du dialogue et placement sur le canevas |
-| **i18n/translations.py** | Clés `menu.tools.ornament`, `ui.vector_ornament_generator*`, `ornament.*`, `ornament.err.*` |
+| **i18n/texts/** | Clés `menu.tools.ornament`, `ui.vector_ornament_generator*`, `ornament.*`, `ornament.err.*` |
 
 Principes : le prénom, les flocons et l'anneau sont **soudés** en une seule pièce avant d'être envoyés au laser : un contour qui traverse de la matière serait découpé à l'intérieur d'une lettre. Les lettres sont d'abord fusionnées (écritures cursives), leurs contreformes (a, e, o) restent des contours à part. Le prénom est tenu à l'anneau par une barre posée sur la ligne de base (choix « Barre », par défaut) ; sans elle il doit toucher l'anneau des deux côtés (`floating_name` avertit sinon). Un point de i ou un accent reste détaché et tombe. Tests : `tests/test_ornament_generator.py` (formes et disposition sans Qt ; soudure avec le vrai Qt, ignorée sans lui).
 
