@@ -88,7 +88,7 @@ class SplitterTests(unittest.TestCase):
         src = self.source()
         # Le widget de conversion PNG → SVG a son propre panneau de gauche
         # (left_widget) : seule la fenêtre principale est concernée ici.
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+        with open(os.path.join(ROOT, "ui", "app", "main_window.py"), encoding="utf-8") as f:
             self.assertNotRegex(f.read(), r"\bleft_widget\b")
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)

@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 try:
     from PyQt6.QtWidgets import QApplication
     from PIL import Image
-    from laser_studio import main_window
+    from laser_studio.ui.app import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 

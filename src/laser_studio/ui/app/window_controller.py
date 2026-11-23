@@ -6,8 +6,7 @@
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe les actions qui touchent plusieurs parties de la
 fenêtre : thème, langue, aide, caméra, fenêtres de réglages, matrice de test,
-résolution et focale de « Graver une image », zone de travail de l'éditeur
-vectoriel.
+résolution et focale de « Graver une image », Stencil Studio.
 
 Le reste a son propre objet, créé par la fenêtre : MainTabs (onglets,
 plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
@@ -224,16 +223,15 @@ class WindowController(QObject):
 
     def resolution_changed(self, _lines_mm):
         """Résolution de gravure changée (saisie, DPI, focale, réglages restaurés) :
-        la matrice de test et la Séparation la reprennent, l'image est retraitée.
-        La matrice et la Séparation, construites après l'onglet image, sont
-        absentes lors des tout premiers réglages."""
+        la matrice de test et la Séparation la reprennent (l'image est retraitée
+        par son propre onglet). La matrice et la Séparation, construites après
+        l'onglet image, sont absentes lors des tout premiers réglages."""
         w = self.window
         if hasattr(w, "tab_matrix"):
             self.sync_matrix_lines_mm()
         separation = getattr(w, "separation", None)
         if separation is not None:
             separation.resolution_changed()
-        w.image.schedule_processing()
 
     def machine_focal_changed(self, focal):
         """La focale est une caractéristique physique du laser : tout
@@ -261,19 +259,3 @@ class WindowController(QObject):
         dialog = DitherComparisonDialog(self.window, thumbnails)
         dialog.algorithm_chosen.connect(image.choose_algorithm)
         dialog.exec()
-
-    def refresh_engrave_layer_combo(self, *_args):
-        """Remet à jour la liste « Calque de gravure » de l'onglet image (calques ajoutés,
-        supprimés, renommés ou changés de mode)."""
-        layers = self.window.layer_manager
-        layer = layers.engrave_layer()
-        self.window.tab_previews.settings.engrave_layer_combo.set_layers(layers.layers,
-                                                                         layer.id if layer else None)
-
-    # -- éditeur vectoriel : zone de travail
-
-    def update_vector_work_area(self, *_args):
-        """Zone de travail de l'éditeur vectoriel aux dimensions physiques du
-        graveur (Paramètres Machine), et non à celles du job en cours."""
-        machine = self.window.machine
-        self.window.vector_canvas.set_work_area(machine.bed_w, machine.bed_h)

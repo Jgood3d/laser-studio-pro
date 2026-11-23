@@ -14,7 +14,7 @@ os.environ.setdefault("XDG_DATA_HOME", _TMP)
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from laser_studio import main_window
+    from laser_studio.ui.app import main_window
 except ImportError:  # PyQt6, pyqtgraph... manquants
     main_window = None
 

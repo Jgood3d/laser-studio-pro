@@ -4,7 +4,7 @@
     python tools/signal_map.py         # docs/architecture/signaux.svg, .png
     python tools/signal_map.py --list     # la même chose, en texte
 
-Lit le code (sans le lancer) : dans main_window.py et
+Lit le code (sans le lancer) : dans ui/app/main_window.py et
 ui/app/window_controller.py, chaque `émetteur.signal.connect(cible)` dont
 l'émetteur est une classe de ui/ (page, onglet, panneau, menu). Pour
 chaque connexion : la classe et son fichier, la méthode qui branche, la
@@ -27,11 +27,17 @@ ROOT = os.path.join(REPO, "src", "laser_studio")
 OUTPUT = os.path.join(REPO, "docs", "architecture", "signaux")
 # Fichiers où la fenêtre branche les signaux.
 WIRING_FILES = (
-    "main_window.py",
+    os.path.join("ui", "app", "main_window.py"),
     os.path.join("ui", "app", "window_controller.py"),
-)
-# Paramètres de méthode dont le type ne se lit pas dans le code.
-PARAMETER_CLASSES = {"actions": "AppActions"}
+) + tuple(sorted(os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "ui", "**", "builder.py"),
+                                                                 recursive=True)))
+# Paramètres de méthode (fenêtre, builders) dont le type ne se lit pas dans le code.
+PARAMETER_CLASSES = {
+    "actions": "AppActions", "engraver": "EngraverController", "machines": "MachineProfilesController",
+    "job": "JobController", "layers": "LayersModel", "image_actions": "ImageToolbarActions",
+    "image": "ImageController", "state": "WindowState", "image_history": "ImageSettingsHistory",
+    "image_settings": "ImageSettings", "machine": "MachineConfig", "connection": "MachineConnection",
+}
 
 
 def read(path):
@@ -46,6 +52,7 @@ def source_files():
             "*.py",
             "ui/**/*.py",
             "controllers/*.py",
+            "models/*.py",
             "../stencil_studio/**/*.py",
         )
     ]
@@ -139,14 +146,14 @@ def emitter_class(owner, local, index):
     return None
 
 
-def describe_target(node, owner_names, index, window_aliases=()):
+def describe_target(node, owner_names, index, window_aliases=(), local=None):
     """(nom affiché, fichier) de la fonction appelée par le signal.
     `window_aliases` : variables locales qui désignent la fenêtre
     (`w = self.window` dans WindowController), lues comme `self`."""
     if isinstance(node, ast.Lambda):
         for sub in ast.walk(node.body):
             if isinstance(sub, ast.Call):
-                return describe_target(sub.func, owner_names, index, window_aliases)
+                return describe_target(sub.func, owner_names, index, window_aliases, local)
         return "lambda", "?"
     if isinstance(node, ast.Name):
         return node.id, index.functions.get(node.id, "?")
@@ -167,6 +174,8 @@ def describe_target(node, owner_names, index, window_aliases=()):
             cls = index.attributes.get(owner[5:], (None, None))[0]
             if cls:
                 return f"{owner[5:]}.{node.attr}", index.classes[cls]
+        if local and owner in local and local[owner] in index.classes:  # x = Classe(...), paramètre connu
+            return f"{local[owner]}.{node.attr}", index.classes[local[owner]]
         if owner in owner_names:  # variable locale : x = self.a.b
             source = owner_names[owner]
             attr = source.split(".")[-1]
@@ -206,10 +215,10 @@ def connections(index):
                 continue
             owner = ast.unparse(call.func.value.value)
             cls = emitter_class(owner, local, index)
-            if cls is None or not index.classes[cls].startswith("ui"):
+            if cls is None or not index.classes.get(cls, "").startswith("ui"):
                 continue
             aliases = [name for name, source in sources.items() if source == "self.window"]
-            target, target_file = describe_target(call.args[0], sources, index, aliases)
+            target, target_file = describe_target(call.args[0], sources, index, aliases, local)
             rows.append(
                 dict(
                     cls=cls,
@@ -246,7 +255,7 @@ PALETTE = {
     "controllers/materials.py": "#9b59b6",
     "controllers/png2svg.py": "#1abc9c",
     "controllers/separation.py": "#6c5ce7",
-    "main_window.py": "#34495e",
+    "ui/app/main_window.py": "#34495e",
     "ui/app/window_controller.py": "#5d6d7e",
     "ui/app/tabs.py": "#7b8a8b",
     "ui/app/job_display.py": "#a04000",
@@ -387,7 +396,7 @@ def draw(rows, index):
         30,
         66,
         "Chaque page / onglet / panneau émet des signaux (à "
-        "gauche). La fenêtre FullLaserStudio les branche (main_window"
+        "gauche). La fenêtre FullLaserStudio les branche (ui/app/main_window"
         ".py, ui/app/window_controller.py) sur une fonction (à droite"
         "), colorée selon le fichier où elle est écrite.",
         size=13,

@@ -77,7 +77,7 @@ def main():
     install_breeze_icon_theme()
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
-    from laser_studio import main_window
+    from laser_studio.ui.app import main_window
 
     window = main_window.FullLaserStudio()
     apply_saved_theme(app)

@@ -230,11 +230,13 @@ class WindowWiringTests(unittest.TestCase):
             return f.read()
 
     def test_materials_live_in_the_layers_tab_and_the_window_is_gone(self):
-        src = self.read("main_window.py")
-        self.assertIn("self.layers_tab.material_combo,", src)
-        self.assertIn("tab.material_selected.connect(self.materials.apply_selected)", src)
-        self.assertIn("connection.connect_requested.connect(engraver.toggle_connection)", src)
-        self.assertIn("connection.help_requested.connect(lambda: port_help_dialog(self).exec())", src)
+        src = self.read("ui", "app", "main_window.py")
+        layers = self.read("ui", "tabs", "layers", "builder.py")
+        machine = self.read("ui", "machine", "builder.py")
+        self.assertIn("tab.material_combo,", layers)
+        self.assertIn("tab.material_selected.connect(materials.apply_selected)", layers)
+        self.assertIn("ports.connect_requested.connect(engraver.toggle_connection)", machine)
+        self.assertIn("ports.help_requested.connect(lambda: port_help_dialog(help_parent).exec())", machine)
         self.assertNotIn("MachineProfilesPage", src)
         self.assertFalse(os.path.exists(os.path.join(REPO, "src", "laser_studio", "ui", "settings", "machine_profiles")))
         # Profil machine : le matériau ne réécrase pas les calques que le profil vient de restaurer.
@@ -257,7 +259,7 @@ from unittest import mock
 from PyQt6.QtWidgets import QApplication, QAbstractSpinBox
 app = QApplication([])
 mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
-from laser_studio.main_window import FullLaserStudio
+from laser_studio.ui.app.main_window import FullLaserStudio
 win = FullLaserStudio()
 combo = win.layers_tab.material_combo
 combo.setCurrentText("MDF 4mm")
@@ -298,7 +300,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtTest import QTest
 app = QApplication([])
 mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
-from laser_studio.main_window import FullLaserStudio
+from laser_studio.ui.app.main_window import FullLaserStudio
 w = FullLaserStudio(); tab = w.layers_tab; combo = tab.material_combo
 combo.setCurrentText("Acrylique 3mm"); combo.activated.emit(combo.currentIndex())
 w.layer_manager.update(w.layer_manager.layers[2].id, power=42.0)   # recopié dans le matériau

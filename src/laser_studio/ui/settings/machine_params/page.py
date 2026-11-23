@@ -15,6 +15,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.ui.binding import bind
 
 
 class MachineParamsPage(QScrollArea):
@@ -150,3 +151,10 @@ class MachineParamsPage(QScrollArea):
         self.bed_size_changed.emit(
             self.bed_width_spin.value(), self.bed_height_spin.value()
         )
+
+    def bind_settings(self, machine):
+        """Champs liés au modèle des réglages machine (MachineConfig), que lit la logique."""
+        for widget, field in ((self.bed_width_spin, "bed_w"), (self.bed_height_spin, "bed_h"),
+                              (self.focal_spin, "focal"), (self.max_speed_spin, "max_speed"),
+                              (self.accel_spin, "accel")):
+            bind(widget, machine, field)

@@ -76,7 +76,7 @@ def main():
     # quasi-totalité de l'application (pyqtgraph, numba, scipy, OpenCV…).
     # C'est l'étape la plus longue du démarrage, pendant laquelle le splash
     # est ainsi déjà affiché.
-    from laser_studio.main_window import FullLaserStudio
+    from laser_studio.ui.app.main_window import FullLaserStudio
 
     # 2. Charger la fenêtre principale avec gestion des erreurs
     try:

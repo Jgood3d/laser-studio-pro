@@ -22,7 +22,7 @@ class TestMatrixWindowTests(unittest.TestCase):
     def setUpClass(cls):
         tmp = tempfile.mkdtemp()                       # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
-            from laser_studio import main_window
+            from laser_studio.ui.app import main_window
             from laser_studio.controllers import job
             cls.gen = job
             cls.app = QApplication.instance() or QApplication([])

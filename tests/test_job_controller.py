@@ -273,7 +273,7 @@ class WindowTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": cls.tmp.name, "XDG_DATA_HOME": cls.tmp.name})
         cls.env.start()
-        from laser_studio import main_window
+        from laser_studio.ui.app import main_window
         cls.app = QApplication.instance() or QApplication([])
         cls.stencil = mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload")
         cls.stencil.start()

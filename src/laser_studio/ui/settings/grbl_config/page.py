@@ -14,6 +14,8 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.models.grbl import LASER_COMMANDS
+from laser_studio.ui.binding import bind
 from laser_studio.ui.settings.grbl_config.settings_box import GrblSettingsBox
 
 
@@ -172,3 +174,19 @@ class GrblConfigPage(QWidget):
     def _show_overscan_value(self, mode):
         """Affiche la distance (mode fixe) ou le pourcentage."""
         self._overscan_stack.setCurrentIndex(mode)
+
+    def bind_settings(self, grbl):
+        """Champs liés au modèle de la configuration GRBL (GrblConfig), que lit la logique."""
+        bind(self.laser_cmd_combo, grbl, "laser_cmd",
+             to_widget=LASER_COMMANDS.index, from_widget=lambda i: LASER_COMMANDS[max(i, 0)])
+        for widget, field in ((self.smax_spin, "smax"), (self.homing_check, "homing_enabled"),
+                              (self.overscan_check, "overscan_enabled"),
+                              (self.safe_cut_order_check, "safe_cut_order"),
+                              (self.overscan_mode_combo, "overscan_mode"),
+                              (self.overscan_dist_spin, "overscan_dist_mm"),
+                              (self.overscan_pct_spin, "overscan_pct"),
+                              (self.scan_offset_spin, "scan_offset_mm"),
+                              (self.start_gcode_edit, "start_gcode"),
+                              (self.end_gcode_edit, "end_gcode"),
+                              (self.grbl_settings_edit, "grbl_settings")):
+            bind(widget, grbl, field)

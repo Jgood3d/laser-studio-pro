@@ -107,7 +107,7 @@ class MainWiringTests(unittest.TestCase):
     def test_main_asks_the_policy_before_showing_the_dialog(self):
         with open(os.path.join(REPO, "src", "laser_studio", "main.py"), encoding="utf-8") as f:
             src = f.read()
-        block = src[src.index("safety = StartupSafetyPolicy("):src.index("from laser_studio.main_window import")]
+        block = src[src.index("safety = StartupSafetyPolicy("):src.index("from laser_studio.ui.app.main_window import")]
         self.assertLess(block.index("if safety.should_show_at_launch():"), block.index("confirm_startup_safety("))
         self.assertLess(block.index("sys.exit(0)"), block.index("safety.record(hide)"))   # Annuler : rien d'enregistré
 

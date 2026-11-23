@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 class QuitTests(unittest.TestCase):
     def setUp(self):
         try:
-            self.mod = importlib.import_module("laser_studio.main_window")
+            self.mod = importlib.import_module("laser_studio.ui.app.main_window")
         except ImportError:
             self.skipTest("main_window non importable ici")
         self.win = type("Window", (), {})()

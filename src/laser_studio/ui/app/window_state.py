@@ -272,6 +272,5 @@ class WindowState(QObject):
         if "layers" in data:
             w.layer_manager.load_list(data["layers"])
         w.vector_canvas.load_objects(data.get("vector_objects"))
-        w.window_controller.update_vector_work_area()
 
         w.image.schedule_processing()

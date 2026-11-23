@@ -232,7 +232,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
-        self.assertIn("settings.undo_requested.connect(self.image_history.undo)", src)
+        self.assertIn("settings.undo_requested.connect(image_history.undo)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
         self.assertNotIn("MachineProfilesPage", src)            # fenêtre Matériaux et connexion supprimée
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
@@ -253,14 +253,14 @@ class MenuStructureTests(unittest.TestCase):
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
-        self.assertEqual(src.count("self.window_controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
+        self.assertEqual(src.count("compare=controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
         uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
         self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
         self.assertEqual(src.count("._fullscreen_control"), 0)
 
     def test_one_fullscreen_button_for_every_tab(self):
         # Un seul « Plein écran », dans la barre principale à côté de ko-fi, pour l'onglet affiché.
-        src = read("main_window.py")
+        src = read(os.path.join("ui", "app", "main_window.py"))
         tabs = read(os.path.join("ui", "app", "tabs.py"))
         body = tabs[tabs.index("def toggle_current_fullscreen"):]
         body = body[:body.index("\n    def ", 10)]
@@ -286,7 +286,7 @@ class MenuStructureTests(unittest.TestCase):
         job = read(os.path.join("controllers", "job.py"))
         start = job[:job.index("        self.worker.start()")]
         self.assertTrue(start.rstrip().endswith("self.started.emit()"))
-        main = read("main_window.py")
+        main = read(os.path.join("ui", "app", "main_window.py"))
         self.assertIn("self.job.started.connect(display.generation_started)", main)
         self.assertIn("show_preview=lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)", main)
         view = read(os.path.join("ui", "app", "job_display.py"))
@@ -315,7 +315,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
                       read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
-        self.assertIn("start_stream=self.engraver.start_stream", ui_source())
+        self.assertIn("start_stream=engraver.start_stream", ui_source())
 
     def test_load_button_and_keep_ratio_span_the_panel(self):
         src = ui_source()
@@ -336,14 +336,14 @@ class MenuStructureTests(unittest.TestCase):
         src = ui_source()
         self.assertNotIn("tabs.addTab(tab_mach,", src)
         self.assertNotIn("tabs.addTab(tab_gcode_cfg,", src)
-        self.assertIn("self.tab_grbl_config = page", src)
+        self.assertIn("self.tab_grbl_config = build_grbl_config_page(", src)
 
     def test_machine_params_and_test_matrix_are_no_longer_tabs_either(self):
         src = ui_source()
         self.assertNotIn('tabs.addTab(tab_machine_params', src)
         self.assertNotIn('tabs.addTab(tab_matrix', src)
-        self.assertIn("self.tab_machine_params = page", src)
-        self.assertIn("self.tab_matrix = page", src)
+        self.assertIn("self.tab_machine_params, self.machines = build_machine_params_page(", src)
+        self.assertIn("self.tab_matrix, self.matrix_image = build_test_matrix_page(", src)
 
     def test_other_tabs_are_still_there(self):
         src = ui_source()
@@ -359,11 +359,11 @@ class MenuStructureTests(unittest.TestCase):
         self.assertNotIn('tr("tab.dimensions")', src)
         self.assertIn("self._settings_scroll = self._side_scroll(self.settings)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
-        self.assertIn('self.main_tabs_view.addTab(tab, tr("ui.tab_vector_editor"))', src)
-        self.assertIn('self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))', src)
-        order = [src.index(k) for k in ("self._build_vector_editor_tab()",
-                                         'self.main_tabs_view.addTab(self.layers_tab, tr("tab.layers"))',
-                                         "self._build_2d_preview_tab()")]
+        self.assertIn('tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))', src)
+        self.assertIn('tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))', src)
+        order = [src.index(k) for k in ('tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))',
+                                         'tabs.addTab(self.layers_tab, tr("tab.layers"))',
+                                         'tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))')]
         self.assertEqual(order, sorted(order))
 
 
@@ -472,8 +472,9 @@ class ShowWindowTests(unittest.TestCase):
             obj.remember_algorithm = lambda name: controller.remember_algorithm(obj, name)
             controller.choose_algorithm(obj, "Stucki")               # choix dans la comparaison : mémorisé
             self.assertEqual(stored[module.ALGORITHM_SETTING], "Stucki")
-        src = read("main_window.py")
-        self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)", src)
+        src = read(os.path.join("ui", "app", "main_window.py"))
+        self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)",
+                      read(os.path.join("ui", "tabs", "image", "builder.py")))
         self.assertIn("self.image.restore_remembered_algorithm()", src)
         self.assertIn("dialog.algorithm_chosen.connect(image.choose_algorithm)",
                       read(os.path.join("ui", "app", "window_controller.py")))
