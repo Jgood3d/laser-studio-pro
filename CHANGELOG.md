@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Éditeur vectoriel : loupes « Zoom avant » et « Zoom arrière » dans la barre d'édition, aussi par Ctrl++ et Ctrl+- (zoom centré sur le milieu de la vue).
+
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
 
 Fedora : paquet RPM dans le dépôt Copr `alemorvan/laser-studio-pro` (Fedora 43, 44 et 45, x86_64 et aarch64) : `sudo dnf copr enable alemorvan/laser-studio-pro` puis `sudo dnf install laser-studio-pro`.

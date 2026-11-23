@@ -23,6 +23,10 @@ from laser_studio.ui.vector_editor.item import VectorGraphicsItem
 # Ancien nom du modèle des calques (models/layers.py).
 LayerManager = LayersModel
 
+# Facteur de zoom d'un cran de molette, et d'un clic sur les loupes (ou Ctrl++ / Ctrl+-).
+WHEEL_ZOOM_STEP = 1.15
+BUTTON_ZOOM_STEP = 1.25
+
 
 class VectorCanvasView(QGraphicsView):
     """Vue d'édition : zone de travail en mm, objets déplaçables à la souris,
@@ -310,8 +314,24 @@ class VectorCanvasView(QGraphicsView):
         self.grid_items.append(origin_label)
 
     def wheelEvent(self, event):
-        factor = 1.15 if event.angleDelta().y() > 0 else 1 / 1.15
+        factor = WHEEL_ZOOM_STEP if event.angleDelta().y() > 0 else 1 / WHEEL_ZOOM_STEP
         self.scale(factor, factor)
+
+    def zoom_in(self):
+        """Zoom avant (bouton loupe +, Ctrl++), centré sur le milieu de la vue."""
+        self._zoom_centered(BUTTON_ZOOM_STEP)
+
+    def zoom_out(self):
+        """Zoom arrière (bouton loupe -, Ctrl+-), centré sur le milieu de la vue."""
+        self._zoom_centered(1 / BUTTON_ZOOM_STEP)
+
+    def _zoom_centered(self, factor):
+        center = self.mapToScene(self.viewport().rect().center())
+        anchor = self.transformationAnchor()
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.NoAnchor)
+        self.scale(factor, factor)
+        self.centerOn(center)
+        self.setTransformationAnchor(anchor)
 
     def scene_to_mm(self, scene_pos):
         """Point scène Qt (Y bas) -> millimètres machine (origine bas-gauche, Y haut)."""
@@ -1757,6 +1777,19 @@ class VectorCanvasView(QGraphicsView):
                     return
         super().mouseDoubleClickEvent(event)
 
+    @staticmethod
+    def _is_zoom_key(event, direction):
+        """Ctrl++ (direction +1) ou Ctrl+- (direction -1), sur la rangée du haut ou le pavé numérique.
+        Ctrl+= compte aussi pour Ctrl++ : sur un clavier QWERTY, « + » est sur la touche « = »."""
+        if direction > 0 and event.matches(QKeySequence.StandardKey.ZoomIn):
+            return True
+        if direction < 0 and event.matches(QKeySequence.StandardKey.ZoomOut):
+            return True
+        if not event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            return False
+        keys = (Qt.Key.Key_Plus, Qt.Key.Key_Equal) if direction > 0 else (Qt.Key.Key_Minus,)
+        return event.key() in keys
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape and self._draw_tool:
             if self._draw_phase is not None or self._draw_awaiting_depth or self._draw_awaiting_second:
@@ -1819,6 +1852,14 @@ class VectorCanvasView(QGraphicsView):
             for item in self.scene_obj.items():
                 if isinstance(item, VectorGraphicsItem):
                     item.setSelected(True)
+            event.accept()
+            return
+        if self._is_zoom_key(event, +1):
+            self.zoom_in()
+            event.accept()
+            return
+        if self._is_zoom_key(event, -1):
+            self.zoom_out()
             event.accept()
             return
         if event.matches(QKeySequence.StandardKey.Undo):

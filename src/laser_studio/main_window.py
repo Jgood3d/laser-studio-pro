@@ -749,6 +749,9 @@ class FullLaserStudio(QMainWindow):
                 (None, None, None),
                 ("ui.vector_undo", "edit-undo", lambda: self.vector_canvas.undo()),
                 ("ui.vector_redo", "edit-redo", lambda: self.vector_canvas.redo()),
+                (None, None, None),
+                ("ui.vector_zoom_in", "zoom-in", lambda: self.vector_canvas.zoom_in()),
+                ("ui.vector_zoom_out", "zoom-out", lambda: self.vector_canvas.zoom_out()),
             )
         ]
         # Créer et dessiner : barre flottante d'icônes à gauche du canevas (voir plus bas). Texte et
