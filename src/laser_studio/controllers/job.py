@@ -9,7 +9,7 @@ par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
 
     job = JobController(layers, grbl, machine, image_settings, UserDialogs(window),
                         geometry=window._job_geometry, image=lambda: window.processed_array, ...)
-    job.generated.connect(window.on_gcode_generated)
+    job.generated.connect(job_display.show_generated)
     job.generate()
 """
 import traceback

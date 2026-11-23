@@ -40,7 +40,7 @@ class BurnOverlayTests(unittest.TestCase):
         cls.win = main_window.FullLaserStudio()
 
     def setUp(self):
-        self.win.plot_gcode_preview(GCODE)
+        self.win.job_display.plot(GCODE)
         self.tab = self.win.tab_vector_2d
 
     def red_points(self):

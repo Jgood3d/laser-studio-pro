@@ -103,10 +103,10 @@ class Index:
         return None
 
     def window_method(self, name):
-        """Fichier de la méthode `name` de la fenêtre (mixin ou fenêtre)."""
+        """Fichier de la méthode `name` de la fenêtre (fenêtre ou son contrôleur)."""
         places = self.methods.get(name, [])
         for cls, path in places:
-            if "Mixin" in cls or cls == "FullLaserStudio":
+            if "Mixin" in cls or cls in ("FullLaserStudio", "WindowController"):
                 return path
         return places[0][1] if places else None
 
@@ -139,17 +139,22 @@ def emitter_class(owner, local, index):
     return None
 
 
-def describe_target(node, owner_names, index):
-    """(nom affiché, fichier) de la fonction appelée par le signal."""
+def describe_target(node, owner_names, index, window_aliases=()):
+    """(nom affiché, fichier) de la fonction appelée par le signal.
+    `window_aliases` : variables locales qui désignent la fenêtre
+    (`w = self.window` dans WindowController), lues comme `self`."""
     if isinstance(node, ast.Lambda):
         for sub in ast.walk(node.body):
             if isinstance(sub, ast.Call):
-                return describe_target(sub.func, owner_names, index)
+                return describe_target(sub.func, owner_names, index, window_aliases)
         return "lambda", "?"
     if isinstance(node, ast.Name):
         return node.id, index.functions.get(node.id, "?")
     if isinstance(node, ast.Attribute):
         owner = ast.unparse(node.value)
+        for alias in window_aliases:
+            if owner.startswith(alias + "."):
+                owner = "self" + owner[len(alias):]
         if owner == "self":
             path = index.window_method(node.attr)
             return node.attr, path or f"Qt (QMainWindow.{node.attr})"
@@ -203,7 +208,8 @@ def connections(index):
             cls = emitter_class(owner, local, index)
             if cls is None or not index.classes[cls].startswith("ui"):
                 continue
-            target, target_file = describe_target(call.args[0], sources, index)
+            aliases = [name for name, source in sources.items() if source == "self.window"]
+            target, target_file = describe_target(call.args[0], sources, index, aliases)
             rows.append(
                 dict(
                     cls=cls,
@@ -242,6 +248,9 @@ PALETTE = {
     "controllers/separation.py": "#6c5ce7",
     "main_window.py": "#34495e",
     "ui/app/window_controller.py": "#5d6d7e",
+    "ui/app/tabs.py": "#7b8a8b",
+    "ui/app/job_display.py": "#a04000",
+    "ui/app/image_actions.py": "#117a65",
 }
 OTHER = "#95a5a6"
 SECTIONS = (  # (colonne, titre, préfixe du fichier de la classe)

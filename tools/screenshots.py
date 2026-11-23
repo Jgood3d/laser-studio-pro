@@ -32,7 +32,7 @@ OUTPUT = os.path.join(REPO, "docs", "screenshots")
 SAMPLE_IMAGE = os.path.join(REPO, "docs", "gravure-test-original.jpg")
 SEPARATION_IMAGE = os.path.join(REPO, "docs", "result-color-layer.jpg")
 WINDOW_SIZE = (1600, 980)
-# Pages du menu Paramètres (clés de show_settings_window).
+# Pages du menu Paramètres (clés de WindowController.show_settings_window).
 SETTINGS_PAGES = ("machine_params", "grbl", "test_matrix")
 
 
@@ -108,7 +108,7 @@ def main():
     pump(1.5)
     window.generate_job()
     end = time.time() + 120
-    while window._last_gcode_text is None and time.time() < end:
+    while window.job_display.last_gcode_text is None and time.time() < end:
         pump(0.2)
     pump(1.0)
     window.png2svg_widget._load_image_path(SAMPLE_IMAGE)
@@ -127,7 +127,7 @@ def main():
 
     print("Pages de réglages")
     for number, kind in enumerate(SETTINGS_PAGES, start=10):
-        window.show_settings_window(kind)
+        window.window_controller.show_settings_window(kind)
         settings = window._settings_windows[kind]
         shot(settings, f"{number}-page-{slug(settings.windowTitle())}")
         settings.close()

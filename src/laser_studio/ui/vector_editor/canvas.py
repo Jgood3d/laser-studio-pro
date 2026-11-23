@@ -201,6 +201,14 @@ class VectorCanvasView(QGraphicsView):
         self.scale(target, target)
         self.centerOn(center)
 
+    def set_snap_enabled(self, enabled):
+        """Grille magnétique (case de la barre de l'éditeur) : déplacements calés sur la grille."""
+        self.snap_enabled = bool(enabled)
+
+    def set_snap_step(self, step_mm):
+        """Pas de la grille magnétique, en mm."""
+        self.snap_step_mm = float(step_mm)
+
     def set_work_area(self, w_mm, h_mm):
         self.work_w_mm, self.work_h_mm = w_mm, h_mm
         if self.work_rect_item:

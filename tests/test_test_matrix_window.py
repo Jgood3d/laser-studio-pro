@@ -34,7 +34,7 @@ class TestMatrixWindowTests(unittest.TestCase):
     def open_matrix_window(self):
         win = self.win
         win.main_tabs_view.setCurrentWidget(win.tab_vector_editor)
-        win.show_settings_window("test_matrix")
+        win.window_controller.show_settings_window("test_matrix")
         self.app.processEvents()
         window = win.tab_matrix.window()
         self.assertTrue(window.isVisible())

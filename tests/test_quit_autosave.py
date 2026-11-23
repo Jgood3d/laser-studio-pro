@@ -18,8 +18,9 @@ class QuitTests(unittest.TestCase):
             self.skipTest("main_window non importable ici")
         self.win = type("Window", (), {})()
         self.calls = []
-        for name in ("save_machine_settings", "save_splitter_sizes", "_flush_background_writes"):
+        for name in ("save_machine_settings", "_flush_background_writes"):
             setattr(self.win, name, lambda n=name: self.calls.append(n))
+        self.win.tabs = mock.Mock(save_splitter_sizes=lambda: self.calls.append("save_splitter_sizes"))
         self.win.project = mock.Mock()
         self.win.connection = mock.Mock()
         self.win.connection.shutdown = lambda: self.calls.append("shutdown")

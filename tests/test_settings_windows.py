@@ -222,7 +222,7 @@ class MenuStructureTests(unittest.TestCase):
     def test_image_settings_buttons_left_the_image_tab(self):
         src = ui_source()
         # Plus aucun bouton dans l'onglet Image & Filtres : seul l'aiguillage les appelle.
-        for call in ("self.image.rotate_left", "self.image.rotate_right", "self.image.clear()"):
+        for call in ("image.rotate_left", "image.rotate_right", "clear=image.clear,"):
             self.assertEqual(src.count(call), 1, call)
         # (la boîte de saisie d'un texte, dans l'éditeur vectoriel, a ses propres cases miroir)
         image_src = "\n".join(read(name) for name in ui_files() if not name.startswith(os.path.join("ui", "vector_editor")))
@@ -253,7 +253,7 @@ class MenuStructureTests(unittest.TestCase):
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
-        self.assertEqual(src.count("self.show_dither_comparison"), 1)      # plus dans Image & Filtres
+        self.assertEqual(src.count("self.window_controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
         uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
         self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
         self.assertEqual(src.count("._fullscreen_control"), 0)
@@ -261,13 +261,13 @@ class MenuStructureTests(unittest.TestCase):
     def test_one_fullscreen_button_for_every_tab(self):
         # Un seul « Plein écran », dans la barre principale à côté de ko-fi, pour l'onglet affiché.
         src = read("main_window.py")
-        window = read(os.path.join("ui", "app", "window_controller.py"))
-        body = window[window.index("def toggle_current_tab_fullscreen"):]
+        tabs = read(os.path.join("ui", "app", "tabs.py"))
+        body = tabs[tabs.index("def toggle_current_fullscreen"):]
         body = body[:body.index("\n    def ", 10)]
-        for call in ("self.toggle_fullscreen_vector_editor()", "self._toggle_fullscreen_png2svg()",
-                     "self._open_tab_fullscreen(", "_restore_tab_close_button(tab)"):
+        for call in ("self.open_vector_editor_fullscreen()", 'tr("png2svg.fullscreen_title")',
+                     "self.open_fullscreen(", "self._restore_close_button(tab)"):
             self.assertIn(call, body)
-        self.assertIn("actions.fullscreen_requested.connect(self.toggle_current_tab_fullscreen)",
+        self.assertIn("actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)",
                       read(os.path.join("ui", "app", "window_controller.py")))
         self.assertNotIn("fullscreen_requested.connect", src)          # plus de bouton par onglet
 
@@ -286,11 +286,13 @@ class MenuStructureTests(unittest.TestCase):
         job = read(os.path.join("controllers", "job.py"))
         start = job[:job.index("        self.worker.start()")]
         self.assertTrue(start.rstrip().endswith("self.started.emit()"))
-        self.assertIn("self.job.started.connect(self.on_gcode_generation_started)", read("main_window.py"))
-        view = read(os.path.join("ui", "app", "window_controller.py"))
-        view = view[view.index("def on_gcode_generation_started"):]
+        main = read("main_window.py")
+        self.assertIn("self.job.started.connect(display.generation_started)", main)
+        self.assertIn("show_preview=lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)", main)
+        view = read(os.path.join("ui", "app", "job_display.py"))
+        view = view[view.index("def generation_started"):]
         view = view[:view.index("\n    def ")]
-        self.assertTrue(view.rstrip().endswith("self.main_tabs_view.setCurrentWidget(self.tab_vector_2d)"))
+        self.assertTrue(view.rstrip().endswith("self._show_preview()"))
 
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()
@@ -308,8 +310,8 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("self.text_edit.setReadOnly(True)",
                       read(os.path.join("ui", "machine", "sent_gcode", "log.py")))
         # Un seul lanceur d'envoi (direct et file) : chaque ligne envoyée s'ajoute au suivi.
-        self.assertIn("c.stream_lines_sent.connect(self.machine_panel.sent_gcode_log.append_lines)",
-                      read(os.path.join("ui", "app", "window_controller.py")))
+        self.assertIn("c.stream_lines_sent.connect(panel.sent_gcode_log.append_lines)",
+                      read(os.path.join("ui", "app", "job_display.py")))
         self.assertIn("self.streamer.lines_sent.connect(self.stream_lines_sent)",
                       read(os.path.join("controllers", "machine_connection.py")))
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
@@ -365,7 +367,17 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(order, sorted(order))
 
 
+def fake_qsettings(stored):
+    """Faux QSettings : pas de vrais réglages touchés."""
+    fake = mock.Mock()
+    fake.return_value.setValue.side_effect = stored.__setitem__
+    fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
+    return fake
+
+
 class ShowWindowTests(unittest.TestCase):
+    """WindowController : fenêtres de réglages, onglets demandés par le menu."""
+
     def setUp(self):
         try:
             self.mod = importlib.import_module("laser_studio.ui.app.window_controller")
@@ -373,12 +385,14 @@ class ShowWindowTests(unittest.TestCase):
             self.skipTest("window_controller non importable ici")
 
     def make(self, with_pages=True):
-        cls = type("Window", (self.mod.WindowControllerMixin,), {})
-        obj = cls.__new__(cls)
+        # Sans __init__ : la fenêtre est un simple espace de noms, pas un QObject.
+        controller = self.mod.WindowController.__new__(self.mod.WindowController)
+        controller.window = types.SimpleNamespace(tabs=mock.Mock())
+        controller._settings_windows = {}
         if with_pages:
-            obj.tab_machine_params = object()
-            obj.tab_grbl_config = object()
-        return obj
+            controller.window.tab_machine_params = object()
+            controller.window.tab_grbl_config = object()
+        return controller
 
     class Recorder:
         created = []
@@ -402,83 +416,51 @@ class ShowWindowTests(unittest.TestCase):
         machine, grbl = self.Recorder.created
         self.assertEqual(machine.fronted, 2)
         self.assertEqual(grbl.fronted, 1)
-        self.assertIs(machine.args[1], obj.tab_machine_params)
-        self.assertIs(grbl.args[1], obj.tab_grbl_config)
+        self.assertIs(machine.args[1], obj.window.tab_machine_params)
+        self.assertIs(grbl.args[1], obj.window.tab_grbl_config)
         self.assertEqual((machine.args[2], grbl.args[2]), ("machine_params", "grbl"))
 
     def test_all_three_menu_windows_are_wired_to_their_pages(self):
         self.Recorder.created = []
         obj = self.make()
-        obj.tab_machine_params, obj.tab_matrix = object(), object()
+        obj.window.tab_machine_params, obj.window.tab_matrix = object(), object()
         with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
         pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
         self.assertEqual(sorted(pages), ["grbl", "machine_params", "test_matrix"])
-        self.assertIs(pages["machine_params"], obj.tab_machine_params)
-        self.assertIs(pages["test_matrix"], obj.tab_matrix)
+        self.assertIs(pages["machine_params"], obj.window.tab_machine_params)
+        self.assertIs(pages["test_matrix"], obj.window.tab_matrix)
 
-    def image_tabs(self):
+    def test_missing_page_is_ignored(self):
+        self.Recorder.created = []
+        obj = self.make(with_pages=False)
+        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+            obj.show_settings_window("grbl")
+        self.assertEqual(self.Recorder.created, [])
+
+    def test_vector_tools_open_the_vector_editor_first(self):
         obj = self.make()
-        obj.app_actions = mock.Mock()
-        obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
-        obj.main_tabs_view = mock.Mock()
-        obj._image = None
-        obj.image = mock.Mock(has_image=lambda: obj._image is not None)
-        obj.separation = mock.Mock(has_image=lambda: obj._sep_image)
-        obj._sep_image = False
-        obj.png2svg_widget = mock.Mock(image_path=None)
-        return obj
+        obj.window.tab_vector_editor = object()
+        calls = []
+        obj.window.tabs.show = lambda tab: calls.append(tab)
+        obj.run_in_vector_editor(lambda: calls.append("puzzle"))
+        self.assertEqual(calls, [obj.window.tab_vector_editor, "puzzle"])
 
-    def assert_enabled(self, obj, tab, image_actions, mirrors):
-        obj.main_tabs_view.currentWidget.return_value = tab
-        obj.update_image_actions_state()
-        obj.app_actions.set_image_actions_enabled.assert_called_with(image_actions)
-        obj.app_actions.set_mirrors_enabled.assert_called_with(mirrors)
-
-    def test_image_actions_need_an_image_on_the_current_tab(self):
-        obj = self.image_tabs()
-        for tab in (obj.tab_previews, obj.tab_png2svg, obj.tab_separation, object()):
-            self.assert_enabled(obj, tab, False, False)
-        obj._image = "img"
-        self.assert_enabled(obj, obj.tab_previews, True, True)
-        self.assert_enabled(obj, obj.tab_separation, False, False)   # l'image d'un autre onglet ne compte pas
-        self.assert_enabled(obj, object(), False, False)
-        obj._sep_image = True
-        self.assert_enabled(obj, obj.tab_separation, True, True)
-        obj.png2svg_widget.image_path = "/tmp/a.png"
-        self.assert_enabled(obj, obj.tab_png2svg, True, False)       # pas de miroir de gravure en PNG ⇒ SVG
-
-    def test_toolbar_rotation_targets_the_current_tab(self):
-        obj = self.image_tabs()
-        obj.main_tabs_view.currentWidget.return_value = obj.tab_previews
-        obj._on_toolbar_rotate_image(clockwise=True)
-        obj.image.rotate_right.assert_called_once()
-        obj.main_tabs_view.currentWidget.return_value = obj.tab_png2svg
-        obj._on_toolbar_rotate_image(clockwise=True)
-        obj.png2svg_widget.rotate_image.assert_called_once_with(90)
-        obj.main_tabs_view.currentWidget.return_value = obj.tab_separation
-        obj._on_toolbar_rotate_image(clockwise=True)
-        obj.separation.rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
-        obj.image.rotate_left.assert_not_called()
-
-    def test_connection_widgets_follow_the_port_state(self):
+    def test_menu_shows_a_tab_by_its_name(self):
         obj = self.make()
-        obj.machine_panel = mock.Mock()
-        for connected in (False, True):
-            obj.connection = mock.Mock(is_connected=lambda c=connected: c)
-            obj.update_connection_widgets()
-            obj.machine_panel.set_connected.assert_called_with(connected)
+        obj.window.tab_separation = object()
+        obj.show_main_tab("tab_separation")
+        obj.window.tabs.show.assert_called_once_with(obj.window.tab_separation)
+        obj.show_main_tab("tab_inconnu")                       # ignoré
+        self.assertEqual(obj.window.tabs.show.call_count, 1)
 
     def test_dithering_algorithm_is_remembered(self):
         module = importlib.import_module("laser_studio.controllers.image")
-        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
-        fake = mock.Mock()
-        fake.return_value.setValue.side_effect = stored.__setitem__
-        fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
+        stored = {}
         obj = types.SimpleNamespace(image_settings=mock.Mock())
         controller = module.ImageController
-        with mock.patch.object(module, "QSettings", fake):
+        with mock.patch.object(module, "QSettings", fake_qsettings(stored)):
             controller.restore_remembered_algorithm(obj)
             obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
             controller.remember_algorithm(obj, "Atkinson")
@@ -493,101 +475,165 @@ class ShowWindowTests(unittest.TestCase):
         src = read("main_window.py")
         self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)", src)
         self.assertIn("self.image.restore_remembered_algorithm()", src)
-        self.assertIn("dialog.algorithm_chosen.connect(self.image.choose_algorithm)",
+        self.assertIn("dialog.algorithm_chosen.connect(image.choose_algorithm)",
                       read(os.path.join("ui", "app", "window_controller.py")))
 
-    def test_vector_tools_open_the_vector_editor_first(self):
-        obj = self.make()
-        calls = []
-        obj.show_main_tab = lambda attr: calls.append(attr)
-        obj._run_in_vector_editor(lambda: calls.append("puzzle"))
-        self.assertEqual(calls, ["tab_vector_editor", "puzzle"])
 
-    def test_preview_2d_splitter_position_is_remembered(self):
-        controller = self.mod.WindowControllerMixin
-        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
-        fake = mock.Mock()
-        fake.return_value.setValue.side_effect = stored.__setitem__
-        fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
-        obj = types.SimpleNamespace(tab_vector_2d=types.SimpleNamespace(splitter=mock.Mock()))
-        obj.tab_vector_2d.splitter.sizes.return_value = [900, 0]     # statistiques repliées : gardé
-        with mock.patch.object(self.mod, "QSettings", fake):
-            controller.save_splitter_sizes(obj)
-            self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
-            controller.load_splitter_sizes(obj)
-        obj.tab_vector_2d.splitter.setSizes.assert_called_once_with([900, 0])
+class ImageToolbarActionsTests(unittest.TestCase):
+    """Pivoter / supprimer / miroirs : l'image de l'onglet affiché (ImageToolbarActions)."""
+
+    def setUp(self):
+        try:
+            from laser_studio.ui.app.image_actions import ImageToolbarActions
+            from job_fakes import FakeDialogs
+        except ImportError:
+            self.skipTest("PyQt6 non importable ici")
+        self.current = None
+        self.dialogs = FakeDialogs()
+        self.app_actions = mock.Mock()
+        self.actions = ImageToolbarActions(self.app_actions, current_tab=lambda: self.current, dialogs=self.dialogs)
+        self.previews, self.png2svg, self.separation = object(), object(), object()
+        self.image, self.converter, self.sep = mock.Mock(), mock.Mock(), mock.Mock()
+        self.image.has_image.return_value = False
+        self.sep.has_image.return_value = False
+        self.converter.image_path = None
+        # Comme main_window : chaque onglet d'image s'inscrit.
+        self.actions.add(self.previews, has_image=self.image.has_image,
+                         rotate=lambda cw: (self.image.rotate_right if cw else self.image.rotate_left)(),
+                         clear=self.image.clear, confirm_clear=False)
+        self.actions.add(self.png2svg, has_image=lambda: bool(self.converter.image_path),
+                         rotate=lambda cw: self.converter.rotate_image(90 if cw else -90),
+                         clear=self.converter.clear_image, mirrors=False)
+        self.actions.add(self.separation, has_image=self.sep.has_image,
+                         rotate=lambda cw: self.sep.rotate_image(-90 if cw else 90), clear=self.sep.clear)
+
+    def assert_enabled(self, tab, image_actions, mirrors):
+        self.current = tab
+        self.actions.update_state()
+        self.app_actions.set_image_actions_enabled.assert_called_with(image_actions)
+        self.app_actions.set_mirrors_enabled.assert_called_with(mirrors)
+
+    def test_image_actions_need_an_image_on_the_current_tab(self):
+        for tab in (self.previews, self.png2svg, self.separation, object()):
+            self.assert_enabled(tab, False, False)
+        self.image.has_image.return_value = True
+        self.assert_enabled(self.previews, True, True)
+        self.assert_enabled(self.separation, False, False)   # l'image d'un autre onglet ne compte pas
+        self.assert_enabled(object(), False, False)
+        self.sep.has_image.return_value = True
+        self.assert_enabled(self.separation, True, True)
+        self.converter.image_path = "/tmp/a.png"
+        self.assert_enabled(self.png2svg, True, False)       # pas de miroir de gravure en PNG ⇒ SVG
+
+    def test_toolbar_rotation_targets_the_current_tab(self):
+        self.current = self.previews
+        self.actions.rotate(True)
+        self.image.rotate_right.assert_called_once()
+        self.current = self.png2svg
+        self.actions.rotate(True)
+        self.converter.rotate_image.assert_called_once_with(90)
+        self.current = self.separation
+        self.actions.rotate(True)
+        self.sep.rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
+        self.current = object()
+        self.actions.rotate(True)                              # onglet sans image : rien
+        self.image.rotate_left.assert_not_called()
+
+    def test_delete_asks_first_except_where_the_tab_asks_itself(self):
+        self.current = self.previews
+        self.actions.delete()
+        self.image.clear.assert_called_once()
+        self.assertEqual(self.dialogs.kinds(), [])             # ImageController.clear demande lui-même
+        self.current = self.separation
+        self.dialogs.answer = False
+        self.actions.delete()
+        self.sep.clear.assert_not_called()
+        self.dialogs.answer = True
+        self.actions.delete()
+        self.sep.clear.assert_called_once()
+        self.assertEqual(self.dialogs.kinds(), ["confirm_yes_no", "confirm_yes_no"])
+
+
+class MainTabsTests(unittest.TestCase):
+    """Onglets du centre (MainTabs) : affichage, onglets facultatifs, plein écran, séparateurs."""
+
+    def setUp(self):
+        try:
+            self.mod = importlib.import_module("laser_studio.ui.app.tabs")
+        except ImportError:
+            self.skipTest("PyQt6 non importable ici")
+        self.view = mock.Mock()
+        self.view.indexOf.return_value = -1                    # pas de croix à poser pendant les tests
+        self.vector_editor, self.png2svg = object(), object()
+        self.preview_splitter = mock.Mock()
+        self.tabs = self.mod.MainTabs(
+            self.view, mock.Mock(), splitter=mock.Mock(), bottom_panel=mock.Mock(isHidden=lambda: False),
+            panel_tabs=(), preview_splitter=self.preview_splitter, job_in_progress=lambda: False,
+            vector_editor=self.vector_editor, recenter_vector_editor=lambda: None, png2svg=self.png2svg)
+
+    def test_show_selects_or_raises_the_fullscreen_window(self):
+        tab = mock.Mock()
+        self.view.indexOf.return_value = 3
+        self.tabs.show(tab)
+        self.view.setTabVisible.assert_called_once_with(3, True)    # masqué au démarrage
+        self.view.setCurrentWidget.assert_called_once_with(tab)
+        self.view.indexOf.return_value = -1                    # onglet ouvert en plein écran
+        self.tabs.show(tab)
+        tab.window().raise_.assert_called_once()
 
     def test_job_queue_visibility_is_remembered_and_shown_by_default(self):
-        obj = self.make()
-        obj.tab_job_queue = object()
-        obj.main_tabs_view = mock.Mock()
-        obj.main_tabs_view.indexOf.return_value = 3
-        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
-        fake = mock.Mock()
-        fake.return_value.setValue.side_effect = stored.__setitem__
-        fake.return_value.value.side_effect = lambda key, default: stored.get(key, default)
-        with mock.patch.object(self.mod, "QSettings", fake):
-            self.assertTrue(obj.job_queue_was_visible())          # affichée au premier démarrage
-            obj.set_job_queue_visible(True)
+        queue = object()
+        self.tabs.add_optional(queue, self.mod.JOB_QUEUE_SETTING, mock.Mock())
+        self.view.indexOf.return_value = 3
+        stored = {}
+        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
+            self.assertTrue(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))   # affichée au départ
+            self.tabs.set_optional_visible(queue, True)
             self.assertEqual(stored, {})                          # inchangé : rien d'écrit
-            obj.set_job_queue_visible(False)
-            obj.main_tabs_view.setTabVisible.assert_called_with(3, False)
+            self.tabs.set_optional_visible(queue, False)
+            self.view.setTabVisible.assert_called_with(3, False)
             self.assertEqual(stored, {"show_job_queue": False})
-            self.assertFalse(obj.job_queue_was_visible())
+            self.assertFalse(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))
 
     def test_gcode_console_visibility_is_remembered(self):
-        obj = self.make()
-        obj.tab_console_gcode = object()
-        obj.main_tabs_view = mock.Mock()
-        obj.main_tabs_view.indexOf.return_value = 7
-        stored = {}                                      # faux QSettings : pas de vrais réglages touchés
-        fake = mock.Mock()
-        fake.return_value.setValue.side_effect = stored.__setitem__
-        fake.return_value.value.side_effect = lambda key, default: stored.get(key, default)
-        with mock.patch.object(self.mod, "QSettings", fake):
-            self.assertFalse(obj.gcode_console_was_visible())     # masquée la première fois
-            obj.set_gcode_console_visible(True)
-            obj.main_tabs_view.setTabVisible.assert_called_with(7, True)
-            self.assertTrue(obj.gcode_console_was_visible())
-            obj.main_tabs_view.indexOf.return_value = -1          # en plein écran : onglet pas touché
-            obj.main_tabs_view.setTabVisible.reset_mock()
-            obj.set_gcode_console_visible(False)
-            obj.main_tabs_view.setTabVisible.assert_not_called()
-            self.assertFalse(obj.gcode_console_was_visible())
+        console, action = object(), mock.Mock()
+        self.tabs.add_optional(console, self.mod.GCODE_CONSOLE_SETTING, action)
+        stored = {}
+        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
+            self.tabs.restore_optional_tabs()
+            action.setChecked.assert_called_once_with(False)     # masquée la première fois
+            self.view.indexOf.return_value = 7
+            self.tabs.set_optional_visible(console, True)
+            self.view.setTabVisible.assert_called_with(7, True)
+            self.assertTrue(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
+            self.view.indexOf.return_value = -1                  # en plein écran : onglet pas touché
+            self.view.setTabVisible.reset_mock()
+            self.tabs.set_optional_visible(console, False)
+            self.view.setTabVisible.assert_not_called()
+            self.assertFalse(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
 
     def test_current_tab_fullscreen_dispatch(self):
-        main = importlib.import_module("laser_studio.main_window").FullLaserStudio
-        obj = types.SimpleNamespace(tab_vector_editor=object(), tab_png2svg=object(), main_tabs_view=mock.Mock())
         calls = []
-        obj.toggle_fullscreen_vector_editor = lambda: calls.append("vectoriel")
-        obj._toggle_fullscreen_png2svg = lambda: calls.append("png2svg")
-        obj._open_tab_fullscreen = lambda tab, title, close, tab_title, on_restored: calls.append(title)
-        obj._restore_tab_close_button = lambda tab: None
-        obj.main_tabs_view.tabText.return_value = "Visualisation 2D"
-        for tab in (obj.tab_vector_editor, obj.tab_png2svg, object()):
-            obj.main_tabs_view.currentWidget.return_value = tab
-            main.toggle_current_tab_fullscreen(obj)
-        self.assertEqual(calls, ["vectoriel", "png2svg", "Visualisation 2D"])
+        self.tabs.open_vector_editor_fullscreen = lambda: calls.append("vectoriel")
+        self.tabs.open_fullscreen = lambda tab, title, close, tab_title, on_restored=None: calls.append(title)
+        self.view.tabText.return_value = "Visualisation 2D"
+        for tab in (self.vector_editor, self.png2svg, object()):
+            self.view.currentWidget.return_value = tab
+            self.tabs.toggle_current_fullscreen()
+        from laser_studio.i18n import tr
+        self.assertEqual(calls, ["vectoriel", tr("png2svg.fullscreen_title"), "Visualisation 2D"])
 
-    def test_show_main_tab_selects_or_raises_the_fullscreen_window(self):
-        obj = self.make()
-        obj.tab_separation = mock.Mock()
-        obj.main_tabs_view = mock.Mock()
-        obj.main_tabs_view.indexOf.return_value = 3
-        obj.show_main_tab("tab_separation")
-        obj.main_tabs_view.setTabVisible.assert_called_once_with(3, True)    # masqué au démarrage
-        obj.main_tabs_view.setCurrentWidget.assert_called_once_with(obj.tab_separation)
-        obj.main_tabs_view.indexOf.return_value = -1            # onglet ouvert en plein écran
-        obj.show_main_tab("tab_separation")
-        obj.tab_separation.window().raise_.assert_called_once()
-        obj.show_main_tab("tab_inconnu")                       # ignoré
-
-    def test_missing_page_is_ignored(self):
-        self.Recorder.created = []
-        obj = self.make(with_pages=False)
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
-            obj.show_settings_window("grbl")
-        self.assertEqual(self.Recorder.created, [])
+    def test_preview_2d_splitter_position_is_remembered(self):
+        stored = {}
+        self.preview_splitter.sizes.return_value = [900, 0]  # statistiques repliées : gardé
+        self.tabs.splitter.sizes.return_value = [600, 200]
+        with mock.patch.object(self.mod, "QSettings", fake_qsettings(stored)):
+            self.tabs.save_splitter_sizes()
+            self.assertEqual(stored["preview_2d_side_sizes"], [900, 0])
+            self.assertEqual(stored["center_v_splitter_sizes"], [600, 200])
+            self.tabs.load_splitter_sizes()
+        self.preview_splitter.setSizes.assert_called_once_with([900, 0])
+        self.tabs.splitter.setSizes.assert_called_once_with([600, 200])
 
 
 # --- SettingsWindow avec de faux widgets Qt ---------------------------------------------------
