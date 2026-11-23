@@ -250,11 +250,11 @@ class TabCommandsTests(unittest.TestCase):
         self.tab.draw_tool_requested.connect(self.editor.choose_draw_tool)
         self.editor.draw_tool_changed.connect(self.tab.show_draw_tool)
         self.tab.draw_buttons["circle"].trigger()
-        self.assertEqual(self.canvas._draw_tool, "circle")
+        self.assertEqual(self.canvas.draw_tool, "circle")
         self.assertEqual([k for k, a in self.tab.draw_buttons.items() if a.isChecked()], ["circle"])
         self.layers.layers.clear()                              # sans calque : outil refusé, sélection cochée
         self.tab.draw_buttons["line"].trigger()
-        self.assertIsNone(self.canvas._draw_tool)
+        self.assertIsNone(self.canvas.draw_tool)
         self.assertEqual([k for k, a in self.tab.draw_buttons.items() if a.isChecked()], [None])
         self.assertEqual(self.dialogs.kinds(), ["warning"])
 

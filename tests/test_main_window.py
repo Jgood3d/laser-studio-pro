@@ -126,7 +126,7 @@ class MainWindowTests(unittest.TestCase):
     def test_draw_tools_snap_and_work_area(self):
         w, tab = self.win, self.win.tab_vector_editor
         tab.draw_buttons["rect"].trigger()
-        self.assertEqual(w.vector_canvas._draw_tool, "rect")
+        self.assertEqual(w.vector_canvas.draw_tool, "rect")
         self.assertEqual([k for k, b in tab.draw_buttons.items() if b.isChecked()], ["rect"])
         tab.draw_buttons[None].trigger()
         tab.snap_check.setChecked(True)

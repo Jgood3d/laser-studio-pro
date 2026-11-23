@@ -72,6 +72,8 @@ Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window
 
 Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel) supprimé, chacun importe depuis le vrai module ; l'ancien nom `LayerManager` disparaît au profit de `LayersModel`. `workers.py` devient `controllers/workers.py`, sans ses réexportations. `WindowController` ne va plus chercher d'attributs de la fenêtre par leur nom : pages de réglages et onglets du menu Outils lui sont inscrits, la résolution est branchée sur la matrice de test et la Séparation à leur création.
 
+Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 360 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement), qui gardent chacun leur état. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
+
 ### Corrigé
 Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).
 
