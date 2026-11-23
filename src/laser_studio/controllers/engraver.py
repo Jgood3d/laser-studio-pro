@@ -145,6 +145,7 @@ class EngraverController(QObject):
         try:
             grbl_settings = self.connection.read_settings()
         except Exception:
+            log.warning("Lecture de $$ impossible : $22 et $32 non vérifiés", exc_info=True)
             return
         if not grbl_settings:
             log.info("Connexion : aucune réponse à $$")

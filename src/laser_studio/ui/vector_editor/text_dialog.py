@@ -377,7 +377,7 @@ class TextInsertDialog(QDialog):
             x = min(frame.right() - self.width() - 20, screen.right() - self.width())
             y = min(max(frame.top() + 80, screen.top()), screen.bottom() - self.height())
             self.move(max(x, screen.left()), y)
-        except Exception:
+        except Exception:   # pas d'écran connu (hors écran, fenêtre fermée) : position par défaut de Qt
             pass
 
     def done(self, result):

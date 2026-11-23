@@ -12,6 +12,9 @@ from laser_common.files import atomic_write_json, get_background_writer
 from laser_studio.core.paths import get_autosave_dir
 from laser_studio.i18n import tr
 from laser_studio.core.preferences import ui_preferences
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
 # Projets récents gardés dans le menu Fichier.
@@ -163,7 +166,7 @@ class ProjectController:
 
             writer.submit(path, produce)
         except Exception:
-            pass
+            log.exception("Sauvegarde automatique du projet impossible")
 
     def discard_autosave(self):
         """Oublie la sauvegarde automatique (projet enregistré, ou fermeture
@@ -174,7 +177,7 @@ class ProjectController:
             # le fichier juste après un enregistrement.
             get_background_writer().discard(path)
         except Exception:
-            pass
+            log.warning("Sauvegarde automatique non oubliée", exc_info=True)
 
     def offer_autosave_recovery(self):
         """Au démarrage : propose de récupérer la dernière sauvegarde

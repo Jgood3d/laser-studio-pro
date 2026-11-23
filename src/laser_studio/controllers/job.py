@@ -29,6 +29,9 @@ from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
 from laser_studio.vector.layer_data import extract_vector_layer_data
 from laser_studio.controllers.workers import AdvancedGCodeWorker, TestMatrixWorker
 from laser_studio.image.gain_test import build_gain_test_array
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)
@@ -402,13 +405,13 @@ class JobController(QObject):
                     if d:
                         try:
                             total_len_svg += parse_path(d).length(error=1e-3)
-                        except Exception:
-                            pass
+                        except Exception:       # tracé illisible : ignoré dans l'estimation
+                            log.debug("Estimation : tracé SVG illisible ignoré", exc_info=True)
                 t = (total_len_svg / max(self.cut_speed, 1)) * 60.0 * self.cut_passes
                 total_seconds += t
                 details.append(tr("gcode.svg_details").format(duration=estimate_duration_text(t)))
             except Exception:
-                pass
+                log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
 
         objects = list(self._vector_objects())
         for layer in self.layers.layers:
@@ -589,5 +592,5 @@ class JobController(QObject):
             else:
                 self.set_cut_settings(speed, round(params.get('single_power', self.cut_power)), value)
                 self.log.emit(f">>> Case matrice appliquée : {speed} mm/min, {value} passe(s) (découpe)")
-        except Exception:
-            pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+        except Exception:  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+            log.warning("Clic sur la matrice de test : case non appliquée", exc_info=True)

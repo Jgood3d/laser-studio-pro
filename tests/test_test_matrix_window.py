@@ -28,6 +28,8 @@ class TestMatrixWindowTests(unittest.TestCase):
             cls.app = QApplication.instance() or QApplication([])
             # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
             mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
+            from job_fakes import start_memory_preferences
+            start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
             cls.win = main_window.FullLaserStudio()
             cls.win.show()
 

@@ -442,7 +442,7 @@ class FullLaserStudio(QMainWindow):
             from laser_common.files import get_background_writer
             get_background_writer().wait_idle(10)
         except Exception:
-            pass
+            log.warning("Fermeture : écritures en arrière-plan non attendues", exc_info=True)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         if event.mimeData().hasUrls():

@@ -74,6 +74,8 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 
 Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 360 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement), qui gardent chacun leur état. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
 
+Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
+
 ### Corrigé
 Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).
 

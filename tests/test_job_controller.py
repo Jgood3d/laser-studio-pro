@@ -277,6 +277,8 @@ class WindowTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
         cls.stencil = mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload")
         cls.stencil.start()
+        from job_fakes import start_memory_preferences
+        start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
         cls.win = main_window.FullLaserStudio()
 
     @classmethod

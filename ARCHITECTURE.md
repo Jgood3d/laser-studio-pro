@@ -431,6 +431,7 @@ Menu Outils → Caméra (CameraDialog)
 8. **Logique caméra découplée de Qt** : les calculs de distorsion (`lens_calibration.py`), d'homographie (`workspace_alignment.py`) et de capture (`capture.py`) résident dans `camera/` sans dépendance PyQt6 pour rester testables unitairement.
 9. **Calcul sans interface** : `gcode/`, `grbl/`, `image/`, `camera/`, `library/` n'importent pas Qt ; `vector/` utilise QtGui et les valeurs de QtCore comme bibliothèque de géométrie, jamais QtWidgets. Vérifié par `tests/test_pure_modules.py`.
 10. **Préférences** : toujours par `core/preferences.py`, jamais `QSettings` directement ; dans les tests, `memory_preferences(self)` (tests/job_fakes.py).
+11. **Erreurs** : un `except Exception` journalise l'erreur (`core/debug_log`, actif avec `LASER_STUDIO_DEBUG`), la signale ou la relance ; s'il se tait, un commentaire dit pourquoi (vérifié par `tests/test_exceptions.py`). Les tests qui construisent la fenêtre le font avec des préférences en mémoire (`job_fakes.start_memory_preferences`, vérifié par `tests/test_preferences.py`).
 
 ---
 

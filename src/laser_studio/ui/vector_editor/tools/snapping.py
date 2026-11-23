@@ -22,10 +22,9 @@ class EndpointSnap:
         for item in canvas.scene_obj.items():
             if not isinstance(item, VectorGraphicsItem):
                 continue
-            # Pendant le dessin, l'aperçu n'est pas un VectorGraphicsItem
             try:
                 world = item.obj.world_path()
-            except Exception:
+            except Exception:   # objet sans tracé calculable : rien à accrocher
                 continue
             for poly in world.toSubpathPolygons(QTransform()):
                 if poly.count() < 1:

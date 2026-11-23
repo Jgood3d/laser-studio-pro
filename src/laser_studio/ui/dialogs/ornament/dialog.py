@@ -560,5 +560,5 @@ def error_text(error):
         return tr("ornament.error") + f" ({error.code})"
     try:
         return text.format(**error.info)
-    except Exception:
+    except (KeyError, IndexError, ValueError):     # traduction sans les bons champs
         return text

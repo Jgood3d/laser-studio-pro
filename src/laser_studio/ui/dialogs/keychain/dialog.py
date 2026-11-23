@@ -334,5 +334,5 @@ def error_text(error: kg.KeychainError) -> str:
         return tr("keychain.error") + f" ({error.code})"
     try:
         return text.format(**error.info)
-    except Exception:
+    except (KeyError, IndexError, ValueError):     # traduction sans les bons champs
         return text

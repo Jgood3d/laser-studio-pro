@@ -18,6 +18,9 @@ import uuid
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.models.vector_objects import VectorObject
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 # Nombre d'étapes gardées pour Annuler et pour Refaire.
 MAX_UNDO = 30
@@ -122,6 +125,7 @@ class VectorDocument(QObject):
             try:
                 self.objects.append(VectorObject.from_dict(d))
             except Exception:
+                log.warning("Annuler / refaire : objet illisible ignoré : %r", d, exc_info=True)
                 continue
         self.objects_reset.emit()
 
@@ -134,6 +138,7 @@ class VectorDocument(QObject):
         try:
             snapshot = [o.to_dict() for o in self.objects]
         except Exception:
+            log.exception("Annuler : instantané impossible, étape non mémorisée")
             return
         self._undo_stack.append(snapshot)
         if len(self._undo_stack) > self.max_undo:
@@ -192,6 +197,7 @@ class VectorDocument(QObject):
             try:
                 clone = clone_object(d)
             except Exception:
+                log.warning("Coller : objet illisible ignoré : %r", d, exc_info=True)
                 continue
             pasted.append(self.add(clone))
         return pasted

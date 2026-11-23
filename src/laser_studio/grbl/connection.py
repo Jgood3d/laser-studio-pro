@@ -77,6 +77,7 @@ class LaserUSBController:
                         return self.update_last_status(line)
                 return None
             except Exception:
+                log.debug("USB : rapport d'état illisible", exc_info=True)
                 return None
 
     def is_connected(self):
@@ -118,7 +119,7 @@ class LaserUSBController:
             if self.ser and self.ser.is_open:
                 try:
                     self.ser.close()
-                except Exception:
+                except Exception:   # port déjà perdu (câble débranché) : rien à fermer
                     pass
             self.ser = None
         self.last_state = None
@@ -161,7 +162,7 @@ class LaserUSBController:
                 log.exception("USB : commande %r, connexion perdue", cmd.strip())
                 try:
                     self.ser.close()
-                except Exception:
+                except Exception:   # port déjà perdu : la déconnexion est déjà journalisée ci-dessus
                     pass
                 self.ser = None
                 return f"ERROR: Connexion perdue ({e})"

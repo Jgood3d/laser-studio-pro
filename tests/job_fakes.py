@@ -98,3 +98,14 @@ def memory_preferences(test, **initial):
     stores = context.__enter__()
     test.addCleanup(context.__exit__, None, None, None)
     return stores
+
+
+def start_memory_preferences(cls):
+    """Préférences en mémoire pour toute une classe de tests : à appeler dans setUpClass, AVANT de
+    construire la fenêtre. Changer XDG_CONFIG_HOME ne suffit pas : QSettings garde le dossier choisi à
+    sa première utilisation dans le processus, et la fenêtre écrirait chez l'utilisateur."""
+    from laser_studio.core import preferences
+    context = preferences.in_memory()
+    stores = context.__enter__()
+    cls.addClassCleanup(context.__exit__, None, None, None)
+    return stores

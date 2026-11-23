@@ -148,6 +148,7 @@ class GCodeStreamerThread(QThread):
             with self.usb._lock:
                 ser.write(b'\x18')
         except Exception:
+            log.warning("Arrêt du job : séquence d'arrêt interrompue", exc_info=True)
             stopped = False
         self.position_lost = not stopped
         self.log_signal.emit(tr("laser.error_stop_log"))
@@ -172,7 +173,7 @@ class GCodeStreamerThread(QThread):
                 if now - last_poll >= self._idle_poll_interval:
                     try:
                         ser.write(b'?')
-                    except Exception:
+                    except Exception:   # plusieurs fois par seconde : la coupure est vue au tour suivant
                         pass
                     last_poll = now
                 while ser.in_waiting > 0:
@@ -271,7 +272,7 @@ class GCodeStreamerThread(QThread):
                     if now - last_status_poll >= self._status_poll_interval:
                         try:
                             ser.write(b'?')
-                        except Exception:
+                        except Exception:   # plusieurs fois par seconde : la coupure est vue au tour suivant
                             pass
                         last_status_poll = now
                     

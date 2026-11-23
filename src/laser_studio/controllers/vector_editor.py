@@ -43,6 +43,9 @@ from laser_studio.vector.importers import (
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
 from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 # Marge (mm) entre le bord du plateau et les pièces d'un générateur.
 GENERATOR_OFFSET_MM = 10.0
@@ -631,6 +634,7 @@ class VectorEditorController(QObject):
         try:
             target_rect = self._image_frame()
         except Exception:
+            log.warning("Puzzle : cadre de l'image illisible, puzzle non calé", exc_info=True)
             target_rect = None
         dialog = PuzzleGeneratorDialog(
             parent=self._parent,
@@ -655,7 +659,7 @@ class VectorEditorController(QObject):
             else:
                 try:
                     text = text.format(**e.info)
-                except Exception:
+                except (KeyError, IndexError, ValueError):     # traduction sans les bons champs
                     pass
             self.dialogs.warning(tr("puzzle.title"), text)
             return

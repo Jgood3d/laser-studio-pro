@@ -15,6 +15,9 @@ from laser_studio.ui.widgets import ZoomableGraphicsView
 from laser_studio.vector.svg_import import (
     SvgImportError, TextChange, document_size_mm, find_texts, find_variant_groups, svg_preview,
 )
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 ICON_SIZE_MIN = 80
 ICON_SIZE_MAX = 360
@@ -426,6 +429,7 @@ class LibraryItemDialog(QDialog):
         except SvgImportError:
             return
         except Exception:
+            log.warning("Bibliothèque : aperçu impossible pour %s", self.item.svg_path, exc_info=True)
             data = None
         image = render_svg(data if data is not None else self.item.svg_path, 1600)
         if not image.isNull():

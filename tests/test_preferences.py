@@ -47,5 +47,22 @@ class PreferencesTests(unittest.TestCase):
         self.assertNotIsInstance(preferences.ui_preferences().store, MemoryStore)   # vrais fichiers ensuite
 
 
+
+class WindowTestsUseMemoryPreferencesTests(unittest.TestCase):
+    """Garde-fou : un test qui construit la fenêtre dans le processus des tests la construit avec des
+    préférences en mémoire (job_fakes.start_memory_preferences ou preferences.in_memory). Sans elle, la
+    fenêtre écrirait dans les vrais réglages de l'utilisateur. Les scripts lancés dans un processus à
+    part (chaîne SCRIPT, XDG_CONFIG_HOME posé avant Qt) ne sont pas concernés."""
+
+    def test_every_window_test_isolates_the_preferences(self):
+        folder = os.path.dirname(os.path.abspath(__file__))
+        for name in sorted(os.listdir(folder)):
+            if not name.endswith(".py"):
+                continue
+            with open(os.path.join(folder, name), encoding="utf-8") as f:
+                src = f.read()
+            if "cls.win = main_window.FullLaserStudio()" in src:
+                self.assertTrue("start_memory_preferences(cls)" in src or "preferences.in_memory()" in src, name)
+
 if __name__ == "__main__":
     unittest.main()

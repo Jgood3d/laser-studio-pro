@@ -155,7 +155,7 @@ class JobQueueController:
             snapshot = [dict(job) for job in self.jobs]
             writer.submit(path, lambda: json.dumps(snapshot))
         except Exception:
-            pass
+            log.exception("File d'attente : sauvegarde impossible")
 
     def load(self):
         """Restaure la file de la session précédente (au démarrage)."""
@@ -174,6 +174,7 @@ class JobQueueController:
                     job["name"] = self._unique_name(job["name"])
                     self.jobs.append(job)
         except Exception:
+            log.warning("File d'attente illisible : elle repart vide", exc_info=True)
             self.jobs = []
             return
         self._tab.set_jobs([job["name"] for job in self.jobs])
