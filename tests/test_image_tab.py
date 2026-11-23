@@ -63,33 +63,38 @@ class ImageSettingsPanelTests(_QtTest):
             slider.setValue(slider.value() + 10)
         panel.invert_check.toggle()
         panel.algorithm_combo.setCurrentIndex(3)
+        self.assertEqual(len(received), 6)
+        # La résolution a son propre signal (ImageController la suit aussi).
+        resolution = record(panel.resolution_changed)
         panel.lines_per_mm_spin.setValue(12.0)
-        self.assertEqual(len(received), 7)
+        self.assertEqual((len(received), resolution), (6, [(12.0,)]))
 
     def test_business_values(self):
         panel = self.make(ImageSettingsPanel)
         size, material = record(panel.size_changed), record(
             panel.material_changed
         )
-        lmm, dpi = record(panel.lines_per_mm_changed), record(
-            panel.dpi_changed
-        )
+        resolution = record(panel.resolution_changed)
         panel.width_spin.setValue(80.0)
         panel.height_spin.setValue(40.0)
         panel.material_combo.setCurrentIndex(0)
         panel.lines_per_mm_spin.setValue(12.0)
-        panel.dpi_spin.setValue(300.0)
+        panel.dpi_spin.setValue(300.0)                       # 300 DPI = 11,81 lignes/mm
         self.assertEqual(size, [("w", 80.0), ("h", 40.0)])
         self.assertEqual(material, [("dark",)])
-        self.assertEqual((lmm, dpi), ([(12.0,)], [(300.0,)]))
+        self.assertEqual(resolution, [(12.0,), (11.81,)])
+        self.assertEqual(panel.size_mm(), (80.0, 40.0))
+        panel.set_size(30.0, 20.0)
+        self.assertEqual(size[-2:], [("w", 30.0), ("h", 20.0)])   # les champs préviennent normalement
 
     def test_resolution_starts_on_the_laser_focal(self):
         panel = self.make(ImageSettingsPanel)
         self.assertEqual(panel.resolution_mode_combo.currentIndex(), 2)
         self.assertEqual(panel.resolution_stack.currentIndex(), 2)
-        received = record(panel.resolution_mode_changed)
-        panel.resolution_mode_combo.setCurrentIndex(1)
-        self.assertEqual(received, [(1,)])
+        received = record(panel.resolution_changed)
+        panel.resolution_mode_combo.setCurrentIndex(1)       # DPI : 254 DPI affichés = 10 lignes/mm
+        self.assertEqual(panel.resolution_stack.currentIndex(), 1)
+        self.assertEqual(received, [(10.0,)])
 
     def test_buttons_and_shortcuts_emit_their_signal(self):
         panel = self.make(ImageSettingsPanel)
@@ -174,10 +179,11 @@ class ImagePanelPartsTests(_QtTest):
     def test_resolution_box_signals_and_pages(self):
         box = self.make(ResolutionBox)
         self.assertEqual(box.stack.currentIndex(), 2)  # focale au départ
-        mode, dpi = record(box.mode_changed), record(box.dpi_changed)
+        received = record(box.resolution_changed)
         box.mode_combo.setCurrentIndex(1)
         box.dpi_spin.setValue(300.0)
-        self.assertEqual((mode, dpi), ([(1,)], [(300.0,)]))
+        self.assertEqual(box.stack.currentIndex(), 1)
+        self.assertEqual(received, [(10.0,), (11.81,)])
         self.assertFalse(box.quality_label.isVisibleTo(box))  # vide : masqué
 
 

@@ -1,7 +1,7 @@
 """Onglet « Graver une image » : réglages, aperçus original et tramé."""
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon
+from PyQt6.QtGui import QIcon, QImage
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -29,12 +29,12 @@ class ImageTab(QWidget):
     l'originale » la montre, à côté du rendu tramé et de même largeur.
 
         tab = ImageTab()
-        tab.settings.processing_changed.connect(self.update_image_processing)
-        tab.compare_requested.connect(show_comparison)
+        tab.settings.processing_changed.connect(image.schedule_processing)
+        image.source_changed.connect(tab.show_source)
+        image.processed.connect(tab.show_processed)
 
-    La fenêtre dessine dans source_view et dither_view. `preview_area`
-    (les deux aperçus) accueille la barre flottante annuler / refaire /
-    pivoter / miroirs (FloatingToolBar), posée par la fenêtre.
+    `preview_area` (les deux aperçus) accueille la barre flottante annuler /
+    refaire / pivoter / miroirs (FloatingToolBar), posée par la fenêtre.
     """
 
     compare_requested = pyqtSignal()
@@ -149,6 +149,24 @@ class ImageTab(QWidget):
         scroll.setFixedWidth(max(width, needed))
 
     # -- affichage
+
+    @staticmethod
+    def _grayscale_qimage(image):
+        """QImage d'une image PIL en niveaux de gris (copie : indépendante des octets de PIL)."""
+        data = image.tobytes()
+        return QImage(data, image.width, image.height, image.width, QImage.Format.Format_Grayscale8).copy()
+
+    def show_source(self, image):
+        """Image chargée (PIL, niveaux de gris), ou None : les deux aperçus sont vidés."""
+        if image is None:
+            self.source_view.clear_image()
+            self.dither_view.clear_image()
+            return
+        self.source_view.set_image(self._grayscale_qimage(image))
+
+    def show_processed(self, _array, image):
+        """Rendu tramé (ImageController.processed)."""
+        self.dither_view.set_image(self._grayscale_qimage(image))
 
     def _show_original(self, checked):
         """Affiche ou masque l'image originale ; quand elle est visible,

@@ -21,7 +21,7 @@ except ImportError:
 
 LONG = 40
 # Le paquet ui/ comprend l'éditeur vectoriel (ui/vector_editor/) et le tableau des calques.
-UI_FILES = (*ui_files(), "image_processing_mixin.py")
+UI_FILES = tuple(ui_files())
 
 
 def long_combos():

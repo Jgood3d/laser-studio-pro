@@ -12,38 +12,25 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.image.dithering import ALGORITHMS
+from laser_studio.ui.binding import bind
 from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
 from laser_studio.ui.widgets import SliderWithButtons
-
-# Algorithmes de tramage, dans l'ordre de la liste.
-ALGORITHMS = (
-    "Floyd-Steinberg",
-    "Jarvis, Judice & Ninke",
-    "Stucki",
-    "Atkinson",
-    "Sierra",
-    "Sierra Lite (rapide)",
-    "Burkes",
-    "Bayer 2x2 (ordonné)",
-    "Bayer 4x4 (ordonné)",
-    "Bayer 8x8 (ordonné)",
-    "Seuil Simple (Binaire)",
-    "Niveaux de Gris",
-)
 
 
 class ImageSettingsPanel(QWidget):
     """Taille et décalage de l'image, réglages photo, matière, tramage et
     résolution.
 
-    Il ne traite pas l'image : ses champs émettent des signaux, auxquels la
-    fenêtre (plus tard un contrôleur) s'abonne :
+    Il ne traite pas l'image : ses champs émettent des signaux, auxquels
+    ImageController s'abonne, et les réglages du tramage sont liés au modèle
+    ImageSettings (bind_settings) :
 
         panel = ImageSettingsPanel()
-        panel.processing_changed.connect(self.update_image_processing)
-        panel.size_changed.connect(self.on_dimension_changed)
+        panel.bind_settings(image_settings)
+        panel.size_changed.connect(image.dimension_changed)
 
     Les champs restent lisibles directement (width_spin, brightness_slider,
     algorithm_combo, lines_per_mm_spin...). Ctrl+Z / Ctrl+Y, dans le
@@ -61,11 +48,8 @@ class ImageSettingsPanel(QWidget):
     engrave_layer_changed = pyqtSignal(str)
     # Taille de l'image modifiée : axe ("w" ou "h") et valeur en mm.
     size_changed = pyqtSignal(str, float)
-    # Mode de saisie de la résolution (voir ResolutionBox).
-    resolution_mode_changed = pyqtSignal(int)
-    # Résolution en lignes/mm, et en DPI.
-    lines_per_mm_changed = pyqtSignal(float)
-    dpi_changed = pyqtSignal(float)
+    # Résolution réellement utilisée, en lignes/mm (voir ResolutionBox).
+    resolution_changed = pyqtSignal(float)
     configure_focal_requested = pyqtSignal()
     undo_requested = pyqtSignal()
     redo_requested = pyqtSignal()
@@ -95,6 +79,36 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
         self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
+
+    def bind_settings(self, settings):
+        """Lie les champs du tramage (curseurs, négatif, matière, algorithme)
+        au modèle `settings` (ImageSettings). Les miroirs, dans la barre
+        d'outils de la fenêtre, sont liés par elle."""
+        for widget, field in (
+            (self.brightness_slider, "brightness"),
+            (self.contrast_slider, "contrast"),
+            (self.gamma_slider, "gamma"),
+            (self.sharpness_slider, "sharpness"),
+            (self.invert_check, "invert"),
+        ):
+            bind(widget, settings, field)
+        combo = self.material_combo
+        bind(combo, settings, "material_bg",
+             to_widget=lambda key: combo.findData(key),
+             from_widget=lambda index: combo.itemData(index) or "light")
+        algo = self.algorithm_combo
+        bind(algo, settings, "algorithm",
+             to_widget=lambda name: algo.findText(name),
+             from_widget=lambda index: algo.itemText(index))
+
+    def set_size(self, w_mm, h_mm):
+        """Largeur et hauteur de l'image (mm). Les signaux des champs partent
+        normalement : ceux qui suivent la taille (cadre du job, éditeur) la voient."""
+        self.width_spin.setValue(w_mm)
+        self.height_spin.setValue(h_mm)
+
+    def size_mm(self):
+        return self.width_spin.value(), self.height_spin.value()
 
     def processing_settings(self):
         """Réglages du tramage, en valeurs : luminosité, contraste, gamma
@@ -161,10 +175,7 @@ class ImageSettingsPanel(QWidget):
         """Résolution : ses signaux sont relayés par le panneau, et ses
         champs gardent leur nom ici (lines_per_mm_spin, dpi_spin...)."""
         box = ResolutionBox()
-        box.lines_per_mm_changed.connect(self.processing_changed)
-        box.lines_per_mm_changed.connect(self.lines_per_mm_changed)
-        box.mode_changed.connect(self.resolution_mode_changed)
-        box.dpi_changed.connect(self.dpi_changed)
+        box.resolution_changed.connect(self.resolution_changed)
         box.configure_focal_requested.connect(self.configure_focal_requested)
         self.resolution_box = box
         self.lines_per_mm_spin = box.lines_per_mm_spin

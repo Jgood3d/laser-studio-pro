@@ -97,14 +97,14 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 ### Composants autonomes
 - `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView`, boîtes de saisie (texte, médaille, forme, calque) ; objets du dessin dans `models/vector_objects.py` ; `vector_layers.py` ne fait plus que réexporter ces noms pour le code existant
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
-- `workers.py` — threads et fonctions de traitement image / G-Code
+- `workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
 - `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas ou à droite : actions image, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel), `TabCloseButton` (croix d’un onglet), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
 - `ui/fonts.py` — polices embarquées (`resources/fonts/`, licences libres), enregistrées au démarrage pour être disponibles sur tous les systèmes (Dancing Script, police manuscrite, et Rubik, titres des médailles et des totems, pour les modèles de la bibliothèque)
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
 - `ui/app/qt_messages.py` — filtre des avertissements de Qt sans conséquence (Wayland)
 - `ui/app/theme.py` — thèmes de l’interface (sombre, clair, Dusk, Warm : palette et feuille de style), pack d’icônes Breeze embarqué
-- `image/` — traitement d’image sans Qt : `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `resolution.py` (lignes/mm, DPI, focale et qualité de l’écart entre les lignes), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
+- `image/` — traitement d’image sans Qt : `dithering.py` (taille de gravure, tons, netteté, négatif et tramage de l’image à graver ; vignettes de comparaison), `gain_test.py` (grille du test du gain de point), `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `resolution.py` (lignes/mm, DPI, focale et qualité de l’écart entre les lignes), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
 - `vector/` — géométrie vectorielle :
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
   - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
@@ -116,7 +116,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
 - `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
 
-### Fenêtre principale découpée en mixins
+### Fenêtre principale
 - `main_window.py` — fenêtre principale : construction (`init_ui`), branchement des signaux des panneaux, fermeture, glisser-déposer, tailles des séparateurs, onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar`
@@ -133,7 +133,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/settings/machine_params/` — page « Paramètres du graveur » `MachineParamsPage` : profils machine, lit, spot, limites (émet `focal_changed`, `bed_size_changed`…)
 - `ui/settings/grbl_config/` — page « Configuration GRBL » `GrblConfigPage` : commande laser, surbalayage, décalage aller/retour, G-Code de début et de fin, réglages GRBL complets (émet `read_settings_requested`, `scan_offset_changed`…) ; le cadre « Réglages GRBL complets » est `GrblSettingsBox`
 - `ui/settings/test_matrix/` — page « Matrice de test » `TestMatrixPage` : réglages de la grille, test à partir d’une image avec l’aperçu `TilePicker` (émet `generate_requested`…, fournit `matrix_params()`) ; le cadre « Test à partir d’une image » est `ImageTestGroup`
-- `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`…)
+- `ui/tabs/image/` — onglet « Graver une image » `ImageTab` : réglages `ImageSettingsPanel` (taille et décalage, réglages photo, matière `MaterialComboBox`, tramage, résolution `ResolutionBox`), aperçus originale / tramé (émet `compare_requested` ; le panneau émet `processing_changed`, `size_changed`, `resolution_changed`…), affiche ce que lui envoie `ImageController` (`controllers/image.py` : image source, taille, tramage dans un thread, comparaison des algorithmes)
 - `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère, `origin()` / `set_origin()`), à droite de l’aperçu 2D
 - `ui/machine/sent_gcode/` — suivi du G-Code envoyé `SentGcodeLog` (file et envoi direct), à gauche du panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
@@ -142,7 +142,6 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code généré ou importé (les messages vont dans la barre d’état) ; affiché ou masqué par le menu Affichage ou sa croix (`TabCloseButton`), choix mémorisé
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (affiché ou masqué par le menu Affichage, le bouton de la barre d’outils ou sa croix, choix mémorisé) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : barre des profils matériaux (liste, nouveau, supprimer, exporter, importer ; pas de bouton « Enregistrer », le matériau choisi suit chaque changement de calque ; un matériau mémorise les réglages des calques, voir `controllers/materials.py`), puis la liste des calques (`LayerManagerWidget`, `ui/tabs/layers/layer_table.py`, vue abonnée au modèle `LayersModel`), dont il relaie `layers_changed`
-- `image_processing_mixin.py` — chargement et traitement d’image, matière
 - `controllers/vector_editor.py` — actions de l’éditeur vectoriel (`VectorEditorController` : import SVG / DXF, insertion, alignement, générateurs, imbrication) sur le modèle `models/vector_document.py` ; le canevas et le panneau des propriétés sont dans `ui/vector_editor/`
 - `gcode/` — génération du G-Code sans Qt (job, image, découpe SVG, calques vectoriels, matrice de test, motif aller/retour) et modèle de l’aperçu 2D (`preview.py`) ; `controllers/job.py` (`JobController`) prépare et lance le job, exporte et importe le G-Code
 - `controllers/engraver.py` — pilotage du graveur (`EngraverController` : ports, connexion, jog, cadrage, envoi des jobs, configuration `$$`) ; commandes GRBL dans `grbl/commands.py` (sans Qt) ; le dialogue avec GRBL (port série, threads) est dans `controllers/machine_connection.py`
@@ -150,7 +149,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `library/catalog.py`, `controllers/library.py`, `ui/dialogs/library/` — bibliothèque de modèles (Outils → Bibliothèque…) : catalogue des dossiers `resources/library/<catégorie>/<modèle>/` (sans Qt), `LibraryController` (ouverture et import sur les calques de même rôle), fenêtres `LibraryDialog` (grille, catégories, recherche, taille des aperçus) et `LibraryItemDialog` (fiche : aperçu, dessin, variantes, readme). Comment ajouter un modèle : `resources/library/README.md`
 - `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
-- `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `ImageProcessingMixin.compare_dither_algorithms`)
+- `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `image/dithering.comparison_thumbnails`, via `ImageController.comparison`)
 - `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Configuration GRBL » et « Matrice de test » ouvertes depuis les menus
 
 ### Signaux des pages et des panneaux

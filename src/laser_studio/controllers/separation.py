@@ -29,6 +29,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from laser_studio.i18n import tr
 from laser_studio.image import separation as engine
+from laser_studio.image.dithering import HAS_NUMBA
 from laser_studio.image.resolution import lmm_to_dpi
 
 # Aperçus, dans l'ordre des onglets de SeparationTab.
@@ -471,12 +472,8 @@ class SeparationController(QObject):
         h, w = engraved.shape
         tm = self.timing
         before = f"{(t_hook - self._t0) * 1000:.0f} ms" if self._t0 else "?"
-        try:
-            from laser_studio.workers import _HAS_NUMBA
-        except Exception:
-            _HAS_NUMBA = "?"
         self._t0 = None
-        return (f"[Séparation] {self.image_settings.algorithm} | numba actif : {_HAS_NUMBA} | "
+        return (f"[Séparation] {self.image_settings.algorithm} | numba actif : {HAS_NUMBA} | "
                 f"tableau {w}x{h} px ({w * h / 1e6:.1f} Mpx) | "
                 f"attente+traitement Image&Filtres : {before} | "
                 f"aperçu : {(t_end - t_hook) * 1000:.0f} ms "

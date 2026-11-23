@@ -222,7 +222,7 @@ class MenuStructureTests(unittest.TestCase):
     def test_image_settings_buttons_left_the_image_tab(self):
         src = ui_source()
         # Plus aucun bouton dans l'onglet Image & Filtres : seul l'aiguillage les appelle.
-        for call in ("self.rotate_image_left", "self.rotate_image_right", "self.clear_image()"):
+        for call in ("self.image.rotate_left", "self.image.rotate_right", "self.image.clear()"):
             self.assertEqual(src.count(call), 1, call)
         # (la boîte de saisie d'un texte, dans l'éditeur vectoriel, a ses propres cases miroir)
         image_src = "\n".join(read(name) for name in ui_files() if not name.startswith(os.path.join("ui", "vector_editor")))
@@ -232,7 +232,7 @@ class MenuStructureTests(unittest.TestCase):
         self.assertEqual(src.count('tr("ui.img_undo")'), 1)
         self.assertEqual(src.count('tr("ui.img_redo")'), 1)
         self.assertIn("self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)", src)
-        self.assertIn("settings.undo_requested.connect(self.undo_image_settings)", src)
+        self.assertIn("settings.undo_requested.connect(self.image_history.undo)", src)
         self.assertNotIn('QPushButton(tr("img.reset"))', src)      # seul celui de la barre d'outils reste
         self.assertNotIn("MachineProfilesPage", src)            # fenêtre Matériaux et connexion supprimée
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
@@ -253,7 +253,7 @@ class MenuStructureTests(unittest.TestCase):
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
-        self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
+        self.assertEqual(src.count("self.show_dither_comparison"), 1)      # plus dans Image & Filtres
         uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
         self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
         self.assertEqual(src.count("._fullscreen_control"), 0)
@@ -423,7 +423,8 @@ class ShowWindowTests(unittest.TestCase):
         obj.app_actions = mock.Mock()
         obj.tab_previews, obj.tab_png2svg, obj.tab_separation = object(), object(), object()
         obj.main_tabs_view = mock.Mock()
-        obj.raw_image = None
+        obj._image = None
+        obj.image = mock.Mock(has_image=lambda: obj._image is not None)
         obj.separation = mock.Mock(has_image=lambda: obj._sep_image)
         obj._sep_image = False
         obj.png2svg_widget = mock.Mock(image_path=None)
@@ -439,7 +440,7 @@ class ShowWindowTests(unittest.TestCase):
         obj = self.image_tabs()
         for tab in (obj.tab_previews, obj.tab_png2svg, obj.tab_separation, object()):
             self.assert_enabled(obj, tab, False, False)
-        obj.raw_image = "img"
+        obj._image = "img"
         self.assert_enabled(obj, obj.tab_previews, True, True)
         self.assert_enabled(obj, obj.tab_separation, False, False)   # l'image d'un autre onglet ne compte pas
         self.assert_enabled(obj, object(), False, False)
@@ -450,17 +451,16 @@ class ShowWindowTests(unittest.TestCase):
 
     def test_toolbar_rotation_targets_the_current_tab(self):
         obj = self.image_tabs()
-        obj.rotate_image_left, obj.rotate_image_right = mock.Mock(), mock.Mock()
         obj.main_tabs_view.currentWidget.return_value = obj.tab_previews
         obj._on_toolbar_rotate_image(clockwise=True)
-        obj.rotate_image_right.assert_called_once()
+        obj.image.rotate_right.assert_called_once()
         obj.main_tabs_view.currentWidget.return_value = obj.tab_png2svg
         obj._on_toolbar_rotate_image(clockwise=True)
         obj.png2svg_widget.rotate_image.assert_called_once_with(90)
         obj.main_tabs_view.currentWidget.return_value = obj.tab_separation
         obj._on_toolbar_rotate_image(clockwise=True)
         obj.separation.rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
-        obj.rotate_image_left.assert_not_called()
+        obj.image.rotate_left.assert_not_called()
 
     def test_connection_widgets_follow_the_port_state(self):
         obj = self.make()
@@ -471,27 +471,30 @@ class ShowWindowTests(unittest.TestCase):
             obj.machine_panel.set_connected.assert_called_with(connected)
 
     def test_dithering_algorithm_is_remembered(self):
-        mixin = importlib.import_module("laser_studio.image_processing_mixin")
+        module = importlib.import_module("laser_studio.controllers.image")
         stored = {}                                      # faux QSettings : pas de vrais réglages touchés
         fake = mock.Mock()
         fake.return_value.setValue.side_effect = stored.__setitem__
         fake.return_value.value.side_effect = lambda key, default=None: stored.get(key, default)
-        combo = mock.Mock()
-        combo.findText.side_effect = lambda text: 0 if text == "Atkinson" else -1
-        obj = types.SimpleNamespace(combo_algo=combo, image_settings=mock.Mock())
-        with mock.patch.object(mixin, "QSettings", fake):
-            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+        obj = types.SimpleNamespace(image_settings=mock.Mock())
+        controller = module.ImageController
+        with mock.patch.object(module, "QSettings", fake):
+            controller.restore_remembered_algorithm(obj)
             obj.image_settings.update.assert_not_called()            # rien de mémorisé : défaut
-            mixin.ImageProcessingMixin.remember_algorithm(obj, "Atkinson")
-            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+            controller.remember_algorithm(obj, "Atkinson")
+            controller.restore_remembered_algorithm(obj)
             obj.image_settings.update.assert_called_once_with(algorithm="Atkinson")
-            stored[mixin.ALGORITHM_SETTING] = "Algorithme disparu"    # plus dans la liste : ignoré
-            mixin.ImageProcessingMixin.restore_remembered_algorithm(obj)
+            stored[module.ALGORITHM_SETTING] = "Algorithme disparu"   # plus dans la liste : ignoré
+            controller.restore_remembered_algorithm(obj)
             self.assertEqual(obj.image_settings.update.call_count, 1)
+            obj.remember_algorithm = lambda name: controller.remember_algorithm(obj, name)
+            controller.choose_algorithm(obj, "Stucki")               # choix dans la comparaison : mémorisé
+            self.assertEqual(stored[module.ALGORITHM_SETTING], "Stucki")
         src = read("main_window.py")
-        self.assertIn("settings.algorithm_combo.textActivated.connect(self.remember_algorithm)", src)
-        self.assertIn("self.restore_remembered_algorithm()", src)
-        self.assertIn("dialog.algorithm_chosen.connect(self.remember_algorithm)", read("image_processing_mixin.py"))
+        self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)", src)
+        self.assertIn("self.image.restore_remembered_algorithm()", src)
+        self.assertIn("dialog.algorithm_chosen.connect(self.image.choose_algorithm)",
+                      read(os.path.join("ui", "app", "window_controller.py")))
 
     def test_vector_tools_open_the_vector_editor_first(self):
         obj = self.make()

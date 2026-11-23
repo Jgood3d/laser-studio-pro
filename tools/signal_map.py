@@ -232,7 +232,7 @@ PALETTE = {
     "controllers/engraver.py": "#d9534f",
     "controllers/machine_profiles.py": "#8e44ad",
     "controllers/job.py": "#e67e22",
-    "image_processing_mixin.py": "#16a085",
+    "controllers/image.py": "#16a085",
     "controllers/vector_editor.py": "#2980b9",
     "controllers/matrix_image.py": "#c0392b",
     "controllers/job_queue.py": "#7f8c3d",

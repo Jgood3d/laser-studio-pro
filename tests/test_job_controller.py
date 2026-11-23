@@ -288,7 +288,7 @@ class WindowTests(unittest.TestCase):
 
     def test_generated_gcode_reaches_the_console_and_the_2d_tab(self):
         win = self.win
-        win.processed_array = np.zeros((6, 8), np.uint8)
+        win.image.processed_array = np.zeros((6, 8), np.uint8)
         win.spin_w.setValue(8.0)
         win.spin_h.setValue(6.0)
         with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \

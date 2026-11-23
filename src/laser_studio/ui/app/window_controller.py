@@ -21,6 +21,7 @@ from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.statusbar import status_text
 from laser_studio.ui.support import SupportDialog
@@ -131,16 +132,17 @@ class WindowControllerMixin:
             lambda: BuyMeACoffeeDialog(self).exec()
         )
         # Image
-        actions.image_undo_requested.connect(self.undo_image_settings)
-        actions.image_redo_requested.connect(self.redo_image_settings)
+        actions.image_undo_requested.connect(self.image_history.undo)
+        actions.image_redo_requested.connect(self.image_history.redo)
         actions.image_delete_requested.connect(self._on_toolbar_delete_image)
         actions.image_rotate_requested.connect(
             lambda clockwise: self._on_toolbar_rotate_image(
                 clockwise=clockwise
             )
         )
-        actions.mirror_changed.connect(self.update_image_processing)
-        actions.image_reset_requested.connect(self.reset_image_settings)
+        # Menus construits avant l'onglet image : contrôleur lu au moment de l'action.
+        actions.mirror_changed.connect(lambda *_args: self.image.schedule_processing())
+        actions.image_reset_requested.connect(lambda: self.image.reset_settings())
         # G-code
         actions.estimate_requested.connect(self.job.estimate)
         actions.generate_requested.connect(self.job.generate)
@@ -227,7 +229,7 @@ class WindowControllerMixin:
 
     def _image_tab_has_image(self, kind):
         if kind == "previews":
-            return self.raw_image is not None
+            return self.image.has_image()
         if kind == "png2svg":
             return bool(self.png2svg_widget.image_path)
         if kind == "separation":
@@ -250,7 +252,7 @@ class WindowControllerMixin:
     def _on_toolbar_rotate_image(self, clockwise):
         kind = self._image_tab_kind()
         if kind == "previews":
-            (self.rotate_image_right if clockwise else self.rotate_image_left)()
+            (self.image.rotate_right if clockwise else self.image.rotate_left)()
         elif kind == "png2svg":
             self.png2svg_widget.rotate_image(90 if clockwise else -90)
         elif kind == "separation":
@@ -259,7 +261,7 @@ class WindowControllerMixin:
     def _on_toolbar_delete_image(self):
         kind = self._image_tab_kind()
         if kind == "previews":
-            self.clear_image()           # demande elle-même confirmation
+            self.image.clear()           # demande elle-même confirmation
             return
         if kind not in ("png2svg", "separation"):
             return
@@ -602,6 +604,57 @@ class WindowControllerMixin:
             QApplication.restoreOverrideCursor()
 
     # -- état de la fenêtre : panneau du bas, séparateurs, onglets
+
+    # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
+
+    def _on_resolution_changed(self, _lines_mm):
+        """Résolution de gravure changée (saisie, DPI, focale, réglages restaurés) :
+        la matrice de test et la Séparation la reprennent, l'image est retraitée."""
+        self._sync_matrix_lmm_from_image()
+        separation = getattr(self, "separation", None)
+        if separation is not None:
+            separation.resolution_changed()
+        self.image.schedule_processing()
+
+    def _sync_matrix_lmm_from_image(self):
+        """Lignes/mm de « Graver une image » reportées dans la matrice de test
+        gravure : le test est fait avec la même densité de lignes que la
+        gravure réelle."""
+        if hasattr(self, "tab_matrix") and hasattr(self, "spin_lmm"):
+            self.tab_matrix.set_lines_mm(self.spin_lmm.value())
+
+    def _on_machine_focal_changed(self, focal):
+        """La focale est une caractéristique physique du laser : tout
+        changement dans les Paramètres Machine recale lignes/mm, DPI et
+        l'avis sur l'écart des lignes de « Graver une image », quel que soit
+        le mode de saisie, et la qualité du pas de remplissage des calques."""
+        self.resolution_box.set_focal(focal)
+        self.resolution_box.apply_focal()
+        if hasattr(self, "layers_tab"):
+            self.layers_tab.refresh_focal_quality()
+
+    def goto_laser_focal_settings(self):
+        """Ouvre les Paramètres Machine sur le champ de focale (bouton de la
+        résolution de « Graver une image »)."""
+        if hasattr(self, "tab_machine_params"):
+            self.show_settings_window("machine_params")
+        if hasattr(self, "spin_machine_focal"):
+            self.spin_machine_focal.setFocus()
+
+    def show_dither_comparison(self):
+        """Grille de vignettes comparant chaque algorithme de tramage sur l'image
+        chargée, avec les réglages actuels ; un clic choisit l'algorithme."""
+        thumbnails = self.image.comparison()
+        if thumbnails is None:
+            return
+        dialog = DitherComparisonDialog(self, thumbnails)
+        dialog.algorithm_chosen.connect(self.image.choose_algorithm)
+        dialog.exec()
+
+    def _on_preview_options_changed(self, *_args):
+        """Options d'affichage de la Visualisation 2D : aperçu redessiné."""
+        if self._last_gcode_text:
+            self.plot_gcode_preview(self._last_gcode_text)
 
     def _on_main_tab_changed(self, idx):
       if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:

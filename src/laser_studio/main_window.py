@@ -42,6 +42,7 @@ from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.machine_profiles import MachineProfilesController, ProfileFields
 from laser_studio.controllers.matrix_image import MatrixImageController
 from laser_studio.controllers.library import LibraryController
+from laser_studio.controllers.image import ImageController
 from laser_studio.controllers.png2svg import Png2SvgController
 from laser_studio.controllers.separation import SeparationController
 from laser_studio.controllers.project import ProjectController
@@ -56,11 +57,9 @@ from laser_studio.models.grbl import LASER_COMMANDS, GrblConfig
 from laser_studio.ui.binding import bind
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
-from laser_studio.image_processing_mixin import ImageProcessingMixin
 
 
-class FullLaserStudio(QMainWindow, WindowControllerMixin,
-                       ImageProcessingMixin):
+class FullLaserStudio(QMainWindow, WindowControllerMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Laser Studio Pro - GRBL Controller")
@@ -76,8 +75,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # centrées sur la fenêtre : les contrôleurs n'ouvrent pas de QMessageBox
         # eux-mêmes, ce qui permet de les tester sans fenêtre.
         self.dialogs = UserDialogs(self)
-        self.raw_image = None
-        self.processed_array = None
         self.loaded_svg_path = None
         # Modèle des calques (models/layers.py) : seule source des réglages des calques.
         self.layer_manager = LayersModel(self)
@@ -91,11 +88,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         # > 0 : les changements de calques ne sont pas recopiés dans le matériau choisi (profil
         # machine, projet ou matériau en cours d'application, voir _store_layers_in_material).
         self._material_autosave_pause = 0
-        self.block_aspect_signal = False
-        self.img_worker = None
-        self.pending_reprocess = False
         # Réglages de tramage de « Graver une image » et leur annulation (Ctrl+Z / Ctrl+Y) : les
-        # champs de l'onglet y sont liés (_bind_image_settings), la logique les lit ici.
+        # champs de l'onglet y sont liés (ImageSettingsPanel.bind_settings), la logique les lit ici.
         self.image_settings = ImageSettings(self)
         self.image_history = ImageSettingsHistory(self.image_settings)
 
@@ -106,12 +100,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.job = JobController(
             self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
             geometry=self._job_geometry,
-            image=lambda: self.processed_array,
+            image=lambda: self.image.processed_array,
             svg_path=lambda: self.loaded_svg_path,
             vector_objects=lambda: self.vector_document.objects,
             optimize_path=lambda: self.chk_optimize_path.isChecked(),
             lines_mm=lambda: self.spin_lmm.value(),
-            material_summary=self.material_summary_text,
+            material_summary=lambda: self.image.material_summary(),
             parent=self,
         )
         self.job.started.connect(self.on_gcode_generation_started)
@@ -130,11 +124,6 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             set_homing_available=self._set_homing_available,
             parent=self,
         )
-        
-        self.process_timer = QTimer()
-        self.process_timer.setSingleShot(True)
-        self.process_timer.setInterval(150)
-        self.process_timer.timeout.connect(self._do_update_image_processing)
 
         # Sauvegarde automatique du projet toutes les 5 minutes, pour ne rien
         # perdre en cas de plantage ou de coupure de courant en pleine session.
@@ -157,11 +146,13 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.autosave_timer.start()
 
         self.init_ui()
-        self._bind_image_settings()
+        # Miroirs de la gravure, dans la barre d'outils de la fenêtre (créée par init_ui).
+        bind(self.app_actions.mirror_h, self.image_settings, "mirror_h")
+        bind(self.app_actions.mirror_v, self.image_settings, "mirror_v")
         self._connect_machine_signals()
         self.load_machine_settings()
         self.load_splitter_sizes()
-        self.restore_remembered_algorithm()
+        self.image.restore_remembered_algorithm()
         self.update_vector_work_area()
         self.engraver.refresh_ports()
         # Différé (au lieu d'un appel direct ici) : à ce stade du __init__,
@@ -444,9 +435,9 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
 
     def _loaded_image_and_width(self):
         """(image, largeur en mm) de « Graver une image », ou None."""
-        if getattr(self, "raw_image", None) is None:
+        if not self.image.has_image():
             return None
-        return self.raw_image, self.spin_w.value()
+        return self.image.raw_image, self.spin_w.value()
 
     def _job_settings(self):
         """Réglages en cours, au format d'un matériau (voir MaterialsController) : ceux de chaque
@@ -530,8 +521,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.materials.store_current_settings()
 
     def _build_image_tab(self):
-        """Onglet « Graver une image » et cadre « Position du job », abonnés
-        au traitement de l'image (ImageProcessingMixin).
+        """Onglet « Graver une image » (vue ImageTab) et sa logique
+        (ImageController), et cadre « Position du job ».
 
         Construit tôt : la matrice de test lit ses lignes/mm, le panneau
         machine reçoit le cadre « Position du job ». L'onglet est placé
@@ -539,52 +530,49 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """
         tab = ImageTab()
         settings = tab.settings
-        settings.load_requested.connect(self.load_image)
-        settings.processing_changed.connect(self.update_image_processing)
+        settings.bind_settings(self.image_settings)
+        self.resolution_box = settings.resolution_box
+        self.image = ImageController(
+            self.image_settings, self.machine, self.dialogs,
+            size_mm=settings.size_mm,
+            set_size=settings.set_size,
+            keep_ratio=settings.keep_ratio_check.isChecked,
+            lines_mm=self.resolution_box.lines_per_mm,
+            parent=self,
+        )
+        image = self.image
+        settings.load_requested.connect(image.open_image)
+        settings.processing_changed.connect(image.schedule_processing)
         # Matière choisie par l'utilisateur (pas par programme) : coche ou décoche le négatif.
         settings.material_combo.activated.connect(
             lambda _index: self.image_settings.choose_material(settings.material_combo.material()))
         settings.engrave_layer_changed.connect(self._on_engrave_layer_chosen)
-        settings.size_changed.connect(self.on_dimension_changed)
-        settings.resolution_mode_changed.connect(self.on_lmm_mode_changed)
-        settings.lines_per_mm_changed.connect(
-            self._sync_dpi_and_quality_from_lmm
-        )
-        settings.dpi_changed.connect(self.on_dpi_value_changed)
-        settings.configure_focal_requested.connect(
-            self.goto_laser_focal_settings
-        )
+        settings.size_changed.connect(image.dimension_changed)
+        settings.resolution_changed.connect(self._on_resolution_changed)
+        settings.configure_focal_requested.connect(self.goto_laser_focal_settings)
         # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
-        settings.algorithm_combo.textActivated.connect(self.remember_algorithm)
-        settings.undo_requested.connect(self.undo_image_settings)
-        settings.redo_requested.connect(self.redo_image_settings)
-        tab.compare_requested.connect(self.compare_dither_algorithms)
-        # Noms historiques des champs, lus par la logique (traitement de
-        # l'image, génération, projets, profils, séparation, matrice).
+        settings.algorithm_combo.textActivated.connect(image.remember_algorithm)
+        settings.undo_requested.connect(self.image_history.undo)
+        settings.redo_requested.connect(self.image_history.redo)
+        tab.compare_requested.connect(self.show_dither_comparison)
+        image.source_changed.connect(tab.show_source)
+        image.source_changed.connect(self.update_image_actions_state)
+        image.processed.connect(tab.show_processed)
+        image.status.connect(self.show_status_message)
+        # Noms historiques des champs, encore lus par la fenêtre (génération,
+        # projets, profils, séparation, matrice).
         self.spin_w = settings.width_spin
         self.spin_h = settings.height_spin
-        self.chk_keep_ratio = settings.keep_ratio_check
         self.spin_off_x = settings.offset_x_spin
         self.spin_off_y = settings.offset_y_spin
-        self.slider_bright = settings.brightness_slider
-        self.slider_contrast = settings.contrast_slider
-        self.slider_gamma = settings.gamma_slider
-        self.slider_sharp = settings.sharpness_slider
-        self.chk_invert = settings.invert_check
-        self.combo_material_bg = settings.material_combo
-        self.combo_algo = settings.algorithm_combo
         self.spin_lmm = settings.lines_per_mm_spin
         self.combo_lmm_mode = settings.resolution_mode_combo
         self.spin_dpi = settings.dpi_spin
-        self.lbl_focal_info = settings.focal_info_label
-        self.stack_lmm_input = settings.resolution_stack
-        self.lbl_resolution_quality = settings.resolution_quality_label
-        self.view_preview_src = tab.source_view
-        self.view_preview_dither = tab.dither_view
         self.tab_previews = tab
         # Résolution calée sur la focale du laser au départ, puis largeur du
         # panneau d'après ses textes (dont l'information sur la focale).
-        self.on_lmm_mode_changed(settings.resolution_mode_combo.currentIndex())
+        self.resolution_box.set_focal(self.machine.focal)
+        self.resolution_box.refresh()
         tab.fit_settings_width()
         self._refresh_engrave_layer_combo()
 
@@ -616,8 +604,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Onglet « Séparation Couleur / Verre » (vue SeparationTab), ses
         réglages (SeparationSettings) et sa logique (SeparationController).
         Masqué au démarrage, ouvert depuis le menu Outils. La tonalité de
-        l'image devient l'image de « Graver une image » (on_separation_tone),
-        dont le calque noir revient aux aperçus (on_image_processed)."""
+        l'image devient l'image de « Graver une image » (ImageController.set_image),
+        dont le calque noir revient aux aperçus (ImageController.processed)."""
         tab = SeparationTab()
         self.separation_settings = SeparationSettings(self)
         tab.bind_settings(self.separation_settings)
@@ -625,9 +613,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.separation_settings, self.image_settings,
             frame_args=tab.frame_args, engrave_lmm=lambda: self.spin_lmm.value(),
             dialogs=self.dialogs,
-            engraved=lambda: self.processed_array,
-            image_busy=lambda: bool(self.process_timer.isActive()
-                                    or (self.img_worker and self.img_worker.isRunning())),
+            engraved=lambda: self.image.processed_array,
+            image_busy=self.image.is_busy,
             current_preview=tab.preview_tabs.currentIndex,
             is_visible=tab.isVisible,
             busy=self._busy_cursor,
@@ -648,7 +635,12 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         separation.preview_ready.connect(tab.show_preview)
         separation.previews_invalidated.connect(separation.refresh_previews)
         separation.engrave_dpi_changed.connect(tab.set_engrave_dpi)
-        separation.tone_ready.connect(self.on_separation_tone)
+        separation.tone_ready.connect(self.image.set_image)
+        # Liens avec « Graver une image » : réglages du verre rendus quand une image y est
+        # chargée, oubliés à la réinitialisation ; calque noir recalculé : aperçus à refaire.
+        self.image.loading_file.connect(separation.release_glass_settings)
+        self.image.resetting.connect(separation.forget_glass_settings)
+        self.image.processed.connect(lambda *_args: separation.engraved_changed())
         self.tab_separation = tab
         tab.set_engrave_dpi(separation.engrave_dpi())
         self.main_tabs_view.addTab(tab, tr("sep.tab_title"))
@@ -1030,7 +1022,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 pass
         # Recalcule dans tous les cas l'écart lignes/mm et la pastille de
         # qualité à partir de l'état chargé, quel que soit le mode.
-        self.on_lmm_mode_changed(self.combo_lmm_mode.currentIndex())
+        self.resolution_box.set_focal(self.machine.focal)
+        self.resolution_box.refresh()
         # À partir d'ici seulement, un changement de calque est mémorisé.
         self.machines.persist_ready = True
 
@@ -1088,7 +1081,8 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         """Après un changement de profil : lignes/mm et DPI suivent la focale
         (même si elle n'a pas changé, ou si le profil n'en a pas), et la
         qualité des calques est recalculée."""
-        self._apply_focal_to_lmm()
+        self.resolution_box.set_focal(self.machine.focal)
+        self.resolution_box.apply_focal()
         with self._material_autosave_paused():
             self.layers_tab.refresh_focal_quality()
 
@@ -1124,7 +1118,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
                 if hasattr(self, "vector_canvas") else []
             ),
         }
-        return data, self.raw_image
+        return data, self.image.raw_image
 
     def _restore_project(self, data, image):
         """Réapplique un projet ouvert (voir _restore_project_state), sans recopier ses calques
@@ -1165,8 +1159,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.materials.set_materials(data["materials_db"])
 
         if image is not None:
-            self.raw_image = image
-            self.display_source_image()
+            self.image.restore_image(image)
 
         self.loaded_svg_path = data.get("svg_path")
 
@@ -1177,7 +1170,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
             self.vector_canvas.load_objects(data.get("vector_objects"))
             self.update_vector_work_area()
 
-        self.update_image_processing()
+        self.image.schedule_processing()
 
     # -- Événements de la fenêtre
 
@@ -1234,7 +1227,7 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         for url in event.mimeData().urls():
             file_path = url.toLocalFile()
             if file_path.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
-                self.load_image_from_path(file_path)
+                self.image.load_path(file_path)
                 break
             if file_path.lower().endswith(('.svg', '.dxf')) and hasattr(self, "vector_editor"):
                 self.vector_editor.import_file(file_path)
