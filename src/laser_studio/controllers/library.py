@@ -1,19 +1,15 @@
 """Bibliothèque de modèles : ouverture de la fenêtre et import du modèle
 choisi dans l'éditeur vectoriel."""
 
-from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QDialog
 
 from laser_studio.i18n import get_current_language, tr
 from laser_studio.library.catalog import library_roots, load_catalog
 from laser_studio.vector.svg_import import SvgImportError, import_svg
+from laser_studio.core.preferences import ui_preferences
 
 # Clé de UIConfig : taille des vignettes de la bibliothèque (px).
 ICON_SIZE_SETTING = "library_icon_size"
-
-
-def _settings():
-    return QSettings("LaserStudioPro", "UIConfig")
 
 
 class LibraryController:
@@ -60,11 +56,11 @@ class LibraryController:
             self._dialogs.info(tr("library.title"), tr("library.empty"))
             return
         try:
-            icon_size = int(_settings().value(ICON_SIZE_SETTING, 160))
+            icon_size = ui_preferences().get_int(ICON_SIZE_SETTING, 160)
         except (TypeError, ValueError):
             icon_size = 160
         dialog = LibraryDialog(self._parent, categories, icon_size)
-        dialog.icon_size_changed.connect(lambda size: _settings().setValue(ICON_SIZE_SETTING, size))
+        dialog.icon_size_changed.connect(lambda size: ui_preferences().set(ICON_SIZE_SETTING, size))
         if dialog.exec() != QDialog.DialogCode.Accepted or dialog.chosen() is None:
             return
         item, variants, texts = dialog.chosen()

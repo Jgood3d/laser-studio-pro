@@ -7,7 +7,7 @@ if "--stencil-studio" in sys.argv:
 
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
-from PyQt6.QtCore import QElapsedTimer, QEvent, QSettings, QTimer
+from PyQt6.QtCore import QElapsedTimer, QEvent, QTimer
 from PyQt6 import QtWebEngineWidgets
 
 from laser_studio.core.constants import SPLASH_SCREEN_DURATION
@@ -18,6 +18,7 @@ from laser_studio.i18n import tr
 from laser_studio.ui.app.qt_messages import install_qt_message_filters
 from laser_studio.ui.splashscreen import StartupSplash
 from laser_studio.ui.app.theme import apply_saved_theme, install_breeze_icon_theme
+from laser_studio.core.preferences import ui_preferences
 
 
 def main():
@@ -61,7 +62,7 @@ def main():
     # controllers.startup_safety).
     from laser_studio.controllers.startup_safety import StartupSafetyPolicy
     from laser_studio.ui.dialogs.startup_safety import confirm_startup_safety
-    safety = StartupSafetyPolicy(QSettings("LaserStudioPro", "UIConfig"))
+    safety = StartupSafetyPolicy(ui_preferences())
     if safety.should_show_at_launch():
         splash.hide()
         accepted, hide = confirm_startup_safety(None, safety.hidden())

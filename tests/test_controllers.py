@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # job_fakes
 
 try:
     from PIL import Image
-    from PyQt6.QtCore import QSettings
+    from job_fakes import memory_preferences
     from PyQt6.QtWidgets import (
         QApplication,
         QComboBox,
@@ -329,14 +329,7 @@ class ProjectControllerTests(_QtTest):
         self.addCleanup(patcher.stop)
         # Projets récents dans un fichier temporaire, jamais dans les
         # réglages de l'utilisateur.
-        settings_path = os.path.join(self.dir, "UIConfig.ini")
-        patcher = mock.patch.object(
-            project_module,
-            "QSettings",
-            lambda *_a: QSettings(settings_path, QSettings.Format.IniFormat),
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        memory_preferences(self)
         self.state = {"bright": 12, "raw_image_b64": None}
         self.image = Image.new("L", (8, 4), 200)
         self.restored, self.recent = [], []

@@ -13,12 +13,13 @@ passées en fonctions aux contrôleurs qui décident quand enregistrer
 """
 from contextlib import contextmanager
 
-from PyQt6.QtCore import QObject, QSettings
+from PyQt6.QtCore import QObject
 
 from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, apply_material_to_layers,
                                                 capture_material_layers)
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
+from laser_studio.core.preferences import machine_preferences
 
 
 class WindowState(QObject):
@@ -85,29 +86,29 @@ class WindowState(QObject):
         l'image) pour les retrouver au prochain lancement, sans recharger de
         projet. Les calques sont rangés dans le profil de la machine active."""
         w = self.window
-        settings = QSettings("LaserStudioPro", "MachineConfig")
-        settings.setValue("machine_bed_w_mm", w.machine.bed_w)
-        settings.setValue("machine_bed_h_mm", w.machine.bed_h)
-        settings.setValue("machine_focal_mm", w.machine.focal)
+        prefs = machine_preferences()
+        prefs.set("machine_bed_w_mm", w.machine.bed_w)
+        prefs.set("machine_bed_h_mm", w.machine.bed_h)
+        prefs.set("machine_focal_mm", w.machine.focal)
         w.machines.store_memory()
-        settings.setValue("machine_profiles_json", w.machines.to_json())
+        prefs.set("machine_profiles_json", w.machines.to_json())
         name = w.machines.current_name()
         if name is not None:
-            settings.setValue("last_machine_profile", name)
+            prefs.set("last_machine_profile", name)
         mode, dpi, lmm = w.resolution_box.saved_state()
-        settings.setValue("lmm_mode_index", mode)
-        settings.setValue("lmm_dpi_value", dpi)
-        settings.setValue("lmm_value", lmm)
+        prefs.set("lmm_mode_index", mode)
+        prefs.set("lmm_dpi_value", dpi)
+        prefs.set("lmm_value", lmm)
 
     def load_machine_settings(self):
         """Restaure au démarrage les réglages mémorisés par
         save_machine_settings."""
         w = self.window
-        settings = QSettings("LaserStudioPro", "MachineConfig")
+        prefs = machine_preferences()
         for key, field in (("machine_bed_w_mm", "bed_w"),
                            ("machine_bed_h_mm", "bed_h"),
                            ("machine_focal_mm", "focal")):
-            value = settings.value(key, None)
+            value = prefs.get(key)
             if value is not None:
                 w.machine.update(**{field: value})   # valeur illisible : ignorée
         # Comme à chaque validation de profil : les calques suivent la focale
@@ -115,8 +116,8 @@ class WindowState(QObject):
         w.layers_tab.link_all_to_focal()
 
         w.machines.load(
-            settings.value("machine_profiles_json", ""),
-            settings.value("last_machine_profile", None),
+            prefs.get("machine_profiles_json", ""),
+            prefs.get("last_machine_profile"),
             {"name": "Machine par défaut", "w": w.machine.bed_w,
              "h": w.machine.bed_h},
         )
@@ -124,8 +125,7 @@ class WindowState(QObject):
         # Résolution mémorisée, puis recalcul dans tous les cas de l'écart lignes/mm et de la
         # pastille de qualité à partir de l'état chargé, quel que soit le mode.
         w.resolution_box.set_focal(w.machine.focal)
-        w.resolution_box.restore_state(settings.value("lmm_mode_index", None),
-                                       settings.value("lmm_dpi_value", None), settings.value("lmm_value", None))
+        w.resolution_box.restore_state(prefs.get("lmm_mode_index"), prefs.get("lmm_dpi_value"), prefs.get("lmm_value"))
         # À partir d'ici seulement, un changement de calque est mémorisé.
         w.machines.persist_ready = True
 

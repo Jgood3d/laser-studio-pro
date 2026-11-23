@@ -10,9 +10,10 @@ onglets facultatifs du menu Affichage (croix, choix mémorisé), ouvrir l'onglet
 affiché en plein écran, et montrer le panneau machine sous les onglets
 seulement là où il sert, avec la position mémorisée des séparateurs.
 """
-from PyQt6.QtCore import QObject, QSettings, Qt, QTimer
+from PyQt6.QtCore import QObject, Qt, QTimer
 from PyQt6.QtWidgets import QDialog, QPushButton, QTabBar, QVBoxLayout
 
+from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import tr
 from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
 
@@ -26,8 +27,7 @@ OPTIONAL_TAB_DEFAULTS = {GCODE_CONSOLE_SETTING: False, JOB_QUEUE_SETTING: True}
 def optional_tab_was_visible(setting):
     """Onglet facultatif affiché à la dernière utilisation ? (au premier
     démarrage : l'état par défaut de OPTIONAL_TAB_DEFAULTS)"""
-    value = QSettings("LaserStudioPro", "UIConfig").value(setting, OPTIONAL_TAB_DEFAULTS[setting])
-    return value in (True, "true", "1", 1)
+    return ui_preferences().get_bool(setting, OPTIONAL_TAB_DEFAULTS[setting])
 
 
 class MainTabs(QObject):
@@ -100,9 +100,7 @@ class MainTabs(QObject):
         if index != -1:
             self.view.setTabVisible(index, visible)
         if optional_tab_was_visible(setting) != bool(visible):
-            settings = QSettings("LaserStudioPro", "UIConfig")
-            settings.setValue(setting, bool(visible))
-            settings.sync()  # écriture immédiate sous Windows
+            ui_preferences().set(setting, bool(visible))
 
     def _add_close_button(self, tab, action):
         """Croix sur l'onglet `tab` : le ferme en décochant `action`, qui masque
@@ -227,24 +225,24 @@ class MainTabs(QObject):
             panel.setVisible(False)
 
     def save_splitter_sizes(self, *_args):
-        settings = QSettings("LaserStudioPro", "UIConfig")
+        prefs = ui_preferences()
         if self.bottom_panel.isHidden():
             sizes = self.bottom_panel_sizes
         else:
             sizes = self.splitter.sizes()
         if sizes and all(v > 0 for v in sizes):
-            settings.setValue("center_v_splitter_sizes", sizes)
+            prefs.set("center_v_splitter_sizes", sizes)
         # Aperçu 2D / colonne de droite (position du job, statistiques) : un côté peut être replié.
         sizes = self.preview_splitter.sizes()
         if sum(sizes) > 0:
-            settings.setValue("preview_2d_side_sizes", sizes)
+            prefs.set("preview_2d_side_sizes", sizes)
 
     def load_splitter_sizes(self):
-        settings = QSettings("LaserStudioPro", "UIConfig")
+        prefs = ui_preferences()
         # Tailles de l'ancienne colonne de gauche, supprimée : plus utilisées.
-        settings.remove("main_splitter_sizes")
-        settings.remove("left_v_splitter_sizes")
-        center_v_sizes = settings.value("center_v_splitter_sizes", None)
+        prefs.remove("main_splitter_sizes")
+        prefs.remove("left_v_splitter_sizes")
+        center_v_sizes = prefs.get("center_v_splitter_sizes")
         if center_v_sizes:
             try:
                 loaded_sizes = [int(s) for s in center_v_sizes]
@@ -254,8 +252,8 @@ class MainTabs(QObject):
             except (TypeError, ValueError):
                 pass
         # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.
-        settings.remove("preview_2d_splitter_sizes")
-        preview_sizes = settings.value("preview_2d_side_sizes", None)
+        prefs.remove("preview_2d_splitter_sizes")
+        preview_sizes = prefs.get("preview_2d_side_sizes")
         if preview_sizes:
             try:
                 loaded_sizes = [int(s) for s in preview_sizes]

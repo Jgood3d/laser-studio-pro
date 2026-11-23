@@ -88,3 +88,13 @@ def make_job(image=None, objects=(), dialogs=None, geometry_kw=None, svg_path=No
     )
     job.holder = holder
     return job, dialogs
+
+
+def memory_preferences(test, **initial):
+    """Préférences en mémoire pendant le test `test` (rien d'écrit chez l'utilisateur) ; renvoie les
+    magasins par fichier : stores["UIConfig"].values, stores["MachineConfig"].values…"""
+    from laser_studio.core import preferences
+    context = preferences.in_memory(**initial)
+    stores = context.__enter__()
+    test.addCleanup(context.__exit__, None, None, None)
+    return stores

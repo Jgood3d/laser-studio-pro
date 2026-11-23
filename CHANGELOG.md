@@ -66,6 +66,8 @@ Stencil Studio : découpé comme Laser Studio en modèles (`models/` : photo et 
 
 Fenêtre principale : déplacée dans `ui/app/main_window.py` et réduite à l'assemblage (1 077 → 466 lignes). Chaque partie de l'interface a son builder (`ui/…/builder.py`) qui crée la vue et sa logique et les relie, sans connaître la fenêtre. L'onglet de l'éditeur vectoriel devient une vue à part (`ui/vector_editor/tab.py`, `VectorEditorTab`), ses actions et le choix de l'outil de dessin passent par `VectorEditorController`. Les alias historiques des champs (`spin_w`, `chk_homing`, `txt_console`…) sont supprimés : on lit la page ou le modèle (`size_mm()`, `bind_settings()`, `ConsoleTab.gcode()`…). La zone de travail de l'éditeur suit directement le modèle de la machine. Comportement inchangé, vérifié dans la fenêtre.
 
+Préférences : toutes les lectures et écritures des réglages mémorisés (thème, langue, onglets, séparateurs, projets récents, dernier port, profils machine, caméra…) passent par `core/preferences.py`, qui convertit les valeurs relues et écrit tout de suite. Les tests utilisent des préférences en mémoire au lieu de simuler QSettings. `grbl/` n'importe plus Qt, et un test vérifie qu'aucun dossier de calcul n'importe QtWidgets.
+
 ### Corrigé
 Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
 

@@ -6,11 +6,13 @@ from types import SimpleNamespace
 from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from PyQt6.QtGui import QStandardItemModel
     from PyQt6.QtWidgets import QApplication
     from laser_studio.grbl import ports
+    from job_fakes import memory_preferences
     from laser_studio.controllers.engraver import EngraverController
     from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.connection import ConnectionPanel
@@ -32,19 +34,6 @@ SYSTEM_PORTS = [
 ]
 
 
-class _Settings:
-    """Remplace QSettings : rien n'est écrit dans la vraie configuration."""
-
-    def __init__(self):
-        self.values = {}
-
-    def value(self, key, default=None):
-        return self.values.get(key, default)
-
-    def setValue(self, key, value):
-        self.values[key] = value
-
-
 @unittest.skipIf(ports is None, "PyQt6 / pyserial non importables ici")
 class SerialPortsTests(unittest.TestCase):
     @classmethod
@@ -52,10 +41,8 @@ class SerialPortsTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        self.settings = _Settings()
-        patcher = mock.patch.object(ports, "_settings", lambda: self.settings)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        # Préférences en mémoire : rien n'est écrit dans la vraie configuration.
+        self.settings = memory_preferences(self)["UIConfig"]
 
     def test_na_ports_hidden_and_usb_first(self):
         self.assertEqual(ports.port_labels(SYSTEM_PORTS), [

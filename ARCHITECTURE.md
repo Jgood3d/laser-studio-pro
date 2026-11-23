@@ -87,7 +87,7 @@ laser-studio-pro/
 │   │   ├── vector_layers.py          # ancien emplacement de l'éditeur vectoriel : réexporte les noms (code existant, Stencil Studio)
 │   │   ├── workers.py                # threads (QThread) : traitement d'image (calcul dans image/dithering), envoi du G-Code, sondage d'état ; la génération y appelle gcode/
 │   │   ├── gcode/                    # génération du G-Code sans Qt : job (assemblage), raster (image), svg_cut, vector (calques), test_matrix, calibration (aller/retour), preview (modèle de l'aperçu 2D), common
-│   │   ├── core/                     # socle sans interface : version, paths (chemins, ressources), constants, debug_log
+│   │   ├── core/                     # socle : version, paths (chemins, ressources), constants, debug_log, preferences (réglages mémorisés)
 │   │   ├── models/                   # modèles de données (QObject à signaux) : vector_document (VectorDocument : objets, annuler / refaire, presse-papiers), vector_objects (objets du dessin : TextObject, ShapeObject, SvgPathObject), layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), settings (base SettingsModel), change_log (journal)
 │   │   ├── i18n/                     # traductions : translations.py (textes FR / EN / DE / ES), language.py (langue, tr)
 │   │   ├── grbl/                     # dialogue avec le graveur, sans Qt : commands (commandes GRBL, lecture de $$), connection, simulator, ports (ports série proposés + dernier port utilisé)
@@ -200,6 +200,7 @@ laser-studio-pro/
 | **ui/app/theme.py** | Définition des 7 thèmes **dark / light / dusk / warm / neon / retro80 / jarvis** (palette Qt + stylesheet généré). `apply_app_theme()`, `apply_saved_theme()` (relit et normalise `QSettings("app_theme")`), `normalize_theme_name()` (alias FR/EN), `available_themes()`, `apply_icon_theme_for_ui()` (pack Jarvis pour le thème jarvis, sinon Breeze ; un thème système n'est pas écrasé), `install_breeze_icon_theme()`. | `main.py`, `ui/app/window_controller.change_theme`, `stencil_studio/studio_dialog` |
 | **controllers/startup_safety.py** | `StartupSafetyPolicy` : quand afficher l'avertissement laser du démarrage. Case « Ne plus afficher » : l'avertissement ne revient qu'en rappel tous les `REMINDER_EVERY` démarrages ; la variable d'environnement `NOWARNING` le désactive (tests). Prend tout objet de type `QSettings` | `main.py`, `ui/dialogs/startup_safety` |
 | **grbl/ports.py** | Ports série proposés (`port_labels`, `is_usable`, `is_usb`, `port_of`) : masque les ports virtuels `/dev/ttyS*` sans matériel (description « n/a ») ; mémorise le dernier port (`load_last_port` / `save_last_port`). Sans Qt | `controllers/engraver`, `ui/machine/connection` |
+| **core/preferences.py** | Préférences mémorisées, en un seul endroit : `ui_preferences()` (UIConfig : interface, thème, langue, onglets, projets récents, dernier port…), `machine_preferences()` (MachineConfig : plateau, profils, résolution), `app_preferences()` (caméra, matière de l'aperçu 2D). `Preferences` : lecture convertie (`get_bool`, `get_int`, `get_float`, `get_list` : QSettings rend parfois du texte), écriture immédiate (`set`). `in_memory()` remplace les vrais fichiers par des dictionnaires dans les tests (`job_fakes.memory_preferences`) : plus de faux QSettings | tout le code qui mémorise un réglage ; aucun `QSettings` ailleurs |
 | **core/version.py** | Version (`APP_VERSION`), lue aussi par le build macOS ; identifiant de l'application (`APP_ID`) : nom du fichier .desktop et de l'icône sous Linux, identifiant de la fenêtre sous Wayland (`setDesktopFileName` dans `main.py`) | `ui/about`, `ui/app/menu` |
 | **core/paths.py** | Dossier de l'exécutable et du bundle, dossier des données (autosave), ressources (`find_resource`) | Utilisé largement |
 | **laser_common/files.py** | Écriture atomique (`atomic_write_json`), écrivain en arrière-plan (`get_background_writer`) | `controllers/project`, `controllers/job_queue`, `main_window` |
@@ -425,12 +426,13 @@ Menu Outils → Caméra (CameraDialog)
 1. **Pas de mixin** : modèle / vue / contrôleur, objets qui reçoivent ce dont ils ont besoin ; ne pas mélanger les responsabilités (UI ≠ G-Code ≠ USB).
 2. **Repère machine** : origine bas-gauche, Y vers le haut dans le modèle monde ; conversion écran dans `VectorGraphicsItem.refresh`.
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
-4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` (relu par `apply_saved_theme`) ; Stencil Studio reçoit ses couleurs par `page_colors`.
+4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + la préférence `app_theme` (`current_theme_name`, relue par `apply_saved_theme`) ; Stencil Studio reçoit ses couleurs par `page_colors`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
 8. **Logique caméra découplée de Qt** : les calculs de distorsion (`lens_calibration.py`), d'homographie (`workspace_alignment.py`) et de capture (`capture.py`) résident dans `camera/` sans dépendance PyQt6 pour rester testables unitairement.
-9. **Calcul sans interface** : `gcode/`, `image/`, `camera/`, `library/` n'importent pas Qt ; `vector/` utilise QtGui et les valeurs de QtCore comme bibliothèque de géométrie, jamais QtWidgets. Vérifié par `tests/test_pure_modules.py`.
+9. **Calcul sans interface** : `gcode/`, `grbl/`, `image/`, `camera/`, `library/` n'importent pas Qt ; `vector/` utilise QtGui et les valeurs de QtCore comme bibliothèque de géométrie, jamais QtWidgets. Vérifié par `tests/test_pure_modules.py`.
+10. **Préférences** : toujours par `core/preferences.py`, jamais `QSettings` directement ; dans les tests, `memory_preferences(self)` (tests/job_fakes.py).
 
 ---
 

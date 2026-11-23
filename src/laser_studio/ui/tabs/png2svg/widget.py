@@ -14,7 +14,7 @@ from __future__ import annotations
 import os
 import tempfile
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSettings
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage, QShortcut, QKeySequence, QTransform
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QPushButton, QSlider,
@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from laser_studio.image.vectorize import ConversionSettings, convert_image_to_svg, save_svg
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.png2svg.svg_view import HAS_SVG_WIDGET, ZoomableSvgView
+from laser_studio.core.preferences import ui_preferences
 
 
 class PngToSvgWidget(QWidget):
@@ -43,7 +44,7 @@ class PngToSvgWidget(QWidget):
         self._debounce.setSingleShot(True)
         self._debounce.setInterval(250)
         self._debounce.timeout.connect(self._regenerate)
-        self.settings = QSettings("LaserStudioPro", "UIConfig")
+        self.settings = ui_preferences()
 
         self._build_ui()
         self._retranslate()
@@ -324,10 +325,10 @@ class PngToSvgWidget(QWidget):
 
     # ------------------------------------------------------- Persistance UI
     def _save_splitter_state(self, *_):
-        self.settings.setValue("png2svg_splitter_sizes", self.splitter.sizes())
+        self.settings.set("png2svg_splitter_sizes", self.splitter.sizes())
 
     def _restore_ui_state(self):
-        sizes = self.settings.value("png2svg_splitter_sizes")
+        sizes = self.settings.get("png2svg_splitter_sizes")
         if sizes:
             try:
                 self.splitter.setSizes([int(v) for v in sizes])

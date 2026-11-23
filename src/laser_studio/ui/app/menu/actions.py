@@ -5,7 +5,7 @@ coché) d'une commande. Le menu et la barre d'outils affichent les mêmes
 actions : un seul endroit les crée, et un seul endroit émet les signaux.
 """
 
-from PyQt6.QtCore import QObject, QSettings, Qt, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QStyle
 
@@ -255,14 +255,12 @@ class AppActions(QObject):
             action.setChecked(code == current_lang)
             self.language_actions[code] = action
 
-        from laser_studio.ui.app.theme import available_themes, normalize_theme_name
+        from laser_studio.ui.app.theme import available_themes, current_theme_name
 
         self.theme_icon = standard_icon(
             "preferences-desktop-theme", QStyle.StandardPixmap.SP_DesktopIcon
         )
-        current_theme = normalize_theme_name(
-            QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark")
-        )
+        current_theme = current_theme_name()
         self.theme_actions = {}
         for code, label_key in available_themes():
             action = self._action(

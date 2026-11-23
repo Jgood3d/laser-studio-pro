@@ -2,7 +2,8 @@
 
 - vector/ : géométrie ; QtGui (QPainterPath, QTransform, QFont…) et les valeurs de QtCore
   (QPointF, Qt) sont acceptés comme bibliothèque de géométrie, jamais QtWidgets ;
-- gcode/, image/, camera/, library/ : aucun import de PyQt6, testables sans Qt.
+- gcode/, grbl/, image/, camera/, library/ : aucun import de PyQt6, testables sans Qt (grbl/ mémorise
+  le dernier port par core/preferences).
 
 Lu dans le code (imports), sans rien importer."""
 import ast
@@ -11,7 +12,7 @@ import unittest
 
 ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "laser_studio")
 # Dossiers sans aucun Qt.
-WITHOUT_QT = ("gcode", "image", "camera", "library")
+WITHOUT_QT = ("gcode", "grbl", "image", "camera", "library")
 # Modules Qt acceptés dans vector/ (géométrie).
 VECTOR_ALLOWED = ("PyQt6.QtCore", "PyQt6.QtGui")
 

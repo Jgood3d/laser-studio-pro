@@ -16,9 +16,10 @@ La fenêtre (`window`) est le point d'assemblage : le contrôleur y lit les
 modèles, contrôleurs et pages qu'elle a construits.
 """
 
-from PyQt6.QtCore import QObject, QSettings, QTimer
+from PyQt6.QtCore import QObject, QTimer
 from PyQt6.QtWidgets import QApplication
 
+from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import get_current_language, set_language, tr
 from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.app.theme import apply_app_theme, current_theme_name, normalize_theme_name, page_colors
@@ -115,9 +116,7 @@ class WindowController(QObject):
         Codes possibles : dark, light, dusk, warm.
         """
         theme_name = normalize_theme_name(theme_name)
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        settings.setValue("app_theme", theme_name)
-        settings.sync()  # écriture immédiate sous Windows
+        ui_preferences().set("app_theme", theme_name)
         apply_app_theme(QApplication.instance(), theme_name)
         self.window.app_actions.set_theme(theme_name)
 

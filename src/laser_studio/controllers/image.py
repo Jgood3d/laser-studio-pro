@@ -17,12 +17,13 @@ thread par workers.ImageProcessingWorker.
 import os
 
 from PIL import Image
-from PyQt6.QtCore import QObject, QSettings, QTimer, pyqtSignal
+from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS, comparison_thumbnails
 from laser_studio.image.size import natural_size_mm, read_dpi
 from laser_studio.workers import ImageProcessingWorker
+from laser_studio.core.preferences import ui_preferences
 
 # Clé de UIConfig : dernier algorithme de tramage choisi par l'utilisateur.
 ALGORITHM_SETTING = "image_algorithm"
@@ -265,13 +266,11 @@ class ImageController(QObject):
         séparation couleur) ne passent pas par ici."""
         if not algorithm:
             return
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        settings.setValue(ALGORITHM_SETTING, algorithm)
-        settings.sync()  # écriture immédiate sous Windows
+        ui_preferences().set(ALGORITHM_SETTING, algorithm)
 
     def restore_remembered_algorithm(self):
         """Resélectionne le dernier algorithme choisi, s'il existe encore."""
-        algorithm = QSettings("LaserStudioPro", "UIConfig").value(ALGORITHM_SETTING, "")
+        algorithm = ui_preferences().get(ALGORITHM_SETTING, "")
         if algorithm in ALGORITHMS:
             self.image_settings.update(algorithm=algorithm)
 
