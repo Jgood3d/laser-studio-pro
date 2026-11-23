@@ -27,7 +27,7 @@ from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
 from laser_studio.vector.layer_data import extract_vector_layer_data
-from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker
+from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, build_gain_test_array
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)
@@ -115,6 +115,7 @@ class JobController(QObject):
         self.last_test_matrix_params = None
         self.worker = None
         self.matrix_worker = None
+        self.gain_test_worker = None
 
     # -- réglages de la gravure d'une image et de l'ancienne découpe SVG
 
@@ -508,6 +509,39 @@ class JobController(QObject):
         self.last_test_matrix_params = None
         self.generated.emit(*result)
         self.dialogs.info(tr("gen.bidir_test_title"), tr("gen.bidir_test_body"))
+
+    def generate_gain_test(self):
+        """Génère la grille de test du gain de point (verre peint, onglet
+        Séparation) : une ligne par valeur du curseur « Gain de point » (0 à
+        20), une colonne par ton (0 à 100 %), avec la résolution, la vitesse,
+        la puissance et la machine actuelles. Une fois gravée, on repère la
+        ligne dont les cases passent régulièrement du noir au clair, et on
+        règle le curseur sur la valeur écrite à gauche. Renvoie True si la
+        génération a démarré (False : grille plus grande que le plateau)."""
+        arr, w_mm, h_mm = build_gain_test_array(self._lines_mm(), mirror=self.image_settings.mirror_h)
+        bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
+        if w_mm > bed_w or h_mm > bed_h:
+            self.dialogs.warning(
+                tr("sep.gain_test_title"),
+                tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h))
+            return False
+        params = self.build_params()
+        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg", enable_cut=False)
+        self.gain_test_worker = AdvancedGCodeWorker(arr, None, params, None)
+        self.gain_test_worker.finished.connect(self._on_gain_test_ready)
+        self.gain_test_worker.error.connect(self.failed)
+        self.gain_test_worker.start()
+        return True
+
+    def _on_gain_test_ready(self, gcode, n_lines, avg_power, time_str):
+        header = (
+            "; --- TEST DU GAIN DE POINT ---\n"
+            "; Lignes de haut en bas : gain 0, 5, 10, 15, 20. Colonnes : 0 % (peinture intacte) a 100 % (verre degage).\n"
+            "; Repere la ligne dont les cases passent regulierement du noir au clair,\n"
+            "; puis regle le curseur Gain de point sur la valeur ecrite a gauche de cette ligne.\n"
+        )
+        self.generated.emit(header + gcode, n_lines + header.count("\n"), avg_power, time_str)
+        self.dialogs.info(tr("sep.gain_test_title"), tr("sep.gain_test_done"))
 
     def generate_test_matrix(self, page_params, engraving, image_test=False, build_tile=None):
         """Lance la génération de la matrice de test.

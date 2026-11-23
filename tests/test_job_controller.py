@@ -176,6 +176,34 @@ class TestPatternTests(unittest.TestCase):
         self.assertIsNone(job.last_test_matrix_params)
         self.assertEqual(dialogs.kinds(), ["info"])
 
+    def test_gain_test_is_generated_with_a_header(self):
+        """Test du gain de point (onglet Séparation) : grille tramée à la résolution actuelle, en
+        miroir comme la gravure du verre, puis G-Code précédé de son mode d'emploi."""
+        job, dialogs = make_job()
+        job.image_settings.update(mirror_h=True)
+        worker = mock.Mock()
+        with mock.patch.object(job_module, "AdvancedGCodeWorker", return_value=worker) as cls:
+            self.assertTrue(job.generate_gain_test())
+        arr, svg, params, vectors = cls.call_args[0]
+        self.assertEqual((svg, vectors, params["algo"], params["enable_cut"]), (None, None, "Floyd-Steinberg", False))
+        self.assertEqual(arr.shape[1], round(params["width_mm"] * 10.0))      # 10 lignes/mm (make_job)
+        worker.start.assert_called_once()
+        got = []
+        job.generated.connect(lambda *a: got.append(a))
+        job._on_gain_test_ready("G1 X1\n", 1, 50.0, "1 min")
+        self.assertTrue(got[0][0].startswith("; --- TEST DU GAIN DE POINT ---\n"))
+        self.assertTrue(got[0][0].endswith("G1 X1\n"))
+        self.assertEqual(got[0][1], 5)                                      # 4 lignes d'en-tête + 1
+        self.assertEqual(dialogs.kinds(), ["info"])
+
+    def test_gain_test_larger_than_the_bed_is_refused(self):
+        job, dialogs = make_job()
+        job.machine.update(bed_w=20.0, bed_h=20.0)
+        with mock.patch.object(job_module, "AdvancedGCodeWorker") as cls:
+            self.assertFalse(job.generate_gain_test())
+        cls.assert_not_called()
+        self.assertEqual(dialogs.kinds(), ["warning"])
+
     def test_matrix_is_generated_with_the_machine_settings(self):
         job, _ = make_job()
         job.grbl.update(smax=255, overscan_enabled=True)

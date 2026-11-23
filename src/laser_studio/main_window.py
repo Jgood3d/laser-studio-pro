@@ -43,6 +43,7 @@ from laser_studio.controllers.machine_profiles import MachineProfilesController,
 from laser_studio.controllers.matrix_image import MatrixImageController
 from laser_studio.controllers.library import LibraryController
 from laser_studio.controllers.png2svg import Png2SvgController
+from laser_studio.controllers.separation import SeparationController
 from laser_studio.controllers.project import ProjectController
 from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.models.vector_document import VectorDocument
@@ -50,17 +51,16 @@ from laser_studio.ui.vector_editor.canvas import VectorCanvasView
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
+from laser_studio.models.separation import SeparationSettings
 from laser_studio.models.grbl import LASER_COMMANDS, GrblConfig
 from laser_studio.ui.binding import bind
 
 from laser_studio.ui.app.window_controller import WindowControllerMixin
 from laser_studio.image_processing_mixin import ImageProcessingMixin
-from laser_studio.separation_mixin import SeparationMixin
 
 
 class FullLaserStudio(QMainWindow, WindowControllerMixin,
-                       ImageProcessingMixin,
-                       SeparationMixin):
+                       ImageProcessingMixin):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Laser Studio Pro - GRBL Controller")
@@ -613,25 +613,44 @@ class FullLaserStudio(QMainWindow, WindowControllerMixin,
         self.tab_png2svg = tab
 
     def _build_separation_tab(self):
-        """Onglet « Séparation Couleur / Verre », abonné à sa logique
-        (SeparationMixin). Masqué au démarrage, ouvert depuis le menu Outils.
-        """
+        """Onglet « Séparation Couleur / Verre » (vue SeparationTab), ses
+        réglages (SeparationSettings) et sa logique (SeparationController).
+        Masqué au démarrage, ouvert depuis le menu Outils. La tonalité de
+        l'image devient l'image de « Graver une image » (on_separation_tone),
+        dont le calque noir revient aux aperçus (on_image_processed)."""
         tab = SeparationTab()
-        self._init_separation(tab)
-        tab.load_requested.connect(self.separation_load_image)
-        tab.image_dropped.connect(self.separation_load_path)
-        tab.tone_changed.connect(self.separation.schedule_push)
-        tab.preview_changed.connect(self.separation.schedule_previews)
-        tab.gain_test_requested.connect(self.separation_gain_test)
-        tab.export_requested.connect(self.separation_export)
-        tab.preview_tab_changed.connect(lambda _index: self._sep_render_current())
-        # Champs affichés par l'interface de la séparation (les réglages sont lus dans
-        # self.separation_settings).
-        self.sep_lbl_file = tab.file_label
-        self.sep_tabs = tab.preview_tabs
-        self.sep_views = tab.preview_views
+        self.separation_settings = SeparationSettings(self)
+        tab.bind_settings(self.separation_settings)
+        self.separation = SeparationController(
+            self.separation_settings, self.image_settings,
+            frame_args=tab.frame_args, engrave_lmm=lambda: self.spin_lmm.value(),
+            dialogs=self.dialogs,
+            engraved=lambda: self.processed_array,
+            image_busy=lambda: bool(self.process_timer.isActive()
+                                    or (self.img_worker and self.img_worker.isRunning())),
+            current_preview=tab.preview_tabs.currentIndex,
+            is_visible=tab.isVisible,
+            busy=self._busy_cursor,
+            parent=self,
+        )
+        separation = self.separation
+        tab.load_requested.connect(separation.open_image)
+        tab.image_dropped.connect(separation.load_path)
+        tab.tone_changed.connect(separation.schedule_push)
+        tab.preview_changed.connect(separation.schedule_previews)
+        tab.gain_test_requested.connect(self.job.generate_gain_test)
+        tab.export_requested.connect(separation.export_files)
+        tab.preview_tab_changed.connect(separation.render_current)
+        separation.source_changed.connect(tab.set_source)
+        separation.source_changed.connect(self.update_image_actions_state)
+        separation.image_loaded.connect(tab.fit_plate_to_image)
+        separation.image_rotated.connect(tab.swap_plate_size)
+        separation.preview_ready.connect(tab.show_preview)
+        separation.previews_invalidated.connect(separation.refresh_previews)
+        separation.engrave_dpi_changed.connect(tab.set_engrave_dpi)
+        separation.tone_ready.connect(self.on_separation_tone)
         self.tab_separation = tab
-        self._sep_update_dpi_label()
+        tab.set_engrave_dpi(separation.engrave_dpi())
         self.main_tabs_view.addTab(tab, tr("sep.tab_title"))
 
     def _build_vector_editor_tab(self):

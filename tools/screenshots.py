@@ -113,7 +113,7 @@ def main():
     pump(1.0)
     window.png2svg_widget._load_image_path(SAMPLE_IMAGE)
     pump(1.5)
-    window.separation_load_path(SEPARATION_IMAGE)
+    window.separation.load_path(SEPARATION_IMAGE)
     pump(1.5)
 
     print("Onglets")

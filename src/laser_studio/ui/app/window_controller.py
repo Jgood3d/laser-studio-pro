@@ -254,7 +254,7 @@ class WindowControllerMixin:
         elif kind == "png2svg":
             self.png2svg_widget.rotate_image(90 if clockwise else -90)
         elif kind == "separation":
-            self.separation_rotate_image(-90 if clockwise else 90)
+            self.separation.rotate_image(-90 if clockwise else 90)
 
     def _on_toolbar_delete_image(self):
         kind = self._image_tab_kind()
@@ -271,7 +271,7 @@ class WindowControllerMixin:
         if kind == "png2svg":
             self.png2svg_widget.clear_image()
         else:
-            self.separation_clear_image()
+            self.separation.clear()
 
     def update_connection_widgets(self):
         """Met le bouton de connexion en accord avec l'état du port.
@@ -605,7 +605,7 @@ class WindowControllerMixin:
 
     def _on_main_tab_changed(self, idx):
       if hasattr(self, 'tab_separation') and self.main_tabs_view.widget(idx) == self.tab_separation:
-          self.separation_refresh_if_dirty()
+          self.separation.refresh_if_dirty()
 
     def _job_in_progress(self):
         connection = getattr(self, "connection", None)

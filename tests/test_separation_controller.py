@@ -8,6 +8,7 @@ import unittest
 import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from PIL import Image
@@ -17,6 +18,7 @@ try:
     )
     from laser_studio.models.image_settings import ImageSettings
     from laser_studio.models.separation import SeparationSettings
+    from job_fakes import FakeDialogs
 except ImportError:  # PyQt6, Pillow manquants
     SeparationController = None
 
@@ -37,7 +39,8 @@ class SeparationControllerTests(unittest.TestCase):
         self.image_settings = ImageSettings()
         self.settings = SeparationSettings()
         self.c = SeparationController(self.settings, self.image_settings,
-                                      frame_args=lambda: (0, 1.0, 0.5, 0.5), engrave_lmm=lambda: 10.0)
+                                      frame_args=lambda: (0, 1.0, 0.5, 0.5), engrave_lmm=lambda: 10.0,
+                                      dialogs=FakeDialogs())
         self.sources = []
         self.c.source_changed.connect(lambda ratio, name: self.sources.append((ratio, name)))
 
@@ -108,6 +111,95 @@ class SeparationControllerTests(unittest.TestCase):
         self.assertEqual(pdf_ok, "vitrail_couleur.pdf" in names)
         for path in files:
             self.assertTrue(os.path.getsize(path) > 0)
+
+
+
+@unittest.skipIf(SeparationController is None, "PyQt6 / Pillow non importables ici")
+class SeparationActionsTests(unittest.TestCase):
+    """Actions de l'onglet passées au contrôleur : chargement, rotation, aperçus, export."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.path = os.path.join(self.dir.name, "vitrail.png")
+        Image.new("RGB", (300, 200), (200, 40, 40)).save(self.path)
+        self.engraved = None
+        self.visible = True
+        self.current = PREVIEW_ENGRAVE
+        self.image_busy = False
+        self.dialogs = FakeDialogs(path=self.dir.name)
+        self.c = SeparationController(
+            SeparationSettings(), ImageSettings(), frame_args=lambda: (0, 1.0, 0.5, 0.5),
+            engrave_lmm=lambda: 10.0, dialogs=self.dialogs, engraved=lambda: self.engraved,
+            image_busy=lambda: self.image_busy, current_preview=lambda: self.current,
+            is_visible=lambda: self.visible)
+        self.events = []
+        for name in ("image_loaded", "image_rotated"):
+            getattr(self.c, name).connect(lambda name=name: self.events.append(name))
+        self.c.tone_ready.connect(lambda *_a: self.events.append("tone"))
+        self.c.preview_ready.connect(lambda index, image: self.events.append(("preview", index, image.size)))
+        self.c.engrave_dpi_changed.connect(lambda dpi: self.events.append(("dpi", dpi)))
+
+    def test_open_image_loads_then_fits_the_plate_then_sends_the_tone(self):
+        self.dialogs.path = self.path
+        self.c.open_image()
+        self.assertEqual(self.events, ["image_loaded", "tone"])      # plaque ajustée avant l'envoi
+        self.assertEqual(self.dialogs.kinds(), ["open_file"])
+
+    def test_cancelled_or_unreadable_image(self):
+        self.dialogs.path = ""
+        self.c.open_image()                                          # annulé
+        self.assertFalse(self.c.load_path(os.path.join(self.dir.name, "absent.png")))
+        self.assertEqual(self.events, [])
+        self.assertEqual(self.dialogs.kinds(), ["open_file", "error"])
+
+    def test_rotate_image_swaps_the_plate_then_sends_the_tone(self):
+        self.c.rotate_image(90)                                      # sans image : rien
+        self.c.load_path(self.path)
+        self.events.clear()
+        self.c.rotate_image(90)
+        self.assertEqual(self.events, ["image_rotated", "tone"])
+
+    def test_resolution_changed_shows_the_dpi(self):
+        self.c.resolution_changed()
+        self.assertEqual(self.events, [("dpi", 254)])
+
+    def test_preview_waits_until_the_tab_is_shown(self):
+        self.c.load_path(self.path)
+        self.engraved = np.full((50, 80), 255, np.uint8)
+        self.visible = False
+        self.events.clear()
+        self.c.engraved_changed()
+        self.assertEqual(self.events, [("dpi", 254)])               # onglet masqué : rien de calculé
+        self.visible = True
+        self.c.refresh_if_dirty()
+        self.assertEqual(self.events[-1], ("preview", PREVIEW_ENGRAVE, (80, 50)))
+        self.c.refresh_if_dirty()                                    # déjà à jour
+        self.c.render_current()
+        self.assertEqual(len(self.events), 2)
+
+    def test_export_files(self):
+        self.c.export_files()                                        # pas d'image
+        self.c.load_path(self.path)
+        self.engraved = np.full((50, 80), 255, np.uint8)
+        self.image_busy = True
+        self.c.export_files()                                        # calque noir pas encore à jour
+        self.image_busy = False
+        self.c.export_files()
+        self.assertEqual(self.dialogs.kinds(), ["info", "info", "open_folder", "info"])
+        self.assertTrue(os.path.isfile(os.path.join(self.dir.name, "vitrail_gravure.png")))
+        self.assertIn("vitrail_couleur.png", self.dialogs.last_text("info"))
+
+    def test_export_cancelled(self):
+        self.c.load_path(self.path)
+        self.engraved = np.full((50, 80), 255, np.uint8)
+        self.dialogs.path = ""
+        self.c.export_files()
+        self.assertEqual(self.dialogs.kinds(), ["open_folder"])
 
 
 if __name__ == "__main__":

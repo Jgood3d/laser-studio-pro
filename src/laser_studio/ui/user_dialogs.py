@@ -59,6 +59,10 @@ class UserDialogs:
         path, _ = QFileDialog.getOpenFileName(self.parent, title, "", file_filter)
         return path
 
+    def open_folder(self, title):
+        """Dossier choisi, ou "" si annulé."""
+        return QFileDialog.getExistingDirectory(self.parent, title)
+
     def ask_text(self, title, label):
         """Texte saisi (non nettoyé), ou None si annulé."""
         text, ok = QInputDialog.getText(self.parent, title, label)

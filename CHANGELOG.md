@@ -54,6 +54,8 @@ Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à pa
 
 Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
 
+Séparation couleur / verre : `separation_mixin.py` supprimé. L'ouverture, la rotation et le retrait de l'image, le rafraîchissement des aperçus et l'export passent dans `SeparationController`, avec des boîtes de dialogue simulables dans les tests ; l'onglet `SeparationTab` affiche lui-même aperçus, nom du fichier et résolution ; le test du gain de point rejoint `JobController`, à côté du motif aller/retour. Comportement inchangé, vérifié dans la fenêtre (chargement, aperçus, rotation, test du gain, export, suppression).
+
 ### Corrigé
 Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.
 La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.

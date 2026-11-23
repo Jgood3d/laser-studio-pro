@@ -254,7 +254,7 @@ class MenuStructureTests(unittest.TestCase):
         previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
         self.assertEqual(src.count("self.compare_dither_algorithms"), 1)   # plus dans Image & Filtres
-        uses = src.count(" = TabToolBar(") + read("separation_mixin.py").count(" = TabToolBar(")
+        uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
         self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
         self.assertEqual(src.count("._fullscreen_control"), 0)
 
@@ -451,7 +451,6 @@ class ShowWindowTests(unittest.TestCase):
     def test_toolbar_rotation_targets_the_current_tab(self):
         obj = self.image_tabs()
         obj.rotate_image_left, obj.rotate_image_right = mock.Mock(), mock.Mock()
-        obj.separation_rotate_image = mock.Mock()
         obj.main_tabs_view.currentWidget.return_value = obj.tab_previews
         obj._on_toolbar_rotate_image(clockwise=True)
         obj.rotate_image_right.assert_called_once()
@@ -460,7 +459,7 @@ class ShowWindowTests(unittest.TestCase):
         obj.png2svg_widget.rotate_image.assert_called_once_with(90)
         obj.main_tabs_view.currentWidget.return_value = obj.tab_separation
         obj._on_toolbar_rotate_image(clockwise=True)
-        obj.separation_rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
+        obj.separation.rotate_image.assert_called_once_with(-90)     # PIL : positif = antihoraire
         obj.rotate_image_left.assert_not_called()
 
     def test_connection_widgets_follow_the_port_state(self):

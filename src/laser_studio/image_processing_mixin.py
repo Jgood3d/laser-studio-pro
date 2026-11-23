@@ -178,10 +178,10 @@ class ImageProcessingMixin:
         separation = getattr(self, "separation", None)
         if separation is None:
             return
-        self._sep_update_dpi_label()
-        # Une image est chargée côté Séparation : sa tonalité est cadrée à une
-        # densité de pixels qui dépend de la résolution de gravure — on la renvoie.
-        separation.schedule_push()
+        # Libellé de l'onglet mis à jour ; une image est chargée côté Séparation :
+        # sa tonalité, cadrée à une densité de pixels qui dépend de la résolution
+        # de gravure, est renvoyée.
+        separation.resolution_changed()
 
     def _update_resolution_quality(self):
         """Pastille indiquant si l'écart de lignes actuellement réglé est
@@ -272,11 +272,23 @@ class ImageProcessingMixin:
         self.update_image_actions_state()
         self.show_status_message(tr("image.deleted"))
 
+    def on_separation_tone(self, tone, w_mm, h_mm):
+        """Tonalité de l'onglet Séparation (SeparationController.tone_ready) :
+        devient l'image à graver, à la taille de la plaque."""
+        self.raw_image = tone
+        self.block_aspect_signal = True
+        self.spin_w.setValue(w_mm)
+        self.spin_h.setValue(h_mm)
+        self.block_aspect_signal = False
+        self.display_source_image()
+        self.update_image_processing()
+
     def load_image_from_path(self, path):
         # Image classique (Images Tramage) : on rend les réglages miroir /
         # négatif / matière modifiés par un import de l'onglet Séparation.
-        if hasattr(self, "separation_release_image_settings"):
-            self.separation_release_image_settings()
+        separation = getattr(self, "separation", None)
+        if separation is not None:
+            separation.release_glass_settings()
         try:
             img = Image.open(path)
             file_dpi = read_dpi(img.info)          # lu avant les conversions, qui perdent les métadonnées
@@ -380,8 +392,9 @@ class ImageProcessingMixin:
         self.processed_array = out_arr
         qimg = QImage(dither_img.tobytes(), dither_img.width, dither_img.height, dither_img.width, QImage.Format.Format_Grayscale8)
         self.view_preview_dither.set_image(qimg)
-        if hasattr(self, "separation_on_processed"):
-            self.separation_on_processed()
+        separation = getattr(self, "separation", None)
+        if separation is not None:
+            separation.engraved_changed()
 
         if self.pending_reprocess:
             # Des réglages ont changé (ex. négatif coché/décoché, algorithme
