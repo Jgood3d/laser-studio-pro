@@ -127,14 +127,13 @@ class LayoutTests(GeneratorsTests.__base__):
 
 
 class NoWindowInControllersTests(unittest.TestCase):
-    """Les contrôleurs ne construisent pas de fenêtre : ils passent par EditorForms ou UserDialogs. Seule
-    exception connue : la bibliothèque, qui ouvre encore la sienne."""
+    """Les contrôleurs ne construisent pas de fenêtre : ils passent par EditorForms ou UserDialogs."""
 
     def test_controllers_import_no_dialog_module(self):
-        pattern = re.compile(r"from laser_studio\.ui\.(dialogs|vector_editor)\b")
+        pattern = re.compile(r"from laser_studio\.ui\.(dialogs|vector_editor)\b|QDialog")
         offenders = []
         for name in sorted(os.listdir(os.path.join(ROOT, "controllers"))):
-            if not name.endswith(".py") or name == "library.py":
+            if not name.endswith(".py"):
                 continue
             with open(os.path.join(ROOT, "controllers", name), encoding="utf-8") as f:
                 if pattern.search(f.read()):
