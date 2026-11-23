@@ -1,8 +1,8 @@
-"""Panneau des actions de job : cadrage, zéro, aller au zéro, répétition."""
+"""Panneau des actions de job : cadrage, zéro, aller au zéro, répétition, puis les macros de l'utilisateur."""
 
 from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPen, QPolygonF
-from PyQt6.QtWidgets import QGridLayout, QGroupBox, QStyle
+from PyQt6.QtWidgets import QGridLayout, QGroupBox, QPushButton, QStyle, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import painted_icon, themed_icon, tool_button
@@ -18,13 +18,21 @@ class JobActionsPanel(QGroupBox):
         panel.frame_requested.connect(engraver.frame)
 
     Les boutons sont construits à partir d'une liste d'actions (voir
-    _actions) : les macros de l'utilisateur pourront s'y ajouter.
+    _actions). Dessous, un bouton par macro de l'utilisateur (set_macros) :
+    un clic émet macro_requested(rang) ; le bouton « Macros… » émet
+    manage_macros_requested.
     """
 
     frame_requested = pyqtSignal()
     set_work_zero_requested = pyqtSignal()
     go_to_work_zero_requested = pyqtSignal()
     repeat_job_requested = pyqtSignal()
+    macro_requested = pyqtSignal(int)
+    manage_macros_requested = pyqtSignal()
+
+    # Boutons de macros par ligne, et leur largeur maximale (px).
+    MACRO_COLUMNS = 2
+    MACRO_BUTTON_MAX_WIDTH = 140
 
     def __init__(self, parent=None):
         super().__init__(tr("ui.job_actions_box"), parent)
@@ -36,8 +44,19 @@ class JobActionsPanel(QGroupBox):
             button.clicked.connect(signal)
             self.buttons[name] = button
             grid.addWidget(button, 0, col)
-        # Boutons en haut, place libre en dessous.
-        grid.setRowStretch(1, 1)
+        manage = tool_button(themed_icon(self, QIcon.ThemeIcon.DocumentProperties,
+                                         QStyle.StandardPixmap.SP_FileDialogDetailedView), tr("macros.manage_tip"))
+        manage.clicked.connect(self.manage_macros_requested)
+        self.buttons["macros"] = manage
+        grid.addWidget(manage, 0, len(self.buttons) - 1)
+        # Macros de l'utilisateur sous les actions, puis place libre.
+        self.macro_area = QWidget()
+        self._macro_grid = QGridLayout(self.macro_area)
+        self._macro_grid.setContentsMargins(0, 0, 0, 0)
+        self._macro_grid.setSpacing(4)
+        self.macro_buttons = []
+        grid.addWidget(self.macro_area, 1, 0, 1, len(self.buttons))
+        grid.setRowStretch(2, 1)
         # Rien à répéter tant qu'aucun job n'a été envoyé.
         self.set_repeat_enabled(False)
 
@@ -50,6 +69,28 @@ class JobActionsPanel(QGroupBox):
     def set_repeat_enabled(self, enabled):
         """Active « Répéter le dernier job » une fois un job envoyé."""
         self.buttons["repeat"].setEnabled(enabled)
+
+    def set_macros(self, entries):
+        """Boutons des macros : `entries` = (rang, nom, infobulle, allume le laser). Le rang est renvoyé par
+        macro_requested. Une macro qui allume le laser est marquée d'un ⚠ ."""
+        for button in self.macro_buttons:
+            self._macro_grid.removeWidget(button)
+            button.deleteLater()
+        self.macro_buttons = []
+        for position, (index, name, tooltip, laser) in enumerate(entries):
+            label = ("⚠ " if laser else "") + name
+            button = QPushButton()
+            # Nom long : coupé (« … ») pour ne pas élargir le panneau ; le nom entier est dans l'infobulle.
+            button.setMaximumWidth(self.MACRO_BUTTON_MAX_WIDTH)
+            button.setText(button.fontMetrics().elidedText(label, Qt.TextElideMode.ElideRight,
+                                                           self.MACRO_BUTTON_MAX_WIDTH - 16))
+            button.setToolTip(f"{name}\n{tooltip}" if tooltip and tooltip != name else name)
+            if laser:
+                button.setToolTip(button.toolTip() + "\n" + tr("macros.laser_tip"))
+            button.clicked.connect(lambda _checked=False, i=index: self.macro_requested.emit(i))
+            self._macro_grid.addWidget(button, position // self.MACRO_COLUMNS, position % self.MACRO_COLUMNS)
+            self.macro_buttons.append(button)
+        self.macro_area.setVisible(bool(entries))
 
     # -- construction
 

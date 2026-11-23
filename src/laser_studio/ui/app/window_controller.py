@@ -78,6 +78,7 @@ class WindowController(QObject):
         actions.keychain_generator_requested.connect(
             lambda: self.run_in_vector_editor(generators.open_keychain_generator))
         actions.camera_requested.connect(self.open_camera_dialog)
+        actions.macros_requested.connect(w.macros.manage)
         # Affichage
         actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)
         actions.gcode_console_toggled.connect(

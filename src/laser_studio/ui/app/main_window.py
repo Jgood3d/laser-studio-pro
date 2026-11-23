@@ -31,6 +31,7 @@ from laser_studio.ui.app.window_controller import WindowController
 from laser_studio.ui.app.window_state import WindowState
 from laser_studio.ui.binding import bind
 from laser_studio.ui.machine.builder import build_machine_panel
+from laser_studio.ui.machine.macros_builder import build_macros
 from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
 from laser_studio.ui.settings.machine_params.builder import build_machine_params_page
@@ -224,6 +225,9 @@ class FullLaserStudio(QMainWindow):
         self.tab_vector_2d.splitter.splitterMoved.connect(self.tabs.save_splitter_sizes)
 
         main_layout.addWidget(center_widget)
+        # Macros de l'utilisateur : boutons du panneau des actions de job, filtrés par profil machine.
+        self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver, self.connection,
+                                   self.machines, self.dialogs, parent=self)
         # Menus abonnés une fois toute la fenêtre construite.
         self.window_controller.connect_actions(self.app_actions)
         self.project.refresh_recent_projects()

@@ -71,6 +71,9 @@ class MachineProfilesController:
         self.persist_ready = False
         self._applying = False
         self._persist_timer = None
+        # Fonctions appelées quand le profil affiché ou la liste change (add_listener) : macros filtrées
+        # par profil, par exemple.
+        self._listeners = []
 
     # -- liste
 
@@ -95,6 +98,18 @@ class MachineProfilesController:
     def to_json(self):
         return json.dumps(self.profiles)
 
+    def names(self):
+        """Noms des profils, dans l'ordre de la liste."""
+        return [profile.get("name", "") for profile in self.profiles]
+
+    def add_listener(self, callback):
+        """`callback()` sera appelée à chaque changement du profil affiché ou de la liste."""
+        self._listeners.append(callback)
+
+    def _notify(self):
+        for callback in self._listeners:
+            callback()
+
     def current_name(self):
         """Nom du profil sélectionné, ou None."""
         if self._combo.currentIndex() < 0:
@@ -113,6 +128,7 @@ class MachineProfilesController:
             if index >= 0:
                 self._combo.setCurrentIndex(index)
         self._combo.blockSignals(False)
+        self._notify()
 
     def _current_index(self):
         index = self._combo.currentIndex()
@@ -135,6 +151,7 @@ class MachineProfilesController:
         finally:
             self._applying = False
         self._fields.apply_layers(saved_layers, full)
+        self._notify()
 
     def on_selected(self, index):
         """Profil choisi dans la liste."""

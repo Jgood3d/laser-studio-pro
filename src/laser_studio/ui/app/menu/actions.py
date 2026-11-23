@@ -73,6 +73,7 @@ class AppActions(QObject):
     ornament_generator_requested = pyqtSignal()
     library_requested = pyqtSignal()
     camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
+    macros_requested = pyqtSignal()  # éditeur des macros de l'utilisateur
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
 
@@ -343,6 +344,11 @@ class AppActions(QObject):
             tr("menu.tools.camera"),
             self.camera_requested,
         )
+        self.macros = self._action(
+            bundled_icon("document-properties", QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            tr("menu.tools.macros"),
+            self.macros_requested,
+        )
         self.vector_tool_actions = (
             self.library,
             self.vector_import,
@@ -351,10 +357,11 @@ class AppActions(QObject):
             self.ornament_generator,
             self.keychain_generator,
         )
-        # Caméra : placée avec les outils généraux (pas seulement vectoriel).
+        # Caméra et macros : placées avec les outils généraux (pas seulement vectoriel).
         self.tool_actions = (
             *self.tool_actions,
             self.camera,
+            self.macros,
         )
 
     def _create_help_actions(self, parent):

@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Macros : vos propres boutons de commandes G-code, sous les actions de job (décaler la tête, origine machine, pointeur…). **Outils › Macros…** ou le bouton à droite des actions de job ouvre l'éditeur : nom, infobulle, confirmation, profils machine où la macro apparaît, G-code. Une macro part seulement graveur connecté et jamais pendant un job ; si elle allume le laser, elle est marquée d'un ⚠ et toujours confirmée (Non par défaut). Enregistrées dans `macros.yaml`, exportables et importables (nouvelle dépendance : PyYAML).
+
 Caméra, alignement sur le plateau :
 - 4 AprilTags de 40 mm aux coins du plateau par défaut (au lieu de 9 de 20 mm), à 20 mm du bord ; l'orientation d'un tag collé n'a plus d'importance. L'homographie utilise les 4 coins de chaque tag.
 - Détection renforcée (affinage des coins, contraste renforcé, image agrandie ×2 si des tags manquent) ; les tags gravés sur une matière sombre peinte (en négatif) sont reconnus.

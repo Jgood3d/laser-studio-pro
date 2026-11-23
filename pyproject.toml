@@ -18,6 +18,7 @@ dependencies = [
     "PyQt6-WebEngine",
     "pyqtgraph",
     "pyserial",
+    "pyyaml",
     "scikit-image",
     "scipy",
     "svg.path",
