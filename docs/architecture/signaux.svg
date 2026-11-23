@@ -839,18 +839,18 @@
 <text x="1634" y="1911.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
 <rect x="978" y="1920" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">serial_duplicate_requested</text>
-<path d="M1278 1929.0 L1316 1929.0" stroke="#2980b9" stroke-width="2" fill="none"/>
-<path d="M1316 1925.0 L1324 1929.0 L1316 1933.0 Z" fill="#2980b9"/>
-<rect x="1324" y="1920" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.open_serial_duplicate</text>
-<text x="1634" y="1933.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
+<path d="M1278 1929.0 L1316 1929.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M1316 1925.0 L1324 1929.0 L1316 1933.0 Z" fill="#95a5a6"/>
+<rect x="1324" y="1920" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="1332" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">LayoutController.open_serial_duplicate</text>
+<text x="1634" y="1933.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/layout.py</text>
 <rect x="978" y="1942" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="1955.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">jig_requested</text>
-<path d="M1278 1951.0 L1316 1951.0" stroke="#2980b9" stroke-width="2" fill="none"/>
-<path d="M1316 1947.0 L1324 1951.0 L1316 1955.0 Z" fill="#2980b9"/>
-<rect x="1324" y="1942" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="1955.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.open_jig_generator</text>
-<text x="1634" y="1955.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
+<path d="M1278 1951.0 L1316 1951.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M1316 1947.0 L1324 1951.0 L1316 1955.0 Z" fill="#95a5a6"/>
+<rect x="1324" y="1942" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="1332" y="1955.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">GeneratorsController.open_jig_generator</text>
+<text x="1634" y="1955.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/generators.py</text>
 <rect x="978" y="1964" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="986" y="1977.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">medal_text_requested</text>
 <path d="M1278 1973.0 L1316 1973.0" stroke="#2980b9" stroke-width="2" fill="none"/>

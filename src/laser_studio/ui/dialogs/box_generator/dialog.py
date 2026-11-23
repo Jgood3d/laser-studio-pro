@@ -14,6 +14,7 @@ from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL
 from laser_studio.vector import box_generator as bg
 from laser_studio.vector.box_generator import BoxDecor
 from laser_studio.i18n import tr
+from laser_studio.i18n.errors import generator_error_text
 from laser_studio.vector import box_3d
 from laser_studio.vector import box_presets
 from laser_studio.ui.dialogs.box_generator.preview import FACE_LABEL_KEYS, BoxPreview
@@ -27,15 +28,8 @@ _ROLE = Qt.ItemDataRole.UserRole
 
 
 def error_message(error):
-    """Texte (traduit) d'une BoxError."""
-    key = f"box.err.{error.code}"
-    text = tr(key)
-    if text == key:                      # code inconnu : message générique
-        text = tr("box.err.generic")
-    try:
-        return text.format(**error.info)
-    except (KeyError, IndexError, ValueError):
-        return text
+    """Texte (traduit) d'une BoxError ; code inconnu : message générique."""
+    return generator_error_text("box", error, generic_key="box.err.generic")
 
 
 def _ratio_text(ratios):

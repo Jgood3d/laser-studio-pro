@@ -67,15 +67,16 @@ class WindowController(QObject):
         actions.theme_selected.connect(self.change_theme)
         actions.stencil_studio_requested.connect(lambda: self.stencil().open())
         actions.main_tab_requested.connect(self.show_main_tab)
-        editor = w.vector_editor
+        editor, generators = w.vector_editor, w.vector_generators
         actions.vector_import_requested.connect(lambda: self.run_in_vector_editor(editor.import_dialog))
-        actions.box_generator_requested.connect(lambda: self.run_in_vector_editor(editor.open_box_generator))
-        actions.puzzle_generator_requested.connect(lambda: self.run_in_vector_editor(editor.open_puzzle_generator))
+        actions.box_generator_requested.connect(lambda: self.run_in_vector_editor(generators.open_box_generator))
+        actions.puzzle_generator_requested.connect(
+            lambda: self.run_in_vector_editor(generators.open_puzzle_generator))
         actions.library_requested.connect(lambda: self.run_in_vector_editor(w.library.open))
         actions.ornament_generator_requested.connect(
-            lambda: self.run_in_vector_editor(editor.open_ornament_generator))
+            lambda: self.run_in_vector_editor(generators.open_ornament_generator))
         actions.keychain_generator_requested.connect(
-            lambda: self.run_in_vector_editor(editor.open_keychain_generator))
+            lambda: self.run_in_vector_editor(generators.open_keychain_generator))
         actions.camera_requested.connect(self.open_camera_dialog)
         # Affichage
         actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)

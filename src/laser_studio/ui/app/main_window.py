@@ -372,6 +372,7 @@ class FullLaserStudio(QMainWindow):
             show_tab=tabs.setCurrentWidget)
         self.tab_vector_editor, self.vector_canvas = editor.tab, editor.canvas
         self.vector_editor, self.library, self.vector_properties = editor.controller, editor.library, editor.properties
+        self.vector_generators, self.vector_layout = editor.generators, editor.layout
         # Fond caméra de l'éditeur : capture et image projetée sur le canevas (WindowController, caméra créée à
         # la première utilisation).
         editor.tab.camera_background_toggled.connect(self.window_controller.set_camera_background_enabled)

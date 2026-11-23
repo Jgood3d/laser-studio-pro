@@ -236,8 +236,15 @@ class TabCommandsTests(unittest.TestCase):
 
     def test_every_command_of_the_tab_has_an_action(self):
         from laser_studio.ui.vector_editor.tab import COMMANDS
-        self.assertEqual(sorted(set(COMMANDS) - {"library"}), sorted(self.editor.commands()))
-        self.assertTrue(all(callable(action) for action in self.editor.commands().values()))
+        from laser_studio.controllers.generators import GeneratorsController
+        from laser_studio.controllers.layout import LayoutController
+        layout = LayoutController(self.editor, forms=None)
+        parts = [self.editor.commands(), GeneratorsController(self.editor, layout, forms=None).commands(),
+                 layout.commands()]
+        names = [name for part in parts for name in part]
+        self.assertEqual(len(names), len(set(names)))                  # aucune commande traitée deux fois
+        self.assertEqual(sorted(set(COMMANDS) - {"library"}), sorted(names))
+        self.assertTrue(all(callable(action) for part in parts for action in part.values()))
 
     def test_buttons_emit_their_command(self):
         got = []

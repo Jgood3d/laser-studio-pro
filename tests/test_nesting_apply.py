@@ -202,8 +202,8 @@ class WiringTests(unittest.TestCase):
     def test_button_method_undo_and_active_layers(self):
         ui = ui_source()
         self.assertIn('("nesting", "ui.vector_nesting", "ui.vector_nesting_tip", "object-group")', ui)
-        self.assertIn('"nesting": self.open_nesting', self.src(os.path.join("controllers", "vector_editor.py")))
-        src = self.src(os.path.join("controllers", "vector_editor.py"))
+        self.assertIn('"nesting": self.open_nesting', self.src(os.path.join("controllers", "layout.py")))
+        src = self.src(os.path.join("controllers", "layout.py"))
         body = src[src.index("def open_nesting"):src.index("def open_serial_duplicate")]
         self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(canvas, members, result)"))
         self.assertIn("layer.enabled", body)
