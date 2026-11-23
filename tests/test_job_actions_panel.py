@@ -50,8 +50,24 @@ class JobActionsPanelTests(unittest.TestCase):
         panel = self.make()
         tooltips = {b.toolTip() for b in panel.findChildren(QToolButton)}
         self.assertEqual(tooltips, {tr(k) for k in ("ui.frame", "ui.zero_work", "ui.go_zero",
-                                                    "ui.repeat_last_job")})
-        self.assertEqual(panel.findChildren(QPushButton), [])     # boutons à icône seulement
+                                                    "ui.repeat_last_job", "macros.manage_tip")})
+        self.assertEqual(panel.findChildren(QPushButton), [])     # sans macro : boutons à icône seulement
+
+    def test_macro_buttons(self):
+        panel = self.make()
+        got, managed = [], []
+        panel.macro_requested.connect(got.append)
+        panel.manage_macros_requested.connect(lambda: managed.append(True))
+        panel.set_macros([(3, "Décaler", "Déplace la tête", False), (5, "Pointeur", "", True)])
+        buttons = panel.findChildren(QPushButton)
+        self.assertEqual([b.text() for b in buttons], ["Décaler", "⚠ Pointeur"])
+        self.assertIn(tr("macros.laser_tip"), buttons[1].toolTip())
+        buttons[1].click()
+        panel.buttons["macros"].click()
+        self.assertEqual((got, managed), ([5], [True]))
+        panel.set_macros([])
+        self.app.processEvents()
+        self.assertFalse(panel.macro_area.isVisibleTo(panel))
 
     def test_repeat_is_disabled_until_a_job_was_sent(self):
         panel = self.make()

@@ -86,9 +86,9 @@ laser-studio-pro/
 │   │   ├── main.py / __main__.py     # démarrage (python -m laser_studio)
 │   │   ├── gcode/                    # génération du G-Code sans Qt : job (assemblage), raster (image), svg_cut, vector (calques), test_matrix, calibration (aller/retour), preview (modèle de l'aperçu 2D), common
 │   │   ├── core/                     # socle : version, paths (chemins, ressources), constants, debug_log, preferences (réglages mémorisés)
-│   │   ├── models/                   # modèles de données (QObject à signaux) : vector_document (VectorDocument : objets, annuler / refaire, presse-papiers), vector_objects (objets du dessin : TextObject, ShapeObject, SvgPathObject), layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), settings (base SettingsModel), change_log (journal)
+│   │   ├── models/                   # modèles de données (QObject à signaux) : vector_document (VectorDocument : objets, annuler / refaire, presse-papiers), vector_objects (objets du dessin : TextObject, ShapeObject, SvgPathObject), layers (LayersModel), layer_modes (codes des modes, sans Qt), machine (MachineConfig), grbl (GrblConfig), materials (MaterialsModel), image_settings (ImageSettings, ImageSettingsHistory), separation (SeparationSettings), macros (MacrosModel : macros.yaml), settings (base SettingsModel), change_log (journal)
 │   │   ├── i18n/                     # traductions : texts/ (textes FR / EN / DE / ES, un module par zone), translations.py (les assemble, refuse une clé en double), language.py (langue, tr), errors.py (message d'une erreur de générateur)
-│   │   ├── grbl/                     # dialogue avec le graveur, sans Qt : commands (commandes GRBL, lecture de $$), streaming (envoi d'un job : tampon de 127 octets, réponses), connection, simulator, ports (ports série proposés + dernier port utilisé)
+│   │   ├── grbl/                     # dialogue avec le graveur, sans Qt : commands (commandes GRBL, lecture de $$), streaming (envoi d'un job : tampon de 127 octets, réponses), macros (macros.yaml, détection du laser), connection, simulator, ports (ports série proposés + dernier port utilisé)
 │   │   ├── image/                    # traitement d'image sans Qt : dithering (tramage), filters, size, resolution, matrix, separation, gain_test, vectorize
 │   │   ├── vector/                   # géométrie vectorielle ; QtGui (QPainterPath, QTransform, QFont) accepté comme bibliothèque de géométrie, jamais QtWidgets (tests/test_pure_modules.py)
 │   │   │   ├── importers.py / dxf.py                  # import SVG / DXF, conversion des résultats des générateurs en objets
@@ -109,7 +109,7 @@ laser-studio-pro/
 │   │   │   ├── serial_duplicate.py / serial_apply.py
 │   │   │   └── jig.py
 │   │   ├── camera/                   # module caméra sans Qt : capture, lens_calibration (objectif), workspace_alignment (homographie du plateau), storage
-│   │   ├── controllers/              # contrôleurs : job, png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety, vector_editor, generators, layout (remplacent des mixins) ; workers.py : threads (QThread) du traitement d'image, de l'envoi du G-Code, du sondage d'état, de la génération
+│   │   ├── controllers/              # contrôleurs : job, png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety, vector_editor, generators, layout, macros (remplacent des mixins) ; workers.py : threads (QThread) du traitement d'image, de l'envoi du G-Code, du sondage d'état, de la génération
 │   │   ├── resources/                # images : icône (.ico, 512 px), bannière, « Buy me a coffee »
 │   │   │   └── icons/                # thèmes d’icônes FreeDesktop embarqués
 │   │   │       ├── breeze/           # pack par défaut (LGPL-3) : 16x16, 22x22, 32x32
@@ -135,7 +135,8 @@ laser-studio-pro/
 │   │       │   ├── connection/       # ConnectionPanel (port, connecter, état GRBL, console directe) ; help_dialog : aide « Port introuvable ? »
 │   │       │   ├── status/           # MachineStateView (état GRBL), AxisPositionRow (X / Y / Z)
 │   │       │   ├── controls/         # JogControlPanel, RealtimeCommands
-│   │       │   ├── job_actions/      # JobActionsPanel
+│   │       │   ├── job_actions/      # JobActionsPanel (actions de job, boutons des macros)
+│   │       │   ├── macros_builder.py # build_macros : macros reliées au panneau, au graveur, aux profils
 │   │       │   ├── job_position/     # JobPositionBox (à droite de l'aperçu 2D)
 │   │       │   ├── console/          # DirectConsolePanel (dans Connexion)
 │   │       │   └── sent_gcode/       # SentGcodeLog (à gauche du panneau machine)
@@ -222,6 +223,9 @@ laser-studio-pro/
 | **i18n/** | Traductions FR / EN / DE / ES : `texts/` (un dictionnaire `TEXTS` par zone : app, vector, box, ornament, generators, camera, image, machine, materials), `translations.py` (assemble `TRANSLATIONS`, ImportError si une clé est définie deux fois), `language.py` (langue mémorisée, `tr()`), `errors.py` (`generator_error_text` : clé `<générateur>.err.<code>` remplie avec les infos de l'erreur). `from i18n import tr` | Toute l’UI |
 | **grbl/connection.py** | `LaserUSBController` : connexion série au graveur (ou au graveur simulé), envoi des commandes, lecture du rapport d'état | `controllers/machine_connection`, `controllers/workers` |
 | **grbl/streaming.py** | Envoi d'un job, partie sans Qt ni port : `gcode_lines` (lignes de la console que GRBL sait lire), `classify` (ok, erreur, statut, autre), `CharacterCountingStream` (prochaine ligne si elle tient dans le tampon de 127 octets, lignes en attente de leur « ok »). `GCodeStreamerThread` (controllers/workers.py) ne fait plus que les lectures et écritures au bon rythme, l'attente de Idle et l'arrêt sur erreur | `controllers/workers` |
+| **grbl/macros.py** | Macros de l'utilisateur sans Qt : `Macro` (nom, G-Code, infobulle, confirmation, profils machine ; `fires_laser`, `shown_for`), `load_macros` / `dump_macros` (YAML, G-Code en bloc littéral), `MacroError` (code traduit `macros.err.<code>`), `fires_laser` (M3 / M4 actif avec S > 0, puissance modale) | `models/macros`, `controllers/macros`, `ui/dialogs/macros` |
+| **models/macros.py** | `MacrosModel` : liste des macros lue dans `macros.yaml` (dossier des données), `changed`, `set_macros` (enregistre, écriture atomique), `visible_for(profil)` ; un fichier illisible n'est pas écrasé (`load_error`) | `controllers/macros`, `ui/machine/macros_builder` |
+| **controllers/macros.py** | `MacroController` : `run(rang)` (graveur connecté, jamais pendant un job ; laser → `confirm_default_no` toujours, sinon `confirm` si la case est cochée ; envoi par `EngraverController.send_direct`), `manage()` (éditeur, puis enregistrement), import / export. Construit par `ui/machine/macros_builder.build_macros`, qui relie aussi `JobActionsPanel.set_macros` / `macro_requested` / `manage_macros_requested`, les profils machine (`MachineProfilesController.add_listener`) et le menu **Outils › Macros…** | `main_window`, `ui/app/window_controller` |
 | **grbl/simulator.py** | `SimulatedGrblSerial` : graveur GRBL 1.1 simulé (`LASER_STUDIO_SIMULATION`), imite la partie de pyserial utilisée | `grbl.connection`, `controllers/engraver` (port « SIMULATION ») |
 | **camera/capture.py** | Détection des périphériques vidéo, capture d'images et gestion du flux vidéo brut via OpenCV, sans Qt. | `controllers/camera`, `ui/dialogs/camera/` |
 | **camera/lens_calibration.py** | Calibration optique de l'objectif (mire d'étalonnage, matrice intrinsèque, coefficients de distorsion) et redressement des images (`undistort`), sans Qt. | `controllers/camera`, `ui/dialogs/camera/lens_wizard.py` |

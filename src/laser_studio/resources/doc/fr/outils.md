@@ -134,6 +134,51 @@ Deux assistants guident les réglages : la calibration de l'objectif (avec
 un damier imprimé), puis l'alignement sur le plateau (avec des repères
 gravés).
 
+### Les macros
+
+Une macro envoie quelques lignes de G-code d'un clic : décaler la tête de
+20 mm, revenir à l'origine machine, allumer un pointeur à faible
+puissance… Ses boutons apparaissent sous les actions de job (cadrage, zéro,
+répéter), à côté du jog.
+
+**Outils › Macros…**, ou le bouton à droite des actions de job, ouvre
+l'éditeur :
+
+- **Ajouter**, **Dupliquer**, **Supprimer**, **Monter**, **Descendre** :
+  la liste des macros, dans l'ordre des boutons ;
+- **Nom** (le texte du bouton) et **Infobulle** ;
+- **Demander confirmation avant l'envoi** ;
+- **Profils machine** : les machines où la macro apparaît. Aucune case
+  cochée : toutes les machines ;
+- **G-code** : une commande par ligne. Les commentaires après « ; » sont
+  retirés.
+
+Une macro part seulement si le graveur est connecté, et jamais pendant
+l'envoi d'un job. Si elle **allume le laser** (M3 ou M4 avec une puissance
+S supérieure à 0), elle est marquée d'un ⚠ et une confirmation est toujours
+demandée, avec **Non** par défaut.
+
+Les macros sont enregistrées dans le fichier `macros.yaml`, dans le dossier
+des données de Laser Studio Pro. **Exporter…** et **Importer…** permettent
+de les partager. Le fichier se lit et se modifie aussi à la main :
+
+```yaml
+macros:
+  - name: Décaler +20 X +10 Y
+    tooltip: Déplace la tête, laser éteint
+    gcode: |
+      G91
+      G0 X20 Y10
+      G90
+  - name: Pointeur 1 %
+    machines: [Atomstack A5]
+    gcode: |
+      M3 S10
+```
+
+> **Attention** : en G91 (déplacements relatifs), pensez à revenir en G90
+> à la fin de la macro, sinon le job suivant partirait de travers.
+
 ---
 
 *Stencil Studio, l'atelier de pochoirs et d'effets lumineux, fait l'objet
