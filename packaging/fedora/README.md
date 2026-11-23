@@ -68,10 +68,8 @@ branche `Dev` du dépôt GitHub par `.copr/Makefile` (méthode « make srpm ») 
 
 ```bash
 copr-cli create laser-studio-pro \
-    --chroot fedora-43-x86_64 --chroot fedora-44-x86_64 \
-    --chroot fedora-45-x86_64 --chroot fedora-rawhide-x86_64 \
-    --chroot fedora-43-aarch64 --chroot fedora-44-aarch64 \
-    --chroot fedora-45-aarch64 --chroot fedora-rawhide-aarch64 \
+    --chroot fedora-43-x86_64 --chroot fedora-44-x86_64 --chroot fedora-45-x86_64 \
+    --chroot fedora-43-aarch64 --chroot fedora-44-aarch64 --chroot fedora-45-aarch64 \
     --description "Laser Studio Pro: prepare and engrave images and drawings on GRBL lasers"
 copr-cli add-package-scm laser-studio-pro --name laser-studio-pro \
     --clone-url https://github.com/Jgood3d/laser-studio-pro --commit Dev \
@@ -98,6 +96,12 @@ indiqué par Copr (*Settings → Integrations*) dans *Settings → Webhooks* du
 dépôt GitHub. Le paquet est noarch, mais `dnf copr enable` cherche la version
 correspondant à l'architecture de la machine : d'où les chroots aarch64
 (Raspberry Pi, Mac Apple Silicon sous Asahi).
+
+Pas de chroot rawhide : la version en développement de Fedora casse
+régulièrement des dépendances qui ne sont pas les nôtres (OpenCV, VTK), et
+l'échec bloquait le statut de chaque construction. Les versions stables
+suffisent ; on ajoutera la suivante (`copr-cli modify --chroot …`, en
+redonnant toute la liste) à sa sortie.
 
 ## À chaque nouvelle version
 
