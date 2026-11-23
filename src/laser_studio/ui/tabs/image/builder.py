@@ -4,6 +4,8 @@
                                  configure_focal=..., compare=..., status=...)
 """
 from laser_studio.controllers.image import ImageController
+from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
+from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON
 from laser_studio.ui.tabs.image.tab import ImageTab
 
 
@@ -39,6 +41,15 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     settings.configure_focal_requested.connect(configure_focal)
     # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
     settings.algorithm_combo.textActivated.connect(image.remember_algorithm)
+    # « Appliquer un filtre » : Effet BD ouvre sa fenêtre (aperçu en direct, Annuler remet l'image) ;
+    # « Aucun » retire l'effet.
+    def choose_filter(name):
+        if name == FILTER_CARTOON:
+            CartoonFilterDialog(image_settings, parent or tab).exec()
+        else:
+            image_settings.update(cartoon_radius=0)
+
+    settings.filter_requested.connect(choose_filter)
     settings.undo_requested.connect(image_history.undo)
     settings.redo_requested.connect(image_history.redo)
     tab.compare_requested.connect(compare)

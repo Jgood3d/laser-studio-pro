@@ -7,7 +7,8 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QPushButton,
+    QSizePolicy,
+    QToolButton,
     QWidget,
 )
 
@@ -20,8 +21,12 @@ from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
 from laser_studio.ui.widgets import SliderWithButtons
 
+# Filtres de la liste « Appliquer un filtre ».
+FILTER_NONE = ""
+FILTER_CARTOON = "cartoon"
+
 # Hauteur du bouton « Charger Image » (px) : la cible la plus utilisée de l'onglet.
-LOAD_BUTTON_HEIGHT = 56
+LOAD_BUTTON_HEIGHT = 84
 
 
 class ImageSettingsPanel(QWidget):
@@ -55,16 +60,21 @@ class ImageSettingsPanel(QWidget):
     # Résolution réellement utilisée, en lignes/mm (voir ResolutionBox).
     resolution_changed = pyqtSignal(float)
     configure_focal_requested = pyqtSignal()
+    # Filtre choisi dans la liste « Appliquer un filtre » par l'utilisateur : FILTER_NONE ou FILTER_CARTOON.
+    filter_requested = pyqtSignal(str)
     undo_requested = pyqtSignal()
     redo_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QFormLayout(self)
-        load_button = QPushButton(tr("img.load"))
-        # Grande cible : image dessinée à gauche du libellé, bouton plus haut que les autres champs.
+        # Grande cible : image dessinée au-dessus du libellé, sur toute la largeur du panneau.
+        load_button = QToolButton()
+        load_button.setText(tr("img.load"))
         load_button.setIcon(self._picture_icon())
         load_button.setIconSize(QSize(32, 32))
+        load_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        load_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         load_button.setMinimumHeight(LOAD_BUTTON_HEIGHT)
         load_button.clicked.connect(self.load_requested)
         layout.addRow(load_button)  # toute la largeur du panneau
@@ -80,8 +90,7 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.contrast"), self._contrast_row)
         layout.addRow(tr("img.gamma"), self._gamma_row)
         layout.addRow(tr("img.sharpness"), self._sharpness_row)
-        layout.addRow(tr("img.cartoon_radius"), self._cartoon_radius_row)
-        layout.addRow(tr("img.cartoon_black"), self._cartoon_black_row)
+        layout.addRow(tr("img.filter"), self._filter_combo())
         layout.addRow(tr("img.material_bg"), self._material_combo())
         layout.addRow("", self.invert_check)
         layout.addRow(tr("img.algorithm"), self._algorithm_combo())
@@ -112,11 +121,13 @@ class ImageSettingsPanel(QWidget):
             (self.contrast_slider, "contrast"),
             (self.gamma_slider, "gamma"),
             (self.sharpness_slider, "sharpness"),
-            (self.cartoon_radius_slider, "cartoon_radius"),
-            (self.cartoon_black_slider, "cartoon_black"),
             (self.invert_check, "invert"),
         ):
             bind(widget, settings, field)
+        # Liste des filtres : affiche « Effet BD » tant que l'effet est actif (projet ouvert, annuler…).
+        settings.changed.connect(lambda changes: self.show_filter(settings.cartoon_radius > 0)
+                                 if "cartoon_radius" in changes else None)
+        self.show_filter(settings.cartoon_radius > 0)
         combo = self.material_combo
         bind(combo, settings, "material_bg",
              to_widget=lambda key: combo.findData(key),
@@ -151,8 +162,6 @@ class ImageSettingsPanel(QWidget):
             "contrast": self.contrast_slider.value(),
             "gamma": self.gamma_slider.value(),
             "sharp": self.sharpness_slider.value(),
-            "cartoon_r": self.cartoon_radius_slider.value(),
-            "cartoon_k": self.cartoon_black_slider.value(),
             "invert": self.invert_check.isChecked(),
             "algo": self.algorithm_combo.currentText(),
         }
@@ -185,16 +194,23 @@ class ImageSettingsPanel(QWidget):
         self.gamma_slider = self._gamma_row.slider
         self.sharpness_slider = self._sharpness_row.slider
         self.sharpness_slider.setToolTip(tr("img.sharpness_tip"))
-        # Effet bande dessinée (comme le filtre de GIMP) : rayon du masque en dixièmes de mm, 0 = sans effet.
-        self._cartoon_radius_row = self._slider_row(
-            0, 50, 0, formatter=lambda v: f"{v / 10.0:.1f} mm" if v else tr("img.cartoon_off"))
-        self._cartoon_black_row = self._slider_row(0, 100, 20, formatter=lambda v: f"{v} %")
-        self.cartoon_radius_slider = self._cartoon_radius_row.slider
-        self.cartoon_black_slider = self._cartoon_black_row.slider
-        self.cartoon_radius_slider.setToolTip(tr("img.cartoon_radius_tip"))
-        self.cartoon_black_slider.setToolTip(tr("img.cartoon_black_tip"))
         self.invert_check = QCheckBox(tr("img.invert"))
         self.invert_check.stateChanged.connect(self.processing_changed)
+
+    def _filter_combo(self):
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItem(tr("img.filter_none"), FILTER_NONE)
+        self.filter_combo.addItem(tr("img.filter_cartoon"), FILTER_CARTOON)
+        self.filter_combo.setToolTip(tr("img.filter_tip"))
+        # activated : choix de l'utilisateur, même s'il reprend le filtre déjà actif (pour le régler).
+        self.filter_combo.activated.connect(lambda index: self.filter_requested.emit(self.filter_combo.itemData(index)))
+        return self.filter_combo
+
+    def show_filter(self, cartoon_active):
+        """Filtre affiché dans la liste, sans émettre de demande."""
+        blocked = self.filter_combo.blockSignals(True)
+        self.filter_combo.setCurrentIndex(self.filter_combo.findData(FILTER_CARTOON if cartoon_active else FILTER_NONE))
+        self.filter_combo.blockSignals(blocked)
 
     def _material_combo(self):
         self.material_combo = MaterialComboBox()

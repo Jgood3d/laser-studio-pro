@@ -81,5 +81,60 @@ class CartoonSettingsTests(unittest.TestCase):
         self.assertEqual((settings.cartoon_radius, settings.cartoon_black), (0, 20))
 
 
+
+class CartoonDialogTests(unittest.TestCase):
+    """Liste « Appliquer un filtre » et fenêtre « Effet BD » : aperçu en direct, Annuler remet l'image."""
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            from PyQt6.QtWidgets import QApplication
+        except ImportError:
+            raise unittest.SkipTest("PyQt6 non importable ici")
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        from laser_studio.models.image_settings import ImageSettings
+        self.settings = ImageSettings()
+        self.changes = []
+        self.settings.changed.connect(self.changes.append)
+
+    def dialog(self):
+        from laser_studio.ui.tabs.image.cartoon_dialog import DEFAULT_RADIUS, CartoonFilterDialog
+        dialog = CartoonFilterDialog(self.settings)
+        self.addCleanup(dialog.deleteLater)
+        return dialog, DEFAULT_RADIUS
+
+    def test_opening_applies_the_effect_and_sliders_follow_live(self):
+        dialog, default = self.dialog()
+        self.assertEqual(self.settings.cartoon_radius, default)            # aperçu dès l'ouverture
+        dialog.radius.slider.setValue(30)
+        dialog.black.slider.setValue(45)
+        self.assertEqual((self.settings.cartoon_radius, self.settings.cartoon_black), (30, 45))
+        dialog.accept()
+        self.assertEqual((self.settings.cartoon_radius, self.settings.cartoon_black), (30, 45))
+
+    def test_cancel_restores_the_previous_settings(self):
+        self.settings.update(cartoon_radius=12, cartoon_black=25)
+        dialog, _default = self.dialog()
+        dialog.radius.slider.setValue(40)
+        dialog.reject()
+        self.assertEqual((self.settings.cartoon_radius, self.settings.cartoon_black), (12, 25))
+
+    def test_filter_list_follows_the_model_and_asks_on_user_choice(self):
+        from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON, FILTER_NONE, ImageSettingsPanel
+        panel = ImageSettingsPanel()
+        self.addCleanup(panel.deleteLater)
+        panel.bind_settings(self.settings)
+        asked = []
+        panel.filter_requested.connect(asked.append)
+        self.assertEqual(panel.filter_combo.currentData(), FILTER_NONE)
+        self.settings.update(cartoon_radius=10)                            # projet ouvert, Ctrl+Z…
+        self.assertEqual(panel.filter_combo.currentData(), FILTER_CARTOON)
+        self.assertEqual(asked, [])                                        # pas une demande de l'utilisateur
+        panel.filter_combo.activated.emit(panel.filter_combo.findData(FILTER_CARTOON))
+        self.assertEqual(asked, [FILTER_CARTOON])
+
+
 if __name__ == "__main__":
     unittest.main()

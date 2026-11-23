@@ -1,7 +1,7 @@
 """Onglet « Graver une image » : réglages, aperçus original et tramé."""
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon, QImage
+from PyQt6.QtGui import QAction, QIcon, QImage
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -54,6 +54,9 @@ class ImageTab(QWidget):
         row.addWidget(self._settings_scroll)
         row.addWidget(self._previews(), 1)
         layout.addLayout(row)
+        # Loupes : placées par la fenêtre dans la barre flottante des aperçus (avec annuler, pivoter…).
+        self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
+        self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
         zoom_shortcuts(self, self.zoom_in, self.zoom_out)
 
     # -- construction
@@ -67,8 +70,14 @@ class ImageTab(QWidget):
         for view in (self.source_view, self.dither_view):
             view.zoom_out()
 
+    def _zoom_action(self, icon, tip_key, slot):
+        action = QAction(palette_icon(icon, self.palette()), tr(tip_key), self)
+        action.setToolTip(tr(tip_key))
+        action.triggered.connect(slot)
+        return action
+
     def _toolbar(self):
-        """Comparaison des algorithmes, « Afficher l'originale », loupes."""
+        """Comparaison des algorithmes et « Afficher l'originale »."""
         compare_icon = QIcon.fromTheme(
             "view-app-grid",
             QIcon.fromTheme(
@@ -90,8 +99,6 @@ class ImageTab(QWidget):
                     tr("img.compare_algos_tip"),
                     lambda: self.compare_requested.emit(),
                 ),
-                (palette_icon("zoom-in", self.palette()), tr("ui.zoom_in"), tr("ui.zoom_in_tip"), self.zoom_in),
-                (palette_icon("zoom-out", self.palette()), tr("ui.zoom_out"), tr("ui.zoom_out_tip"), self.zoom_out),
             ],
             left_widgets=[self.show_original_check],
         )

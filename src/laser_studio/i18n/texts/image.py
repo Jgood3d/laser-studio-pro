@@ -110,21 +110,42 @@ TEXTS = {
         "de": "Verstärkt die Kanten vor der Rasterung (Unscharf-Maskierung): feine Details, Gesichter und Texte treten beim Gravieren besser hervor. 0 = keine Wirkung. Über 60 können Lichthöfe entstehen: prüfe die Vorschau.",
         "es": "Realza los bordes antes del tramado (máscara de enfoque): los detalles pequeños, rostros y textos destacan mejor al grabar. 0 = sin efecto. Por encima de 60 pueden aparecer halos: comprueba la vista previa.",
     },
-    # --- Effet bande dessinée (comme le filtre « Bande dessinée » de GIMP) ---
+    # --- Filtres : effet bande dessinée (comme le filtre « Bande dessinée » de GIMP) ---
+    "img.filter": {
+        "fr": "Appliquer un filtre :", "en": "Apply a filter:", "de": "Filter anwenden:", "es": "Aplicar un filtro:",
+    },
+    "img.filter_none": {
+        "fr": "Aucun", "en": "None", "de": "Keiner", "es": "Ninguno",
+    },
+    "img.filter_cartoon": {
+        "fr": "Effet BD", "en": "Comic effect", "de": "Comic-Effekt", "es": "Efecto cómic",
+    },
+    "img.filter_tip": {
+        "fr": "Filtre appliqué à l'image avant le tramage. « Effet BD » ouvre ses réglages ; choisir « Effet BD » à nouveau permet de les modifier.",
+        "en": "Filter applied to the image before dithering. \"Comic effect\" opens its settings; choosing it again lets you change them.",
+        "de": "Filter, der vor der Rasterung auf das Bild angewendet wird. „Comic-Effekt“ öffnet seine Einstellungen; erneut wählen, um sie zu ändern.",
+        "es": "Filtro aplicado a la imagen antes del tramado. «Efecto cómic» abre sus ajustes; elegirlo de nuevo permite cambiarlos.",
+    },
+    "img.cartoon_title": {
+        "fr": "Effet BD", "en": "Comic effect", "de": "Comic-Effekt", "es": "Efecto cómic",
+    },
+    "img.cartoon_intro": {
+        "fr": "Noircit le bord des traits, comme le filtre « Bande dessinée » de GIMP. L'aperçu suit les curseurs ; « Annuler » remet l'image d'avant.",
+        "en": "Darkens the edges of lines, like GIMP's \"Cartoon\" filter. The preview follows the sliders; \"Cancel\" restores the previous image.",
+        "de": "Schwärzt die Ränder der Linien, wie der GIMP-Filter „Comic“. Die Vorschau folgt den Schiebereglern; „Abbrechen“ stellt das vorherige Bild wieder her.",
+        "es": "Oscurece el borde de los trazos, como el filtro «Cómic» de GIMP. La vista previa sigue los controles; «Cancelar» restaura la imagen anterior.",
+    },
     "img.cartoon_radius": {
-        "fr": "BD : rayon", "en": "Comic: radius", "de": "Comic: Radius", "es": "Cómic: radio",
+        "fr": "Rayon du masque", "en": "Mask radius", "de": "Maskenradius", "es": "Radio de la máscara",
     },
     "img.cartoon_black": {
-        "fr": "BD : noir", "en": "Comic: black", "de": "Comic: Schwarz", "es": "Cómic: negro",
-    },
-    "img.cartoon_off": {
-        "fr": "sans", "en": "off", "de": "aus", "es": "no",
+        "fr": "Pourcentage de noir", "en": "Percent black", "de": "Schwarzanteil", "es": "Porcentaje de negro",
     },
     "img.cartoon_radius_tip": {
-        "fr": "Effet bande dessinée : noircit le bord des traits, comme le filtre « Bande dessinée » de GIMP. Rayon du masque, en mm sur la pièce : la zone à laquelle chaque point est comparé. Petit rayon : traits fins ; grand rayon : traits épais et aplats noirs. 0 = aucun effet.",
-        "en": "Comic effect: darkens the edges of lines, like GIMP's \"Cartoon\" filter. Mask radius, in mm on the piece: the area each point is compared with. Small radius: thin lines; large radius: thick lines and black areas. 0 = no effect.",
-        "de": "Comic-Effekt: schwärzt die Ränder der Linien, wie der GIMP-Filter „Comic“. Maskenradius in mm auf dem Werkstück: der Bereich, mit dem jeder Punkt verglichen wird. Kleiner Radius: feine Linien; großer Radius: dicke Linien und schwarze Flächen. 0 = keine Wirkung.",
-        "es": "Efecto cómic: oscurece el borde de los trazos, como el filtro «Cómic» de GIMP. Radio de la máscara, en mm sobre la pieza: la zona con la que se compara cada punto. Radio pequeño: trazos finos; radio grande: trazos gruesos y zonas negras. 0 = sin efecto.",
+        "fr": "Effet bande dessinée : noircit le bord des traits, comme le filtre « Bande dessinée » de GIMP. Rayon du masque, en mm sur la pièce : la zone à laquelle chaque point est comparé. Petit rayon : traits fins ; grand rayon : traits épais et aplats noirs.",
+        "en": "Comic effect: darkens the edges of lines, like GIMP's \"Cartoon\" filter. Mask radius, in mm on the piece: the area each point is compared with. Small radius: thin lines; large radius: thick lines and black areas.",
+        "de": "Comic-Effekt: schwärzt die Ränder der Linien, wie der GIMP-Filter „Comic“. Maskenradius in mm auf dem Werkstück: der Bereich, mit dem jeder Punkt verglichen wird. Kleiner Radius: feine Linien; großer Radius: dicke Linien und schwarze Flächen.",
+        "es": "Efecto cómic: oscurece el borde de los trazos, como el filtro «Cómic» de GIMP. Radio de la máscara, en mm sobre la pieza: la zona con la que se compara cada punto. Radio pequeño: trazos finos; radio grande: trazos gruesos y zonas negras.",
     },
     "img.cartoon_black_tip": {
         "fr": "Effet bande dessinée : part de l'image qui devient noire (les points les plus sombres par rapport à leur voisinage). Plus haut : plus de noir autour des traits.",

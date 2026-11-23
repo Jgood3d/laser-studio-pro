@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 try:
     from PyQt6.QtGui import QImage
     from PyQt6.QtWidgets import QApplication
-    from laser_studio.i18n import tr
     from laser_studio.ui.machine.job_position import JobPositionBox
     from laser_studio.ui.tabs.image.tab import ImageTab
     from laser_studio.ui.tabs.preview_2d import Preview2DTab
@@ -31,11 +30,11 @@ class ZoomButtonsTests(unittest.TestCase):
         tab.source_view.set_image(image)
         tab.dither_view.set_image(image)
         before = [v.transform().m11() for v in (tab.source_view, tab.dither_view)]
-        actions = {a.text(): a for a in tab.toolbar.actions()}
-        actions[tr("ui.zoom_in")].trigger()
+        self.assertNotIn(tab.zoom_in_action, tab.toolbar.actions())        # dans la barre flottante, posée par la fenêtre
+        tab.zoom_in_action.trigger()
         after = [v.transform().m11() for v in (tab.source_view, tab.dither_view)]
         self.assertTrue(all(abs(a / b - 1.25) < 1e-6 for a, b in zip(after, before)))
-        actions[tr("ui.zoom_out")].trigger()
+        tab.zoom_out_action.trigger()
         back = [v.transform().m11() for v in (tab.source_view, tab.dither_view)]
         self.assertTrue(all(abs(a - b) < 1e-6 for a, b in zip(back, before)))
 
