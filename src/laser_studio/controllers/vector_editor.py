@@ -40,15 +40,18 @@ from laser_studio.vector.importers import (
     box_to_objects, decor_to_objects, dxf_to_objects, index_to_objects, jig_to_objects, keychain_to_objects,
     motif_to_objects, ornament_to_objects, puzzle_to_objects,
 )
+from laser_studio.vector import placement
 from laser_studio.vector.nesting_apply import apply_result, build_pieces
 from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
+from laser_studio.vector.serial_duplicate import union_bounds
 from laser_studio.vector.svg_extract import extract_svg_objects
 from laser_studio.core.debug_log import get_logger
 
 log = get_logger()
 
-# Marge (mm) entre le bord du plateau et les pièces d'un générateur.
-GENERATOR_OFFSET_MM = 10.0
+# Les générateurs fabriquent leurs pièces à l'origine ; import_objects les place ensuite (marge de
+# surbalayage, ou à côté des objets présents).
+GENERATOR_OFFSET_MM = 0.0
 
 
 class VectorEditorController(QObject):
@@ -63,7 +66,10 @@ class VectorEditorController(QObject):
     - image_frame() : (x, y, largeur, hauteur) en mm de l'image de « Graver
       une image », pour caler le puzzle dessus, ou None ;
     - busy() : gestionnaire de contexte pendant un calcul long (curseur
-      d'attente).
+      d'attente) ;
+    - overscan_margin(largeur_mm) : marge à gauche (mm) laissée au
+      surbalayage devant un dessin importé de cette largeur (0 s'il est
+      désactivé).
 
     Signaux :
     - show_editor() : afficher l'onglet de l'éditeur (après un import, un
@@ -81,7 +87,7 @@ class VectorEditorController(QObject):
     draw_tool_changed = pyqtSignal(object)
 
     def __init__(self, document, canvas, layers, machine, dialogs, parent=None, *,
-                 image_frame=lambda: None, busy=nullcontext):
+                 image_frame=lambda: None, busy=nullcontext, overscan_margin=lambda width_mm: 0.0):
         super().__init__(parent)
         self.document = document
         self.canvas = canvas
@@ -91,6 +97,7 @@ class VectorEditorController(QObject):
         self._parent = parent
         self._image_frame = image_frame
         self._busy = busy
+        self._overscan_margin = overscan_margin
         # Derniers réglages de chaque fenêtre, repris à sa prochaine ouverture.
         self.box_settings = None
         self.puzzle_settings = None
@@ -144,15 +151,45 @@ class VectorEditorController(QObject):
     def selected_objects(self):
         return [item.obj for item in self.canvas.selected_items_vector()]
 
-    def add_objects(self, objects, show=True):
-        """Ajoute `objects` (une étape d'annulation), affiche l'éditeur si
-        `show` et cadre la vue dessus. Renvoie leurs éléments graphiques."""
-        self.canvas.push_undo_snapshot()
+    def add_objects(self, objects, show=True, snapshot=True):
+        """Ajoute `objects` (une étape d'annulation, sauf `snapshot` faux : déjà prise), affiche l'éditeur
+        si `show` et cadre la vue dessus. Renvoie leurs éléments graphiques."""
+        if snapshot:
+            self.canvas.push_undo_snapshot()
         items = [self.canvas.add_object(obj) for obj in objects]
         if show:
             self.show_editor.emit()
         self.canvas.request_recenter(items)
         return items
+
+    def import_objects(self, objects, show=True):
+        """Ajoute un dessin importé (fichier, bibliothèque, générateur, Stencil Studio, vectorisation) en le
+        plaçant (vector/placement.py) : coin bas-gauche à la marge du surbalayage ; si l'éditeur contient
+        déjà des objets, l'utilisateur choisit d'ajouter sans y toucher, de les remplacer, ou de placer le
+        dessin à leur droite ou au-dessus. Une seule étape d'annulation. Renvoie les éléments ajoutés
+        (liste vide si l'utilisateur annule)."""
+        new_bounds = union_bounds([object_bounds(o) for o in objects])
+        if new_bounds is None:
+            return self.add_objects(objects, show)
+        existing = self.canvas.objects
+        mode = placement.ADD
+        if existing:
+            mode = self.dialogs.choose(tr("vector.place_title"), tr("vector.place_question").format(
+                count=len(existing)), [(key, tr(f"vector.place_{key}")) for key in placement.MODES])
+            if mode is None:
+                return []
+        existing_bounds = union_bounds([object_bounds(o) for o in existing]) if existing else None
+        margin_x = self._overscan_margin(new_bounds[2] - new_bounds[0])
+        dx, dy = placement.placement_offset(new_bounds, existing_bounds, mode, margin_x=margin_x)
+        for obj in objects:
+            obj.x_mm += dx
+            obj.y_mm += dy
+        self.canvas.push_undo_snapshot()
+        if mode == placement.REPLACE:
+            self.canvas.exit_node_edit()
+            self.canvas.load_objects([])
+            self.properties_changed.emit(None)
+        return self.add_objects(objects, show, snapshot=False)
 
     # -- insérer, modifier
 
@@ -401,7 +438,8 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return
-        self.add_objects(objects)
+        if not self.import_objects(objects):
+            return
         self.dialogs.info(tr("vector.svg_success_title"),
                           tr("vector.svg_success").format(count=len(objects), layer=default_layer.name))
 
@@ -422,7 +460,8 @@ class VectorEditorController(QObject):
                 if not objects:
                     raise ValueError(tr("vector.svg_empty"))
                 stats = route_objects(objects, self.layers, default_layer.id, focal=self.machine.focal)
-                self.add_objects(objects)
+                if not self.import_objects(objects):
+                    return
             else:
                 self.import_file(path)
             self.status.emit(import_summary(path, stats))
@@ -456,7 +495,8 @@ class VectorEditorController(QObject):
                 message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
             self.dialogs.info(tr("vector.dxf_title"), message)
             return
-        self.add_objects(objects)
+        if not self.import_objects(objects):
+            return
         message = tr("vector.dxf_success").format(
             count=len(objects), layer=default_layer.name, unit=dxf_import.units_label(drawing))
         if skipped:
@@ -620,10 +660,11 @@ class VectorEditorController(QObject):
                 self.dialogs.warning(tr("box.title"), tr("box.decor_error").format(error=e))
         decor_objects += motif_to_objects(result, dialog.engrave_layer_id(), offset, offset)
         decor_objects += index_to_objects(result, dialog.engrave_layer_id(), offset, offset)
-        self.add_objects([obj for _, obj in panels] + decor_objects)
+        if not self.import_objects([obj for _, obj in panels] + decor_objects):
+            return
         message = tr("box.done").format(count=len(result.panels), decor=len(decor_objects),
                                         w=result.width, h=result.height)
-        if result.width > self.machine.bed_w - 2 * offset or result.height > self.machine.bed_h - 2 * offset:
+        if result.width > self.machine.bed_w or result.height > self.machine.bed_h:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.machine.bed_w, bed_h=self.machine.bed_h)
         self.dialogs.info(tr("box.title"), message)
 
@@ -671,6 +712,7 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.warning(tr("puzzle.title"), tr("puzzle.empty"))
             return
+        # Position choisie dans la fenêtre du puzzle (par défaut calée sur l'image) : pas de replacement.
         self.add_objects(objects)
         self.dialogs.info(tr("puzzle.title"), tr("puzzle.done").format(
             nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces)))
@@ -730,7 +772,9 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.warning(tr("ornament.title"), tr("ornament.empty"))
             return
-        new_items = self.add_objects(objects)
+        new_items = self.import_objects(objects)
+        if not new_items:
+            return
         if ball_count == 1:
             geometry, contours = built[0][1].geometry, built[0][1].cut
             self.dialogs.info(tr("ornament.title"), tr("ornament.done").format(
@@ -776,8 +820,7 @@ class VectorEditorController(QObject):
             offset_x_mm=GENERATOR_OFFSET_MM,
             offset_y_mm=GENERATOR_OFFSET_MM,
         )
-        if not objects:
+        if not objects or not self.import_objects(objects):
             return
-        self.add_objects(objects)
         done_key = "keychain.done_two_layers" if getattr(result, "two_layers", False) else "keychain.done"
         self.dialogs.info(tr("keychain.title"), tr(done_key).format(w=result.width, h=result.height))

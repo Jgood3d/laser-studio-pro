@@ -13,14 +13,13 @@ Aucun module de ce paquet n'importe PyQt6 (vérifié par tests/test_gcode_packag
 from laser_studio.gcode.calibration import BIDIR_TEST_DEFAULT_OFFSETS, bidir_test_gcode
 from laser_studio.gcode.common import GcodeResult
 from laser_studio.gcode.job import build_job_gcode
-from laser_studio.gcode.raster import IMAGE_MARGIN_MM, image_origin
+from laser_studio.gcode.raster import image_origin
 from laser_studio.gcode.test_matrix import MATRIX_CUT, MATRIX_ENGRAVE, build_test_matrix_gcode
 from laser_studio.gcode.vector import build_vector_layers_gcode
 
 __all__ = [
     "BIDIR_TEST_DEFAULT_OFFSETS",
     "GcodeResult",
-    "IMAGE_MARGIN_MM",
     "MATRIX_CUT",
     "MATRIX_ENGRAVE",
     "bidir_test_gcode",

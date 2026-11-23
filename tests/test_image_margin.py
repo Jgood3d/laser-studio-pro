@@ -1,5 +1,5 @@
-"""Marge de l'image à graver (gcode.raster.IMAGE_MARGIN_MM) : avec un décalage du job à 0, le surbalayage
-ne fait plus partir la tête en X négatif."""
+"""Marge de l'image à graver (gcode.raster.image_origin) : la distance de surbalayage, en X seulement, quand
+il est actif ; avec un décalage du job à 0, le surbalayage ne fait plus partir la tête en X négatif."""
 import os
 import re
 import sys
@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio import gcode
+    from laser_studio.gcode.common import OVERSCAN_PERCENT
     from laser_studio.controllers import workers
 except ImportError:  # dépendance manquante (PyQt6, svg.path...)
     gcode = workers = None
@@ -46,10 +47,17 @@ def _engraving_moves(gcode):
 @unittest.skipIf(workers is None, "workers non importable ici")
 class ImageMarginTests(unittest.TestCase):
     def test_image_origin(self):
-        m = gcode.IMAGE_MARGIN_MM
-        self.assertEqual(m, 10.0)                          # même marge qu'à l'import d'un SVG/DXF
-        self.assertEqual(gcode.image_origin(_params()), (m, m))
-        self.assertEqual(gcode.image_origin(_params(offset_x=5.0, offset_y=-3.0)), (5.0 + m, -3.0 + m))
+        m = 2.5                                            # distance de surbalayage de _params
+        self.assertEqual(gcode.image_origin(_params()), (m, 0.0))
+        self.assertEqual(gcode.image_origin(_params(offset_x=5.0, offset_y=-3.0)), (5.0 + m, -3.0))
+        # Surbalayage désactivé (réglage global ou calque de gravure) : aucune marge.
+        self.assertEqual(gcode.image_origin(_params(enable_overscan=False)), (0.0, 0.0))
+        self.assertEqual(gcode.image_origin(_params(image_overscan=False)), (0.0, 0.0))
+        # En pourcentage : de la largeur de l'image (20 mm).
+        self.assertEqual(gcode.image_origin(_params(overscan_mode=OVERSCAN_PERCENT, overscan_pct=10.0)), (2.0, 0.0))
+        # Taille et position seules (sans réglage du surbalayage) : aucune marge.
+        self.assertEqual(gcode.image_origin({"origin_pos": "bottom_left", "offset_x": 1.0, "offset_y": 2.0,
+                                             "width_mm": 20.0, "height_mm": 10.0}), (1.0, 2.0))
         # Origine « Centre » : le décalage désigne le centre de l'image, sans marge.
         self.assertEqual(gcode.image_origin(_params(origin_pos="center", offset_x=50.0, offset_y=40.0)),
                          (40.0, 35.0))
@@ -62,9 +70,9 @@ class ImageMarginTests(unittest.TestCase):
         worker.run()
         self.assertNotIn("error", out)
         xs, ys = _engraving_moves(out["gcode"])
-        self.assertAlmostEqual(min(xs), 10.0 - 2.5)       # départ du surbalayage
-        self.assertAlmostEqual(max(xs), 10.0 + 20.0 + 2.5)
-        self.assertAlmostEqual(min(ys), 10.0)
+        self.assertAlmostEqual(min(xs), 0.0)              # départ du surbalayage, au bord du plateau
+        self.assertAlmostEqual(max(xs), 2.5 + 20.0 + 2.5)
+        self.assertAlmostEqual(min(ys), 0.0)
 
     def test_every_image_position_uses_the_margin(self):
         def source(name):

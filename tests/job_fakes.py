@@ -48,6 +48,11 @@ class FakeDialogs:
         self._record("ask_yes_no", title, text)
         return self.answer
 
+    def choose(self, title, text, choices):
+        """Renvoie `self.choice` (clé), sinon la première proposée."""
+        self._record("choose", title, text)
+        return getattr(self, "choice", choices[0][0])
+
     def save_file(self, title, default_name, file_filter):
         self._record("save_file", title, default_name)
         return self.path

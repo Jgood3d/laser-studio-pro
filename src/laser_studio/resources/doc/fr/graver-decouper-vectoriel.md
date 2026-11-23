@@ -31,7 +31,23 @@ vous voyez d'un coup d'œil ce qui sera gravé, marqué ou découpé.
 dessin arrive :
 
 - **groupé** : on le déplace et on le redimensionne d'un bloc ;
-- sur le **premier calque de découpe**.
+- sur le **premier calque de découpe** ;
+- en bas à gauche du plateau, décalé vers la droite de la distance de
+  **surbalayage** quand il est activé, pour que la tête ait la place de
+  dépasser à gauche.
+
+Si l'éditeur contient déjà des objets (un premier porte-clés, par
+exemple), Laser Studio Pro demande quoi faire du nouveau dessin :
+
+- **Ajouter sans toucher aux objets** : il arrive au même endroit, par-dessus ;
+- **Supprimer les objets présents** : il les remplace ;
+- **Ajouter à droite** : il se place à droite des objets présents ;
+- **Ajouter au-dessus** : il se place au-dessus des objets présents.
+
+Il en va de même pour la bibliothèque, les générateurs (boîte, boule de
+Noël, porte-clés), la vectorisation et Stencil Studio. Le puzzle, lui,
+garde la position choisie dans sa fenêtre. **Ctrl+Z** annule l'ajout d'un
+coup, objets supprimés compris.
 
 Pour donner des calques différents à ses parties, **dégroupez-le** :
 clic droit › **Dégrouper**. Chaque tracé devient un objet séparé.

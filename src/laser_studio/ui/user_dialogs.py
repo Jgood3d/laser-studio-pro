@@ -67,3 +67,16 @@ class UserDialogs:
         """Texte saisi (non nettoyé), ou None si annulé."""
         text, ok = QInputDialog.getText(self.parent, title, label)
         return text if ok else None
+
+    def choose(self, title, text, choices):
+        """Choix entre plusieurs réponses, plus Annuler. `choices` : liste de (clé, libellé), le premier
+        étant le bouton par défaut. Renvoie la clé choisie, ou None si annulé."""
+        box = QMessageBox(QMessageBox.Icon.Question, title, text, QMessageBox.StandardButton.NoButton,
+                          self.parent)
+        buttons = {}
+        for key, label in choices:
+            buttons[box.addButton(label, QMessageBox.ButtonRole.AcceptRole)] = key
+        box.setDefaultButton(next(iter(buttons)))
+        box.addButton(QMessageBox.StandardButton.Cancel)
+        box.exec()
+        return buttons.get(box.clickedButton())

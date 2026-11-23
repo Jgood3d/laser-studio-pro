@@ -4888,6 +4888,42 @@ TRANSLATIONS = {
         "de": "Die {count} Objekte des Vektoreditors löschen?\n\nStrg+Z (Rückgängig) holt sie zurück.",
         "es": "¿Eliminar los {count} objetos del editor vectorial?\n\nCtrl+Z (Deshacer) los recupera.",
     },
+    "vector.place_title": {
+        "fr": "Ajouter le dessin",
+        "en": "Add the drawing",
+        "de": "Zeichnung hinzufügen",
+        "es": "Añadir el dibujo",
+    },
+    "vector.place_question": {
+        "fr": "L'éditeur vectoriel contient déjà {count} objet(s). Que faire du nouveau dessin ?\n\nCtrl+Z (Annuler) revient en arrière.",
+        "en": "The vector editor already holds {count} object(s). What should be done with the new drawing?\n\nCtrl+Z (Undo) goes back.",
+        "de": "Der Vektoreditor enthält bereits {count} Objekt(e). Was soll mit der neuen Zeichnung geschehen?\n\nStrg+Z (Rückgängig) macht es rückgängig.",
+        "es": "El editor vectorial ya contiene {count} objeto(s). ¿Qué hacer con el nuevo dibujo?\n\nCtrl+Z (Deshacer) vuelve atrás.",
+    },
+    "vector.place_add": {
+        "fr": "Ajouter sans toucher aux objets",
+        "en": "Add, keep the objects",
+        "de": "Hinzufügen, Objekte behalten",
+        "es": "Añadir sin tocar los objetos",
+    },
+    "vector.place_replace": {
+        "fr": "Supprimer les objets présents",
+        "en": "Delete the existing objects",
+        "de": "Vorhandene Objekte löschen",
+        "es": "Eliminar los objetos presentes",
+    },
+    "vector.place_right": {
+        "fr": "Ajouter à droite",
+        "en": "Add to the right",
+        "de": "Rechts hinzufügen",
+        "es": "Añadir a la derecha",
+    },
+    "vector.place_above": {
+        "fr": "Ajouter au-dessus",
+        "en": "Add above",
+        "de": "Oben hinzufügen",
+        "es": "Añadir encima",
+    },
     "ui.vector_undo": {
         "fr": "↶ Annuler (Ctrl+Z)",
         "en": "↶ Undo (Ctrl+Z)",

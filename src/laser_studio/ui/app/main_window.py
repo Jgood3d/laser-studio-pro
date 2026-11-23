@@ -107,7 +107,7 @@ class FullLaserStudio(QMainWindow):
             self.connection, self.grbl, self.dialogs,
             selected_port=lambda: self.machine_panel.connection_panel.selected_port(),
             current_gcode=lambda: self.tab_console_gcode.gcode(),
-            job_geometry=self._job_geometry,
+            job_geometry=lambda: self.job.build_params(),
             set_homing_available=lambda available, tip: set_homing_available(
                 (self.tab_grbl_config.homing_check, self.tab_matrix.homing_check), available, tip),
             parent=self,
@@ -342,12 +342,6 @@ class FullLaserStudio(QMainWindow):
         return {'width_mm': width, 'height_mm': height, 'origin_pos': self.job_position_box.origin(),
                 'offset_x': offset_x, 'offset_y': offset_y}
 
-    def _image_frame(self):
-        """(x, y, largeur, hauteur) en mm de l'image de « Graver une image »,
-        pour caler le puzzle dessus (VectorEditorController)."""
-        (width, height), (x, y) = self.tab_previews.settings.size_mm(), self.tab_previews.settings.offset_mm()
-        return float(x), float(y), float(width), float(height)
-
     def _loaded_image_and_width(self):
         """(image, largeur en mm) de « Graver une image », ou None."""
         if not self.image.has_image():
@@ -362,7 +356,7 @@ class FullLaserStudio(QMainWindow):
         tabs.addTab(self.tab_previews, tr("ui.tab_image_tracing"))
         self.tab_png2svg, self.png2svg = build_png2svg_tab(
             self.layer_manager, self.machine, self.dialogs, self.image_actions, self,
-            add_to_vector_editor=lambda objects: self.vector_editor.add_objects(objects))
+            add_to_vector_editor=lambda objects: self.vector_editor.import_objects(objects))
         tabs.addTab(self.tab_png2svg, tr("png2svg.tab_title"))
         self.window_controller.add_main_tab("tab_png2svg", self.tab_png2svg)
         self.tab_separation, self.separation = build_separation_tab(
@@ -374,7 +368,8 @@ class FullLaserStudio(QMainWindow):
         self.window_controller.add_main_tab("tab_separation", self.tab_separation)
         editor = build_vector_editor(
             self.vector_document, self.layer_manager, self.machine, self.dialogs, self,
-            image_frame=self._image_frame, status=self.show_status_message, show_tab=tabs.setCurrentWidget)
+            image_frame=self.job.image_frame, overscan_margin=self.job.overscan_margin, status=self.show_status_message,
+            show_tab=tabs.setCurrentWidget)
         self.tab_vector_editor, self.vector_canvas = editor.tab, editor.canvas
         self.vector_editor, self.library, self.vector_properties = editor.controller, editor.library, editor.properties
         tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))

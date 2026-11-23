@@ -170,7 +170,8 @@ class ImageGcodeTests(unittest.TestCase):
     def test_engrave_layer_without_overscan_disables_it_for_the_image(self):
         with_overscan = self.xs(self.run_worker())
         without = self.xs(self.run_worker(image_overscan=False))
-        self.assertLess(min(with_overscan), min(without))
+        # Balayage plus large des deux côtés (l'image est aussi décalée de la marge de surbalayage).
+        self.assertGreater(max(with_overscan) - min(with_overscan), max(without) - min(without))
         self.assertGreater(max(with_overscan), max(without))
 
     def test_engrave_layer_command_replaces_the_global_one_for_the_image(self):
