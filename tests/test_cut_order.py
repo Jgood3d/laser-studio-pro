@@ -130,7 +130,7 @@ class WiringTests(unittest.TestCase):
 
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
         self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
-        self.assertIn("self.chk_safe_cut_order = page.safe_cut_order_check", ui_source())
+        self.assertIn('(page.safe_cut_order_check, "safe_cut_order")', ui_source())
         self.assertIn("'safe_cut_order':", self.src(os.path.join("controllers", "job.py")))
         self.assertIn("safe_cut_order=bool(params.get('safe_cut_order', True))", self.src(os.path.join("gcode", "job.py")))
         self.assertIn("safe_cut_order=False", self.src(os.path.join("gcode", "vector.py")))

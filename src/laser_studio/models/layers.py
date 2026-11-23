@@ -135,7 +135,7 @@ class LaserLayer:
         self.passes = max(1, int(passes))   # 0 passe = aucune découpe générée
         self.line_interval = float(line_interval)  # mm (pas du remplissage)
         # Si True, line_interval suit automatiquement la taille du spot
-        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
+        # (MachineConfig.focal) à chaque changement — voir LayersTab.link_all_to_focal.
         self.line_interval_linked = bool(line_interval_linked)
         self.enabled = bool(enabled)
         # Surbalayage : appliqué à ce calque seulement si l'option est aussi activée dans Configuration

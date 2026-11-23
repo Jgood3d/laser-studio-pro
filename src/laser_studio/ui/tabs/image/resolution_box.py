@@ -98,6 +98,33 @@ class ResolutionBox(QWidget):
     def lines_per_mm(self):
         return self.lines_per_mm_spin.value()
 
+    def set_lines_per_mm(self, lmm):
+        """Lignes/mm saisies (projet ouvert) : DPI et avis suivent, comme une saisie."""
+        self.lines_per_mm_spin.setValue(lmm)
+
+    def saved_state(self):
+        """(mode, DPI, lignes/mm) à mémoriser pour le prochain démarrage (voir restore_state)."""
+        return self.mode_combo.currentIndex(), self.dpi_spin.value(), self.lines_per_mm()
+
+    def restore_state(self, mode, dpi, lmm):
+        """Réglages mémorisés par saved_state (None : valeur gardée ; valeur illisible : ignorée). Les
+        champs sont remplis sans signal, puis refresh() recalcule tout d'après le mode."""
+        for value, spin in ((lmm, self.lines_per_mm_spin), (dpi, self.dpi_spin)):
+            if value is not None:
+                try:
+                    spin.blockSignals(True)
+                    spin.setValue(float(value))
+                except (TypeError, ValueError):
+                    pass
+                finally:
+                    spin.blockSignals(False)
+        if mode is not None:
+            try:
+                self.mode_combo.setCurrentIndex(int(mode))
+            except (TypeError, ValueError):
+                pass
+        self.refresh()
+
     def set_focal(self, focal):
         """Taille du spot laser (mm) : sert au mode focale et à l'avis sur
         l'écart entre les lignes. Ne recalcule rien (voir apply_focal)."""

@@ -48,7 +48,7 @@ class JobQueueController:
 
         queue = JobQueueController(
             tab, self, engraver,
-            current_gcode=self.txt_console.toPlainText,
+            current_gcode=console_tab.gcode,
             log_to_console=self.log_message,
             sent_log=machine_panel.sent_gcode_log,
         )

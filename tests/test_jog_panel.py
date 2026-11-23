@@ -256,10 +256,10 @@ class WindowWiringTests(unittest.TestCase):
     def test_speed_slider_follows_the_machine_max_speed(self):
         win = self.win
         slider = win.machine_panel.jog_panel.speed_slider
-        self.assertEqual(slider.maximum(), int(win.spin_machine_max_speed.value()))
-        win.spin_machine_max_speed.setValue(2000)
+        self.assertEqual(slider.maximum(), int(win.tab_machine_params.max_speed_spin.value()))
+        win.tab_machine_params.max_speed_spin.setValue(2000)
         self.assertEqual((slider.maximum(), slider.value()), (2000, 2000))
-        win.spin_machine_max_speed.setValue(8000)
+        win.tab_machine_params.max_speed_spin.setValue(8000)
         slider.setValue(10000)
         self.assertEqual(slider.value(), 8000)
 

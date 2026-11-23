@@ -52,7 +52,7 @@ class WindowController(QObject):
         # Fichier
         actions.save_project_requested.connect(w.project.save)
         actions.gcode_export_requested.connect(
-            lambda extension: w.job.export_gcode(extension, w.txt_console.toPlainText()))
+            lambda extension: w.job.export_gcode(extension, w.tab_console_gcode.gcode()))
         actions.open_project_requested.connect(w.project.open)
         actions.recent_project_requested.connect(w.project.open_path)
         actions.quit_requested.connect(w.close)

@@ -36,7 +36,7 @@ class StatusMessagesTests(unittest.TestCase):
     def test_loaded_image_is_announced_in_the_status_bar(self):
         path = os.path.join(self.tmp.name, "medaille.png")
         Image.new("L", (945, 945), 128).save(path, dpi=(300, 300))
-        console_before = self.win.txt_console.toPlainText()
+        console_before = self.win.tab_console_gcode.gcode()
         self.win.image.load_path(path)
         status_bar = self.win.statusBar()
         label = status_bar.message_label
@@ -45,7 +45,7 @@ class StatusMessagesTests(unittest.TestCase):
         self.assertIn(path, label.toolTip())                      # … chemin complet dans l'infobulle
         self.assertIn("80.0 x 80.0", label.text())
         self.assertTrue(status_bar.message_timer.isActive())
-        self.assertEqual(self.win.txt_console.toPlainText(), console_before)   # console du graveur intacte
+        self.assertEqual(self.win.tab_console_gcode.gcode(), console_before)   # console du graveur intacte
 
         status_bar.message_timer.timeout.emit()             # délai écoulé : message effacé
         self.assertEqual(label.text(), "")
@@ -60,10 +60,10 @@ class StatusMessagesTests(unittest.TestCase):
 
     def test_action_messages_go_to_the_status_bar_not_the_console(self):
         # La console ne contient que le G-Code généré, relu par l'export et la file d'attente.
-        self.win.txt_console.setPlainText("G21\nG1 X10")
+        self.win.tab_console_gcode.set_gcode("G21\nG1 X10")
         self.win.log_message(">>> Connecté sur COM3")
         self.win.log_message("> $$\n< ok")
-        self.assertEqual(self.win.txt_console.toPlainText(), "G21\nG1 X10")
+        self.assertEqual(self.win.tab_console_gcode.gcode(), "G21\nG1 X10")
         label = self.win.statusBar().message_label
         self.assertEqual(label.text(), "> $$ — < ok")
         self.assertEqual(label.toolTip(), "> $$\n< ok")

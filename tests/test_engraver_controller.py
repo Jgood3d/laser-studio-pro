@@ -346,7 +346,7 @@ class SimulatedWindowTests(unittest.TestCase):
             panel.connection_panel.connect_requested.emit()
             self.assertTrue(win.connection.is_connected())
             self.assertTrue(panel.jog_panel.isEnabled())                    # commandes déverrouillées
-            win.txt_console.setPlainText("G21\nG90\nM4 S0\nG1 X5 Y5 F3000 S100\nG0 X0 Y0\nM5\n")
+            win.tab_console_gcode.set_gcode("G21\nG90\nM4 S0\nG1 X5 Y5 F3000 S100\nG0 X0 Y0\nM5\n")
             panel.jog_panel.send_job_requested.emit()
             self.assertFalse(panel.jog_panel.send_button.isEnabled())       # pendant le job
             self.assertTrue(self.wait(lambda: info.called), "le job ne s'est pas terminé")

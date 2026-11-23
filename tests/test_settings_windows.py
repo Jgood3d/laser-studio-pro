@@ -279,7 +279,7 @@ class MenuStructureTests(unittest.TestCase):
         for check in ("flip_check", "negative_check", "hide_rapid_check", "optimize_path_check"):
             self.assertIn(f"self.{check}", bar, check)
         # Les options d'affichage sont lues par l'onglet lui-même ; « Optimiser le chemin » par le job.
-        self.assertEqual(src.count("self.chk_optimize_path = tab.optimize_path_check"), 1)
+        self.assertEqual(src.count("self.tab_vector_2d.optimize_path_check.isChecked()"), 1)
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):
@@ -350,7 +350,7 @@ class MenuStructureTests(unittest.TestCase):
         # Image & Filtres, taille et offset de l'image : panneau de gauche de « Graver une image » ;
         # ancrage : cadre « Position du job », dans l'onglet Visualisation 2D ; Calques : onglet central.
         self.assertIn('layout.addRow(tr("dim.width"), self.width_spin)', src)
-        self.assertIn("self.spin_w = settings.width_spin", src)
+        self.assertIn("self.tab_previews.settings.size_mm()", src)
         self.assertIn("layout.addWidget(self.job_position_box)", src)
         self.assertIn('layout.addRow(tr("dim.origin"), self.origin_combo)', src)
         self.assertIn('"origin_pos": w.job_position_box.origin()', src)   # code, pas le libellé traduit

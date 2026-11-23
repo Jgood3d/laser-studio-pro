@@ -111,8 +111,8 @@ class FullLaserStudio(QMainWindow):
             image=lambda: self.image.processed_array,
             svg_path=lambda: self.loaded_svg_path,
             vector_objects=lambda: self.vector_document.objects,
-            optimize_path=lambda: self.chk_optimize_path.isChecked(),
-            lines_mm=lambda: self.spin_lmm.value(),
+            optimize_path=lambda: self.tab_vector_2d.optimize_path_check.isChecked(),
+            lines_mm=lambda: self.resolution_box.lines_per_mm(),
             material_summary=lambda: self.image.material_summary(),
             parent=self,
         )
@@ -122,10 +122,10 @@ class FullLaserStudio(QMainWindow):
         self.engraver = EngraverController(
             self.connection, self.grbl, self.dialogs,
             selected_port=lambda: self.machine_panel.connection_panel.selected_port(),
-            current_gcode=lambda: self.txt_console.toPlainText(),
+            current_gcode=lambda: self.tab_console_gcode.gcode(),
             job_geometry=self._job_geometry,
             set_homing_available=lambda available, tip: set_homing_available(
-                (self.chk_homing, self.chk_mat_homing), available, tip),
+                (self.tab_grbl_config.homing_check, self.tab_matrix.homing_check), available, tip),
             parent=self,
         )
 
@@ -274,7 +274,7 @@ class FullLaserStudio(QMainWindow):
         console, statistiques et aperçu 2D ; l'état du graveur s'y ajoute
         (JobDisplay.connect_machine)."""
         self.job_display = JobDisplay(
-            self.statusBar(), self.txt_console, self.tab_vector_2d, self.machine_panel,
+            self.statusBar(), self.tab_console_gcode, self.tab_vector_2d, self.machine_panel,
             self.app_actions, self.dialogs,
             layers=self.layer_manager,
             test_matrix=lambda: self.job.last_test_matrix_params,
@@ -308,7 +308,7 @@ class FullLaserStudio(QMainWindow):
             [*rotate, None, *mirrors, None, a.image_reset, a.image_delete],
             self.tab_separation.preview_tabs, top_margin=34)
         self.png2svg_floating_toolbar = FloatingToolBar(
-            [*rotate, None, a.image_delete], self.png2svg_widget.splitter)
+            [*rotate, None, a.image_delete], self.tab_png2svg.converter.splitter)
 
     def _build_machine_panel(self):
         """Panneau machine sous les onglets, abonné à la logique de la machine.
@@ -395,13 +395,6 @@ class FullLaserStudio(QMainWindow):
                               (page.focal_spin, "focal"), (page.max_speed_spin, "max_speed"),
                               (page.accel_spin, "accel")):
             bind(widget, self.machine, field)
-        # Noms historiques des champs (Stencil Studio, focus sur le spot…).
-        self.combo_machine_profile = page.profile_combo
-        self.spin_machine_w = page.bed_width_spin
-        self.spin_machine_h = page.bed_height_spin
-        self.spin_machine_focal = page.focal_spin
-        self.spin_machine_max_speed = page.max_speed_spin
-        self.spin_machine_accel = page.accel_spin
         self.tab_machine_params = page
 
     def _build_grbl_config_page(self):
@@ -437,19 +430,6 @@ class FullLaserStudio(QMainWindow):
                               (page.end_gcode_edit, "end_gcode"),
                               (page.grbl_settings_edit, "grbl_settings")):
             bind(widget, self.grbl, field)
-        # Noms historiques des champs (homing grisé selon $22, chargement de projet…).
-        self.combo_laser_cmd = page.laser_cmd_combo
-        self.spin_smax = page.smax_spin
-        self.chk_homing = page.homing_check
-        self.chk_overscan = page.overscan_check
-        self.chk_safe_cut_order = page.safe_cut_order_check
-        self.combo_overscan_mode = page.overscan_mode_combo
-        self.spin_overscan_dist = page.overscan_dist_spin
-        self.spin_overscan_pct = page.overscan_pct_spin
-        self.spin_scan_offset = page.scan_offset_spin
-        self.txt_start_gcode = page.start_gcode_edit
-        self.txt_end_gcode = page.end_gcode_edit
-        self.txt_grbl_settings = page.grbl_settings_edit
         self.tab_grbl_config = page
 
     def _build_test_matrix_page(self):
@@ -458,7 +438,7 @@ class FullLaserStudio(QMainWindow):
         Ses lignes/mm suivent celles de « Graver une image » (spin_lmm, qui
         doit déjà exister ; voir WindowController.sync_matrix_lines_mm).
         """
-        page = TestMatrixPage(self.spin_lmm.value())
+        page = TestMatrixPage(self.resolution_box.lines_per_mm())
         page.generate_requested.connect(self.window_controller.generate_test_matrix_and_show)
         # Test à partir d'une image : fichier choisi, ou image de « Graver une
         # image » avec ses réglages de tramage.
@@ -473,32 +453,25 @@ class FullLaserStudio(QMainWindow):
             self.matrix_image.use_loaded_image
         )
         page.image_test_toggled.connect(self.matrix_image.on_image_test_toggled)
-        # Nom historique : décochée et grisée avec chk_homing quand le
-        # graveur n'a pas de homing ($22=0, voir EngraverController).
-        self.chk_mat_homing = page.homing_check
         self.tab_matrix = page
 
     def _job_geometry(self):
         """Taille et position du job, lues dans l'interface (voir JobController)."""
-        return {
-            'width_mm': self.spin_w.value(),
-            'height_mm': self.spin_h.value(),
-            'origin_pos': self.job_position_box.origin(),
-            'offset_x': self.spin_off_x.value(),
-            'offset_y': self.spin_off_y.value(),
-        }
+        (width, height), (offset_x, offset_y) = self.tab_previews.settings.size_mm(), self.tab_previews.settings.offset_mm()
+        return {'width_mm': width, 'height_mm': height, 'origin_pos': self.job_position_box.origin(),
+                'offset_x': offset_x, 'offset_y': offset_y}
 
     def _image_frame(self):
         """(x, y, largeur, hauteur) en mm de l'image de « Graver une image »,
         pour caler le puzzle dessus (VectorEditorController)."""
-        return (float(self.spin_off_x.value()), float(self.spin_off_y.value()),
-                float(self.spin_w.value()), float(self.spin_h.value()))
+        (width, height), (x, y) = self.tab_previews.settings.size_mm(), self.tab_previews.settings.offset_mm()
+        return float(x), float(y), float(width), float(height)
 
     def _loaded_image_and_width(self):
         """(image, largeur en mm) de « Graver une image », ou None."""
         if not self.image.has_image():
             return None
-        return self.image.raw_image, self.spin_w.value()
+        return self.image.raw_image, self.tab_previews.settings.size_mm()[0]
 
     def _build_layers_tab(self):
         """Onglet « Calques », abonné à la logique des calques.
@@ -584,15 +557,6 @@ class FullLaserStudio(QMainWindow):
             clear=image.clear, confirm_clear=False)          # clear() demande elle-même confirmation
         image.processed.connect(tab.show_processed)
         image.status.connect(self.show_status_message)
-        # Noms historiques des champs, encore lus par la fenêtre (génération,
-        # projets, profils, séparation, matrice).
-        self.spin_w = settings.width_spin
-        self.spin_h = settings.height_spin
-        self.spin_off_x = settings.offset_x_spin
-        self.spin_off_y = settings.offset_y_spin
-        self.spin_lmm = settings.lines_per_mm_spin
-        self.combo_lmm_mode = settings.resolution_mode_combo
-        self.spin_dpi = settings.dpi_spin
         self.tab_previews = tab
         # Résolution calée sur la focale du laser au départ, puis largeur du
         # panneau d'après ses textes (dont l'information sur la focale).
@@ -620,8 +584,6 @@ class FullLaserStudio(QMainWindow):
         )
         tab.send_to_vector_requested.connect(self.png2svg.send_to_vector_editor)
         tab.image_changed.connect(self.image_actions.update_state)
-        # Nom historique du widget de conversion (Stencil Studio, tests).
-        self.png2svg_widget = tab.converter
         converter = tab.converter
         self.image_actions.add(
             tab, has_image=lambda: bool(converter.image_path),
@@ -641,7 +603,7 @@ class FullLaserStudio(QMainWindow):
         tab.bind_settings(self.separation_settings)
         self.separation = SeparationController(
             self.separation_settings, self.image_settings,
-            frame_args=tab.frame_args, engrave_lmm=lambda: self.spin_lmm.value(),
+            frame_args=tab.frame_args, engrave_lmm=self.resolution_box.lines_per_mm,
             dialogs=self.dialogs,
             engraved=lambda: self.image.processed_array,
             image_busy=self.image.is_busy,
@@ -722,17 +684,12 @@ class FullLaserStudio(QMainWindow):
         tab = Preview2DTab(self.job_position_box)
         tab.plot_clicked.connect(self.job.apply_matrix_cell)
         tab.log.connect(self.log_message)
-        # Nom historique, lu par le job (optimize_path).
-        self.chk_optimize_path = tab.optimize_path_check
         self.main_tabs_view.addTab(tab, tr("ui.tab_2d_preview"))
         self.tab_vector_2d = tab
 
     def _build_console_tab(self):
         """Onglet « Console / G-Code », masqué au démarrage (menu Affichage)."""
         tab = ConsoleTab()
-        # Nom historique de la console : le G-Code généré ou importé, seul (les messages vont dans
-        # la barre d'état, voir log_message).
-        self.txt_console = tab.console_edit
         self.main_tabs_view.addTab(tab, tr("ui.tab_console_gcode"))
         self.tab_console_gcode = tab
 
@@ -754,7 +711,7 @@ class FullLaserStudio(QMainWindow):
             tab,
             self,
             engraver,
-            current_gcode=self.txt_console.toPlainText,
+            current_gcode=self.tab_console_gcode.gcode,
             log_to_console=self.log_message,
             sent_log=self.machine_panel.sent_gcode_log,
             dialogs=self.dialogs,

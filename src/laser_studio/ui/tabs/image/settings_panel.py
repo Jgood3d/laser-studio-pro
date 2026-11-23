@@ -110,6 +110,14 @@ class ImageSettingsPanel(QWidget):
     def size_mm(self):
         return self.width_spin.value(), self.height_spin.value()
 
+    def set_offset(self, x_mm, y_mm):
+        """Décalage de l'image (mm) par rapport à l'origine du job."""
+        self.offset_x_spin.setValue(x_mm)
+        self.offset_y_spin.setValue(y_mm)
+
+    def offset_mm(self):
+        return self.offset_x_spin.value(), self.offset_y_spin.value()
+
     def processing_settings(self):
         """Réglages du tramage, en valeurs : luminosité, contraste, gamma
         (× 100), netteté, négatif et algorithme."""

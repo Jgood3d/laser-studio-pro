@@ -111,7 +111,7 @@ def main():
     while window.job_display.last_gcode_text is None and time.time() < end:
         pump(0.2)
     pump(1.0)
-    window.png2svg_widget._load_image_path(SAMPLE_IMAGE)
+    window.tab_png2svg.converter._load_image_path(SAMPLE_IMAGE)
     pump(1.5)
     window.separation.load_path(SEPARATION_IMAGE)
     pump(1.5)
@@ -139,7 +139,7 @@ def main():
     from laser_studio.ui.dialogs.nesting import NestingDialog
     from laser_studio.ui.support import SupportDialog
 
-    bed = (window.spin_machine_w.value(), window.spin_machine_h.value())
+    bed = (window.machine.bed_w, window.machine.bed_h)
     dialogs = (
         AboutDialog(window),
         SupportDialog(window),
