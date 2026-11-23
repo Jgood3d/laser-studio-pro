@@ -92,7 +92,7 @@ laser-studio-pro/
 │   │   ├── i18n/                     # traductions : translations.py (textes FR / EN / DE / ES), language.py (langue, tr)
 │   │   ├── grbl/                     # dialogue avec le graveur, sans Qt : commands (commandes GRBL, lecture de $$), connection, simulator, ports (ports série proposés + dernier port utilisé)
 │   │   ├── image/                    # traitement d'image sans Qt : dithering (tramage), filters, size, resolution, matrix, separation, gain_test, vectorize
-│   │   ├── vector/                   # géométrie vectorielle sans Qt (sauf ornament_region, svg_extract et layer_data, en QtGui)
+│   │   ├── vector/                   # géométrie vectorielle ; QtGui (QPainterPath, QTransform, QFont) accepté comme bibliothèque de géométrie, jamais QtWidgets (tests/test_pure_modules.py)
 │   │   │   ├── importers.py / dxf.py                  # import SVG / DXF, conversion des résultats des générateurs en objets
 │   │   │   ├── svg_extract.py                         # import SVG classique (extract_svg_objects)
 │   │   │   ├── layer_data.py                          # objets -> polygones par calque pour le G-Code (extract_vector_layer_data)
@@ -430,6 +430,7 @@ Menu Outils → Caméra (CameraDialog)
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
 8. **Logique caméra découplée de Qt** : les calculs de distorsion (`lens_calibration.py`), d'homographie (`workspace_alignment.py`) et de capture (`capture.py`) résident dans `camera/` sans dépendance PyQt6 pour rester testables unitairement.
+9. **Calcul sans interface** : `gcode/`, `image/`, `camera/`, `library/` n'importent pas Qt ; `vector/` utilise QtGui et les valeurs de QtCore comme bibliothèque de géométrie, jamais QtWidgets. Vérifié par `tests/test_pure_modules.py`.
 
 ---
 
