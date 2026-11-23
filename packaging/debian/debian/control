@@ -1,0 +1,40 @@
+Source: laser-studio-pro
+Section: graphics
+Priority: optional
+Maintainer: Antoine Le Morvan <antoine@le-morvan.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               pybuild-plugin-pyproject,
+               python3-all,
+               python3-setuptools,
+               desktop-file-utils,
+               appstream
+Standards-Version: 4.7.0
+Homepage: https://github.com/Jgood3d/laser-studio-pro
+Rules-Requires-Root: no
+
+Package: laser-studio-pro
+Architecture: all
+Depends: ${misc:Depends},
+         ${python3:Depends},
+         python3-pyqt6 (>= 6.7),
+         python3-pyqt6.qtsvg (>= 6.7),
+         python3-pyqt6.qtwebengine (>= 6.7),
+         python3-pyqtgraph,
+         python3-numpy,
+         python3-scipy,
+         python3-opencv,
+         python3-skimage,
+         python3-pil,
+         python3-serial,
+         python3-svg.path,
+         python3-yaml,
+         hicolor-icon-theme
+Recommends: python3-numba
+Suggests: python3-onnxruntime
+Description: prepare and engrave images and drawings on GRBL lasers
+ Laser Studio Pro prepares images and vector drawings for laser engraving and
+ cutting, then drives GRBL engravers and cutters over USB: image engraving with
+ dithering, vector editor with layers (SVG and DXF import, text, shapes,
+ nesting), box, puzzle and keychain generators, user macros, Stencil Studio,
+ guided calibration and machine control.

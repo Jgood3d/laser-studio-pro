@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 
 try:
     from PyQt6.QtGui import QShortcut
-    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
+    from PyQt6.QtWidgets import QAbstractButton, QApplication, QLabel, QPushButton
     from laser_studio.i18n import tr
     from laser_studio.ui.machine.job_position import JobPositionBox
     from laser_studio.ui.tabs.image import ImageSettingsPanel, ImageTab
@@ -48,7 +48,7 @@ class _QtTest(unittest.TestCase):
 class ImageSettingsPanelTests(_QtTest):
     def button(self, panel, key):
         return next(
-            b for b in panel.findChildren(QPushButton) if b.text() == tr(key)
+            b for b in panel.findChildren(QAbstractButton) if b.text() == tr(key)
         )
 
     def test_processing_settings_ask_for_a_new_rendering(self):

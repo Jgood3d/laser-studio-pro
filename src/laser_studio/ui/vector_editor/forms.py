@@ -1,5 +1,5 @@
 """Fenêtres de saisie de l'éditeur vectoriel, vues par les contrôleurs : chaque méthode ouvre une fenêtre
-(texte, forme, médaille, générateurs, imbrication, série, gabarit) et renvoie ce que l'utilisateur a choisi,
+(texte, forme, médaille, générateurs, bibliothèque, imbrication, série, gabarit) et renvoie ce que l'utilisateur a choisi,
 en valeurs simples, ou None s'il a annulé.
 
 Les contrôleurs (controllers/vector_editor.py, generators.py, layout.py) ne construisent aucune fenêtre :
@@ -123,6 +123,20 @@ class EditorForms:
         return SimpleNamespace(params=dialog.jig_params(), position_mode=dialog.position_mode(),
                                position_xy=dialog.position_xy(), with_base=dialog.with_base(),
                                cut_layer=dialog.cut_layer_id(), settings=dialog.settings())
+
+    # -- bibliothèque
+
+    def library(self, categories, icon_size, on_icon_size=lambda size: None):
+        """Bibliothèque de modèles : (modèle, variantes, textes) choisis, ou None. `on_icon_size(px)` :
+        taille des vignettes changée par l'utilisateur (à mémoriser)."""
+        # Importé ici : la fenêtre (et ses vignettes) n'est chargée qu'à la première ouverture.
+        from laser_studio.ui.dialogs.library import LibraryDialog
+
+        dialog = LibraryDialog(self.parent, categories, icon_size)
+        dialog.icon_size_changed.connect(on_icon_size)
+        if not _accepted(dialog):
+            return None
+        return dialog.chosen()
 
     # -- mise en page
 

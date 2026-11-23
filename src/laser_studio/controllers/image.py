@@ -252,7 +252,8 @@ class ImageController(QObject):
             self.dialogs.info(tr("image.compare_title"), tr("image.compare_empty"))
             return None
         s = self.image_settings
-        return comparison_thumbnails(self.raw_image, s.brightness, s.contrast, s.gamma, s.sharpness, s.invert)
+        return comparison_thumbnails(self.raw_image, s.brightness, s.contrast, s.gamma, s.sharpness, s.invert,
+                                     cartoon=(s.cartoon_radius, s.cartoon_black, self._size_mm()[0]))
 
     def choose_algorithm(self, algorithm):
         """Algorithme choisi par l'utilisateur (comparaison) : appliqué et mémorisé."""

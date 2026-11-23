@@ -1,23 +1,32 @@
 """Réglages de l'onglet « Graver une image » (panneau de gauche)."""
 
-from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtCore import QPointF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QPen, QPolygonF, QShortcut
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QPushButton,
+    QSizePolicy,
+    QToolButton,
     QWidget,
 )
 
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS
 from laser_studio.ui.binding import bind
+from laser_studio.ui.utils import painted_icon
 from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
 from laser_studio.ui.widgets import SliderWithButtons
+
+# Filtres de la liste « Appliquer un filtre ».
+FILTER_NONE = ""
+FILTER_CARTOON = "cartoon"
+
+# Hauteur du bouton « Charger Image » (px) : la cible la plus utilisée de l'onglet.
+LOAD_BUTTON_HEIGHT = 84
 
 
 class ImageSettingsPanel(QWidget):
@@ -51,13 +60,22 @@ class ImageSettingsPanel(QWidget):
     # Résolution réellement utilisée, en lignes/mm (voir ResolutionBox).
     resolution_changed = pyqtSignal(float)
     configure_focal_requested = pyqtSignal()
+    # Filtre choisi dans la liste « Appliquer un filtre » par l'utilisateur : FILTER_NONE ou FILTER_CARTOON.
+    filter_requested = pyqtSignal(str)
     undo_requested = pyqtSignal()
     redo_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QFormLayout(self)
-        load_button = QPushButton(tr("img.load"))
+        # Grande cible : image dessinée au-dessus du libellé, sur toute la largeur du panneau.
+        load_button = QToolButton()
+        load_button.setText(tr("img.load"))
+        load_button.setIcon(self._picture_icon())
+        load_button.setIconSize(QSize(32, 32))
+        load_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+        load_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        load_button.setMinimumHeight(LOAD_BUTTON_HEIGHT)
         load_button.clicked.connect(self.load_requested)
         layout.addRow(load_button)  # toute la largeur du panneau
         self._build_size_fields()
@@ -72,6 +90,7 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.contrast"), self._contrast_row)
         layout.addRow(tr("img.gamma"), self._gamma_row)
         layout.addRow(tr("img.sharpness"), self._sharpness_row)
+        layout.addRow(tr("img.filter"), self._filter_combo())
         layout.addRow(tr("img.material_bg"), self._material_combo())
         layout.addRow("", self.invert_check)
         layout.addRow(tr("img.algorithm"), self._algorithm_combo())
@@ -79,6 +98,19 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
         self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
+
+    def _picture_icon(self):
+        """Icône « image » : cadre, montagnes et soleil, dans la couleur du texte du thème."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(3, 5, 26, 22, 3, 3)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(22, 12), 3, 3)
+            painter.drawPolygon(QPolygonF([QPointF(5, 25), QPointF(13, 14), QPointF(19, 21), QPointF(22, 18),
+                                           QPointF(27, 25)]))
+        return painted_icon(self.palette(), draw)
 
     def bind_settings(self, settings):
         """Lie les champs du tramage (curseurs, négatif, matière, algorithme)
@@ -92,6 +124,10 @@ class ImageSettingsPanel(QWidget):
             (self.invert_check, "invert"),
         ):
             bind(widget, settings, field)
+        # Liste des filtres : affiche « Effet BD » tant que l'effet est actif (projet ouvert, annuler…).
+        settings.changed.connect(lambda changes: self.show_filter(settings.cartoon_radius > 0)
+                                 if "cartoon_radius" in changes else None)
+        self.show_filter(settings.cartoon_radius > 0)
         combo = self.material_combo
         bind(combo, settings, "material_bg",
              to_widget=lambda key: combo.findData(key),
@@ -160,6 +196,21 @@ class ImageSettingsPanel(QWidget):
         self.sharpness_slider.setToolTip(tr("img.sharpness_tip"))
         self.invert_check = QCheckBox(tr("img.invert"))
         self.invert_check.stateChanged.connect(self.processing_changed)
+
+    def _filter_combo(self):
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItem(tr("img.filter_none"), FILTER_NONE)
+        self.filter_combo.addItem(tr("img.filter_cartoon"), FILTER_CARTOON)
+        self.filter_combo.setToolTip(tr("img.filter_tip"))
+        # activated : choix de l'utilisateur, même s'il reprend le filtre déjà actif (pour le régler).
+        self.filter_combo.activated.connect(lambda index: self.filter_requested.emit(self.filter_combo.itemData(index)))
+        return self.filter_combo
+
+    def show_filter(self, cartoon_active):
+        """Filtre affiché dans la liste, sans émettre de demande."""
+        blocked = self.filter_combo.blockSignals(True)
+        self.filter_combo.setCurrentIndex(self.filter_combo.findData(FILTER_CARTOON if cartoon_active else FILTER_NONE))
+        self.filter_combo.blockSignals(blocked)
 
     def _material_combo(self):
         self.material_combo = MaterialComboBox()

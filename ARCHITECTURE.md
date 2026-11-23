@@ -71,11 +71,12 @@ laser-studio-pro/
 ├── requirements-linux.txt / requirements-windows.txt   # dépendances par plateforme
 ├── requirements_principal.txt        # versions exactes figées pour les builds
 ├── .copr/Makefile                    # paquet source (SRPM) construit par Copr depuis le commit courant, voir packaging/fedora/
-├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage, Windows, macOS, release en brouillon), macos-build.yml
+├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage et .deb, Windows, macOS, release en brouillon), macos-build.yml
 ├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
 │   ├── fedora/                       # laser-studio-pro.spec (paquet RPM, Copr), README.md
+│   ├── debian/                       # build-deb.sh, debian/ (control, rules : paquet .deb, bibliothèques Debian), README.md
 │   ├── linux/                        # build-linux.sh, build-appimage.sh, io.github.jgood3d.LaserStudioPro.desktop (entrée de menu), .metainfo.xml (fiche AppStream des logithèques)
 │   ├── macos/                        # LaserStudioPro.spec, build_macos.sh, run_macos.sh, requirements-macos.txt, laser_studio_pro.icns, README.md
 │   └── pyinstaller/                  # LaserStudioPro.spec (commun Windows / Linux), bundle_filter.py (filtre des fichiers inutiles)
@@ -289,7 +290,7 @@ laser-studio-pro/
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `controllers/vector_editor` |
 | **vector/svg_import.py** | Import SVG selon la convention des modèles (`resources/library/README.md`) : seuls les calques `Cut`, `Engrave` (noir gravé, blanc creusé) et `Mark` sont importés ; options = sous-calques d'un groupe, un seul visible (`find_variant_groups`) ; textes en objets texte modifiables (`TextObject`, calés sur le rendu SVG) et remplaçables (`find_texts`) ; aperçu tel qu'importé (`svg_preview`) ; unités et transformations cumulées. Utilisé par la bibliothèque ; à valider pour remplacer `extract_svg_objects` | `controllers/library`, `ui/dialogs/library` |
 | **library/catalog.py** | Catalogue de la bibliothèque, sans Qt : catégories et modèles des dossiers `resources/library/` (à côté de l'exécutable et dans le bundle), `_category.json`, `info.json`, aperçu, readme | `controllers/library` |
-| **controllers/library.py** | `LibraryController` : ouvre la bibliothèque (taille des aperçus mémorisée), importe le modèle choisi avec ses variantes, chaque rôle sur le calque de base de même rôle | `main_window`, `window_controller` |
+| **controllers/library.py** | `LibraryController` : ouvre la bibliothèque par `EditorForms.library` (taille des aperçus mémorisée), importe le modèle choisi avec ses variantes, chaque rôle sur le calque de base de même rôle, par `VectorEditorController.import_objects`. Plus aucun contrôleur ne construit de fenêtre (garde-fou : `tests/test_generators_controller.py`) | `main_window`, `window_controller` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |
 | **vector/text_on_path.py** | Texte le long d'un tracé quelconque, sans Qt : `path_placements(advances, points, center_fraction, spacing, reverse, gap)` donne `(x, y, rotation)` de chaque lettre (direction = corde sous la largeur de la lettre ; prolongement droit au-delà d'un tracé ouvert, bouclage sur un tracé fermé). `orient_path` (fermé : sens horaire ; ouvert : de gauche à droite), `default_center_fraction`, `is_closed`, `relative_points`, `scaled_points`. Testé dans `tests/test_text_on_path.py` | `models/vector_objects.TextObject._follow_path` |
 | **vector/text_on_arc.py** | Texte sur un cercle, sans Qt : `arc_placements(advances, rayon, centre, intérieur, espacement)` donne `(x, y, rotation)` de chaque lettre (repère mathématique, Y vers le haut, centre du cercle en (0, 0) ; 90° = haut, 270° = bas), `arc_span_deg`, `text_length`, `default_center_deg`. Extérieur : lettres vers l'extérieur, lu dans le sens horaire ; intérieur : lettres vers le centre, lu de gauche à droite en bas. Testé dans `tests/test_text_on_arc.py` | `models/vector_objects.TextObject` |

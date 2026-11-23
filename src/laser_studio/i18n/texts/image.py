@@ -110,6 +110,49 @@ TEXTS = {
         "de": "Verstärkt die Kanten vor der Rasterung (Unscharf-Maskierung): feine Details, Gesichter und Texte treten beim Gravieren besser hervor. 0 = keine Wirkung. Über 60 können Lichthöfe entstehen: prüfe die Vorschau.",
         "es": "Realza los bordes antes del tramado (máscara de enfoque): los detalles pequeños, rostros y textos destacan mejor al grabar. 0 = sin efecto. Por encima de 60 pueden aparecer halos: comprueba la vista previa.",
     },
+    # --- Filtres : effet bande dessinée ---
+    "img.filter": {
+        "fr": "Appliquer un filtre :", "en": "Apply a filter:", "de": "Filter anwenden:", "es": "Aplicar un filtro:",
+    },
+    "img.filter_none": {
+        "fr": "Aucun", "en": "None", "de": "Keiner", "es": "Ninguno",
+    },
+    "img.filter_cartoon": {
+        "fr": "Effet BD", "en": "Comic effect", "de": "Comic-Effekt", "es": "Efecto cómic",
+    },
+    "img.filter_tip": {
+        "fr": "Filtre appliqué à l'image avant le tramage. « Effet BD » ouvre ses réglages ; choisir « Effet BD » à nouveau permet de les modifier.",
+        "en": "Filter applied to the image before dithering. \"Comic effect\" opens its settings; choosing it again lets you change them.",
+        "de": "Filter, der vor der Rasterung auf das Bild angewendet wird. „Comic-Effekt“ öffnet seine Einstellungen; erneut wählen, um sie zu ändern.",
+        "es": "Filtro aplicado a la imagen antes del tramado. «Efecto cómic» abre sus ajustes; elegirlo de nuevo permite cambiarlos.",
+    },
+    "img.cartoon_title": {
+        "fr": "Effet BD", "en": "Comic effect", "de": "Comic-Effekt", "es": "Efecto cómic",
+    },
+    "img.cartoon_intro": {
+        "fr": "Noircit le bord des traits pour donner un effet Bande Dessinée.",
+        "en": "Darkens the edges of lines to give a comic book effect.",
+        "de": "Schwärzt die Ränder der Linien für einen Comic-Effekt.",
+        "es": "Oscurece el borde de los trazos para dar un efecto de cómic.",
+    },
+    "img.cartoon_radius": {
+        "fr": "Rayon du masque", "en": "Mask radius", "de": "Maskenradius", "es": "Radio de la máscara",
+    },
+    "img.cartoon_black": {
+        "fr": "Pourcentage de noir", "en": "Percent black", "de": "Schwarzanteil", "es": "Porcentaje de negro",
+    },
+    "img.cartoon_radius_tip": {
+        "fr": "Effet bande dessinée : noircit le bord des traits. Rayon du masque, en mm sur la pièce : la zone à laquelle chaque point est comparé. Petit rayon : traits fins ; grand rayon : traits épais et aplats noirs.",
+        "en": "Comic effect: darkens the edges of lines. Mask radius, in mm on the piece: the area each point is compared with. Small radius: thin lines; large radius: thick lines and black areas.",
+        "de": "Comic-Effekt: schwärzt die Ränder der Linien. Maskenradius in mm auf dem Werkstück: der Bereich, mit dem jeder Punkt verglichen wird. Kleiner Radius: feine Linien; großer Radius: dicke Linien und schwarze Flächen.",
+        "es": "Efecto cómic: oscurece el borde de los trazos. Radio de la máscara, en mm sobre la pieza: la zona con la que se compara cada punto. Radio pequeño: trazos finos; radio grande: trazos gruesos y zonas negras.",
+    },
+    "img.cartoon_black_tip": {
+        "fr": "Effet bande dessinée : part de l'image qui devient noire (les points les plus sombres par rapport à leur voisinage). Plus haut : plus de noir autour des traits.",
+        "en": "Comic effect: share of the image that turns black (the points darkest compared with their surroundings). Higher: more black around the lines.",
+        "de": "Comic-Effekt: Anteil des Bildes, der schwarz wird (die im Vergleich zur Umgebung dunkelsten Punkte). Höher: mehr Schwarz um die Linien.",
+        "es": "Efecto cómic: parte de la imagen que se vuelve negra (los puntos más oscuros respecto a su entorno). Más alto: más negro alrededor de los trazos.",
+    },
     # --- Taille d'origine de l'image ---
     "image.natural_size": {
         "fr": "Image insérée à sa taille d'origine : {w:.1f} x {h:.1f} mm ({dpi:.0f} DPI).",

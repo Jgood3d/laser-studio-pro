@@ -7,6 +7,14 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Debian et Ubuntu : paquet `.deb` (Debian 13 et plus récentes, Ubuntu 25.04 et plus récentes), avec les bibliothèques Python du système : `sudo apt install ./laser-studio-pro_<version>_all.deb`. Joint à chaque release ; construit par `packaging/debian/build-deb.sh`.
+
+Graver une image et Visualisation 2D G-Code : loupes « Zoom avant » et « Zoom arrière » dans la barre flottante (aussi Ctrl++ et Ctrl+-), zoom centré sur la vue. Dans « Graver une image », l'originale et le rendu tramé zooment ensemble.
+
+Graver une image : liste « Appliquer un filtre » avec un effet bande dessinée, à la manière du filtre « Bande dessinée » de GIMP, qui noircit le bord des traits avant le tramage. Choisir « Effet BD » ouvre une fenêtre avec le rayon du masque (en mm sur la pièce) et le pourcentage de noir : l'aperçu suit les curseurs en direct, « Annuler » remet l'image d'avant. Enregistré dans le projet.
+
+Graver une image : le bouton « Charger Image » est plus grand, avec une image au-dessus du texte, pour être trouvé du premier coup.
+
 Macros : vos propres boutons de commandes G-code, sous les actions de job (décaler la tête, origine machine, pointeur…). **Outils › Macros…** ou le bouton à droite des actions de job ouvre l'éditeur : nom, infobulle, confirmation, profils machine où la macro apparaît, G-code. Une macro part seulement graveur connecté et jamais pendant un job ; si elle allume le laser, elle est marquée d'un ⚠ et toujours confirmée (Non par défaut). Enregistrées dans `macros.yaml`, exportables et importables (nouvelle dépendance : PyYAML).
 
 Caméra, alignement sur le plateau :

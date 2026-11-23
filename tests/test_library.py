@@ -604,8 +604,8 @@ class LibraryControllerTests(unittest.TestCase):
         layers = LayersModel()
         layers.load_list([])                     # les trois calques de base : gravure, découpe, marquage
         added = []
-        controller = LibraryController(None, layers, bed_height=lambda: 300.0,
-                                       add_to_vector_editor=added.extend, roots=lambda: [LIBRARY])
+        controller = LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=added.extend,
+                                       forms=mock.Mock(), dialogs=mock.Mock(), roots=lambda: [LIBRARY])
         item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-sportif-modele-1")
         objects = controller.import_item(item)
         self.assertEqual(objects, added)
@@ -618,9 +618,24 @@ class LibraryControllerTests(unittest.TestCase):
         layers.load_list([])
         dialogs = mock.Mock()                            # boîtes de dialogue simulées (UserDialogs)
         with tempfile.TemporaryDirectory() as empty:
-            LibraryController(None, layers, bed_height=lambda: 300.0, add_to_vector_editor=list,
-                              roots=lambda: [empty], dialogs=dialogs).open()
+            LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=list,
+                              forms=mock.Mock(), roots=lambda: [empty], dialogs=dialogs).open()
         dialogs.info.assert_called_once()
+
+    def test_chosen_model_is_imported_and_cancel_does_nothing(self):
+        layers = LayersModel()
+        layers.load_list([])
+        added, forms = [], mock.Mock()
+        controller = LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=added.extend,
+                                       forms=forms, dialogs=mock.Mock(), roots=lambda: [LIBRARY])
+        forms.library.return_value = None
+        controller.open()
+        self.assertEqual(added, [])
+        item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-sportif-modele-1")
+        forms.library.return_value = (item, None, None)
+        controller.open()
+        self.assertTrue(added)
+        self.assertEqual(len(forms.library.call_args.args[0]), len(controller.catalog()))
 
 
 if __name__ == "__main__":

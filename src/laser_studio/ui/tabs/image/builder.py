@@ -4,6 +4,8 @@
                                  configure_focal=..., compare=..., status=...)
 """
 from laser_studio.controllers.image import ImageController
+from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
+from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON
 from laser_studio.ui.tabs.image.tab import ImageTab
 
 
@@ -39,6 +41,27 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     settings.configure_focal_requested.connect(configure_focal)
     # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
     settings.algorithm_combo.textActivated.connect(image.remember_algorithm)
+    # « Appliquer un filtre » : Effet BD ouvre sa fenêtre (aperçu en direct, Annuler remet l'image) ;
+    # « Aucun » retire l'effet. Fenêtre NON modale : un bureau comme GNOME accroche une fenêtre modale à
+    # la fenêtre principale (la déplacer entraînait et redimensionnait la fenêtre principale).
+    open_dialog = []
+
+    def choose_filter(name):
+        if name == FILTER_CARTOON:
+            if open_dialog:                              # déjà ouverte : ramenée devant
+                open_dialog[0].raise_()
+                open_dialog[0].activateWindow()
+                return
+            dialog = CartoonFilterDialog(image_settings, parent or tab)
+            dialog.finished.connect(lambda _result: open_dialog.clear())
+            open_dialog.append(dialog)
+            dialog.show()
+        else:
+            if open_dialog:
+                open_dialog[0].accept()                  # fermée sans remettre l'ancien réglage
+            image_settings.update(cartoon_radius=0)
+
+    settings.filter_requested.connect(choose_filter)
     settings.undo_requested.connect(image_history.undo)
     settings.redo_requested.connect(image_history.redo)
     tab.compare_requested.connect(compare)

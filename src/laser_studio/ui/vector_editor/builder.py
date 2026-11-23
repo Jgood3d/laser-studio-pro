@@ -43,8 +43,8 @@ def build_vector_editor(document, layers, machine, dialogs, parent, *, image_fra
     layout = LayoutController(controller, forms, busy=busy_cursor)
     generators = GeneratorsController(controller, layout, forms, image_frame=image_frame, busy=busy_cursor)
     # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
-    library = LibraryController(parent, layers, bed_height=lambda: machine.bed_h,
-                                add_to_vector_editor=controller.import_objects, dialogs=dialogs)
+    library = LibraryController(layers, bed_height=lambda: machine.bed_h,
+                                add_to_vector_editor=controller.import_objects, forms=forms, dialogs=dialogs)
     tab = VectorEditorTab(canvas)
     commands = {**controller.commands(), **generators.commands(), **layout.commands(), "library": library.open}
     tab.command.connect(lambda name: commands[name]())
