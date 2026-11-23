@@ -37,7 +37,7 @@ class StatusMessagesTests(unittest.TestCase):
         path = os.path.join(self.tmp.name, "medaille.png")
         Image.new("L", (945, 945), 128).save(path, dpi=(300, 300))
         console_before = self.win.txt_console.toPlainText()
-        self.win.load_image_from_path(path)
+        self.win.image.load_path(path)
         status_bar = self.win.statusBar()
         label = status_bar.message_label
         self.assertIn("medaille.png", label.text())

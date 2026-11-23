@@ -238,7 +238,7 @@ class WindowWiringTests(unittest.TestCase):
         self.assertNotIn("MachineProfilesPage", src)
         self.assertFalse(os.path.exists(os.path.join(REPO, "src", "laser_studio", "ui", "settings", "machine_profiles")))
         # Profil machine : le matériau ne réécrase pas les calques que le profil vient de restaurer.
-        self.assertIn("self._apply_job_settings(material, layers=False)", src)
+        self.assertIn("self.apply_job_settings(material, layers=False)", self.read("ui", "app", "window_state.py"))
 
 
 @unittest.skipIf(LayerManager is None, "PyQt6 non importable ici")

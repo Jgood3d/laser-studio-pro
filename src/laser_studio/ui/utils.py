@@ -1,11 +1,12 @@
 """Petits utilitaires partagés par les éléments d'interface."""
 
 import os
+from contextlib import contextmanager
 
 from PyQt6.QtCore import QByteArray, QSize, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPalette, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QStyle, QToolButton
+from PyQt6.QtWidgets import QApplication, QStyle, QToolButton
 
 from laser_studio.core.constants import JOG_BUTTON_SIZE
 from laser_studio.core.paths import find_resource
@@ -112,3 +113,13 @@ def scaled_to_width_hidpi(pixmap, width, ratio):
         round(width * ratio), Qt.TransformationMode.SmoothTransformation)
     scaled.setDevicePixelRatio(ratio)
     return scaled
+
+
+@contextmanager
+def busy_cursor():
+    """Curseur d'attente pendant un calcul long (imbrication, série, export)."""
+    QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+    try:
+        yield
+    finally:
+        QApplication.restoreOverrideCursor()

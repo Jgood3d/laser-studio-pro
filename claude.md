@@ -7,7 +7,7 @@ Application PyQt6 open-source en Python dédiée à la gravure laser, la découp
 - `laser_studio_pro.py` : Point d'entrée principal de l'application graphique.
 - `dxf_import.py` & `ui/widgets/zoomable_graphics_view.py` : Gestion de l'affichage vectoriel et des formats CAO.
 - `box_generator.py` & `ui/dialogs/box_generator/` : Génération automatisée de boîtes et boîtiers de montage.
-- `image_processing_mixin.py` & `image/filters.py` : Traitement d'image et vectorisation PNG/SVG.
+- `controllers/image.py` & `image/dithering.py` (tramage sans Qt), `image/filters.py` : Traitement de l'image à graver ; `image/vectorize.py` : vectorisation PNG/SVG.
 - `controllers/engraver.py` & `grbl/commands.py` (communication) ; `gcode/` (génération sans Qt) & `controllers/job.py` : Communication et génération de G-code.
 
 ## Bonnes pratiques

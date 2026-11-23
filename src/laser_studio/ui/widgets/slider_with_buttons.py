@@ -9,7 +9,7 @@ class SliderWithButtons(QWidget):
     affichée à droite (mise en forme par `formatter`, str par défaut).
 
         row = SliderWithButtons(-100, 100, 0)
-        row.value_changed.connect(self.update_image_processing)
+        row.value_changed.connect(image.schedule_processing)
 
     Le curseur reste accessible (`slider`) pour lire ou régler la valeur.
     """

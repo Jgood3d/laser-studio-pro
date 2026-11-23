@@ -66,6 +66,8 @@ droit › **Regrouper en un seul objet**.
   change).
 - **Pivoter 90°**, **Dupliquer**, **Supprimer**, **Tout supprimer**.
 - **Annuler** (Ctrl+Z) et **Refaire** (Ctrl+Y).
+- **Zoom avant** (Ctrl++) et **Zoom arrière** (Ctrl+-) : les loupes au bout
+  de la barre d'édition, ou la molette de la souris.
 - Clic droit › **Éditer les nœuds** pour déplacer les points d'un tracé,
   ou **Exploser en segments** pour le découper en morceaux.
 

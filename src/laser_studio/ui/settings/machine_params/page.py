@@ -27,7 +27,7 @@ class MachineParamsPage(QScrollArea):
 
         page = MachineParamsPage()
         page.new_profile_requested.connect(self._new_machine_profile)
-        page.focal_changed.connect(self._on_machine_focal_changed)
+        page.focal_changed.connect(window_controller.machine_focal_changed)
 
     Simple vue : ses champs (bed_width_spin, bed_height_spin, focal_spin,
     max_speed_spin, accel_spin) sont liés au modèle MachineConfig

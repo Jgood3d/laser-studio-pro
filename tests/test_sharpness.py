@@ -116,16 +116,17 @@ class IntegrationSourceTests(unittest.TestCase):
     def test_slider_is_created_and_shown_after_gamma(self):
         ui = ui_source()
         self.assertIn("self.sharpness_slider = self._sharpness_row.slider", ui)
-        self.assertIn("self.slider_sharp = settings.sharpness_slider", ui)
         self.assertLess(ui.index('layout.addRow(tr("img.gamma")'), ui.index('layout.addRow(tr("img.sharpness")'))
 
     def test_reset_undo_params_and_comparison_use_it(self):
         """Le curseur est lié au modèle ImageSettings (sharpness), qui sert à la
         réinitialisation, à l'annulation, au traitement et à la comparaison."""
-        ip = self.src("image_processing_mixin.py")
-        for needle in ('(self.slider_sharp, "sharpness")', "**self.image_settings.processing_params()",
-                       "settings.sharpness", "sharpen_image(Image.fromarray"):
-            self.assertIn(needle, ip)
+        sources = {"ui/tabs/image/settings_panel.py": '(self.sharpness_slider, "sharpness")',
+                   "controllers/image.py": "**self.image_settings.processing_params()"}
+        for name, needle in sources.items():
+            self.assertIn(needle, self.src(name), name)
+        self.assertIn("s.sharpness", self.src("controllers/image.py"))              # comparaison
+        self.assertIn("sharpen_image(Image.fromarray", self.src("image/dithering.py"))
         from laser_studio.models.image_settings import ImageSettings
         settings = ImageSettings()
         settings.update(sharpness=40)
@@ -135,8 +136,8 @@ class IntegrationSourceTests(unittest.TestCase):
 
     def test_project_saves_and_restores_it_with_a_default(self):
         pj = project_state_source()
-        self.assertIn("**self.image_settings.to_project()", pj)
-        self.assertIn("self.image_settings.load_project(data)", pj)
+        self.assertIn("**w.image_settings.to_project()", pj)
+        self.assertIn("w.image_settings.load_project(data)", pj)
         from laser_studio.models.image_settings import ImageSettings
         settings = ImageSettings()
         settings.update(sharpness=25)

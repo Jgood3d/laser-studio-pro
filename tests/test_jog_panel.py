@@ -18,7 +18,7 @@ try:
     from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.controls import JogControlPanel
     from laser_studio.ui.machine import MachinePanel
-    from laser_studio.ui.app.window_controller import WindowControllerMixin
+    from laser_studio.ui.app.job_display import JobDisplay
     from laser_studio.core.constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
     from laser_studio.i18n import tr
 except ImportError:  # PyQt6, pyserial... manquants
@@ -152,7 +152,7 @@ class _Box:
         self.enabled = value
 
 
-@unittest.skipIf(JogControlPanel is None, "window_controller non importable ici")
+@unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")
 class CommandsLockTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -160,18 +160,16 @@ class CommandsLockTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def make(self, connected):
-        class Fake(WindowControllerMixin):
-            pass
-        f = Fake.__new__(Fake)
-        f.connection = mock.Mock(is_connected=lambda: connected)
-        f.machine_panel = _Box()
-        return f
+        display = JobDisplay(None, None, None, _Box(), None, None, layers=None, test_matrix=lambda: None,
+                             show_preview=lambda: None, log=lambda _text: None, update_bottom_panel=lambda: None)
+        display.connection = mock.Mock(is_connected=lambda: connected)
+        return display
 
     def test_commands_follow_the_connection(self):
         for connected in (False, True):
-            f = self.make(connected)
-            f.update_connection_widgets()
-            self.assertEqual(f.machine_panel.enabled, connected)
+            display = self.make(connected)
+            display.update_connection()
+            self.assertEqual(display.machine_panel.enabled, connected)
 
     def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
@@ -235,7 +233,8 @@ class CommandsLockTests(unittest.TestCase):
                                         "addWidget(self.jog_panel", "addWidget(self.job_actions_panel")]
         self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))
-        self.assertRegex(src, r"# Commandes verrouillées tant que non connecté\s+self\.update_connection_widgets\(\)")
+        self.assertRegex(src, r"# Commandes verrouillées tant que non connecté.*\s+"
+                              r"self\.machine_panel\.set_connected\(self\.connection\.is_connected\(\)\)")
 
 
 @unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")

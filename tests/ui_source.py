@@ -32,10 +32,8 @@ def ui_source():
 
 
 def project_state_source():
-    """Code qui lit et réapplique l'état d'un projet (main_window.py :
-    _capture_project et _restore_project)."""
-    with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
+    """Code qui lit et réapplique l'état d'un projet (ui/app/window_state.py :
+    capture_project et restore_project, en fin de fichier)."""
+    with open(os.path.join(ROOT, "ui", "app", "window_state.py"), encoding="utf-8") as f:
         src = f.read().replace("\r\n", "\n")
-    start = src.index("    def _capture_project(self):")
-    end = src.index("    # -- Événements de la fenêtre", start)
-    return src[start:end]
+    return src[src.index("    def capture_project(self):"):]

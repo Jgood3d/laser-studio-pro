@@ -56,6 +56,10 @@ class FakeDialogs:
         self._record("open_file", title, "")
         return self.path
 
+    def open_folder(self, title):
+        self._record("open_folder", title, "")
+        return self.path
+
     def kinds(self):
         return [c[0] for c in self.calls]
 

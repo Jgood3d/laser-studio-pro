@@ -11,18 +11,25 @@ celui de « Graver une image » (lignes/mm × 25,4).
 
     separation = SeparationController(settings, image_settings,
                                       frame_args=tab.frame_args,
-                                      engrave_lmm=lambda: spin_lmm.value())
-    separation.tone_ready.connect(window._on_separation_tone)
-    separation.load("vitrail.jpg")
+                                      engrave_lmm=lambda: spin_lmm.value(),
+                                      dialogs=window.dialogs, engraved=lambda: window.processed_array,
+                                      current_preview=tab.preview_tabs.currentIndex,
+                                      is_visible=tab.isVisible)
+    separation.tone_ready.connect(window.on_separation_tone)
+    separation.preview_ready.connect(tab.show_preview)
+    separation.load_path("vitrail.jpg")
 """
 import os
 import time
+from contextlib import nullcontext
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageOps
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
+from laser_studio.i18n import tr
 from laser_studio.image import separation as engine
+from laser_studio.image.dithering import HAS_NUMBA
 from laser_studio.image.resolution import lmm_to_dpi
 
 # Aperçus, dans l'ordre des onglets de SeparationTab.
@@ -57,29 +64,56 @@ class SeparationController(QObject):
     verre appliqués au chargement, miroirs et algorithme lus).
     `frame_args()` : cadrage de l'onglet (SeparationTab.frame_args).
     `engrave_lmm()` : résolution de gravure de « Graver une image ».
+    `dialogs` : UserDialogs (choix du fichier et du dossier, messages).
+
+    État de l'interface, lu à chaque usage :
+    - engraved() : calque noir produit par « Graver une image » (tableau
+      numpy, 0 = gravé) ou None ;
+    - image_busy() : vrai pendant un traitement de « Graver une image » (le
+      calque noir n'est pas encore à jour) ;
+    - current_preview() : aperçu affiché (voir PREVIEWS) ;
+    - is_visible() : l'onglet est affiché (sinon les aperçus attendent) ;
+    - busy() : gestionnaire de contexte pendant l'export (curseur d'attente).
 
     Signaux :
     - tone_ready(image L, largeur_mm, hauteur_mm) : tonalité à graver ;
     - source_changed(proportions ou None, nom du fichier) : image chargée,
       pivotée ou retirée ;
+    - image_loaded() : nouvelle image (la plaque prend ses proportions) ;
+    - image_rotated() : image pivotée (largeur et hauteur de la plaque échangées) ;
     - previews_invalidated() : les aperçus sont à recalculer (réglage de
-      couleur ou de simulation changé).
+      couleur ou de simulation changé) ;
+    - preview_ready(index, image PIL) : aperçu à afficher ;
+    - engrave_dpi_changed(dpi) : résolution de gravure de « Graver une image ».
     """
 
     tone_ready = pyqtSignal(object, float, float)
     source_changed = pyqtSignal(object, str)
+    image_loaded = pyqtSignal()
+    image_rotated = pyqtSignal()
     previews_invalidated = pyqtSignal()
+    preview_ready = pyqtSignal(int, object)
+    engrave_dpi_changed = pyqtSignal(int)
 
     # Diagnostic de lenteur (durées dans la console) : à passer à False une
     # fois terminé.
     DEBUG_TIMING = True
 
-    def __init__(self, settings, image_settings, frame_args, engrave_lmm, parent=None):
+    def __init__(self, settings, image_settings, frame_args, engrave_lmm, *, dialogs,
+                 engraved=lambda: None, image_busy=lambda: False, current_preview=lambda: PREVIEW_SIMULATION,
+                 is_visible=lambda: True, busy=nullcontext, parent=None):
         super().__init__(parent)
         self.settings = settings
         self.image_settings = image_settings
+        self.dialogs = dialogs
         self._frame_args = frame_args
         self._engrave_lmm = engrave_lmm
+        self._engraved = engraved
+        self._image_busy = image_busy
+        self._current_preview = current_preview
+        self._is_visible = is_visible
+        self._busy = busy
+        self._dirty = False          # aperçu à recalculer quand l'onglet sera affiché
         self.source = None           # image couleur complète (RGB)
         self.source_small = None     # réduite, pour les aperçus
         self.path = ""
@@ -137,6 +171,33 @@ class SeparationController(QObject):
         self.source_changed.emit(self.source.width / self.source.height, os.path.basename(self.path))
         return True
 
+    def open_image(self):
+        """Demande une image couleur et la charge (load_path)."""
+        path = self.dialogs.open_file(tr("image.open_title"), tr("image.file_filter"))
+        if path:
+            self.load_path(path)
+
+    def load_path(self, path):
+        """Charge `path` (message si le fichier est illisible), ajuste la
+        plaque à ses proportions (image_loaded) et envoie la tonalité.
+        Renvoie True si l'image est chargée."""
+        try:
+            self.load(path)
+        except Exception as e:
+            self.dialogs.error(tr("image.error_title"), tr("image.load_error").format(error=e))
+            return False
+        self.image_loaded.emit()
+        self.push_tone()
+        return True
+
+    def rotate_image(self, angle):
+        """Pivote l'image de `angle` degrés (positif = antihoraire, comme PIL),
+        échange la largeur et la hauteur de la plaque (image_rotated) et
+        renvoie la tonalité."""
+        if self.rotate(angle):
+            self.image_rotated.emit()
+            self.push_tone()
+
     def clear(self):
         """Retire l'image source. L'image déjà envoyée à « Graver une image »
         y reste (elle se supprime depuis cet onglet)."""
@@ -148,6 +209,7 @@ class SeparationController(QObject):
         self._version += 1
         self._color_cache = None
         self._stale = set()
+        self._dirty = False
         self.source_changed.emit(None, "")
 
     # -- réglages partagés avec « Graver une image »
@@ -186,6 +248,13 @@ class SeparationController(QObject):
     def engrave_dpi(self):
         return round(lmm_to_dpi(self._engrave_lmm()))
 
+    def resolution_changed(self):
+        """La résolution de gravure de « Graver une image » a changé : elle est
+        réaffichée, et la tonalité renvoyée si une image est chargée (sa
+        densité de pixels en dépend)."""
+        self.engrave_dpi_changed.emit(self.engrave_dpi())
+        self.schedule_push()
+
     def push_tone(self):
         """Envoie la tonalité (canal V, cadrée sur la plaque, gain de point
         compensé) : signal tone_ready."""
@@ -202,6 +271,51 @@ class SeparationController(QObject):
         self.tone_ready.emit(Image.fromarray((tone * 255 + 0.5).astype(np.uint8)), w_mm, h_mm)
 
     # -- aperçus
+
+    def engraved_changed(self):
+        """« Graver une image » vient de recalculer le calque noir : résolution
+        réaffichée, aperçus recalculés, durées dans la console (diagnostic)."""
+        t_hook = time.perf_counter()
+        self.engrave_dpi_changed.emit(self.engrave_dpi())
+        self.timing = {}
+        if self.has_image():
+            self.refresh_previews()
+        report = self.timing_report(self._engraved(), t_hook, time.perf_counter())
+        if report:
+            print(report)
+
+    def refresh_previews(self, *_args):
+        """Invalide les aperçus ; seul l'aperçu affiché est recalculé tout de
+        suite, les autres le seront quand on les ouvrira."""
+        if self.source_small is None or self._engraved() is None:
+            return
+        self.invalidate_previews()
+        self.render_current()
+
+    def render_current(self, *_args):
+        """Recalcule l'aperçu affiché s'il est à refaire (preview_ready). Onglet
+        masqué : attend qu'il soit affiché (refresh_if_dirty)."""
+        engraved = self._engraved()
+        if self.source_small is None or engraved is None:
+            return
+        if not self._is_visible():
+            self._dirty = True
+            return
+        self._dirty = False
+        index = self._current_preview()
+        if not self.needs_render(index):
+            return
+        image = self.render_preview(index, engraved)
+        if image is not None:
+            t_c = time.perf_counter()
+            self.preview_ready.emit(index, image)
+            self.timing["affichage"] = (time.perf_counter() - t_c) * 1000
+
+    def refresh_if_dirty(self):
+        """L'onglet vient d'être affiché : aperçu recalculé s'il a été invalidé
+        pendant qu'il était masqué."""
+        if self._dirty:
+            self.render_current()
 
     def invalidate_previews(self):
         """Le calque noir a changé : tous les aperçus sont à recalculer."""
@@ -291,6 +405,31 @@ class SeparationController(QObject):
 
     # -- export
 
+    def export_files(self):
+        """Demande un dossier et y exporte les calques (export), avec un
+        message à la fin. Rien n'est fait tant que le calque noir n'est pas
+        prêt."""
+        engraved = self._engraved()
+        if not self.has_image() or engraved is None:
+            self.dialogs.info(tr("sep.tab_title"), tr("sep.no_image_loaded"))
+            return
+        if self._image_busy():
+            self.dialogs.info(tr("sep.tab_title"), tr("sep.not_ready"))
+            return
+        folder = self.dialogs.open_folder(tr("sep.export_folder"))
+        if not folder:
+            return
+        try:
+            with self._busy():
+                files, pdf_ok = self.export(folder, engraved)
+        except Exception as e:
+            self.dialogs.error(tr("laser.error"), str(e))
+            return
+        msg = tr("sep.files_created") + "\n" + "\n".join(os.path.basename(p) for p in files)
+        if not pdf_ok:
+            msg += "\n\n" + tr("sep.pdf_too_large")
+        self.dialogs.info(tr("sep.export_complete"), msg)
+
     def export(self, folder, engraved):
         """Écrit dans `folder` le calque noir (tel que reçu par le laser), le
         calque couleur (PNG à la résolution d'impression) et son PDF à
@@ -333,12 +472,8 @@ class SeparationController(QObject):
         h, w = engraved.shape
         tm = self.timing
         before = f"{(t_hook - self._t0) * 1000:.0f} ms" if self._t0 else "?"
-        try:
-            from laser_studio.workers import _HAS_NUMBA
-        except Exception:
-            _HAS_NUMBA = "?"
         self._t0 = None
-        return (f"[Séparation] {self.image_settings.algorithm} | numba actif : {_HAS_NUMBA} | "
+        return (f"[Séparation] {self.image_settings.algorithm} | numba actif : {HAS_NUMBA} | "
                 f"tableau {w}x{h} px ({w * h / 1e6:.1f} Mpx) | "
                 f"attente+traitement Image&Filtres : {before} | "
                 f"aperçu : {(t_end - t_hook) * 1000:.0f} ms "
