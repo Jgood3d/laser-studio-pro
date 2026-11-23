@@ -4924,6 +4924,12 @@ TRANSLATIONS = {
         "de": "Der Vektoreditor enthält bereits {count} Objekt(e). Was soll mit der neuen Zeichnung geschehen?\n\nStrg+Z (Rückgängig) macht es rückgängig.",
         "es": "El editor vectorial ya contiene {count} objeto(s). ¿Qué hacer con el nuevo dibujo?\n\nCtrl+Z (Deshacer) vuelve atrás.",
     },
+    "common.cancel": {
+        "fr": "Annuler",
+        "en": "Cancel",
+        "de": "Abbrechen",
+        "es": "Cancelar",
+    },
     "vector.place_add": {
         "fr": "Ajouter sans toucher aux objets",
         "en": "Add, keep the objects",

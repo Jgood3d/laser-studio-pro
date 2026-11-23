@@ -93,7 +93,11 @@ class RasterDecisionTests(unittest.TestCase):
 class MaterialAndImageTests(unittest.TestCase):
     def test_background_covers_the_job_with_a_margin(self):
         rect = material_background_rect([[(0, 0, 10, 0, 100)]], [([20, 30, float("nan")], [5, 5, float("nan")])])
-        self.assertEqual(rect, (-3.0, -3.0, 36.0, 11.0))
+        self.assertEqual(rect, (0.0, 0.0, 33.0, 8.0))            # pas de matière sous l'origine
+        rect = material_background_rect([[(10, 10, 20, 10, 100)]], [])
+        self.assertEqual(rect, (7.0, 7.0, 16.0, 6.0))
+        rect = material_background_rect([[(-5, 0, 5, 0, 100)]], [])  # job déjà en négatif : marge entière
+        self.assertEqual(rect, (-8.0, 0.0, 16.0, 3.0))
         self.assertIsNone(material_background_rect([], []))
 
     def test_raster_image(self):

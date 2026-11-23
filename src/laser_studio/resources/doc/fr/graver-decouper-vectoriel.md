@@ -45,8 +45,9 @@ exemple), Laser Studio Pro demande quoi faire du nouveau dessin :
 - **Ajouter au-dessus** : il se place au-dessus des objets présents.
 
 Il en va de même pour la bibliothèque, les générateurs (boîte, boule de
-Noël, porte-clés), la vectorisation et Stencil Studio. Le puzzle, lui,
-garde la position choisie dans sa fenêtre. **Ctrl+Z** annule l'ajout d'un
+Noël, porte-clés, puzzle), la vectorisation et Stencil Studio. Le puzzle
+garde la position choisie dans sa fenêtre (calée sur l'image), sauf si
+vous l'ajoutez à droite ou au-dessus. **Ctrl+Z** annule l'ajout d'un
 coup, objets supprimés compris.
 
 Pour donner des calques différents à ses parties, **dégroupez-le** :

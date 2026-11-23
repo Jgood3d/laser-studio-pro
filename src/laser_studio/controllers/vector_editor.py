@@ -162,12 +162,13 @@ class VectorEditorController(QObject):
         self.canvas.request_recenter(items)
         return items
 
-    def import_objects(self, objects, show=True):
+    def import_objects(self, objects, show=True, keep_position=False):
         """Ajoute un dessin importé (fichier, bibliothèque, générateur, Stencil Studio, vectorisation) en le
         plaçant (vector/placement.py) : coin bas-gauche à la marge du surbalayage ; si l'éditeur contient
         déjà des objets, l'utilisateur choisit d'ajouter sans y toucher, de les remplacer, ou de placer le
-        dessin à leur droite ou au-dessus. Une seule étape d'annulation. Renvoie les éléments ajoutés
-        (liste vide si l'utilisateur annule)."""
+        dessin à leur droite ou au-dessus. `keep_position` : le dessin a déjà sa place (puzzle calé sur
+        l'image) ; « ajouter » et « remplacer » ne le déplacent pas. Une seule étape d'annulation. Renvoie
+        les éléments ajoutés (liste vide si l'utilisateur annule)."""
         new_bounds = union_bounds([object_bounds(o) for o in objects])
         if new_bounds is None:
             return self.add_objects(objects, show)
@@ -179,8 +180,11 @@ class VectorEditorController(QObject):
             if mode is None:
                 return []
         existing_bounds = union_bounds([object_bounds(o) for o in existing]) if existing else None
-        margin_x = self._overscan_margin(new_bounds[2] - new_bounds[0])
-        dx, dy = placement.placement_offset(new_bounds, existing_bounds, mode, margin_x=margin_x)
+        if keep_position and (existing_bounds is None or mode in (placement.ADD, placement.REPLACE)):
+            dx = dy = 0.0
+        else:
+            margin_x = self._overscan_margin(new_bounds[2] - new_bounds[0])
+            dx, dy = placement.placement_offset(new_bounds, existing_bounds, mode, margin_x=margin_x)
         for obj in objects:
             obj.x_mm += dx
             obj.y_mm += dy
@@ -712,8 +716,10 @@ class VectorEditorController(QObject):
         if not objects:
             self.dialogs.warning(tr("puzzle.title"), tr("puzzle.empty"))
             return
-        # Position choisie dans la fenêtre du puzzle (par défaut calée sur l'image) : pas de replacement.
-        self.add_objects(objects)
+        # Position choisie dans la fenêtre du puzzle (par défaut calée sur l'image) : gardée, sauf si
+        # l'utilisateur le place à côté des objets présents.
+        if not self.import_objects(objects, keep_position=True):
+            return
         self.dialogs.info(tr("puzzle.title"), tr("puzzle.done").format(
             nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces)))
 

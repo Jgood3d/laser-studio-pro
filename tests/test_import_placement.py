@@ -106,11 +106,56 @@ class ImportObjectsTests(unittest.TestCase):
         self.assertEqual(len(self.document.objects), 1)
         self.assertIsNot(self.document.objects[0], obj)
 
+    def test_keep_position_on_add_and_replace(self):
+        """Puzzle calé sur l'image : « ajouter » et « remplacer » le laissent en place, « à droite » le déplace."""
+        first = self.rect(50.0, 50.0)
+        self.editor.import_objects([first], keep_position=True)       # éditeur vide : pas de question
+        self.assertEqual(self.corner(first), (50.0, 50.0))
+        for mode, corner in ((placement.ADD, (50.0, 50.0)), (placement.REPLACE, (50.0, 50.0)),
+                             (placement.RIGHT, (70.0 + placement.GAP_MM, 50.0))):
+            self.dialogs.choice = mode
+            obj = self.rect(50.0, 50.0)
+            self.editor.import_objects([obj], keep_position=True)
+            self.assertEqual(self.corner(obj), corner, mode)
+            self.canvas.undo()
+
     def test_cancel_adds_nothing(self):
         self.editor.import_objects([self.rect()])
         self.dialogs.choice = None
         self.assertEqual(self.editor.import_objects([self.rect()]), [])
         self.assertEqual(len(self.document.objects), 1)
+
+
+
+@unittest.skipIf(VectorEditorController is None, "PyQt6 non importable ici")
+class ChoiceDialogTests(unittest.TestCase):
+    """Boîte de UserDialogs.choose : un bouton par réponse, dans l'ordre, libellés entiers, Annuler."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self):
+        from laser_studio.ui.user_dialogs import ChoiceDialog
+        dialog = ChoiceDialog("Titre", "Question ?", [("a", "Ajouter sans toucher aux objets"), ("b", "Bis")])
+        self.addCleanup(dialog.deleteLater)
+        return dialog
+
+    def test_buttons_in_order_with_full_labels(self):
+        dialog = self.make()
+        self.assertEqual([b.text() for b in dialog.buttons.values()], ["Ajouter sans toucher aux objets", "Bis"])
+        self.assertTrue(dialog.buttons["a"].isDefault())
+        button = dialog.buttons["a"]
+        self.assertGreaterEqual(button.sizeHint().width(), button.fontMetrics().horizontalAdvance(button.text()))
+
+    def test_click_returns_the_key_and_cancel_none(self):
+        from PyQt6.QtCore import QTimer
+        dialog = self.make()
+        QTimer.singleShot(0, dialog.buttons["b"].click)
+        self.assertEqual(dialog.choose(), "b")
+        dialog = self.make()
+        QTimer.singleShot(0, dialog.reject)
+        self.assertIsNone(dialog.choose())
 
 
 if __name__ == "__main__":

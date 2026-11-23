@@ -39,9 +39,9 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
-Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris.
+Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.
 
-Éditeur vectoriel : quand il contient déjà des objets, un import (fichier SVG / DXF, bibliothèque, générateurs de boîte, de boule de Noël et de porte-clés, vectorisation, Stencil Studio) demande quoi faire du nouveau dessin : l'ajouter sans toucher aux objets, supprimer les objets présents, l'ajouter à leur droite ou au-dessus. Ctrl+Z annule le tout d'un coup.
+Éditeur vectoriel : quand il contient déjà des objets, un import (fichier SVG / DXF, bibliothèque, générateurs de boîte, de puzzle, de boule de Noël et de porte-clés, vectorisation, Stencil Studio) demande quoi faire du nouveau dessin : l'ajouter sans toucher aux objets, supprimer les objets présents, l'ajouter à leur droite ou au-dessus. Le puzzle garde sa position calée sur l'image, sauf à droite ou au-dessus. Ctrl+Z annule le tout d'un coup.
 
 Stencil Studio : quand la détection du sujet par IA manque, le message propose la commande `dnf install` sous Fedora (Python du système), `pip install` ailleurs.
 
