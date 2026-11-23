@@ -3,22 +3,19 @@
 (dessin, mesure, nœuds, déplacement, accroche) sont dans tools/ ; le canevas leur passe ses événements."""
 import time
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
-from PyQt6.QtGui import QColor, QPen, QBrush, QTransform, QPainter, QKeySequence
-from PyQt6.QtWidgets import (
-    QGraphicsView, QGraphicsScene, QGraphicsItem, QGraphicsRectItem, QGraphicsEllipseItem, QFormLayout,
-    QLabel, QDoubleSpinBox, QCheckBox, QDialog, QDialogButtonBox, QMessageBox, QMenu,
-)
+from PyQt6.QtGui import QColor, QPen, QTransform, QPainter, QKeySequence
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QMessageBox
 from laser_studio.i18n import tr
+from laser_studio.vector import group_transform, text_follow
 from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
-from laser_studio.vector.text_on_path import (
-    default_center_fraction, is_closed, orient_path, path_length, relative_points, scaled_points,
-    side_center_fraction, point_at_fraction, project_fraction,
-)
-from laser_studio.models.layers import LayersModel, layer_label
+from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_document import VectorDocument
 from laser_studio.models.vector_objects import ShapeObject, SvgPathObject, TextObject, VectorObject
 from laser_studio.vector import path_ops
+from laser_studio.ui.vector_editor.context_menu import build_context_menu
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
+from laser_studio.ui.vector_editor.resize_dialog import GroupResizeDialog
+from laser_studio.ui.vector_editor.tools.follow_handle import FollowHandle
 from laser_studio.ui.vector_editor.tools.drawing import SHAPE_TOOLS, DrawingTool
 from laser_studio.ui.vector_editor.tools.measure import MeasureTool
 from laser_studio.ui.vector_editor.tools.moving import MoveTool
@@ -83,11 +80,9 @@ class VectorCanvasView(QGraphicsView):
         self.measure = MeasureTool(self, self.snap, self.drawing.preview_pen)
         self.nodes = NodeEditor(self)
         self.moving = MoveTool(self)
-        # Poignée qui fait glisser un texte le long du contour qu'il suit (voir _sync_follow_handle).
-        self._follow_handle = None
-        self._follow_handle_item = None
-        self._follow_dragging = False
-        self._follow_drag_pushed = False
+        self.follow_handle = FollowHandle(self)
+        # Fin du blocage du menu contextuel après un clic droit qui a annulé un outil de dessin.
+        self._ctx_menu_block_until = 0.0
         # Recentrage différé de la vue (voir request_recenter) : attend la
         # fin des redimensionnements (plein écran, changement d'onglet)
         # avant de centrer, sinon la taille du viewport est encore fausse.
@@ -390,17 +385,11 @@ class VectorCanvasView(QGraphicsView):
         return self.nodes.active
 
 
-
-
     def clear_measure_labels(self):
         self.measure.clear_labels()
 
 
-
     # -- Accroche aux extrémités (dessin) ------------------------------------
-
-
-
 
 
     def mousePressEvent(self, event):
@@ -417,10 +406,7 @@ class VectorCanvasView(QGraphicsView):
         if left and self.nodes.active:
             self.nodes.press(event)
             return
-        if left and not self._draw_tool and self._hit_follow_handle(event.position().toPoint()):
-            self._follow_dragging = True
-            self._follow_drag_pushed = False
-            event.accept()
+        if left and not self._draw_tool and self.follow_handle.press(event):
             return
         if left and self._draw_tool == "measure":
             self.measure.press(event)
@@ -438,9 +424,7 @@ class VectorCanvasView(QGraphicsView):
         if self.moving.move_pan(event):
             return
         # Glisser la poignée d'un texte le long de son contour
-        if self._follow_dragging and event.buttons() & Qt.MouseButton.LeftButton:
-            self._drag_follow_handle(event.position().toPoint())
-            event.accept()
+        if self.follow_handle.move(event):
             return
         if self.nodes.move(event) or self.drawing.move(event) or self.measure.move(event):
             return
@@ -544,7 +528,7 @@ class VectorCanvasView(QGraphicsView):
         new_item.setSelected(True)
         return new_item
 
-    def _can_ungroup_item(self, item):
+    def can_ungroup_item(self, item):
         """True si l'item est un SvgPathObject avec au moins 2 sous-tracés."""
         return path_ops.can_ungroup(getattr(item, "obj", None))
 
@@ -554,7 +538,7 @@ class VectorCanvasView(QGraphicsView):
         Inverse de group_selected / de l'import groupé. Annulable (Ctrl+Z).
         Renvoie la liste des nouveaux items créés."""
         items = self.selected_items_vector()
-        expandable = [it for it in items if self._can_ungroup_item(it)]
+        expandable = [it for it in items if self.can_ungroup_item(it)]
         if not expandable:
             return []
 
@@ -579,7 +563,7 @@ class VectorCanvasView(QGraphicsView):
     # Fonctions de tracé (vector/path_ops.py), gardées sous leurs anciens noms.
     _world_path_to_svg_object = staticmethod(path_ops.world_path_to_svg_object)
 
-    def _can_explode_item(self, item):
+    def can_explode_item(self, item):
         # Tout objet avec une géométrie de chemin (forme, svg, texte) peut être explosé
         # en segments s'il a au moins une arête.
         obj = getattr(item, "obj", None)
@@ -591,7 +575,7 @@ class VectorCanvasView(QGraphicsView):
         seul trait puis de le redessiner. Annulable (Ctrl+Z)."""
         self.exit_node_edit()
         items = self.selected_items_vector()
-        targets = [it for it in items if self._can_explode_item(it)]
+        targets = [it for it in items if self.can_explode_item(it)]
         if not targets:
             return []
 
@@ -629,13 +613,6 @@ class VectorCanvasView(QGraphicsView):
         self.nodes.exit()
 
 
-
-
-
-
-
-
-
     def delete_selected_node(self):
         """Supprime le nœud cliqué en mode nœuds (voir NodeEditor.delete_selected_node)."""
         return self.nodes.delete_selected_node()
@@ -662,14 +639,11 @@ class VectorCanvasView(QGraphicsView):
     def _on_selection_changed(self):
         _, obj = self.selected_object()
         self.selection_changed.emit(obj)
-        self._sync_follow_handle()
+        self.follow_handle.sync()
 
     def mouseReleaseEvent(self, event):
         left = event.button() == Qt.MouseButton.LeftButton
-        if self._follow_dragging and left:
-            self._follow_dragging = False
-            self._follow_drag_pushed = False
-            event.accept()
+        if self.follow_handle.release(event):
             return
         if self.measure.release(event):
             return
@@ -678,7 +652,7 @@ class VectorCanvasView(QGraphicsView):
         # du texte sélectionné est replacée.
         if left:
             self.resync_linked_texts([i.obj for i in self.selected_items_vector()])
-            self._sync_follow_handle()
+            self.follow_handle.sync()
 
     def _release(self, event):
         left = event.button() == Qt.MouseButton.LeftButton
@@ -696,20 +670,6 @@ class VectorCanvasView(QGraphicsView):
         if self.moving.release_drag(event):
             return
         super().mouseReleaseEvent(event)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
     def mouseDoubleClickEvent(self, event):
@@ -858,7 +818,7 @@ class VectorCanvasView(QGraphicsView):
         """Clic droit : actions sur la sélection (calque, taille, groupe...) et,
         toujours, sous-menu « Ajouter une forme » (texte, ligne, carré, cercle)
         à l'endroit cliqué — y compris sur un canevas vide."""
-        if time.monotonic() < getattr(self, "_ctx_menu_block_until", 0.0):
+        if time.monotonic() < self._ctx_menu_block_until:
             # Le clic droit vient d'annuler un outil de dessin : pas de menu.
             return
 
@@ -869,19 +829,10 @@ class VectorCanvasView(QGraphicsView):
                 item_at.setSelected(True)
                 selected = [item_at]
 
-        menu = QMenu(self)
-        if selected:
-            self._populate_selection_menu(menu, selected)
-            menu.addSeparator()
-
         click_mm = self.scene_to_mm(self.mapToScene(event.pos()))
-        self._populate_insert_menu(menu, click_mm)
-        menu.exec(event.globalPos())
+        build_context_menu(self, selected, click_mm).exec(event.globalPos())
 
-    # -- Texte le long d'un objet existant -------------------------------------
-
-    # Finesse de l'aplatissement des courbes du contour : 1/20 mm.
-    _FOLLOW_FLATTEN = 20.0
+    # -- Texte le long d'un objet existant (calcul : vector/text_follow.py) ---------------------------------
 
     def text_follow_candidates(self):
         """(élément texte, élément guide) si la sélection est exactement un texte et un autre objet, sinon None."""
@@ -892,44 +843,6 @@ class VectorCanvasView(QGraphicsView):
             return texts[0], guides[0]
         return None
 
-    def _guide_polyline(self, obj):
-        """Contour le plus long de `obj`, en points (x, y) mm monde (Y vers le haut), courbes aplaties.
-        Refermé si l'objet est une forme fermée. None si l'objet n'a pas de contour exploitable."""
-        k = self._FOLLOW_FLATTEN
-        best, best_len = None, 0.0
-        for poly in obj.world_path().toSubpathPolygons(QTransform.fromScale(k, k)):
-            pts = [(poly.at(i).x() / k, poly.at(i).y() / k) for i in range(poly.count())]
-            length = path_length(pts)
-            if len(pts) >= 2 and length > best_len:
-                best, best_len = pts, length
-        if best is None:
-            return None
-        closed_shape = isinstance(obj, ShapeObject) and obj.shape_type in ("Rectangle", "Ellipse", "Polygone Régulier")
-        if closed_shape and not is_closed(best):
-            best.append(best[0])
-        return best
-
-    def _apply_follow(self, text, guide_obj, pts, keep_settings=False):
-        """Pose `text` sur le contour `pts` (de `guide_obj`) : copie du tracé, origine, position par défaut.
-        `keep_settings` : texte déjà posé sur un tracé qu'on resynchronise, la position, le côté et la
-        distance choisis sont conservés."""
-        origin = (min(x for x, _y in pts), min(y for _x, y in pts))
-        # Le texte est calculé directement dans le repère du tracé : ni rotation ni miroir, origine = coin
-        # bas-gauche du tracé.
-        text.rotation_deg = 0.0
-        text.mirror_h = False
-        text.mirror_v = False
-        text.vertical = False
-        text.arc_radius_mm = 0.0
-        text.x_mm, text.y_mm = origin
-        text.follow_points = relative_points(pts, origin)
-        text.follow_closed = is_closed(pts)
-        text.follow_guide_id = guide_obj.id
-        if not keep_settings:
-            text.follow_center = default_center_fraction(pts)
-            text.follow_reverse = False
-            text.follow_gap_mm = 0.0
-
     def make_text_follow_object(self):
         """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
         le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer). Si le
@@ -939,15 +852,12 @@ class VectorCanvasView(QGraphicsView):
         if pair is None:
             return False
         text_item, guide_item = pair
-        pts = self._guide_polyline(guide_item.obj)
+        pts = text_follow.follow_path(guide_item.obj)
         if pts is None:
-            return False
-        pts = orient_path(pts)
-        if path_length(pts) < 1.0:
             return False
         self.push_undo_snapshot()
         text = text_item.obj
-        self._apply_follow(text, guide_item.obj, pts, keep_settings=bool(getattr(text, "follow_points", None)))
+        text_follow.apply_follow(text, guide_item.obj, pts, keep_settings=text_follow.follows_a_path(text))
         text_item.refresh()
         self.scene_obj.clearSelection()
         text_item.setSelected(True)
@@ -973,15 +883,12 @@ class VectorCanvasView(QGraphicsView):
         guide_item = self.linked_guide_item(text_item.obj)
         if guide_item is None:
             return False
-        pts = self._guide_polyline(guide_item.obj)
+        pts = text_follow.follow_path(guide_item.obj)
         if pts is None:
-            return False
-        pts = orient_path(pts)
-        if path_length(pts) < 1.0:
             return False
         if push_undo:
             self.push_undo_snapshot()
-        self._apply_follow(text_item.obj, guide_item.obj, pts, keep_settings=True)
+        text_follow.apply_follow(text_item.obj, guide_item.obj, pts, keep_settings=True)
         text_item.refresh()
         return True
 
@@ -998,48 +905,26 @@ class VectorCanvasView(QGraphicsView):
                     done += 1
         return done
 
-    # -- Texte de médaille : un texte en haut et un en bas, à l'intérieur d'un contour fermé -----------------
-
     def medal_guide_item(self):
         """L'élément sélectionné s'il s'agit d'un seul objet (hors texte) à contour fermé, sinon None."""
         items = self.selected_items_vector()
-        if len(items) != 1 or isinstance(items[0].obj, TextObject):
-            return None
-        pts = self._guide_polyline(items[0].obj)
-        if pts is None or not is_closed(pts) or path_length(pts) < 1.0:
-            return None
-        return items[0]
+        if len(items) == 1 and text_follow.closed_follow_path(items[0].obj) is not None:
+            return items[0]
+        return None
 
     def make_medal_texts(self, top_text, bottom_text, font_family, size_mm, margin_mm, layer_id,
                          bold=False, italic=False):
-        """Pose `top_text` en haut et `bottom_text` en bas, à l'intérieur du contour fermé sélectionné : les
-        deux se lisent à l'endroit, la tête des lettres vers l'extérieur en haut, vers le centre en bas, à
-        `margin_mm` du trait. Un texte vide est ignoré. Renvoie la liste des objets texte créés."""
+        """Pose `top_text` en haut et `bottom_text` en bas, à l'intérieur du contour fermé sélectionné (voir
+        text_follow.medal_texts). Renvoie la liste des objets texte créés."""
         guide_item = self.medal_guide_item()
         if guide_item is None:
             return []
-        pts = orient_path(self._guide_polyline(guide_item.obj))
-        created = []
+        pts = text_follow.closed_follow_path(guide_item.obj)
         self.push_undo_snapshot()
-        for text, bottom in ((top_text, False), (bottom_text, True)):
-            if not text.strip():
-                continue
-            obj = TextObject(text=text, font_family=font_family, size_mm=size_mm, bold=bold, italic=italic,
-                             layer_id=layer_id)
-            self._apply_follow(obj, guide_item.obj, pts)
-            obj.follow_center = side_center_fraction(pts, "bottom" if bottom else "top")
-            if bottom:
-                # Lu de gauche à droite en bas : sens inversé, le haut des lettres vise le centre.
-                obj.follow_reverse = True
-                obj.text_anchor = "above"
-                obj.follow_gap_mm = margin_mm
-            else:
-                # En haut, à l'endroit : lettres accrochées sous le trait, vers le centre.
-                obj.follow_reverse = False
-                obj.text_anchor = "below"
-                obj.follow_gap_mm = -margin_mm
+        created = text_follow.medal_texts(guide_item.obj, pts, top_text, bottom_text, font_family, size_mm,
+                                          margin_mm, layer_id, bold=bold, italic=italic)
+        for obj in created:
             self.add_object(obj)
-            created.append(obj)
         return created
 
     def discard_added_object(self, item):
@@ -1047,158 +932,7 @@ class VectorCanvasView(QGraphicsView):
         la boîte de dialogue a été annulée."""
         self._remove_item(item)
         self.document.drop_last_snapshot()
-        self._sync_follow_handle()
-
-    # -- Poignée : faire glisser un texte le long de son contour --------------------------------------------
-
-    def _follow_text_item(self):
-        """L'élément texte sélectionné s'il suit un contour (et seul), sinon None."""
-        items = self.selected_items_vector()
-        if len(items) != 1:
-            return None
-        obj = items[0].obj
-        if isinstance(obj, TextObject) and not obj.vertical and getattr(obj, "follow_points", None):
-            return items[0]
-        return None
-
-    def _follow_handle_scene_pos(self, item):
-        obj = item.obj
-        x, y = point_at_fraction(obj.follow_points, float(getattr(obj, "follow_center", 0.5)))
-        s = self.px_per_mm
-        # Le chemin local du texte est en Y vers le bas : même passage mm -> px que VectorGraphicsItem.
-        return item.mapToScene(QPointF(x * s, -y * s))
-
-    def _sync_follow_handle(self):
-        """Crée, déplace ou retire la poignée selon la sélection (un texte posé sur un contour)."""
-        item = self._follow_text_item()
-        if item is None:
-            if self._follow_handle is not None:
-                try:
-                    self.scene_obj.removeItem(self._follow_handle)
-                except RuntimeError:
-                    pass
-            self._follow_handle = None
-            self._follow_handle_item = None
-            return
-        if self._follow_handle is None or self._follow_handle_item is not item:
-            if self._follow_handle is not None:
-                try:
-                    self.scene_obj.removeItem(self._follow_handle)
-                except RuntimeError:
-                    pass
-            handle = QGraphicsEllipseItem(-6.0, -6.0, 12.0, 12.0)
-            handle.setBrush(QBrush(QColor("#00d4ff")))
-            handle.setPen(QPen(QColor("#102030"), 1))
-            handle.setZValue(2100)
-            # Taille constante à l'écran, quel que soit le zoom.
-            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
-            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, False)
-            handle.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, False)
-            handle.setToolTip(tr("vector.follow_handle_tip"))
-            self.scene_obj.addItem(handle)
-            self._follow_handle = handle
-            self._follow_handle_item = item
-        self._follow_handle.setPos(self._follow_handle_scene_pos(item))
-
-    def _hit_follow_handle(self, view_pos):
-        if self._follow_handle is None:
-            return False
-        center = self.mapFromScene(self._follow_handle.pos())
-        return (view_pos - center).manhattanLength() <= 14
-
-    def _drag_follow_handle(self, view_pos):
-        """Le texte suit la souris le long de son contour (point le plus proche)."""
-        item = self._follow_handle_item
-        if item is None:
-            return
-        s = self.px_per_mm
-        local = item.mapFromScene(self.mapToScene(view_pos))
-        point = (local.x() / s, -local.y() / s)
-        if not self._follow_drag_pushed:
-            self.push_undo_snapshot()
-            self._follow_drag_pushed = True
-        item.obj.follow_center = project_fraction(item.obj.follow_points, point)
-        item.refresh()
-        self._follow_handle.setPos(self._follow_handle_scene_pos(item))
-
-    def _populate_selection_menu(self, menu, selected):
-        """Entrées du clic droit qui agissent sur la sélection courante."""
-        n = len(selected)
-        label_suffix = tr("vector.n_objects").format(n=n) if n > 1 else ""
-
-        layer_menu = menu.addMenu(tr("vector.assign_to_layer") + label_suffix)
-        for layer in self.layer_manager.layers:
-            action = layer_menu.addAction(layer_label(layer))
-            action.triggered.connect(lambda checked=False, lid=layer.id, items=selected: self._bulk_assign_layer(items, lid))
-
-        resize_action = menu.addAction(tr("vector.resize_ellipsis") + label_suffix)
-        resize_action.triggered.connect(lambda: self._bulk_resize(selected))
-
-        if n >= 2:
-            group_action = menu.addAction(tr("vector.group_objects").format(n=n))
-            group_action.triggered.connect(self.group_selected)
-
-        ungroupable = [it for it in selected if self._can_ungroup_item(it)]
-        if ungroupable:
-            ungroup_action = menu.addAction(tr("vector.ungroup_objects"))
-            ungroup_action.triggered.connect(self.ungroup_selected)
-
-        explodable = [it for it in selected if self._can_explode_item(it)]
-        if explodable:
-            explode_action = menu.addAction(tr("vector.explode_path"))
-            explode_action.triggered.connect(self.explode_selected)
-
-        pair = self.text_follow_candidates()
-        if pair is not None:
-            already = bool(getattr(pair[0].obj, "follow_points", None))
-            follow_action = menu.addAction(tr("vector.text_resync" if already else "vector.text_follow"))
-            follow_action.triggered.connect(self.make_text_follow_object)
-        elif len(selected) == 1 and isinstance(selected[0].obj, TextObject):
-            if self.linked_guide_item(selected[0].obj) is not None:
-                resync_action = menu.addAction(tr("vector.text_resync"))
-                resync_action.triggered.connect(lambda: self.resync_text_guide(selected[0]))
-        if self.medal_guide_item() is not None:
-            medal_action = menu.addAction(tr("vector.medal"))
-            medal_action.triggered.connect(self.medal_text_requested.emit)
-
-        if len(selected) == 1:
-            nodes_action = menu.addAction(tr("vector.edit_nodes"))
-            nodes_action.triggered.connect(lambda: self.enter_node_edit(selected[0]))
-
-        if self.nodes.active:
-            menu.addSeparator()
-            exit_nodes = menu.addAction(tr("vector.exit_nodes"))
-            exit_nodes.triggered.connect(self.exit_node_edit)
-            del_node = menu.addAction(tr("vector.delete_node"))
-            del_node.triggered.connect(self.delete_selected_node)
-
-        menu.addSeparator()
-        rotate_action = menu.addAction(tr("ui.vector_rotate_90"))
-        rotate_action.triggered.connect(lambda: self._bulk_rotate(selected))
-        dup_action = menu.addAction(tr("ui.vector_duplicate"))
-        dup_action.triggered.connect(self.duplicate_selected)
-        serial_action = menu.addAction(tr("ui.vector_serial_duplicate"))
-        serial_action.triggered.connect(lambda: self.serial_duplicate_requested.emit())
-        jig_action = menu.addAction(tr("ui.vector_jig"))
-        jig_action.triggered.connect(lambda: self.jig_requested.emit())
-        del_action = menu.addAction(tr("ui.vector_delete"))
-        del_action.triggered.connect(self.remove_selected)
-
-    def _populate_insert_menu(self, menu, click_mm):
-        """Sous-menu « Ajouter une forme » : texte, ligne, carré, cercle,
-        centrés sur le point cliqué (coordonnées monde, mm)."""
-        add_menu = menu.addMenu(tr("vector.ctx_add_shape"))
-        x_mm, y_mm = click_mm
-        add_menu.addAction(tr("vector.ctx_text")).triggered.connect(
-            lambda checked=False: self.insert_text_requested.emit(x_mm, y_mm))
-        add_menu.addAction(tr("vector.ctx_line")).triggered.connect(
-            lambda checked=False: self.add_basic_shape("Ligne", x_mm, y_mm))
-        add_menu.addAction(tr("vector.ctx_square")).triggered.connect(
-            lambda checked=False: self.add_basic_shape("Carré", x_mm, y_mm))
-        add_menu.addAction(tr("vector.ctx_circle")).triggered.connect(
-            lambda checked=False: self.add_basic_shape("Cercle", x_mm, y_mm))
-        add_menu.addSeparator()
-        add_menu.addAction(tr("ui.vector_jig")).triggered.connect(lambda checked=False: self.jig_requested.emit())
+        self.follow_handle.sync()
 
     def add_basic_shape(self, kind, cx_mm, cy_mm, size_mm=20.0):
         """Ajoute une ligne / un carré / un cercle centré sur (cx_mm, cy_mm),
@@ -1222,98 +956,31 @@ class VectorCanvasView(QGraphicsView):
         self.selection_changed.emit(obj)
         return item
 
-    def _bulk_assign_layer(self, items, layer_id):
+    # -- Sélection traitée comme un groupe (calcul : vector/group_transform.py) ------------------------------
+
+    def assign_layer(self, items, layer_id):
         self.push_undo_snapshot()
+        group_transform.assign_layer([it.obj for it in items], layer_id)
         for it in items:
-            it.obj.layer_id = layer_id
             it.refresh()
 
-    def _bulk_resize(self, items):
-        """Redimensionne toute la sélection COMME UN GROUPE : les proportions
-        et positions relatives entre les objets sont conservées (comme un
-        redimensionnement de groupe dans un éditeur vectoriel classique),
-        en millimètres plutôt qu'en pourcentage abstrait."""
-        boxes = [it.obj.world_path().boundingRect() for it in items]
-        x_min = min(b.left() for b in boxes)
-        x_max = max(b.right() for b in boxes)
-        y_min = min(b.top() for b in boxes)
-        y_max = max(b.bottom() for b in boxes)
-        current_w = max(x_max - x_min, 1e-6)
-        current_h = max(y_max - y_min, 1e-6)
+    def rotate_quarter(self, items):
+        self.push_undo_snapshot()
+        group_transform.rotate_quarter([it.obj for it in items])
+        for it in items:
+            it.refresh()
 
-        dialog = QDialog(self)
-        dialog.setWindowTitle(tr("vector.dlg.resize_title"))
-        layout = QFormLayout(dialog)
-        layout.addRow(QLabel(tr("vector.dlg.group_size").format(w=current_w, h=current_h)))
-
-        chk_keep_ratio = QCheckBox(tr("vector.dlg.keep_ratio"))
-        chk_keep_ratio.setChecked(True)
-        layout.addRow("", chk_keep_ratio)
-
-        spin_w = QDoubleSpinBox(); spin_w.setRange(0.1, 5000.0); spin_w.setDecimals(2)
-        spin_w.setValue(current_w); spin_w.setSuffix(" mm")
-        spin_h = QDoubleSpinBox(); spin_h.setRange(0.1, 5000.0); spin_h.setDecimals(2)
-        spin_h.setValue(current_h); spin_h.setSuffix(" mm")
-        layout.addRow(tr("vector.dlg.new_width"), spin_w)
-        layout.addRow(tr("vector.dlg.new_height"), spin_h)
-
-        ratio = current_w / current_h if current_h else 1.0
-        state = {"updating": False}
-
-        def on_w_changed(val):
-            if state["updating"] or not chk_keep_ratio.isChecked():
-                return
-            state["updating"] = True
-            spin_h.setValue(val / ratio if ratio else val)
-            state["updating"] = False
-
-        def on_h_changed(val):
-            if state["updating"] or not chk_keep_ratio.isChecked():
-                return
-            state["updating"] = True
-            spin_w.setValue(val * ratio)
-            state["updating"] = False
-
-        spin_w.valueChanged.connect(on_w_changed)
-        spin_h.valueChanged.connect(on_h_changed)
-
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        buttons.accepted.connect(dialog.accept)
-        buttons.rejected.connect(dialog.reject)
-        layout.addRow(buttons)
-
+    def resize_group(self, items):
+        """Redimensionne toute la sélection COMME UN GROUPE, en mm : proportions et positions relatives entre
+        les objets conservées, coin bas-gauche du groupe fixe."""
+        objects = [it.obj for it in items]
+        _x, _y, width, height = group_transform.group_bounds(objects)
+        dialog = GroupResizeDialog(max(width, 1e-6), max(height, 1e-6), self)
         if not dialog.exec():
             return
-
         self.push_undo_snapshot()
-        factor_x = spin_w.value() / current_w
-        factor_y = spin_h.value() / current_h
-
+        group_transform.resize_group(objects, *dialog.size_mm())
         for it in items:
-            obj = it.obj
-            # Repositionne l'objet proportionnellement à l'intérieur du groupe
-            # (mise à l'échelle autour du coin bas-gauche du groupe entier).
-            obj.x_mm = x_min + (obj.x_mm - x_min) * factor_x
-            obj.y_mm = y_min + (obj.y_mm - y_min) * factor_y
-            if isinstance(obj, ShapeObject):
-                obj.width_mm *= factor_x
-                obj.height_mm *= factor_y
-            elif isinstance(obj, TextObject):
-                obj.size_mm *= factor_y
-                obj.letter_spacing_mm *= factor_x
-                obj.arc_radius_mm = getattr(obj, "arc_radius_mm", 0.0) * factor_y
-                if getattr(obj, "follow_points", None):
-                    obj.follow_points = scaled_points(obj.follow_points, factor_x, factor_y)
-                    obj.follow_gap_mm = getattr(obj, "follow_gap_mm", 0.0) * factor_y
-            elif isinstance(obj, SvgPathObject):
-                obj.scale_x = getattr(obj, "scale_x", 1.0) * factor_x
-                obj.scale_y = getattr(obj, "scale_y", 1.0) * factor_y
-            it.refresh()
-
-    def _bulk_rotate(self, items):
-        self.push_undo_snapshot()
-        for it in items:
-            it.obj.rotation_deg = (it.obj.rotation_deg + 90.0) % 360.0
             it.refresh()
 
     def set_object_position(self, obj: VectorObject, x_mm, y_mm, rotation_deg=None):

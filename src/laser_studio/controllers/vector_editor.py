@@ -170,7 +170,7 @@ class VectorEditorController(QObject):
         canvas.push_undo_snapshot()
         item = canvas.add_object(obj)
         dialog = TextInsertDialog(self.layers, text_obj=obj, parent=self._parent, is_new=True,
-                                  on_preview=lambda: (item.refresh(), canvas._sync_follow_handle()))
+                                  on_preview=lambda: (item.refresh(), canvas.follow_handle.sync()))
         if dialog.exec():
             # La boîte a remis le texte dans son état d'origine : on applique les réglages choisis.
             dialog.get_object()
@@ -213,14 +213,14 @@ class VectorEditorController(QObject):
         canvas = self.canvas
         if isinstance(obj, TextObject):
             dialog = TextInsertDialog(self.layers, text_obj=obj, parent=self._parent,
-                                      on_preview=lambda: (item.refresh(), canvas._sync_follow_handle()))
+                                      on_preview=lambda: (item.refresh(), canvas.follow_handle.sync()))
             if dialog.exec():
                 # La boîte a remis le texte dans son état d'origine : on enregistre l'annulation, puis on applique.
                 canvas.push_undo_snapshot()
                 dialog.get_object()
                 item.refresh()
                 self.properties_changed.emit(obj)
-            canvas._sync_follow_handle()
+            canvas.follow_handle.sync()
         elif isinstance(obj, SvgPathObject):
             dialog = AssignLayerDialog(self.layers, svg_obj=obj, title=tr("vector.svg_properties"), parent=self._parent)
             if dialog.exec():

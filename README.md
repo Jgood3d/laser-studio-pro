@@ -95,7 +95,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `models/` — modèles de données, des `QObject` qui préviennent de chaque changement par des signaux : `layers.py` (`LayersModel` : la liste des calques et leurs réglages ; chaque modification est écrite dans le journal de débogage avec l’ancienne et la nouvelle valeur), `machine.py` (`MachineConfig` : plateau, spot, limites), `grbl.py` (`GrblConfig` : commande laser, S-Max, homing, surbalayage, G-Code de début et de fin, réglages `$$`), `materials.py` (`MaterialsModel` : les matériaux et le matériau choisi, qui suit chaque changement de calque), `image_settings.py` (`ImageSettings` : réglages de tramage de « Graver une image », et `ImageSettingsHistory`, leur annulation), `settings.py` (base des réglages nommés), `layer_modes.py` (codes des modes de calque, `engrave_fill` / `cut` / `mark`, et conversion des anciens libellés français), `change_log.py` (journal : une ligne par changement, une seule à la fin d’une saisie au clavier) ; les champs des pages de réglages y sont liés par `ui/binding.py`
 
 ### Composants autonomes
-- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView`, boîtes de saisie (texte, médaille, forme, calque) ; objets du dessin dans `models/vector_objects.py`
+- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView` et ses outils de la souris (`tools/`), menu du clic droit (`context_menu.py`), boîtes de saisie (texte, médaille, forme, calque, taille du groupe) ; objets du dessin dans `models/vector_objects.py`
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `controllers/workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
 - `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas ou à droite : actions image, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel), `TabCloseButton` (croix d’un onglet), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
@@ -109,6 +109,8 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
   - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
   - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
+  - `vector/text_follow.py` — texte posé sur le contour d’un objet, textes de médaille
+  - `vector/group_transform.py` — sélection traitée comme un groupe (redimensionner, quart de tour, calque)
   - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
   - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
   - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
