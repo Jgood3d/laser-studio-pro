@@ -1,7 +1,6 @@
 """Graveur GRBL simulé (variable LASER_STUDIO_SIMULATION) : protocole, mouvements, temps réel, intégration."""
 import os
 import sys
-import threading
 import time
 import unittest
 from unittest import mock

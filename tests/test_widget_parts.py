@@ -15,7 +15,6 @@ try:
     from laser_studio.i18n import tr
     from laser_studio.ui.machine.controls.realtime_commands import RealtimeCommands
     from laser_studio.ui.machine.job_position import JobPositionBox
-    from laser_studio.ui.settings.machine_params import MachineParamsPage
     from laser_studio.ui.settings.grbl_config.settings_box import GrblSettingsBox
     from laser_studio.ui.settings.test_matrix.image_test_group import ImageTestGroup
     from laser_studio.ui.machine.sent_gcode import SentGcodeLog

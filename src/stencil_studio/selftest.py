@@ -207,7 +207,7 @@ def measure():
     m["lignes : fentes"] = float(rl.stats["holes"])
     m["lignes : pixels de matiere"] = float(rl.mat.sum())
     pq = core.Params(size_mm=100, output="lowpoly", shape="circle", lp_points=100, lp_style="wire", lp_beam_mm=1.5)
-    rq = core.process(gradient3 := np.stack([gradient] * 3, -1), pq)
+    rq = core.process(np.stack([gradient] * 3, -1), pq)
     m["low poly : maillage plausible"] = float(100 <= rq.stats.get("lp_triangles", 0) <= 400 and rq.stats["contours"] > 20)
     blank = np.full((800, 800, 3), 255, np.uint8)
     pe = core.Params(size_mm=100, output="qr", shape="rrect", qr_mode="engrave", qr_side_mm=50, qr_text="https://exemple.fr/menu")

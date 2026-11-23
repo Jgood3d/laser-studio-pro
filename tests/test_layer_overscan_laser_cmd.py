@@ -7,10 +7,8 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 
 try:
-    from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL
-    from laser_studio.models.layers import (
-        LAYER_LASER_CMDS, LaserLayer, LayersModel, layer_laser_cmd, layer_overscan_enabled, validated_settings,
-    )
+    from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, layer_laser_cmd, layer_overscan_enabled
+    from laser_studio.models.layers import LAYER_LASER_CMDS, LaserLayer, LayersModel, validated_settings
     HAS_MODEL = True
 except ImportError:                       # PyQt6 non importable
     HAS_MODEL = False

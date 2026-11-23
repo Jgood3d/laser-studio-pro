@@ -31,7 +31,6 @@ class PresetFileTests(unittest.TestCase):
         from laser_studio.vector import box_generator as bg
         names = {f.name for f in bg.BoxParams.__dataclass_fields__.values()}
         for key, values in bp.BUILTIN.items():
-            mapping = {"lid_type": "lid_type"}
             kwargs = {k: v for k, v in values.items() if k in names}
             result = bg.build_box(bg.BoxParams(**kwargs))
             self.assertTrue(result.panels, key)

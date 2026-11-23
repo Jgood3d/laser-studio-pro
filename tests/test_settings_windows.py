@@ -329,7 +329,6 @@ class MenuStructureTests(unittest.TestCase):
             self.assertEqual(text.count("\n"), 1, lang)
 
     def test_resolution_stack_does_not_stretch(self):
-        src = ui_source()
         self.assertIn("self.stack.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)",
                       read(os.path.join("ui", "tabs", "image", "resolution_box.py")).replace("(\n            ", "(").replace(",\n            ", ", ").replace("\n        )", ")"))
 

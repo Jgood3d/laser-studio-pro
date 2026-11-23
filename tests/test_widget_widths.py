@@ -63,7 +63,6 @@ class WidgetWidthTests(unittest.TestCase):
         self.assertIn((os.path.join("ui", "tabs", "image", "material_combo.py"), "self"), names)
 
     def test_material_selector_uses_a_short_minimum_width(self):
-        src = ui_source()
         with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:
             combo = f.read()
         self.assertIn("self.setSizeAdjustPolicy(\n            QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon", combo)

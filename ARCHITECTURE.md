@@ -71,7 +71,7 @@ laser-studio-pro/
 ├── requirements-linux.txt / requirements-windows.txt   # dépendances par plateforme
 ├── requirements_principal.txt        # versions exactes figées pour les builds
 ├── .copr/Makefile                    # paquet source (SRPM) construit par Copr depuis le commit courant, voir packaging/fedora/
-├── .github/workflows/                # tests.yml (unittest hors écran), release.yml (tag vX.Y.Z → Linux AppImage, Windows, macOS, release en brouillon), macos-build.yml
+├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage, Windows, macOS, release en brouillon), macos-build.yml
 ├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
@@ -539,9 +539,10 @@ cd src && python -m stencil_studio
 # Tests (comme le workflow tests.yml)
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests
 
-# Qualité traductions / UI
+# Qualité traductions / UI (check_ui_attributes et ruff tournent aussi en CI, job « checks »)
 python tools/check_translations.py
 python tools/check_ui_attributes.py
+ruff check src tools tests        # réglages dans [tool.ruff] de pyproject.toml
 
 # Compilation syntaxe rapide
 python -m compileall -q main.py src

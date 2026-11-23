@@ -9,7 +9,6 @@ contient la partie « pure » (testable sans interface) :
 * `tile_raster_gcode` : G-Code d'une zone déjà tramée (même balayage aller/retour, même
   surbalayage et même calcul de puissance que controllers/workers.AdvancedGCodeWorker).
 """
-import math
 
 import numpy as np
 from PIL import Image

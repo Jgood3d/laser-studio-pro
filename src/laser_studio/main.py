@@ -8,7 +8,7 @@ if "--stencil-studio" in sys.argv:
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QIcon
 from PyQt6.QtCore import QElapsedTimer, QEvent, QTimer
-from PyQt6 import QtWebEngineWidgets
+from PyQt6 import QtWebEngineWidgets  # noqa: F401  (doit être importé avant la QApplication)
 
 from laser_studio.core.constants import SPLASH_SCREEN_DURATION
 from laser_studio.core.debug_log import setup_debug_logging

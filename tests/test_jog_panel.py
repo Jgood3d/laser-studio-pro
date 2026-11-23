@@ -173,7 +173,6 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
@@ -188,7 +187,6 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_status_goes_to_connection_and_jog_panels(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.set_status("Idle", 1.0, 2.0, 3.0)
@@ -219,7 +217,6 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.progress_bar.setValue(42)

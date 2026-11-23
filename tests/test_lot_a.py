@@ -7,7 +7,6 @@ import time
 import unittest
 from unittest import mock
 
-import numpy as np
 from PIL import Image
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -9,7 +9,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 
 try:
-    from PyQt6.QtWidgets import QApplication, QPushButton
+    from PyQt6.QtWidgets import QApplication
     from PyQt6.QtGui import QStandardItemModel
     from laser_studio.controllers.materials import (
         DEFAULT_MATERIALS_DB, apply_material_to_layers, capture_material_layers,

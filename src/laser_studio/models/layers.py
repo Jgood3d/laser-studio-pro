@@ -23,8 +23,8 @@ log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 # Modes des calques : codes indépendants de la langue (voir layer_modes.py).
 # ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
 from laser_studio.models.layer_modes import (  # noqa: E402
-    CONTOUR_MODES, LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT,
-    MODE_FILL, MODE_MARK, layer_laser_cmd, layer_overscan_enabled, normalize_mode,
+    LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, MODE_CUT,
+    MODE_FILL, MODE_MARK, normalize_mode,
 )
 
 ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK

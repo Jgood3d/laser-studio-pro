@@ -1,5 +1,4 @@
 """Tests pure-logique de l'alignement caméra (sans ouverture de webcam)."""
-import math
 import os
 import sys
 import tempfile
@@ -11,7 +10,6 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 
 from laser_studio.camera.workspace_alignment import (  # noqa: E402
-    AlignmentTarget,
     WorkspaceAlignment,
     generate_apriltag_targets,
     compute_homography,
