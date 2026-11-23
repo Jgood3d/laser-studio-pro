@@ -256,7 +256,7 @@ sys.path.insert(0, {src!r})
 from unittest import mock
 from PyQt6.QtWidgets import QApplication, QAbstractSpinBox
 app = QApplication([])
-mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
 from laser_studio.main_window import FullLaserStudio
 win = FullLaserStudio()
 combo = win.layers_tab.material_combo
@@ -297,7 +297,7 @@ from unittest import mock
 from PyQt6.QtWidgets import QApplication, QMessageBox
 from PyQt6.QtTest import QTest
 app = QApplication([])
-mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
 from laser_studio.main_window import FullLaserStudio
 w = FullLaserStudio(); tab = w.layers_tab; combo = tab.material_combo
 combo.setCurrentText("Acrylique 3mm"); combo.activated.emit(combo.currentIndex())

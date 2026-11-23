@@ -25,7 +25,7 @@ class ProjectRoundTripTests(unittest.TestCase):
             from laser_studio import main_window
             cls.app = QApplication.instance() or QApplication([])
             # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
-            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+            mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
             cls.win = main_window.FullLaserStudio()
 
     def test_saved_project_reopens_with_its_layers(self):

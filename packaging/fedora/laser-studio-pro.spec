@@ -66,7 +66,7 @@ calibration and machine control.
 sed -i 's/"opencv-python-headless"/"opencv"/' pyproject.toml
 # Modèle de détourage de Stencil Studio : téléchargé au premier usage dans le
 # profil de l'utilisateur, car le dossier installé n'est pas modifiable.
-rm src/stencil_studio/models/u2netp.onnx
+rm src/stencil_studio/resources/models/u2netp.onnx
 # Polices embarquées (Rubik, Dancing Script) : celles des paquets Fedora, en
 # Requires. Sans le dossier, l'application s'appuie sur les polices du système.
 rm -r src/laser_studio/resources/fonts
@@ -89,7 +89,7 @@ done
 
 # Stencil Studio : police DejaVu du système à la place de la copie embarquée.
 ln -sf %{_datadir}/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf \
-    %{buildroot}%{python3_sitelib}/stencil_studio/fonts/DejaVuSans-Bold.ttf
+    %{buildroot}%{python3_sitelib}/stencil_studio/resources/fonts/DejaVuSans-Bold.ttf
 
 %pyproject_save_files -L laser_studio laser_common stencil_studio
 

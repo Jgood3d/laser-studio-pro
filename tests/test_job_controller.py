@@ -275,7 +275,7 @@ class WindowTests(unittest.TestCase):
         cls.env.start()
         from laser_studio import main_window
         cls.app = QApplication.instance() or QApplication([])
-        cls.stencil = mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio")
+        cls.stencil = mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload")
         cls.stencil.start()
         cls.win = main_window.FullLaserStudio()
 

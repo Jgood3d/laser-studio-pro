@@ -203,6 +203,14 @@ THEMES = {
 }
 
 
+def page_colors(theme_name):
+    """Couleurs d'une page web intégrée (Stencil Studio) pour le thème `theme_name` :
+    {bg, panel, panel2, line, fg, mut, acc, acc2, onacc}."""
+    c = THEMES[normalize_theme_name(theme_name)]
+    return {"bg": c["base"], "panel": c["window"], "panel2": c["alt"], "line": c["border"], "fg": c["text"],
+            "mut": c["muted"], "acc": c["accent"], "acc2": c["accent_hover"], "onacc": c["on_accent"]}
+
+
 def _qcolor(hex_color: str) -> QColor:
     return QColor(hex_color)
 
@@ -608,6 +616,11 @@ def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
     order = ("dark", "light", "dusk", "warm", "neon", "retro80", "jarvis")
     return [(code, THEMES[code]["label_key"]) for code in order]
+
+
+def current_theme_name():
+    """Code du thème choisi (réglage app_theme), normalisé."""
+    return normalize_theme_name(QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark"))
 
 
 def apply_saved_theme(app: QApplication):

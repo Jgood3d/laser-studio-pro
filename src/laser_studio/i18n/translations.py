@@ -54,6 +54,38 @@ TRANSLATIONS = {
     # --- Menus Paramètres et Outils ---
     "menu.settings": {"fr": "Paramètres", "en": "Settings", "de": "Einstellungen", "es": "Ajustes"},
     "menu.tools": {"fr": "Outils", "en": "Tools", "de": "Werkzeuge", "es": "Herramientas"},
+    # --- Import des exports de Stencil Studio (controllers/stencil_import.py) ---
+    "stencil.imported": {
+        "fr": "Stencil Studio : « {name} » importé.", "en": "Stencil Studio: “{name}” imported.",
+        "de": "Stencil Studio: „{name}“ importiert.", "es": "Stencil Studio: «{name}» importado.",
+    },
+    "stencil.imported_detail": {
+        "fr": "Stencil Studio : {detail} importés depuis « {name} ».",
+        "en": "Stencil Studio: {detail} imported from “{name}”.",
+        "de": "Stencil Studio: {detail} aus „{name}“ importiert.",
+        "es": "Stencil Studio: {detail} importados desde «{name}».",
+    },
+    "stencil.count_cut": {"fr": "découpe {n}", "en": "cut {n}", "de": "Schnitt {n}", "es": "corte {n}"},
+    "stencil.count_mark": {"fr": "cadrage {n}", "en": "frame {n}", "de": "Rahmen {n}", "es": "marco {n}"},
+    "stencil.count_engrave": {"fr": "gravure {n}", "en": "engraving {n}", "de": "Gravur {n}", "es": "grabado {n}"},
+    "stencil.count_multi": {"fr": "plaques {n}", "en": "plates {n}", "de": "Platten {n}", "es": "placas {n}"},
+    "stencil.objects": {"fr": "objets", "en": "objects", "de": "Objekte", "es": "objetos"},
+    "stencil.missing_layers": {
+        "fr": " — Attention : aucun calque {modes} (objets sur le calque par défaut).",
+        "en": " — Warning: no {modes} layer (objects put on the default layer).",
+        "de": " — Achtung: keine Ebene {modes} (Objekte auf der Standardebene).",
+        "es": " — Atención: ninguna capa {modes} (objetos en la capa predeterminada).",
+    },
+    "stencil.created_layers": {
+        "fr": " Calques créés : {names}.", "en": " Layers created: {names}.",
+        "de": " Erstellte Ebenen: {names}.", "es": " Capas creadas: {names}.",
+    },
+    "stencil.import_fallback": {
+        "fr": "Stencil Studio : import impossible ({error}), import standard à la place.",
+        "en": "Stencil Studio: import failed ({error}), using the standard import instead.",
+        "de": "Stencil Studio: Import fehlgeschlagen ({error}), stattdessen Standardimport.",
+        "es": "Stencil Studio: importación imposible ({error}), se usa la importación estándar.",
+    },
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
     "menu.tools.import_vector": {

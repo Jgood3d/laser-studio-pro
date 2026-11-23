@@ -18,7 +18,7 @@ Ce fichier regroupe :
 ```
 main.py
   │
-  ├─► (option) --stencil-studio → stencil_studio.studio_window
+  ├─► (option) --stencil-studio → stencil_studio.ui.window (Studio dans son propre processus)
   │
   ├─► install_qt_message_filters / setup_debug_logging
   ├─► QApplication
@@ -162,12 +162,16 @@ laser-studio-pro/
 │   │           └── startup_safety/   # avertissement de sécurité laser (confirm_startup_safety)
 │   └── stencil_studio/               # sous-application Stencil Studio
 │       ├── LISEZMOI.md
-│       ├── core.py / engrave.py / lightbox.py / subject_ai.py / lasercut_stencil.py
-│       ├── lsp_bridge.py                 # import SVG/DXF vers l’éditeur LSP
-│       ├── studio.py / studio.html / studio_window.py / studio_dialog.py
+│       ├── core.py / engrave.py / lightbox.py / subject_ai.py   # calcul, sans Qt
+│       ├── server.py                     # serveur local : page web et API (python -m stencil_studio)
+│       ├── models/                       # session.py (photo, repères peints), presets.py (réglages enregistrés)
+│       ├── controllers/                  # api.py (aperçu, visage, export), studio.py (StencilStudioController : fenêtre dans LSP)
+│       ├── ui/                           # studio.html, dialog.py (StudioDialog), window.py (processus séparé), themes.py
+│       ├── timing.py                     # mesure du temps d'ouverture (stencil_studio_timing.log)
+│       ├── lasercut_stencil.py           # ligne de commande
 │       ├── selftest.py                   # autotest : mêmes résultats OpenCV / numpy / scipy que les valeurs attendues
-│       ├── i18n.py + locales/ (fr / en / de / es .json) + fr.json / de.json / es.json
-│       ├── fonts/ / models/ (u2netp.onnx) / exemple/
+│       ├── i18n.py + locales/ (fr / en / de / es .json)
+│       ├── resources/ (fonts/, models/u2netp.onnx) / exemple/
 │       ├── requirements*.txt             # dépendances propres (+ requirements-lsp-ajouts.txt)
 │       └── lancer_studio.bat / .sh
 ├── tests/                            # 82 fichiers de test, ~850 tests (unittest, sans écran) ; gcode_reader.py et ui_source.py : outils de test
@@ -326,13 +330,21 @@ laser-studio-pro/
 
 ### 3.5 Stencil Studio
 
+Modèle / vue / contrôleur, comme LSP, et sans aucun import de `laser_studio` (un test le vérifie) : le Studio se lance seul.
+
 | Fichier | Rôle |
 |---------|------|
-| **studio_dialog.py** | Fenêtre QtWebEngine intégrée ; `theme_for_lsp()` mappe les 7 thèmes (`LSP_THEME_DARK`, `_LIGHT`, `_DUSK`, `_WARM`, `_NEON`, `_RETRO80`, `_JARVIS`) ; `sync_theme_from_lsp()` à chaud |
-| **lsp_bridge.py** | Intercepte exports SVG/DXF → import dans l’éditeur vectoriel |
-| **studio.py** | Serveur HTTP local + logique de conversion |
+| **core.py**, **lightbox.py**, **engrave.py**, **subject_ai.py** | Calcul sans Qt : pochoir, trame, gravure, couches, QR, low poly, caisson lumineux, détourage par IA (onnxruntime, facultatif) |
+| **models/session.py** | `StudioSession` : photo chargée, version d'affichage, repères peints (sujet / fond), numéros de version pour le cache |
+| **models/presets.py** | `PresetsStore` : réglages enregistrés (`presets.json`, dans le dossier du Studio ou le profil de l'utilisateur) |
+| **controllers/api.py** | `StudioApi` : ce que la page demande (aperçu, détection du visage, export SVG / DXF / caisson / test de flexion), un calcul à la fois, résultat en cache |
+| **server.py** | Serveur HTTP local (127.0.0.1) : routes vers `StudioApi`, page `ui/studio.html`, langues ; `start_server(port)` dans un thread |
+| **controllers/studio.py** | `StencilStudioController` : ouverture de la fenêtre, préchauffage (imports dans un thread, page chargée dans une fenêtre invisible), repli en processus séparé ou dans le navigateur, thème à chaud. Reçoit de LSP `theme()` (couleurs), la langue et `dialogs` ; émet `export_ready(chemin)` |
+| **ui/dialog.py** | `StudioDialog` : vue QtWebEngine, couleurs passées à `window.setTheme`, exports SVG / DXF téléchargés puis annoncés (`export_downloaded`), les autres fichiers enregistrés |
+| **ui/window.py** | Le Studio dans son propre processus (Qt refuse QtWebEngine dans LSP) : écrit `STENCIL_EXPORT:<chemin>` sur sa sortie à chaque export |
+| **ui/themes.py** | Couleurs par défaut et repli d'après la palette Qt ; dans LSP, elles viennent de `laser_studio.ui.app.theme.page_colors` |
 
-Thèmes Studio (`LSP_THEME_*`) alignés sur les palettes LSP. `selftest.py` vérifie que les bibliothèques d'un PC (OpenCV, numpy, scipy) donnent les mêmes résultats que les valeurs attendues.
+Côté LSP : `WindowController.stencil()` crée le contrôleur, `VectorEditorController.import_stencil_export` importe ses exports (voir 8.1). `selftest.py` vérifie que les bibliothèques d'un PC (OpenCV, numpy, scipy) donnent les mêmes résultats que les valeurs attendues.
 
 ### 3.6 Image, machine, build
 
@@ -348,8 +360,8 @@ main.py
   ├─ resources/icons/breeze  (QIcon theme)
   └─ FullLaserStudio
         ├─ WindowController ──► menu thème ──► change_theme ──► ui.app.theme
-        │                 ├─► open_stencil_studio ──► studio_dialog
-        │                 │       (theme_for_lsp / sync_theme_from_lsp)
+        │                 ├─► StencilStudioController (stencil_studio) ──► StudioDialog ──► server ──► StudioApi
+        │                 │       (couleurs : page_colors ; exports : export_ready ──► import_stencil_export)
         │                 └─► CameraController ──► camera/ (capture, lens_calibration, workspace_alignment, storage)
         │                                      └─► ui/dialogs/camera/ (dialog, lens_wizard, align_wizard)
         ├─ VectorEditorController (controllers/vector_editor) ──► VectorDocument ◄── VectorCanvasView (ui/vector_editor/canvas)
@@ -387,11 +399,11 @@ Import SVG/DXF  ──(groupé)──► 1 SvgPathObject
 Menu Thème → change_theme(name)
     ├─ QSettings app_theme
     ├─ apply_app_theme(app, name)     # palette + stylesheet + pack d'icônes (breeze / jarvis)
-    └─ si Stencil Studio ouvert → sync_theme_from_lsp(name)
+    └─ si Stencil Studio ouvert → StencilStudioController.set_theme(page_colors(name))
 ```
 
 ### 5.4 Stencil Studio → LSP
-Export SVG/DXF dans le Studio → `lsp_bridge` / download handler → objets sur le canevas vectoriel (même règle d’import groupé).
+Export SVG/DXF dans le Studio → téléchargement intercepté par `StudioDialog` → `export_ready(chemin)` → `VectorEditorController.import_stencil_export` : objets rangés dans les calques (`controllers/stencil_import.py`), une étape d'annulation, fichier temporaire supprimé ; repli sur l'import standard si le fichier est illisible.
 
 ### 5.5 Caméra & alignement plateau
 
@@ -412,7 +424,7 @@ Menu Outils → Caméra (CameraDialog)
 1. **Pas de mixin** : modèle / vue / contrôleur, objets qui reçoivent ce dont ils ont besoin ; ne pas mélanger les responsabilités (UI ≠ G-Code ≠ USB).
 2. **Repère machine** : origine bas-gauche, Y vers le haut dans le modèle monde ; conversion écran dans `VectorGraphicsItem.refresh`.
 3. **Import vectoriel groupé par défaut** ; dégroupage / explosion **explicites** (clic droit ou boutons).
-4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` (relu par `apply_saved_theme`) ; Stencil Studio consomme via `theme_for_lsp`.
+4. **Thème unique source de vérité** : `ui.app.theme.THEMES` + `QSettings("app_theme")` (relu par `apply_saved_theme`) ; Stencil Studio reçoit ses couleurs par `page_colors`.
 5. **Undo canevas** : toute mutation géométrique (nœuds, explode, dessin) doit appeler `push_undo_snapshot()` avant modification.
 6. **i18n** : toute nouvelle chaîne UI passe par `tr("…")`, avec sa clé dans `i18n/translations.py`.
 7. **Ressources** : images dans `resources/`, chargées via `find_resource` ; pack d'icônes `resources/icons/` ; penser à `--add-data "resources;resources"` dans les builds.
@@ -429,7 +441,7 @@ Menu Outils → Caméra (CameraDialog)
 | Import | Plus de dégroupage automatique SVG/DXF |
 | Dessin | Outils souris ligne / rectangle / ellipse |
 | Édition | **Exploser en segments** + **mode nœuds** |
-| Stencil Studio | Thème lié à LSP (7 thèmes, sync à chaud), autotest `selftest.py` |
+| Stencil Studio | Thème lié à LSP (7 thèmes, sync à chaud), autotest `selftest.py` ; modèle / vue / contrôleur (`models/`, `controllers/`, `ui/`), plus aucun import de LSP, routage des exports dans `controllers/stencil_import.py` |
 | UI claire | Stylesheet dédié (boutons ±, spinbox, etc.) |
 | Sécurité | Avertissement laser au démarrage (`controllers/startup_safety`, `ui/dialogs/startup_safety`), rappel périodique, `NOWARNING` pour les tests |
 | Machine | `grbl/ports.py` : ports virtuels masqués, dernier port mémorisé ; aide « Port introuvable ? ». Pilotage du graveur dans `EngraverController`, commandes dans `grbl/commands.py` ; `LaserControlMixin` supprimé |
@@ -490,17 +502,18 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 
 Principes : le prénom, les flocons et l'anneau sont **soudés** en une seule pièce avant d'être envoyés au laser : un contour qui traverse de la matière serait découpé à l'intérieur d'une lettre. Les lettres sont d'abord fusionnées (écritures cursives), leurs contreformes (a, e, o) restent des contours à part. Le prénom est tenu à l'anneau par une barre posée sur la ligne de base (choix « Barre », par défaut) ; sans elle il doit toucher l'anneau des deux côtés (`floating_name` avertit sinon). Un point de i ou un accent reste détaché et tombe. Tests : `tests/test_ornament_generator.py` (formes et disposition sans Qt ; soudure avec le vrai Qt, ignorée sans lui).
 
-## 8.1 Stencil Studio → calques multiples (lsp_bridge)
+## 8.1 Stencil Studio → calques (controllers/stencil_import.py)
 
 Export Studio vers LSP : routage par nom de calque DXF / groupe SVG
 
 | Nom export | Calque LSP |
 |------------|------------|
-| CUT / FRAME | Découpe (existant ou créé) |
-| ENGRAVE / MARK | Gravure / Marquage |
-| LAYER_n | Calque dédié « LAYER n » (créé si besoin), mode Découpe, réglages repris du premier calque découpe (+ focale si liée) |
+| CUT | Découpe |
+| FRAME (cadrage, mark, contour) | Marquage (de préférence un calque dont le nom contient « cadr ») |
+| ENGRAVE (gravure, fill) | Gravure remplie |
+| LAYER_n | Calque dédié `LAYER_n` (créé si besoin par `LayersModel.append_layer`), mode Découpe, réglages repris du premier calque Découpe, pas de remplissage = focale de la machine |
 
-Fichier : **src/stencil_studio/lsp_bridge.py** (`ensure_multi_layer`, `kind_for_layer_name`, `pick_layer`).
+Fichier : **src/laser_studio/controllers/stencil_import.py** (`route_objects`, `ensure_multi_layer`, `kind_for_layer_name`, `pick_layer`, `import_summary`), appelé par `VectorEditorController.import_stencil_export`.
 
 ## 8.2 Porte-clés prénom (NameKey)
 
@@ -517,8 +530,8 @@ Fichier : **src/stencil_studio/lsp_bridge.py** (`ensure_multi_layer`, `kind_for_
 # Lancer l’application
 python main.py
 
-# Lancer Stencil Studio seul
-python main.py --stencil-studio
+# Lancer Stencil Studio seul, dans le navigateur
+cd src && python -m stencil_studio
 
 # Tests (comme le workflow tests.yml)
 QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests

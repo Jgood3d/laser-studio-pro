@@ -2,7 +2,7 @@
 racine du dépôt)."""
 import sys
 if "--stencil-studio" in sys.argv:
-    from stencil_studio.studio_window import main as _stencil_main
+    from stencil_studio.ui.window import main as _stencil_main
     sys.exit(_stencil_main())
 
 from PyQt6.QtWidgets import QApplication

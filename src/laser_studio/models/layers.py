@@ -309,6 +309,14 @@ class LayersModel(QObject):
         self.changed.emit()
         return layer
 
+    def append_layer(self, layer):
+        """Ajoute un calque déjà réglé (`LaserLayer`, ex. plaque importée de Stencil Studio) et le renvoie."""
+        self.layers.append(layer)
+        log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
+        self.layer_added.emit(layer.id)
+        self.changed.emit()
+        return layer
+
     def remove_layer(self, layer_id):
         layer = self.get(layer_id)
         if layer is None:

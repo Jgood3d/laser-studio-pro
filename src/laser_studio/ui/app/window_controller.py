@@ -20,14 +20,15 @@ modèles, contrôleurs et pages qu'elle a construits.
 from PyQt6.QtCore import QObject, QSettings, QTimer
 from PyQt6.QtWidgets import QApplication
 
-from laser_studio.i18n import set_language, tr
+from laser_studio.i18n import get_current_language, set_language, tr
 from laser_studio.ui.about import AboutDialog
+from laser_studio.ui.app.theme import apply_app_theme, current_theme_name, normalize_theme_name, page_colors
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.support import SupportDialog
-from stencil_studio.studio_dialog import open_stencil_studio, preload_stencil_studio
+from stencil_studio.controllers.studio import StencilStudioController
 
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
 STENCIL_PRELOAD_DELAY_MS = 3000
@@ -40,6 +41,7 @@ class WindowController(QObject):
         self._help_dialog = None
         self._settings_windows = {}
         self.camera = None
+        self.stencil_studio = None
 
     # -- menu et barre d'outils
 
@@ -58,7 +60,7 @@ class WindowController(QObject):
         actions.settings_window_requested.connect(self.show_settings_window)
         actions.language_selected.connect(self.select_language)
         actions.theme_selected.connect(self.change_theme)
-        actions.stencil_studio_requested.connect(lambda: open_stencil_studio(w))
+        actions.stencil_studio_requested.connect(lambda: self.stencil().open())
         actions.main_tab_requested.connect(self.show_main_tab)
         editor = w.vector_editor
         actions.vector_import_requested.connect(lambda: self.run_in_vector_editor(editor.import_dialog))
@@ -92,19 +94,27 @@ class WindowController(QObject):
         actions.generate_requested.connect(w.job.generate)
         actions.gcode_import_requested.connect(w.job.import_gcode)
 
+    def stencil(self):
+        """Contrôleur de Stencil Studio, créé à la première demande. Ses exports SVG / DXF arrivent
+        dans l'éditeur vectoriel, rangés dans les calques (VectorEditorController.import_stencil_export)."""
+        if self.stencil_studio is None:
+            w = self.window
+            self.stencil_studio = StencilStudioController(
+                w, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
+                dialogs=w.dialogs, parent=self)
+            self.stencil_studio.export_ready.connect(w.vector_editor.import_stencil_export)
+        return self.stencil_studio
+
     def schedule_stencil_preload(self):
         """Préchauffe Stencil Studio en arrière-plan une fois la fenêtre
         affichée : « Outils > Stencil Studio » s'ouvre ensuite sans attente."""
-        QTimer.singleShot(STENCIL_PRELOAD_DELAY_MS, lambda: preload_stencil_studio(self.window))
+        QTimer.singleShot(STENCIL_PRELOAD_DELAY_MS, lambda: self.stencil().preload())
 
     def change_theme(self, theme_name):
         """Bascule de thème à la volée et mémorise le code.
 
         Codes possibles : dark, light, dusk, warm.
         """
-        # Importé ici : le thème n'est chargé qu'au premier changement.
-        from laser_studio.ui.app.theme import apply_app_theme, normalize_theme_name
-
         theme_name = normalize_theme_name(theme_name)
         settings = QSettings("LaserStudioPro", "UIConfig")
         settings.setValue("app_theme", theme_name)
@@ -113,12 +123,8 @@ class WindowController(QObject):
         self.window.app_actions.set_theme(theme_name)
 
         # Stencil Studio ouvert : même thème que LSP
-        dlg = getattr(self.window, "_stencil_studio_dialog", None)
-        if dlg is not None:
-            try:
-                dlg.sync_theme_from_lsp(theme_name)
-            except Exception:
-                pass
+        if self.stencil_studio is not None:
+            self.stencil_studio.set_theme(page_colors(theme_name))
 
     def select_language(self, lang_code):
         """Langue choisie dans le menu : appliquée au prochain démarrage."""

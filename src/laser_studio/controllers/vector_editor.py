@@ -19,6 +19,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtWidgets import QDialog
 
 from laser_studio.i18n import tr
+from laser_studio.controllers.stencil_import import import_summary, remove_temporary_export, route_objects
 from laser_studio.models.vector_objects import SvgPathObject, TextObject
 from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog, error_message
 from laser_studio.ui.dialogs.jig import JigDialog, error_message as jig_error_message
@@ -365,6 +366,33 @@ class VectorEditorController(QObject):
         self.add_objects(objects)
         self.dialogs.info(tr("vector.svg_success_title"),
                           tr("vector.svg_success").format(count=len(objects), layer=default_layer.name))
+
+    def import_stencil_export(self, path):
+        """Fichier SVG ou DXF exporté par Stencil Studio : objets rangés dans les calques de LSP d'après
+        leur calque d'origine (controllers/stencil_import.py), en une étape d'annulation. En cas
+        d'échec, import standard (import_file), qui explique le problème. Le fichier temporaire est
+        ensuite supprimé."""
+        try:
+            stats = None
+            lower = path.lower()
+            if lower.endswith((".dxf", ".svg")) and self.layers.layers:
+                default_layer = self.layers.default_svg_layer()
+                if lower.endswith(".dxf"):
+                    objects = dxf_to_objects(dxf_import.read_dxf(path), default_layer.id)
+                else:
+                    objects = extract_svg_objects(path, default_layer.id, self.machine.bed_h, ungroup=True)
+                if not objects:
+                    raise ValueError(tr("vector.svg_empty"))
+                stats = route_objects(objects, self.layers, default_layer.id, focal=self.machine.focal)
+                self.add_objects(objects)
+            else:
+                self.import_file(path)
+            self.status.emit(import_summary(path, stats))
+        except Exception as e:  # fichier illisible ou vide : l'import standard affiche l'erreur
+            self.status.emit(tr("stencil.import_fallback").format(error=e))
+            self.import_file(path)
+        finally:
+            remove_temporary_export(path)
 
     def _import_dxf(self, path, default_layer):
         """Import d'un DXF (texte ASCII) : tracés regroupés par calque DXF, calque LSP par défaut."""
