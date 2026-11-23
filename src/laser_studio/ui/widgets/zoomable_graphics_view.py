@@ -75,6 +75,22 @@ class ZoomableGraphicsView(QGraphicsView):
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
             self.unsetCursor()
 
+    # Facteur d'un clic sur les loupes (ou Ctrl++ / Ctrl+-), comme dans l'éditeur vectoriel.
+    BUTTON_ZOOM_STEP = 1.25
+
+    def zoom_in(self):
+        self._zoom_centered(self.BUTTON_ZOOM_STEP)
+
+    def zoom_out(self):
+        self._zoom_centered(1.0 / self.BUTTON_ZOOM_STEP)
+
+    def _zoom_centered(self, factor):
+        """Zoom autour du milieu de la vue (la molette, elle, zoome sous la souris)."""
+        anchor = self.transformationAnchor()
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.scale(factor, factor)
+        self.setTransformationAnchor(anchor)
+
     def wheelEvent(self, event: QWheelEvent):
         if event.angleDelta().y() > 0:
             self.scale(self.zoom_factor, self.zoom_factor)

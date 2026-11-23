@@ -3,7 +3,7 @@ gcode/preview.py), position de la tête et traits déjà gravés pendant un job.
 
 import pyqtgraph as pg
 from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPainterPath, QPolygonF
+from PyQt6.QtGui import QAction, QColor, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QGraphicsPathItem, QLabel, QSplitter, QVBoxLayout, QWidget,
 )
@@ -16,6 +16,7 @@ from laser_studio.gcode.preview import (
 )
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
+from laser_studio.ui.utils import palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import FloatingToolBar
 from laser_studio.core.preferences import app_preferences
 
@@ -80,8 +81,14 @@ class Preview2DTab(QWidget):
         self._create_options()
         layout.addWidget(self.splitter)
         # Options de l'aperçu : barre flottante sous le titre du graphique.
+        self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
+        self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
+        zoom_shortcuts(self, self.zoom_in, self.zoom_out)
         self.options_toolbar = FloatingToolBar(
             [
+                self.zoom_in_action,
+                self.zoom_out_action,
+                None,
                 self.material_label,
                 self.material_combo,
                 None,
@@ -94,6 +101,27 @@ class Preview2DTab(QWidget):
             self.plot_widget,
             top_margin=30,
         )
+
+    # -- zoom
+
+    # Facteur d'un clic sur les loupes (ou Ctrl++ / Ctrl+-), comme dans les autres vues.
+    BUTTON_ZOOM_STEP = 1.25
+
+    def zoom_in(self):
+        self._zoom(1.0 / self.BUTTON_ZOOM_STEP)
+
+    def zoom_out(self):
+        self._zoom(self.BUTTON_ZOOM_STEP)
+
+    def _zoom(self, scale):
+        """Zoom autour du milieu du graphique (`scale` < 1 : plus près)."""
+        self.plot_widget.getViewBox().scaleBy((scale, scale))
+
+    def _zoom_action(self, icon, tip_key, slot):
+        action = QAction(palette_icon(icon, self.palette()), tr(tip_key), self)
+        action.setToolTip(tr(tip_key))
+        action.triggered.connect(slot)
+        return action
 
     # -- construction
 

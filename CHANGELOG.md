@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Graver une image et Visualisation 2D G-Code : loupes « Zoom avant » et « Zoom arrière » dans la barre d'outils (aussi Ctrl++ et Ctrl+-), zoom centré sur la vue. Dans « Graver une image », l'originale et le rendu tramé zooment ensemble.
+
 Graver une image : effet bande dessinée, à la manière du filtre « Bande dessinée » de GIMP. Deux curseurs, « BD : rayon » (rayon du masque, en mm sur la pièce) et « BD : noir » (pourcentage de noir), noircissent le bord des traits avant le tramage. Enregistré dans le projet, annulable par Ctrl+Z.
 
 Graver une image : le bouton « Charger Image » est plus grand, avec une image, pour être trouvé du premier coup.

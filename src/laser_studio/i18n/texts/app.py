@@ -634,4 +634,10 @@ TEXTS = {
         "de": "Schlüsselanhänger-Generator...",
         "es": "Generador de llaveros...",
     },
+    "ui.zoom_in": {"fr": "Zoom avant", "en": "Zoom in", "de": "Vergrößern", "es": "Acercar"},
+    "ui.zoom_out": {"fr": "Zoom arrière", "en": "Zoom out", "de": "Verkleinern", "es": "Alejar"},
+    "ui.zoom_in_tip": {"fr": "Zoom avant (Ctrl++)", "en": "Zoom in (Ctrl++)", "de": "Vergrößern (Strg++)",
+                       "es": "Acercar (Ctrl++)"},
+    "ui.zoom_out_tip": {"fr": "Zoom arrière (Ctrl+-)", "en": "Zoom out (Ctrl+-)", "de": "Verkleinern (Strg+-)",
+                        "es": "Alejar (Ctrl+-)"},
 }

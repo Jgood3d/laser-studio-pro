@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
+from laser_studio.ui.utils import palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import TabToolBar, ZoomableGraphicsView
 
 
@@ -44,7 +45,8 @@ class ImageTab(QWidget):
         self.settings = ImageSettingsPanel()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.addWidget(self._toolbar())
+        self.toolbar = self._toolbar()
+        layout.addWidget(self.toolbar)
         row = QHBoxLayout()
         # Réglages de l'image à gauche, comme dans Séparation.
         self._settings_scroll = self._side_scroll(self.settings)
@@ -52,11 +54,21 @@ class ImageTab(QWidget):
         row.addWidget(self._settings_scroll)
         row.addWidget(self._previews(), 1)
         layout.addLayout(row)
+        zoom_shortcuts(self, self.zoom_in, self.zoom_out)
 
     # -- construction
 
+    def zoom_in(self):
+        """Loupe « + » : les deux aperçus (originale et rendu tramé) ensemble."""
+        for view in (self.source_view, self.dither_view):
+            view.zoom_in()
+
+    def zoom_out(self):
+        for view in (self.source_view, self.dither_view):
+            view.zoom_out()
+
     def _toolbar(self):
-        """Comparaison des algorithmes et « Afficher l'originale »."""
+        """Comparaison des algorithmes, « Afficher l'originale », loupes."""
         compare_icon = QIcon.fromTheme(
             "view-app-grid",
             QIcon.fromTheme(
@@ -77,7 +89,9 @@ class ImageTab(QWidget):
                     tr("img.compare_algos"),
                     tr("img.compare_algos_tip"),
                     lambda: self.compare_requested.emit(),
-                )
+                ),
+                (palette_icon("zoom-in", self.palette()), tr("ui.zoom_in"), tr("ui.zoom_in_tip"), self.zoom_in),
+                (palette_icon("zoom-out", self.palette()), tr("ui.zoom_out"), tr("ui.zoom_out_tip"), self.zoom_out),
             ],
             left_widgets=[self.show_original_check],
         )
