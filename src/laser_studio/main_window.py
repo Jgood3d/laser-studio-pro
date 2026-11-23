@@ -8,7 +8,7 @@ plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
 ImageToolbarActions (actions de la barre d'outils sur l'image).
 """
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QTabWidget,
+                             QMainWindow, QMessageBox, QPushButton, QScrollArea, QSplitter, QStyle, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QStandardItemModel
@@ -767,6 +767,19 @@ class FullLaserStudio(QMainWindow):
         # Bibliothèque de modèles : ajoute aussi des objets (la rangée du haut est pleine).
         vector_create_actions.append(self._vector_action(
             tr("ui.vector_library"), tr("ui.vector_library_tip"), self.library.open, "view-app-grid"))
+        # Fond caméra : interrupteur (capture et affiche l'image de la caméra sous la grille, pour placer le
+        # travail sur la vraie matière) et bouton pour la recapturer, sans passer par la fenêtre Caméra.
+        camera_icon = palette_icon("camera-photo", self.palette(),
+                                   self.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon))
+        self.vector_camera_toggle = QAction(tr("ui.vector_camera_toggle"), self)
+        self.vector_camera_toggle.setToolTip(tr("ui.vector_camera_toggle_tip"))
+        self.vector_camera_toggle.setIcon(camera_icon)
+        self.vector_camera_toggle.setCheckable(True)
+        self.vector_camera_toggle.toggled.connect(self.window_controller.set_camera_background_enabled)
+        vector_camera_refresh = self._vector_action(
+            tr("ui.vector_camera_refresh"), tr("ui.vector_camera_refresh_tip"),
+            self.window_controller.refresh_camera_clicked, "view-refresh")
+        vector_create_actions.extend([self.vector_camera_toggle, vector_camera_refresh])
         self.vector_draw_buttons = {}
         for tool, key, icon in (
             (None, "ui.vector_tool_select", "tool-pointer"),

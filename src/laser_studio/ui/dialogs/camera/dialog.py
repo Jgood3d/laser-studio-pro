@@ -122,19 +122,19 @@ class CameraDialog(QDialog):
         saved = getattr(self._ctrl, "align_tag_params", None) or {}
         grid = QGridLayout()
         self.spin_margin = QDoubleSpinBox()
-        self.spin_margin.setRange(5.0, 80.0)
+        self.spin_margin.setRange(2.0, 80.0)
         self.spin_margin.setValue(saved.get("margin", 20.0))
         self.spin_margin.setSuffix(" mm")
         self.spin_tag = QDoubleSpinBox()
-        self.spin_tag.setRange(8.0, 60.0)
-        self.spin_tag.setValue(saved.get("tag", 20.0))
+        self.spin_tag.setRange(15.0, 120.0)
+        self.spin_tag.setValue(saved.get("tag", 40.0))
         self.spin_tag.setSuffix(" mm")
         self.spin_cols = QSpinBox()
         self.spin_cols.setRange(2, 5)
-        self.spin_cols.setValue(saved.get("cols", 3))
+        self.spin_cols.setValue(saved.get("cols", 2))
         self.spin_rows = QSpinBox()
         self.spin_rows.setRange(2, 5)
-        self.spin_rows.setValue(saved.get("rows", 3))
+        self.spin_rows.setValue(saved.get("rows", 2))
         for row, (label, spin) in enumerate((
             (tr("camera.align_wizard.margin"), self.spin_margin),
             (tr("camera.align_wizard.tag_size"), self.spin_tag),

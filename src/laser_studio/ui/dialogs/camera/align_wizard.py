@@ -16,6 +16,7 @@ from PyQt6.QtGui import QImage, QPixmap
 from PyQt6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
+    QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QHBoxLayout,
@@ -33,9 +34,11 @@ from laser_studio.camera.capture import CameraCapture
 from laser_studio.camera.lens_calibration import undistort
 from laser_studio.camera.workspace_alignment import (
     AlignmentTarget,
-    compute_homography,
-    detect_apriltags,
+    compute_alignment,
+    detect_apriltag_corners,
+    merge_detections,
     generate_apriltag_targets,
+    tag_cell_px,
     targets_to_engrave_paths,
 )
 from laser_studio.controllers.camera import CameraController
@@ -60,6 +63,11 @@ def _numpy_to_qpixmap(bgr: np.ndarray, max_w: int = 520) -> QPixmap:
 class WorkspaceAlignmentWizard(QDialog):
     """Wizard d'alignement pixel → mm via AprilTags."""
 
+    # Le portique cache des tags différents selon sa position : on capture 2 à 3 fois en le déplaçant entre
+    # deux captures, et on fusionne les tags vus.
+    MIN_CAPTURES = 2
+    MAX_CAPTURES = 3
+
     def __init__(self, controller: CameraController, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("camera.align_wizard.title"))
@@ -68,6 +76,8 @@ class WorkspaceAlignmentWizard(QDialog):
         self._targets: List[AlignmentTarget] = []
         self._cap: Optional[CameraCapture] = None
         self._last_frame: Optional[np.ndarray] = None
+        self._captures: List[dict] = []                 # une entrée par capture : {tag_id: coins}
+        self._img_size: Optional[tuple] = None
         self._preview_timer = QTimer(self)
         self._preview_timer.timeout.connect(self._update_preview)
 
@@ -103,26 +113,38 @@ class WorkspaceAlignmentWizard(QDialog):
         form = QFormLayout()
         saved = getattr(self._ctrl, "align_tag_params", None) or {}   # derniers réglages de cette session
         self.spin_margin = QDoubleSpinBox()
-        self.spin_margin.setRange(5.0, 80.0)
+        self.spin_margin.setRange(2.0, 80.0)
         self.spin_margin.setValue(saved.get("margin", 20.0))
         self.spin_margin.setSuffix(" mm")
         form.addRow(tr("camera.align_wizard.margin"), self.spin_margin)
 
         self.spin_tag = QDoubleSpinBox()
-        self.spin_tag.setRange(8.0, 60.0)
-        self.spin_tag.setValue(saved.get("tag", 20.0))
+        self.spin_tag.setRange(15.0, 120.0)
+        self.spin_tag.setValue(saved.get("tag", 40.0))
         self.spin_tag.setSuffix(" mm")
         form.addRow(tr("camera.align_wizard.tag_size"), self.spin_tag)
 
         self.spin_cols = QSpinBox()
         self.spin_cols.setRange(2, 5)
-        self.spin_cols.setValue(saved.get("cols", 3))
+        self.spin_cols.setValue(saved.get("cols", 2))
         form.addRow(tr("camera.align_wizard.cols"), self.spin_cols)
 
         self.spin_rows = QSpinBox()
         self.spin_rows.setRange(2, 5)
-        self.spin_rows.setValue(saved.get("rows", 3))
+        self.spin_rows.setValue(saved.get("rows", 2))
         form.addRow(tr("camera.align_wizard.rows"), self.spin_rows)
+
+        # Plus la résolution est haute, plus les cases du tag font de pixels : c'est ce qui décide de la détection.
+        self.combo_res = QComboBox()
+        self.combo_res.addItem(tr("camera.align_wizard.res_auto"), (0, 0))
+        for rw, rh in ((640, 480), (1280, 720), (1920, 1080)):
+            self.combo_res.addItem(f"{rw}×{rh}", (rw, rh))
+        profile = self._ctrl.profile
+        if profile is not None:
+            for i in range(self.combo_res.count()):
+                if self.combo_res.itemData(i) == (profile.preferred_width, profile.preferred_height):
+                    self.combo_res.setCurrentIndex(i)
+        form.addRow(tr("camera.align_wizard.resolution"), self.combo_res)
         lay.addLayout(form)
 
         self._lbl_targets = QLabel()
@@ -177,10 +199,19 @@ class WorkspaceAlignmentWizard(QDialog):
         lay.addWidget(self._preview, stretch=1)
         self._lbl_detect = QLabel("")
         lay.addWidget(self._lbl_detect)
+        self._lbl_quality = QLabel("")
+        self._lbl_quality.setWordWrap(True)
+        lay.addWidget(self._lbl_quality)
+        self._lbl_captures = QLabel("")
+        self._lbl_captures.setWordWrap(True)
+        lay.addWidget(self._lbl_captures)
         row = QHBoxLayout()
         self._btn_snap = QPushButton(tr("camera.align_wizard.snap"))
         self._btn_snap.clicked.connect(self._snap)
         row.addWidget(self._btn_snap)
+        self._btn_reset = QPushButton(tr("camera.align_wizard.reset_captures"))
+        self._btn_reset.clicked.connect(self._reset_captures)
+        row.addWidget(self._btn_reset)
         row.addStretch()
         lay.addLayout(row)
         return w
@@ -238,19 +269,32 @@ class WorkspaceAlignmentWizard(QDialog):
                     tr("camera.err.need_lens_first"),
                 )
                 return
+            res_w, res_h = self.combo_res.currentData()
+            profile = self._ctrl.profile
+            if (profile.preferred_width, profile.preferred_height) != (res_w, res_h):
+                profile.preferred_width, profile.preferred_height = res_w, res_h
+                self._ctrl.save_current_profile()
             if not self._open_camera():
                 return
+            self._reset_captures()
             self._stack.setCurrentIndex(1)
             self._preview_timer.start(120)
             next_btn = self._buttons.button(QDialogButtonBox.StandardButton.Ok)
             if next_btn:
                 next_btn.setText(tr("camera.align_wizard.compute"))
         elif idx == 1:
-            if self._last_frame is None:
+            if len(self._captures) < self.MIN_CAPTURES:
                 QMessageBox.warning(
                     self,
                     tr("camera.align_wizard.title"),
-                    tr("camera.align_wizard.need_snap"),
+                    tr("camera.align_wizard.need_captures").format(min=self.MIN_CAPTURES),
+                )
+                return
+            if len(merge_detections(self._captures)) < 3:
+                QMessageBox.warning(
+                    self,
+                    tr("camera.align_wizard.title"),
+                    tr("camera.align_wizard.need_tags").format(total=len(self._targets)),
                 )
                 return
             self._preview_timer.stop()
@@ -294,22 +338,29 @@ class WorkspaceAlignmentWizard(QDialog):
             self._cap = None
 
     def _process_frame(self, frame: np.ndarray) -> np.ndarray:
-        """Undistort + dessine les tags détectés."""
+        """Undistort + dessine les tags détectés, avec leur taille en pixels."""
         und = undistort(frame, self._ctrl.profile.lens)
         expected = [t.tag_id for t in self._targets]
-        found = detect_apriltags(und, expected_ids=expected)
+        found = detect_apriltag_corners(und, expected_ids=expected)
         display = und.copy()
-        for tid, (u, v) in found.items():
-            cv2.circle(display, (int(u), int(v)), 8, (0, 255, 0), 2)
-            cv2.putText(
-                display, str(tid), (int(u) + 10, int(v) - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2,
-            )
+        for tid, quad in merge_detections(self._captures).items():   # déjà collectés : en bleu, sous les détections
+            cv2.polylines(display, [np.round(quad).astype(np.int32)], True, (255, 160, 40), 1)
+        for tid, quad in found.items():
+            cv2.polylines(display, [np.round(quad).astype(np.int32)], True, (0, 255, 0), 2)
+            u, v = quad.mean(axis=0)
+            cv2.putText(display, str(tid), (int(u) - 8, int(v) + 6),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         self._lbl_detect.setText(
-            tr("camera.align_wizard.detected").format(
-                found=len(found), total=len(self._targets)
-            )
+            tr("camera.align_wizard.detected").format(found=len(found), total=len(self._targets))
         )
+        if found:
+            cell = min(tag_cell_px(q) for q in found.values())
+            key = "camera.align_wizard.cell_ok" if cell >= 6.0 else "camera.align_wizard.cell_low"
+            self._lbl_quality.setText(tr(key).format(px=f"{cell:.1f}", size=f"{und.shape[1]}×{und.shape[0]}"))
+            self._lbl_quality.setStyleSheet("color: #2e9e4f;" if cell >= 6.0 else "color: #d9822b;")
+        else:
+            self._lbl_quality.setText(tr("camera.align_wizard.cell_none").format(size=f"{und.shape[1]}×{und.shape[0]}"))
+            self._lbl_quality.setStyleSheet("color: #d9822b;")
         return display
 
     def _update_preview(self):
@@ -324,13 +375,37 @@ class WorkspaceAlignmentWizard(QDialog):
             display = frame
         self._preview.setPixmap(_numpy_to_qpixmap(display))
 
+    def _reset_captures(self):
+        self._captures = []
+        self._img_size = None
+        self._last_frame = None
+        self._update_captures_status()
+
+    def _update_captures_status(self):
+        merged = merge_detections(self._captures)
+        total = [t.tag_id for t in self._targets]
+        missing = [str(i) for i in total if i not in merged]
+        text = tr("camera.align_wizard.captures_status").format(
+            n=len(self._captures), max=self.MAX_CAPTURES, found=len(merged), total=len(total))
+        if missing and self._captures:
+            text += " " + tr("camera.align_wizard.captures_missing").format(ids=", ".join(missing))
+        self._lbl_captures.setText(text)
+        self._btn_snap.setEnabled(len(self._captures) < self.MAX_CAPTURES)
+        self._btn_reset.setEnabled(bool(self._captures))
+
     def _snap(self):
-        if self._cap is None:
+        if self._cap is None or len(self._captures) >= self.MAX_CAPTURES:
             return
         frame = self._cap.grab_average(3)
         if frame is None:
             return
-        self._last_frame = frame
+        und = undistort(frame, self._ctrl.profile.lens)
+        found = detect_apriltag_corners(und, expected_ids=[t.tag_id for t in self._targets])
+        if found:                                   # une capture sans aucun tag ne compte pas
+            self._captures.append(found)
+            self._img_size = (und.shape[1], und.shape[0])
+            self._last_frame = frame
+        self._update_captures_status()
         try:
             display = self._process_frame(frame)
         except Exception:
@@ -338,13 +413,11 @@ class WorkspaceAlignmentWizard(QDialog):
         self._preview.setPixmap(_numpy_to_qpixmap(display))
 
     def _run_alignment(self):
-        und = undistort(self._last_frame, self._ctrl.profile.lens)
-        expected = [t.tag_id for t in self._targets]
-        detections = detect_apriltags(und, expected_ids=expected)
-        h, w = und.shape[:2]
+        detections = merge_detections(self._captures)
+        w, h = self._img_size
         try:
-            alignment = compute_homography(
-                self._targets, detections, (w, h), min_tags=4
+            alignment = compute_alignment(
+                self._targets, detections, (w, h), min_tags=3
             )
         except ValueError as e:
             self._lbl_result.setText(tr("camera.align_wizard.failed").format(error=e))

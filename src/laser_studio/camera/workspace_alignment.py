@@ -63,37 +63,36 @@ class WorkspaceAlignment:
 def generate_apriltag_targets(
     bed_w: float,
     bed_h: float,
-    margin_mm: float = 15.0,
-    tag_size_mm: float = 20.0,
-    grid: Tuple[int, int] = (3, 3),
+    margin_mm: float = 20.0,
+    tag_size_mm: float = 40.0,
+    grid: Tuple[int, int] = (2, 2),
 ) -> List[AlignmentTarget]:
-    """Place une grille d'AprilTags à l'intérieur du plateau.
+    """Place une grille d'AprilTags sur le plateau (par défaut 2×2 : les 4 coins).
 
-    Les tags sont centrés dans une zone rétractée de `margin_mm` par rapport
-    aux bords. Les identifiants vont de 0 à (cols*rows - 1), ligne par ligne
-    en partant du bas-gauche (cohérent avec le repère machine Y↑).
+    `margin_mm` : distance entre le bord du plateau et le bord du tag (c'est aussi le cadre que le gabarit
+    trace, de la taille du tag). Un retrait de 20 mm évite les bords du plateau (rails, butées, coins de l'image où l'objectif déforme le plus). Les identifiants vont de 0 à
+    (cols*rows - 1), ligne par ligne en partant du bas-gauche (repère machine Y↑).
     """
     cols, rows = grid
     if cols < 2 or rows < 2:
         raise ValueError("La grille d'alignement doit avoir au moins 2×2 tags")
-    usable_w = bed_w - 2 * margin_mm
-    usable_h = bed_h - 2 * margin_mm
-    if usable_w <= tag_size_mm or usable_h <= tag_size_mm:
+    side = tag_cut_side_mm(tag_size_mm)
+    half = side / 2.0
+    x0, x1 = margin_mm + half, bed_w - margin_mm - half
+    y0, y1 = margin_mm + half, bed_h - margin_mm - half
+    # Deux carrés voisins ne doivent pas se toucher : il faut de la place pour les découper.
+    gap = side + 2.0 * tag_quiet_mm(tag_size_mm)
+    if (x1 - x0) / (cols - 1) < gap or (y1 - y0) / (rows - 1) < gap:
         raise ValueError("Plateau trop petit pour la marge et la taille de tag demandées")
 
-    xs = [margin_mm + (0 if cols == 1 else i * usable_w / (cols - 1)) for i in range(cols)]
-    ys = [margin_mm + (0 if rows == 1 else j * usable_h / (rows - 1)) for j in range(rows)]
+    xs = [x0 + i * (x1 - x0) / (cols - 1) for i in range(cols)]
+    ys = [y0 + j * (y1 - y0) / (rows - 1) for j in range(rows)]
 
     targets: List[AlignmentTarget] = []
     tag_id = 0
-    for j, cy in enumerate(ys):          # j=0 → bas
-        for i, cx in enumerate(xs):
-            targets.append(AlignmentTarget(
-                tag_id=tag_id,
-                cx_mm=cx,
-                cy_mm=cy,
-                size_mm=tag_size_mm,
-            ))
+    for cy in ys:                        # j=0 → bas
+        for cx in xs:
+            targets.append(AlignmentTarget(tag_id=tag_id, cx_mm=cx, cy_mm=cy, size_mm=tag_size_mm))
             tag_id += 1
     return targets
 
@@ -188,38 +187,201 @@ def targets_to_engrave_paths(
     return paths
 
 
+def tag_quiet_mm(size_mm: float) -> float:
+    """Zone claire à garder autour du tag (au moins une case) : la matière du plateau, ou le blanc du papier."""
+    return max(6.0, size_mm * 0.15)
+
+
+def tag_cut_side_mm(size_mm: float) -> float:
+    """Côté du carré découpé et du cadre du gabarit : celui du tag (40 mm pour un tag de 40 mm), sans marge.
+    Le tag imprimé se découpe le long de son bord noir et se pose dans le cadre de même taille."""
+    return float(size_mm)
+
+
+TAG_CELLS = 8      # un tag 36h11 = 6×6 cases de données + 1 case de bordure de chaque côté
+
+
+def _detector(inverted: bool) -> "cv2.aruco.ArucoDetector":
+    params = cv2.aruco.DetectorParameters()
+    params.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
+    params.cornerRefinementWinSize = 5
+    params.adaptiveThreshWinSizeMin = 3
+    params.adaptiveThreshWinSizeMax = 63
+    params.adaptiveThreshWinSizeStep = 6
+    params.minMarkerPerimeterRate = 0.02
+    params.detectInvertedMarker = inverted
+    return cv2.aruco.ArucoDetector(cv2.aruco.getPredefinedDictionary(APRILTAG_DICT), params)
+
+
+def _detect_pass(gray: np.ndarray, scale: float, expected) -> Dict[int, np.ndarray]:
+    """Une passe de détection (tag normal puis tag inversé), coins ramenés à l'échelle de l'image d'origine."""
+    found: Dict[int, np.ndarray] = {}
+    for inverted in (False, True):
+        corners, ids, _rejected = _detector(inverted).detectMarkers(gray)
+        if ids is None:
+            continue
+        for quad, tag_id in zip(corners, ids.flatten()):
+            tid = int(tag_id)
+            if expected is not None and tid not in expected:
+                continue
+            found.setdefault(tid, quad.reshape(4, 2).astype(np.float64) / scale)
+    return found
+
+
+def detect_apriltag_corners(
+    image: np.ndarray,
+    expected_ids: Optional[Sequence[int]] = None,
+) -> Dict[int, np.ndarray]:
+    """Détecte les AprilTags et renvoie {tag_id: coins (4×2, pixels)}.
+
+    Ordre des coins : haut-gauche, haut-droit, bas-droit, bas-gauche du TAG (pas de l'image).
+
+    Les tags gravés sur une matière sombre (peinte en noir) apparaissent en négatif : ils sont
+    cherchés aussi. Si des tags manquent, on retente avec le contraste renforcé puis l'image
+    agrandie ×2 (petits tags).
+    """
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY) if image.ndim == 3 else image
+    expected = None if expected_ids is None else set(int(i) for i in expected_ids)
+    wanted = len(expected) if expected is not None else None
+
+    found = _detect_pass(gray, 1.0, expected)
+    if wanted is None or len(found) < wanted:
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)).apply(gray)
+        for tid, quad in _detect_pass(clahe, 1.0, expected).items():
+            found.setdefault(tid, quad)
+    if wanted is None or len(found) < wanted:
+        big = cv2.resize(gray, None, fx=2.0, fy=2.0, interpolation=cv2.INTER_CUBIC)
+        for tid, quad in _detect_pass(big, 2.0, expected).items():
+            found.setdefault(tid, quad)
+    return found
+
+
+def tag_cell_px(corners: np.ndarray) -> float:
+    """Taille d'une case du tag dans l'image, en pixels (≥ 6 recommandé, 4 = limite)."""
+    sides = [np.linalg.norm(corners[i] - corners[(i + 1) % 4]) for i in range(4)]
+    return float(np.mean(sides)) / TAG_CELLS
+
+
 def detect_apriltags(
     image: np.ndarray,
     expected_ids: Optional[Sequence[int]] = None,
 ) -> Dict[int, Tuple[float, float]]:
-    """Détecte les centres des AprilTags dans une image (BGR ou grise).
+    """Centres des AprilTags détectés : {tag_id: (u, v)} en pixels (origine haut-gauche)."""
+    return {tid: (float(q[:, 0].mean()), float(q[:, 1].mean()))
+            for tid, q in detect_apriltag_corners(image, expected_ids).items()}
 
-    Renvoie {tag_id: (u, v)} en coordonnées pixel (origine haut-gauche image,
-    u vers la droite, v vers le bas).
+
+def _target_corners_mm(t: AlignmentTarget) -> np.ndarray:
+    """Coins du tag en mm machine (Y↑), dans l'ordre haut-gauche, haut-droit, bas-droit, bas-gauche."""
+    h = t.size_mm / 2.0
+    return np.array([[t.cx_mm - h, t.cy_mm + h], [t.cx_mm + h, t.cy_mm + h],
+                     [t.cx_mm + h, t.cy_mm - h], [t.cx_mm - h, t.cy_mm - h]], dtype=np.float64)
+
+
+def _apply_h(H: np.ndarray, pts: np.ndarray) -> np.ndarray:
+    p = (H @ np.hstack([pts, np.ones((len(pts), 1))]).T).T
+    return p[:, :2] / p[:, 2:3]
+
+
+def merge_detections(
+    observations: Sequence[Dict[int, np.ndarray]],
+    max_dev_px: float = 3.0,
+) -> Dict[int, np.ndarray]:
+    """Fusionne plusieurs captures : {tag_id: coins (4×2)} pour chaque tag vu au moins une fois.
+
+    Le portique cache des tags différents selon sa position : un tag manquant dans une capture est repris
+    d'une autre. Un tag vu plusieurs fois est moyenné (médiane à partir de 3 vues) pour réduire le bruit ;
+    si ses vues divergent de plus de `max_dev_px` (tag à demi caché par le portique), on garde la vue où il
+    paraît le plus grand.
     """
-    if image.ndim == 3:
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = image
-
-    dictionary = cv2.aruco.getPredefinedDictionary(APRILTAG_DICT)
-    parameters = cv2.aruco.DetectorParameters()
-    detector = cv2.aruco.ArucoDetector(dictionary, parameters)
-    corners, ids, _rejected = detector.detectMarkers(gray)
-
-    found: Dict[int, Tuple[float, float]] = {}
-    if ids is None:
-        return found
-    for i, tag_id in enumerate(ids.flatten()):
-        tid = int(tag_id)
-        if expected_ids is not None and tid not in expected_ids:
+    views: Dict[int, List[np.ndarray]] = {}
+    for obs in observations:
+        for tid, quad in obs.items():
+            views.setdefault(int(tid), []).append(np.asarray(quad, dtype=np.float64))
+    merged: Dict[int, np.ndarray] = {}
+    for tid, quads in views.items():
+        if len(quads) == 1:
+            merged[tid] = quads[0]
             continue
-        # Centre = moyenne des 4 coins
-        pts = corners[i][0]
-        u = float(pts[:, 0].mean())
-        v = float(pts[:, 1].mean())
-        found[tid] = (u, v)
-    return found
+        stack = np.stack(quads)                                   # (n, 4, 2)
+        centre = np.median(stack, axis=0) if len(quads) >= 3 else stack.mean(axis=0)
+        if float(np.abs(stack - centre).max()) <= max_dev_px:
+            merged[tid] = centre
+        else:
+            merged[tid] = max(quads, key=tag_cell_px)
+    return merged
+
+
+def compute_alignment(
+    targets: Sequence[AlignmentTarget],
+    detections: Dict[int, np.ndarray],
+    image_size: Tuple[int, int],
+    min_tags: int = 3,
+) -> WorkspaceAlignment:
+    """Homographie pixel → mm à partir des 4 COINS de chaque tag détecté.
+
+    L'orientation d'un tag collé n'a pas d'importance : on la retrouve pour chaque tag à partir d'une
+    première estimation faite avec les centres. Lève ValueError s'il y a moins de `min_tags` tags.
+    """
+    by_id = {t.tag_id: t for t in targets}
+    ids = sorted(tid for tid in detections if tid in by_id)
+    if len(ids) < min_tags:
+        raise ValueError(
+            f"Pas assez de tags détectés ({len(ids)} < {min_tags}). "
+            "Vérifiez l'éclairage, le contraste, la taille des tags et que la caméra voit tout le plateau."
+        )
+
+    # 1. Première estimation avec les centres (donne l'orientation de chaque tag).
+    px_c = np.array([detections[i].mean(axis=0) for i in ids], dtype=np.float64)
+    mm_c = np.array([[by_id[i].cx_mm, by_id[i].cy_mm] for i in ids], dtype=np.float64)
+    if len(ids) >= 4:
+        H0, _ = cv2.findHomography(px_c, mm_c, 0)
+    else:
+        affine = cv2.getAffineTransform(px_c[:3].astype(np.float32), mm_c[:3].astype(np.float32))
+        H0 = np.vstack([affine, [0.0, 0.0, 1.0]])
+    if H0 is None:
+        raise ValueError("Impossible de calculer l'homographie (points dégénérés)")
+
+    # 2. Pour chaque tag, la rotation (0/90/180/270°) qui colle le mieux, puis ajustement sur tous les coins.
+    src, dst = [], []
+    for tid in ids:
+        quad = detections[tid]
+        canon = _target_corners_mm(by_id[tid])
+        pred = _apply_h(H0, quad)
+        best = min(range(4), key=lambda s: np.linalg.norm(pred - np.roll(canon, -s, axis=0), axis=1).sum())
+        src.extend(quad.tolist())
+        dst.extend(np.roll(canon, -best, axis=0).tolist())
+    src_pts, dst_pts = np.array(src), np.array(dst)
+    H, mask = cv2.findHomography(src_pts, dst_pts, method=cv2.RANSAC, ransacReprojThreshold=3.0)
+    if H is None:
+        raise ValueError("Impossible de calculer l'homographie (points dégénérés)")
+
+    err = np.linalg.norm(_apply_h(H, src_pts) - dst_pts, axis=1)
+    inl = mask.ravel().astype(bool) if mask is not None else np.ones(len(err), bool)
+    mean_err = float(err[inl].mean()) if inl.any() else float(err.mean())
+    # Garde-fous : un tag doit mesurer à peu près sa taille réelle une fois ramené en mm, et l'erreur rester faible.
+    # Sinon (tag mal reconnu, tags posés ailleurs que sur le gabarit), l'image de la caméra se retrouverait
+    # minuscule ou déformée en fond de l'éditeur.
+    for tid in ids:
+        mm_quad = _apply_h(H, detections[tid])
+        side = float(np.mean([np.linalg.norm(mm_quad[i] - mm_quad[(i + 1) % 4]) for i in range(4)]))
+        expected = by_id[tid].size_mm
+        if not 0.7 * expected <= side <= 1.3 * expected:
+            raise ValueError(
+                f"Le tag {tid} mesure {side:.0f} mm après alignement au lieu de {expected:g} mm : "
+                "les tags ne sont pas aux positions du gabarit, ou un tag est mal reconnu."
+            )
+    if mean_err > 5.0:
+        raise ValueError(
+            f"Erreur d'alignement trop grande ({mean_err:.1f} mm) : vérifiez que chaque tag est dans son "
+            "cadre, avec le bon numéro, et que la calibration optique est à la même résolution."
+        )
+    try:
+        inv = np.linalg.inv(H)
+    except np.linalg.LinAlgError:
+        inv = np.linalg.pinv(H)
+    return WorkspaceAlignment(homography=H, inverse=inv, image_size=image_size,
+                              used_tags=ids, reprojection_error_mm=mean_err)
 
 
 def compute_homography(
@@ -329,4 +491,6 @@ def warp_to_bed(
     ], dtype=np.float64)
     # pixel_cam = inverse @ bed_from_out @ pixel_out
     M = alignment.inverse @ bed_from_out
-    return cv2.warpPerspective(image, M, (out_w, out_h), flags=cv2.INTER_LINEAR)
+    # M va de la sortie vers la caméra (« dst → src ») : sans WARP_INVERSE_MAP, OpenCV l'inverserait et l'image
+    # de la caméra se retrouverait minuscule et déplacée dans le plateau.
+    return cv2.warpPerspective(image, M, (out_w, out_h), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)
