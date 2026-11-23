@@ -67,12 +67,15 @@ class VectorEditorController(QObject):
       générateur) ;
     - properties_changed(objet ou None) : la sélection a changé de forme,
       de place ou de calque (panneau des propriétés à remettre à jour) ;
-    - status(texte) : message pour la barre d'état.
+    - status(texte) : message pour la barre d'état ;
+    - draw_tool_changed(outil ou None) : outil de la souris actif (boutons
+      de l'onglet à cocher).
     """
 
     show_editor = pyqtSignal()
     properties_changed = pyqtSignal(object)
     status = pyqtSignal(str)
+    draw_tool_changed = pyqtSignal(object)
 
     def __init__(self, document, canvas, layers, machine, dialogs, parent=None, *,
                  image_frame=lambda: None, busy=nullcontext):
@@ -95,6 +98,38 @@ class VectorEditorController(QObject):
         self.jig_settings = None
 
     # -- outils
+
+    def commands(self):
+        """Action de chaque commande de l'onglet (VectorEditorTab.command), sauf la bibliothèque."""
+        canvas = self.canvas
+        commands = {
+            "import": self.import_dialog, "box": self.open_box_generator, "puzzle": self.open_puzzle_generator,
+            "ornament": self.open_ornament_generator, "keychain": self.open_keychain_generator,
+            "nesting": self.open_nesting, "edit": self.edit_selected, "rotate": self.rotate_selected,
+            "duplicate": self.duplicate_selected, "serial": self.open_serial_duplicate,
+            "jig": self.open_jig_generator, "delete": self.delete_selected, "delete_all": self.delete_all,
+            "explode": canvas.explode_selected, "nodes": canvas.enter_node_edit,
+            "text_follow": self.make_text_follow_selection, "medal": self.open_medal_text,
+            "undo": canvas.undo, "redo": canvas.redo, "zoom_in": canvas.zoom_in, "zoom_out": canvas.zoom_out,
+            "text": self.insert_text, "shape": self.insert_shape,
+            "distribute_h": lambda: self.distribute("h"), "distribute_v": lambda: self.distribute("v"),
+        }
+        for edge in ("left", "center_h", "right", "top", "middle_v", "bottom"):
+            commands[f"align_{edge}"] = lambda edge=edge: self.align(edge)
+        return commands
+
+    def choose_draw_tool(self, tool):
+        """Outil de dessin à la souris sur le canevas.
+
+        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'. Rectangle : 3 points. Cercle (du
+        centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) : un seul clic-glisser. Échap ou clic
+        droit annule l'outil. Sans calque, l'outil n'est pas activé (message)."""
+        resolved = None if tool in (None, "select") else tool
+        if resolved and not self._require_layers():
+            resolved = None
+        layer = self.layers.default_svg_layer() if self.layers.layers else None
+        self.canvas.set_draw_tool(resolved, layer_id=layer.id if layer else None)
+        self.draw_tool_changed.emit(resolved)
 
     def _require_layers(self):
         """Vrai s'il existe au moins un calque ; sinon, le dit."""

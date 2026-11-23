@@ -6,7 +6,7 @@
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
 (ui/app/menu/), et regroupe les actions qui touchent plusieurs parties de la
 fenêtre : thème, langue, aide, caméra, fenêtres de réglages, matrice de test,
-résolution et focale de « Graver une image », outils de dessin de l'éditeur
+résolution et focale de « Graver une image », zone de travail de l'éditeur
 vectoriel.
 
 Le reste a son propre objet, créé par la fenêtre : MainTabs (onglets,
@@ -270,28 +270,7 @@ class WindowController(QObject):
         self.window.tab_previews.settings.engrave_layer_combo.set_layers(layers.layers,
                                                                          layer.id if layer else None)
 
-    # -- éditeur vectoriel : outils de la souris, zone de travail
-
-    def set_vector_draw_tool(self, tool):
-        """Active un outil de dessin à la souris sur le canevas vectoriel.
-
-        tool: None/'select', 'line', 'rect', 'circle', 'ellipse', 'measure'.
-        Rectangle : 3 points. Cercle (du centre vers le rayon) et ellipse (d'un coin du cadre à l'autre) :
-        un seul clic-glisser. Échap ou clic droit annule l'outil.
-        """
-        w = self.window
-        layers = w.layer_manager
-        if tool and tool not in (None, "select") and not layers.layers:
-            w.dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
-            tool = None
-        layer = layers.default_svg_layer() if layers.layers else None
-        layer_id = layer.id if layer else None
-        resolved = None if tool in (None, "select") else tool
-        w.vector_canvas.set_draw_tool(resolved, layer_id=layer_id)
-        for key, btn in w.vector_draw_buttons.items():
-            btn.blockSignals(True)
-            btn.setChecked(key == resolved)
-            btn.blockSignals(False)
+    # -- éditeur vectoriel : zone de travail
 
     def update_vector_work_area(self, *_args):
         """Zone de travail de l'éditeur vectoriel aux dimensions physiques du
