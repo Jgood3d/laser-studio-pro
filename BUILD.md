@@ -175,6 +175,11 @@ desktop-file-validate packaging/linux/io.github.jgood3d.LaserStudioPro.desktop
 appstreamcli validate --no-net packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml
 ```
 
+### 7. Paquet RPM (Fedora, Copr)
+Le spec `packaging/fedora/laser-studio-pro.spec` installe l'application avec
+les bibliothèques de Fedora (pas de PyInstaller). Construction, vérification
+et publication sur Copr : `packaging/fedora/README.md`.
+
 ---
 
 ## Taille de l'exécutable

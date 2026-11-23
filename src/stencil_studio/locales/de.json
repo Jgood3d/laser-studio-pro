@@ -468,7 +468,7 @@
  "Round hole in the exact middle of the back panel (cable gland, lamp holder, ventilation). Diameter in mm. 0 = no hole.": "Rundes Loch genau in der Mitte der Rückwand (Kabeldurchführung, Lampenfassung, Belüftung). Durchmesser in mm. 0 = kein Loch.",
  "Detect the subject with AI (when available)": "Motiv per KI erkennen (falls verfügbar)",
  "Uses a small neural network (U2-Net, 4.5 MB, downloaded once) to find the subject on any background. Needs the onnxruntime package; otherwise the classic method is used. Drawing a Subject box or green/red strokes switches back to the classic method.": "Verwendet ein kleines neuronales Netz (U2-Net, 4,5 MB, einmalig geladen), um das Motiv auf jedem Hintergrund zu finden. Benötigt das Paket onnxruntime, sonst wird die klassische Methode genutzt. Ein Motivrahmen oder grüne/rote Striche schalten auf die klassische Methode zurück.",
- "AI detection unavailable ({e}): classic method used. Install it with: pip install onnxruntime": "KI-Erkennung nicht verfügbar ({e}): klassische Methode wird genutzt. Installation: pip install onnxruntime",
+ "AI detection unavailable ({e}): classic method used. Install it with: {cmd}": "KI-Erkennung nicht verfügbar ({e}): klassische Methode wird genutzt. Installation: {cmd}",
  "Low poly guides": "Low-Poly-Hilfspunkte",
  "Clear guides": "Hilfspunkte löschen",
  "Low poly: click to place a vertex (eyes, nose, ear tips), drag to place an edge. Click an existing guide to remove it.": "Low Poly: Klick setzt einen Eckpunkt (Augen, Nase, Ohrspitzen), Ziehen setzt eine Kante. Klick auf einen vorhandenen Punkt entfernt ihn.",

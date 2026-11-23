@@ -468,7 +468,7 @@
  "Round hole in the exact middle of the back panel (cable gland, lamp holder, ventilation). Diameter in mm. 0 = no hole.": "Agujero redondo en el centro exacto del fondo (pasacables, portalámparas, ventilación). Diámetro en mm. 0 = sin agujero.",
  "Detect the subject with AI (when available)": "Detectar el sujeto con IA (si está disponible)",
  "Uses a small neural network (U2-Net, 4.5 MB, downloaded once) to find the subject on any background. Needs the onnxruntime package; otherwise the classic method is used. Drawing a Subject box or green/red strokes switches back to the classic method.": "Usa una pequeña red neuronal (U2-Net, 4,5 MB, descargada una vez) para encontrar el sujeto sobre cualquier fondo. Requiere el paquete onnxruntime; si no, se usa el método clásico. Trazar un recuadro de sujeto o trazos verdes/rojos vuelve al método clásico.",
- "AI detection unavailable ({e}): classic method used. Install it with: pip install onnxruntime": "Detección por IA no disponible ({e}): se usa el método clásico. Instalación: pip install onnxruntime",
+ "AI detection unavailable ({e}): classic method used. Install it with: {cmd}": "Detección por IA no disponible ({e}): se usa el método clásico. Instalación: {cmd}",
  "Low poly guides": "Guías low poly",
  "Clear guides": "Borrar guías",
  "Low poly: click to place a vertex (eyes, nose, ear tips), drag to place an edge. Click an existing guide to remove it.": "Low poly: haz clic para colocar un vértice (ojos, nariz, puntas de orejas), arrastra para colocar una arista. Haz clic en una guía existente para quitarla.",

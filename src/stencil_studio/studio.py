@@ -242,6 +242,7 @@ def compute(req, work):
             except ImportError:
                 from . import subject_ai as _sa
             res.stats["ai_missing"] = (_sa.last_error() or ("onnxruntime" if not _sa.has_runtime() else "")) or None
+            res.stats["ai_install"] = _sa.install_command()
     CACHE.sig, CACHE.result = sig, res
     return res
 
