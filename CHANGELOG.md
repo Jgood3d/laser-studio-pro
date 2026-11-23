@@ -68,6 +68,8 @@ Fenêtre principale : déplacée dans `ui/app/main_window.py` et réduite à l'a
 
 Préférences : toutes les lectures et écritures des réglages mémorisés (thème, langue, onglets, séparateurs, projets récents, dernier port, profils machine, caméra…) passent par `core/preferences.py`, qui convertit les valeurs relues et écrit tout de suite. Les tests utilisent des préférences en mémoire au lieu de simuler QSettings. `grbl/` n'importe plus Qt, et un test vérifie qu'aucun dossier de calcul n'importe QtWidgets.
 
+Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window.py` (onglets et plein écran, panneau du bas, outils de dessin, barre d'outils de l'image, génération et affichage du G-Code, résolution et focale, thème et langue, fermeture, projet, export de Stencil Studio), avec des préférences en mémoire.
+
 ### Corrigé
 Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
 
