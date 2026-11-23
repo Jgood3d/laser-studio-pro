@@ -3,7 +3,7 @@
 Un « exemplaire » est la liste des objets sélectionnés (contour de découpe, gravure, texte...). L'exemplaire 0
 est l'original, les autres en sont des clones. Chaque exemplaire peut recevoir son propre texte (un prénom),
 puis les exemplaires sont rangés en grille (voir `layout_grid`) ou par imbrication automatique
-(voir vector/nesting_apply.py et controllers/vector_editor.py, open_serial_duplicate).
+(voir vector/nesting_apply.py et controllers/layout.py, open_serial_duplicate).
 
 Les fonctions reçoivent `clone(obj)` et `bounds(obj)` en paramètres : `bounds` renvoie le rectangle englobant
 monde (xmin, ymin, xmax, ymax), Y vers le haut, ou None si l'objet n'a aucun tracé.

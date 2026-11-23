@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.i18n.errors import generator_error_text
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import ornament_generator as og
 from laser_studio.vector import ornament_presets
@@ -554,11 +555,4 @@ class OrnamentGeneratorDialog(QDialog):
 
 def error_text(error):
     """Message traduit d'une OrnamentError (clé `ornament.err.<code>`)."""
-    key = f"ornament.err.{error.code}"
-    text = tr(key)
-    if text == key:
-        return tr("ornament.error") + f" ({error.code})"
-    try:
-        return text.format(**error.info)
-    except (KeyError, IndexError, ValueError):     # traduction sans les bons champs
-        return text
+    return generator_error_text("ornament", error)
