@@ -71,6 +71,10 @@ Préférences : toutes les lectures et écritures des réglages mémorisés (th�
 Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window.py` (onglets et plein écran, panneau du bas, outils de dessin, barre d'outils de l'image, génération et affichage du G-Code, résolution et focale, thème et langue, fermeture, projet, export de Stencil Studio), avec des préférences en mémoire.
 
 ### Corrigé
+Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).
+
+Stencil Studio : l'autotest (`selftest.py`) échouait. Ses tests de séparation par couleur dataient d'avant le passage automatique aux tons pour les photos ombrées et d'avant la règle « le nombre de plaques demandé est toujours respecté » avec la pipette ; ils utilisent maintenant une image en aplats, comparent les couleurs avec une tolérance, et vérifient aussi ces deux règles. Il est lancé par la suite de tests (`tests/test_stencil_selftest.py`).
+
 Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
 
 Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.

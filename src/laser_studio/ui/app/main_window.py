@@ -35,7 +35,7 @@ from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
 from laser_studio.ui.settings.machine_params.builder import build_machine_params_page
 from laser_studio.ui.settings.test_matrix.builder import build_test_matrix_page
-from laser_studio.ui.statusbar import StatusBar, status_text
+from laser_studio.ui.statusbar import StatusBar
 from laser_studio.ui.tabs.console import ConsoleTab
 from laser_studio.ui.tabs.image.builder import build_image_tab
 from laser_studio.ui.tabs.job_queue.builder import build_job_queue_tab
@@ -53,7 +53,7 @@ log = get_logger()
 class FullLaserStudio(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Laser Studio Pro - GRBL Controller")
+        self.setWindowTitle(tr("ui.window_title"))
         self.resize(1600, 980)
         
         self.setAcceptDrops(True)
@@ -459,8 +459,5 @@ class FullLaserStudio(QMainWindow):
         """Message d'une action (connexion, GRBL, file, projet…) : barre d'état, et journal de
         débogage pour l'historique. Jamais dans la console : elle ne contient que le G-Code
         généré, relu par l'export et la file d'attente."""
-        text = str(text)
-        log.info("Message : %s", text.strip())
-        short = status_text(text)
-        if short:
-            self.show_status_message(short, text.strip())
+        log.info("Message : %s", str(text).strip())
+        self.statusBar().show_log(text)

@@ -88,5 +88,23 @@ class StatusTextTests(unittest.TestCase):
         self.assertEqual(status_text("  \n "), "")
 
 
+class ShowLogTests(unittest.TestCase):
+    """StatusBar.show_log : texte de journal sur une ligne, texte complet en infobulle."""
+
+    def test_log_text_on_one_line_with_the_full_text_in_the_tooltip(self):
+        try:
+            from PyQt6.QtWidgets import QApplication
+            from laser_studio.ui.statusbar import StatusBar
+        except ImportError:
+            self.skipTest("PyQt6 non importable ici")
+        self.app = QApplication.instance() or QApplication([])
+        bar = StatusBar()
+        self.addCleanup(bar.deleteLater)
+        bar.show_log("\n; ERREUR DE GÉNÉRATION :\n; division par zéro\n")
+        self.assertEqual(bar.message_label.text(), "ERREUR DE GÉNÉRATION : — division par zéro")
+        self.assertEqual(bar.message_label.toolTip(), "; ERREUR DE GÉNÉRATION :\n; division par zéro")
+        bar.show_log("  \n ")                                  # rien à dire : message précédent gardé
+        self.assertEqual(bar.message_label.text(), "ERREUR DE GÉNÉRATION : — division par zéro")
+
 if __name__ == "__main__":
     unittest.main()

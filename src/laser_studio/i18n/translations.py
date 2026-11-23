@@ -4123,6 +4123,10 @@ TRANSLATIONS = {
               "de conexión o parada manual). La cola se ha detenido — consulta la "
               "consola antes de reiniciar.",
     },
+    "ui.window_title": {
+        "fr": "Laser Studio Pro - Contrôleur GRBL", "en": "Laser Studio Pro - GRBL Controller",
+        "de": "Laser Studio Pro - GRBL-Steuerung", "es": "Laser Studio Pro - Controlador GRBL",
+    },
     "ui.quit_title": {
         "fr": "Quitter",
         "en": "Exit",

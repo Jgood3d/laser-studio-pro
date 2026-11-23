@@ -17,7 +17,7 @@ try:
     from PIL import Image
     from PyQt6.QtWidgets import QApplication, QDialog, QMessageBox
     from laser_studio.core import preferences
-    from laser_studio.i18n import language
+    from laser_studio.i18n import language, tr
     from laser_studio.models.layers import ENGRAVE_MODE
     from laser_studio.ui.app import main_window
 except ImportError:  # PyQt6, Pillow manquants
@@ -74,6 +74,9 @@ class MainWindowTests(unittest.TestCase):
     def load_image(self):
         self.win.image.load_path(self.image_path)
         self.pump(0.5)
+
+    def test_window_title_is_translated(self):
+        self.assertEqual(self.win.windowTitle(), tr("ui.window_title"))
 
     # -- onglets
 

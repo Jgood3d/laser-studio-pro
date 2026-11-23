@@ -93,8 +93,16 @@ EXPECTED = {
     'couleur : îlots gardés (pièces libres)': 1.0,
     'couleur : logo plein cadre (fond = couleur dominante)': 1.0,
     'multicouche : fond à part + gravure': 1.0,
+    'multicouche couleur : photo ombrée -> tons': 1.0,
+    "couleur : pipette complétée jusqu'au nombre de plaques": 1.0,
 }
 TOL = {"default": 3.0, "grabcut": 12.0}
+
+
+def near(hex_a, hex_b, tolerance=8):
+    """Deux couleurs « #rrggbb » à moins de `tolerance` niveaux sur chaque composante."""
+    a, b = (tuple(int(h[i:i + 2], 16) for i in (1, 3, 5)) for h in (hex_a, hex_b))
+    return all(abs(x - y) <= tolerance for x, y in zip(a, b))
 
 
 def synthetic():
@@ -213,13 +221,20 @@ def measure():
                       core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=4))
     m["multicouche : 4 plaques + repères"] = float(len(ml.layers) == 4 and ml.stats.get("ml_pins") == 3
                                                   and len(ml.layer_polys) == 4 and ml.stats["contours"] > 8)
-    mc = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
-                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3, ml_sep="color"))
+    # Séparation par couleur : une image en aplats (trois bandes franches). Un dégradé (photo ombrée)
+    # bascule vers la séparation par tons, vérifiée à part.
+    bands = np.zeros((600, 600, 3), np.uint8)
+    bands[:, :200], bands[:, 200:400], bands[:, 400:] = (200, 40, 40), (40, 150, 60), (40, 70, 190)
+    mc = core.process(bands, core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3,
+                                         ml_sep="color"))
     m["multicouche couleur : palette"] = float(len(mc.stats.get("ml_palette", [])) == 3 and len(mc.layer_colors) == 3
                                               and sorted(mc.stats.get("ml_order_ids", [])) == [0, 1, 2])
-    mg = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
-                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3, ml_sep="color",
-                                  ml_bg="own", ml_engrave=True))
+    mg = core.process(bands, core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3,
+                                         ml_sep="color", ml_bg="own", ml_engrave=True))
+    mt = core.process(np.dstack([np.tile(np.linspace(0, 255, 600, dtype=np.uint8), (600, 1))] * 3),
+                      core.Params(size_mm=100, output="layers", shape="circle", ring_mm=6, ml_layers=3, ml_sep="color"))
+    m["multicouche couleur : photo ombrée -> tons"] = float(mt.stats.get("ml_sep_fallback") == "tone"
+                                                           and len(mt.layers) == 3)
     _lg = np.zeros((120, 200, 3), np.uint8); _lg[:] = 255; _lg[30:90, 40:160] = (178, 58, 50)
     _lg = cv2.GaussianBlur(_lg, (0, 0), 1.2)
     _lr = core.layers_result(_lg, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4))
@@ -228,14 +243,23 @@ def measure():
     _lb = cv2.GaussianBlur(_lb, (0, 0), 1.0)
     _lq = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4))
     m["couleur : logo plein cadre (fond = couleur dominante)"] = float(
-        len(_lq.layers) == 2 and _lq.stats.get("ml_palette", [""])[0].startswith("#3"))
+        len(_lq.layers) == 2 and near(_lq.stats.get("ml_palette", ["#000000"])[0], "#406cb0"))
     _li = np.zeros((200, 300, 3), np.uint8); _li[:] = (64, 108, 176); _li[90:110, 20:60] = 255; _li[90:110, 240:280] = 255
     _li = cv2.GaussianBlur(_li, (0, 0), 1.0)
     _lj = core.layers_result(_li, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=4, shape="none", size_mm=300, max_bridge_mm=2))
     m["couleur : îlots gardés (pièces libres)"] = float(len(_lj.layers) >= 2 and _lj.stats.get("ml_loose", 0) >= 1)
-    _lp = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=8,
-                                               ml_picks="#4070b0,#ffffff,#ff0000"))
-    m["couleur : pipette 3 couleurs"] = float(len(_lp.layers) == 3 and len(_lp.stats.get("ml_palette", [])) == 3)
+    # Pipette : autant de couleurs pointées que de plaques -> ces couleurs ; moins -> complétées jusqu'au
+    # nombre de plaques demandé (toujours respecté, voir core.color_classes).
+    picks = ("#4070b0", "#ffffff", "#ff0000")
+    _lp = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=3,
+                                               ml_picks=",".join(picks)))
+    _palette = _lp.stats.get("ml_palette", [])
+    m["couleur : pipette 3 couleurs"] = float(len(_lp.layers) == 3 and len(_palette) == 3
+                                             and all(any(near(c, pick) for c in _palette) for pick in picks))
+    _lp5 = core.layers_result(_lb, core.replace(core.Params(), output="layers", ml_sep="color", ml_layers=5,
+                                                ml_picks=",".join(picks)))
+    m["couleur : pipette complétée jusqu'au nombre de plaques"] = float(
+        len(_lp5.layers) == 5 and all(any(near(c, pick) for c in _lp5.stats.get("ml_palette", [])) for pick in picks))
     m["multicouche : fond à part + gravure"] = float(len(mg.layers) == 4 and len(mg.layer_colors) == 4
                                                     and mg.layer_colors[0] == (232, 220, 200))
     return m
@@ -245,7 +269,7 @@ def main():
     print(f"Python {sys.version.split()[0]} | OpenCV {cv2.__version__} | numpy {np.__version__} | scipy {scipy.__version__}")
     print(f"core.py version {getattr(core, 'VERSION', '?')}")
     import re as _re, os as _os
-    _h = open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "studio.html"), encoding="utf-8").read()
+    _h = open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ui", "studio.html"), encoding="utf-8").read()
     _m = _re.search(r'UI_VERSION = "([0-9.]+)"', _h)
     if not _m or _m.group(1) != core.VERSION:
         print(f"ERREUR : studio.html est en version {_m.group(1) if _m else '?'} mais core.py en {core.VERSION}")
