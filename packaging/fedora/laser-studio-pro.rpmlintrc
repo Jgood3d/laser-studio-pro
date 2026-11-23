@@ -1,0 +1,13 @@
+# Avertissements de rpmlint attendus pour laser-studio-pro :
+#   rpmlint -r packaging/fedora/laser-studio-pro.rpmlintrc <rpm>
+
+# Police de Stencil Studio : lien vers celle de dejavu-sans-fonts (Requires),
+# absente là où rpmlint tourne, présente chez l'utilisateur.
+addFilter("dangling-symlink .*/stencil_studio/fonts/DejaVuSans-Bold.ttf")
+
+# Application graphique, sans option en ligne de commande à documenter.
+addFilter("no-manual-page-for-binary laser-studio-pro")
+
+# Version de développement (.copr/Makefile) : Release porte .AAAAMMJJ.<n>git<commit>,
+# pas l'entrée du %changelog. Sans objet pour une version publiée.
+addFilter("incoherent-version-in-changelog")

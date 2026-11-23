@@ -365,9 +365,12 @@ class SvgImportTests(unittest.TestCase):
             self.assertGreater(polygons(motif), 4, motif)
 
     def test_bundled_ornament(self):
-        """Boule de Noël : prénom gravé, en police embarquée, centré sur la boule."""
+        """Boule de Noël : prénom gravé, en police manuscrite (embarquée, ou celle du système dans le
+        paquet Fedora), centré sur la boule."""
+        from PyQt6.QtGui import QFont, QFontInfo
         from laser_studio.ui.fonts import SCRIPT_FONT, load_bundled_fonts
-        self.assertIn(SCRIPT_FONT, load_bundled_fonts())
+        load_bundled_fonts()
+        self.assertEqual(QFontInfo(QFont(SCRIPT_FONT)).family(), SCRIPT_FONT)
         (field,) = find_texts(ORNAMENT)
         self.assertEqual((field.key, field.text, field.family), ("Prénom", "Prénom", SCRIPT_FONT))
         for name in ("Prénom", "Léa", "Joséphine"):

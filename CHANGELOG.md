@@ -9,6 +9,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ### Ajouté
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
 
+Fedora : paquet RPM dans le dépôt Copr `alemorvan/laser-studio-pro` (Fedora 43, 44 et 45, x86_64 et aarch64) : `sudo dnf copr enable alemorvan/laser-studio-pro` puis `sudo dnf install laser-studio-pro`.
+
 Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
 
 Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel) :
@@ -19,7 +21,7 @@ Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque 
 - Convention des modèles (`resources/library/README.md`) : calques `Cut` (rouge), `Engrave` (noir) et `Mark` (bleu, facultatif) ; options en sous-calques d'un groupe, un seul visible, le nom du sous-calque étant celui de l'option.
 - Premiers modèles : totems sportifs modèle 1 (pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0), titre et sous-titre à saisir, médailles sportives modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0) — hexagonales ou rondes, 1, 2, 3 ou étoile, nom de la compétition — boule de Noël avec prénom, et porte-clefs sportifs modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0).
 - Import : dans `Engrave`, les traits sont gravés avec leur épaisseur (pictogrammes dessinés au trait).
-- Polices embarquées (`resources/fonts/`, chargées au démarrage) : Dancing Script (police manuscrite), Yantramanav (titres des totems) et Rubik (textes des médailles), sous licence OFL, disponibles sur tous les systèmes pour les textes des modèles.
+- Polices embarquées (`resources/fonts/`, chargées au démarrage) : Dancing Script (police manuscrite) et Rubik (titres des médailles et des totems), sous licence OFL, disponibles sur tous les systèmes pour les textes des modèles.
 
 Générateur de boîte :
 - Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.
@@ -28,6 +30,8 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Stencil Studio : quand la détection du sujet par IA manque, le message propose la commande `dnf install` sous Fedora (Python du système), `pip install` ailleurs.
+
 La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
 
 Profils matériaux : plus de bouton « Enregistrer ». Le matériau choisi reprend aussitôt chaque modification d'un calque.

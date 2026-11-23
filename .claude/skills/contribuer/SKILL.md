@@ -53,13 +53,13 @@ peux écrire `date +%s > .git/claude-verif-a-jour` (valable 15 minutes).
 
 ## 2. Coder dans `src/`
 
-- Le code de l'application vit dans `src/laser_studio/` (et `src/laser_common/`
-  pour ce qui est partagé avec Stencil Studio). Tout nouveau fichier Python va
-  là, dans le dossier qui correspond à son rôle (voir la section 3).
+- Le code de l'application vit dans `src/laser_studio/`, celui de Stencil
+  Studio dans `src/stencil_studio/`, et ce qu'ils partagent dans
+  `src/laser_common/`. Tout nouveau fichier Python va là, dans le dossier qui
+  correspond à son rôle (voir la section 3).
 - À la racine, seuls restent `main.py` (qui ajoute `src/` au chemin), les
-  `tests/`, les `tools/`, le `packaging/` et la documentation. `stencil_studio/`
-  y est encore pour des raisons historiques : n'y ajoute pas de nouveau code
-  qui n'appartient pas à Stencil Studio.
+  `tests/`, les `tools/`, le `packaging/` et la documentation : pas de code
+  de l'application à la racine, sinon il manque dans les paquets (RPM, pip).
 - Ressources (images, polices, icônes, bibliothèque de modèles) :
   `src/laser_studio/resources/`, chargées avec `find_resource`.
 - Ne recrée pas un fichier supprimé et ne copie pas un fichier depuis une autre

@@ -39,6 +39,38 @@ def has_runtime():
         return False
 
 
+FEDORA_INSTALL = "sudo dnf install --setopt=install_weak_deps=False python3-onnxruntime"
+PIP_INSTALL = "pip install onnxruntime"
+
+
+def _os_release_ids(path="/etc/os-release"):
+    """ID et ID_LIKE de la distribution Linux (ensemble vide ailleurs ou si le fichier manque)."""
+    ids = set()
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                key, _, value = line.strip().partition("=")
+                if key in ("ID", "ID_LIKE"):
+                    ids.update(value.strip("\"'").split())
+    except OSError:
+        pass
+    return ids
+
+
+def install_command(os_release="/etc/os-release"):
+    """Commande à proposer pour installer onnxruntime.
+
+    Sur Fedora (et dérivées), avec le Python du système, c'est le paquet RPM : pip y installerait un
+    doublon hors de dnf. install_weak_deps=False évite LaTeX et matplotlib, que sympy (requis par
+    onnxruntime) recommande. Dans un environnement virtuel ou une appli compilée, pip reste la voie.
+    """
+    import sys
+    in_venv = sys.prefix != getattr(sys, "base_prefix", sys.prefix)
+    if not getattr(sys, "frozen", False) and not in_venv and "fedora" in _os_release_ids(os_release):
+        return FEDORA_INSTALL
+    return PIP_INSTALL
+
+
 def last_error():
     return _ERR[0]
 
