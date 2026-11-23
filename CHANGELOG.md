@@ -7,6 +7,13 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Caméra, alignement sur le plateau :
+- 4 AprilTags de 40 mm aux coins du plateau par défaut (au lieu de 9 de 20 mm), à 20 mm du bord ; l'orientation d'un tag collé n'a plus d'importance. L'homographie utilise les 4 coins de chaque tag.
+- Détection renforcée (affinage des coins, contraste renforcé, image agrandie ×2 si des tags manquent) ; les tags gravés sur une matière sombre peinte (en négatif) sont reconnus.
+- L'assistant fait 2 à 3 captures et fusionne les tags vus : le portique peut en cacher une partie, il suffit de le déplacer entre deux captures. Il affiche la taille d'une case en pixels (6 px ou plus recommandé) et propose le choix de la résolution de la caméra (la correction de distorsion suit la résolution).
+- Gabarit des tags imprimés : un cadre de 40×40 mm (taille du tag) marqué au laser à la position de chaque tag, avec son numéro ; le carré à découper de la feuille imprimée a la même taille. Un alignement incohérent (tag trop grand ou trop petit une fois ramené en mm, erreur supérieure à 5 mm) est refusé.
+- Éditeur vectoriel : interrupteur « Fond caméra » et bouton « Actualiser l'image caméra » dans la barre de gauche, sans passer par la fenêtre Caméra.
+
 Éditeur vectoriel : loupes « Zoom avant » et « Zoom arrière » dans la barre d'édition, aussi par Ctrl++ et Ctrl+- (zoom centré sur le milieu de la vue).
 
 Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
@@ -63,6 +70,8 @@ Graver une image : `image_processing_mixin.py` supprimé, la fenêtre n'hérite 
 Fenêtre principale : `WindowControllerMixin` remplacé par des objets, la fenêtre n'hérite plus d'aucun mixin. Les onglets (affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs) passent dans `MainTabs` (`ui/app/tabs.py`), l'affichage des résultats du job et de l'état du graveur dans `JobDisplay` (`ui/app/job_display.py`), « Pivoter », « Supprimer » et les miroirs de la barre d'outils dans `ImageToolbarActions` (`ui/app/image_actions.py`) ; `WindowController` garde les menus, le thème, la langue, l'aide, la caméra, les fenêtres de réglages, la résolution et les outils de dessin. Ce qui s'enregistre et se restaure (réglages machine au démarrage et à la fermeture, champs d'un profil machine, état d'un projet, recopie des calques dans le matériau choisi) passe dans `WindowState` (`ui/app/window_state.py`). Les menus sont abonnés une fois toute la fenêtre construite. Comportement inchangé, vérifié dans la fenêtre (onglets, plein écran, panneau du bas, génération, barre d'outils de l'image, outils de dessin, réglages, focale, thème).
 
 ### Corrigé
+Caméra : le fond de l'éditeur vectoriel est de nouveau redressé sur tout le plateau (l'image apparaissait minuscule et déplacée : la projection `warp_to_bed` utilisait la matrice dans le mauvais sens).
+
 Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.
 
 Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.

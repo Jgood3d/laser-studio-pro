@@ -45,11 +45,15 @@ class LensCalibration:
         w, h = size or self.image_size
         if self._map1 is not None and self._map1.shape[:2] == (h, w):
             return
-        new_mtx, _ = cv2.getOptimalNewCameraMatrix(
-            self.camera_matrix, self.dist_coeffs, (w, h), 1, (w, h)
-        )
+        # Calibrée à une résolution, utilisée à une autre : la matrice suit l'échelle (même champ de vision).
+        mtx = self.camera_matrix.copy()
+        iw, ih = self.image_size
+        if (w, h) != (iw, ih) and iw > 0 and ih > 0:
+            mtx[0, :] *= w / iw
+            mtx[1, :] *= h / ih
+        new_mtx, _ = cv2.getOptimalNewCameraMatrix(mtx, self.dist_coeffs, (w, h), 1, (w, h))
         self._map1, self._map2 = cv2.initUndistortRectifyMap(
-            self.camera_matrix, self.dist_coeffs, None, new_mtx, (w, h), cv2.CV_16SC2
+            mtx, self.dist_coeffs, None, new_mtx, (w, h), cv2.CV_16SC2
         )
 
 

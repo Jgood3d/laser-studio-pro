@@ -63,6 +63,9 @@ class CameraCapture:
             self._cap = None
             return False
         w, h = self._requested_size
+        if w > 0 or h > 0:
+            # MJPG : la plupart des webcams n'offrent le 720p/1080p que dans ce format.
+            self._cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         if w > 0:
             self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         if h > 0:

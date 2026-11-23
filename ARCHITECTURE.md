@@ -217,7 +217,7 @@ laser-studio-pro/
 | **grbl/simulator.py** | `SimulatedGrblSerial` : graveur GRBL 1.1 simulé (`LASER_STUDIO_SIMULATION`), imite la partie de pyserial utilisée | `grbl.connection`, `controllers/engraver` (port « SIMULATION ») |
 | **camera/capture.py** | Détection des périphériques vidéo, capture d'images et gestion du flux vidéo brut via OpenCV, sans Qt. | `controllers/camera`, `ui/dialogs/camera/` |
 | **camera/lens_calibration.py** | Calibration optique de l'objectif (mire d'étalonnage, matrice intrinsèque, coefficients de distorsion) et redressement des images (`undistort`), sans Qt. | `controllers/camera`, `ui/dialogs/camera/lens_wizard.py` |
-| **camera/workspace_alignment.py** | Calcul de la matrice d'homographie entre les pixels redressés de la caméra et les coordonnées millimétrées du plateau laser ; redressement perspectif de l'espace de travail complet (`warp_workspace`), sans Qt. | `controllers/camera`, `ui/dialogs/camera/align_wizard.py` |
+| **camera/workspace_alignment.py** | Détection des AprilTags (normaux ou en négatif, plusieurs passes), fusion de plusieurs captures, homographie entre les pixels redressés de la caméra et les coordonnées millimétrées du plateau à partir des 4 coins de chaque tag ; redressement perspectif de l'espace de travail complet (`warp_to_bed`), sans Qt. | `controllers/camera`, `ui/dialogs/camera/align_wizard.py` |
 | **camera/storage.py** | Persistance et chargement des profils de calibration optique et d'alignement plateau liés à la machine (`QSettings` / fichiers JSON), sans Qt. | `controllers/camera`, `camera/` |
 
 ### 3.2 Fenêtre principale et ses objets

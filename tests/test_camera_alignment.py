@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 
+import cv2
 import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -14,7 +15,13 @@ from laser_studio.camera.workspace_alignment import (  # noqa: E402
     AlignmentTarget,
     WorkspaceAlignment,
     generate_apriltag_targets,
+    compute_alignment,
     compute_homography,
+    detect_apriltag_corners,
+    merge_detections,
+    tag_cut_side_mm,
+    warp_to_bed,
+    apriltag_engrave_polygons,
     pixel_to_mm,
     mm_to_pixel,
 )
@@ -30,16 +37,26 @@ from laser_studio.camera.storage import (  # noqa: E402
 
 class TargetLayoutTests(unittest.TestCase):
     def test_grid_3x3_covers_bed_with_margin(self):
+        # La marge va du bord du plateau au bord du tag : le centre est à marge + taille/2.
         targets = generate_apriltag_targets(300, 200, margin_mm=20, tag_size_mm=18, grid=(3, 3))
         self.assertEqual(len(targets), 9)
         xs = sorted({t.cx_mm for t in targets})
         ys = sorted({t.cy_mm for t in targets})
-        self.assertEqual(xs[0], 20.0)
-        self.assertEqual(xs[-1], 280.0)
-        self.assertEqual(ys[0], 20.0)
-        self.assertEqual(ys[-1], 180.0)
+        self.assertEqual(xs[0], 29.0)
+        self.assertEqual(xs[-1], 271.0)
+        self.assertEqual(ys[0], 29.0)
+        self.assertEqual(ys[-1], 171.0)
         # IDs uniques 0..8
         self.assertEqual(sorted(t.tag_id for t in targets), list(range(9)))
+
+    def test_default_is_four_corner_tags_of_40mm(self):
+        targets = generate_apriltag_targets(400, 400)
+        self.assertEqual(len(targets), 4)
+        self.assertEqual({t.size_mm for t in targets}, {40.0})
+        self.assertEqual(sorted((t.cx_mm, t.cy_mm) for t in targets),
+                         [(40.0, 40.0), (40.0, 360.0), (360.0, 40.0), (360.0, 360.0)])
+        # Le cadre du gabarit est de la taille du tag.
+        self.assertEqual(tag_cut_side_mm(40.0), 40.0)
 
     def test_rejects_tiny_bed(self):
         with self.assertRaises(ValueError):
@@ -140,6 +157,71 @@ class StorageTests(unittest.TestCase):
 
         self.assertTrue(delete_profile("cam_test_0"))
         self.assertIsNone(load_profile("cam_test_0"))
+
+
+def _render_scene(targets, bed_w, bed_h, ppm=2.0, rotate=True, seed=1):
+    """Plateau vu en perspective avec les tags (tournés au hasard) : renvoie (image, matrice mm→pixel)."""
+    rng = np.random.default_rng(seed)
+    W, H = int(bed_w * ppm), int(bed_h * ppm)
+    img = np.full((H, W), 235, np.uint8)
+    for t in targets:
+        angle = rng.integers(0, 4) * np.pi / 2 if rotate else 0.0
+        rot = np.array([[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]])
+        for poly in apriltag_engrave_polygons(AlignmentTarget(t.tag_id, 0.0, 0.0, t.size_mm)):
+            pts = np.array(poly) @ rot.T + [t.cx_mm, t.cy_mm]
+            px = np.c_[pts[:, 0] * ppm, (bed_h - pts[:, 1]) * ppm]
+            cv2.fillPoly(img, [np.round(px * 16).astype(np.int32)], 25, lineType=cv2.LINE_AA, shift=4)
+    src = np.float32([[0, 0], [W, 0], [W, H], [0, H]])
+    dst = np.float32([[40, 30], [W - 20, 50], [W - 50, H - 20], [25, H - 40]])
+    persp = cv2.getPerspectiveTransform(src, dst)
+    out = cv2.warpPerspective(img, persp, (W + 40, H + 40), borderValue=100)
+    return cv2.GaussianBlur(out, (0, 0), 0.8)
+
+
+class CornerAlignmentTests(unittest.TestCase):
+    def setUp(self):
+        self.targets = generate_apriltag_targets(400, 400)
+        self.ids = [t.tag_id for t in self.targets]
+        self.img = _render_scene(self.targets, 400, 400)
+
+    def test_alignment_ignores_tag_orientation(self):
+        det = detect_apriltag_corners(self.img, self.ids)
+        self.assertEqual(sorted(det), self.ids)
+        al = compute_alignment(self.targets, det, self.img.shape[::-1])
+        self.assertLess(al.reprojection_error_mm, 1.0)
+
+    def test_warp_puts_tags_at_their_bed_positions(self):
+        """Régression : l'image de la caméra doit couvrir le plateau, tags à leur place (en mm)."""
+        det = detect_apriltag_corners(self.img, self.ids)
+        al = compute_alignment(self.targets, det, self.img.shape[::-1])
+        out = warp_to_bed(cv2.cvtColor(self.img, cv2.COLOR_GRAY2BGR), al, 400, 400, px_per_mm=2.0)
+        found = detect_apriltag_corners(out, self.ids)
+        self.assertEqual(sorted(found), self.ids)
+        for t in self.targets:
+            u, v = found[t.tag_id].mean(axis=0)
+            self.assertAlmostEqual(u / 2.0, t.cx_mm, delta=1.0)
+            self.assertAlmostEqual(400.0 - v / 2.0, t.cy_mm, delta=1.0)
+
+    def test_merging_captures_recovers_tags_hidden_by_the_gantry(self):
+        h, w = self.img.shape
+        left_hidden, right_hidden = self.img.copy(), self.img.copy()
+        left_hidden[:, : w // 3] = 60
+        right_hidden[:, 2 * w // 3:] = 60
+        cap1 = detect_apriltag_corners(left_hidden, self.ids)
+        cap2 = detect_apriltag_corners(right_hidden, self.ids)
+        self.assertLess(len(cap1), 3)
+        with self.assertRaises(ValueError):
+            compute_alignment(self.targets, merge_detections([cap1]), (w, h))
+        merged = merge_detections([cap1, cap2])
+        self.assertEqual(sorted(merged), self.ids)
+        compute_alignment(self.targets, merged, (w, h))
+
+    def test_inconsistent_alignment_is_rejected(self):
+        """Des tags qui ne sont pas aux positions du gabarit ne donnent pas d'alignement."""
+        det = detect_apriltag_corners(self.img, self.ids)
+        wrong = [AlignmentTarget(t.tag_id, t.cx_mm, t.cy_mm, t.size_mm * 3) for t in self.targets]
+        with self.assertRaises(ValueError):
+            compute_alignment(wrong, det, self.img.shape[::-1])
 
 
 if __name__ == "__main__":
