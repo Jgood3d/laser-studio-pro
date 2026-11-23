@@ -3,9 +3,10 @@
 Chaque mouvement d'un curseur met à jour le modèle (ImageSettings), donc l'aperçu tramé, en direct.
 « Annuler » remet les réglages d'avant l'ouverture ; « OK » garde l'effet.
 
-    if CartoonFilterDialog(image_settings, window).exec():
-        ...   # effet appliqué
+    dialog = CartoonFilterDialog(image_settings, window)
+    dialog.show()        # non modale : se déplace seule, sans entraîner la fenêtre principale
 """
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QDialog, QDialogButtonBox, QFormLayout, QLabel
 
 from laser_studio.i18n import tr
@@ -22,6 +23,10 @@ class CartoonFilterDialog(QDialog):
     def __init__(self, settings, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("img.cartoon_title"))
+        # Fenêtre indépendante : ni modale (GNOME l'accrocherait à la fenêtre principale), ni gardée après
+        # fermeture.
+        self.setModal(False)
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
         self._settings = settings
         self._before = (settings.cartoon_radius, settings.cartoon_black)
         layout = QFormLayout(self)

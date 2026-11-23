@@ -101,9 +101,17 @@ class CartoonDialogTests(unittest.TestCase):
 
     def dialog(self):
         from laser_studio.ui.tabs.image.cartoon_dialog import DEFAULT_RADIUS, CartoonFilterDialog
+        from PyQt6 import sip
         dialog = CartoonFilterDialog(self.settings)
-        self.addCleanup(dialog.deleteLater)
+        # Supprimée à la fermeture (WA_DeleteOnClose) : nettoyage seulement si elle existe encore.
+        self.addCleanup(lambda: None if sip.isdeleted(dialog) else dialog.deleteLater())
         return dialog, DEFAULT_RADIUS
+
+    def test_window_is_independent(self):
+        from PyQt6.QtCore import Qt
+        dialog, _default = self.dialog()
+        self.assertFalse(dialog.isModal())            # une fenêtre modale serait accrochée à la principale (GNOME)
+        self.assertTrue(dialog.testAttribute(Qt.WidgetAttribute.WA_DeleteOnClose))
 
     def test_opening_applies_the_effect_and_sliders_follow_live(self):
         dialog, default = self.dialog()
