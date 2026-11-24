@@ -119,7 +119,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/boolean_ops.py` — opérations booléennes des groupes de l’éditeur (union, différence, intersection, exclusion), sans widget
   - `vector/svg_tree_import.py`, `vector/svg_style.py` — import SVG du bouton « Importer », conforme à la spécification : groupes et textes gardés, calque d’après la couleur, objets blancs et cachés sur le calque « Ignoré »
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
-  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
+  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` reporte le résultat sur les objets (sans canevas)
   - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
   - `vector/text_follow.py` — texte posé sur le contour d’un objet, textes de médaille
   - `vector/group_transform.py` — sélection traitée comme un groupe (redimensionner, quart de tour, calque)
@@ -170,7 +170,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `library/machine_catalog.py`, `resources/machines/`, `ui/dialogs/machine_catalog/` — catalogue des machines (Paramètres du graveur › Depuis le catalogue…) : graveurs GRBL du commerce avec les valeurs publiées par leur constructeur et leurs sources, un YAML par marque ; crée un profil machine
 - `library/catalog.py`, `controllers/library.py`, `ui/dialogs/library/` — bibliothèque de modèles (Outils → Bibliothèque…) : catalogue des dossiers `resources/library/<catégorie>/<modèle>/` (sans Qt), `LibraryController` (ouverture et import sur les calques de même rôle), fenêtres `LibraryDialog` (grille, catégories, recherche, taille des aperçus) et `LibraryItemDialog` (fiche : aperçu, dessin, variantes, readme). Comment ajouter un modèle : `resources/library/README.md`
-- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
+- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (objets ⇄ algorithme, sans canevas, et fenêtre de réglage `NestingDialog`)
 - `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `image/dithering.comparison_thumbnails`, via `ImageController.comparison`)
 - `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Configuration GRBL » et « Matrice de test » ouvertes depuis les menus
 

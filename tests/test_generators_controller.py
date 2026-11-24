@@ -117,6 +117,47 @@ class LayoutTests(GeneratorsTests.__base__):
         self.assertEqual(self.dialogs.kinds(), ["info"])
         self.assertEqual(self.forms.opened, [])
 
+    def test_serial_duplicate_adds_copies_in_one_undoable_step(self):
+        self.make()
+        part = ShapeObject("Rectangle", 20, 10, layer_id=self.cut, x_mm=5, y_mm=5)
+        self.canvas.add_object(part)
+        self.canvas.item_for(part).setSelected(True)
+        params = {"count": 3, "layout": "grid", "cols": 3, "gap_x": 2.0, "gap_y": 2.0, "names": [],
+                  "text_index": None}
+        self.forms.answers["serial"] = SimpleNamespace(params=params, settings={})
+        self.layout.open_serial_duplicate()
+        self.assertEqual(len(self.document.objects), 3)
+        self.assertEqual(len({o.x_mm for o in self.document.objects}), 3)        # rangés côte à côte
+        self.assertEqual(len(self.canvas.selected_items_vector()), 3)
+        self.canvas.undo()                                              # l'annulation recrée les objets
+        self.assertEqual([o.id for o in self.document.objects], [part.id])
+
+    def test_failed_serial_duplicate_leaves_the_canvas_unchanged(self):
+        self.make()
+        part = ShapeObject("Rectangle", 20, 10, layer_id=self.cut, x_mm=5, y_mm=5)
+        self.canvas.add_object(part)
+        self.canvas.item_for(part).setSelected(True)
+        self.forms.answers["serial"] = SimpleNamespace(params={"count": 3, "layout": "grid"}, settings={})  # incomplet
+        self.layout.open_serial_duplicate()
+        self.assertEqual(self.dialogs.kinds(), ["warning"])
+        self.assertEqual([o.id for o in self.document.objects], [part.id])
+
+    def test_nesting_moves_the_pieces_onto_the_sheet(self):
+        self.make()
+        parts = [ShapeObject("Rectangle", 20, 10, layer_id=self.cut, x_mm=500 + 30 * i, y_mm=500) for i in range(3)]
+        for part in parts:
+            self.canvas.add_object(part)
+        options = {"sheet_w": 100.0, "sheet_h": 100.0, "spacing": 2.0, "margin": 2.0, "angles": (0.0,),
+                   "cell": 1.0, "origin": (0.0, 0.0)}
+        self.forms.answers["nesting"] = SimpleNamespace(scope="all", options=options, settings={})
+        self.layout.open_nesting()
+        for part in parts:
+            self.assertLess(part.x_mm, 100)
+            self.assertLess(part.y_mm, 100)
+            self.assertEqual(self.canvas.item_for(part).obj, part)
+        self.canvas.undo()
+        self.assertEqual(sorted(o.x_mm for o in self.document.objects), [500, 530, 560])
+
     def test_sheet_size_is_shared_with_the_ornaments(self):
         self.make()
         self.assertEqual(self.layout.sheet_default(), (self.editor.machine.bed_w, self.editor.machine.bed_h))
