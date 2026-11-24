@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1892" height="2366" viewBox="0 0 1892 2366">
-<rect width="1892" height="2366" fill="#ffffff"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1892" height="2388" viewBox="0 0 1892 2388">
+<rect width="1892" height="2388" fill="#ffffff"/>
 <text x="30" y="40" font-family="DejaVu Sans" font-size="24" font-weight="bold" fill="#1f2d3d">Laser Studio Pro — qui émet quoi, qui branche, qui exécute</text>
 <text x="30" y="66" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">Chaque page / onglet / panneau émet des signaux (à gauche). La fenêtre FullLaserStudio les branche (ui/app/main_window.py, ui/app/window_controller.py) sur une fonction (à droite), colorée selon le fichier où elle est écrite.</text>
 <rect x="30" y="84" width="16" height="16" rx="3" fill="#d9534f" stroke="none"/>
@@ -97,7 +97,7 @@
 <rect x="388" y="386" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
 <text x="396" y="399.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.update_profile</text>
 <text x="698" y="399.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
-<rect x="30" y="430" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<rect x="30" y="430" width="896" height="188" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="42" y="450" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">MachineParamsPage</text>
 <text x="198.2" y="450" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Paramètres du graveur</text>
 <text x="42" y="467" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/settings/machine_params/page.py   ·   branché dans build_machine_params_page</text>
@@ -116,207 +116,207 @@
 <text x="396" y="513.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.new_profile</text>
 <text x="698" y="513.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="522" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">update_profile_requested</text>
-<path d="M342 531.0 L380 531.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
-<path d="M380 527.0 L388 531.0 L380 535.0 Z" fill="#8e44ad"/>
-<rect x="388" y="522" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.update_profile</text>
-<text x="698" y="535.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
+<text x="50" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">catalog_requested</text>
+<path d="M342 531.0 L380 531.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 527.0 L388 531.0 L380 535.0 Z" fill="#95a5a6"/>
+<rect x="388" y="522" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="535.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_machine_catalog</text>
+<text x="698" y="535.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/settings/machine_params/builder.py</text>
 <rect x="42" y="544" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_profile_requested</text>
+<text x="50" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">update_profile_requested</text>
 <path d="M342 553.0 L380 553.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
 <path d="M380 549.0 L388 553.0 L380 557.0 Z" fill="#8e44ad"/>
 <rect x="388" y="544" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
-<text x="396" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.delete_profile</text>
+<text x="396" y="557.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.update_profile</text>
 <text x="698" y="557.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
 <rect x="42" y="566" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">focal_changed</text>
-<path d="M342 575.0 L380 575.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 571.0 L388 575.0 L380 579.0 Z" fill="#95a5a6"/>
-<rect x="388" y="566" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">focal_changed</text>
-<text x="698" y="579.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
-<rect x="30" y="610" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="630" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">TestMatrixPage</text>
-<text x="172.39999999999998" y="630" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Matrice de test</text>
-<text x="42" y="647" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/settings/test_matrix/page.py   ·   branché dans build_test_matrix_page</text>
-<rect x="42" y="658" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="671.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">generate_requested</text>
-<path d="M342 667.0 L380 667.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 663.0 L388 667.0 L380 671.0 Z" fill="#95a5a6"/>
-<rect x="388" y="658" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="671.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">generate</text>
-<text x="698" y="671.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
+<text x="50" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_profile_requested</text>
+<path d="M342 575.0 L380 575.0" stroke="#8e44ad" stroke-width="2" fill="none"/>
+<path d="M380 571.0 L388 575.0 L380 579.0 Z" fill="#8e44ad"/>
+<rect x="388" y="566" width="300" height="18" rx="4" fill="#8e44ad" stroke="none"/>
+<text x="396" y="579.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MachineProfilesController.delete_profile</text>
+<text x="698" y="579.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#8e44ad">controllers/machine_profiles.py</text>
+<rect x="42" y="588" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">focal_changed</text>
+<path d="M342 597.0 L380 597.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 593.0 L388 597.0 L380 601.0 Z" fill="#95a5a6"/>
+<rect x="388" y="588" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="601.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">focal_changed</text>
+<text x="698" y="601.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
+<rect x="30" y="632" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="652" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">TestMatrixPage</text>
+<text x="172.39999999999998" y="652" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Matrice de test</text>
+<text x="42" y="669" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/settings/test_matrix/page.py   ·   branché dans build_test_matrix_page</text>
 <rect x="42" y="680" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="693.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">choose_image_requested</text>
-<path d="M342 689.0 L380 689.0" stroke="#c0392b" stroke-width="2" fill="none"/>
-<path d="M380 685.0 L388 689.0 L380 693.0 Z" fill="#c0392b"/>
-<rect x="388" y="680" width="300" height="18" rx="4" fill="#c0392b" stroke="none"/>
-<text x="396" y="693.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.choose_image</text>
-<text x="698" y="693.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#c0392b">controllers/matrix_image.py</text>
+<text x="50" y="693.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">generate_requested</text>
+<path d="M342 689.0 L380 689.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 685.0 L388 689.0 L380 693.0 Z" fill="#95a5a6"/>
+<rect x="388" y="680" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="693.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">generate</text>
+<text x="698" y="693.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
 <rect x="42" y="702" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="715.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">use_loaded_image_requested</text>
+<text x="50" y="715.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">choose_image_requested</text>
 <path d="M342 711.0 L380 711.0" stroke="#c0392b" stroke-width="2" fill="none"/>
 <path d="M380 707.0 L388 711.0 L380 715.0 Z" fill="#c0392b"/>
 <rect x="388" y="702" width="300" height="18" rx="4" fill="#c0392b" stroke="none"/>
-<text x="396" y="715.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.use_loaded_image</text>
+<text x="396" y="715.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.choose_image</text>
 <text x="698" y="715.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#c0392b">controllers/matrix_image.py</text>
 <rect x="42" y="724" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="737.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_test_toggled</text>
+<text x="50" y="737.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">use_loaded_image_requested</text>
 <path d="M342 733.0 L380 733.0" stroke="#c0392b" stroke-width="2" fill="none"/>
 <path d="M380 729.0 L388 733.0 L380 737.0 Z" fill="#c0392b"/>
 <rect x="388" y="724" width="300" height="18" rx="4" fill="#c0392b" stroke="none"/>
-<text x="396" y="737.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.on_image_test_toggled</text>
+<text x="396" y="737.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.use_loaded_image</text>
 <text x="698" y="737.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#c0392b">controllers/matrix_image.py</text>
-<text x="30" y="794" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="#5d6d7e">ONGLETS</text>
-<rect x="30" y="808" width="896" height="122" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="828" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">Preview2DTab</text>
-<text x="155.2" y="828" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Visualisation 2D G-Code</text>
-<text x="42" y="845" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/preview_2d/tab.py   ·   branché dans _build_center_tabs, _build_job_display</text>
-<rect x="42" y="856" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="869.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">display_options_changed</text>
-<path d="M342 865.0 L380 865.0" stroke="#a04000" stroke-width="2" fill="none"/>
-<path d="M380 861.0 L388 865.0 L380 869.0 Z" fill="#a04000"/>
-<rect x="388" y="856" width="300" height="18" rx="4" fill="#a04000" stroke="none"/>
-<text x="396" y="869.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobDisplay.redraw</text>
-<text x="698" y="869.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#a04000">ui/app/job_display.py</text>
+<rect x="42" y="746" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="759.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_test_toggled</text>
+<path d="M342 755.0 L380 755.0" stroke="#c0392b" stroke-width="2" fill="none"/>
+<path d="M380 751.0 L388 755.0 L380 759.0 Z" fill="#c0392b"/>
+<rect x="388" y="746" width="300" height="18" rx="4" fill="#c0392b" stroke="none"/>
+<text x="396" y="759.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MatrixImageController.on_image_test_toggled</text>
+<text x="698" y="759.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#c0392b">controllers/matrix_image.py</text>
+<text x="30" y="816" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="#5d6d7e">ONGLETS</text>
+<rect x="30" y="830" width="896" height="122" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="850" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">Preview2DTab</text>
+<text x="155.2" y="850" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Visualisation 2D G-Code</text>
+<text x="42" y="867" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/preview_2d/tab.py   ·   branché dans _build_center_tabs, _build_job_display</text>
 <rect x="42" y="878" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="891.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">plot_clicked</text>
-<path d="M342 887.0 L380 887.0" stroke="#e67e22" stroke-width="2" fill="none"/>
-<path d="M380 883.0 L388 887.0 L380 891.0 Z" fill="#e67e22"/>
-<rect x="388" y="878" width="300" height="18" rx="4" fill="#e67e22" stroke="none"/>
-<text x="396" y="891.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">job.apply_matrix_cell</text>
-<text x="698" y="891.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#e67e22">controllers/job.py</text>
+<text x="50" y="891.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">display_options_changed</text>
+<path d="M342 887.0 L380 887.0" stroke="#a04000" stroke-width="2" fill="none"/>
+<path d="M380 883.0 L388 887.0 L380 891.0 Z" fill="#a04000"/>
+<rect x="388" y="878" width="300" height="18" rx="4" fill="#a04000" stroke="none"/>
+<text x="396" y="891.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobDisplay.redraw</text>
+<text x="698" y="891.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#a04000">ui/app/job_display.py</text>
 <rect x="42" y="900" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="913.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">log</text>
-<path d="M342 909.0 L380 909.0" stroke="#34495e" stroke-width="2" fill="none"/>
-<path d="M380 905.0 L388 909.0 L380 913.0 Z" fill="#34495e"/>
-<rect x="388" y="900" width="300" height="18" rx="4" fill="#34495e" stroke="none"/>
-<text x="396" y="913.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">log_message</text>
-<text x="698" y="913.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#34495e">ui/app/main_window.py</text>
-<rect x="30" y="944" width="896" height="298" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="964" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ImageSettingsPanel</text>
-<text x="206.79999999999998" y="964" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image</text>
-<text x="42" y="981" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/settings_panel.py   ·   branché dans _build_center_tabs, _build_settings_pages, build_image_tab</text>
-<rect x="42" y="992" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1005.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">resolution_changed</text>
-<path d="M342 1001.0 L380 1001.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 997.0 L388 1001.0 L380 1005.0 Z" fill="#95a5a6"/>
-<rect x="388" y="992" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1005.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">self.tab_matrix.set_lines_mm</text>
-<text x="698" y="1005.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
+<text x="50" y="913.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">plot_clicked</text>
+<path d="M342 909.0 L380 909.0" stroke="#e67e22" stroke-width="2" fill="none"/>
+<path d="M380 905.0 L388 909.0 L380 913.0 Z" fill="#e67e22"/>
+<rect x="388" y="900" width="300" height="18" rx="4" fill="#e67e22" stroke="none"/>
+<text x="396" y="913.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">job.apply_matrix_cell</text>
+<text x="698" y="913.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#e67e22">controllers/job.py</text>
+<rect x="42" y="922" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="935.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">log</text>
+<path d="M342 931.0 L380 931.0" stroke="#34495e" stroke-width="2" fill="none"/>
+<path d="M380 927.0 L388 931.0 L380 935.0 Z" fill="#34495e"/>
+<rect x="388" y="922" width="300" height="18" rx="4" fill="#34495e" stroke="none"/>
+<text x="396" y="935.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">log_message</text>
+<text x="698" y="935.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#34495e">ui/app/main_window.py</text>
+<rect x="30" y="966" width="896" height="298" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="986" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ImageSettingsPanel</text>
+<text x="206.79999999999998" y="986" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image</text>
+<text x="42" y="1003" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/settings_panel.py   ·   branché dans _build_center_tabs, _build_settings_pages, build_image_tab</text>
 <rect x="42" y="1014" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="1027.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">resolution_changed</text>
 <path d="M342 1023.0 L380 1023.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1019.0 L388 1023.0 L380 1027.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1014" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1027.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">self.separation.resolution_changed</text>
+<text x="396" y="1027.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">self.tab_matrix.set_lines_mm</text>
 <text x="698" y="1027.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
 <rect x="42" y="1036" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1049.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">load_requested</text>
-<path d="M342 1045.0 L380 1045.0" stroke="#16a085" stroke-width="2" fill="none"/>
-<path d="M380 1041.0 L388 1045.0 L380 1049.0 Z" fill="#16a085"/>
-<rect x="388" y="1036" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1049.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.open_image</text>
-<text x="698" y="1049.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
+<text x="50" y="1049.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">resolution_changed</text>
+<path d="M342 1045.0 L380 1045.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1041.0 L388 1045.0 L380 1049.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1036" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1049.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">self.separation.resolution_changed</text>
+<text x="698" y="1049.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
 <rect x="42" y="1058" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1071.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">processing_changed</text>
+<text x="50" y="1071.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">load_requested</text>
 <path d="M342 1067.0 L380 1067.0" stroke="#16a085" stroke-width="2" fill="none"/>
 <path d="M380 1063.0 L388 1067.0 L380 1071.0 Z" fill="#16a085"/>
 <rect x="388" y="1058" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1071.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.schedule_processing</text>
+<text x="396" y="1071.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.open_image</text>
 <text x="698" y="1071.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
 <rect x="42" y="1080" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1093.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">engrave_layer_changed</text>
-<path d="M342 1089.0 L380 1089.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 1085.0 L388 1089.0 L380 1093.0 Z" fill="#95a5a6"/>
-<rect x="388" y="1080" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1093.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">LayersModel.select_engrave_layer</text>
-<text x="698" y="1093.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">models/layers.py</text>
+<text x="50" y="1093.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">processing_changed</text>
+<path d="M342 1089.0 L380 1089.0" stroke="#16a085" stroke-width="2" fill="none"/>
+<path d="M380 1085.0 L388 1089.0 L380 1093.0 Z" fill="#16a085"/>
+<rect x="388" y="1080" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
+<text x="396" y="1093.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.schedule_processing</text>
+<text x="698" y="1093.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
 <rect x="42" y="1102" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1115.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">size_changed</text>
-<path d="M342 1111.0 L380 1111.0" stroke="#16a085" stroke-width="2" fill="none"/>
-<path d="M380 1107.0 L388 1111.0 L380 1115.0 Z" fill="#16a085"/>
-<rect x="388" y="1102" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1115.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.dimension_changed</text>
-<text x="698" y="1115.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
+<text x="50" y="1115.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">engrave_layer_changed</text>
+<path d="M342 1111.0 L380 1111.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1107.0 L388 1111.0 L380 1115.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1102" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1115.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">LayersModel.select_engrave_layer</text>
+<text x="698" y="1115.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">models/layers.py</text>
 <rect x="42" y="1124" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1137.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">resolution_changed</text>
+<text x="50" y="1137.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">size_changed</text>
 <path d="M342 1133.0 L380 1133.0" stroke="#16a085" stroke-width="2" fill="none"/>
 <path d="M380 1129.0 L388 1133.0 L380 1137.0 Z" fill="#16a085"/>
 <rect x="388" y="1124" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1137.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.schedule_processing</text>
+<text x="396" y="1137.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.dimension_changed</text>
 <text x="698" y="1137.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
 <rect x="42" y="1146" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1159.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">configure_focal_requested</text>
-<path d="M342 1155.0 L380 1155.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 1151.0 L388 1155.0 L380 1159.0 Z" fill="#95a5a6"/>
-<rect x="388" y="1146" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1159.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">configure_focal</text>
-<text x="698" y="1159.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
+<text x="50" y="1159.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">resolution_changed</text>
+<path d="M342 1155.0 L380 1155.0" stroke="#16a085" stroke-width="2" fill="none"/>
+<path d="M380 1151.0 L388 1155.0 L380 1159.0 Z" fill="#16a085"/>
+<rect x="388" y="1146" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
+<text x="396" y="1159.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.schedule_processing</text>
+<text x="698" y="1159.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
 <rect x="42" y="1168" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">filter_requested</text>
+<text x="50" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">configure_focal_requested</text>
 <path d="M342 1177.0 L380 1177.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1173.0 L388 1177.0 L380 1181.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1168" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">choose_filter</text>
+<text x="396" y="1181.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">configure_focal</text>
 <text x="698" y="1181.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
 <rect x="42" y="1190" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1203.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">undo_requested</text>
+<text x="50" y="1203.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">filter_requested</text>
 <path d="M342 1199.0 L380 1199.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1195.0 L388 1199.0 L380 1203.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1190" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1203.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageSettingsHistory.undo</text>
-<text x="698" y="1203.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">models/image_settings.py</text>
+<text x="396" y="1203.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">choose_filter</text>
+<text x="698" y="1203.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
 <rect x="42" y="1212" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1225.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">redo_requested</text>
+<text x="50" y="1225.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">undo_requested</text>
 <path d="M342 1221.0 L380 1221.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1217.0 L388 1221.0 L380 1225.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1212" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1225.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageSettingsHistory.redo</text>
+<text x="396" y="1225.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageSettingsHistory.undo</text>
 <text x="698" y="1225.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">models/image_settings.py</text>
-<rect x="30" y="1256" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="1276" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ImageTab</text>
-<text x="120.8" y="1276" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image</text>
-<text x="42" y="1293" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/tab.py   ·   branché dans build_image_tab</text>
-<rect x="42" y="1304" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1317.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">crop_requested</text>
-<path d="M342 1313.0 L380 1313.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 1309.0 L388 1313.0 L380 1317.0 Z" fill="#95a5a6"/>
-<rect x="388" y="1304" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1317.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop</text>
-<text x="698" y="1317.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
+<rect x="42" y="1234" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1247.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">redo_requested</text>
+<path d="M342 1243.0 L380 1243.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1239.0 L388 1243.0 L380 1247.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1234" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1247.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageSettingsHistory.redo</text>
+<text x="698" y="1247.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">models/image_settings.py</text>
+<rect x="30" y="1278" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="1298" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ImageTab</text>
+<text x="120.8" y="1298" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image</text>
+<text x="42" y="1315" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/tab.py   ·   branché dans build_image_tab</text>
 <rect x="42" y="1326" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1339.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">compare_requested</text>
+<text x="50" y="1339.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">crop_requested</text>
 <path d="M342 1335.0 L380 1335.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1331.0 L388 1335.0 L380 1339.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1326" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1339.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">compare</text>
+<text x="396" y="1339.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop</text>
 <text x="698" y="1339.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
-<rect x="30" y="1370" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="1390" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">CartoonFilterDialog</text>
-<text x="215.4" y="1390" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Effet BD</text>
-<text x="42" y="1407" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/cartoon_dialog.py   ·   branché dans build_image_tab, choose_filter</text>
-<rect x="42" y="1418" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1431.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">accepted</text>
-<path d="M342 1427.0 L380 1427.0" stroke="#16a085" stroke-width="2" fill="none"/>
-<path d="M380 1423.0 L388 1427.0 L380 1431.0 Z" fill="#16a085"/>
-<rect x="388" y="1418" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1431.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.crop</text>
-<text x="698" y="1431.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
+<rect x="42" y="1348" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1361.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">compare_requested</text>
+<path d="M342 1357.0 L380 1357.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1353.0 L388 1357.0 L380 1361.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1348" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1361.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">compare</text>
+<text x="698" y="1361.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
+<rect x="30" y="1392" width="896" height="144" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="1412" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">CartoonFilterDialog</text>
+<text x="215.4" y="1412" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Effet BD</text>
+<text x="42" y="1429" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/cartoon_dialog.py   ·   branché dans build_image_tab, choose_filter</text>
 <rect x="42" y="1440" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1453.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
-<path d="M342 1449.0 L380 1449.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 1445.0 L388 1449.0 L380 1453.0 Z" fill="#95a5a6"/>
-<rect x="388" y="1440" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1453.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop_dialog.clear</text>
-<text x="698" y="1453.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
+<text x="50" y="1453.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">accepted</text>
+<path d="M342 1449.0 L380 1449.0" stroke="#16a085" stroke-width="2" fill="none"/>
+<path d="M380 1445.0 L388 1449.0 L380 1453.0 Z" fill="#16a085"/>
+<rect x="388" y="1440" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
+<text x="396" y="1453.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.crop</text>
+<text x="698" y="1453.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
 <rect x="42" y="1462" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="1475.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
 <path d="M342 1471.0 L380 1471.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M380 1467.0 L388 1471.0 L380 1475.0 Z" fill="#95a5a6"/>
 <rect x="388" y="1462" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1475.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_dialog.clear</text>
+<text x="396" y="1475.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop_dialog.clear</text>
 <text x="698" y="1475.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
 <rect x="42" y="1484" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
 <text x="50" y="1497.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
@@ -325,173 +325,180 @@
 <rect x="388" y="1484" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
 <text x="396" y="1497.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_dialog.clear</text>
 <text x="698" y="1497.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
-<rect x="30" y="1528" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="1548" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">CropDialog</text>
-<text x="138.0" y="1548" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Recadrer</text>
-<text x="42" y="1565" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/crop_dialog.py   ·   branché dans open_crop</text>
-<rect x="42" y="1576" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1589.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">accepted</text>
-<path d="M342 1585.0 L380 1585.0" stroke="#16a085" stroke-width="2" fill="none"/>
-<path d="M380 1581.0 L388 1585.0 L380 1589.0 Z" fill="#16a085"/>
-<rect x="388" y="1576" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
-<text x="396" y="1589.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.crop</text>
-<text x="698" y="1589.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
+<rect x="42" y="1506" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1519.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
+<path d="M342 1515.0 L380 1515.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1511.0 L388 1515.0 L380 1519.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1506" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1519.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_dialog.clear</text>
+<text x="698" y="1519.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
+<rect x="30" y="1550" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="1570" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">CropDialog</text>
+<text x="138.0" y="1570" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Recadrer</text>
+<text x="42" y="1587" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/image/crop_dialog.py   ·   branché dans open_crop</text>
 <rect x="42" y="1598" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1611.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
-<path d="M342 1607.0 L380 1607.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M380 1603.0 L388 1607.0 L380 1611.0 Z" fill="#95a5a6"/>
-<rect x="388" y="1598" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="396" y="1611.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop_dialog.clear</text>
-<text x="698" y="1611.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
-<rect x="30" y="1642" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="1662" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">JobQueueTab</text>
-<text x="146.6" y="1662" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— File d&#x27;attente</text>
-<text x="42" y="1679" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/job_queue/tab.py   ·   branché dans build_job_queue_tab</text>
-<rect x="42" y="1690" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1703.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">add_current_requested</text>
-<path d="M342 1699.0 L380 1699.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
-<path d="M380 1695.0 L388 1699.0 L380 1703.0 Z" fill="#7f8c3d"/>
-<rect x="388" y="1690" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
-<text x="396" y="1703.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.add_current_gcode</text>
-<text x="698" y="1703.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
+<text x="50" y="1611.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">accepted</text>
+<path d="M342 1607.0 L380 1607.0" stroke="#16a085" stroke-width="2" fill="none"/>
+<path d="M380 1603.0 L388 1607.0 L380 1611.0 Z" fill="#16a085"/>
+<rect x="388" y="1598" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
+<text x="396" y="1611.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.crop</text>
+<text x="698" y="1611.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
+<rect x="42" y="1620" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1633.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">finished</text>
+<path d="M342 1629.0 L380 1629.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M380 1625.0 L388 1629.0 L380 1633.0 Z" fill="#95a5a6"/>
+<rect x="388" y="1620" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="396" y="1633.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">open_crop_dialog.clear</text>
+<text x="698" y="1633.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">Qt</text>
+<rect x="30" y="1664" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="1684" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">JobQueueTab</text>
+<text x="146.6" y="1684" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— File d&#x27;attente</text>
+<text x="42" y="1701" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/job_queue/tab.py   ·   branché dans build_job_queue_tab</text>
 <rect x="42" y="1712" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1725.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">remove_selected_requested</text>
+<text x="50" y="1725.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">add_current_requested</text>
 <path d="M342 1721.0 L380 1721.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
 <path d="M380 1717.0 L388 1721.0 L380 1725.0 Z" fill="#7f8c3d"/>
 <rect x="388" y="1712" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
-<text x="396" y="1725.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.remove_selected</text>
+<text x="396" y="1725.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.add_current_gcode</text>
 <text x="698" y="1725.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
 <rect x="42" y="1734" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1747.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">clear_requested</text>
+<text x="50" y="1747.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">remove_selected_requested</text>
 <path d="M342 1743.0 L380 1743.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
 <path d="M380 1739.0 L388 1743.0 L380 1747.0 Z" fill="#7f8c3d"/>
 <rect x="388" y="1734" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
-<text x="396" y="1747.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.clear</text>
+<text x="396" y="1747.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.remove_selected</text>
 <text x="698" y="1747.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
 <rect x="42" y="1756" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1769.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">run_requested</text>
+<text x="50" y="1769.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">clear_requested</text>
 <path d="M342 1765.0 L380 1765.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
 <path d="M380 1761.0 L388 1765.0 L380 1769.0 Z" fill="#7f8c3d"/>
 <rect x="388" y="1756" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
-<text x="396" y="1769.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.run</text>
+<text x="396" y="1769.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.clear</text>
 <text x="698" y="1769.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
 <rect x="42" y="1778" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1791.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">reordered</text>
+<text x="50" y="1791.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">run_requested</text>
 <path d="M342 1787.0 L380 1787.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
 <path d="M380 1783.0 L388 1787.0 L380 1791.0 Z" fill="#7f8c3d"/>
 <rect x="388" y="1778" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
-<text x="396" y="1791.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.on_reordered</text>
+<text x="396" y="1791.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.run</text>
 <text x="698" y="1791.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
-<rect x="30" y="1822" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="1842" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">LayersTab</text>
-<text x="129.39999999999998" y="1842" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Calques</text>
-<text x="42" y="1859" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/layers/tab.py   ·   branché dans build_layers_tab</text>
-<rect x="42" y="1870" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1883.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">material_selected</text>
-<path d="M342 1879.0 L380 1879.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
-<path d="M380 1875.0 L388 1879.0 L380 1883.0 Z" fill="#9b59b6"/>
-<rect x="388" y="1870" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
-<text x="396" y="1883.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.apply_selected</text>
-<text x="698" y="1883.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
+<rect x="42" y="1800" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1813.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">reordered</text>
+<path d="M342 1809.0 L380 1809.0" stroke="#7f8c3d" stroke-width="2" fill="none"/>
+<path d="M380 1805.0 L388 1809.0 L380 1813.0 Z" fill="#7f8c3d"/>
+<rect x="388" y="1800" width="300" height="18" rx="4" fill="#7f8c3d" stroke="none"/>
+<text x="396" y="1813.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobQueueController.on_reordered</text>
+<text x="698" y="1813.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c3d">controllers/job_queue.py</text>
+<rect x="30" y="1844" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="1864" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">LayersTab</text>
+<text x="129.39999999999998" y="1864" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Calques</text>
+<text x="42" y="1881" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/layers/tab.py   ·   branché dans build_layers_tab</text>
 <rect x="42" y="1892" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1905.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">new_material_requested</text>
+<text x="50" y="1905.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">material_selected</text>
 <path d="M342 1901.0 L380 1901.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
 <path d="M380 1897.0 L388 1901.0 L380 1905.0 Z" fill="#9b59b6"/>
 <rect x="388" y="1892" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
-<text x="396" y="1905.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.new_material</text>
+<text x="396" y="1905.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.apply_selected</text>
 <text x="698" y="1905.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="1914" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1927.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_material_requested</text>
+<text x="50" y="1927.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">new_material_requested</text>
 <path d="M342 1923.0 L380 1923.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
 <path d="M380 1919.0 L388 1923.0 L380 1927.0 Z" fill="#9b59b6"/>
 <rect x="388" y="1914" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
-<text x="396" y="1927.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.delete_selected</text>
+<text x="396" y="1927.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.new_material</text>
 <text x="698" y="1927.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="1936" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1949.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">export_materials_requested</text>
+<text x="50" y="1949.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">delete_material_requested</text>
 <path d="M342 1945.0 L380 1945.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
 <path d="M380 1941.0 L388 1945.0 L380 1949.0 Z" fill="#9b59b6"/>
 <rect x="388" y="1936" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
-<text x="396" y="1949.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.export_materials</text>
+<text x="396" y="1949.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.delete_selected</text>
 <text x="698" y="1949.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
 <rect x="42" y="1958" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="1971.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">import_materials_requested</text>
+<text x="50" y="1971.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">export_materials_requested</text>
 <path d="M342 1967.0 L380 1967.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
 <path d="M380 1963.0 L388 1967.0 L380 1971.0 Z" fill="#9b59b6"/>
 <rect x="388" y="1958" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
-<text x="396" y="1971.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.import_materials</text>
+<text x="396" y="1971.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.export_materials</text>
 <text x="698" y="1971.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
-<rect x="30" y="2002" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="2022" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">Png2SvgTab</text>
-<text x="138.0" y="2022" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Vectorisation d&#x27;image</text>
-<text x="42" y="2039" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/png2svg/tab.py   ·   branché dans build_png2svg_tab</text>
-<rect x="42" y="2050" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2063.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">send_to_vector_requested</text>
-<path d="M342 2059.0 L380 2059.0" stroke="#1abc9c" stroke-width="2" fill="none"/>
-<path d="M380 2055.0 L388 2059.0 L380 2063.0 Z" fill="#1abc9c"/>
-<rect x="388" y="2050" width="300" height="18" rx="4" fill="#1abc9c" stroke="none"/>
-<text x="396" y="2063.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">Png2SvgController.send_to_vector_editor</text>
-<text x="698" y="2063.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#1abc9c">controllers/png2svg.py</text>
+<rect x="42" y="1980" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="1993.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">import_materials_requested</text>
+<path d="M342 1989.0 L380 1989.0" stroke="#9b59b6" stroke-width="2" fill="none"/>
+<path d="M380 1985.0 L388 1989.0 L380 1993.0 Z" fill="#9b59b6"/>
+<rect x="388" y="1980" width="300" height="18" rx="4" fill="#9b59b6" stroke="none"/>
+<text x="396" y="1993.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">MaterialsController.import_materials</text>
+<text x="698" y="1993.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#9b59b6">controllers/materials.py</text>
+<rect x="30" y="2024" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="2044" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">Png2SvgTab</text>
+<text x="138.0" y="2044" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Vectorisation d&#x27;image</text>
+<text x="42" y="2061" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/png2svg/tab.py   ·   branché dans build_png2svg_tab</text>
 <rect x="42" y="2072" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2085.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_changed</text>
-<path d="M342 2081.0 L380 2081.0" stroke="#117a65" stroke-width="2" fill="none"/>
-<path d="M380 2077.0 L388 2081.0 L380 2085.0 Z" fill="#117a65"/>
-<rect x="388" y="2072" width="300" height="18" rx="4" fill="#117a65" stroke="none"/>
-<text x="396" y="2085.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageToolbarActions.update_state</text>
-<text x="698" y="2085.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#117a65">ui/app/image_actions.py</text>
-<rect x="30" y="2116" width="896" height="210" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="42" y="2136" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">SeparationTab</text>
-<text x="163.8" y="2136" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Séparation Couleur / Verre</text>
-<text x="42" y="2153" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/separation/tab.py   ·   branché dans build_separation_tab</text>
-<rect x="42" y="2164" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2177.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">load_requested</text>
-<path d="M342 2173.0 L380 2173.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
-<path d="M380 2169.0 L388 2173.0 L380 2177.0 Z" fill="#6c5ce7"/>
-<rect x="388" y="2164" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2177.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.open_image</text>
-<text x="698" y="2177.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
+<text x="50" y="2085.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">send_to_vector_requested</text>
+<path d="M342 2081.0 L380 2081.0" stroke="#1abc9c" stroke-width="2" fill="none"/>
+<path d="M380 2077.0 L388 2081.0 L380 2085.0 Z" fill="#1abc9c"/>
+<rect x="388" y="2072" width="300" height="18" rx="4" fill="#1abc9c" stroke="none"/>
+<text x="396" y="2085.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">Png2SvgController.send_to_vector_editor</text>
+<text x="698" y="2085.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#1abc9c">controllers/png2svg.py</text>
+<rect x="42" y="2094" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="2107.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_changed</text>
+<path d="M342 2103.0 L380 2103.0" stroke="#117a65" stroke-width="2" fill="none"/>
+<path d="M380 2099.0 L388 2103.0 L380 2107.0 Z" fill="#117a65"/>
+<rect x="388" y="2094" width="300" height="18" rx="4" fill="#117a65" stroke="none"/>
+<text x="396" y="2107.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageToolbarActions.update_state</text>
+<text x="698" y="2107.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#117a65">ui/app/image_actions.py</text>
+<rect x="30" y="2138" width="896" height="210" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="42" y="2158" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">SeparationTab</text>
+<text x="163.8" y="2158" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Séparation Couleur / Verre</text>
+<text x="42" y="2175" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/tabs/separation/tab.py   ·   branché dans build_separation_tab</text>
 <rect x="42" y="2186" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2199.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_dropped</text>
+<text x="50" y="2199.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">load_requested</text>
 <path d="M342 2195.0 L380 2195.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
 <path d="M380 2191.0 L388 2195.0 L380 2199.0 Z" fill="#6c5ce7"/>
 <rect x="388" y="2186" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2199.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.load_path</text>
+<text x="396" y="2199.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.open_image</text>
 <text x="698" y="2199.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
 <rect x="42" y="2208" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2221.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">tone_changed</text>
+<text x="50" y="2221.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">image_dropped</text>
 <path d="M342 2217.0 L380 2217.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
 <path d="M380 2213.0 L388 2217.0 L380 2221.0 Z" fill="#6c5ce7"/>
 <rect x="388" y="2208" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2221.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.schedule_push</text>
+<text x="396" y="2221.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.load_path</text>
 <text x="698" y="2221.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
 <rect x="42" y="2230" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2243.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">preview_changed</text>
+<text x="50" y="2243.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">tone_changed</text>
 <path d="M342 2239.0 L380 2239.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
 <path d="M380 2235.0 L388 2239.0 L380 2243.0 Z" fill="#6c5ce7"/>
 <rect x="388" y="2230" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2243.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.schedule_previews</text>
+<text x="396" y="2243.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.schedule_push</text>
 <text x="698" y="2243.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
 <rect x="42" y="2252" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2265.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">gain_test_requested</text>
-<path d="M342 2261.0 L380 2261.0" stroke="#e67e22" stroke-width="2" fill="none"/>
-<path d="M380 2257.0 L388 2261.0 L380 2265.0 Z" fill="#e67e22"/>
-<rect x="388" y="2252" width="300" height="18" rx="4" fill="#e67e22" stroke="none"/>
-<text x="396" y="2265.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobController.generate_gain_test</text>
-<text x="698" y="2265.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#e67e22">controllers/job.py</text>
+<text x="50" y="2265.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">preview_changed</text>
+<path d="M342 2261.0 L380 2261.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+<path d="M380 2257.0 L388 2261.0 L380 2265.0 Z" fill="#6c5ce7"/>
+<rect x="388" y="2252" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
+<text x="396" y="2265.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.schedule_previews</text>
+<text x="698" y="2265.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
 <rect x="42" y="2274" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2287.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">export_requested</text>
-<path d="M342 2283.0 L380 2283.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
-<path d="M380 2279.0 L388 2283.0 L380 2287.0 Z" fill="#6c5ce7"/>
-<rect x="388" y="2274" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2287.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.export_files</text>
-<text x="698" y="2287.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
+<text x="50" y="2287.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">gain_test_requested</text>
+<path d="M342 2283.0 L380 2283.0" stroke="#e67e22" stroke-width="2" fill="none"/>
+<path d="M380 2279.0 L388 2283.0 L380 2287.0 Z" fill="#e67e22"/>
+<rect x="388" y="2274" width="300" height="18" rx="4" fill="#e67e22" stroke="none"/>
+<text x="396" y="2287.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">JobController.generate_gain_test</text>
+<text x="698" y="2287.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#e67e22">controllers/job.py</text>
 <rect x="42" y="2296" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="50" y="2309.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">preview_tab_changed</text>
+<text x="50" y="2309.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">export_requested</text>
 <path d="M342 2305.0 L380 2305.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
 <path d="M380 2301.0 L388 2305.0 L380 2309.0 Z" fill="#6c5ce7"/>
 <rect x="388" y="2296" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
-<text x="396" y="2309.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.render_current</text>
+<text x="396" y="2309.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.export_files</text>
 <text x="698" y="2309.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
+<rect x="42" y="2318" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="50" y="2331.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">preview_tab_changed</text>
+<path d="M342 2327.0 L380 2327.0" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+<path d="M380 2323.0 L388 2327.0 L380 2331.0 Z" fill="#6c5ce7"/>
+<rect x="388" y="2318" width="300" height="18" rx="4" fill="#6c5ce7" stroke="none"/>
+<text x="396" y="2331.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">SeparationController.render_current</text>
+<text x="698" y="2331.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#6c5ce7">controllers/separation.py</text>
 <text x="966" y="170" font-family="DejaVu Sans" font-size="14" font-weight="bold" fill="#5d6d7e">PANNEAU MACHINE (SOUS LES ONGLETS)</text>
 <rect x="966" y="184" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
 <text x="978" y="204" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">ConnectionPanel</text>
@@ -879,61 +886,72 @@
 <rect x="1324" y="1714" width="300" height="18" rx="4" fill="#16a085" stroke="none"/>
 <text x="1332" y="1727.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">ImageController.choose_algorithm</text>
 <text x="1634" y="1727.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#16a085">controllers/image.py</text>
-<rect x="966" y="1758" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="978" y="1778" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">VectorEditorTab</text>
-<text x="1117.0" y="1778" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image vectorielle</text>
-<text x="978" y="1795" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/vector_editor/tab.py   ·   branché dans build_vector_editor</text>
+<rect x="966" y="1758" width="896" height="78" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="978" y="1778" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">MachineCatalogDialog</text>
+<text x="1160.0" y="1778" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Créer le profil</text>
+<text x="978" y="1795" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/dialogs/machine_catalog/dialog.py   ·   branché dans open_machine_catalog</text>
 <rect x="978" y="1806" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1819.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">command</text>
+<text x="986" y="1819.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">accepted</text>
 <path d="M1278 1815.0 L1316 1815.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
 <path d="M1316 1811.0 L1324 1815.0 L1316 1819.0 Z" fill="#95a5a6"/>
 <rect x="1324" y="1806" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="1332" y="1819.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">commands[name]</text>
+<text x="1332" y="1819.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">create</text>
 <text x="1634" y="1819.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
-<rect x="978" y="1828" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1841.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">draw_tool_requested</text>
-<path d="M1278 1837.0 L1316 1837.0" stroke="#2980b9" stroke-width="2" fill="none"/>
-<path d="M1316 1833.0 L1324 1837.0 L1316 1841.0 Z" fill="#2980b9"/>
-<rect x="1324" y="1828" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="1841.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.choose_draw_tool</text>
-<text x="1634" y="1841.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
-<rect x="966" y="1872" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
-<text x="978" y="1892" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">VectorCanvasView</text>
-<text x="1125.6" y="1892" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Canevas de l&#x27;éditeur vectoriel (VectorCanvasView) : zone de travail en mm, grille, zoom, objets</text>
-<text x="978" y="1909" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/vector_editor/canvas.py   ·   branché dans build_vector_editor</text>
+<rect x="966" y="1850" width="896" height="100" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="978" y="1870" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">VectorEditorTab</text>
+<text x="1117.0" y="1870" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Graver une image vectorielle</text>
+<text x="978" y="1887" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/vector_editor/tab.py   ·   branché dans build_vector_editor</text>
+<rect x="978" y="1898" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="1911.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">command</text>
+<path d="M1278 1907.0 L1316 1907.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M1316 1903.0 L1324 1907.0 L1316 1911.0 Z" fill="#95a5a6"/>
+<rect x="1324" y="1898" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="1332" y="1911.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">commands[name]</text>
+<text x="1634" y="1911.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">?</text>
 <rect x="978" y="1920" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">edit_requested</text>
+<text x="986" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">draw_tool_requested</text>
 <path d="M1278 1929.0 L1316 1929.0" stroke="#2980b9" stroke-width="2" fill="none"/>
 <path d="M1316 1925.0 L1324 1929.0 L1316 1933.0 Z" fill="#2980b9"/>
 <rect x="1324" y="1920" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.edit_object</text>
+<text x="1332" y="1933.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.choose_draw_tool</text>
 <text x="1634" y="1933.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
-<rect x="978" y="1942" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1955.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">insert_text_requested</text>
-<path d="M1278 1951.0 L1316 1951.0" stroke="#2980b9" stroke-width="2" fill="none"/>
-<path d="M1316 1947.0 L1324 1951.0 L1316 1955.0 Z" fill="#2980b9"/>
-<rect x="1324" y="1942" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="1955.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.insert_text</text>
-<text x="1634" y="1955.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
-<rect x="978" y="1964" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1977.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">serial_duplicate_requested</text>
-<path d="M1278 1973.0 L1316 1973.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M1316 1969.0 L1324 1973.0 L1316 1977.0 Z" fill="#95a5a6"/>
-<rect x="1324" y="1964" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="1332" y="1977.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">LayoutController.open_serial_duplicate</text>
-<text x="1634" y="1977.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/layout.py</text>
-<rect x="978" y="1986" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="1999.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">jig_requested</text>
-<path d="M1278 1995.0 L1316 1995.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
-<path d="M1316 1991.0 L1324 1995.0 L1316 1999.0 Z" fill="#95a5a6"/>
-<rect x="1324" y="1986" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
-<text x="1332" y="1999.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">GeneratorsController.open_jig_generator</text>
-<text x="1634" y="1999.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/generators.py</text>
-<rect x="978" y="2008" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
-<text x="986" y="2021.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">medal_text_requested</text>
-<path d="M1278 2017.0 L1316 2017.0" stroke="#2980b9" stroke-width="2" fill="none"/>
-<path d="M1316 2013.0 L1324 2017.0 L1316 2021.0 Z" fill="#2980b9"/>
-<rect x="1324" y="2008" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
-<text x="1332" y="2021.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.open_medal_text</text>
-<text x="1634" y="2021.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
+<rect x="966" y="1964" width="896" height="166" rx="6" fill="#f7f9fb" stroke="#d5dde5"/>
+<text x="978" y="1984" font-family="DejaVu Sans Mono" font-size="14" font-weight="bold" fill="#1f2d3d">VectorCanvasView</text>
+<text x="1125.6" y="1984" font-family="DejaVu Sans" font-size="13" font-weight="normal" fill="#5d6d7e">— Canevas de l&#x27;éditeur vectoriel (VectorCanvasView) : zone de travail en mm, grille, zoom, objets</text>
+<text x="978" y="2001" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">ui/vector_editor/canvas.py   ·   branché dans build_vector_editor</text>
+<rect x="978" y="2012" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="2025.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">edit_requested</text>
+<path d="M1278 2021.0 L1316 2021.0" stroke="#2980b9" stroke-width="2" fill="none"/>
+<path d="M1316 2017.0 L1324 2021.0 L1316 2025.0 Z" fill="#2980b9"/>
+<rect x="1324" y="2012" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
+<text x="1332" y="2025.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.edit_object</text>
+<text x="1634" y="2025.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
+<rect x="978" y="2034" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="2047.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">insert_text_requested</text>
+<path d="M1278 2043.0 L1316 2043.0" stroke="#2980b9" stroke-width="2" fill="none"/>
+<path d="M1316 2039.0 L1324 2043.0 L1316 2047.0 Z" fill="#2980b9"/>
+<rect x="1324" y="2034" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
+<text x="1332" y="2047.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.insert_text</text>
+<text x="1634" y="2047.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
+<rect x="978" y="2056" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="2069.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">serial_duplicate_requested</text>
+<path d="M1278 2065.0 L1316 2065.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M1316 2061.0 L1324 2065.0 L1316 2069.0 Z" fill="#95a5a6"/>
+<rect x="1324" y="2056" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="1332" y="2069.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">LayoutController.open_serial_duplicate</text>
+<text x="1634" y="2069.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/layout.py</text>
+<rect x="978" y="2078" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="2091.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">jig_requested</text>
+<path d="M1278 2087.0 L1316 2087.0" stroke="#95a5a6" stroke-width="2" fill="none"/>
+<path d="M1316 2083.0 L1324 2087.0 L1316 2091.0 Z" fill="#95a5a6"/>
+<rect x="1324" y="2078" width="300" height="18" rx="4" fill="#95a5a6" stroke="none"/>
+<text x="1332" y="2091.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">GeneratorsController.open_jig_generator</text>
+<text x="1634" y="2091.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#7f8c8d">controllers/generators.py</text>
+<rect x="978" y="2100" width="300" height="18" rx="4" fill="#ffffff" stroke="#aab7c4"/>
+<text x="986" y="2113.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#1f2d3d">medal_text_requested</text>
+<path d="M1278 2109.0 L1316 2109.0" stroke="#2980b9" stroke-width="2" fill="none"/>
+<path d="M1316 2105.0 L1324 2109.0 L1316 2113.0 Z" fill="#2980b9"/>
+<rect x="1324" y="2100" width="300" height="18" rx="4" fill="#2980b9" stroke="none"/>
+<text x="1332" y="2113.0" font-family="DejaVu Sans Mono" font-size="11.5" font-weight="normal" fill="#ffffff">VectorEditorController.open_medal_text</text>
+<text x="1634" y="2113.0" font-family="DejaVu Sans Mono" font-size="11" font-weight="normal" fill="#2980b9">controllers/vector_editor.py</text>
 </svg>

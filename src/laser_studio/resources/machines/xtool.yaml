@@ -1,0 +1,19 @@
+brand: xTool
+machines:
+  - model: D1 Pro 10W
+    work_area_mm: [430, 400]
+    spot_mm: [0.08, 0.06]
+    max_speed_mm_min: {x: 24000, y: 24000}
+    laser: {power_w: 10, wavelength_nm: 455}
+    sources:
+      - https://uk.xtool.com/products/xtool-d1-pro-10w-desktop-laser-engraver-cutting-machine
+      - https://www.xtool.eu/nl/products/xtool-d1-pro-20w-desktop-laser-engraver-snijmachine
+    checked: 2026-11-24
+    notes: 400 mm/s d'après xTool. Pilotable en mode GRBL (LightBurn) ; les machines xTool plus récentes (S1, F1…) ne le sont pas et ne figurent pas ici.
+  - model: D1 Pro 20W
+    work_area_mm: [430, 390]
+    max_speed_mm_min: {x: 24000, y: 24000}
+    laser: {power_w: 20, wavelength_nm: 455}
+    sources:
+      - https://www.xtool.eu/nl/products/xtool-d1-pro-20w-desktop-laser-engraver-snijmachine
+    checked: 2026-11-24
