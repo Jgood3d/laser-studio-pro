@@ -1,0 +1,9 @@
+brand: AtomStack
+machines:
+  - model: A5 Pro
+    work_area_mm: [410, 400]
+    laser: {wavelength_nm: 455}
+    sources:
+      - https://atomstack.com/products/atomstack-a5-pro-laser-engraver-40w-laser-engraving-cutting-machine-for-wood-metal-410x400mm
+    checked: 2026-11-24
+    notes: AtomStack publie la surface mais ni la taille du point ni la vitesse maximale (les « 40 W » sont la puissance électrique ; puissance optique 5 à 5,5 W selon les revendeurs). Plusieurs versions (V2…) ont des surfaces différentes.

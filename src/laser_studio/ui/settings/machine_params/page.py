@@ -38,6 +38,8 @@ class MachineParamsPage(QScrollArea):
 
     profile_selected = pyqtSignal(int)
     new_profile_requested = pyqtSignal()
+    # « Depuis le catalogue… » : nouveau profil d'après un graveur du commerce.
+    catalog_requested = pyqtSignal()
     update_profile_requested = pyqtSignal()
     delete_profile_requested = pyqtSignal()
     # Largeur et profondeur du lit, en mm.
@@ -63,8 +65,8 @@ class MachineParamsPage(QScrollArea):
     # -- construction
 
     def _profiles_box(self):
-        """Choix du profil machine, et boutons nouveau / mettre à jour /
-        supprimer."""
+        """Choix du profil machine, et boutons nouveau / depuis le catalogue /
+        mettre à jour / supprimer."""
         box = QGroupBox(tr("mach.profiles_box"))
         layout = QVBoxLayout()
         self.profile_combo = QComboBox()
@@ -73,6 +75,7 @@ class MachineParamsPage(QScrollArea):
         buttons = QHBoxLayout()
         for key, signal in (
             ("mach.new_machine", self.new_profile_requested),
+            ("mach.from_catalog", self.catalog_requested),
             ("mach.update", self.update_profile_requested),
             ("mach.delete", self.delete_profile_requested),
         ):

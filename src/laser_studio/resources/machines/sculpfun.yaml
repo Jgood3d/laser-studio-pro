@@ -1,0 +1,19 @@
+brand: Sculpfun
+machines:
+  - model: S9
+    work_area_mm: [410, 420]
+    spot_mm: [0.06, 0.06]
+    laser: {power_w: 5.5, wavelength_nm: 455}
+    sources:
+      - https://eu.sculpfun.com/products/sculpfun-s9-laser-engraver
+    checked: 2026-11-24
+    notes: Vitesse maximale non publiée par le constructeur.
+  - model: S30 Pro Max
+    work_area_mm: [370, 360]
+    spot_mm: [0.08, 0.1]
+    laser: {power_w: 20, wavelength_nm: 455}
+    sources:
+      - https://sculpfun.com/products/sculpfun-s30-pro-max-laser-engraver-machine
+      - https://www.sculpfun.com/blogs/blog/sculpfun-s30-series
+    checked: 2026-11-24
+    notes: Surface utile d'après Sculpfun (410 × 400 mm de cadre, environ 370 × 360 utiles). Vitesse maximale non publiée.

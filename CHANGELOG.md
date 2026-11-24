@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Paramètres du graveur : bouton « Depuis le catalogue… », qui crée le profil d'un graveur GRBL du commerce (Elegoo Phecda, Ortur Laser Master 3, Sculpfun S9 et S30 Pro Max, Creality Falcon, Longer Ray5, xTool D1 Pro, Atomstack A5 Pro). Surface de travail, taille du point et vitesse maximale publiées par le constructeur, avec les liens vers ses documents ; une valeur qu'il ne publie pas n'est pas inventée. Rien n'est envoyé au graveur. On peut ajouter ses propres modèles dans le dossier `machines/` des données (format : `resources/machines/README.md`).
+
 Debian et Ubuntu : paquet `.deb` (Debian 13 et plus récentes, Ubuntu 25.04 et plus récentes), avec les bibliothèques Python du système : `sudo apt install ./laser-studio-pro_<version>_all.deb`. Joint à chaque release ; construit par `packaging/debian/build-deb.sh`.
 
 Graver une image et Visualisation 2D G-Code : loupes « Zoom avant » et « Zoom arrière » dans la barre flottante (aussi Ctrl++ et Ctrl+-), zoom centré sur la vue. Dans « Graver une image », l'originale et le rendu tramé zooment ensemble.
