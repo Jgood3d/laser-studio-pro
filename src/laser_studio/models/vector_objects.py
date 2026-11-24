@@ -58,19 +58,18 @@ class VectorObject:
     def world_path(self) -> QPainterPath:
         return self.world_transform().map(self.local_path())
 
-    def is_knockout(self):
-        """Objet blanc (importé d'un SVG) : sur son calque, il efface ce qui est gravé sous lui au lieu
-        d'être gravé, comme le blanc à l'écran."""
-        return bool(getattr(self, "knockout", False))
-
-    def engraving_items(self):
-        """[(calque, tracé monde, blanc)] dans l'ordre du dessin : l'objet entier sur son calque. Un simple
-        groupe donne ceux de ses objets (chacun sur son calque, avec son remplissage)."""
-        return [(self.layer_id, self.world_path(), self.is_knockout())]
-
     def engraving_parts(self):
-        """[(calque, tracé monde)] gravés (sans les objets blancs, qui effacent : voir engraving_items)."""
-        return [(layer, path) for layer, path, knockout in self.engraving_items() if not knockout]
+        """[(calque, tracé monde)] à graver : l'objet entier sur son calque. Un simple groupe donne ceux de
+        ses objets (chacun sur son calque, avec son remplissage)."""
+        return [(self.layer_id, self.world_path())]
+
+    def display_world_path(self):
+        """Tracé monde affiché : celui de l'objet (un groupe n'y met pas ses objets masqués)."""
+        return self.world_path()
+
+    def display_parts(self):
+        """[(calque, tracé monde)] affichés : rien pour un objet masqué (œil), sinon engraving_parts."""
+        return [] if self.is_hidden() else [(self.layer_id, self.display_world_path())]
 
     def set_layer(self, layer_id):
         """Change le calque de l'objet (et de tous ceux d'un groupe)."""
@@ -491,21 +490,44 @@ class GroupObject(VectorObject):
             return path
         return self._to_local().map(gather(self))
 
+    def display_local_path(self):
+        """Tracé affiché (repère local) : comme local_path, sans les objets masqués d'un œil (ils restent
+        gravés)."""
+        if not self._has_hidden():
+            return self.local_path()
+        visible = [c for c in self._active_children() if not c.is_hidden()]
+        combined = boolean_ops.combine([c.display_world_path() for c in visible], self.operation)
+        return self._to_local().map(combined)
+
+    def _has_hidden(self):
+        """Vrai si un objet du groupe (ou d'un sous-groupe) est masqué d'un œil."""
+        return any(c.is_hidden() or (isinstance(c, GroupObject) and c._has_hidden()) for c in self.children)
+
+    def display_world_path(self):
+        return self.world_transform().map(self.display_local_path())
+
+    def display_parts(self):
+        if self.is_hidden():
+            return []
+        if self.is_boolean():
+            return [(self.layer_id, self.display_world_path())]
+        placement = self.placement()
+        return [(layer, placement.map(path)) for child in self.children for layer, path in child.display_parts()]
+
     def local_parts(self):
-        """[(calque, tracé local, blanc)] de chaque objet d'un simple groupe (affichage de chacun dans la
-        couleur de son calque) ; [] pour une opération booléenne."""
+        """[(calque, tracé local)] affichés de chaque objet d'un simple groupe (chacun dans la couleur de son
+        calque, sans les objets masqués ni ignorés) ; [] pour une opération booléenne."""
         if self.is_boolean():
             return []
         to_local = self._to_local()
-        return [(layer, to_local.map(path), knockout) for child in self.children
-                for layer, path, knockout in child.engraving_items() if layer != IGNORED_LAYER_ID]
+        return [(layer, to_local.map(path)) for child in self.children
+                for layer, path in child.display_parts() if layer != IGNORED_LAYER_ID]
 
-    def engraving_items(self):
+    def engraving_parts(self):
         if self.is_boolean():
-            return [(self.layer_id, self.world_path(), self.is_knockout())]
+            return [(self.layer_id, self.world_path())]
         placement = self.placement()
-        return [(layer, placement.map(path), knockout) for child in self.children
-                for layer, path, knockout in child.engraving_items()]
+        return [(layer, placement.map(path)) for child in self.children for layer, path in child.engraving_parts()]
 
     def set_layer(self, layer_id):
         self.layer_id = layer_id

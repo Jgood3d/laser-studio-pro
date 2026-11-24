@@ -374,9 +374,6 @@ class SeparationTab(QWidget):
         finally:
             self._block = False
 
-    def set_file_name(self, name):
-        self.file_label.setText(name)
-
     def set_engrave_dpi(self, dpi):
         """Résolution de gravure, réglée dans « Graver une image »."""
         self.engrave_dpi_label.setText(tr("sep.engrave_dpi").format(dpi=dpi))

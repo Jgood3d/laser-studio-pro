@@ -17,11 +17,11 @@ Ce que devient chaque élément dans l'éditeur :
 - son calque vient de sa couleur (remplissage, sinon trait), avec une tolérance sur la teinte : noir ou
   gris foncé -> gravure, rouge -> découpe, vert -> marquage ; une autre couleur va sur le calque SVG par
   défaut ;
-- le blanc (et les couleurs très claires) efface la gravure sous lui, comme à l'écran (objet « blanc »,
-  VectorObject.is_knockout) ;
+- le blanc (et les couleurs très claires) n'est pas une couleur de laser : l'objet arrive sur le calque
+  « Ignoré » (ni gravé ni découpé). Pour évider une forme, on fait une Différence entre les objets ;
 - un texte devient un texte modifiable ;
 - ce que l'afficheur ne dessinerait pas (caché) est importé sur le calque « Ignoré » : ni affiché ni
-  gravé, avec son calque retenu ; le bouton « X » de la liste des objets le fait réapparaître ;
+  gravé, avec son calque retenu ; la tête laser de la liste des objets le fait réapparaître ;
 - son nom : inkscape:label (le nom donné dans Inkscape), sinon le premier <title> de l'élément.
 
     objects = import_svg_tree("dessin.svg", lambda role: layers.layer_for_role(role).id, bed_h_mm=300)
@@ -48,7 +48,7 @@ from laser_studio.vector.svg_geometry import (
 )
 from laser_studio.vector.svg_style import StyleSheet, computed_style, paint_alpha, parse_color
 
-# Couleur claire (blanc) : efface la gravure au lieu d'être gravée.
+# Couleur claire (blanc) : pas une couleur de laser, objet importé sur le calque « Ignoré ».
 LIGHT = "light"
 # Teintes de référence (degrés) -> rôle, et écart toléré autour de chacune.
 HUE_ROLES = ((0.0, ROLE_CUT), (120.0, ROLE_MARK))
@@ -56,7 +56,7 @@ HUE_TOLERANCE = 30.0
 # En dessous de cette saturation ou de cette luminosité, la couleur compte comme du noir (ou du gris).
 DARK_SATURATION = 0.35
 DARK_VALUE = 0.25
-# Au-dessus de cette luminance (0 à 1), la couleur est claire : elle efface la gravure.
+# Au-dessus de cette luminance (0 à 1), la couleur est claire (blanc).
 LIGHT_LUMINANCE = 0.8
 # Échelle des conversions de règle de remplissage (Qt aplatit les courbes à environ une unité près).
 FILL_RULE_SCALE = 100.0
@@ -128,19 +128,19 @@ class _TreeImport:
         self.flip = QTransform(1, 0, 0, -1, 0, bed_h_mm)
         self._use_depth = 0
         self.viewport = (100.0, 100.0)      # taille de la zone d'affichage, en unités utilisateur
-        self._outlines = set()              # id() des tracés qui sont des contours (pas des surfaces)
+        # Tracés qui sont des contours (pas des surfaces), par id() ; l'objet est gardé pour que Python ne
+        # redonne pas son id() à un autre objet si celui-ci est jeté (détourage).
+        self._outlines = {}
 
     # -- objets
 
     def _place(self, obj, role, hidden, name):
-        """Calque d'après le rôle (blanc : gravure, en effaçant) ; caché : calque « Ignoré »."""
-        light = role == LIGHT
-        obj.layer_id = self.layer_for(ROLE_ENGRAVE if light else role)
-        if light:
-            obj.knockout = True
+        """Calque d'après le rôle ; caché ou blanc : calque « Ignoré » (le blanc retient le calque SVG par
+        défaut)."""
+        obj.layer_id = self.layer_for(None if role == LIGHT else role)
         if name:
             obj.name = name
-        if hidden:
+        if hidden or role == LIGHT:
             obj.set_ignored(True)
         return obj
 
@@ -159,7 +159,7 @@ class _TreeImport:
         if obj is None:
             return None
         if not area:
-            self._outlines.add(id(obj))
+            self._outlines[id(obj)] = obj
         return self._place(obj, role, hidden, name)
 
     def _group(self, children, name):
@@ -246,10 +246,12 @@ class _TreeImport:
         return [obj for obj in objects if obj is not None]
 
     def _text(self, elem, ctm, style, hidden, name):
-        """Un texte modifiable par ligne (groupés s'il y en a plusieurs)."""
-        role = color_role(style.get("fill", "black"), style.get("color"))
-        if paint_alpha(style, "fill") <= 0:
+        """Un texte modifiable par ligne (groupés s'il y en a plusieurs). Sa couleur : celle du remplissage,
+        ou du trait pour un texte en contour seul (lettres à découper) ; caché si aucun des deux ne se voit."""
+        paint = "fill" if paint_alpha(style, "fill") > 0 else "stroke" if paint_alpha(style, "stroke") > 0 else None
+        if paint is None:
             hidden = True
+        role = color_role(style.get(paint or "fill", "black"), style.get("color"))
         if style.get("transform") and style["transform"].strip().lower() != "none":
             # Propriété CSS transform : remplace l'attribut, que _text_glyphs appliquerait.
             ctm = self._own_transform(elem, style) * ctm
@@ -434,7 +436,7 @@ class _TreeImport:
             if world.isEmpty():
                 return None
             replacement = self._make_path(world)
-            for attr in ("layer_id", "saved_layer_id", "knockout", "name", "hidden"):
+            for attr in ("layer_id", "saved_layer_id", "name", "hidden"):
                 if hasattr(obj, attr):
                     setattr(replacement, attr, getattr(obj, attr))
             return replacement

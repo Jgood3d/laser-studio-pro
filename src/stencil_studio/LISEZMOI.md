@@ -297,7 +297,7 @@ Angles très aigus (jusqu'à 178°) : la paroi est séparée à chaque sommet, y
 - Correction : en mode low poly, les réglages disparaissaient à chaque changement d'un paramètre (l'affichage était inversé au lieu d'être recalculé).
 
 ## v2026.10.60 — couleurs de LSP
-- La page expose `window.setTheme({bg, panel, panel2, line, fg, mut, acc, acc2, onacc})`. Dans la fenêtre intégrée, `studio_dialog.py` l'appelle avec les couleurs de la palette Qt de LSP (`theme_from_palette()`), ou avec un dictionnaire passé à `open_stencil_studio(fenetre, theme={...})`. Le Studio seul garde son thème sombre/orange.
+- La page expose `window.setTheme({bg, panel, panel2, line, fg, mut, acc, acc2, onacc})`. Dans la fenêtre intégrée, `StencilStudioController` l'appelle avec les couleurs du thème de LSP (`laser_studio.ui.app.theme.page_colors`, fonction `theme()` passée au contrôleur), et à chaque changement de thème (`set_theme`). Le Studio seul garde son thème sombre/orange.
 
 ## v2026.10.61
 - Le style de départ « Décor mural low poly » n'active plus l'isolation du sujet : sur les dessins à aplats clairs, la détection automatique du sujet rejetait les zones claires (message « Le masque ne couvre que x % du cadre »). À activer à la main (avec un Rectangle sujet) si besoin.

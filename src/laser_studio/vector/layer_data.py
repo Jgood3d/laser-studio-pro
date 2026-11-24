@@ -3,7 +3,6 @@ génération du G-Code (gcode/vector.py). À appeler dans le thread de
 l'interface : le résultat ne contient plus d'objet Qt."""
 from PyQt6.QtGui import QTransform
 from laser_studio.models.layers import ENGRAVE_MODE, LayersModel
-from laser_studio.vector.boolean_ops import paint_region
 
 # Ancien nom du modèle des calques (models/layers.py).
 
@@ -72,24 +71,16 @@ def extract_vector_layer_data(objects, layer_manager: LayersModel, optimize_path
         layers_data[layer.id] = {"layer": layer.to_dict(), "polygons": [], "polygon_groups": []}
 
     # Un simple groupe donne chacun de ses objets, sur son calque ; un groupe booléen (union, différence…)
-    # donne son tracé résultant (GroupObject.engraving_items). Dans l'ordre du dessin.
-    items = [item for obj in objects for item in obj.engraving_items()]
-    with_knockout = {layer_id for layer_id, _path, knockout in items if knockout}
-    for layer_id in layers_data:
-        layer_items = [(path, knockout) for lid, path, knockout in items if lid == layer_id]
-        if layer_id in with_knockout:
-            # Objets blancs sur ce calque : la surface gravée est celle qu'on voit à l'écran (le blanc efface
-            # ce qui est dessous), d'un seul tenant.
-            layer_items = [(paint_region(layer_items), False)]
-        for path, knockout in layer_items:
-            if knockout:
-                continue
-            poly_points = _path_polygons(path)
-            if poly_points:
-                layers_data[layer_id]["polygons"].extend(poly_points)
-                # Un groupe par objet : le remplissage applique la règle pair-impair DANS un objet (trous),
-                # puis réunit les objets entre eux (voir _scanline_fill_union).
-                layers_data[layer_id]["polygon_groups"].append(poly_points)
+    # donne son tracé résultant (GroupObject.engraving_parts).
+    for layer_id, path in (part for obj in objects for part in obj.engraving_parts()):
+        if layer_id not in layers_data:
+            continue
+        poly_points = _path_polygons(path)
+        if poly_points:
+            layers_data[layer_id]["polygons"].extend(poly_points)
+            # Un groupe par objet : le remplissage applique la règle pair-impair DANS un objet (trous),
+            # puis réunit les objets entre eux (voir _scanline_fill_union).
+            layers_data[layer_id]["polygon_groups"].append(poly_points)
 
     if optimize_path:
         for layer_id, data in layers_data.items():

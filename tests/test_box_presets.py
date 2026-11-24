@@ -27,6 +27,11 @@ class PresetFileTests(unittest.TestCase):
             fh.write("{pas du json")
         self.assertEqual(bp.load_user(self.path), {})
 
+    def test_failed_write_keeps_the_existing_presets(self):
+        self.assertTrue(bp.save_user("Gardée", {"width": 90.0}, self.path))
+        self.assertFalse(bp.save_user("Cassée", {"width": object()}, self.path))     # non enregistrable
+        self.assertEqual(list(bp.load_user(self.path)), ["Gardée"])
+
     def test_builtin_presets_build(self):
         from laser_studio.vector import box_generator as bg
         names = {f.name for f in bg.BoxParams.__dataclass_fields__.values()}

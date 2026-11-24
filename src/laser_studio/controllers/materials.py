@@ -204,13 +204,6 @@ def apply_material_to_layers(layer_manager, material):
     return changed
 
 
-def complete_materials(materials):
-    """Tous les matériaux complétés (complete_material), dans le même ordre."""
-    if not materials:
-        return {}
-    return {name: complete_material(m) for name, m in materials.items()}
-
-
 class MaterialsController:
     """Profils matériaux : le modèle (MaterialsModel, `model`) et les actions de
     la barre d'outils : appliquer, créer, supprimer, exporter, importer.

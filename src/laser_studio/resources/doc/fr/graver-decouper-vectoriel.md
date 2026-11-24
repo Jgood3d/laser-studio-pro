@@ -37,13 +37,15 @@ montre :
   sur la **gravure**, rouge sur la **découpe**, vert sur le **marquage**
   (les teintes proches comptent aussi) ; une autre couleur va sur le premier
   calque de découpe ;
-- **le blanc n'est pas gravé** : il efface la gravure en dessous, comme à
-  l'écran. Un texte blanc sur un fond noir reste lisible. Dans la liste, son
-  calque est suivi de « (blanc) » ;
+- **le blanc n'est pas une couleur de laser** : un objet blanc arrive sur
+  le calque **Ignoré**, rien n'est gravé. Pour évider une forme (un texte
+  blanc sur un bandeau noir, par exemple), choisissez l'objet blanc dans la
+  liste, donnez-lui un calque, puis groupez-le avec la forme en
+  **Différence** ;
 - **les textes restent des textes**, modifiables par double-clic ;
 - **ce qui est caché dans le fichier** (calque masqué, objet invisible ou
   transparent) arrive sur le calque **Ignoré** : rien n'est affiché ni gravé,
-  mais le bouton **X** de la liste le fait réapparaître. Pratique pour un
+  mais la tête laser de la liste le fait réapparaître. Pratique pour un
   modèle qui contient plusieurs variantes ;
 - **ce qui est masqué par un détourage** (clipPath) ou un masque n'est pas
   gravé : seule la partie visible à l'écran est gardée ;
@@ -91,12 +93,15 @@ juste en dessous. Un double-clic sur un nom permet de le renommer.
 
 Sur chaque ligne :
 
-- l'**œil**, devant le nom, masque l'objet sur le canevas pour y voir plus
-  clair. Un objet masqué **reste gravé** : son nom passe en italique.
-- le **X**, au bout de la ligne, met l'objet sur le calque **Ignoré** : il
-  n'est plus affiché, ni gravé, ni découpé, et son nom est barré. L'objet
-  retient son calque : un nouveau clic sur le X le lui rend, avec ses
-  réglages de gravure ou de découpe. Sur un groupe, le X agit sur tous ses
+- l'**œil**, en première colonne, masque l'objet sur le canevas pour y voir
+  plus clair, y compris un objet à l'intérieur d'un groupe (le groupe est
+  dessiné sans lui). Un objet masqué **reste gravé** : son nom passe en
+  italique.
+- la **tête laser**, en deuxième colonne (faisceau rouge : l'objet est
+  gravé), met l'objet sur le calque **Ignoré** quand on clique dessus : il
+  n'est plus affiché, ni gravé, ni découpé, son nom est barré et la tête
+  laser aussi. L'objet retient son calque : un nouveau clic le lui rend,
+  avec ses réglages de gravure ou de découpe. Sur un groupe, elle agit sur tous ses
   objets, chacun retrouvant son propre calque ; dans un groupe combiné, un
   objet ignoré ne compte plus dans l'opération.
 - la **poubelle**, tout au bout, supprime l'objet. Dans un groupe, elle le
@@ -132,7 +137,10 @@ Les boutons sous la liste :
 Pour une différence, l'ordre compte : dépliez le groupe et utilisez
 **Monter** / **Descendre** sur ses objets. Choisir une autre opération
 avec le groupe sélectionné la change ; **Grouper** revient à un simple
-groupe. Les mêmes choix sont dans le clic droit › **Combiner**.
+groupe. Les mêmes choix sont dans le clic droit › **Combiner** sur le
+canevas, et dans le clic droit sur la liste quand plusieurs objets y sont
+sélectionnés (Groupe, Union, Différence, Intersection, Exclusion,
+Dégrouper).
 
 ## Les outils de l'éditeur
 

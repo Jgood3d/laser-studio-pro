@@ -50,7 +50,9 @@ class VectorGraphicsItem(QGraphicsPathItem):
         s = self.canvas.px_per_mm
         work_h_px = self.canvas.work_h_mm * s
 
-        local_path_px = QTransform().scale(s, s).map(self.obj.local_path())
+        # Tracé affiché : un groupe n'y met pas ses objets masqués d'un œil.
+        shown = getattr(self.obj, "display_local_path", self.obj.local_path)()
+        local_path_px = QTransform().scale(s, s).map(shown)
         self.prepareGeometryChange()
         self.setPath(local_path_px)
 
@@ -81,20 +83,17 @@ class VectorGraphicsItem(QGraphicsPathItem):
             full = getattr(self.obj, "full_local_path", self.obj.local_path)()
             self._ghost = QTransform().scale(s, s).map(full)
 
-        pen = self._layer_pen(self.obj.layer_id, self.obj.is_knockout())
+        pen = self._layer_pen(self.obj.layer_id)
         self.setPen(pen)
         self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         # Simple groupe : chaque objet dans la couleur de son calque (paint).
         parts = getattr(self.obj, "local_parts", lambda: [])()
         scale = QTransform().scale(s, s)
-        self._parts = [(scale.map(path), self._layer_pen(layer, knockout)) for layer, path, knockout in parts]
+        self._parts = [(scale.map(path), self._layer_pen(layer)) for layer, path in parts]
 
-    def _layer_pen(self, layer_id, knockout=False):
-        """Trait dans la couleur du calque ; en pointillés pour un objet blanc (il efface la gravure)."""
+    def _layer_pen(self, layer_id):
         layer = self.layer_manager.get(layer_id)
         pen = QPen(QColor(layer.color) if layer else QColor("#dddddd"), 1.4)
-        if knockout:
-            pen.setStyle(Qt.PenStyle.DashLine)
         pen.setCosmetic(True)
         return pen
 
@@ -134,12 +133,3 @@ class VectorGraphicsItem(QGraphicsPathItem):
         if change == QGraphicsItem.GraphicsItemChange.ItemTransformHasChanged:
             pass
         return super().itemChange(change, value)
-
-    def sync_position_from_scene(self):
-        """À appeler après un déplacement souris : remet x_mm/y_mm à jour à
-        partir de la position écran (en tenant compte du flip Y bas-gauche)."""
-        pos = self.scenePos()
-        s = self.canvas.px_per_mm
-        work_h_px = self.canvas.work_h_mm * s
-        self.obj.x_mm = pos.x() / s
-        self.obj.y_mm = (work_h_px - pos.y()) / s

@@ -89,11 +89,6 @@ class LayerManagerWidget(QWidget):
             self._add_row(layer)
         self.table.blockSignals(False)
 
-    @property
-    def _fill_spins(self):
-        """[(champ du pas de remplissage, calque), ...] (compatibilité)."""
-        return [(e["line_interval"], self.mgr.get(i)) for i, e in self._editors.items()]
-
     def _add_row(self, layer: LaserLayer):
         row = self.table.rowCount()
         self.table.insertRow(row)

@@ -135,7 +135,7 @@ class GroupModelTests(unittest.TestCase):
         plain = GroupObject([square(0, 0, 10, "A"), square(20, 0, 10, "B")])
         plain.children[1].set_ignored(True)
         plain.child_ignored_changed()
-        self.assertEqual([layer for layer, _p, _white in plain.local_parts()], ["A"])
+        self.assertEqual([layer for layer, _p in plain.local_parts()], ["A"])
 
     def test_engraving_data_by_layer(self):
         layers = LayersModel()
@@ -244,10 +244,10 @@ class EditorGroupTests(unittest.TestCase):
         self.editor.set_object_visible(self.a, True)
         self.assertFalse(item.inactive)
         layer = self.b.layer_id
-        self.editor.toggle_ignored(None, self.b)
+        self.editor.toggle_ignored(self.b)
         self.assertEqual(self.b.layer_id, IGNORED_LAYER_ID)
         self.assertTrue(self.canvas.item_for(self.b).inactive)
-        self.editor.toggle_ignored(None, self.b)
+        self.editor.toggle_ignored(self.b)
         self.assertEqual(self.b.layer_id, layer)
         self.document.undo()
         self.assertTrue(self.document.objects[1].is_ignored())
@@ -256,7 +256,7 @@ class EditorGroupTests(unittest.TestCase):
         cut = self.layers.layer_for_role("cut").id
         self.canvas.select_objects([self.a, self.b])
         group = self.editor.group_selection(boolean_ops.GROUP)
-        self.editor.toggle_ignored(None, group)
+        self.editor.toggle_ignored(group)
         self.assertEqual(self.canvas.select_objects([group]), [group])          # choisi dans la liste
         self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
         from laser_studio.ui.vector_editor.tab import VectorEditorTab
@@ -288,12 +288,24 @@ class EditorGroupTests(unittest.TestCase):
         self.document.undo()
         self.assertEqual(len(self.document.objects), 3)
 
+    def test_eye_inside_a_group_hides_only_on_screen(self):
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.editor.set_object_visible(self.b, False)
+        self.assertEqual(len(group.local_parts()), 1)                           # affiché sans lui
+        self.assertEqual(group.display_local_path().boundingRect().width(), 20.0)
+        self.assertEqual(len(group.engraving_parts()), 2)                       # toujours gravé
+        self.assertFalse(self.canvas.item_for(group).inactive)
+        group.set_operation(boolean_ops.UNION)
+        self.assertEqual(group.world_path().boundingRect().width(), 50.0)       # gravure : les deux carrés
+        self.assertEqual(group.display_world_path().boundingRect().width(), 20.0)
+
     def test_nested_groups(self):
         inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
         outer = GroupObject([inner, square(40, 50, 10)])
         self.canvas.add_object(outer)
         deep = inner.children[1]
-        self.editor.toggle_ignored(inner, deep)
+        self.editor.toggle_ignored(deep)
         self.assertTrue(deep.is_ignored())
         self.assertEqual(outer.world_path().boundingRect().width(), 50.0)       # recalculé jusqu'en haut
         self.editor.move_objects([(inner, inner.children[0])], 1)
@@ -350,16 +362,16 @@ class ObjectsPanelTests(unittest.TestCase):
     def test_eye_and_ignore_buttons(self):
         shown, ignored = [], []
         self.panel.visibility_requested.connect(lambda obj, visible: shown.append((obj, visible)))
-        self.panel.ignore_requested.connect(lambda group, obj: ignored.append((group, obj)))
+        self.panel.ignore_requested.connect(ignored.append)
         tree = self.panel.tree
         text_row = tree.topLevelItem(1)
         tree.itemClicked.emit(text_row, EYE_COLUMN)
         self.assertEqual(shown, [(self.text, False)])
         child = tree.topLevelItem(0).child(0)
-        tree.itemClicked.emit(child, EYE_COLUMN)                   # pas d'œil dans un groupe
-        self.assertEqual(len(shown), 1)
+        tree.itemClicked.emit(child, EYE_COLUMN)                   # œil aussi dans un groupe
+        self.assertEqual(shown[-1], (self.b, False))
         tree.itemClicked.emit(child, IGNORE_COLUMN)
-        self.assertEqual(ignored, [(self.group, self.b)])
+        self.assertEqual(ignored, [self.b])
         deleted = []
         self.panel.delete_requested.connect(lambda group, obj: deleted.append((group, obj)))
         tree.itemClicked.emit(text_row, DELETE_COLUMN)
@@ -369,6 +381,20 @@ class ObjectsPanelTests(unittest.TestCase):
         self.panel.show_objects([self.text, self.group], lambda _id: None)
         self.assertEqual(tree.topLevelItem(1).text(LAYER_COLUMN), "Ignoré")
         self.assertTrue(tree.topLevelItem(1).font(NAME_COLUMN).strikeOut())
+
+    def test_right_click_menu(self):
+        groups = []
+        self.panel.group_requested.connect(groups.append)
+        self.panel.show_selection([self.text])
+        self.assertIsNone(self.panel.context_menu())                         # un seul objet : rien à combiner
+        tree = self.panel.tree
+        tree.topLevelItem(0).setSelected(True)
+        tree.topLevelItem(1).setSelected(True)
+        menu = self.panel.context_menu()
+        labels = [a.text() for a in menu.actions() if a.text()]
+        self.assertEqual(labels, ["Groupe", "Union", "Différence", "Intersection", "Exclusion", "Dégrouper"])
+        next(a for a in menu.actions() if a.text() == "Différence").trigger()
+        self.assertEqual(groups, [boolean_ops.DIFFERENCE])
 
     def test_canvas_selection_is_shown(self):
         self.panel.show_selection([self.text])

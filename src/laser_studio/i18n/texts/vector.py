@@ -1226,10 +1226,13 @@ TEXTS = {
         "es": "Oculto: clic para mostrarlo (se graba de todos modos)",
     },
     "objects.ignore_tip": {
-        "fr": "Ignorer : ni gravé ni découpé, plus affiché (le calque est retenu)",
-        "en": "Ignore: neither engraved nor cut, no longer shown (the layer is remembered)",
-        "de": "Ignorieren: weder graviert noch geschnitten, nicht mehr angezeigt (die Ebene wird gemerkt)",
-        "es": "Ignorar: ni grabado ni cortado, ya no se muestra (la capa se recuerda)",
+        "fr": "Gravé : cliquer pour l'ignorer (ni gravé ni découpé, plus affiché ; le calque est retenu)",
+        "en": "Engraved: click to ignore it (neither engraved nor cut, no longer shown; the layer is remembered)",
+        "de": "Graviert: klicken zum Ignorieren (weder graviert noch geschnitten, nicht mehr angezeigt; die Ebene wird gemerkt)",
+        "es": "Grabado: clic para ignorarlo (ni grabado ni cortado, ya no se muestra; la capa se recuerda)",
+    },
+    "objects.ungroup": {
+        "fr": "Dégrouper", "en": "Ungroup", "de": "Gruppierung aufheben", "es": "Desagrupar",
     },
     "objects.restore_tip": {
         "fr": "Ignoré : cliquer pour lui rendre son calque",
@@ -1238,22 +1241,10 @@ TEXTS = {
         "es": "Ignorado: clic para devolverle su capa",
     },
     "vector.svg_tree_success": {
-        "fr": "{count} objets importés, avec les calques et groupes du fichier.\nCalques utilisés d'après les couleurs : {layers}.\n{hidden} objets masqués dans le fichier sont sur le calque « Ignoré » : le bouton X de la liste des objets les fait réapparaître.",
-        "en": "{count} objects imported, with the file's layers and groups.\nLayers used from the colours: {layers}.\n{hidden} objects hidden in the file are on the « Ignored » layer: the X button of the object list brings them back.",
-        "de": "{count} Objekte importiert, mit den Ebenen und Gruppen der Datei.\nNach Farben verwendete Ebenen: {layers}.\n{hidden} in der Datei ausgeblendete Objekte liegen auf der Ebene „Ignoriert“: die X-Schaltfläche der Objektliste holt sie zurück.",
-        "es": "{count} objetos importados, con las capas y grupos del archivo.\nCapas usadas según los colores: {layers}.\n{hidden} objetos ocultos en el archivo están en la capa «Ignorado»: el botón X de la lista de objetos los hace reaparecer.",
-    },
-    "objects.knockout": {
-        "fr": "blanc",
-        "en": "white",
-        "de": "weiß",
-        "es": "blanco",
-    },
-    "objects.knockout_tip": {
-        "fr": "Blanc : n'est pas gravé, efface la gravure en dessous (comme à l'écran)",
-        "en": "White: not engraved, erases the engraving below (as on screen)",
-        "de": "Weiß: wird nicht graviert, löscht die Gravur darunter (wie auf dem Bildschirm)",
-        "es": "Blanco: no se graba, borra el grabado de debajo (como en pantalla)",
+        "fr": "{count} objets importés, avec les calques et groupes du fichier.\nCalques utilisés d'après les couleurs : {layers}.\n{hidden} objets masqués dans le fichier sont sur le calque « Ignoré » : la tête laser de la liste des objets les fait réapparaître.",
+        "en": "{count} objects imported, with the file's layers and groups.\nLayers used from the colours: {layers}.\n{hidden} objects hidden in the file are on the « Ignored » layer: the laser head of the object list brings them back.",
+        "de": "{count} Objekte importiert, mit den Ebenen und Gruppen der Datei.\nNach Farben verwendete Ebenen: {layers}.\n{hidden} in der Datei ausgeblendete Objekte liegen auf der Ebene „Ignoriert“: der Laserkopf in der Objektliste holt sie zurück.",
+        "es": "{count} objetos importados, con las capas y grupos del archivo.\nCapas usadas según los colores: {layers}.\n{hidden} objetos ocultos en el archivo están en la capa «Ignorado»: el cabezal láser de la lista de objetos los hace reaparecer.",
     },
     "objects.group_desc_one": {
         "fr": "{operation} de {n} objet — Calque : {layer}", "en": "{operation} of {n} object — Layer: {layer}",

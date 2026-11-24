@@ -67,9 +67,9 @@ def combine(paths, operation):
 
 
 def paint_region(items):
-    """Surface peinte par des tracés superposés, dans l'ordre du dessin : [(tracé, clair)] ; un tracé foncé
-    s'ajoute, un tracé clair (blanc) efface ce qui est dessous, comme à l'écran. Chaque tracé en règle
-    pair-impair ; tracé vide si rien ne reste."""
+    """Surface peinte par des tracés superposés, dans l'ordre du dessin : [(tracé, efface)] ; un tracé
+    s'ajoute, ou efface ce qui est dessous (sert au contenu d'un <mask> SVG : clair visible, sombre caché).
+    Chaque tracé en règle pair-impair ; tracé vide si rien ne reste."""
     region = None
     for path, light in items:
         scaled = _scaled(_even_odd(path), BOOLEAN_SCALE)

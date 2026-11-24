@@ -409,13 +409,3 @@ def _small_parts(faces, yaw, pitch):
             out[name] = project_point(tuple((l + h) / 2.0 for l, h in zip(lo, hi)), yaw, pitch)[2]
     return out
 
-
-def screen_bounds(faces, yaw, pitch):
-    """(x min, y min, x max, y max) de la boîte à l'écran, pour la cadrer."""
-    xs, ys = [], []
-    for face in faces:
-        for q in face.points:
-            x, y, _ = project_point(q, yaw, pitch)
-            xs.append(x)
-            ys.append(y)
-    return min(xs), min(ys), max(xs), max(ys)

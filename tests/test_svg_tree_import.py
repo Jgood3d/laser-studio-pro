@@ -141,43 +141,39 @@ class TreeImportTests(unittest.TestCase):
         two.set_ignored(False)
         self.assertEqual(two.layer_id, "E")
 
-    def test_texts_are_editable_and_white_erases(self):
+    def test_texts_are_editable_and_white_is_ignored(self):
         title = self.objects[2].children[0]
         self.assertIsInstance(title, TextObject)
-        self.assertEqual((title.text, title.name, title.layer_id), ("ABC", "Titre", "E"))
-        self.assertTrue(title.is_knockout())
+        self.assertEqual((title.text, title.name), ("ABC", "Titre"))
+        # Le blanc n'est pas une couleur de laser : ignoré, il garde le calque par défaut pour le X.
+        self.assertTrue(title.is_ignored())
+        self.assertEqual(title.saved_layer_id, "D")
         # Titre de 8 px de haut environ, centré sur le bandeau (x 5..55 décalé de 1 mm par le calque).
         box = title.world_path().boundingRect()
         self.assertAlmostEqual(box.center().x(), 30.0, delta=1.0)
         self.assertTrue(4.0 < box.height() < 8.5)
 
+    def test_outlined_text_takes_the_stroke_colour(self):
+        handle, path = tempfile.mkstemp(suffix=".svg")
+        with os.fdopen(handle, "w", encoding="utf-8") as f:
+            f.write('<svg xmlns="http://www.w3.org/2000/svg" width="50mm" height="20mm" viewBox="0 0 50 20">'
+                    '<text x="2" y="15" style="font-size:12px;fill:none;stroke:red">AB</text></svg>')
+        self.addCleanup(os.remove, path)
+        text = import_svg_tree(path, LAYERS.get, bed_h_mm=100.0)[0]
+        self.assertEqual((text.layer_id, text.is_ignored()), ("C", False))       # lettres à découper
+
     def test_counts(self):
         layers = LayersModel()
         objects = import_svg_tree(self.path, lambda role: layers.layer_for_role(role).id, 100.0)
         counts = svg_tree_counts(objects, layers)
-        self.assertEqual((counts["count"], counts["hidden"]), (6, 2))
+        self.assertEqual((counts["count"], counts["hidden"]), (6, 3))             # 2 cachés + le titre blanc
 
-    def test_engraving_is_what_the_screen_shows(self):
+    def test_engraving_keeps_each_object(self):
         layers = LayersModel()
         engrave = layers.layer_for_role(ROLE_ENGRAVE).id
         objects = import_svg_tree(self.path, lambda role: layers.layer_for_role(role).id, 100.0)
         data = extract_vector_layer_data(objects, layers, optimize_path=False)
-        groups = data[engrave]["polygon_groups"]
-        self.assertEqual(len(groups), 1)                       # une seule surface : bandeau moins titre, plus « 1 »
-        region = QPainterPath()
-        for poly in groups[0]:
-            region.moveTo(*poly[0])
-            for pt in poly[1:]:
-                region.lineTo(*pt)
-            region.closeSubpath()
-        title_box = objects[2].children[0].world_path().boundingRect()
-        self.assertTrue(region.contains(QPointF(7.0, 100.0 - 6.0)))               # coin du bandeau : gravé
-        hole = objects[2].children[0].world_path()
-        inside_letter = next(QPointF(x / 10, y / 10)
-                             for x in range(int(title_box.left() * 10), int(title_box.right() * 10))
-                             for y in range(int(title_box.top() * 10), int(title_box.bottom() * 10))
-                             if hole.contains(QPointF(x / 10, y / 10)))
-        self.assertFalse(region.contains(inside_letter))                           # lettre blanche : creusée
+        self.assertEqual(len(data[engrave]["polygon_groups"]), 2)                # bandeau et « 1 », sans le titre
         cut = layers.layer_for_role(ROLE_CUT).id
         self.assertEqual(data[cut]["polygon_groups"], [])                          # découpe cachée
 
@@ -393,6 +389,35 @@ class GeometryTests(unittest.TestCase):
         big = QTransform.fromScale(1000, 1000).map(circle)
         points = [p for poly in big.toSubpathPolygons(QTransform()) for p in poly]
         self.assertLess(max(abs(math.hypot(p.x() - 50, p.y()) - 50) for p in points), 0.1)
+
+
+@unittest.skipIf(import_svg_tree is None, "PyQt6 non importable ici")
+class BoxDecorTests(unittest.TestCase):
+    """Décor SVG d'une face de boîte (vector/importers.py) : lu par l'importeur conforme à la spécification."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_transforms_hidden_parts_and_defs(self):
+        from types import SimpleNamespace
+        from laser_studio.vector.importers import BoxDecor, decor_to_objects
+        handle, path = tempfile.mkstemp(suffix=".svg")
+        with os.fdopen(handle, "w", encoding="utf-8") as f:
+            f.write('<svg xmlns="http://www.w3.org/2000/svg" width="40mm" height="20mm" viewBox="0 0 40 20">'
+                    '<defs><rect id="pas_dessine" width="100" height="100"/></defs>'
+                    '<g transform="translate(20,0)"><rect width="10" height="10"/></g>'
+                    '<rect width="10" height="10"/>'
+                    '<rect x="30" width="5" height="5" style="display:none"/></svg>')
+        self.addCleanup(os.remove, path)
+        panel = SimpleNamespace(face_center=lambda: (50.0, 50.0))
+        objects = decor_to_objects(BoxDecor(face="front", kind="svg", svg_path=path), panel, "E", 100.0, 0, 0)
+        self.assertEqual(len(objects), 1)
+        box = objects[0].world_path().boundingRect()
+        # Les deux carrés, le second décalé de 20 mm par son groupe ; ni <defs>, ni le carré caché.
+        self.assertEqual((round(box.width(), 2), round(box.height(), 2)), (30.0, 10.0))
+        self.assertAlmostEqual(box.center().x(), 50.0, places=2)
+        self.assertEqual(objects[0].layer_id, "E")
 
 
 if __name__ == "__main__":

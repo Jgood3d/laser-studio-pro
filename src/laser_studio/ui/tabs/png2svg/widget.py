@@ -511,7 +511,3 @@ class PngToSvgWidget(QWidget):
         if not self.last_result:
             return
         self.sendToVectorEditor.emit(self.last_result.svg_text)
-
-    def get_svg_text(self) -> str | None:
-        """API pratique : récupère le dernier SVG généré."""
-        return self.last_result.svg_text if self.last_result else None

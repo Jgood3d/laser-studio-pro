@@ -354,17 +354,18 @@ class VectorEditorController(QObject):
         self.document.notify_changed([obj])
 
     def set_object_visible(self, obj, visible):
-        """Œil de la liste des objets : masque l'objet à l'affichage (il reste gravé). Annulable."""
+        """Œil de la liste des objets : masque l'objet à l'affichage (il reste gravé), qu'il soit en haut de
+        la pile ou dans un groupe (le groupe est redessiné sans lui). Annulable."""
         if obj.is_hidden() == (not visible):
             return
         self.canvas.push_undo_snapshot()
         obj.hidden = not visible
-        self.document.notify_changed([obj])
+        self.document.notify_changed([self._refresh_ancestors(obj)])
 
-    def toggle_ignored(self, group, obj):
+    def toggle_ignored(self, obj):
         """Bouton « X » de la liste des objets : met l'objet sur le calque « Ignoré » (ni affiché, ni gravé,
-        ni découpé) en retenant son calque, ou le lui rend. `group` : le groupe de l'objet, ou None. Un
-        groupe ignore ou rend tous ses objets, chacun retrouvant son propre calque. Annulable."""
+        ni découpé) en retenant son calque, ou le lui rend. Un groupe ignore ou rend tous ses objets, chacun
+        retrouvant son propre calque ; les groupes qui contiennent l'objet sont recalculés. Annulable."""
         self.canvas.push_undo_snapshot()
         fallback = self.layers.layers[0].id if self.layers.layers else None
         obj.set_ignored(not obj.is_ignored(), fallback)

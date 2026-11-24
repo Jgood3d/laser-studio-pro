@@ -117,7 +117,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `image/` — traitement d’image sans Qt : `dithering.py` (taille de gravure, tons, netteté, négatif et tramage de l’image à graver ; vignettes de comparaison), `gain_test.py` (grille du test du gain de point), `filters.py` (netteté), `size.py` (taille d’origine d’après la résolution), `resolution.py` (lignes/mm, DPI, focale et qualité de l’écart entre les lignes), `matrix.py` (matrice de test à partir d’une image), `separation.py` (calculs de séparation couleur / verre), `vectorize.py` (conversion PNG/JPEG → SVG)
 - `vector/` — géométrie vectorielle :
   - `vector/boolean_ops.py` — opérations booléennes des groupes de l’éditeur (union, différence, intersection, exclusion), sans widget
-  - `vector/svg_tree_import.py`, `vector/svg_style.py` — import SVG du bouton « Importer », conforme à la spécification : groupes et textes gardés, calque d’après la couleur, blanc qui efface la gravure, éléments cachés sur le calque « Ignoré »
+  - `vector/svg_tree_import.py`, `vector/svg_style.py` — import SVG du bouton « Importer », conforme à la spécification : groupes et textes gardés, calque d’après la couleur, objets blancs et cachés sur le calque « Ignoré »
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
   - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
   - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)

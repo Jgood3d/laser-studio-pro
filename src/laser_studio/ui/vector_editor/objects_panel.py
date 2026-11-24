@@ -23,8 +23,8 @@ from laser_studio.models.vector_objects import GroupObject, ShapeObject, SvgPath
 from laser_studio.ui.utils import painted_icon, palette_icon
 from laser_studio.vector import boolean_ops
 
-# Colonnes : œil, nom, calque, « X », poubelle.
-EYE_COLUMN, NAME_COLUMN, LAYER_COLUMN, IGNORE_COLUMN, DELETE_COLUMN = range(5)
+# Colonnes : œil, laser (gravé ou ignoré), nom, calque, poubelle.
+EYE_COLUMN, IGNORE_COLUMN, NAME_COLUMN, LAYER_COLUMN, DELETE_COLUMN = range(5)
 # Couleur du calque « Ignoré » dans la liste.
 IGNORED_COLOR = "#7a7a7a"
 OBJECT_ROLE = Qt.ItemDataRole.UserRole
@@ -91,11 +91,25 @@ def eye_icon(palette, open_eye):
 
 
 def ignore_icon(palette, ignored):
-    """« X » : discret pour un objet gravé, rouge pour un objet ignoré."""
+    """Tête laser : son faisceau pour un objet gravé, barrée de rouge pour un objet ignoré."""
     def draw(painter, color):
-        painter.setPen(QPen(QColor("#ff453a") if ignored else color, 3.5 if ignored else 2.5))
-        painter.drawLine(QPointF(8, 8), QPointF(24, 24))
-        painter.drawLine(QPointF(24, 8), QPointF(8, 24))
+        head = QColor(color)
+        if ignored:
+            head.setAlphaF(0.45)
+        painter.setPen(QPen(head, 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRect(QRectF(10, 3, 12, 11))                  # tête
+        painter.drawLine(QPointF(13, 14), QPointF(19, 14))
+        painter.drawLine(QPointF(14, 17), QPointF(18, 17))       # buse
+        if ignored:
+            painter.setPen(QPen(QColor("#ff453a"), 3))
+            painter.drawLine(QPointF(5, 27), QPointF(27, 5))
+            return
+        painter.setPen(QPen(QColor("#ff453a"), 2.5))
+        painter.drawLine(QPointF(16, 18), QPointF(16, 26))      # faisceau
+        painter.setPen(QPen(QColor("#ff9f0a"), 1.5))
+        for dx, dy in ((-4, 0), (4, 0), (-3, 3), (3, 3)):       # étincelle au point d'impact
+            painter.drawLine(QPointF(16, 28), QPointF(16 + dx, 28 + dy))
     return painted_icon(palette, draw)
 
 
@@ -114,8 +128,8 @@ class ObjectsPanel(QWidget):
     - group_requested(opération) : grouper la sélection (boolean_ops.GROUP) ou la combiner (UNION…) ;
     - ungroup_requested() ;
     - rename_requested(objet, nom) ;
-    - visibility_requested(objet, affiché) : œil (objets du dessus de la pile) ;
-    - ignore_requested(groupe ou None, objet) : « X », calque « Ignoré » ou retour au calque d'avant ;
+    - visibility_requested(objet, affiché) : œil (affichage seulement, l'objet reste gravé) ;
+    - ignore_requested(objet) : « X », calque « Ignoré » ou retour au calque d'avant ;
     - delete_requested(groupe ou None, objet) : poubelle, supprimer l'objet (ou le retirer de son groupe).
     """
 
@@ -125,7 +139,7 @@ class ObjectsPanel(QWidget):
     ungroup_requested = pyqtSignal()
     rename_requested = pyqtSignal(object, str)
     visibility_requested = pyqtSignal(object, bool)
-    ignore_requested = pyqtSignal(object, object)
+    ignore_requested = pyqtSignal(object)
     delete_requested = pyqtSignal(object, object)
 
     def __init__(self, parent=None):
@@ -134,23 +148,25 @@ class ObjectsPanel(QWidget):
         self._expanded = set()
         self.tree = QTreeWidget()
         self.tree.setColumnCount(5)
-        self.tree.setHeaderLabels(["", tr("objects.col_name"), tr("objects.col_layer"), "", ""])
+        headers = [""] * 5
+        headers[NAME_COLUMN], headers[LAYER_COLUMN] = tr("objects.col_name"), tr("objects.col_layer")
+        self.tree.setHeaderLabels(headers)
         header = self.tree.header()
-        for column, mode in ((EYE_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
-                             (NAME_COLUMN, QHeaderView.ResizeMode.Stretch),
-                             (LAYER_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
-                             (IGNORE_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
-                             (DELETE_COLUMN, QHeaderView.ResizeMode.ResizeToContents)):
-            header.setSectionResizeMode(column, mode)
+        for column in range(5):
+            header.setSectionResizeMode(column, QHeaderView.ResizeMode.Stretch if column == NAME_COLUMN
+                                        else QHeaderView.ResizeMode.ResizeToContents)
         header.setStretchLastSection(False)
         self.tree.headerItem().setToolTip(EYE_COLUMN, tr("objects.eye_tip"))
         self.tree.headerItem().setToolTip(IGNORE_COLUMN, tr("objects.ignore_tip"))
         self.tree.headerItem().setToolTip(DELETE_COLUMN, tr("objects.delete_tip"))
-        # L'arbre (flèche des groupes) est dans la colonne du nom, après l'œil.
+        # L'arbre (flèche des groupes) est dans la colonne du nom, après l'œil et le laser.
         self.tree.setTreePosition(NAME_COLUMN)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        # Renommer : double-clic sur le nom seulement (l'œil et le « X » sont des boutons).
+        # Renommer : double-clic sur le nom seulement (l'œil, le laser et la poubelle sont des boutons).
         self.tree.setEditTriggers(QAbstractItemView.EditTrigger.EditKeyPressed)
+        # Clic droit : grouper ou combiner la sélection (union, différence…), dégrouper.
+        self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.tree.customContextMenuRequested.connect(self._show_context_menu)
         self.tree.itemDoubleClicked.connect(self._on_double_clicked)
         self.tree.itemClicked.connect(self._on_clicked)
         self.tree.setIconSize(QSize(18, 18))
@@ -217,6 +233,31 @@ class ObjectsPanel(QWidget):
         row.addStretch()
         return row
 
+    def context_menu(self):
+        """Menu du clic droit pour la sélection : grouper et opérations booléennes (au moins 2 objets, ou un
+        groupe dont on change l'opération), dégrouper. None s'il n'y a rien à proposer."""
+        objects = self.selected_objects()
+        one_group = len(objects) == 1 and isinstance(objects[0], GroupObject)
+        menu = QMenu(self)
+        if len(objects) >= 2 or one_group:
+            group = menu.addAction(self._icons[boolean_ops.GROUP], tr("objects.op.group"))
+            group.triggered.connect(lambda: self.group_requested.emit(boolean_ops.GROUP))
+            for operation in boolean_ops.BOOLEAN_OPERATIONS:
+                action = menu.addAction(self._icons[operation], tr(f"objects.op.{operation}"))
+                action.setToolTip(tr(f"objects.op.{operation}_tip"))
+                action.triggered.connect(lambda _checked=False, op=operation: self.group_requested.emit(op))
+        if any(isinstance(o, GroupObject) for o in objects):
+            menu.addSeparator()
+            menu.addAction(palette_icon("object-ungroup", self.palette()), tr("objects.ungroup")).triggered.connect(
+                lambda: self.ungroup_requested.emit())
+        menu.setToolTipsVisible(True)
+        return menu if menu.actions() else None
+
+    def _show_context_menu(self, position):
+        menu = self.context_menu()
+        if menu is not None:
+            menu.exec(self.tree.viewport().mapToGlobal(position))
+
     # -- affichage
 
     def show_objects(self, objects, layer_of):
@@ -246,7 +287,8 @@ class ObjectsPanel(QWidget):
         item.setExpanded(id(obj) in self._expanded)
 
     def _item(self, obj, parent, layer_of, top):
-        item = QTreeWidgetItem(["", object_label(obj), "", "", ""])
+        item = QTreeWidgetItem([""] * 5)
+        item.setText(NAME_COLUMN, object_label(obj))
         item.setData(0, OBJECT_ROLE, obj)
         item.setData(0, PARENT_ROLE, parent)
         item.setData(0, TOP_ROLE, top)
@@ -254,10 +296,9 @@ class ObjectsPanel(QWidget):
         item.setIcon(NAME_COLUMN, self._icons.get(icon_key, QIcon()))
         item.setToolTip(NAME_COLUMN, tr(f"objects.op.{obj.operation}_tip") if isinstance(obj, GroupObject) else "")
         ignored, hidden = obj.is_ignored(), obj.is_hidden()
-        if parent is None:
-            # Œil : seulement pour les objets du dessus de la pile (un objet groupé suit son groupe).
-            item.setIcon(EYE_COLUMN, self._eye_icons[not hidden])
-            item.setToolTip(EYE_COLUMN, tr("objects.show_tip" if hidden else "objects.hide_tip"))
+        # Œil : pour chaque objet, groupes compris (affichage seulement, l'objet reste gravé).
+        item.setIcon(EYE_COLUMN, self._eye_icons[not hidden])
+        item.setToolTip(EYE_COLUMN, tr("objects.show_tip" if hidden else "objects.hide_tip"))
         item.setIcon(IGNORE_COLUMN, self._ignore_icons[ignored])
         item.setIcon(DELETE_COLUMN, self._delete_icon)
         item.setToolTip(DELETE_COLUMN, tr("objects.delete_tip" if parent is None else "objects.delete_child_tip"))
@@ -268,12 +309,8 @@ class ObjectsPanel(QWidget):
         else:
             layer = layer_of(obj.layer_id)
             if layer is not None:
-                knockout = obj.is_knockout()
-                # Objet blanc : sur ce calque, il efface la gravure au lieu d'être gravé.
-                item.setText(LAYER_COLUMN, f"{layer.name} ({tr('objects.knockout')})" if knockout else layer.name)
-                item.setIcon(LAYER_COLUMN, _color_icon("#ffffff" if knockout else layer.color))
-                if knockout:
-                    item.setToolTip(LAYER_COLUMN, tr("objects.knockout_tip"))
+                item.setText(LAYER_COLUMN, layer.name)
+                item.setIcon(LAYER_COLUMN, _color_icon(layer.color))
         if ignored or hidden:
             # Objet masqué ou ignoré : nom grisé (et barré s'il n'est plus gravé).
             item.setForeground(NAME_COLUMN, QColor(IGNORED_COLOR))
@@ -342,10 +379,10 @@ class ObjectsPanel(QWidget):
 
     def _on_clicked(self, item, column):
         obj, parent = item.data(0, OBJECT_ROLE), item.data(0, PARENT_ROLE)
-        if column == EYE_COLUMN and parent is None:
+        if column == EYE_COLUMN:
             self.visibility_requested.emit(obj, obj.is_hidden())
         elif column == IGNORE_COLUMN:
-            self.ignore_requested.emit(parent, obj)
+            self.ignore_requested.emit(obj)
         elif column == DELETE_COLUMN:
             self.delete_requested.emit(parent, obj)
 
