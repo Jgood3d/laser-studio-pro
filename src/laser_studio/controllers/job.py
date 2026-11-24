@@ -24,6 +24,7 @@ from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, ima
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
 from laser_studio.gcode.test_matrix import matrix_cell_at
 from laser_studio.i18n import tr
+from laser_studio.i18n.durations import duration_text
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
 from laser_studio.vector import placement
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
@@ -49,13 +50,9 @@ def _clamp(value, bounds):
 
 
 def estimate_duration_text(seconds):
-    """Durée de l'estimation rapide, par exemple « 3min 07s » ou « 1h 05min »."""
-    seconds = max(0, int(seconds))
-    h, rem = divmod(seconds, 3600)
-    m, s = divmod(rem, 60)
-    if h > 0:
-        return f"{h}h {m:02d}min"
-    return f"{m}min {s:02d}s"
+    """Durée de l'estimation rapide (sans la marge des accélérations, comme le dit son message), au même
+    format que partout : i18n.durations.duration_text."""
+    return duration_text(seconds)
 
 
 class JobController(QObject):
@@ -86,7 +83,7 @@ class JobController(QObject):
 
     started = pyqtSignal()
     progress = pyqtSignal(int)
-    generated = pyqtSignal(str, int, float, str)
+    generated = pyqtSignal(str, int, float, float)
     failed = pyqtSignal(str)
     imported = pyqtSignal(str, str)
     log = pyqtSignal(str)
@@ -156,6 +153,12 @@ class JobController(QObject):
         """Commande laser ("M4" ou "M3") de la gravure d'une image : celle du
         calque de gravure, sinon celle de Configuration GRBL."""
         return layer_laser_cmd(self.layers.engrave_layer(), self.grbl.laser_cmd)
+
+    @property
+    def cut_laser_cmd(self):
+        """Commande laser de la découpe SVG autour de l'image : celle du calque de découpe (premier
+        calque en mode Découpe), sinon celle de Configuration GRBL, comme les calques vectoriels."""
+        return layer_laser_cmd(self.layers.default_svg_layer(), self.grbl.laser_cmd)
 
     def set_engrave_settings(self, speed, power):
         """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
@@ -230,6 +233,7 @@ class JobController(QObject):
             'power_cut': self.cut_power,
             'passes_cut': self.cut_passes,
             'laser_cmd': self.grbl.laser_cmd,
+            'cut_laser_cmd': self.cut_laser_cmd,
             # Gravure d'image : commande et surbalayage de son calque de gravure.
             'image_laser_cmd': self.image_laser_cmd,
             'image_overscan': self.image_overscan_enabled,
@@ -552,14 +556,14 @@ class JobController(QObject):
         self.gain_test_worker.start()
         return True
 
-    def _on_gain_test_ready(self, gcode, n_lines, avg_power, time_str):
+    def _on_gain_test_ready(self, gcode, n_lines, avg_power, seconds):
         header = (
             "; --- TEST DU GAIN DE POINT ---\n"
             "; Lignes de haut en bas : gain 0, 5, 10, 15, 20. Colonnes : 0 % (peinture intacte) a 100 % (verre degage).\n"
             "; Repere la ligne dont les cases passent regulierement du noir au clair,\n"
             "; puis regle le curseur Gain de point sur la valeur ecrite a gauche de cette ligne.\n"
         )
-        self.generated.emit(header + gcode, n_lines + header.count("\n"), avg_power, time_str)
+        self.generated.emit(header + gcode, n_lines + header.count("\n"), avg_power, seconds)
         self.dialogs.info(tr("sep.gain_test_title"), tr("sep.gain_test_done"))
 
     def generate_test_matrix(self, page_params, engraving, image_test=False, build_tile=None):

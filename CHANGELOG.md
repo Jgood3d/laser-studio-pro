@@ -98,6 +98,10 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Durées estimées : une seule présentation partout (« 46 s », « 3 min 12 s », « 2 h 05 min », unités traduites), avec des heures au-delà d'une heure. La matrice de test et le motif aller/retour ajoutent maintenant la même marge de 15 % (accélérations) que les jobs ; l'estimation rapide (« Estimer ») reste sans marge (#119).
+
+Puissance des matrices de test et de la découpe SVG autour de l'image : arrondie au plus proche, comme partout ailleurs. Avec S-Max = 255, une case à 10 % grave en S26, comme un calque réglé à 10 % (elle gravait en S25). La découpe SVG autour de l'image suit la commande laser (M3 / M4) du calque de découpe, sinon celle de la Configuration GRBL, comme les calques vectoriels : elle envoyait toujours M3 (#118).
+
 Macros : le bouton « Macros… » du panneau des actions de job reste actif graveur déconnecté (on prépare ses macros sans graveur branché) ; dans l'éditeur, les boutons de la liste sont en colonne et leurs libellés lisibles en entier.
 
 Envoi d'un job : une réponse « ERROR: » (renvoyée par certains clones de GRBL) arrivant pendant l'attente des derniers « ok » arrête maintenant la machine, comme pendant le reste de l'envoi ; elle était ignorée.

@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import QApplication
 
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import tr
+from laser_studio.i18n.durations import duration_text
 
 
 def set_homing_available(checkboxes, available, tip):
@@ -85,14 +86,14 @@ class JobDisplay(QObject):
         self._log(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         self.dialogs.error(tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
-    def show_generated(self, gcode_str, num_lines, avg_power, time_str):
+    def show_generated(self, gcode_str, num_lines, avg_power, seconds):
         """G-Code prêt : console, statistiques, aperçu 2D."""
         self.status_bar.show_progress(100, tr("gen.done"))
         self.status_bar.hide_progress(delay_ms=1500)
         self.console.set_gcode(gcode_str)
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
-                                               tr("gen.stat_time").format(value=time_str))
+                                               tr("gen.stat_time").format(value=duration_text(seconds)))
         # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
         self.actions.set_gcode_export_enabled(True)
         self.plot(gcode_str)
