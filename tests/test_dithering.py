@@ -36,5 +36,24 @@ class ProcessImageTests(unittest.TestCase):
         self.assertTrue(np.all(np.abs(arr.astype(int) - 100) <= 1))
 
 
+class TonePreviewTests(unittest.TestCase):
+    def setUp(self):
+        self.img = Image.fromarray(np.tile(np.linspace(20, 230, 64), (32, 1)).astype(np.uint8))
+
+    def test_neutral_settings_keep_the_image(self):
+        np.testing.assert_array_equal(np.array(dithering.tone_preview(self.img, 0, 0, 100, 0)), np.array(self.img))
+
+    def test_each_setting_changes_the_preview(self):
+        base = np.array(dithering.tone_preview(self.img, 0, 0, 100, 0))
+        for name, args in (("luminosité", (50, 0, 100, 0)), ("contraste", (0, 50, 100, 0)),
+                           ("gamma", (0, 0, 200, 0)), ("netteté", (0, 0, 100, 60))):
+            self.assertFalse(np.array_equal(base, np.array(dithering.tone_preview(self.img, *args))), name)
+
+    def test_no_dithering_and_no_negative(self):
+        out = np.array(dithering.tone_preview(self.img, 0, 0, 100, 0))
+        self.assertGreater(len(np.unique(out)), 2)          # niveaux de gris, pas tramé
+        self.assertEqual(out.shape, (32, 64))
+
+
 if __name__ == "__main__":
     unittest.main()

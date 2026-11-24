@@ -124,6 +124,26 @@ class ImageTabTests(_QtTest):
         tab.show_original_action.setChecked(True)
         self.assertTrue(tab.source_view.isVisible())
 
+    def test_original_can_preview_the_tone_settings(self):
+        from PIL import Image
+        tab = self.make(ImageTab)
+        image = Image.new("L", (40, 20), 100)
+        tab.show_source(image)
+
+        def shown():
+            qimg = tab.source_view.pixmap_item.pixmap().toImage()
+            return qimg.pixelColor(2, 2).red()
+
+        self.assertFalse(tab.preview_tones_check.isChecked())             # décochée par défaut
+        self.assertEqual(shown(), 100)
+        tab.preview_tones_check.setChecked(True)
+        tab.settings.brightness_slider.setValue(60)
+        tab._show_source_image()                                          # sans attendre le délai de 80 ms
+        self.assertGreater(shown(), 100)                                  # luminosité appliquée à l'originale
+        self.assertEqual(tab.source_view.pixmap_item.scale(), 1.0)
+        tab.preview_tones_check.setChecked(False)
+        self.assertEqual(shown(), 100)                                    # retour à l'originale
+
     def test_toolbar_requests(self):
         from PyQt6.QtGui import QAction
         tab = self.make(ImageTab)

@@ -181,6 +181,16 @@ def _adjust_tones(img, bright, contrast, gamma):
     return arr
 
 
+def tone_preview(img, bright, contrast, gamma, sharp=0):
+    """Image PIL en niveaux de gris (L) avec les réglages de tons (luminosité, contraste, gamma × 100,
+    netteté), sans négatif ni tramage : l'aperçu de l'originale pendant qu'on règle."""
+    arr = _adjust_tones(img, bright, contrast, gamma / 100.0)
+    out = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+    if sharp and sharp > 0:
+        out = sharpen_image(out, sharp)
+    return out
+
+
 def process_image(raw_image, params):
     """Image prête à graver : `raw_image` (PIL, niveaux de gris) mise à la taille
     de gravure (w_mm × h_mm à lmm lignes/mm), miroirs, tons, effet bande dessinée, netteté, négatif

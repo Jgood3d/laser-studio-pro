@@ -3,6 +3,7 @@
 from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QImage, QPen, QPolygonF
 from PyQt6.QtWidgets import (
+    QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QScrollArea,
@@ -13,6 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.image.dithering import tone_preview
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
 from laser_studio.ui.utils import painted_icon, palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import FloatingToolBar, ZoomableGraphicsView
@@ -26,7 +28,8 @@ class ImageTab(QWidget):
     émet compare_requested (comparaison des algorithmes de tramage) et porte
     « Afficher l'originale » (`show_original_action`, cochable) : l'image
     originale, masquée par défaut, s'affiche à côté du rendu tramé, de même
-    largeur.
+    largeur. La case `preview_tones_check`, au-dessus de l'originale, lui applique
+    luminosité, contraste, gamma et netteté en direct (aperçu seulement).
 
         tab = ImageTab()
         tab.settings.processing_changed.connect(image.schedule_processing)
@@ -44,6 +47,11 @@ class ImageTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.settings = ImageSettingsPanel()
+        self._source_image = None            # originale (PIL), pour l'aperçu avec réglages
+        self._tones_timer = QTimer(self)
+        self._tones_timer.setSingleShot(True)
+        self._tones_timer.setInterval(80)
+        self._tones_timer.timeout.connect(self._show_source_image)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
         row = QHBoxLayout()
@@ -63,6 +71,8 @@ class ImageTab(QWidget):
         self.crop_action.setEnabled(False)
         zoom_shortcuts(self, self.zoom_in, self.zoom_out)
         self.view_toolbar = self._view_toolbar()
+        # Un réglage de tons change : l'aperçu de l'originale suit (regroupé sur 80 ms) quand la case est cochée.
+        self.settings.processing_changed.connect(self._tones_changed)
 
     # -- construction
 
@@ -118,6 +128,11 @@ class ImageTab(QWidget):
         self._source_box, self.source_view = self._preview_box(
             "ui.source_image_box"
         )
+        # Case au-dessus de l'originale : l'affiche avec les réglages de tons.
+        self.preview_tones_check = QCheckBox(tr("img.preview_tones"))
+        self.preview_tones_check.setToolTip(tr("img.preview_tones_tip"))
+        self.preview_tones_check.toggled.connect(lambda _checked: self._show_source_image())
+        self._source_box.layout().insertWidget(0, self.preview_tones_check)
         dither_box, self.dither_view = self._preview_box("ui.final_raster_box")
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
         self._splitter.addWidget(self._source_box)
@@ -188,11 +203,42 @@ class ImageTab(QWidget):
 
     def show_source(self, image):
         """Image chargée (PIL, niveaux de gris), ou None : les deux aperçus sont vidés."""
+        self._source_image = image
         if image is None:
             self.source_view.clear_image()
             self.dither_view.clear_image()
             return
-        self.source_view.set_image(self._grayscale_qimage(image))
+        self._show_source_image()
+
+    # Taille maximale (px) de l'image réglée pour l'aperçu : au-delà, elle est réduite puis remise à l'échelle.
+    TONES_PREVIEW_MAX_PX = 1600
+
+    def _tones_changed(self):
+        if self.preview_tones_check.isChecked() and self._source_image is not None:
+            self._tones_timer.start()
+
+    def _show_source_image(self):
+        """Originale affichée : telle quelle, ou avec luminosité / contraste / gamma / netteté si la case est
+        cochée. L'image réglée, calculée en taille réduite, est remise à l'échelle de l'originale pour que le
+        zoom et la position ne bougent pas."""
+        image = self._source_image
+        if image is None:
+            return
+        view = self.source_view
+        tones = self.preview_tones_check.isChecked()
+        # L'originale en pleine taille fixe la zone de la vue (ajustée une seule fois) : toujours sans réglages,
+        # et avec réglages seulement quand la vue est encore vide.
+        if not tones or view.scene_obj.sceneRect().size().isEmpty():
+            view.pixmap_item.setScale(1.0)
+            view.set_image(self._grayscale_qimage(image))
+        if not tones:
+            return
+        small = image.copy()
+        small.thumbnail((self.TONES_PREVIEW_MAX_PX, self.TONES_PREVIEW_MAX_PX))
+        values = self.settings.processing_settings()
+        adjusted = tone_preview(small, values["bright"], values["contrast"], values["gamma"], values["sharp"])
+        view.set_image(self._grayscale_qimage(adjusted))
+        view.pixmap_item.setScale(image.width / adjusted.width)
 
     def show_processed(self, _array, image):
         """Rendu tramé (ImageController.processed)."""
