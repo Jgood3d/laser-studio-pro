@@ -104,7 +104,7 @@ class ProjectController:
 
     def open_path(self, path):
         """Ouvre le projet `path` (menu « Projets récents », récupération
-        de la sauvegarde automatique...)."""
+        de la sauvegarde automatique...). Renvoie True s'il est ouvert."""
         try:
             with open(path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -115,6 +115,8 @@ class ProjectController:
             self._dialogs.info(tr("project.load_success_title"), tr("project.load_success"))
         except Exception as e:
             self._dialogs.error(tr("laser.error"), tr("project.load_error").format(error=e))
+            return False
+        return True
 
     # -- projets récents
 
@@ -187,6 +189,6 @@ class ProjectController:
         if not os.path.exists(path):
             return
         if self._dialogs.confirm_default_no(tr("project.autosave_recovery_title"),
-                                            tr("project.autosave_recovery_body")):
-            self.open_path(path)
+                                            tr("project.autosave_recovery_body")) and not self.open_path(path):
+            return                     # récupération ratée : la sauvegarde reste pour un nouvel essai
         self.discard_autosave()

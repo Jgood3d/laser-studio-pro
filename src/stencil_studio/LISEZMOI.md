@@ -22,7 +22,7 @@ Le navigateur s'ouvre sur http://127.0.0.1:8765 (tout reste sur ton PC).
 
 ## Fichiers
 - `core.py`, `lightbox.py`, `engrave.py`, `subject_ai.py` : calcul (sans interface, réutilisable dans le logiciel)
-- `server.py` : serveur local (127.0.0.1) qui sert la page et son API ; `python -m stencil_studio` le lance avec le navigateur
+- `server.py` : serveur local (127.0.0.1) qui sert la page et son API ; `python -m stencil_studio` le lance avec le navigateur. Seule sa page peut l'appeler : nom d'hôte 127.0.0.1 ou localhost exigé, et jeton tiré à chaque lancement (glissé dans la page, exigé sur chaque route `/api/`), pour qu'un autre site ouvert dans le navigateur ne puisse ni écrire ni lire
 - `models/` : données sans interface — `session.py` (photo, repères peints), `presets.py` (réglages enregistrés)
 - `controllers/` : `api.py` (aperçu, visage, export demandés par la page), `studio.py` (fenêtre du Studio dans LSP : ouverture, préchauffage, repli, thème)
 - `ui/` : `studio.html` (la page), `dialog.py` (fenêtre Qt qui l'affiche), `window.py` (fenêtre en processus séparé), `themes.py` (couleurs)
