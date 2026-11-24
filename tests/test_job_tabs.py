@@ -78,10 +78,10 @@ class Preview2DTabTests(_TabTest):
     def test_no_toolbar_above_the_preview(self):
         # Plus de bandeau : les options flottent sur le graphique, le plein écran est dans la
         # barre principale ; la colonne de droite ne touche pas la poignée du séparateur.
-        from laser_studio.ui.widgets import TabToolBar
+        from PyQt6.QtWidgets import QToolBar
         from laser_studio.ui.tabs.preview_2d.tab import SIDE_PANEL_LEFT_MARGIN
         tab = self.make(Preview2DTab, QGroupBox("Position"))
-        self.assertEqual(tab.findChildren(TabToolBar), [])
+        self.assertEqual([bar.objectName() for bar in tab.findChildren(QToolBar)], ["floating_toolbar"])
         self.assertFalse(hasattr(tab, "fullscreen_requested"))
         self.assertGreater(SIDE_PANEL_LEFT_MARGIN, 0)
         self.assertEqual(tab.side_panel.layout().contentsMargins().left(), SIDE_PANEL_LEFT_MARGIN)

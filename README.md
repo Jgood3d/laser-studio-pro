@@ -108,7 +108,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView` et ses outils de la souris (`tools/`), menu du clic droit (`context_menu.py`), boîtes de saisie (texte, médaille, forme, calque, taille du groupe) ; objets du dessin dans `models/vector_objects.py`
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série), `streaming.py` (envoi d'un job : tampon de GRBL, lecture des réponses), `macros.py` (macros de l'utilisateur : macros.yaml) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `controllers/workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
-- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas ou à droite : actions image, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel), `TabCloseButton` (croix d’un onglet), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
+- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas, à gauche ou à droite : actions image, comparaison des tramages et image originale, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel ; annuler / refaire puis les loupes toujours au bout à droite), `TabCloseButton` (croix d’un onglet), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
 - `ui/fonts.py` — polices embarquées (`resources/fonts/`, licences libres), enregistrées au démarrage pour être disponibles sur tous les systèmes (Dancing Script, police manuscrite, et Rubik, titres des médailles et des totems, pour les modèles de la bibliothèque)
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
@@ -185,12 +185,11 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `TestMatrixPage` — Matrice de test | `generate_requested`, `choose_image_requested`, `use_loaded_image_requested`, `image_test_toggled(bool)` | `set_lines_mm()`, `set_source_image()`, `set_image_test_checked()` ; fournit `matrix_params()`, `tile_settings()`, `is_engraving()`, `image_test_enabled()` |
 | `GrblConfigPage` — Configuration GRBL | `bidir_test_requested`, `scan_offset_changed(mm)`, `read_settings_requested`, `send_settings_requested`, `export_settings_requested`, `import_settings_requested`, `link_settings_to_profile_requested` | champs `laser_cmd_combo`, `smax_spin`, `homing_check`, `overscan_check`, `overscan_mode_combo`, `scan_offset_spin`, `grbl_settings_edit`… |
 
-**Onglets** (`ui/tabs/`, et la barre d’outils commune `TabToolBar`) :
+**Onglets** (`ui/tabs/`) :
 
 | Onglet | Signaux émis | État reçu / lu |
 | --- | --- | --- |
-| `TabToolBar` — barre d’outils d’un onglet (« Graver une image ») | (ceux de ses actions) | — ; le plein écran, commun à tous les onglets, est dans la barre principale (`AppActions.fullscreen`, F11) |
-| `ImageTab` — Graver une image | `compare_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` |
+| `ImageTab` — Graver une image | `compare_requested`, `crop_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` ; barre flottante à gauche `view_toolbar` (`compare_action`, `show_original_action`) |
 | `ImageSettingsPanel` — réglages de « Graver une image » | `load_requested`, `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
 | `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
@@ -345,7 +344,7 @@ Les deux variables sont désactivées si elles sont absentes, vides ou à `0`.
 LASER_STUDIO_SIMULATION=20 python main.py
 ```
 
-Un port « SIMULATION - Graveur simulé » apparaît en tête de la liste des ports. Connectez-vous dessus comme à une vraie machine : le graveur simulé répond aux réglages (`$$`, modifiables avec `$N=valeur`), au homing (`$H`), au déverrouillage (`$X`) et au jog, exécute le G-Code en respectant les vitesses, et réagit à la pause (`!`), à la reprise (`~`) et au reset (Ctrl+X, avec `ALARM:3` si la machine bougeait). Pour simuler une machine sans homing, envoyez `$22=0` depuis la console.
+Un port « SIMULATION - Graveur simulé » apparaît en tête de la liste des ports. Connectez-vous dessus comme à une vraie machine : le graveur simulé répond aux réglages (`$$`, modifiables avec `$N=valeur`), au homing (`$H`), au déverrouillage (`$X`) et au jog, exécute le G-Code en respectant les vitesses, et réagit à la pause (`!`), à la reprise (`~`) et au reset (Ctrl+X, avec `ALARM:3` si la machine bougeait). Pour simuler une machine sans homing, envoyez `$22=0` depuis la console. Dans l’historique des gravures, la durée réelle d’une gravure simulée est multipliée par le facteur de vitesse (une gravure de 3 min à `20` compte pour 1 h, la durée sur la machine simulée) et la ligne est marquée « simulation ×20 ».
 
 **Journal de débogage.** Lancez l’application avec la variable :
 

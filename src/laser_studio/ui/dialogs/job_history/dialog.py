@@ -68,7 +68,7 @@ class JobHistoryDialog(QDialog):
             values = (entry.get("started_at", ""), tr(f"history.result.{entry.get('result', 'interrupted')}"),
                       duration_text(entry.get("duration_s") or 0),
                       duration_text(estimate) if estimate is not None else "—", gap_text(entry),
-                      f"{burn / 1000:.2f} m" if burn else "", str(entry.get("lines") or ""), entry.get("profile") or "")
+                      f"{burn / 1000:.2f} m" if burn else "", str(entry.get("lines") or ""), _machine_text(entry))
             for column, value in enumerate(values):
                 item = QTableWidgetItem(value)
                 if column in (2, 3, 4, 5, 6):
@@ -93,3 +93,13 @@ class JobHistoryDialog(QDialog):
                                       QMessageBox.StandardButton.No)
         if answer == QMessageBox.StandardButton.Yes:
             self.history.clear()
+
+
+def _machine_text(entry):
+    """Profil machine ; « simulation ×20 » pour une gravure sur le graveur simulé."""
+    profile = entry.get("profile") or ""
+    speed = entry.get("simulation")
+    if not speed:
+        return profile
+    simulated = tr("history.simulated").format(speed=f"{speed:g}")
+    return f"{profile} ({simulated})" if profile else simulated

@@ -104,9 +104,9 @@ def main():
 
     pump(0.5)
     print("Préparation : image d'exemple, G-Code, vectorisation, séparation")
-    window.load_image_from_path(SAMPLE_IMAGE)
+    window.image.load_path(SAMPLE_IMAGE)
     pump(1.5)
-    window.generate_job()
+    window.job.generate()
     end = time.time() + 120
     while window.job_display.last_gcode_text is None and time.time() < end:
         pump(0.2)
@@ -128,7 +128,7 @@ def main():
     print("Pages de réglages")
     for number, kind in enumerate(SETTINGS_PAGES, start=10):
         window.window_controller.show_settings_window(kind)
-        settings = window._settings_windows[kind]
+        settings = window.window_controller._settings_windows[kind]
         shot(settings, f"{number}-page-{slug(settings.windowTitle())}")
         settings.close()
 

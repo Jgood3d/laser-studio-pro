@@ -131,7 +131,7 @@ laser-studio-pro/
 │   │       │   ├── image_actions.py  # ImageToolbarActions : pivoter / supprimer / miroirs de l'onglet affiché
 │   │       │   ├── qt_messages.py    # filtre des avertissements Qt
 │   │       │   └── theme.py          # 7 thèmes UI ; packs d'icônes Breeze et Jarvis
-│   │       ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, TabToolBar, FloatingToolBar, TabCloseButton, FullscreenWindow, SliderWithButtons
+│   │       ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, FloatingToolBar, TabCloseButton, FullscreenWindow, SliderWithButtons
 │   │       ├── machine/              # panneau machine (panel.py : MachinePanel)
 │   │       │   ├── connection/       # ConnectionPanel (port, connecter, état GRBL, console directe) ; help_dialog : aide « Port introuvable ? »
 │   │       │   ├── status/           # MachineStateView (état GRBL), AxisPositionRow (X / Y / Z)

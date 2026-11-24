@@ -1601,6 +1601,10 @@ TEXTS = {
         "de": "Den gesamten Gravurverlauf löschen? Das ist endgültig.",
         "es": "¿Borrar todo el historial de grabados? Es definitivo.",
     },
+    "history.simulated": {
+        "fr": "simulation ×{speed}", "en": "simulation ×{speed}",
+        "de": "Simulation ×{speed}", "es": "simulación ×{speed}",
+    },
     "history.csv_filter": {
         "fr": "Fichier CSV (*.csv)",
         "en": "CSV file (*.csv)",

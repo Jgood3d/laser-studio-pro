@@ -53,6 +53,12 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Barres d'outils flottantes : partout les mêmes icônes que dans l'éditeur vectoriel (annuler, refaire, pivoter, miroirs, supprimer…), et annuler / refaire puis les loupes toujours au bout, à droite.
+
+Graver une image : « Algorithme de tramage » et « Afficher l'originale » passent dans une barre flottante à gauche de l'aperçu ; le bandeau au-dessus des aperçus disparaît, l'image gagne en hauteur.
+
+Graveur simulé (`LASER_STUDIO_SIMULATION`) : dans l'historique des gravures, la durée réelle est multipliée par le facteur de vitesse de la simulation, pour être comparable à la durée estimée ; la gravure est marquée « simulation ×N ».
+
 Durée estimée des gravures : calculée comme GRBL planifie ses déplacements, au lieu de « distance ÷ vitesse + 15 % ». Elle compte les déplacements rapides G0, l'accélération de chaque déplacement, le ralentissement dans les virages et aux demi-tours, et la limite du tampon de GRBL sur les images très fines. Elle utilise les réglages lus avec « Lire la config » ($110/$111, $120/$121, $11), sinon la vitesse maximale et l'accélération de « Paramètres du graveur ». L'estimation rapide (« Estimer ») compte aussi l'accélération à chaque ligne de l'image.
 
 Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.

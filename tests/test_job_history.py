@@ -64,6 +64,23 @@ class HistoryTests(unittest.TestCase):
                          ("Atomstack", 500.0, 42, 10.0))
         self.assertEqual(self.history.entries(), [entry])
 
+    def test_simulated_engraver_duration_is_scaled(self):
+        """Graveur simulé à ×20 : 90 s mesurées = 1 800 s sur la machine simulée."""
+        connection = SimpleNamespace(streamer=self.streamer, simulation_speed=lambda: 20.0)
+        self.recorder = JobHistoryRecorder(self.history, connection, clock=lambda: self.now[0])
+        entry = self.run_job(True)
+        self.assertEqual((entry["duration_s"], entry["simulation"]), (1800.0, 20.0))
+
+    def test_simulation_speed_of_the_connection(self):
+        from laser_studio.controllers.machine_connection import MachineConnection
+        from laser_studio.grbl.simulator import SimulatedGrblSerial
+        usb = SimpleNamespace(ser=SimulatedGrblSerial(speed=20.0), is_connected=lambda: True)
+        self.assertEqual(MachineConnection(usb).simulation_speed(), 20.0)
+        usb.ser = SimpleNamespace(is_open=True)                          # vrai port série
+        self.assertIsNone(MachineConnection(usb).simulation_speed())
+        usb.is_connected = lambda: False
+        self.assertIsNone(MachineConnection(usb).simulation_speed())
+
     def test_outcomes_and_unknown_estimate(self):
         self.streamer.stopped_on_error = True
         self.assertEqual(self.run_job(False, gcode="G1 X1")["result"], ERROR)

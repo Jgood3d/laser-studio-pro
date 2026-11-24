@@ -86,6 +86,14 @@ class MachineConnection(QObject):
         """Port de la dernière connexion réussie."""
         return getattr(self.usb, "last_port", None)
 
+    def simulation_speed(self):
+        """Facteur de vitesse du graveur simulé auquel on est connecté (LASER_STUDIO_SIMULATION), ou None
+        sur une vraie machine : une gravure simulée à ×20 dure vingt fois moins que sur la machine."""
+        if not self.is_connected():
+            return None
+        speed = getattr(getattr(self.usb, "ser", None), "speed", None)
+        return float(speed) if isinstance(speed, (int, float)) and speed > 0 else None
+
     def is_streaming(self):
         """Vrai pendant l'envoi d'un job."""
         try:

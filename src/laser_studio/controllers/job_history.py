@@ -27,7 +27,11 @@ def _key(gcode_text):
 class JobHistoryRecorder:
     """`history` : JobHistory ; `connection` : MachineConnection (thread d'envoi : lignes acquittées, arrêt
     sur erreur ou par l'utilisateur) ; `context()` : réglages à noter (profil machine, vitesse maximale,
-    accélération, S-Max, commande laser) ; `clock()` : heure (secondes), remplaçable pour les tests."""
+    accélération, S-Max, commande laser) ; `clock()` : heure (secondes), remplaçable pour les tests.
+
+    Graveur simulé (connection.simulation_speed(), LASER_STUDIO_SIMULATION) : la durée mesurée est multipliée
+    par le facteur de vitesse de la simulation, pour donner celle de la machine simulée, comparable à
+    l'estimation ; le facteur est noté (« simulation »)."""
 
     def __init__(self, history, connection, context=lambda: {}, clock=time.time):
         self.history = history
@@ -46,6 +50,9 @@ class JobHistoryRecorder:
         entry = {"started_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(started)),
                  "estimated_s": self._estimates.get(_key(gcode_text))}
         entry.update(self._context())
+        speed = getattr(self.connection, "simulation_speed", lambda: None)()
+        if speed:
+            entry["simulation"] = speed
         stats = {}
         # Statistiques calculées à côté : environ une seconde pour un gros G-Code d'image.
         worker = threading.Thread(target=lambda: stats.update(gcode_statistics(gcode_text)), daemon=True)
@@ -67,7 +74,8 @@ class JobHistoryRecorder:
             result = STOPPED
         else:
             result = INTERRUPTED
-        entry.update(result=result, duration_s=round(self._clock() - started, 1),
+        elapsed = (self._clock() - started) * (entry.get("simulation") or 1.0)
+        entry.update(result=result, duration_s=round(elapsed, 1),
                      acked_lines=getattr(streamer, "acked", None))
         entry.update({k: stats.get(k) for k in ("lines", "burn_mm", "travel_mm", "max_feed", "max_power", "bounds")})
         self.history.append(entry)

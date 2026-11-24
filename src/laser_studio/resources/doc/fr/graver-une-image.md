@@ -74,8 +74,12 @@ ses réglages se modifient dans l'onglet *Calques (Layers)*. Voir
 | Appliquer un filtre | **Effet BD** : noircit le bord des traits pour donner un effet bande dessinée. Une fenêtre s'ouvre avec deux curseurs, et l'aperçu les suit en direct : **Rayon du masque** (en mm sur la pièce : petit rayon, traits fins ; grand rayon, traits épais et aplats noirs) et **Pourcentage de noir** (plus haut, plus de noir autour des traits). **OK** garde l'effet, **Annuler** remet l'image d'avant. Choisir à nouveau « Effet BD » permet de le régler, « Aucun » le retire |
 
 Chaque réglage s'annule avec **Ctrl+Z** et se refait avec **Ctrl+Y**.
-**Réinitialiser Réglages Image** remet tout à zéro. La case **Afficher
-l'originale** montre l'image de départ à côté du rendu.
+**Réinitialiser Réglages Image** remet tout à zéro. Le bouton **Afficher
+l'originale** (deux cadres côte à côte, dans la barre à gauche de l'aperçu)
+montre l'image de départ à côté du rendu ; un second clic la masque.
+
+Dans la barre en haut de l'aperçu, comme dans les autres vues, annuler /
+refaire puis les loupes sont toujours au bout, à droite.
 
 ## Le tramage
 
@@ -93,7 +97,8 @@ points gravés, comme dans un journal imprimé.
 | Seuil Simple (Binaire) | Noir ou blanc, sans nuance : idéal pour un logo ou un texte |
 | Niveaux de Gris | Pas de points : la puissance du laser varie selon le gris (voir [les modes de gravure](modes-de-gravure.md)) |
 
-Vous hésitez ? Le bouton **Algorithme de tramage** affiche une vignette de
+Vous hésitez ? Le bouton **Algorithme de tramage** (en haut de la barre à
+gauche de l'aperçu) affiche une vignette de
 votre image pour chaque algorithme, avec vos réglages actuels. Cliquez sur
 celle qui vous plaît.
 

@@ -245,19 +245,14 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):\n"
                       "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
 
-    def test_tab_toolbars_share_one_builder(self):
+    def test_no_tab_toolbar_left(self):
+        """Plus de bandeau d'outils dans les onglets : tout est dans les barres flottantes."""
         src = ui_source()
-        builder = read(os.path.join("ui", "widgets", "tab_toolbar.py"))
-        order = [builder.index(k) for k in ("left_actions:", "self._spacer()", "right_widgets:")]
-        self.assertEqual(order, sorted(order))             # actions à gauche, widgets à droite
-        for name in ("fullscreen_action", "fullscreen_requested"):      # plus de plein écran par onglet
-            self.assertNotIn(name, builder)
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
-        previews = image_tab[image_tab.index("compare_icon = QIcon.fromTheme"):image_tab.index("return toolbar")]
+        previews = image_tab[image_tab.index("def _view_toolbar"):image_tab.index("def _original_icon")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
         self.assertEqual(src.count("compare=controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
-        uses = src.count(" = TabToolBar(")             # src : toute l'interface, onglet Séparation compris
-        self.assertEqual(uses, 1)                          # seule « Graver une image » garde un bandeau
+        self.assertEqual(src.count("TabToolBar"), 0)
         self.assertEqual(src.count("._fullscreen_control"), 0)
 
     def test_one_fullscreen_button_for_every_tab(self):
@@ -305,7 +300,8 @@ class MenuStructureTests(unittest.TestCase):
     def test_original_image_is_hidden_in_the_image_tab(self):
         src = ui_source()
         self.assertIn("self._source_box.setVisible(False)", src)
-        self.assertIn("left_widgets=[self.show_original_check]", src)      # case « Afficher l'originale »
+        # « Afficher l'originale » : bouton cochable de la barre flottante à gauche des aperçus.
+        self.assertIn("FloatingToolBar([self.compare_action, self.show_original_action], self.preview_area", src)
 
     def test_sent_gcode_is_followed_in_the_machine_panel(self):
         self.assertNotIn("SentGcodeLog()", read(os.path.join("ui", "tabs", "job_queue", "tab.py")))
