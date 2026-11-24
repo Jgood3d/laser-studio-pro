@@ -1,0 +1,407 @@
+"""Groupes de l'éditeur vectoriel : opérations booléennes (vector/boolean_ops.py), GroupObject
+(models/vector_objects.py), ordre du document, gravure (vector/layer_data.py), canevas, contrôleur et liste
+des objets (ui/vector_editor/objects_panel.py)."""
+import os
+import sys
+import unittest
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from PyQt6.QtCore import QPointF
+    from PyQt6.QtWidgets import QApplication
+    from laser_studio.controllers.vector_editor import VectorEditorController
+    from laser_studio.models.layers import LayersModel
+    from laser_studio.models.machine import MachineConfig
+    from laser_studio.models.vector_document import VectorDocument, clone_object
+    from laser_studio.models.vector_objects import GroupObject, ShapeObject, TextObject, VectorObject
+    from laser_studio.ui.vector_editor.canvas import VectorCanvasView
+    from laser_studio.models.vector_objects import IGNORED_LAYER_ID
+    from laser_studio.ui.vector_editor.objects_panel import (
+        DELETE_COLUMN, EYE_COLUMN, IGNORE_COLUMN, LAYER_COLUMN, NAME_COLUMN, ObjectsPanel, object_label)
+    from laser_studio.vector import boolean_ops
+    from laser_studio.vector.layer_data import extract_vector_layer_data
+    from job_fakes import FakeDialogs
+except ImportError:  # PyQt6 manquant
+    GroupObject = None
+
+
+def square(x, y, size, layer="L1"):
+    return ShapeObject("Rectangle", size, size, layer_id=layer, x_mm=x, y_mm=y)
+
+
+def inside(path, x, y):
+    return path.contains(QPointF(x, y))
+
+
+@unittest.skipIf(GroupObject is None, "PyQt6 non importable ici")
+class GroupModelTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.big = square(10, 10, 40, layer="A")       # dessous : 10..50
+        self.small = square(25, 25, 10, layer="B")     # dessus : 25..35
+
+    def test_operations(self):
+        paths = [self.big.world_path(), self.small.world_path()]
+        union = boolean_ops.combine(paths, boolean_ops.UNION)
+        self.assertTrue(inside(union, 30, 30) and inside(union, 15, 15))
+        difference = boolean_ops.combine(paths, boolean_ops.DIFFERENCE)
+        self.assertTrue(inside(difference, 15, 15))
+        self.assertFalse(inside(difference, 30, 30))     # l'intérieur du dessus n'est pas gravé
+        intersection = boolean_ops.combine(paths, boolean_ops.INTERSECTION)
+        self.assertTrue(inside(intersection, 30, 30))
+        self.assertFalse(inside(intersection, 15, 15))
+        exclusion = boolean_ops.combine(paths, boolean_ops.EXCLUSION)
+        self.assertTrue(inside(exclusion, 15, 15))
+        self.assertFalse(inside(exclusion, 30, 30))
+        with self.assertRaises(ValueError):
+            boolean_ops.combine(paths, "fusion")
+
+    def test_plain_group_keeps_each_object(self):
+        group = GroupObject([self.big, self.small])
+        self.assertEqual((group.x_mm, group.y_mm, group.layer_id), (10.0, 10.0, "A"))
+        self.assertEqual([layer for layer, _path in group.engraving_parts()], ["A", "B"])
+        self.assertEqual(group.world_path().boundingRect(), self.big.world_path().boundingRect())
+
+    def test_boolean_group_engraves_one_path_on_the_bottom_layer(self):
+        group = GroupObject([self.big, self.small], operation=boolean_ops.DIFFERENCE)
+        parts = group.engraving_parts()
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(parts[0][0], "A")
+        self.assertFalse(inside(parts[0][1], 30, 30))
+        group.move_child(self.small, -1)                 # le petit carré passe dessous
+        self.assertEqual(group.layer_id, "B")
+        self.assertTrue(group.world_path().isEmpty())    # petit moins grand : rien
+
+    def test_moved_rotated_group_roundtrips_and_releases_its_objects(self):
+        text = TextObject("AB", "DejaVu Sans", 8.0, layer_id="A", x_mm=60, y_mm=10)
+        group = GroupObject([self.big, text], operation=boolean_ops.UNION)
+        group.x_mm += 100
+        group.rotation_deg = 90
+        copy = VectorObject.from_dict(group.to_dict())
+        self.assertIsInstance(copy, GroupObject)
+        self.assertEqual(copy.world_path().boundingRect(), group.world_path().boundingRect())
+        released = copy.released_children()
+        self.assertIsInstance(released[1], TextObject)            # un texte reste un texte
+        self.assertEqual(released[0].rotation_deg, 90.0)
+        box = released[0].world_path().boundingRect().united(released[1].world_path().boundingRect())
+        target = group.world_path().boundingRect()
+        for a, b in ((box.left(), target.left()), (box.top(), target.top()),
+                     (box.width(), target.width()), (box.height(), target.height())):
+            self.assertAlmostEqual(a, b, delta=0.6)
+
+    def test_mirrored_group_releases_fixed_paths(self):
+        group = GroupObject([self.big, self.small])
+        group.mirror_h = True
+        released = group.released_children()
+        self.assertEqual([o.kind for o in released], ["svg_path", "svg_path"])
+        self.assertEqual(released[1].layer_id, "B")
+
+    def test_layer_and_clone(self):
+        group = GroupObject([self.big, self.small])
+        group.set_layer("C")
+        self.assertEqual({layer for layer, _p in group.engraving_parts()}, {"C"})
+        clone = clone_object(group)
+        self.assertEqual(clone.x_mm, group.x_mm + 5)
+        self.assertIsNot(clone.children[0], group.children[0])
+
+    def test_ignored_objects_remember_their_layer(self):
+        group = GroupObject([self.big, self.small])
+        group.set_ignored(True)
+        self.assertTrue(group.is_ignored())
+        self.assertEqual((self.big.layer_id, self.small.layer_id), (IGNORED_LAYER_ID, IGNORED_LAYER_ID))
+        group = VectorObject.from_dict(group.to_dict())             # gardé dans le projet
+        group.set_ignored(False)
+        self.assertEqual([c.layer_id for c in group.children], ["A", "B"])
+        self.assertEqual(group.layer_id, "A")
+        lone = square(0, 0, 5, layer=None)
+        lone.layer_id = IGNORED_LAYER_ID                            # jamais noté : calque de repli
+        lone.set_ignored(False, "L9")
+        self.assertEqual(lone.layer_id, "L9")
+
+    def test_ignored_object_inside_a_group(self):
+        group = GroupObject([self.big, self.small], operation=boolean_ops.DIFFERENCE)
+        self.small.set_ignored(True)
+        group.child_ignored_changed()
+        self.assertTrue(inside(group.world_path(), 30, 30))         # le petit carré ne creuse plus
+        self.big.set_ignored(True)
+        group.child_ignored_changed()
+        self.assertTrue(group.is_ignored())
+        plain = GroupObject([square(0, 0, 10, "A"), square(20, 0, 10, "B")])
+        plain.children[1].set_ignored(True)
+        plain.child_ignored_changed()
+        self.assertEqual([layer for layer, _p in plain.local_parts()], ["A"])
+
+    def test_engraving_data_by_layer(self):
+        layers = LayersModel()
+        first, second = layers.layers[0].id, layers.layers[1].id
+        big, small = square(10, 10, 40, first), square(25, 25, 10, second)
+        data = extract_vector_layer_data([GroupObject([big, small])], layers, optimize_path=False)
+        self.assertEqual((len(data[first]["polygon_groups"]), len(data[second]["polygon_groups"])), (1, 1))
+        data = extract_vector_layer_data([GroupObject([big, small], operation=boolean_ops.DIFFERENCE)], layers,
+                                         optimize_path=False)
+        self.assertEqual(len(data[first]["polygon_groups"]), 1)
+        self.assertEqual(len(data[first]["polygon_groups"][0]), 2)      # contour et trou, règle pair-impair
+        self.assertEqual(data[second]["polygon_groups"], [])
+        small.set_ignored(True)
+        data = extract_vector_layer_data([big, small], layers, optimize_path=False)
+        self.assertEqual(data[second]["polygon_groups"], [])           # ni gravé ni découpé
+        self.assertEqual(len(data[first]["polygon_groups"]), 1)
+        big.hidden = True                                              # masqué : toujours gravé
+        data = extract_vector_layer_data([big], layers, optimize_path=False)
+        self.assertEqual(len(data[first]["polygon_groups"]), 1)
+
+
+@unittest.skipIf(GroupObject is None, "PyQt6 non importable ici")
+class DocumentOrderTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_move_up_and_down(self):
+        doc = VectorDocument()
+        a, b, c, d = (doc.add(square(i * 10, 0, 5)) for i in range(4))
+        events = []
+        doc.order_changed.connect(lambda: events.append("order"))
+        self.assertTrue(doc.move([a, b], 1))
+        self.assertEqual(doc.objects, [c, a, b, d])
+        self.assertFalse(doc.move([b, d], 1))              # d déjà en haut, b juste dessous : rien ne bouge
+        self.assertEqual(doc.objects, [c, a, b, d])
+        self.assertTrue(doc.move([d], -1))
+        self.assertEqual(doc.objects, [c, a, d, b])
+        self.assertFalse(doc.move([c], -1))                # déjà tout en bas
+        self.assertEqual(events, ["order", "order"])
+
+
+@unittest.skipIf(GroupObject is None, "PyQt6 non importable ici")
+class EditorGroupTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.layers = LayersModel()
+        self.document = VectorDocument()
+        self.canvas = VectorCanvasView(self.layers, document=self.document)
+        self.canvas.set_work_area(300.0, 200.0)
+        self.editor = VectorEditorController(self.document, self.canvas, self.layers, MachineConfig(),
+                                             FakeDialogs())
+        self.addCleanup(self.canvas.deleteLater)
+        self.a, self.b, self.c = (self.canvas.add_object(square(i * 30, 0, 20)).obj for i in range(3))
+
+    def z(self, obj):
+        return self.canvas.item_for(obj).zValue()
+
+    def test_group_takes_the_place_of_its_highest_object_and_ungroups_in_place(self):
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.assertEqual(self.document.objects, [group, self.c])
+        self.assertLess(self.z(group), self.z(self.c))
+        self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
+        released = self.editor.ungroup_selection()
+        self.assertEqual(self.document.objects, [self.a, self.b, self.c])
+        self.assertEqual(len(released), 2)
+        self.document.undo()
+        self.assertEqual(len(self.document.objects), 2)
+
+    def test_combine_then_change_the_operation(self):
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.UNION)
+        self.assertEqual(group.operation, boolean_ops.UNION)
+        self.assertIs(self.editor.group_selection(boolean_ops.DIFFERENCE), group)
+        self.assertEqual(group.operation, boolean_ops.DIFFERENCE)
+
+    def test_move_objects_and_children(self):
+        self.editor.move_objects([(None, self.a)], 1)
+        self.assertEqual(self.document.objects, [self.b, self.a, self.c])
+        self.assertGreater(self.z(self.a), self.z(self.b))
+        self.assertFalse(self.editor.move_objects([(None, self.c)], 1))    # déjà tout en haut
+        self.canvas.select_objects([self.b, self.a])
+        group = self.editor.group_selection(boolean_ops.DIFFERENCE)
+        bottom = group.children[0]
+        self.editor.move_objects([(group, bottom)], 1)
+        self.assertIs(group.children[1], bottom)
+
+    def test_layer_of_a_group_goes_to_all_its_objects(self):
+        other = self.layers.layers[1].id
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.canvas.select_objects([group])
+        self.editor.set_selected_layer(other)
+        self.assertEqual({c.layer_id for c in group.children}, {other})
+
+    def test_eye_and_ignore(self):
+        item = self.canvas.item_for(self.a)
+        self.editor.set_object_visible(self.a, False)
+        self.assertTrue(item.inactive)
+        self.assertTrue(item.shape().isEmpty())               # la souris le traverse
+        self.assertTrue(self.a.is_hidden())
+        self.editor.set_object_visible(self.a, True)
+        self.assertFalse(item.inactive)
+        layer = self.b.layer_id
+        self.editor.toggle_ignored(self.b)
+        self.assertEqual(self.b.layer_id, IGNORED_LAYER_ID)
+        self.assertTrue(self.canvas.item_for(self.b).inactive)
+        self.editor.toggle_ignored(self.b)
+        self.assertEqual(self.b.layer_id, layer)
+        self.document.undo()
+        self.assertTrue(self.document.objects[1].is_ignored())
+
+    def test_an_ignored_group_chosen_in_the_list_takes_a_new_layer(self):
+        cut = self.layers.layer_for_role("cut").id
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.editor.toggle_ignored(group)
+        self.assertEqual(self.canvas.select_objects([group]), [group])          # choisi dans la liste
+        self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
+        from laser_studio.ui.vector_editor.tab import VectorEditorTab
+        from laser_studio.ui.vector_editor.properties_panel import VectorPropertiesPanel
+        tab = VectorEditorTab(self.canvas)
+        self.addCleanup(tab.deleteLater)
+        panel = VectorPropertiesPanel(tab.properties_widgets, self.layers, self.canvas, self.editor)
+        panel.refresh()
+        self.assertFalse(tab.properties_widgets.x.isEnabled())                  # pas de position fiable
+        self.assertIn("Ignoré", tab.properties_widgets.label.text())
+        self.editor.set_selected_layer(cut)
+        self.assertFalse(group.is_ignored())
+        self.assertEqual({c.layer_id for c in group.children}, {cut})
+        self.assertFalse(self.canvas.item_for(group).inactive)
+
+    def test_trash(self):
+        self.editor.delete_object(None, self.c)
+        self.assertEqual(self.document.objects, [self.a, self.b])
+        inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
+        outer = GroupObject([inner, square(40, 50, 10)])
+        self.canvas.add_object(outer)
+        self.editor.delete_object(inner, inner.children[0])
+        self.assertEqual(len(inner.children), 1)
+        self.assertEqual(outer.world_path().boundingRect().left(), 20.0)       # recalculé jusqu'en haut
+        self.editor.delete_object(inner, inner.children[0])                    # groupe vidé : retiré
+        self.assertEqual(len(outer.children), 1)
+        self.editor.delete_object(outer, outer.children[0])                    # tout s'est vidé
+        self.assertEqual(self.document.objects, [self.a, self.b])
+        self.document.undo()
+        self.assertEqual(len(self.document.objects), 3)
+
+    def test_eye_inside_a_group_hides_only_on_screen(self):
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.editor.set_object_visible(self.b, False)
+        self.assertEqual(len(group.local_parts()), 1)                           # affiché sans lui
+        self.assertEqual(group.display_local_path().boundingRect().width(), 20.0)
+        self.assertEqual(len(group.engraving_parts()), 2)                       # toujours gravé
+        self.assertFalse(self.canvas.item_for(group).inactive)
+        group.set_operation(boolean_ops.UNION)
+        self.assertEqual(group.world_path().boundingRect().width(), 50.0)       # gravure : les deux carrés
+        self.assertEqual(group.display_world_path().boundingRect().width(), 20.0)
+
+    def test_nested_groups(self):
+        inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
+        outer = GroupObject([inner, square(40, 50, 10)])
+        self.canvas.add_object(outer)
+        deep = inner.children[1]
+        self.editor.toggle_ignored(deep)
+        self.assertTrue(deep.is_ignored())
+        self.assertEqual(outer.world_path().boundingRect().width(), 50.0)       # recalculé jusqu'en haut
+        self.editor.move_objects([(inner, inner.children[0])], 1)
+        self.assertIs(inner.children[1].is_ignored(), False)
+        panel = ObjectsPanel()
+        self.addCleanup(panel.deleteLater)
+        panel.show_objects(self.document.objects, lambda _id: None)
+        row = panel.tree.topLevelItem(0).child(1).child(0)                       # objet de « inner »
+        row.setSelected(True)
+        self.assertEqual(panel.selected_objects(), [outer])
+
+    def test_rename(self):
+        self.editor.rename_object(self.a, " Plaque ")
+        self.assertEqual(object_label(self.a), "Plaque")
+        self.document.undo()
+        self.assertNotEqual(object_label(self.document.objects[0]), "Plaque")
+
+
+@unittest.skipIf(GroupObject is None, "PyQt6 non importable ici")
+class ObjectsPanelTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.panel = ObjectsPanel()
+        self.addCleanup(self.panel.deleteLater)
+        self.a, self.b = square(0, 0, 10, "L1"), square(20, 0, 10, "L1")
+        self.text = TextObject("Bonjour", "DejaVu Sans", 8.0, layer_id="L1")
+        self.group = GroupObject([self.a, self.b], operation=boolean_ops.DIFFERENCE)
+        self.panel.show_objects([self.text, self.group], lambda _id: None)
+
+    def test_top_of_the_pile_first_and_group_children(self):
+        tree = self.panel.tree
+        self.assertEqual(tree.topLevelItemCount(), 2)
+        self.assertEqual(tree.topLevelItem(0).text(NAME_COLUMN), "Différence")
+        self.assertEqual(tree.topLevelItem(1).text(NAME_COLUMN), "« Bonjour »")
+        self.assertEqual(tree.topLevelItem(0).childCount(), 2)
+
+    def test_selecting_a_child_selects_its_group_and_signals(self):
+        chosen, moves, groups = [], [], []
+        self.panel.selection_requested.connect(chosen.append)
+        self.panel.move_requested.connect(lambda entries, step: moves.append((entries, step)))
+        self.panel.group_requested.connect(groups.append)
+        child = self.panel.tree.topLevelItem(0).child(0)
+        child.setSelected(True)
+        self.assertEqual(chosen[-1], [self.group])
+        self.panel.up_button.click()
+        self.assertEqual(moves, [([(self.group, self.b)], 1)])
+        self.assertTrue(self.panel.boolean_button.isEnabled())
+        self.panel.boolean_actions[boolean_ops.UNION].trigger()
+        self.assertEqual(groups, [boolean_ops.UNION])
+
+    def test_eye_and_ignore_buttons(self):
+        shown, ignored = [], []
+        self.panel.visibility_requested.connect(lambda obj, visible: shown.append((obj, visible)))
+        self.panel.ignore_requested.connect(ignored.append)
+        tree = self.panel.tree
+        text_row = tree.topLevelItem(1)
+        tree.itemClicked.emit(text_row, EYE_COLUMN)
+        self.assertEqual(shown, [(self.text, False)])
+        child = tree.topLevelItem(0).child(0)
+        tree.itemClicked.emit(child, EYE_COLUMN)                   # œil aussi dans un groupe
+        self.assertEqual(shown[-1], (self.b, False))
+        tree.itemClicked.emit(child, IGNORE_COLUMN)
+        self.assertEqual(ignored, [self.b])
+        deleted = []
+        self.panel.delete_requested.connect(lambda group, obj: deleted.append((group, obj)))
+        tree.itemClicked.emit(text_row, DELETE_COLUMN)
+        tree.itemClicked.emit(child, DELETE_COLUMN)
+        self.assertEqual(deleted, [(None, self.text), (self.group, self.b)])
+        self.text.set_ignored(True)
+        self.panel.show_objects([self.text, self.group], lambda _id: None)
+        self.assertEqual(tree.topLevelItem(1).text(LAYER_COLUMN), "Ignoré")
+        self.assertTrue(tree.topLevelItem(1).font(NAME_COLUMN).strikeOut())
+
+    def test_right_click_menu(self):
+        groups = []
+        self.panel.group_requested.connect(groups.append)
+        self.panel.show_selection([self.text])
+        self.assertIsNone(self.panel.context_menu())                         # un seul objet : rien à combiner
+        tree = self.panel.tree
+        tree.topLevelItem(0).setSelected(True)
+        tree.topLevelItem(1).setSelected(True)
+        menu = self.panel.context_menu()
+        labels = [a.text() for a in menu.actions() if a.text()]
+        self.assertEqual(labels, ["Groupe", "Union", "Différence", "Intersection", "Exclusion", "Dégrouper"])
+        next(a for a in menu.actions() if a.text() == "Différence").trigger()
+        self.assertEqual(groups, [boolean_ops.DIFFERENCE])
+
+    def test_canvas_selection_is_shown(self):
+        self.panel.show_selection([self.text])
+        self.assertEqual(self.panel.selected_objects(), [self.text])
+        self.assertFalse(self.panel.group_button.isEnabled())
+        self.assertFalse(self.panel.ungroup_button.isEnabled())
+
+
+if __name__ == "__main__":
+    unittest.main()

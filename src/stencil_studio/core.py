@@ -1732,33 +1732,6 @@ def _merge_near_colors(cen, cnt, max_dist=12.0, white_dist=18.0):
     return cen, cnt
 
 
-def _natural_color_count(cen_lab, counts, total, max_n, min_keep=None):
-    """Estime le nombre « naturel » de couleurs (≤ max_n) à partir de l'importance relative.
-    Coupe seulement les candidats vraiment négligeables (fantômes AA), pas les petits aplats utiles.
-    `min_keep` : plancher (ex. cartoons : au moins ~5 si le plafond le permet)."""
-    m = len(cen_lab)
-    if m <= 2:
-        return max(2, min(m, max_n))
-    imp = _chroma_boost(cen_lab, counts, total)
-    order = list(np.argsort(-imp))
-    scores = [float(imp[i]) for i in order]
-    s0 = max(scores[0], 1e-6)
-    scores_n = [s / s0 for s in scores]
-    keep = 2
-    for k in range(2, min(m, max_n)):
-        if scores_n[k] < 0.045:
-            break
-        if scores_n[k] < 0.10 and scores_n[k] < 0.30 * scores_n[k - 1]:
-            break
-        keep = k + 1
-    # plancher : logos (peu de modes forts) restent bas ; cartoons montent vers min_keep
-    if min_keep is None:
-        # si beaucoup de candidats distincts → cartoon / illustration → viser au moins min(5, max_n)
-        min_keep = min(5, max_n) if m >= 5 else 2
-    keep = max(keep, min(min_keep, max_n, m))
-    return max(2, min(keep, max_n))
-
-
 def _select_mmr(cen_lab, counts, total, k, min_dist=11.0, lam=0.45):
     """Sélectionne jusqu'à k centres en favorisant l'importance et la diversité perceptuelle (Lab).
     Retourne (indices_choisis, liste_(idx, raison_rejet))."""

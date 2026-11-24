@@ -4,12 +4,13 @@ et place texte / SVG de décor sur les faces d'une boîte.
 
 Repère des objets : origine en bas à gauche de la zone de travail, Y vers le haut
 (le tracé local, lui, est en Y vers le bas, ancré en bas à gauche de l'objet — voir
-extract_svg_objects)."""
+vector/path_ops.py)."""
 from PyQt6.QtGui import QPainterPath
 
 from laser_studio.vector.box_generator import BoxDecor  # noqa: F401  (réexporté : vector.importers.BoxDecor)
-from laser_studio.models.vector_objects import SvgPathObject, TextObject
-from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.models.vector_objects import IGNORED_LAYER_ID, SvgPathObject, TextObject
+from laser_studio.vector.path_ops import world_path_to_svg_object
+from laser_studio.vector.svg_tree_import import import_svg_tree
 
 
 def _path_object(points, closed, tag, layer_id, shift_x, shift_y):
@@ -168,13 +169,24 @@ def center_group(objects, cx, cy, width_mm=0.0):
     return objects
 
 
+def _svg_decor(path, layer_id, bed_h_mm):
+    """Le SVG de décor lu selon la spécification (vector/svg_tree_import.py : transformations, viewBox,
+    éléments cachés écartés…), sa partie visible fusionnée en UN tracé sur `layer_id` ; [] s'il est vide."""
+    combined = QPainterPath()
+    for obj in import_svg_tree(path, lambda _role: layer_id, bed_h_mm):
+        for part_layer, part in obj.engraving_parts():
+            if part_layer != IGNORED_LAYER_ID:
+                combined.addPath(part)
+    obj = world_path_to_svg_object(combined, layer_id, source_tag="svg:decor") if not combined.isEmpty() else None
+    return [obj] if obj is not None else []
+
+
 def decor_to_objects(decor, panel, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y_mm=10.0):
     """Objets de décor (texte ou SVG, groupé par défaut) centrés sur la face `panel` de la boîte."""
     fx, fy = panel.face_center()
     cx, cy = fx + offset_x_mm + decor.dx, fy + offset_y_mm + decor.dy
     if decor.kind == "svg":
-        objects = extract_svg_objects(decor.svg_path, layer_id, bed_h_mm)
-        return center_group(objects, cx, cy, decor.width_mm)
+        return center_group(_svg_decor(decor.svg_path, layer_id, bed_h_mm), cx, cy, decor.width_mm)
     if not decor.text.strip():
         return []
     obj = TextObject(text=decor.text, font_family=decor.font_family, size_mm=decor.size_mm,

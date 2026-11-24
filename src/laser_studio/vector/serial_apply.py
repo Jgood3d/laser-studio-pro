@@ -12,7 +12,10 @@ from laser_studio.models.vector_objects import VectorObject
 
 
 def object_bounds(obj):
-    """Rectangle englobant monde (xmin, ymin, xmax, ymax), Y vers le haut ; None si l'objet n'a aucun tracé."""
+    """Rectangle englobant monde (xmin, ymin, xmax, ymax), Y vers le haut ; None si l'objet n'a aucun tracé
+    ou s'il est sur le calque « Ignoré » (ni affiché ni gravé)."""
+    if getattr(obj, "is_ignored", lambda: False)():
+        return None
     path = obj.world_path()
     if path.isEmpty():
         return None

@@ -107,3 +107,30 @@ def medal_texts(guide_obj, pts, top_text, bottom_text, font_family, size_mm, mar
             obj.follow_gap_mm = -margin_mm
         created.append(obj)
     return created
+
+
+# -- règles de la sélection (menu du clic droit et contrôleur de l'éditeur)
+
+def text_follow_pair(objects):
+    """(texte, guide) si `objects` sont exactement un texte et un autre objet, sinon None."""
+    texts = [o for o in objects if isinstance(o, TextObject)]
+    guides = [o for o in objects if not isinstance(o, TextObject)]
+    if len(objects) == 2 and len(texts) == 1 and len(guides) == 1:
+        return texts[0], guides[0]
+    return None
+
+
+def linked_guide(text, objects):
+    """Objet de `objects` dont le texte `text` a copié le contour, s'il existe encore (sinon None)."""
+    guide_id = getattr(text, "follow_guide_id", None)
+    if not guide_id or not getattr(text, "follow_points", None):
+        return None
+    return next((o for o in objects if o.id == guide_id and not isinstance(o, TextObject)), None)
+
+
+def medal_guide(objects):
+    """L'objet si `objects` est un seul objet (hors texte) à contour fermé, sinon None."""
+    if len(objects) == 1 and closed_follow_path(objects[0]) is not None:
+        return objects[0]
+    return None
+

@@ -88,6 +88,21 @@ class Png2SvgControllerTests(_QtTest):
         controller.send_to_vector_editor("pas du SVG")
         self.assertEqual((added, self.messages), ([], ["critical"]))
 
+    def test_export_writes_the_chosen_file(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from job_fakes import FakeDialogs
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, "dessin")
+            dialogs = FakeDialogs(path=target)
+            controller = Png2SvgController(None, LayersModel(), bed_height=lambda: 300.0,
+                                           add_to_vector_editor=lambda objects: None, dialogs=dialogs)
+            self.assertEqual(controller.export_svg(SVG), target + ".svg")       # extension ajoutée
+            with open(target + ".svg", encoding="utf-8") as f:
+                self.assertEqual(f.read(), SVG)
+            self.assertIsNone(Png2SvgController(None, LayersModel(), bed_height=lambda: 300.0,
+                                                add_to_vector_editor=lambda o: None,
+                                                dialogs=FakeDialogs(path="")).export_svg(SVG))   # annulé
+
     def test_without_layer_nothing_happens(self):
         layers = LayersModel()
         layers.layers = []

@@ -313,7 +313,8 @@ class JobController(QObject):
                     )):
                 return False
 
-        objects = list(self._vector_objects())
+        # Les objets du calque « Ignoré » ne sont ni gravés ni découpés : pas comptés.
+        objects = [o for o in self._vector_objects() if not o.is_ignored()]
         if processed_array is not None and objects:
             layer_names = sorted(set(
                 self.layers.get(o.layer_id).name for o in objects if self.layers.get(o.layer_id)
@@ -444,20 +445,21 @@ class JobController(QObject):
             except Exception:
                 log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
 
-        objects = list(self._vector_objects())
+        # Ce qui sera gravé, calque par calque : chaque objet d'un simple groupe sur son calque, rien pour un
+        # objet du calque « Ignoré ».
+        parts = [part for o in self._vector_objects() for part in o.engraving_parts()]
         for layer in self.layers.layers:
             if not layer.enabled:
                 continue
-            objs = [o for o in objects if o.layer_id == layer.id]
-            if not objs:
+            paths = [path for layer_id, path in parts if layer_id == layer.id]
+            if not paths:
                 continue
             if layer.mode == MODE_FILL:
-                total_area = sum(o.world_path().boundingRect().width() *
-                                 o.world_path().boundingRect().height() for o in objs)
+                total_area = sum(p.boundingRect().width() * p.boundingRect().height() for p in paths)
                 length_est = total_area / max(layer.line_interval, 0.02)
                 t = (length_est / max(layer.speed, 1)) * 60.0
             else:
-                total_len = sum(o.world_path().length() for o in objs)
+                total_len = sum(p.length() for p in paths)
                 t = (total_len / max(layer.speed, 1)) * 60.0 * max(layer.passes, 1)
             total_seconds += t
             details.append(tr("gcode.layer_details").format(name=layer.name, duration=estimate_duration_text(t)))

@@ -5,7 +5,7 @@
     python tools/signal_map.py --list     # la même chose, en texte
 
 Lit le code (sans le lancer) : dans ui/app/main_window.py et
-ui/app/window_controller.py, chaque `émetteur.signal.connect(cible)` dont
+controllers/window.py, chaque `émetteur.signal.connect(cible)` dont
 l'émetteur est une classe de ui/ (page, onglet, panneau, menu). Pour
 chaque connexion : la classe et son fichier, la méthode qui branche, la
 fonction appelée et le fichier où elle est écrite.
@@ -28,7 +28,7 @@ OUTPUT = os.path.join(REPO, "docs", "architecture", "signaux")
 # Fichiers où la fenêtre branche les signaux.
 WIRING_FILES = (
     os.path.join("ui", "app", "main_window.py"),
-    os.path.join("ui", "app", "window_controller.py"),
+    os.path.join("controllers", "window.py"),
 ) + tuple(sorted(os.path.relpath(p, ROOT) for p in glob.glob(os.path.join(ROOT, "ui", "**", "builder.py"),
                                                                  recursive=True)))
 # Paramètres de méthode (fenêtre, builders) dont le type ne se lit pas dans le code.
@@ -256,7 +256,7 @@ PALETTE = {
     "controllers/png2svg.py": "#1abc9c",
     "controllers/separation.py": "#6c5ce7",
     "ui/app/main_window.py": "#34495e",
-    "ui/app/window_controller.py": "#5d6d7e",
+    "controllers/window.py": "#5d6d7e",
     "ui/app/tabs.py": "#7b8a8b",
     "ui/app/job_display.py": "#a04000",
     "ui/app/image_actions.py": "#117a65",
@@ -397,7 +397,7 @@ def draw(rows, index):
         66,
         "Chaque page / onglet / panneau émet des signaux (à "
         "gauche). La fenêtre FullLaserStudio les branche (ui/app/main_window"
-        ".py, ui/app/window_controller.py) sur une fonction (à droite"
+        ".py, controllers/window.py) sur une fonction (à droite"
         "), colorée selon le fichier où elle est écrite.",
         size=13,
         fill="#5d6d7e",

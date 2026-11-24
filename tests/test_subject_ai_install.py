@@ -64,5 +64,32 @@ class InstallCommandTest(unittest.TestCase):
             self.assertEqual(subject_ai.install_command(path), subject_ai.PIP_INSTALL)
 
 
+class ModelChecksumTest(unittest.TestCase):
+    """Le modèle livré correspond à l'empreinte attendue : un modèle remplacé sans mettre à jour
+    MODEL_SHA256 serait refusé (et retéléchargé) à chaque lancement."""
+
+    def test_bundled_model_matches(self):
+        bundled = os.path.join(REPO, "src", "stencil_studio", "resources", "models", "u2netp.onnx")
+        if not os.path.isfile(bundled):
+            self.skipTest("modèle non livré dans cette copie")
+        self.assertEqual(subject_ai._sha256(bundled), subject_ai.MODEL_SHA256)
+
+    def test_corrupt_download_is_refused(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = os.path.join(folder, "u2netp.onnx")
+            body = mock.MagicMock()
+            body.__enter__.return_value.read.side_effect = [b"pas un modele", b""]
+            with mock.patch.object(subject_ai, "MODEL_DIR", folder), \
+                    mock.patch.object(subject_ai, "MODEL_FILE", target), \
+                    mock.patch.object(subject_ai, "_SESS", [None]), mock.patch.object(subject_ai, "_RETRY_AT", [0.0]), \
+                    mock.patch.object(subject_ai, "_ERR", [""]), \
+                    mock.patch.object(subject_ai.urllib.request, "urlopen", return_value=body), \
+                    mock.patch.dict(sys.modules, {"onnxruntime": mock.MagicMock()}):
+                self.assertIsNone(subject_ai._session())
+                self.assertIn("corrompu", subject_ai.last_error())
+            self.assertFalse(os.path.exists(target))
+            self.assertFalse(os.path.exists(target + ".part"))
+
+
 if __name__ == "__main__":
     unittest.main()

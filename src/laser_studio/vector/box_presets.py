@@ -3,6 +3,8 @@ de données de l'utilisateur. Sans Qt. Les calques et les décors ne sont pas m�
 import json
 import os
 
+from laser_common.files import atomic_write_json
+
 PRESET_FILE = "box_presets.json"
 _PROJECT_KEYS = ("cut_layer", "engrave_layer", "decors")
 
@@ -62,9 +64,9 @@ def delete_user(name, path=None):
 
 
 def _write(path, data):
+    """Écriture atomique : un disque plein ou un arrêt en cours d'écriture laisse l'ancien fichier intact."""
     try:
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, ensure_ascii=False, indent=1)
-    except OSError:
+        atomic_write_json(path, data, ensure_ascii=False, indent=1)
+    except (OSError, TypeError, ValueError):
         return False
     return True

@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from PyQt6.QtCore import QByteArray, QSize, Qt
 from PyQt6.QtGui import QIcon, QPainter, QPalette, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import QApplication, QStyle, QToolButton
+from PyQt6.QtWidgets import QApplication, QToolButton
 
 from laser_studio.core.constants import JOG_BUTTON_SIZE
 from laser_studio.core.paths import find_resource
@@ -54,14 +54,6 @@ def tool_button(icon, tooltip, color=None):
             "QToolButton:disabled { background-color: #b0b0b0; }"
         )
     return button
-
-
-def fullscreen_icon(widget):
-    """Icône « plein écran » du thème, sinon bouton d'agrandissement de Qt."""
-    fallback = QStyle.StandardPixmap.SP_TitleBarMaxButton
-    return QIcon.fromTheme(
-        QIcon.ThemeIcon.ViewFullscreen, widget.style().standardIcon(fallback)
-    )
 
 
 def palette_icon(name, palette, fallback=None):

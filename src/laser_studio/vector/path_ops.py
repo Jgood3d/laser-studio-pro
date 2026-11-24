@@ -1,12 +1,13 @@
-"""Opérations de géométrie sur les objets du dessin : grouper, dégrouper,
-exploser en segments, convertir en tracé. Elles fabriquent de nouveaux
+"""Opérations de géométrie sur les objets du dessin : séparer un tracé en
+sous-tracés, exploser en segments, convertir en tracé (grouper : GroupObject,
+models/vector_objects.py). Elles fabriquent de nouveaux
 objets sans toucher au document : l'appelant les remplace
 (VectorDocument.replace) et prend l'étape d'annulation.
 
 Les tracés sont des QPainterPath (QtGui, sans widget). Repère « monde » :
 origine bas-gauche, Y vers le haut ; repère local d'un SvgPathObject : ancré
 sur le coin bas-gauche de sa boîte englobante, Y vers le bas (comme
-extract_svg_objects).
+vector/svg_tree_import.py).
 """
 from PyQt6.QtCore import QPointF
 from PyQt6.QtGui import QPainterPath, QTransform
@@ -57,27 +58,6 @@ def world_path_to_svg_object(world_path, layer_id, source_tag="segment"):
         layer_id=layer_id,
         x_mm=x0,
         y_mm=y0,
-    )
-
-
-def group_objects(objects):
-    """UN SEUL objet tracé (SvgPathObject) qui réunit `objects`, déjà rangés
-    dans l'ordre du document : la géométrie de chaque partie est reprise telle
-    qu'elle est positionnée (position, rotation, miroir, taille), puis
-    fusionnée. Le calque retenu est celui du premier objet. None si le tracé
-    réuni est vide."""
-    combined = QPainterPath()
-    for obj in objects:
-        combined.addPath(obj.world_path())
-    bbox = combined.boundingRect()
-    if bbox.isNull():
-        return None
-    x0, y0 = bbox.left(), bbox.top()
-    to_local = QTransform(1, 0, 0, -1, -x0, y0)
-    local = to_local.map(combined)
-    return SvgPathObject(
-        local_path_data=local, source_tag="group",
-        layer_id=objects[0].layer_id, x_mm=x0, y_mm=y0,
     )
 
 

@@ -39,7 +39,6 @@ from laser_studio.camera.workspace_alignment import (
     merge_detections,
     generate_apriltag_targets,
     tag_cell_px,
-    targets_to_engrave_paths,
 )
 from laser_studio.controllers.camera import CameraController
 from laser_studio.i18n import tr
@@ -497,7 +496,3 @@ class WorkspaceAlignmentWizard(QDialog):
                 n=len(self._targets), layer=layer.name, size=f"{self.spin_tag.value():.0f}",
             ),
         )
-
-    def engrave_paths(self) -> list:
-        """Contours à graver pour le motif d'alignement (utilisable par l'appelant)."""
-        return targets_to_engrave_paths(self._targets)

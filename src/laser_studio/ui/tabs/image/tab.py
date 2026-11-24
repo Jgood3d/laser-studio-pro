@@ -1,15 +1,13 @@
 """Onglet « Graver une image » : réglages, aperçus original et tramé."""
 
 from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon, QImage, QPen, QPolygonF
+from PyQt6.QtGui import QAction, QImage, QPen, QPolygonF
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QScrollArea,
     QSizePolicy,
     QSplitter,
-    QStyle,
     QVBoxLayout,
     QWidget,
 )
@@ -17,25 +15,27 @@ from PyQt6.QtWidgets import (
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
 from laser_studio.ui.utils import painted_icon, palette_icon, zoom_shortcuts
-from laser_studio.ui.widgets import TabToolBar, ZoomableGraphicsView
+from laser_studio.ui.widgets import FloatingToolBar, ZoomableGraphicsView
 
 
 class ImageTab(QWidget):
     """Réglages de l'image à gauche, aperçus original et tramé à droite.
 
     Les réglages sont dans `settings` (ImageSettingsPanel), qui émet ses
-    propres signaux. La barre d'outils émet compare_requested
-    (comparaison des algorithmes de tramage).
-    L'image originale est masquée par défaut ; la case « Afficher
-    l'originale » la montre, à côté du rendu tramé et de même largeur.
+    propres signaux. La barre flottante à gauche des aperçus (`view_toolbar`)
+    émet compare_requested (comparaison des algorithmes de tramage) et porte
+    « Afficher l'originale » (`show_original_action`, cochable) : l'image
+    originale, masquée par défaut, s'affiche à côté du rendu tramé, de même
+    largeur.
 
         tab = ImageTab()
         tab.settings.processing_changed.connect(image.schedule_processing)
         image.source_changed.connect(tab.show_source)
         image.processed.connect(tab.show_processed)
 
-    `preview_area` (les deux aperçus) accueille la barre flottante annuler /
-    refaire / pivoter / miroirs (FloatingToolBar), posée par la fenêtre.
+    `preview_area` (les deux aperçus) accueille aussi, en haut, la barre
+    flottante recadrer / pivoter / miroirs / annuler / loupes
+    (FloatingToolBar), posée par la fenêtre.
     """
 
     compare_requested = pyqtSignal()
@@ -46,8 +46,6 @@ class ImageTab(QWidget):
         self.settings = ImageSettingsPanel()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        self.toolbar = self._toolbar()
-        layout.addWidget(self.toolbar)
         row = QHBoxLayout()
         # Réglages de l'image à gauche, comme dans Séparation.
         self._settings_scroll = self._side_scroll(self.settings)
@@ -64,6 +62,7 @@ class ImageTab(QWidget):
         self.crop_action.triggered.connect(lambda: self.crop_requested.emit())
         self.crop_action.setEnabled(False)
         zoom_shortcuts(self, self.zoom_in, self.zoom_out)
+        self.view_toolbar = self._view_toolbar()
 
     # -- construction
 
@@ -93,33 +92,26 @@ class ImageTab(QWidget):
         action.triggered.connect(slot)
         return action
 
-    def _toolbar(self):
-        """Comparaison des algorithmes et « Afficher l'originale »."""
-        compare_icon = QIcon.fromTheme(
-            "view-app-grid",
-            QIcon.fromTheme(
-                "view-list-icons",
-                self.style().standardIcon(
-                    QStyle.StandardPixmap.SP_FileDialogListView
-                ),
-            ),
-        )
-        self.show_original_check = QCheckBox(tr("img.show_original"))
-        self.show_original_check.setToolTip(tr("img.show_original_tip"))
-        self.show_original_check.toggled.connect(self._show_original)
-        toolbar = TabToolBar(
-            self,
-            left_actions=[
-                (
-                    compare_icon,
-                    tr("img.compare_algos"),
-                    tr("img.compare_algos_tip"),
-                    lambda: self.compare_requested.emit(),
-                ),
-            ],
-            left_widgets=[self.show_original_check],
-        )
-        return toolbar
+    def _view_toolbar(self):
+        """Barre flottante à gauche des aperçus : comparaison des algorithmes de tramage et « Afficher
+        l'originale »."""
+        self.compare_action = QAction(palette_icon("view-app-grid", self.palette()), tr("img.compare_algos"), self)
+        self.compare_action.setToolTip(tr("img.compare_algos_tip"))
+        self.compare_action.triggered.connect(lambda: self.compare_requested.emit())
+        self.show_original_action = QAction(self._original_icon(), tr("img.show_original"), self)
+        self.show_original_action.setToolTip(tr("img.show_original_tip"))
+        self.show_original_action.setCheckable(True)
+        self.show_original_action.toggled.connect(self._show_original)
+        return FloatingToolBar([self.compare_action, self.show_original_action], self.preview_area,
+                               anchor="left")
+
+    def _original_icon(self):
+        """Afficher l'originale : deux cadres côte à côte, dans la couleur du texte du thème."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2.5))
+            painter.drawRect(3, 7, 11, 18)
+            painter.drawRect(18, 7, 11, 18)
+        return painted_icon(self.palette(), draw)
 
     def _previews(self):
         """Image originale et rendu tramé, côte à côte dans un séparateur."""

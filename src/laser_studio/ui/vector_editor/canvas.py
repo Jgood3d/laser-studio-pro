@@ -1,20 +1,21 @@
 """Canevas de l'éditeur vectoriel (VectorCanvasView) : zone de travail en mm, grille, zoom, objets
-(vue du VectorDocument), sélection, menus, texte sur contour, annulation. Les outils de la souris
-(dessin, mesure, nœuds, déplacement, accroche) sont dans tools/ ; le canevas leur passe ses événements."""
+(vue du VectorDocument), sélection, menu du clic droit. Les outils de la souris (dessin, mesure, nœuds,
+déplacement, accroche) sont dans tools/ ; le canevas leur passe ses événements.
+
+C'est une vue : les opérations sur les objets (grouper, dupliquer, supprimer, copier, coller, déplacer au
+clavier, calque, taille, texte sur contour…) sont faites par VectorEditorController. Le clavier et le clic
+droit les demandent par signaux (command_requested, nudge_requested, layer_requested…), que
+ui/vector_editor/builder.py branche sur le contrôleur."""
 import time
 from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPen, QTransform, QPainter, QKeySequence
-from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem, QMessageBox
-from laser_studio.i18n import tr
-from laser_studio.vector import group_transform, text_follow
-from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_document import VectorDocument
-from laser_studio.models.vector_objects import ShapeObject, SvgPathObject, TextObject, VectorObject
+from laser_studio.models.vector_objects import SvgPathObject, VectorObject
 from laser_studio.vector import path_ops
 from laser_studio.ui.vector_editor.context_menu import build_context_menu
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
-from laser_studio.ui.vector_editor.resize_dialog import GroupResizeDialog
 from laser_studio.ui.vector_editor.tools.follow_handle import FollowHandle
 from laser_studio.ui.vector_editor.tools.drawing import SHAPE_TOOLS, DrawingTool
 from laser_studio.ui.vector_editor.tools.measure import MeasureTool
@@ -39,6 +40,15 @@ class VectorCanvasView(QGraphicsView):
     serial_duplicate_requested = pyqtSignal()        # clic droit > Dupliquer en série...
     jig_requested = pyqtSignal()                     # clic droit > Gabarit de placement...
     medal_text_requested = pyqtSignal()              # clic droit > Texte de médaille...
+    # Commande de l'éditeur demandée au clavier ou au clic droit : "undo", "redo", "copy", "paste", "group",
+    # "ungroup", "duplicate", "delete", "rotate", "resize", "explode", "text_follow" (VectorEditorController).
+    command_requested = pyqtSignal(str)
+    nudge_requested = pyqtSignal(int, int, bool, bool)   # flèches : direction x, y ; Maj, Alt
+    layer_requested = pyqtSignal(str)                # clic droit > Assigner au calque
+    combine_requested = pyqtSignal(str)              # clic droit > Combiner (opération booléenne)
+    shape_requested = pyqtSignal(str, float, float)  # clic droit > Ajouter une forme (genre, x_mm, y_mm)
+    text_resync_requested = pyqtSignal(object)       # clic droit > Recaler le texte sur son contour
+    objects_moved = pyqtSignal(list)                 # objets déplacés à la souris (textes liés à recaler)
 
     def __init__(self, layer_manager: LayersModel, parent=None, document=None):
         super().__init__(parent)
@@ -96,6 +106,7 @@ class VectorCanvasView(QGraphicsView):
         self.set_work_area(100.0, 100.0)
 
         self.scene_obj.selectionChanged.connect(self._on_selection_changed)
+        self.document.order_changed.connect(self._apply_order)
 
     # -- zone de travail ----------------------------------------------------
     def request_recenter(self, items=None):
@@ -456,7 +467,31 @@ class VectorCanvasView(QGraphicsView):
         item.double_click_callback = lambda o=obj: self.edit_requested.emit(o)
         self.scene_obj.addItem(item)
         self._items[id(obj)] = item
+        self._apply_order()
         return item
+
+    def _apply_order(self):
+        """Empilement des éléments dans l'ordre du document : le dernier objet est au-dessus."""
+        for index, obj in enumerate(self.document.objects):
+            item = self._items.get(id(obj))
+            if item is not None:
+                item.setZValue(index)
+
+    def select_objects(self, objects):
+        """Sélectionne exactement `objects` (choisis dans la liste des objets)."""
+        wanted = {id(o) for o in objects}
+        self.scene_obj.blockSignals(True)
+        try:
+            for item in self.selected_items_vector():
+                item.setSelected(False)
+            for obj in objects:
+                item = self._items.get(id(obj))
+                if item is not None:
+                    item.setSelected(True)
+        finally:
+            self.scene_obj.blockSignals(False)
+        self._on_selection_changed()
+        return [o for o in self.document.objects if id(o) in wanted]
 
     def _on_object_added(self, obj):
         self._create_item(obj)
@@ -484,77 +519,6 @@ class VectorCanvasView(QGraphicsView):
         for obj in self.document.objects:
             self._create_item(obj)
 
-    def _remove_item(self, item):
-        """Retire l'objet de `item` du document, et l'élément de la scène même si
-        son objet n'y était plus."""
-        if not self.document.remove(item.obj):
-            try:
-                self.scene_obj.removeItem(item)
-            except RuntimeError:
-                pass
-
-    def remove_selected(self):
-        self.exit_node_edit()
-        self.push_undo_snapshot()
-        for item in list(self.scene_obj.selectedItems()):
-            if isinstance(item, VectorGraphicsItem):
-                self._remove_item(item)
-
-    def duplicate_selected(self):
-        self.push_undo_snapshot()
-        objects = [item.obj for item in list(self.scene_obj.selectedItems()) if isinstance(item, VectorGraphicsItem)]
-        return [self._items[id(clone)] for clone in self.document.duplicate(objects)]
-
-    def group_selected(self):
-        """Regroupe les objets sélectionnés (Ctrl+clic, rectangle ou Ctrl+A)
-        en UN SEUL objet tracé (SvgPathObject) : la géométrie de chaque
-        partie est reprise telle qu'elle est actuellement positionnée sur
-        le canevas (position, rotation, miroir, taille), puis fusionnée.
-        Le nouvel objet se déplace / se redimensionne / change de calque
-        comme un tout. Le calque retenu est celui de l'objet le plus ancien
-        de la sélection. Annulable avec Ctrl+Z. Renvoie le nouvel item, ou
-        None si moins de 2 objets sont sélectionnés."""
-        items = self.selected_items_vector()
-        if len(items) < 2:
-            return None
-        order = {id(o): i for i, o in enumerate(self.objects)}
-        items.sort(key=lambda it: order.get(id(it.obj), 0))
-        group_obj = path_ops.group_objects([it.obj for it in items])
-        if group_obj is None:
-            return None
-        self.push_undo_snapshot()
-        self.document.replace([it.obj for it in items], [group_obj])
-        new_item = self._items[id(group_obj)]
-        new_item.setSelected(True)
-        return new_item
-
-    def can_ungroup_item(self, item):
-        """True si l'item est un SvgPathObject avec au moins 2 sous-tracés."""
-        return path_ops.can_ungroup(getattr(item, "obj", None))
-
-    def ungroup_selected(self):
-        """Dégroupe les SvgPathObject sélectionnés : chaque sous-tracé devient
-        un objet indépendant (sélectionnable, assignable à un autre calque).
-        Inverse de group_selected / de l'import groupé. Annulable (Ctrl+Z).
-        Renvoie la liste des nouveaux items créés."""
-        items = self.selected_items_vector()
-        expandable = [it for it in items if self.can_ungroup_item(it)]
-        if not expandable:
-            return []
-
-        self.push_undo_snapshot()
-        new_items = []
-        for it in expandable:
-            children = path_ops.ungroup_object(it.obj)
-            if not children:
-                # Rien d'utile à séparer : on laisse l'objet tel quel.
-                continue
-            self.document.replace([it.obj], children)
-            new_items += [self._items[id(child)] for child in children]
-
-        for it in new_items:
-            it.setSelected(True)
-        return new_items
 
     # ------------------------------------------------------------------
     # Exploser en segments + édition de nœuds
@@ -563,34 +527,6 @@ class VectorCanvasView(QGraphicsView):
     # Fonctions de tracé (vector/path_ops.py), gardées sous leurs anciens noms.
     _world_path_to_svg_object = staticmethod(path_ops.world_path_to_svg_object)
 
-    def can_explode_item(self, item):
-        # Tout objet avec une géométrie de chemin (forme, svg, texte) peut être explosé
-        # en segments s'il a au moins une arête.
-        obj = getattr(item, "obj", None)
-        return obj is not None and path_ops.can_explode(obj)
-
-    def explode_selected(self):
-        """Découpe chaque objet sélectionné en **segments indépendants**
-        (une ligne = un objet). Permet de supprimer une seule encoche ou un
-        seul trait puis de le redessiner. Annulable (Ctrl+Z)."""
-        self.exit_node_edit()
-        items = self.selected_items_vector()
-        targets = [it for it in items if self.can_explode_item(it)]
-        if not targets:
-            return []
-
-        self.push_undo_snapshot()
-        new_items = []
-        for it in targets:
-            segments = path_ops.explode_object(it.obj)
-            if not segments:
-                continue
-            self.document.replace([it.obj], segments)
-            new_items += [self._items[id(child)] for child in segments]
-
-        for it in new_items:
-            it.setSelected(True)
-        return new_items
 
     def _ensure_svg_path_object(self, item):
         """Convertit ShapeObject/TextObject en SvgPathObject pour l'édition de nœuds."""
@@ -651,7 +587,9 @@ class VectorCanvasView(QGraphicsView):
         # Un objet qu'on vient de déplacer : les textes qui suivent son contour le suivent aussi, et la poignée
         # du texte sélectionné est replacée.
         if left:
-            self.resync_linked_texts([i.obj for i in self.selected_items_vector()])
+            moved = [i.obj for i in self.selected_items_vector()]
+            if moved:
+                self.objects_moved.emit(moved)
             self.follow_handle.sync()
 
     def _release(self, event):
@@ -715,7 +653,8 @@ class VectorCanvasView(QGraphicsView):
             return
         if event.matches(QKeySequence.StandardKey.SelectAll):
             for item in self.scene_obj.items():
-                if isinstance(item, VectorGraphicsItem):
+                # Les objets masqués ou ignorés ne se sélectionnent que depuis la liste des objets.
+                if isinstance(item, VectorGraphicsItem) and not item.inactive:
                     item.setSelected(True)
             event.accept()
             return
@@ -727,77 +666,37 @@ class VectorCanvasView(QGraphicsView):
             self.zoom_out()
             event.accept()
             return
-        if event.matches(QKeySequence.StandardKey.Undo):
-            self.undo()
-            event.accept()
-            return
-        if event.matches(QKeySequence.StandardKey.Redo):
-            self.redo()
-            event.accept()
-            return
-        if event.matches(QKeySequence.StandardKey.Copy):
-            self.copy_selected()
-            event.accept()
-            return
-        if event.matches(QKeySequence.StandardKey.Paste):
-            self.paste_clipboard()
-            event.accept()
-            return
-        if event.key() == Qt.Key.Key_G and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-            self.group_selected()
-            event.accept()
-            return
-        if event.key() == Qt.Key.Key_D and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
-            self.duplicate_selected()
-            event.accept()
-            return
-        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-            self.remove_selected()
+        command = self._key_command(event)
+        if command is not None:
+            self.command_requested.emit(command)
             event.accept()
             return
         arrows = {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0), Qt.Key.Key_Up: (0, 1), Qt.Key.Key_Down: (0, -1)}
-        if event.key() in arrows:
-            direction = arrows[event.key()]
-            if self.nudge_selection(direction[0], direction[1], event.modifiers()):
-                event.accept()
-                return
+        if event.key() in arrows and self.selected_items_vector():
+            # Sans sélection, les flèches font défiler la vue (comportement normal).
+            modifiers = event.modifiers()
+            self.nudge_requested.emit(*arrows[event.key()], bool(modifiers & Qt.KeyboardModifier.ShiftModifier),
+                                      bool(modifiers & Qt.KeyboardModifier.AltModifier))
+            event.accept()
+            return
         super().keyPressEvent(event)
 
-    def nudge_selection(self, dir_x, dir_y, modifiers=None):
-        """Flèches du clavier : déplace la sélection de 1 mm (Maj : 10 mm ; Alt : 0,1 mm). Les pressions
-        rapprochées (touche maintenue) ne comptent que pour UN « Annuler ». Renvoie False si rien n'est
-        sélectionné : la vue défile alors normalement."""
-        items = [it for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)]
-        if not items:
-            return False
-        shift = bool(modifiers and (modifiers & Qt.KeyboardModifier.ShiftModifier))
-        alt = bool(modifiers and (modifiers & Qt.KeyboardModifier.AltModifier))
-        step = nudge_step(shift=shift, alt=alt)
-        now = time.monotonic()
-        if now - getattr(self, "_last_nudge_time", -1e9) > NUDGE_UNDO_WINDOW_S:
-            self.push_undo_snapshot()
-        self._last_nudge_time = now
-        for item in items:
-            item.obj.x_mm += dir_x * step
-            item.obj.y_mm += dir_y * step
-            item.refresh()
-        return True
+    @staticmethod
+    def _key_command(event):
+        """Commande de l'éditeur d'un raccourci clavier, ou None."""
+        for key, command in ((QKeySequence.StandardKey.Undo, "undo"), (QKeySequence.StandardKey.Redo, "redo"),
+                             (QKeySequence.StandardKey.Copy, "copy"), (QKeySequence.StandardKey.Paste, "paste")):
+            if event.matches(key):
+                return command
+        control = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+        if control and event.key() == Qt.Key.Key_G:
+            return "group"
+        if control and event.key() == Qt.Key.Key_D:
+            return "duplicate"
+        if event.key() in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
+            return "delete"
+        return None
 
-    def copy_selected(self):
-        """Ctrl+C : copie les objets sélectionnés dans un presse-papiers
-        interne (propre à l'éditeur, pas le presse-papiers système)."""
-        self.document.copy([it.obj for it in self.scene_obj.selectedItems() if isinstance(it, VectorGraphicsItem)])
-
-    def paste_clipboard(self):
-        """Ctrl+V : colle les objets copiés, légèrement décalés pour rester
-        visibles distinctement de l'original."""
-        if not self.document.has_clipboard():
-            return
-        self.push_undo_snapshot()
-        for item in list(self.scene_obj.selectedItems()):
-            item.setSelected(False)
-        for clone in self.document.paste():
-            self._items[id(clone)].setSelected(True)
 
     def push_undo_snapshot(self):
         """À appeler AVANT toute action qui modifie les objets (ajout,
@@ -834,154 +733,9 @@ class VectorCanvasView(QGraphicsView):
 
     # -- Texte le long d'un objet existant (calcul : vector/text_follow.py) ---------------------------------
 
-    def text_follow_candidates(self):
-        """(élément texte, élément guide) si la sélection est exactement un texte et un autre objet, sinon None."""
-        items = self.selected_items_vector()
-        texts = [it for it in items if isinstance(it.obj, TextObject)]
-        guides = [it for it in items if not isinstance(it.obj, TextObject)]
-        if len(items) == 2 and len(texts) == 1 and len(guides) == 1:
-            return texts[0], guides[0]
-        return None
-
-    def make_text_follow_object(self):
-        """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
-        le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer). Si le
-        texte suivait déjà un contour, ses réglages (position, côté, distance) sont conservés : c'est une
-        resynchronisation. Renvoie False si la sélection ne convient pas."""
-        pair = self.text_follow_candidates()
-        if pair is None:
-            return False
-        text_item, guide_item = pair
-        pts = text_follow.follow_path(guide_item.obj)
-        if pts is None:
-            return False
-        self.push_undo_snapshot()
-        text = text_item.obj
-        text_follow.apply_follow(text, guide_item.obj, pts, keep_settings=text_follow.follows_a_path(text))
-        text_item.refresh()
-        self.scene_obj.clearSelection()
-        text_item.setSelected(True)
-        return True
-
-    def _object_by_id(self, obj_id):
-        for it in self.scene_obj.items():
-            if isinstance(it, VectorGraphicsItem) and it.obj.id == obj_id:
-                return it
-        return None
-
-    def linked_guide_item(self, text_obj):
-        """Élément de l'objet dont `text_obj` a copié le contour, s'il existe encore (sinon None)."""
-        guide_id = getattr(text_obj, "follow_guide_id", None)
-        if not guide_id or not getattr(text_obj, "follow_points", None):
-            return None
-        item = self._object_by_id(guide_id)
-        return item if item is not None and not isinstance(item.obj, TextObject) else None
-
-    def resync_text_guide(self, text_item, push_undo=True):
-        """Recopie le contour de l'objet guide dans le texte (le guide a bougé ou changé de taille), en
-        gardant la position, le côté et la distance. Renvoie False si le guide n'existe plus."""
-        guide_item = self.linked_guide_item(text_item.obj)
-        if guide_item is None:
-            return False
-        pts = text_follow.follow_path(guide_item.obj)
-        if pts is None:
-            return False
-        if push_undo:
-            self.push_undo_snapshot()
-        text_follow.apply_follow(text_item.obj, guide_item.obj, pts, keep_settings=True)
-        text_item.refresh()
-        return True
-
-    def resync_linked_texts(self, guide_objs):
-        """Resynchronise (sans nouvelle étape d'annulation) les textes liés aux objets `guide_objs` : appelé
-        quand on vient de déplacer ou modifier ces objets."""
-        ids = {o.id for o in guide_objs if not isinstance(o, TextObject)}
-        if not ids:
-            return 0
-        done = 0
-        for item in [i for i in self.scene_obj.items() if isinstance(i, VectorGraphicsItem)]:
-            if isinstance(item.obj, TextObject) and getattr(item.obj, "follow_guide_id", None) in ids:
-                if self.resync_text_guide(item, push_undo=False):
-                    done += 1
-        return done
-
-    def medal_guide_item(self):
-        """L'élément sélectionné s'il s'agit d'un seul objet (hors texte) à contour fermé, sinon None."""
-        items = self.selected_items_vector()
-        if len(items) == 1 and text_follow.closed_follow_path(items[0].obj) is not None:
-            return items[0]
-        return None
-
-    def make_medal_texts(self, top_text, bottom_text, font_family, size_mm, margin_mm, layer_id,
-                         bold=False, italic=False):
-        """Pose `top_text` en haut et `bottom_text` en bas, à l'intérieur du contour fermé sélectionné (voir
-        text_follow.medal_texts). Renvoie la liste des objets texte créés."""
-        guide_item = self.medal_guide_item()
-        if guide_item is None:
-            return []
-        pts = text_follow.closed_follow_path(guide_item.obj)
-        self.push_undo_snapshot()
-        created = text_follow.medal_texts(guide_item.obj, pts, top_text, bottom_text, font_family, size_mm,
-                                          margin_mm, layer_id, bold=bold, italic=italic)
-        for obj in created:
-            self.add_object(obj)
-        return created
-
-    def discard_added_object(self, item):
-        """Retire un objet qu'on vient d'ajouter pour un aperçu, et l'étape d'annulation prise juste avant :
-        la boîte de dialogue a été annulée."""
-        self._remove_item(item)
-        self.document.drop_last_snapshot()
-        self.follow_handle.sync()
-
-    def add_basic_shape(self, kind, cx_mm, cy_mm, size_mm=20.0):
-        """Ajoute une ligne / un carré / un cercle centré sur (cx_mm, cy_mm),
-        sur le calque par défaut, et le sélectionne (taille modifiable ensuite
-        via le panneau de position/taille ou « Redimensionner »)."""
-        layer_id = self.drawing.default_layer_id()
-        if not layer_id:
-            QMessageBox.warning(self, tr("vector.no_layer_title"), tr("vector.no_layer_body"))
-            return None
-        if kind == "Ligne":
-            obj = ShapeObject(shape_type="Ligne", width_mm=size_mm * 1.5, height_mm=0.1,
-                              layer_id=layer_id, x_mm=cx_mm - size_mm * 0.75, y_mm=cy_mm)
-        else:
-            shape_type = "Ellipse" if kind == "Cercle" else "Rectangle"
-            obj = ShapeObject(shape_type=shape_type, width_mm=size_mm, height_mm=size_mm,
-                              layer_id=layer_id, x_mm=cx_mm - size_mm / 2.0, y_mm=cy_mm - size_mm / 2.0)
-        self.push_undo_snapshot()
-        item = self.add_object(obj)
-        self.scene_obj.clearSelection()
-        item.setSelected(True)
-        self.selection_changed.emit(obj)
-        return item
 
     # -- Sélection traitée comme un groupe (calcul : vector/group_transform.py) ------------------------------
 
-    def assign_layer(self, items, layer_id):
-        self.push_undo_snapshot()
-        group_transform.assign_layer([it.obj for it in items], layer_id)
-        for it in items:
-            it.refresh()
-
-    def rotate_quarter(self, items):
-        self.push_undo_snapshot()
-        group_transform.rotate_quarter([it.obj for it in items])
-        for it in items:
-            it.refresh()
-
-    def resize_group(self, items):
-        """Redimensionne toute la sélection COMME UN GROUPE, en mm : proportions et positions relatives entre
-        les objets conservées, coin bas-gauche du groupe fixe."""
-        objects = [it.obj for it in items]
-        _x, _y, width, height = group_transform.group_bounds(objects)
-        dialog = GroupResizeDialog(max(width, 1e-6), max(height, 1e-6), self)
-        if not dialog.exec():
-            return
-        self.push_undo_snapshot()
-        group_transform.resize_group(objects, *dialog.size_mm())
-        for it in items:
-            it.refresh()
 
     def set_object_position(self, obj: VectorObject, x_mm, y_mm, rotation_deg=None):
         """Positionnement précis par saisie numérique (offset X/Y en mm depuis

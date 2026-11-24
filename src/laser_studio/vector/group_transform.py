@@ -1,7 +1,7 @@
 """Transformations d'un ensemble d'objets traité comme un groupe (menu contextuel de l'éditeur vectoriel) :
 encombrement, mise à l'échelle qui garde les positions relatives, rotation d'un quart de tour, calque.
 Agit sur les objets du document ; le canevas rafraîchit ensuite leurs éléments."""
-from laser_studio.models.vector_objects import ShapeObject, SvgPathObject, TextObject
+from laser_studio.models.vector_objects import GroupObject, ShapeObject, SvgPathObject, TextObject
 from laser_studio.vector.text_on_path import scaled_points
 
 
@@ -35,6 +35,10 @@ def scale_group(objects, factor_x, factor_y, origin):
         elif isinstance(obj, SvgPathObject):
             obj.scale_x = getattr(obj, "scale_x", 1.0) * factor_x
             obj.scale_y = getattr(obj, "scale_y", 1.0) * factor_y
+        elif isinstance(obj, GroupObject):
+            # Les objets du groupe, à leur place au groupement, mis à l'échelle autour de son origine.
+            scale_group(obj.children, factor_x, factor_y, obj.origin)
+            obj.invalidate()
 
 
 def resize_group(objects, width_mm, height_mm):
@@ -51,4 +55,4 @@ def rotate_quarter(objects):
 
 def assign_layer(objects, layer_id):
     for obj in objects:
-        obj.layer_id = layer_id
+        obj.set_layer(layer_id)

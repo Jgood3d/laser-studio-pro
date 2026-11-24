@@ -37,10 +37,13 @@ class Png2SvgTabTests(unittest.TestCase):
         sent, changed = record(tab.send_to_vector_requested), record(
             tab.image_changed
         )
+        exported = record(tab.export_requested)
         tab.converter.sendToVectorEditor.emit("<svg/>")
         tab.converter.imageChanged.emit()
+        tab.converter.exportRequested.emit("<svg/>")
         self.assertEqual(sent, [("<svg/>",)])
         self.assertEqual(changed, [()])
+        self.assertEqual(exported, [("<svg/>",)])
 
     def test_no_fullscreen_button_in_the_tab(self):
         # Plein écran : celui de la barre d'outils principale.

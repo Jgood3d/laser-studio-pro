@@ -6,12 +6,18 @@ réglages de la machine.
     engraver.stream_starting.connect(recorder.job_started)
     engraver.stream_ended.connect(recorder.job_ended)
     job.generated.connect(recorder.remember_estimate)
+
+Actions de la fenêtre « Historique des gravures » (elle émet, ces fonctions agissent sur le modèle) :
+
+    dialog.export_requested.connect(lambda: export_history(history, dialogs))
+    dialog.clear_requested.connect(lambda: clear_history(history, dialogs))
 """
 import hashlib
 import threading
 import time
 
 from laser_studio.gcode.stats import gcode_statistics
+from laser_studio.i18n import tr
 
 # Issue d'une gravure (champ « result »).
 DONE = "done"            # tout envoyé, machine revenue à l'arrêt
@@ -27,7 +33,11 @@ def _key(gcode_text):
 class JobHistoryRecorder:
     """`history` : JobHistory ; `connection` : MachineConnection (thread d'envoi : lignes acquittées, arrêt
     sur erreur ou par l'utilisateur) ; `context()` : réglages à noter (profil machine, vitesse maximale,
-    accélération, S-Max, commande laser) ; `clock()` : heure (secondes), remplaçable pour les tests."""
+    accélération, S-Max, commande laser) ; `clock()` : heure (secondes), remplaçable pour les tests.
+
+    Graveur simulé (connection.simulation_speed(), LASER_STUDIO_SIMULATION) : la durée mesurée est multipliée
+    par le facteur de vitesse de la simulation, pour donner celle de la machine simulée, comparable à
+    l'estimation ; le facteur est noté (« simulation »)."""
 
     def __init__(self, history, connection, context=lambda: {}, clock=time.time):
         self.history = history
@@ -46,6 +56,9 @@ class JobHistoryRecorder:
         entry = {"started_at": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(started)),
                  "estimated_s": self._estimates.get(_key(gcode_text))}
         entry.update(self._context())
+        speed = getattr(self.connection, "simulation_speed", lambda: None)()
+        if speed:
+            entry["simulation"] = speed
         stats = {}
         # Statistiques calculées à côté : environ une seconde pour un gros G-Code d'image.
         worker = threading.Thread(target=lambda: stats.update(gcode_statistics(gcode_text)), daemon=True)
@@ -67,8 +80,30 @@ class JobHistoryRecorder:
             result = STOPPED
         else:
             result = INTERRUPTED
-        entry.update(result=result, duration_s=round(self._clock() - started, 1),
+        elapsed = (self._clock() - started) * (entry.get("simulation") or 1.0)
+        entry.update(result=result, duration_s=round(elapsed, 1),
                      acked_lines=getattr(streamer, "acked", None))
         entry.update({k: stats.get(k) for k in ("lines", "burn_mm", "travel_mm", "max_feed", "max_power", "bounds")})
         self.history.append(entry)
         return entry
+
+
+def export_history(history, dialogs):
+    """Exporte l'historique en CSV, dans le fichier choisi par l'utilisateur. Renvoie le chemin, ou None."""
+    path = dialogs.save_file(tr("history.export"), "historique-gravures.csv", tr("history.csv_filter"))
+    if not path:
+        return None
+    try:
+        history.export_csv(path)
+    except OSError as error:
+        dialogs.warning(tr("history.title"), str(error))
+        return None
+    return path
+
+
+def clear_history(history, dialogs):
+    """Efface l'historique, après confirmation (Non par défaut). Renvoie True s'il a été effacé."""
+    if not dialogs.confirm_default_no(tr("history.title"), tr("history.clear_question")):
+        return False
+    history.clear()
+    return True

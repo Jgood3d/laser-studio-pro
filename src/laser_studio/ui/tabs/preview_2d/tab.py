@@ -80,15 +80,13 @@ class Preview2DTab(QWidget):
         layout = QVBoxLayout(self)
         self._create_options()
         layout.addWidget(self.splitter)
-        # Options de l'aperçu : barre flottante sous le titre du graphique.
+        # Options de l'aperçu : barre flottante sous le titre du graphique, les loupes au bout à droite
+        # comme dans les autres vues.
         self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
         self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
         zoom_shortcuts(self, self.zoom_in, self.zoom_out)
         self.options_toolbar = FloatingToolBar(
             [
-                self.zoom_in_action,
-                self.zoom_out_action,
-                None,
                 self.material_label,
                 self.material_combo,
                 None,
@@ -97,6 +95,9 @@ class Preview2DTab(QWidget):
                 self.hide_rapid_check,
                 None,
                 self.optimize_path_check,
+                None,
+                self.zoom_in_action,
+                self.zoom_out_action,
             ],
             self.plot_widget,
             top_margin=30,

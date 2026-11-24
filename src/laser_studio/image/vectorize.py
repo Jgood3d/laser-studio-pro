@@ -349,8 +349,3 @@ def convert_image_to_svg(source, settings: Optional[ConversionSettings] = None) 
         output_width_mm=out_w_mm,
         output_height_mm=out_h_mm,
     )
-
-
-def save_svg(result: ConversionResult, output_path: str) -> None:
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write(result.svg_text)

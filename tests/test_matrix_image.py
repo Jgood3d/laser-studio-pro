@@ -1,11 +1,15 @@
 """Tests de image/matrix.py (recadrage et G-Code d'une zone d'image) — sans Qt."""
+import os
 import re
+import sys
 import unittest
 
 import numpy as np
 from PIL import Image
 
-from laser_studio.image import matrix as mi
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+from laser_studio.image import matrix as mi  # noqa: E402
 
 
 def _moves(lines):

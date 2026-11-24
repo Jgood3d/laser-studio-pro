@@ -7,6 +7,16 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Import SVG : le dessin arrive tel que votre logiciel de dessin le montre. Les calques et groupes du fichier deviennent des groupes de la liste des objets, avec leur nom ; chaque objet va sur un calque d'après sa couleur (noir : gravure, rouge : découpe, vert : marquage, avec une tolérance sur la teinte) ; un objet blanc arrive sur le calque « Ignoré » (pour évider une forme, on fait une Différence) ; les textes restent modifiables ; ce qui est caché dans le fichier arrive sur le calque « Ignoré », d'où la tête laser de la liste des objets le fait réapparaître. Lecture conforme à la spécification SVG : styles en cascade (feuille `<style>` comprise) et héritage, visibilité, opacité, règle de remplissage, `<use>`, `<symbol>`, `<switch>`, `<svg>` imbriqué, toutes les couleurs CSS, détourages (`clipPath`) et masques (`mask`), traits en pointillés (`stroke-dasharray`, découpés en tirets), longueurs avec unité ou en pourcentage dans les attributs (`10mm`, `50%`, `2em`), propriété CSS `transform` avec `transform-origin`. Les fichiers d'Inkscape antérieurs à 0.92 (90 px par pouce) et d'Adobe Illustrator (72 px par pouce) gardent leur taille réelle.
+
+Liste des objets de l'éditeur vectoriel : un œil devant chaque objet, groupes compris, le masque sur le canevas (il reste gravé), et une tête laser en deuxième colonne le met sur le calque « Ignoré » : plus affiché, ni gravé ni découpé. L'objet retient son calque ; un nouveau clic le lui rend, avec ses réglages. Sur un groupe, chaque objet retrouve son propre calque. Un objet masqué ou ignoré se choisit dans la liste (contour gris en pointillés) pour lui donner un autre calque. Une poubelle au bout de chaque ligne supprime l'objet, ou le retire de son groupe. Clic droit sur plusieurs objets sélectionnés dans la liste : Groupe, Union, Différence, Intersection, Exclusion, Dégrouper.
+
+Éditeur vectoriel : liste des objets à droite du canevas, à la manière de Blender. Elle montre les objets du dessus de la pile vers le dessous, avec leur calque ; un clic sélectionne l'objet (plusieurs avec Maj ou Ctrl), un double-clic le renomme. Ses propriétés (position, rotation, calque, taille) s'affichent juste en dessous, plutôt qu'en bas de la page. Boutons pour monter ou descendre un objet, grouper et dégrouper.
+
+Éditeur vectoriel : les groupes gardent leurs objets entiers. Un objet groupé garde son calque et son remplissage, et un texte redevient un texte modifiable une fois dégroupé (avant, grouper fusionnait tout en un seul tracé sur un seul calque).
+
+Éditeur vectoriel : opérations booléennes **Union**, **Différence**, **Intersection** et **Exclusion** (bouton « Combiner » de la liste des objets, ou clic droit › Combiner). Le groupe ne grave plus qu'une surface, sur le calque de l'objet du dessous : une différence évide l'objet du dessous de la forme de ceux du dessus. L'ordre des objets dans le groupe se change avec Monter et Descendre.
+
 Paramètres du graveur : bouton « Depuis le catalogue… », qui crée le profil d'un graveur GRBL du commerce (Elegoo Phecda, Ortur Laser Master 3, Sculpfun S9 et S30 Pro Max, Creality Falcon, Longer Ray5, xTool D1 Pro, Atomstack A5 Pro). Surface de travail, taille du point et vitesse maximale publiées par le constructeur, avec les liens vers ses documents ; une valeur qu'il ne publie pas n'est pas inventée. Rien n'est envoyé au graveur. On peut ajouter ses propres modèles dans le dossier `machines/` des données (format : `resources/machines/README.md`).
 
 Historique des gravures (**Outils › Historique des gravures…**) : chaque job envoyé au graveur, direct ou depuis la file d'attente, y est noté à sa fin, avec la date, l'issue (terminée, arrêtée, erreur GRBL), la durée réelle et la durée estimée avec leur écart, la distance gravée, le nombre de lignes et la machine. Export CSV pour un tableur. Gardé sur l'ordinateur, dans `historique-gravures.jsonl`.
@@ -55,6 +65,22 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Éditeur vectoriel : « Pivoter 90° » de la barre d'édition fait tourner tous les objets sélectionnés (avant : seulement le premier), comme le clic droit. « Texte le long d'un objet » du clic droit ouvre ensuite les réglages du texte, comme le bouton.
+
+Import SVG : les arcs des tracés sont convertis en courbes exactes ; dans un fichier à petite unité (viewBox de 0 à 1), un cercle devenait un polygone grossier.
+
+Import SVG : le cadrage du `viewBox` respecte `preserveAspectRatio` (centré sans déformation par défaut, comme les navigateurs) ; un document aux proportions différentes de son `viewBox` était étiré.
+
+Opérations booléennes des groupes (union, différence…) : les courbes sont calculées au centième de millimètre (un cercle de 5 mm s'écartait de 0,1 mm).
+
+Éditeur vectoriel : changer le calque d'un groupe le change pour tous les objets du groupe.
+
+Barres d'outils flottantes : partout les mêmes icônes que dans l'éditeur vectoriel (annuler, refaire, pivoter, miroirs, supprimer…), et annuler / refaire puis les loupes toujours au bout, à droite.
+
+Graver une image : « Algorithme de tramage » et « Afficher l'originale » passent dans une barre flottante à gauche de l'aperçu ; le bandeau au-dessus des aperçus disparaît, l'image gagne en hauteur.
+
+Graveur simulé (`LASER_STUDIO_SIMULATION`) : dans l'historique des gravures, la durée réelle est multipliée par le facteur de vitesse de la simulation, pour être comparable à la durée estimée ; la gravure est marquée « simulation ×N ».
+
 Durée estimée des gravures : calculée comme GRBL planifie ses déplacements, au lieu de « distance ÷ vitesse + 15 % ». Elle compte les déplacements rapides G0, l'accélération de chaque déplacement, le ralentissement dans les virages et aux demi-tours, et la limite du tampon de GRBL sur les images très fines. Elle utilise les réglages lus avec « Lire la config » ($110/$111, $120/$121, $11), sinon la vitesse maximale et l'accélération de « Paramètres du graveur ». L'estimation rapide (« Estimer ») compte aussi l'accélération à chaque ligne de l'image.
 
 Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.
@@ -106,6 +132,12 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Générateur de boîte : un décor SVG est lu comme par « Importer » (transformations des groupes, cadrage du `viewBox`, unités ; éléments cachés et contenu de `<defs>` écartés). Un SVG d'Inkscape dont les calques sont décalés arrivait en morceaux mal placés.
+
+Préréglages du générateur de boîte : enregistrés sans risque de perte (un disque plein ou un arrêt en cours d'écriture laisse l'ancien fichier intact).
+
+Stencil Studio : le modèle de détourage téléchargé est vérifié (empreinte SHA-256) ; un fichier corrompu n'est plus gardé en cache, ce qui bloquait la détection du sujet pour de bon.
+
 Durées estimées : une seule présentation partout (« 46 s », « 3 min 12 s », « 2 h 05 min », unités traduites), avec des heures au-delà d'une heure. La matrice de test et le motif aller/retour ajoutent maintenant la même marge de 15 % (accélérations) que les jobs ; l'estimation rapide (« Estimer ») reste sans marge (#119).
 
 Puissance des matrices de test et de la découpe SVG autour de l'image : arrondie au plus proche, comme partout ailleurs. Avec S-Max = 255, une case à 10 % grave en S26, comme un calque réglé à 10 % (elle gravait en S25). La découpe SVG autour de l'image suit la commande laser (M3 / M4) du calque de découpe, sinon celle de la Configuration GRBL, comme les calques vectoriels : elle envoyait toujours M3 (#118).

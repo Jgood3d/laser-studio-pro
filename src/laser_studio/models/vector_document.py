@@ -48,7 +48,9 @@ class VectorDocument(QObject):
     - object_removed(obj) ;
     - objects_changed(liste) : ces objets ont changé (position, calque, taille…) :
       les vues les redessinent ;
-    - objects_reset() : toute la liste a changé (annuler, refaire, charger).
+    - objects_reset() : toute la liste a changé (annuler, refaire, charger) ;
+    - order_changed() : l'ordre a changé (monter, descendre) : du dessous (début de
+      la liste) vers le dessus.
 
     `objects` se lit librement ; pour le modifier, passer par add, remove,
     replace ou load, pour que les vues suivent.
@@ -58,6 +60,7 @@ class VectorDocument(QObject):
     object_removed = pyqtSignal(object)
     objects_changed = pyqtSignal(list)
     objects_reset = pyqtSignal()
+    order_changed = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -90,6 +93,24 @@ class VectorDocument(QObject):
             self.remove(obj)
         for obj in new_objects:
             self.add(obj)
+
+    def move(self, objects, step):
+        """Monte (`step` > 0, vers le dessus) ou descend `objects` d'un cran, en gardant leur ordre entre
+        eux ; un objet déjà tout en haut (ou en bas) reste où il est. True si l'ordre a changé."""
+        moving = {id(o) for o in objects}
+        order = list(self.objects)
+        indices = range(len(order) - 1, -1, -1) if step > 0 else range(len(order))
+        changed = False
+        for index in indices:
+            target = index + (1 if step > 0 else -1)
+            if id(order[index]) not in moving or not 0 <= target < len(order) or id(order[target]) in moving:
+                continue
+            order[index], order[target] = order[target], order[index]
+            changed = True
+        if changed:
+            self.objects[:] = order
+            self.order_changed.emit()
+        return changed
 
     def notify_changed(self, objects):
         """Signale que `objects` ont été modifiés (les vues les redessinent)."""

@@ -1,5 +1,4 @@
 """Lot A : homing automatique par défaut, taille d'origine des images, flèches du clavier."""
-import ast
 import os
 import sys
 import tempfile
@@ -156,105 +155,90 @@ def types_ns(**kw):
     return types.SimpleNamespace(**kw)
 
 
-# --- flèches du clavier -----------------------------------------------------------------------
-def load_nudge():
-    with open(os.path.join(ROOT, "ui", "vector_editor", "canvas.py"), encoding="utf-8") as f:
-        tree = ast.parse(f.read())
-    func = next(n for c in tree.body if isinstance(c, ast.ClassDef) and c.name == "VectorCanvasView"
-                for n in c.body if isinstance(n, ast.FunctionDef) and n.name == "nudge_selection")
-
-    class Item:
-        def __init__(self, obj):
-            self.obj, self.refreshed = obj, 0
-
-        def refresh(self):
-            self.refreshed += 1
-
-    class Qt:
-        class KeyboardModifier:
-            ShiftModifier, AltModifier = 1, 2
-
-    ns = {"time": time, "Qt": Qt, "VectorGraphicsItem": Item, "nudge_step": vn.nudge_step,
-          "NUDGE_UNDO_WINDOW_S": vn.NUDGE_UNDO_WINDOW_S}
-    exec(compile(ast.Module(body=[func], type_ignores=[]), "nudge", "exec"), ns)
-    return ns["nudge_selection"], Item
-
-
-nudge_selection, FakeItem = load_nudge()
-
-
+# --- flèches du clavier (VectorEditorController.nudge_selection, demandé par le canevas) --------------
 class Obj:
     def __init__(self, x=10.0, y=20.0):
         self.x_mm, self.y_mm = x, y
 
 
 class FakeCanvas:
-    def __init__(self, items):
-        self.items, self.snapshots = items, 0
-        self.scene_obj = types_ns(selectedItems=lambda: self.items)
+    """Ce que nudge_selection utilise du canevas : la sélection et l'étape d'annulation."""
+
+    def __init__(self, objects):
+        self.objects, self.snapshots = objects, 0
+
+    def selected_items_vector(self):
+        return [types_ns(obj=o) for o in self.objects]
 
     def push_undo_snapshot(self):
         self.snapshots += 1
 
 
-class NudgeTests(unittest.TestCase):
-    def canvas(self, n=1):
-        return FakeCanvas([FakeItem(Obj(10.0 + i, 20.0)) for i in range(n)])
+class FakeDocument:
+    def __init__(self):
+        self.changed = []
 
+    def notify_changed(self, objects):
+        self.changed.append(list(objects))
+
+
+def nudge_editor(n=1):
+    from laser_studio.controllers.vector_editor import VectorEditorController
+    canvas, document = FakeCanvas([Obj(10.0 + i, 20.0) for i in range(n)]), FakeDocument()
+    return VectorEditorController(document, canvas, layers=None, machine=None, dialogs=None), canvas, document
+
+
+class NudgeTests(unittest.TestCase):
     def test_step_sizes(self):
         self.assertEqual((vn.nudge_step(), vn.nudge_step(shift=True), vn.nudge_step(alt=True), vn.nudge_step(shift=True, alt=True)),
                          (1.0, 10.0, 0.1, 0.1))
 
     def test_nothing_selected_lets_the_view_scroll(self):
-        c = self.canvas(0)
-        self.assertFalse(nudge_selection(c, 1, 0, 0))
-        self.assertEqual(c.snapshots, 0)
+        editor, canvas, _doc = nudge_editor(0)
+        self.assertFalse(editor.nudge_selection(1, 0))
+        self.assertEqual(canvas.snapshots, 0)
 
     def test_directions_use_a_y_up_world(self):
-        c = self.canvas()
+        editor, canvas, _doc = nudge_editor()
         for dx, dy, expected in ((1, 0, (11.0, 20.0)), (-1, 0, (10.0, 20.0)), (0, 1, (10.0, 21.0)), (0, -1, (10.0, 20.0))):
-            self.assertTrue(nudge_selection(c, dx, dy, 0))
-            o = c.items[0].obj
+            self.assertTrue(editor.nudge_selection(dx, dy))
+            o = canvas.objects[0]
             self.assertEqual((round(o.x_mm, 6), round(o.y_mm, 6)), expected)
 
-    def test_modifiers_and_refresh(self):
-        c = self.canvas()
-        nudge_selection(c, 1, 0, 1)                     # Maj
-        self.assertAlmostEqual(c.items[0].obj.x_mm, 20.0)
-        nudge_selection(c, 0, 1, 2)                     # Alt
-        self.assertAlmostEqual(c.items[0].obj.y_mm, 20.1)
-        nudge_selection(c, 0, 1, 3)                     # Maj + Alt : pas fin
-        self.assertAlmostEqual(c.items[0].obj.y_mm, 20.2)
-        self.assertEqual(c.items[0].refreshed, 3)
+    def test_modifiers_and_redraw(self):
+        editor, canvas, document = nudge_editor()
+        editor.nudge_selection(1, 0, shift=True)
+        self.assertAlmostEqual(canvas.objects[0].x_mm, 20.0)
+        editor.nudge_selection(0, 1, alt=True)
+        self.assertAlmostEqual(canvas.objects[0].y_mm, 20.1)
+        editor.nudge_selection(0, 1, shift=True, alt=True)        # Maj + Alt : pas fin
+        self.assertAlmostEqual(canvas.objects[0].y_mm, 20.2)
+        self.assertEqual(len(document.changed), 3)                  # le canevas redessine via le document
 
     def test_every_selected_object_moves_together(self):
-        c = self.canvas(3)
-        nudge_selection(c, 1, 1, 0)
-        self.assertEqual([(o.obj.x_mm, o.obj.y_mm) for o in c.items], [(11.0, 21.0), (12.0, 21.0), (13.0, 21.0)])
+        editor, canvas, _doc = nudge_editor(3)
+        editor.nudge_selection(1, 1)
+        self.assertEqual([(o.x_mm, o.y_mm) for o in canvas.objects], [(11.0, 21.0), (12.0, 21.0), (13.0, 21.0)])
 
     def test_a_held_key_makes_a_single_undo_step_and_a_later_press_a_new_one(self):
-        c = self.canvas()
+        editor, canvas, _doc = nudge_editor()
         clock = [100.0]
         with mock.patch.object(time, "monotonic", lambda: clock[0]):
             for _ in range(10):
-                nudge_selection(c, 1, 0, 0)
+                editor.nudge_selection(1, 0)
                 clock[0] += 0.05
-            self.assertEqual(c.snapshots, 1)
+            self.assertEqual(canvas.snapshots, 1)
             clock[0] += 2.0
-            nudge_selection(c, 1, 0, 0)
-            self.assertEqual(c.snapshots, 2)
-        self.assertAlmostEqual(c.items[0].obj.x_mm, 21.0)
+            editor.nudge_selection(1, 0)
+            self.assertEqual(canvas.snapshots, 2)
+        self.assertAlmostEqual(canvas.objects[0].x_mm, 21.0)
 
-    def test_unrelated_selected_items_are_ignored(self):
-        c = FakeCanvas([object()])
-        self.assertFalse(nudge_selection(c, 1, 0, 0))
-
-    def test_key_handler_is_wired_to_the_four_arrows(self):
+    def test_key_handler_asks_for_the_four_arrows(self):
         src = read(os.path.join("ui", "vector_editor", "canvas.py"))
-        body = src[src.index("def keyPressEvent", src.index("class VectorCanvasView")):src.index("def nudge_selection")]
+        body = src[src.index("def keyPressEvent", src.index("class VectorCanvasView")):src.index("def _key_command")]
         for key in ("Key_Left", "Key_Right", "Key_Up", "Key_Down"):
             self.assertIn(f"Qt.Key.{key}", body)
-        self.assertIn("self.nudge_selection(direction[0], direction[1], event.modifiers())", body)
+        self.assertIn("self.nudge_requested.emit(", body)
 
 
 if __name__ == "__main__":
