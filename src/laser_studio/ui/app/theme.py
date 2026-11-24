@@ -442,6 +442,30 @@ def _build_stylesheet(c: dict) -> str:
         background-color: transparent;
         spacing: 6px;
     }}
+    /* Cases à cocher toujours visibles (sinon invisibles sur fond sombre : Ponts, Kerf, Actif…) :
+       cadre contrasté ; cochée = remplie de la couleur d'accent. */
+    QCheckBox::indicator {{
+        width: 14px;
+        height: 14px;
+        border: 1px solid {c["muted"]};
+        border-radius: 3px;
+        background-color: {c["input_bg"]};
+    }}
+    QCheckBox::indicator:hover {{
+        border: 1px solid {c["accent_hover"]};
+    }}
+    QCheckBox::indicator:checked {{
+        background-color: {c["accent_hover"]};
+        border: 1px solid {c["accent_hover"]};
+    }}
+    QCheckBox::indicator:disabled {{
+        border: 1px solid {c["border"]};
+        background-color: {c["alt"]};
+    }}
+    QCheckBox::indicator:checked:disabled {{
+        background-color: {c["disabled"]};
+        border: 1px solid {c["disabled"]};
+    }}
     QAbstractSpinBox {{
         background-color: {c["input_bg"]};
         color: {c["text"]};

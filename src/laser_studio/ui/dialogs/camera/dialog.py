@@ -90,6 +90,18 @@ class CameraDialog(QDialog):
 
         # Image de la caméra dans l'éditeur vectoriel : opacité et retrait.
         from PyQt6.QtWidgets import QSlider
+        thickness_row = QHBoxLayout()
+        thickness_row.addWidget(QLabel(tr("camera.overlay_thickness")))
+        self.spin_thickness = QDoubleSpinBox()
+        self.spin_thickness.setRange(0.0, 200.0)
+        self.spin_thickness.setDecimals(1)
+        self.spin_thickness.setSuffix(" mm")
+        self.spin_thickness.setToolTip(tr("camera.overlay_thickness_tip"))
+        self.spin_thickness.setValue(self._ctrl.overlay_thickness_mm)
+        self.spin_thickness.valueChanged.connect(self._ctrl.set_overlay_thickness_mm)
+        thickness_row.addWidget(self.spin_thickness)
+        thickness_row.addStretch(1)
+        root.addLayout(thickness_row)
         view_row = QHBoxLayout()
         view_row.addWidget(QLabel(tr("camera.overlay_opacity")))
         self.slider_opacity = QSlider(Qt.Orientation.Horizontal)
@@ -135,11 +147,19 @@ class CameraDialog(QDialog):
         self.spin_rows = QSpinBox()
         self.spin_rows.setRange(2, 5)
         self.spin_rows.setValue(saved.get("rows", 2))
+        # 0 = tags imprimés à plat sur le plateau ; sinon épaisseur de la matière sur laquelle ils sont gravés.
+        self.spin_tag_height = QDoubleSpinBox()
+        self.spin_tag_height.setRange(0.0, 100.0)
+        self.spin_tag_height.setDecimals(1)
+        self.spin_tag_height.setSuffix(" mm")
+        self.spin_tag_height.setValue(saved.get("tag_height", 0.0))
+        self.spin_tag_height.setToolTip(tr("camera.align_wizard.tag_height_tip"))
         for row, (label, spin) in enumerate((
             (tr("camera.align_wizard.margin"), self.spin_margin),
             (tr("camera.align_wizard.tag_size"), self.spin_tag),
             (tr("camera.align_wizard.cols"), self.spin_cols),
             (tr("camera.align_wizard.rows"), self.spin_rows),
+            (tr("camera.align_wizard.tag_height"), self.spin_tag_height),
         )):
             grid.addWidget(QLabel(label), row // 2, (row % 2) * 2)
             grid.addWidget(spin, row // 2, (row % 2) * 2 + 1)
@@ -202,6 +222,7 @@ class CameraDialog(QDialog):
         self._ctrl.align_tag_params = {
             "margin": self.spin_margin.value(), "tag": self.spin_tag.value(),
             "cols": self.spin_cols.value(), "rows": self.spin_rows.value(),
+            "tag_height": self.spin_tag_height.value(),
         }
 
     def _run_prepare(self, action, pdf):

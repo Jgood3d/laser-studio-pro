@@ -152,6 +152,10 @@ depuis le plateau : le dessus d'une pièce épaisse est vu plus haut que les
 repères et paraît décalé vers les bords de l'image, et cette correction
 le remet à sa vraie place. Mettez 0 si la pièce est à plat sur le plateau.
 
+Ces deux hauteurs se règlent aussi dans **Outils › Caméra…** : « Hauteur des
+tags » (groupe Préparation, partagée avec l'assistant d'alignement) et
+« Épaisseur de la matière » (mémorisée, utilisée par « Actualiser l'overlay »).
+
 ### Historique des gravures
 
 **Outils › Historique des gravures…** liste chaque job envoyé au graveur,

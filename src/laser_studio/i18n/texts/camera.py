@@ -105,6 +105,18 @@ TEXTS = {
         "de": "Materialstärke (mm), von der Fläche aus gemessen. 0, wenn das Werkstück flach aufliegt. Die Tags der Ausrichtung liegen {tag} mm über der Fläche.",
         "es": "Grosor del material (mm), medido desde el área. 0 si la pieza está plana sobre el área. Las etiquetas de la alineación están a {tag} mm del área.",
     },
+    "camera.overlay_thickness": {
+        "fr": "Épaisseur de la matière :",
+        "en": "Material thickness:",
+        "de": "Materialstärke:",
+        "es": "Grosor del material:",
+    },
+    "camera.overlay_thickness_tip": {
+        "fr": "Hauteur du dessus de la pièce au-dessus du plateau, utilisée pour corriger la parallaxe du fond caméra. Mémorisée ; elle est aussi proposée à chaque actualisation depuis l'éditeur.",
+        "en": "Height of the top of the piece above the bed, used to correct the camera background parallax. It is remembered and also offered at each refresh from the editor.",
+        "de": "Höhe der Werkstückoberseite über der Fläche, zur Korrektur der Parallaxe des Kamera-Hintergrunds. Wird gespeichert und bei jeder Aktualisierung im Editor vorgeschlagen.",
+        "es": "Altura de la parte superior de la pieza sobre el área, para corregir el paralaje del fondo de cámara. Se recuerda y se propone en cada actualización desde el editor.",
+    },
     "camera.overlay_opacity": {
         "fr": "Opacité de l'image :",
         "en": "Image opacity:",
