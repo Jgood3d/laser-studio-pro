@@ -53,6 +53,8 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Durée estimée des gravures : calculée comme GRBL planifie ses déplacements, au lieu de « distance ÷ vitesse + 15 % ». Elle compte les déplacements rapides G0, l'accélération de chaque déplacement, le ralentissement dans les virages et aux demi-tours, et la limite du tampon de GRBL sur les images très fines. Elle utilise les réglages lus avec « Lire la config » ($110/$111, $120/$121, $11), sinon la vitesse maximale et l'accélération de « Paramètres du graveur ». L'estimation rapide (« Estimer ») compte aussi l'accélération à chaque ligne de l'image.
+
 Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.
 
 Éditeur vectoriel : quand il contient déjà des objets, un import (fichier SVG / DXF, bibliothèque, générateurs de boîte, de puzzle, de boule de Noël et de porte-clés, vectorisation, Stencil Studio) demande quoi faire du nouveau dessin : l'ajouter sans toucher aux objets, supprimer les objets présents, l'ajouter à leur droite ou au-dessus. Le puzzle garde sa position calée sur l'image, sauf à droite ou au-dessus. Ctrl+Z annule le tout d'un coup.
