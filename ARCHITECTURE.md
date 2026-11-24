@@ -172,7 +172,7 @@ laser-studio-pro/
 │   │           └── startup_safety/   # avertissement de sécurité laser (confirm_startup_safety)
 │   └── stencil_studio/               # sous-application Stencil Studio
 │       ├── LISEZMOI.md
-│       ├── core.py / engrave.py / lightbox.py / subject_ai.py   # calcul, sans Qt
+│       ├── core/ · engrave.py / lightbox.py / subject_ai.py   # calcul, sans Qt (core/ : un module par métier)
 │       ├── server.py                     # serveur local : page web et API (python -m stencil_studio)
 │       ├── models/                       # session.py (photo, repères peints), presets.py (réglages enregistrés)
 │       ├── controllers/                  # api.py (aperçu, visage, export), studio.py (StencilStudioController : fenêtre dans LSP)
@@ -356,7 +356,7 @@ Modèle / vue / contrôleur, comme LSP, et sans aucun import de `laser_studio` (
 
 | Fichier | Rôle |
 |---------|------|
-| **core.py**, **lightbox.py**, **engrave.py**, **subject_ai.py** | Calcul sans Qt : pochoir, trame, gravure, couches, QR, low poly, caisson lumineux, détourage par IA (onnxruntime, facultatif) |
+| **core/**, **lightbox.py**, **engrave.py**, **subject_ai.py** | `core/` rangé par métier : params (réglages, résultat), framing (cadrage), subject (sujet, visage), tones (tons -> matière), plate (formes, anneau, œillet, ponts, contours), halftone (trame), engraving (gravure), lowpoly, qr, colors (palette), layers (multicouche), pipeline (`process`), render (aperçus), export (SVG, DXF) ; `core/__init__.py` expose les noms utilisés par l'API, la CLI et les tests (`core.process`, `core.Params`…). Calcul sans Qt : pochoir, trame, gravure, couches, QR, low poly, caisson lumineux, détourage par IA (onnxruntime, facultatif) |
 | **models/session.py** | `StudioSession` : photo chargée, version d'affichage, repères peints (sujet / fond), numéros de version pour le cache |
 | **models/presets.py** | `PresetsStore` : réglages enregistrés (`presets.json`, dans le dossier du Studio ou le profil de l'utilisateur) |
 | **controllers/api.py** | `StudioApi` : ce que la page demande (aperçu, détection du visage, export SVG / DXF / caisson / test de flexion), un calcul à la fois, résultat en cache |

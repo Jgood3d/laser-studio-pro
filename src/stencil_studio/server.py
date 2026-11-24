@@ -38,15 +38,15 @@ PRESETS = PresetsStore()
 
 
 def check_versions():
-    """Affiche les versions des fichiers et signale un mélange (ex. core.py ancien)."""
+    """Affiche les versions des fichiers et signale un mélange (ex. paquet core ancien)."""
     ui_ver = "?"
     if os.path.isfile(UI_FILE):
         with open(UI_FILE, encoding="utf-8") as f:
             m = re.search(r'UI_VERSION = "([^"]+)"', f.read())
         ui_ver = m.group(1) if m else "ancienne version / old version"
-    print(f"Versions : core.py {core.VERSION} | studio.html {ui_ver}")
+    print(f"Versions : core {core.VERSION} | studio.html {ui_ver}")
     if ui_ver != core.VERSION:
-        return [f"Fichiers de versions différentes / mixed versions : core.py={core.VERSION}, studio.html={ui_ver}."]
+        return [f"Fichiers de versions différentes / mixed versions : core={core.VERSION}, studio.html={ui_ver}."]
     return []
 
 

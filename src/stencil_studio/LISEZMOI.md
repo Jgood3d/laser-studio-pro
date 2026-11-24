@@ -21,7 +21,7 @@ Le navigateur s'ouvre sur http://127.0.0.1:8765 (tout reste sur ton PC).
 6. **Exporter** en SVG ou DXF. Les réglages peuvent être enregistrés / rechargés (JSON).
 
 ## Fichiers
-- `core.py`, `lightbox.py`, `engrave.py`, `subject_ai.py` : calcul (sans interface, réutilisable dans le logiciel)
+- `core/`, `lightbox.py`, `engrave.py`, `subject_ai.py` : calcul (sans interface, réutilisable dans le logiciel). `core/` est rangé par métier : params (réglages, résultat), framing (cadrage), subject (sujet, visage), tones (tons -> matière), plate (formes, anneau, œillet, ponts, contours), halftone (trame), engraving (gravure), lowpoly, qr, colors (palette), layers (multicouche), pipeline (`process`), render (aperçus), export (SVG, DXF) ; `core/__init__.py` expose les noms utilisés ailleurs (`core.process`, `core.Params`…), la version est dans `core/params.py`
 - `server.py` : serveur local (127.0.0.1) qui sert la page et son API ; `python -m stencil_studio` le lance avec le navigateur. Seule sa page peut l'appeler : nom d'hôte 127.0.0.1 ou localhost exigé, et jeton tiré à chaque lancement (glissé dans la page, exigé sur chaque route `/api/`), pour qu'un autre site ouvert dans le navigateur ne puisse ni écrire ni lire
 - `models/` : données sans interface — `session.py` (photo, repères peints), `presets.py` (réglages enregistrés)
 - `controllers/` : `api.py` (aperçu, visage, export demandés par la page), `studio.py` (fenêtre du Studio dans LSP : ouverture, préchauffage, repli, thème)
@@ -58,7 +58,7 @@ Ouvrir l'image, choisir un **style** (menu « Partir d'un style »), puis corrig
 - *Résolution de l'aperçu* : monter à 900 ou 1200 pour voir des bords lisses (plus lent).
 
 ## Vérifier que tous les fichiers sont à jour
-Au lancement, la console affiche : `Versions : core.py 2026.10.27 | studio.html 2026.10.27`.
+Au lancement, la console affiche : `Versions : core 2026.10.27 | studio.html 2026.10.27`.
 Les deux numéros doivent être **identiques**. Sinon (ou si l'interface affiche un bandeau rouge « ATTENTION »),
 remplacer **tout** le dossier `stencil_studio/`.
 
