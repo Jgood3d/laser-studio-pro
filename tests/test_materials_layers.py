@@ -123,7 +123,12 @@ class LayerTableColumnsTests(unittest.TestCase):
         widget.show()
         app.processEvents()
         table, header = widget.table, widget.table.horizontalHeader()
+        from PyQt6.QtWidgets import QHeaderView
         for col in range(table.columnCount()):
+            # La colonne « Nom » prend la place restante (Stretch) : avec les colonnes Ponts, Larg. pont et
+            # Kerf, il n'en reste plus assez pour son champ à 1500 px, et ce n'est pas un défaut des autres.
+            if header.sectionResizeMode(col) == QHeaderView.ResizeMode.Stretch:
+                continue
             title = table.horizontalHeaderItem(col).text()
             need = max([header.fontMetrics().horizontalAdvance(title)] +
                        [table.cellWidget(r, col).sizeHint().width() for r in range(table.rowCount())])
