@@ -567,7 +567,7 @@ def magnet_layout(p, W):
 def _magnet_plates(p, W, H):
     """Deux plaques carrées par aimant, percées du diamètre de l'aimant : l'une collée sous le couvercle, l'autre
     sur la face intérieure de la façade, juste dessous. Les aimants se collent dans les trous, face à face."""
-    t, cl, k = p.thickness, p.clearance, p.kerf / 2.0
+    cl, k = p.clearance, p.kerf / 2.0
     s, xs = magnet_layout(p, W)
     r_hole = (p.magnet_diameter + cl) / 2.0
     square = [(0.0, 0.0), (s, 0.0), (s, s), (0.0, s)]

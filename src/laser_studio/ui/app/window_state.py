@@ -13,12 +13,13 @@ passées en fonctions aux contrôleurs qui décident quand enregistrer
 """
 from contextlib import contextmanager
 
-from PyQt6.QtCore import QObject, QSettings
+from PyQt6.QtCore import QObject
 
 from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, apply_material_to_layers,
                                                 capture_material_layers)
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
+from laser_studio.core.preferences import machine_preferences
 
 
 class WindowState(QObject):
@@ -85,28 +86,29 @@ class WindowState(QObject):
         l'image) pour les retrouver au prochain lancement, sans recharger de
         projet. Les calques sont rangés dans le profil de la machine active."""
         w = self.window
-        settings = QSettings("LaserStudioPro", "MachineConfig")
-        settings.setValue("machine_bed_w_mm", w.machine.bed_w)
-        settings.setValue("machine_bed_h_mm", w.machine.bed_h)
-        settings.setValue("machine_focal_mm", w.machine.focal)
+        prefs = machine_preferences()
+        prefs.set("machine_bed_w_mm", w.machine.bed_w)
+        prefs.set("machine_bed_h_mm", w.machine.bed_h)
+        prefs.set("machine_focal_mm", w.machine.focal)
         w.machines.store_memory()
-        settings.setValue("machine_profiles_json", w.machines.to_json())
+        prefs.set("machine_profiles_json", w.machines.to_json())
         name = w.machines.current_name()
         if name is not None:
-            settings.setValue("last_machine_profile", name)
-        settings.setValue("lmm_mode_index", w.combo_lmm_mode.currentIndex())
-        settings.setValue("lmm_dpi_value", w.spin_dpi.value())
-        settings.setValue("lmm_value", w.spin_lmm.value())
+            prefs.set("last_machine_profile", name)
+        mode, dpi, lmm = w.resolution_box.saved_state()
+        prefs.set("lmm_mode_index", mode)
+        prefs.set("lmm_dpi_value", dpi)
+        prefs.set("lmm_value", lmm)
 
     def load_machine_settings(self):
         """Restaure au démarrage les réglages mémorisés par
         save_machine_settings."""
         w = self.window
-        settings = QSettings("LaserStudioPro", "MachineConfig")
+        prefs = machine_preferences()
         for key, field in (("machine_bed_w_mm", "bed_w"),
                            ("machine_bed_h_mm", "bed_h"),
                            ("machine_focal_mm", "focal")):
-            value = settings.value(key, None)
+            value = prefs.get(key)
             if value is not None:
                 w.machine.update(**{field: value})   # valeur illisible : ignorée
         # Comme à chaque validation de profil : les calques suivent la focale
@@ -114,32 +116,16 @@ class WindowState(QObject):
         w.layers_tab.link_all_to_focal()
 
         w.machines.load(
-            settings.value("machine_profiles_json", ""),
-            settings.value("last_machine_profile", None),
+            prefs.get("machine_profiles_json", ""),
+            prefs.get("last_machine_profile"),
             {"name": "Machine par défaut", "w": w.machine.bed_w,
              "h": w.machine.bed_h},
         )
 
-        lmm_value = settings.value("lmm_value", None)
-        dpi_value = settings.value("lmm_dpi_value", None)
-        mode_index = settings.value("lmm_mode_index", None)
-        for value, spin in ((lmm_value, w.spin_lmm), (dpi_value, w.spin_dpi)):
-            if value is not None:
-                try:
-                    spin.blockSignals(True)
-                    spin.setValue(float(value))
-                    spin.blockSignals(False)
-                except (TypeError, ValueError):
-                    pass
-        if mode_index is not None:
-            try:
-                w.combo_lmm_mode.setCurrentIndex(int(mode_index))
-            except (TypeError, ValueError):
-                pass
-        # Recalcule dans tous les cas l'écart lignes/mm et la pastille de
-        # qualité à partir de l'état chargé, quel que soit le mode.
+        # Résolution mémorisée, puis recalcul dans tous les cas de l'écart lignes/mm et de la
+        # pastille de qualité à partir de l'état chargé, quel que soit le mode.
         w.resolution_box.set_focal(w.machine.focal)
-        w.resolution_box.refresh()
+        w.resolution_box.restore_state(prefs.get("lmm_mode_index"), prefs.get("lmm_dpi_value"), prefs.get("lmm_value"))
         # À partir d'ici seulement, un changement de calque est mémorisé.
         w.machines.persist_ready = True
 
@@ -214,17 +200,18 @@ class WindowState(QObject):
         machine, gravure et découpe, matériaux, calques, objets vectoriels ;
         et l'image source (PIL), encodée par le contrôleur."""
         w = self.window
+        (width, height), (offset_x, offset_y) = w.tab_previews.settings.size_mm(), w.tab_previews.settings.offset_mm()
         data = {
-            "w_mm": w.spin_w.value(),
-            "h_mm": w.spin_h.value(),
+            "w_mm": width,
+            "h_mm": height,
             "machine_bed_w_mm": w.machine.bed_w,
             "machine_bed_h_mm": w.machine.bed_h,
             "origin_pos": w.job_position_box.origin(),
-            "offset_x": w.spin_off_x.value(),
-            "offset_y": w.spin_off_y.value(),
+            "offset_x": offset_x,
+            "offset_y": offset_y,
             **w.image_settings.to_project(),
             "safe_cut_order": w.grbl.safe_cut_order,
-            "lmm": w.spin_lmm.value(),
+            "lmm": w.resolution_box.lines_per_mm(),
             "speed_engrave": w.job.engrave_speed,
             "power_engrave": w.job.engrave_power,
             "enable_cut": w.job.cut_enabled,
@@ -254,18 +241,17 @@ class WindowState(QObject):
         # chargement d'image ultérieur le « rendrait » par-dessus.
         w.separation.forget_glass_settings()
 
-        w.spin_w.setValue(data.get("w_mm", 100.0))
-        w.spin_h.setValue(data.get("h_mm", 100.0))
+        panel = w.tab_previews.settings
+        panel.set_size(data.get("w_mm", 100.0), data.get("h_mm", 100.0))
         w.machine.update(bed_w=data.get("machine_bed_w_mm", w.machine.bed_w))
         w.machine.update(bed_h=data.get("machine_bed_h_mm", w.machine.bed_h))
         w.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
-        w.spin_off_x.setValue(data.get("offset_x", 0.0))
-        w.spin_off_y.setValue(data.get("offset_y", 0.0))
+        panel.set_offset(data.get("offset_x", 0.0), data.get("offset_y", 0.0))
 
         # Réglages de tramage (anciens projets sans "material_bg" : déduite du négatif).
         w.image_settings.load_project(data)
         w.grbl.update(safe_cut_order=data.get("safe_cut_order", True))
-        w.spin_lmm.setValue(data.get("lmm", 10.0))
+        w.resolution_box.set_lines_per_mm(data.get("lmm", 10.0))
 
         # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque
         # de gravure. Avec des calques, ce sont eux qui font foi (rechargés plus bas).
@@ -286,6 +272,5 @@ class WindowState(QObject):
         if "layers" in data:
             w.layer_manager.load_list(data["layers"])
         w.vector_canvas.load_objects(data.get("vector_objects"))
-        w.window_controller.update_vector_work_area()
 
         w.image.schedule_processing()

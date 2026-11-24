@@ -107,8 +107,8 @@ class OverscanPersistenceTests(unittest.TestCase):
         self.assertFalse(b.homing_enabled)
         b.apply_profile({"name": "Ancien"})             # profil sans la clé : inchangé
         self.assertFalse(b.homing_enabled)
-        with open(os.path.join(ROOT, "main_window.py"), encoding="utf-8") as f:
-            self.assertIn("page.homing_changed.connect(self.machines.schedule_persist)", f.read())
+        with open(os.path.join(ROOT, "ui", "settings", "grbl_config", "builder.py"), encoding="utf-8") as f:
+            self.assertIn("page.homing_changed.connect(machines.schedule_persist)", f.read())
 
 
 if __name__ == "__main__":

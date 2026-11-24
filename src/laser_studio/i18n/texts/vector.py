@@ -1,0 +1,1074 @@
+"""Textes de l'interface : éditeur vectoriel (outils, propriétés, texte, formes, médaille, placement des imports). Clé -> {langue: texte} ; voir i18n/translations.py."""
+
+TEXTS = {
+    # --- Boîtes de dialogue de l'éditeur vectoriel / erreurs de sauvegarde ---
+    "vector.dlg.resize_title": {
+        "fr": "Redimensionner la sélection (groupe)", "en": "Resize selection (group)",
+        "de": "Auswahl skalieren (Gruppe)", "es": "Redimensionar la selección (grupo)",
+    },
+    "vector.dlg.group_size": {
+        "fr": "Taille actuelle du groupe : {w:.2f} x {h:.2f} mm", "en": "Current group size: {w:.2f} x {h:.2f} mm",
+        "de": "Aktuelle Gruppengröße: {w:.2f} x {h:.2f} mm", "es": "Tamaño actual del grupo: {w:.2f} x {h:.2f} mm",
+    },
+    "vector.dlg.keep_ratio": {
+        "fr": "Conserver le ratio largeur/hauteur", "en": "Keep width/height ratio",
+        "de": "Seitenverhältnis beibehalten", "es": "Mantener la proporción ancho/alto",
+    },
+    "vector.dlg.new_width": {
+        "fr": "Nouvelle largeur :", "en": "New width:",
+        "de": "Neue Breite:", "es": "Nuevo ancho:",
+    },
+    "vector.dlg.new_height": {
+        "fr": "Nouvelle hauteur :", "en": "New height:",
+        "de": "Neue Höhe:", "es": "Nuevo alto:",
+    },
+    "vector.dlg.text_title_new": {
+        "fr": "Texte", "en": "Text",
+        "de": "Text", "es": "Texto",
+    },
+    "vector.dlg.text_title_edit": {
+        "fr": "Modifier le texte", "en": "Edit text",
+        "de": "Text bearbeiten", "es": "Editar texto",
+    },
+    "vector.dlg.text_default": {
+        "fr": "TEXTE", "en": "TEXT",
+        "de": "TEXT", "es": "TEXTO",
+    },
+    "vector.dlg.text_label": {
+        "fr": "Texte :", "en": "Text:",
+        "de": "Text:", "es": "Texto:",
+    },
+    "vector.dlg.font": {
+        "fr": "Police :", "en": "Font:",
+        "de": "Schriftart:", "es": "Fuente:",
+    },
+    "vector.dlg.bold": {
+        "fr": "Gras", "en": "Bold",
+        "de": "Fett", "es": "Negrita",
+    },
+    "vector.dlg.italic": {
+        "fr": "Italique", "en": "Italic",
+        "de": "Kursiv", "es": "Cursiva",
+    },
+    "vector.dlg.style": {
+        "fr": "Style :", "en": "Style:",
+        "de": "Stil:", "es": "Estilo:",
+    },
+    "vector.dlg.size_height": {
+        "fr": "Taille (hauteur) :", "en": "Size (height):",
+        "de": "Größe (Höhe):", "es": "Tamaño (altura):",
+    },
+    "vector.dlg.letter_spacing": {
+        "fr": "Espacement des lettres :", "en": "Letter spacing:",
+        "de": "Buchstabenabstand:", "es": "Espaciado entre letras:",
+    },
+    "vector.dlg.arc_radius": {
+        "fr": "Texte sur un cercle, rayon :", "en": "Text on a circle, radius:",
+        "de": "Text auf einem Kreis, Radius:", "es": "Texto sobre un círculo, radio:",
+    },
+    "vector.dlg.arc_off": {
+        "fr": "Texte droit", "en": "Straight text",
+        "de": "Gerader Text", "es": "Texto recto",
+    },
+    "vector.dlg.arc_side": {
+        "fr": "Côté du cercle :", "en": "Side of the circle:",
+        "de": "Seite des Kreises:", "es": "Lado del círculo:",
+    },
+    "vector.dlg.arc_outside": {
+        "fr": "Extérieur (lettres vers l'extérieur)", "en": "Outside (letters pointing out)",
+        "de": "Außen (Buchstaben nach außen)", "es": "Exterior (letras hacia fuera)",
+    },
+    "vector.dlg.arc_inside": {
+        "fr": "Intérieur (lettres vers le centre)", "en": "Inside (letters pointing in)",
+        "de": "Innen (Buchstaben zur Mitte)", "es": "Interior (letras hacia el centro)",
+    },
+    "vector.dlg.arc_angle": {
+        "fr": "Position sur le cercle (90° = haut, 270° = bas) :",
+        "en": "Position on the circle (90° = top, 270° = bottom):",
+        "de": "Position auf dem Kreis (90° = oben, 270° = unten):",
+        "es": "Posición en el círculo (90° = arriba, 270° = abajo):",
+    },
+    "vector.dlg.horizontal": {
+        "fr": "Horizontal", "en": "Horizontal",
+        "de": "Horizontal", "es": "Horizontal",
+    },
+    "vector.dlg.vertical": {
+        "fr": "Vertical", "en": "Vertical",
+        "de": "Vertikal", "es": "Vertical",
+    },
+    "vector.dlg.orientation": {
+        "fr": "Orientation :", "en": "Orientation:",
+        "de": "Ausrichtung:", "es": "Orientación:",
+    },
+    "vector.dlg.mirror": {
+        "fr": "Miroir :", "en": "Mirror:",
+        "de": "Spiegeln:", "es": "Espejo:",
+    },
+    "vector.dlg.corner_pos": {
+        "fr": "Coin bas-gauche de l'objet à (mm) :", "en": "Object's bottom-left corner at (mm):",
+        "de": "Untere linke Ecke des Objekts bei (mm):", "es": "Esquina inferior izquierda del objeto en (mm):",
+    },
+    "vector.dlg.width": {
+        "fr": "Largeur :", "en": "Width:",
+        "de": "Breite:", "es": "Ancho:",
+    },
+    "vector.dlg.height": {
+        "fr": "Hauteur :", "en": "Height:",
+        "de": "Höhe:", "es": "Alto:",
+    },
+    "vector.dlg.shape_title_new": {
+        "fr": "Insérer une forme", "en": "Insert a shape",
+        "de": "Form einfügen", "es": "Insertar una forma",
+    },
+    "vector.dlg.shape_title_edit": {
+        "fr": "Modifier la forme", "en": "Edit shape",
+        "de": "Form bearbeiten", "es": "Editar forma",
+    },
+    "vector.dlg.shape_type": {
+        "fr": "Type :", "en": "Type:",
+        "de": "Typ:", "es": "Tipo:",
+    },
+    "vector.dlg.sides": {
+        "fr": "Côtés (polygone) :", "en": "Sides (polygon):",
+        "de": "Seiten (Polygon):", "es": "Lados (polígono):",
+    },
+    # --- Import DXF et générateur de boîte ---
+    "ui.vector_box_generator": {
+        "fr": "📦 Générateur de boîte",
+        "en": "📦 Box generator",
+        "de": "📦 Box-Generator",
+        "es": "📦 Generador de cajas",
+    },
+    "ui.vector_box_generator_tip": {
+        "fr": "Crée une boîte à encoches de dimensions X, Y, Z, avec un décor texte ou SVG sur les faces.",
+        "en": "Creates a finger-joint box with the X, Y, Z dimensions you choose, with text or SVG decoration on its faces.",
+        "de": "Erstellt eine Fingerzinken-Box mit frei wählbaren Maßen X, Y, Z und Text- oder SVG-Dekor auf den Seiten.",
+        "es": "Crea una caja con encastres de dimensiones X, Y, Z, con decoración de texto o SVG en las caras.",
+    },
+    "ui.vector_puzzle_generator": {
+        "fr": "🧩 Puzzle",
+        "en": "🧩 Puzzle",
+        "de": "🧩 Puzzle",
+        "es": "🧩 Puzzle",
+    },
+    "ui.vector_puzzle_generator_tip": {
+        "fr": "Créer une grille de puzzle découpée (tenons / mortaises)",
+        "en": "Create a cut jigsaw puzzle grid (tabs / slots)",
+        "de": "Ausgeschnittenes Puzzle-Gitter erzeugen (Zapfen / Nuten)",
+        "es": "Crear una rejilla de puzzle recortada (lengüetas / ranuras)",
+    },
+    "vector.import_filter": {
+        "fr": "Vectoriel SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "en": "Vector SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "de": "Vektor SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+        "es": "Vectorial SVG / DXF (*.svg *.dxf);;SVG (*.svg);;DXF (*.dxf)",
+    },
+    "vector.dxf_title": {
+        "fr": "Import DXF",
+        "en": "DXF import",
+        "de": "DXF-Import",
+        "es": "Importación DXF",
+    },
+    "vector.dxf_err.binary": {
+        "fr": "Ce DXF est au format binaire, non pris en charge. Dans ton logiciel de CAO, enregistre-le au format DXF ASCII (texte).",
+        "en": "This DXF is in binary format, which is not supported. In your CAD software, save it as ASCII (text) DXF.",
+        "de": "Diese DXF-Datei hat das Binärformat, das nicht unterstützt wird. Speichere sie in deiner CAD-Software als ASCII-DXF (Text).",
+        "es": "Este DXF está en formato binario, que no es compatible. En tu programa de CAD, guárdalo como DXF ASCII (texto).",
+    },
+    "vector.dxf_err.not_dxf": {
+        "fr": "Ce fichier ne ressemble pas à un DXF texte (problème à la ligne {line}).",
+        "en": "This file does not look like a text DXF (problem at line {line}).",
+        "de": "Diese Datei sieht nicht wie eine Text-DXF aus (Problem in Zeile {line}).",
+        "es": "Este archivo no parece un DXF de texto (problema en la línea {line}).",
+    },
+    "vector.dxf_err.no_entities": {
+        "fr": "Ce DXF ne contient aucune section d'entités (ENTITIES).",
+        "en": "This DXF contains no entities section (ENTITIES).",
+        "de": "Diese DXF enthält keinen Entitätenabschnitt (ENTITIES).",
+        "es": "Este DXF no contiene ninguna sección de entidades (ENTITIES).",
+    },
+    "vector.dxf_error": {
+        "fr": "Impossible de lire le DXF : {error}",
+        "en": "Could not read the DXF: {error}",
+        "de": "Die DXF-Datei konnte nicht gelesen werden: {error}",
+        "es": "No se pudo leer el DXF: {error}",
+    },
+    "vector.dxf_empty": {
+        "fr": "Aucune ligne, courbe ou polyligne exploitable n'a été trouvée dans ce DXF.",
+        "en": "No usable line, curve or polyline was found in this DXF.",
+        "de": "In dieser DXF wurde keine verwendbare Linie, Kurve oder Polylinie gefunden.",
+        "es": "No se encontró ninguna línea, curva o polilínea utilizable en este DXF.",
+    },
+    "vector.dxf_skipped": {
+        "fr": "Éléments non gérés et ignorés : {skipped}.\nAstuce : convertis les textes en courbes dans ton logiciel de CAO avant l'export.",
+        "en": "Unsupported elements that were ignored: {skipped}.\nTip: convert text to curves in your CAD software before exporting.",
+        "de": "Nicht unterstützte, ignorierte Elemente: {skipped}.\nTipp: Wandle Texte in deiner CAD-Software vor dem Export in Kurven um.",
+        "es": "Elementos no compatibles que se ignoraron: {skipped}.\nConsejo: convierte los textos en curvas en tu programa de CAD antes de exportar.",
+    },
+    "vector.dxf_success": {
+        "fr": "{count} objet(s) importé(s) (groupés par calque DXF) dans l'éditeur vectoriel (unité : {unit}), assigné(s) au calque « {layer} ».\nPour séparer les tracés : clic droit → Dégrouper.",
+        "en": "{count} object(s) imported (grouped by DXF layer) into the vector editor (unit: {unit}), assigned to layer \"{layer}\".\nTo split paths: right-click → Ungroup.",
+        "de": "{count} Objekt(e) importiert (nach DXF-Ebene gruppiert) in den Vektoreditor (Einheit: {unit}), Ebene „{layer}“.\nZum Trennen: Rechtsklick → Gruppierung aufheben.",
+        "es": "{count} objeto(s) importado(s) (agrupados por capa DXF) en el editor vectorial (unidad: {unit}), asignado(s) a la capa «{layer}».\nPara separar: clic derecho → Desagrupar.",
+    },
+    "ui.vector_library": {
+        "fr": "Bibliothèque",
+        "en": "Library",
+        "de": "Bibliothek",
+        "es": "Biblioteca",
+    },
+    "ui.vector_library_tip": {
+        "fr": "Bibliothèque de modèles prêts à graver ou découper (trophées, médailles…), à importer dans l'éditeur.",
+        "en": "Ready-to-engrave or cut designs (trophies, medals…), to import into the editor.",
+        "de": "Fertige Vorlagen zum Gravieren oder Schneiden (Trophäen, Medaillen…), zum Import in den Editor.",
+        "es": "Modelos listos para grabar o cortar (trofeos, medallas…), para importar al editor.",
+    },
+    "ui.vector_camera_toggle": {
+        "fr": "Fond caméra",
+        "en": "Camera background",
+        "de": "Kamera-Hintergrund",
+        "es": "Fondo de cámara",
+    },
+    "ui.vector_camera_toggle_tip": {
+        "fr": "Affiche l'image de la caméra sous la grille (capture à l'activation) pour placer le travail sur la vraie matière. Demande la calibration optique et l'alignement (Outils > Caméra).",
+        "en": "Shows the camera image under the grid (captured when turned on) to place the work on the real material. Needs the lens calibration and the alignment (Tools > Camera).",
+        "de": "Zeigt das Kamerabild unter dem Raster (Aufnahme beim Einschalten), um die Arbeit auf dem echten Material zu platzieren. Erfordert Objektivkalibrierung und Ausrichtung (Werkzeuge > Kamera).",
+        "es": "Muestra la imagen de la cámara bajo la cuadrícula (captura al activarlo) para colocar el trabajo sobre el material real. Requiere la calibración óptica y la alineación (Herramientas > Cámara).",
+    },
+    "ui.vector_camera_refresh": {
+        "fr": "Actualiser l'image caméra",
+        "en": "Refresh camera image",
+        "de": "Kamerabild aktualisieren",
+        "es": "Actualizar la imagen de la cámara",
+    },
+    "ui.vector_camera_refresh_tip": {
+        "fr": "Recapture la caméra et met à jour le fond (après avoir posé ou déplacé la matière).",
+        "en": "Captures the camera again and updates the background (after placing or moving the material).",
+        "de": "Nimmt die Kamera erneut auf und aktualisiert den Hintergrund (nach dem Auflegen oder Verschieben des Materials).",
+        "es": "Vuelve a capturar la cámara y actualiza el fondo (tras colocar o mover el material).",
+    },
+    "ui.vector_ornament_generator": {
+        "fr": "🎄 Boule de Noël",
+        "en": "🎄 Ornament",
+        "de": "🎄 Weihnachtskugel",
+        "es": "🎄 Bola de Navidad",
+    },
+    "ui.vector_ornament_generator_tip": {
+        "fr": "Créer une boule de Noël découpée avec un prénom et des flocons",
+        "en": "Create a cut Christmas ornament with a name and snowflakes",
+        "de": "Ausgeschnittene Weihnachtskugel mit Namen und Schneeflocken erzeugen",
+        "es": "Crear una bola de Navidad recortada con un nombre y copos de nieve",
+    },
+
+    # --- Imbrication automatique ---
+    "ui.vector_nesting": {
+        "fr": "🧩 Imbrication auto",
+        "en": "🧩 Auto-nesting",
+        "de": "🧩 Auto-Anordnung",
+        "es": "🧩 Anidado automático",
+    },
+    "ui.vector_nesting_tip": {
+        "fr": "Range automatiquement les pièces sur la feuille pour gaspiller le moins de matière possible.",
+        "en": "Automatically arranges the parts on the sheet to waste as little material as possible.",
+        "de": "Ordnet die Teile automatisch auf dem Blatt an, damit möglichst wenig Material verschwendet wird.",
+        "es": "Coloca automáticamente las piezas en la hoja para desperdiciar el mínimo de material.",
+    },
+    "ui.vector_serial_duplicate": {
+        "fr": "Dupliquer en série…",
+        "en": "Duplicate in series…",
+        "de": "In Serie duplizieren…",
+        "es": "Duplicar en serie…",
+    },
+    "ui.vector_jig": {
+        "fr": "Gabarit de placement…",
+        "en": "Placement jig…",
+        "de": "Platzierungsschablone…",
+        "es": "Plantilla de colocación…",
+    },
+
+    "dim.keep_ratio": {
+        "fr": "Conserver le ratio",
+        "en": "Keep aspect ratio",
+        "de": "Seitenverhältnis beibehalten",
+        "es": "Mantener la proporción",
+    },
+    "dim.width": {
+        "fr": "Largeur (mm):",
+        "en": "Width (mm):",
+        "de": "Breite (mm):",
+        "es": "Ancho (mm):",
+    },
+    "dim.height": {
+        "fr": "Hauteur (mm):",
+        "en": "Height (mm):",
+        "de": "Höhe (mm):",
+        "es": "Alto (mm):",
+    },
+    "dim.origin": {
+        "fr": "Ancrage Origine:",
+        "en": "Origin Anchor:",
+        "de": "Ursprungsanker:",
+        "es": "Anclaje del origen:",
+    },
+    "dim.offset_x": {
+        "fr": "Offset X (mm):",
+        "en": "X Offset (mm):",
+        "de": "X-Versatz (mm):",
+        "es": "Desplazamiento X (mm):",
+    },
+    "dim.offset_y": {
+        "fr": "Offset Y (mm):",
+        "en": "Y Offset (mm):",
+        "de": "Y-Versatz (mm):",
+        "es": "Desplazamiento Y (mm):",
+    },
+    # --- Éditeur vectoriel ---
+    "vector.no_layer_title": {
+        "fr": "Aucun calque",
+        "en": "No Layer",
+        "de": "Keine Ebene",
+        "es": "Ninguna capa",
+    },
+    "vector.no_layer_body": {
+        "fr": "Crée d'abord un calque dans l'onglet 'Calques (Layers)'.",
+        "en": "Create a layer first in the 'Layers' tab.",
+        "de": "Erstelle zuerst eine Ebene im Reiter „Ebenen“.",
+        "es": "Crea primero una capa en la pestaña «Capas».",
+    },
+    "vector.selection_title": {
+        "fr": "Sélection",
+        "en": "Selection",
+        "de": "Auswahl",
+        "es": "Selección",
+    },
+    "vector.no_selection": {
+        "fr": "Sélectionne d'abord un objet dans le canevas.",
+        "en": "Select an object in the canvas first.",
+        "de": "Wähle zuerst ein Objekt auf der Zeichenfläche aus.",
+        "es": "Selecciona primero un objeto en el lienzo.",
+    },
+    "vector.svg_properties": {
+        "fr": "Propriétés de l'élément SVG (calque, taille)",
+        "en": "SVG Element Properties (layer, size)",
+        "de": "Eigenschaften des SVG-Elements (Ebene, Größe)",
+        "es": "Propiedades del elemento SVG (capa, tamaño)",
+    },
+    "vector.fullscreen_title": {
+        "fr": "Graver une image vectorielle — Plein écran",
+        "en": "Engrave a Vector Image — Full Screen",
+        "de": "Vektorbild gravieren — Vollbild",
+        "es": "Grabar una imagen vectorial — Pantalla completa",
+    },
+    "vector.close_fullscreen": {
+        "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
+        "en": "✕ Exit full screen (return to normal window)",
+        "de": "✕ Vollbild schließen (zum normalen Fenster zurückkehren)",
+        "es": "✕ Cerrar pantalla completa (volver a la ventana normal)",
+    },
+    "vector.import_title": {
+        "fr": "Importer un SVG ou un DXF (multi-calques)",
+        "en": "Import SVG or DXF (multi-layer)",
+        "de": "SVG oder DXF importieren (mehrere Ebenen)",
+        "es": "Importar SVG o DXF (multicapa)",
+    },
+    "vector.svg_error_title": {
+        "fr": "Erreur d'import SVG",
+        "en": "SVG Import Error",
+        "de": "SVG-Importfehler",
+        "es": "Error de importación SVG",
+    },
+    "vector.svg_error": {
+        "fr": "Impossible d'importer ce fichier :\n{error}",
+        "en": "Unable to import this file:\n{error}",
+        "de": "Diese Datei konnte nicht importiert werden:\n{error}",
+        "es": "No se puede importar este archivo:\n{error}",
+    },
+    "vector.svg_empty_title": {
+        "fr": "Import SVG",
+        "en": "SVG Import",
+        "de": "SVG-Import",
+        "es": "Importación SVG",
+    },
+    "vector.svg_empty": {
+        "fr": "Aucun élément exploitable n'a été trouvé dans ce fichier.",
+        "en": "No usable element was found in this file.",
+        "de": "In dieser Datei wurde kein verwendbares Element gefunden.",
+        "es": "No se encontró ningún elemento utilizable en este archivo.",
+    },
+    "vector.svg_success_title": {
+        "fr": "Import SVG réussi",
+        "en": "SVG Import Successful",
+        "de": "SVG-Import erfolgreich",
+        "es": "Importación SVG correcta",
+    },
+    "vector.svg_success": {
+        "fr": "{count} objet(s) importé(s) dans l'éditeur vectoriel (groupé), "
+              "assigné(s) au calque « {layer} ».\n\n"
+              "Pour séparer les tracés : clic droit → Dégrouper, puis assigne "
+              "chaque partie au calque souhaité.",
+        "en": "{count} object(s) imported into the vector editor (grouped), "
+              "assigned to layer “{layer}”.\n\n"
+              "To split the paths: right-click → Ungroup, then assign each "
+              "part to the desired layer.",
+        "de": "{count} Objekt(e) in den Vektor-Editor importiert (gruppiert) und "
+              "der Ebene „{layer}“ zugewiesen.\n\n"
+              "Zum Trennen der Pfade: Rechtsklick → Gruppierung aufheben, dann "
+              "jede Teilform einer Ebene zuweisen.",
+        "es": "{count} objeto(s) importado(s) en el editor vectorial (agrupado) y "
+              "asignado(s) a la capa «{layer}».\n\n"
+              "Para separar los trazos: clic derecho → Desagrupar, luego asigna "
+              "cada parte a la capa deseada.",
+    },
+    "vector.no_engrave_layer": {
+        "fr": "Aucun calque en mode Gravure : l'image utilisera les réglages du calque sélectionné.",
+        "en": "No layer in Engrave mode: the image will use the settings of the selected layer.",
+        "de": "Keine Ebene im Gravurmodus: Das Bild verwendet die Einstellungen der ausgewählten Ebene.",
+        "es": "Ninguna capa en modo Grabado: la imagen usará los ajustes de la capa seleccionada.",
+    },
+    "ui.vector_add_text": {
+        "fr": "+ Texte",
+        "en": "+ Text",
+        "de": "+ Text",
+        "es": "+ Texto",
+    },
+    "ui.vector_add_shape": {
+        "fr": "+ Forme",
+        "en": "+ Shape",
+        "de": "+ Form",
+        "es": "+ Forma",
+    },
+    "ui.vector_tool_select": {
+        "fr": "Sélection",
+        "en": "Select",
+        "de": "Auswahl",
+        "es": "Selección",
+    },
+    "ui.vector_tool_select_tip": {
+        "fr": "Outil sélection (déplacer, sélection multiple)",
+        "en": "Selection tool (move, multi-select)",
+        "de": "Auswahlwerkzeug (verschieben, Mehrfachauswahl)",
+        "es": "Herramienta de selección (mover, selección múltiple)",
+    },
+    "ui.vector_tool_line": {
+        "fr": "Ligne",
+        "en": "Line",
+        "de": "Linie",
+        "es": "Línea",
+    },
+    "ui.vector_tool_line_tip": {
+        "fr": "Tracer une ligne : clic-glisser sur le canevas (Échap pour annuler)",
+        "en": "Draw a line: click-drag on the canvas (Esc to cancel)",
+        "de": "Linie zeichnen: Klicken und ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar una línea: clic y arrastrar (Esc para cancelar)",
+    },
+    "ui.vector_tool_rect": {
+        "fr": "Rectangle",
+        "en": "Rectangle",
+        "de": "Rechteck",
+        "es": "Rectángulo",
+    },
+    "ui.vector_tool_rect_tip": {
+        "fr": "Tracer un rectangle en 3 points : 2 clics pour un côté, puis tirer pour l'autre dimension (Échap pour annuler)",
+        "en": "Draw a rectangle in 3 points: 2 clicks for one side, then drag for the other dimension (Esc to cancel)",
+        "de": "Rechteck in 3 Punkten zeichnen: 2 Klicks für eine Seite, dann ziehen für die andere Abmessung (Esc zum Abbrechen)",
+        "es": "Dibujar un rectángulo en 3 puntos: 2 clics para un lado, luego arrastrar para la otra dimensión (Esc para cancelar)",
+    },
+    "ui.vector_tool_ellipse": {
+        "fr": "Ellipse",
+        "en": "Ellipse",
+        "de": "Ellipse",
+        "es": "Elipse",
+    },
+    "ui.vector_tool_ellipse_tip": {
+        "fr": "Tracer une ellipse d'un seul geste : clic-glisser d'un coin du cadre à l'autre (Échap pour annuler)",
+        "en": "Draw an ellipse in one go: click-drag from one corner of its frame to the opposite one (Esc to cancel)",
+        "de": "Ellipse in einem Zug zeichnen: von einer Ecke des Rahmens zur gegenüberliegenden ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar una elipse de un solo gesto: clic y arrastrar de una esquina del marco a la opuesta (Esc para cancelar)",
+    },
+    "ui.vector_tool_circle": {
+        "fr": "Cercle",
+        "en": "Circle",
+        "de": "Kreis",
+        "es": "Círculo",
+    },
+    "ui.vector_tool_circle_tip": {
+        "fr": "Tracer un cercle d'un seul geste : clic-glisser du centre vers le bord (Échap pour annuler)",
+        "en": "Draw a circle in one go: click-drag from the centre to the edge (Esc to cancel)",
+        "de": "Kreis in einem Zug zeichnen: vom Mittelpunkt zum Rand ziehen (Esc zum Abbrechen)",
+        "es": "Dibujar un círculo de un solo gesto: clic y arrastrar del centro al borde (Esc para cancelar)",
+    },
+    "vector.dlg.anchor": {
+        "fr": "Lettres par rapport au trait :",
+        "en": "Letters relative to the line:",
+        "de": "Buchstaben zur Linie:",
+        "es": "Letras respecto a la línea:",
+    },
+    "vector.dlg.anchor_above": {
+        "fr": "Posées sur le trait (au-dessus)",
+        "en": "Sitting on the line (above)",
+        "de": "Auf der Linie (darüber)",
+        "es": "Sobre la línea (encima)",
+    },
+    "vector.dlg.anchor_center": {
+        "fr": "Centrées sur le trait",
+        "en": "Centered on the line",
+        "de": "Auf der Linie zentriert",
+        "es": "Centradas en la línea",
+    },
+    "vector.dlg.anchor_below": {
+        "fr": "Accrochées sous le trait (à l'intérieur, lisible)",
+        "en": "Hanging under the line (inside, readable)",
+        "de": "Unter der Linie hängend (innen, lesbar)",
+        "es": "Colgadas bajo la línea (dentro, legible)",
+    },
+    "vector.dlg.spread": {
+        "fr": "Étaler le texte sur :",
+        "en": "Spread the text over:",
+        "de": "Text verteilen auf:",
+        "es": "Extender el texto sobre:",
+    },
+    "vector.dlg.spread_btn": {
+        "fr": "Étaler",
+        "en": "Spread",
+        "de": "Verteilen",
+        "es": "Extender",
+    },
+    "vector.dlg.spread_tip": {
+        "fr": "Règle l'espacement des lettres pour que le texte couvre cette part du cercle ou du contour (100 % = tout le tour).",
+        "en": "Sets the letter spacing so the text covers this share of the circle or outline (100 % = all the way round).",
+        "de": "Stellt den Buchstabenabstand so ein, dass der Text diesen Anteil des Kreises oder der Kontur abdeckt (100 % = ganz herum).",
+        "es": "Ajusta el espaciado para que el texto cubra esta parte del círculo o del contorno (100 % = toda la vuelta).",
+    },
+    "vector.dlg.preset": {
+        "fr": "Préréglage :",
+        "en": "Preset:",
+        "de": "Voreinstellung:",
+        "es": "Preajuste:",
+    },
+    "vector.dlg.preset_none": {
+        "fr": "— aucun —",
+        "en": "— none —",
+        "de": "— keine —",
+        "es": "— ninguno —",
+    },
+    "vector.dlg.preset_save": {
+        "fr": "Enregistrer…",
+        "en": "Save…",
+        "de": "Speichern…",
+        "es": "Guardar…",
+    },
+    "vector.dlg.preset_delete": {
+        "fr": "Supprimer",
+        "en": "Delete",
+        "de": "Löschen",
+        "es": "Eliminar",
+    },
+    "vector.dlg.preset_name_title": {
+        "fr": "Préréglage de texte",
+        "en": "Text preset",
+        "de": "Text-Voreinstellung",
+        "es": "Preajuste de texto",
+    },
+    "vector.dlg.preset_name_label": {
+        "fr": "Nom du préréglage :",
+        "en": "Preset name:",
+        "de": "Name der Voreinstellung:",
+        "es": "Nombre del preajuste:",
+    },
+    "vector.medal": {
+        "fr": "Texte de médaille (haut + bas)…",
+        "en": "Medal text (top + bottom)…",
+        "de": "Medaillentext (oben + unten)…",
+        "es": "Texto de medalla (arriba + abajo)…",
+    },
+    "vector.medal_title": {
+        "fr": "Texte de médaille",
+        "en": "Medal text",
+        "de": "Medaillentext",
+        "es": "Texto de medalla",
+    },
+    "vector.medal.top": {
+        "fr": "Texte du haut :",
+        "en": "Top text:",
+        "de": "Text oben:",
+        "es": "Texto de arriba:",
+    },
+    "vector.medal.bottom": {
+        "fr": "Texte du bas :",
+        "en": "Bottom text:",
+        "de": "Text unten:",
+        "es": "Texto de abajo:",
+    },
+    "vector.medal.margin": {
+        "fr": "Distance au bord :",
+        "en": "Distance from the edge:",
+        "de": "Abstand zum Rand:",
+        "es": "Distancia al borde:",
+    },
+    "vector.medal_need_guide": {
+        "fr": "Sélectionnez un seul objet à contour fermé (cercle, ellipse, rectangle...).",
+        "en": "Select a single object with a closed outline (circle, ellipse, rectangle...).",
+        "de": "Wählen Sie ein einzelnes Objekt mit geschlossener Kontur (Kreis, Ellipse, Rechteck ...).",
+        "es": "Seleccione un solo objeto con contorno cerrado (círculo, elipse, rectángulo...).",
+    },
+    "vector.text_resync": {
+        "fr": "Resynchroniser le texte avec son objet",
+        "en": "Resync the text with its object",
+        "de": "Text mit seinem Objekt neu abgleichen",
+        "es": "Resincronizar el texto con su objeto",
+    },
+    "vector.text_resynced": {
+        "fr": "Texte resynchronisé avec son objet.",
+        "en": "Text resynced with its object.",
+        "de": "Text mit seinem Objekt abgeglichen.",
+        "es": "Texto resincronizado con su objeto.",
+    },
+    "vector.follow_handle_tip": {
+        "fr": "Glisser pour déplacer le texte le long du contour",
+        "en": "Drag to move the text along the outline",
+        "de": "Ziehen, um den Text entlang der Kontur zu verschieben",
+        "es": "Arrastre para mover el texto a lo largo del contorno",
+    },
+    "vector.text_follow": {
+        "fr": "Courber le texte sur le tracé",
+        "en": "Bend text along the curve",
+        "de": "Text entlang der Kurve biegen",
+        "es": "Curvar el texto sobre el trazado",
+    },
+    "vector.text_follow_title": {
+        "fr": "Texte le long d'un objet",
+        "en": "Text along an object",
+        "de": "Text entlang eines Objekts",
+        "es": "Texto a lo largo de un objeto",
+    },
+    "vector.text_follow_need_two": {
+        "fr": "Sélectionnez un texte ET l'objet dont il doit suivre le contour (cercle, ellipse, courbe, forme importée...) : cliquez sur l'un, puis Maj + clic sur l'autre.",
+        "en": "Select a text AND the object whose outline it must follow (circle, ellipse, curve, imported shape...): click one, then Shift + click the other.",
+        "de": "Wählen Sie einen Text UND das Objekt, dessen Kontur er folgen soll (Kreis, Ellipse, Kurve, importierte Form ...): erst eines anklicken, dann Umschalt + Klick auf das andere.",
+        "es": "Seleccione un texto Y el objeto cuyo contorno debe seguir (círculo, elipse, curva, forma importada...): haga clic en uno y luego Mayús + clic en el otro.",
+    },
+    "vector.dlg.follow_place": {
+        "fr": "Placer le texte :",
+        "en": "Place the text:",
+        "de": "Text platzieren:",
+        "es": "Colocar el texto:",
+    },
+    "vector.dlg.follow_place_custom": {
+        "fr": "Position libre (voir ci-dessous)",
+        "en": "Free position (see below)",
+        "de": "Freie Position (siehe unten)",
+        "es": "Posición libre (ver abajo)",
+    },
+    "vector.dlg.follow_place_top": {
+        "fr": "En haut", "en": "At the top", "de": "Oben", "es": "Arriba",
+    },
+    "vector.dlg.follow_place_bottom": {
+        "fr": "En bas", "en": "At the bottom", "de": "Unten", "es": "Abajo",
+    },
+    "vector.dlg.follow_place_left": {
+        "fr": "À gauche", "en": "On the left", "de": "Links", "es": "A la izquierda",
+    },
+    "vector.dlg.follow_place_right": {
+        "fr": "À droite", "en": "On the right", "de": "Rechts", "es": "A la derecha",
+    },
+    "vector.dlg.follow_pos": {
+        "fr": "Position sur le tracé :",
+        "en": "Position along the outline:",
+        "de": "Position auf der Kontur:",
+        "es": "Posición en el contorno:",
+    },
+    "vector.dlg.follow_reverse": {
+        "fr": "Texte à l'intérieur / de l'autre côté du trait (inverse le sens de lecture)",
+        "en": "Text inside / on the other side of the line (reverses the reading direction)",
+        "de": "Text innen / auf der anderen Seite der Linie (kehrt die Leserichtung um)",
+        "es": "Texto por dentro / al otro lado de la línea (invierte el sentido de lectura)",
+    },
+    "vector.dlg.follow_gap": {
+        "fr": "Distance au tracé :",
+        "en": "Distance from the outline:",
+        "de": "Abstand zur Kontur:",
+        "es": "Distancia al contorno:",
+    },
+    "vector.dlg.follow_detach": {
+        "fr": "Détacher du tracé (redevient un texte droit)",
+        "en": "Detach from the outline (back to straight text)",
+        "de": "Von der Kontur lösen (wieder gerader Text)",
+        "es": "Separar del contorno (vuelve a ser texto recto)",
+    },
+    "ui.vector_import_svg": {
+        "fr": "📥 Importer SVG / DXF (multi-calques)",
+        "en": "📥 Import SVG / DXF (multi-layer)",
+        "de": "📥 SVG / DXF importieren (Mehrfach-Ebenen)",
+        "es": "📥 Importar SVG / DXF (multicapa)",
+    },
+    "ui.vector_edit_selection": {
+        "fr": "Modifier Sélection",
+        "en": "Edit Selection",
+        "de": "Auswahl bearbeiten",
+        "es": "Editar selección",
+    },
+    "ui.vector_rotate_90": {
+        "fr": "↻ Pivoter 90°",
+        "en": "↻ Rotate 90°",
+        "de": "↻ 90° drehen",
+        "es": "↻ Girar 90°",
+    },
+    "ui.vector_duplicate": {
+        "fr": "Dupliquer",
+        "en": "Duplicate",
+        "de": "Duplizieren",
+        "es": "Duplicar",
+    },
+    "ui.vector_delete": {
+        "fr": "Supprimer",
+        "en": "Delete",
+        "de": "Löschen",
+        "es": "Eliminar",
+    },
+    "ui.vector_delete_all": {
+        "fr": "Tout supprimer",
+        "en": "Delete all",
+        "de": "Alles löschen",
+        "es": "Eliminar todo",
+    },
+    "vector.delete_all_title": {
+        "fr": "Tout supprimer",
+        "en": "Delete all",
+        "de": "Alles löschen",
+        "es": "Eliminar todo",
+    },
+    "vector.delete_all_question": {
+        "fr": "Supprimer les {count} objets de l'éditeur vectoriel ?\n\nCtrl+Z (Annuler) les fait revenir.",
+        "en": "Delete the {count} objects of the vector editor?\n\nCtrl+Z (Undo) brings them back.",
+        "de": "Die {count} Objekte des Vektoreditors löschen?\n\nStrg+Z (Rückgängig) holt sie zurück.",
+        "es": "¿Eliminar los {count} objetos del editor vectorial?\n\nCtrl+Z (Deshacer) los recupera.",
+    },
+    "vector.place_title": {
+        "fr": "Ajouter le dessin",
+        "en": "Add the drawing",
+        "de": "Zeichnung hinzufügen",
+        "es": "Añadir el dibujo",
+    },
+    "vector.place_question": {
+        "fr": "L'éditeur vectoriel contient déjà {count} objet(s). Que faire du nouveau dessin ?\n\nCtrl+Z (Annuler) revient en arrière.",
+        "en": "The vector editor already holds {count} object(s). What should be done with the new drawing?\n\nCtrl+Z (Undo) goes back.",
+        "de": "Der Vektoreditor enthält bereits {count} Objekt(e). Was soll mit der neuen Zeichnung geschehen?\n\nStrg+Z (Rückgängig) macht es rückgängig.",
+        "es": "El editor vectorial ya contiene {count} objeto(s). ¿Qué hacer con el nuevo dibujo?\n\nCtrl+Z (Deshacer) vuelve atrás.",
+    },
+    "vector.place_add": {
+        "fr": "Ajouter sans toucher aux objets",
+        "en": "Add, keep the objects",
+        "de": "Hinzufügen, Objekte behalten",
+        "es": "Añadir sin tocar los objetos",
+    },
+    "vector.place_replace": {
+        "fr": "Supprimer les objets présents",
+        "en": "Delete the existing objects",
+        "de": "Vorhandene Objekte löschen",
+        "es": "Eliminar los objetos presentes",
+    },
+    "vector.place_right": {
+        "fr": "Ajouter à droite",
+        "en": "Add to the right",
+        "de": "Rechts hinzufügen",
+        "es": "Añadir a la derecha",
+    },
+    "vector.place_above": {
+        "fr": "Ajouter au-dessus",
+        "en": "Add above",
+        "de": "Oben hinzufügen",
+        "es": "Añadir encima",
+    },
+    "ui.vector_undo": {
+        "fr": "↶ Annuler (Ctrl+Z)",
+        "en": "↶ Undo (Ctrl+Z)",
+        "de": "↶ Rückgängig (Ctrl+Z)",
+        "es": "↶ Deshacer (Ctrl+Z)",
+    },
+    "ui.vector_redo": {
+        "fr": "↷ Refaire (Ctrl+Y)",
+        "en": "↷ Redo (Ctrl+Y)",
+        "de": "↷ Wiederholen (Ctrl+Y)",
+        "es": "↷ Rehacer (Ctrl+Y)",
+    },
+    "ui.vector_zoom_in": {
+        "fr": "Zoom avant (Ctrl++)",
+        "en": "Zoom in (Ctrl++)",
+        "de": "Vergrößern (Ctrl++)",
+        "es": "Acercar (Ctrl++)",
+    },
+    "ui.vector_zoom_out": {
+        "fr": "Zoom arrière (Ctrl+-)",
+        "en": "Zoom out (Ctrl+-)",
+        "de": "Verkleinern (Ctrl+-)",
+        "es": "Alejar (Ctrl+-)",
+    },
+    "ui.vector_align_box": {
+        "fr": "Alignement / Distribution",
+        "en": "Alignment / Distribution",
+        "de": "Ausrichtung / Verteilung",
+        "es": "Alineación / Distribución",
+    },
+    # Infobulles de la barre d'alignement (boutons à pictogramme seul).
+    "ui.vector_align_left_tip": {
+        "fr": "Aligner à gauche", "en": "Align left",
+        "de": "Links ausrichten", "es": "Alinear a la izquierda",
+    },
+    "ui.vector_align_center_h_tip": {
+        "fr": "Centrer horizontalement", "en": "Center horizontally",
+        "de": "Horizontal zentrieren", "es": "Centrar horizontalmente",
+    },
+    "ui.vector_align_right_tip": {
+        "fr": "Aligner à droite", "en": "Align right",
+        "de": "Rechts ausrichten", "es": "Alinear a la derecha",
+    },
+    "ui.vector_align_top_tip": {
+        "fr": "Aligner en haut", "en": "Align top",
+        "de": "Oben ausrichten", "es": "Alinear arriba",
+    },
+    "ui.vector_align_middle_v_tip": {
+        "fr": "Centrer verticalement", "en": "Center vertically",
+        "de": "Vertikal zentrieren", "es": "Centrar verticalmente",
+    },
+    "ui.vector_align_bottom_tip": {
+        "fr": "Aligner en bas", "en": "Align bottom",
+        "de": "Unten ausrichten", "es": "Alinear abajo",
+    },
+    "ui.vector_distribute_h_tip": {
+        "fr": "Répartir horizontalement", "en": "Distribute horizontally",
+        "de": "Horizontal verteilen", "es": "Distribuir horizontalmente",
+    },
+    "ui.vector_distribute_v_tip": {
+        "fr": "Répartir verticalement", "en": "Distribute vertically",
+        "de": "Vertikal verteilen", "es": "Distribuir verticalmente",
+    },
+    "ui.vector_align_left": {
+        "fr": "⊢ Gauche", "en": "⊢ Left", "de": "⊢ Links", "es": "⊢ Izquierda",
+    },
+    "ui.vector_align_center_h": {
+        "fr": "⊟ Centre H", "en": "⊟ Center H", "de": "⊟ Mitte H", "es": "⊟ Centro H",
+    },
+    "ui.vector_align_right": {
+        "fr": "⊣ Droite", "en": "⊣ Right", "de": "⊣ Rechts", "es": "⊣ Derecha",
+    },
+    "ui.vector_align_top": {
+        "fr": "⊤ Haut", "en": "⊤ Top", "de": "⊤ Oben", "es": "⊤ Arriba",
+    },
+    "ui.vector_align_middle_v": {
+        "fr": "⊞ Milieu V", "en": "⊞ Middle V", "de": "⊞ Mitte V", "es": "⊞ Centro V",
+    },
+    "ui.vector_align_bottom": {
+        "fr": "⊥ Bas", "en": "⊥ Bottom", "de": "⊥ Unten", "es": "⊥ Abajo",
+    },
+    "ui.vector_distribute_h": {
+        "fr": "⇹ Répartir H", "en": "⇹ Distribute H",
+        "de": "⇹ Verteilen H", "es": "⇹ Distribuir H",
+    },
+    "ui.vector_distribute_v": {
+        "fr": "⇳ Répartir V", "en": "⇳ Distribute V",
+        "de": "⇳ Verteilen V", "es": "⇳ Distribuir V",
+    },
+    "ui.vector_snap_enable": {
+        "fr": "🧲 Accroche à la grille", "en": "🧲 Snap to grid",
+        "de": "🧲 Am Raster einrasten", "es": "🧲 Ajustar a la cuadrícula",
+    },
+    "ui.vector_fullscreen": {
+        "fr": "Plein écran",
+        "en": "Full Screen",
+        "de": "Vollbild",
+        "es": "Pantalla completa",
+    },
+    "ui.vector_x_mm": {
+        "fr": "X (mm) :",
+        "en": "X (mm):",
+        "de": "X (mm):",
+        "es": "X (mm):",
+    },
+    "ui.vector_y_mm": {
+        "fr": "Y (mm) :",
+        "en": "Y (mm):",
+        "de": "Y (mm):",
+        "es": "Y (mm):",
+    },
+    "ui.vector_rotation_deg": {
+        "fr": "Rotation (°) :",
+        "en": "Rotation (°):",
+        "de": "Drehung (°):",
+        "es": "Rotación (°):",
+    },
+    "ui.vector_layer": {
+        "fr": "Calque :",
+        "en": "Layer:",
+        "de": "Ebene:",
+        "es": "Capa:",
+    },
+    "vector.n_objects": {
+        "fr": " ({n} objets)", "en": " ({n} objects)",
+        "de": " ({n} Objekte)", "es": " ({n} objetos)",
+    },
+    "vector.assign_to_layer": {
+        "fr": "Assigner au calque", "en": "Assign to layer",
+        "de": "Ebene zuweisen", "es": "Asignar a la capa",
+    },
+    "vector.resize_ellipsis": {
+        "fr": "Redimensionner…", "en": "Resize…",
+        "de": "Größe ändern…", "es": "Redimensionar…",
+    },
+    "vector.group_objects": {
+        "fr": "Regrouper en un seul objet ({n} objets)",
+        "en": "Group into one object ({n} objects)",
+        "de": "Zu einem Objekt gruppieren ({n} Objekte)",
+        "es": "Agrupar en un solo objeto ({n} objetos)",
+    },
+    "vector.ungroup_objects": {
+        "fr": "Dégrouper",
+        "en": "Ungroup",
+        "de": "Gruppierung aufheben",
+        "es": "Desagrupar",
+    },
+
+    "vector.ctx_add_shape": {
+        "fr": "Ajouter une forme",
+        "en": "Add shape",
+        "de": "Form hinzufügen",
+        "es": "Añadir forma",
+    },
+    "vector.ctx_text": {
+        "fr": "Texte",
+        "en": "Text",
+        "de": "Text",
+        "es": "Texto",
+    },
+    "vector.ctx_line": {
+        "fr": "Ligne",
+        "en": "Line",
+        "de": "Linie",
+        "es": "Línea",
+    },
+    "vector.ctx_square": {
+        "fr": "Carré",
+        "en": "Square",
+        "de": "Quadrat",
+        "es": "Cuadrado",
+    },
+    "vector.ctx_circle": {
+        "fr": "Cercle",
+        "en": "Circle",
+        "de": "Kreis",
+        "es": "Círculo",
+    },
+    "vector.explode_path": {
+        "fr": "Exploser en segments",
+        "en": "Explode into segments",
+        "de": "In Segmente zerlegen",
+        "es": "Explotar en segmentos",
+    },
+    "vector.edit_nodes": {
+        "fr": "Éditer les nœuds",
+        "en": "Edit nodes",
+        "de": "Knoten bearbeiten",
+        "es": "Editar nodos",
+    },
+    "vector.exit_nodes": {
+        "fr": "Quitter l'édition de nœuds",
+        "en": "Exit node editing",
+        "de": "Knotenbearbeitung beenden",
+        "es": "Salir de edición de nodos",
+    },
+    "vector.delete_node": {
+        "fr": "Supprimer le nœud",
+        "en": "Delete node",
+        "de": "Knoten löschen",
+        "es": "Eliminar nodo",
+    },
+    "ui.vector_width_mm": {
+        "fr": "Largeur :",
+        "en": "Width:",
+        "de": "Breite:",
+        "es": "Ancho:",
+    },
+    "ui.vector_height_mm": {
+        "fr": "Hauteur :",
+        "en": "Height:",
+        "de": "Höhe:",
+        "es": "Alto:",
+    },
+    "ui.vector_anchor": {
+        "fr": "Ancrage :",
+        "en": "Anchor:",
+        "de": "Anker:",
+        "es": "Anclaje:",
+    },
+    "ui.vector_anchor_lock": {
+        "fr": "Verrouiller l'ancrage",
+        "en": "Lock anchor",
+        "de": "Anker sperren",
+        "es": "Bloquear anclaje",
+    },
+    "ui.vector_anchor_lock_tip": {
+        "fr": "Garde le point d'ancrage choisi fixe quand la taille change.",
+        "en": "Keeps the chosen anchor point fixed when the size changes.",
+        "de": "Hält den gewählten Ankerpunkt bei Größenänderung fest.",
+        "es": "Mantiene fijo el punto de anclaje elegido al cambiar el tamaño.",
+    },
+    "ui.vector_anchor_tip": {
+        "fr": "Point de l'objet qui reste en place lors d'un redimensionnement.",
+        "en": "Point of the object that stays in place when resizing.",
+        "de": "Punkt des Objekts, der beim Skalieren an Ort und Stelle bleibt.",
+        "es": "Punto del objeto que permanece en su sitio al redimensionar.",
+    },
+    "ui.vector_anchor_origin": {
+        "fr": "Origine (0,0)",
+        "en": "Origin (0,0)",
+        "de": "Ursprung (0,0)",
+        "es": "Origen (0,0)",
+    },
+    "ui.vector_anchor_bl": {
+        "fr": "Bas-gauche",
+        "en": "Bottom-left",
+        "de": "Unten links",
+        "es": "Abajo a la izquierda",
+    },
+    "ui.vector_anchor_br": {
+        "fr": "Bas-droite",
+        "en": "Bottom-right",
+        "de": "Unten rechts",
+        "es": "Abajo a la derecha",
+    },
+    "ui.vector_anchor_tl": {
+        "fr": "Haut-gauche",
+        "en": "Top-left",
+        "de": "Oben links",
+        "es": "Arriba a la izquierda",
+    },
+    "ui.vector_anchor_tr": {
+        "fr": "Haut-droite",
+        "en": "Top-right",
+        "de": "Oben rechts",
+        "es": "Arriba a la derecha",
+    },
+    "ui.vector_tool_measure": {
+        "fr": "Mesure",
+        "en": "Measure",
+        "de": "Messen",
+        "es": "Medir",
+    },
+    "ui.vector_tool_measure_tip": {
+        "fr": "Mesurer une distance : clic-glisser sur le canevas.",
+        "en": "Measure a distance: click and drag on the canvas.",
+        "de": "Abstand messen: auf der Zeichenfläche klicken und ziehen.",
+        "es": "Medir una distancia: haga clic y arrastre en el lienzo.",
+    },
+    "ui.vector_keychain_generator": {
+        "fr": "Porte-clés",
+        "en": "Keychain",
+        "de": "Anhänger",
+        "es": "Llavero",
+    },
+    "ui.vector_keychain_generator_tip": {
+        "fr": "Générer un porte-clés prénom personnalisé (base découpée + texte gravé)",
+        "en": "Generate a custom name keychain (cut base + engraved text)",
+        "de": "Personalisierten Namens-Schlüsselanhänger erstellen (Schnittbasis + gravierter Text)",
+        "es": "Generar un llavero con nombre personalizado (base cortada + texto grabado)",
+    },
+}

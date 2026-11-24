@@ -3,33 +3,30 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import overscan_distance, scan_offset_mm
+from laser_studio.gcode.common import overscan_distance, power_value, scan_offset_mm
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
 # proportionnelle à son gris (params['algo']).
 GRAYSCALE_ALGO = "Niveaux de Gris"
 
-# Marge de l'image à graver par rapport à l'origine du job (mm), comme à l'import d'un SVG/DXF
-# (vector_layers.extract_svg_objects) : sans elle, le surbalayage de la première colonne ferait
-# partir la tête en X négatif dès que le décalage du job vaut 0.
-IMAGE_MARGIN_MM = 10.0
-
-
 def image_origin(params):
     """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
-    décalage du job désigne le centre de l'image, sans marge ; sinon, décalage + IMAGE_MARGIN_MM.
-    Les calques vectoriels ne sont pas concernés : leurs objets ont déjà leur marge à l'import."""
+    décalage du job désigne le centre de l'image, sans marge. Sinon, décalage plus, en X seulement, la
+    distance de surbalayage quand il est actif (image_overscan_distance) : sans cette marge, le
+    surbalayage de la première colonne ferait partir la tête en X négatif dès que le décalage vaut 0.
+    Les objets vectoriels reçoivent la même marge à leur import (vector/placement.py)."""
     if params['origin_pos'] == ORIGIN_CENTER:
         return (params['offset_x'] - params['width_mm'] / 2.0,
                 params['offset_y'] - params['height_mm'] / 2.0)
-    return params['offset_x'] + IMAGE_MARGIN_MM, params['offset_y'] + IMAGE_MARGIN_MM
+    return params['offset_x'] + image_overscan_distance(params), params['offset_y']
 
 
 def image_overscan_distance(params):
     """Surbalayage (mm) de la gravure d'image : réglage global ET calque de
-    gravure (params['image_overscan'], voir layer_overscan_enabled)."""
-    if params.get('image_overscan', params['enable_overscan']):
-        return overscan_distance(params, params['width_mm'], default_dist=params['overscan_dist'])
+    gravure (params['image_overscan'], voir layer_overscan_enabled). 0 si les
+    paramètres ne disent rien du surbalayage (taille et position seules)."""
+    if params.get('image_overscan', params.get('enable_overscan', False)):
+        return overscan_distance(params, params['width_mm'], default_dist=params.get('overscan_dist', 2.5))
     return 0.0
 
 
@@ -142,7 +139,7 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             val = arr[y, x_pixel]
 
             p_percent = pixel_power_percent(val)
-            p_val = int(round((p_percent / 100.0) * s_max))
+            p_val = power_value(p_percent, s_max)
 
             if p_val != last_p_val:
                 # Frontière entre le pixel précédent et celui-ci, dans

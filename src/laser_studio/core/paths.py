@@ -42,7 +42,7 @@ def get_autosave_dir():
     path = os.path.join(base, "LaserStudioPro")
     try:
         os.makedirs(path, exist_ok=True)
-    except Exception:
+    except OSError:
         return get_app_dir()
     return path
 

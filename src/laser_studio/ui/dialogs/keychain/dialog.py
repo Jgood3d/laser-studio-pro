@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.i18n.errors import generator_error_text
 from laser_studio.models.layer_modes import MODE_CUT
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import keychain_generator as kg
@@ -328,11 +329,4 @@ class KeychainGeneratorDialog(QDialog):
 
 
 def error_text(error: kg.KeychainError) -> str:
-    key = f"keychain.err.{error.code}"
-    text = tr(key)
-    if text == key:
-        return tr("keychain.error") + f" ({error.code})"
-    try:
-        return text.format(**error.info)
-    except Exception:
-        return text
+    return generator_error_text("keychain", error)

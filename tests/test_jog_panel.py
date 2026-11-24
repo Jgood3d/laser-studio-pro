@@ -173,14 +173,14 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
             panel.set_connected(connected)
             connection = panel.connection_panel
-            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
+            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.is_connected(),
                               connection.console.isEnabled()), (connected, connected, connected))
+            self.assertTrue(panel.job_actions_panel.buttons["macros"].isEnabled())
             self.assertEqual(connection.connect_button.text(),
                              tr("laser.disconnect") if connected else tr("laser.connect"))
             self.assertTrue(connection.isEnabled() and connection.state_view.isEnabled())
@@ -188,7 +188,6 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_status_goes_to_connection_and_jog_panels(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.set_status("Idle", 1.0, 2.0, 3.0)
@@ -219,7 +218,6 @@ class CommandsLockTests(unittest.TestCase):
 
     def test_progress_bar_shows_the_engraving_percentage(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
-        from PyQt6.QtWidgets import QGroupBox
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         panel.progress_bar.setValue(42)
@@ -234,7 +232,7 @@ class CommandsLockTests(unittest.TestCase):
         self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))
         self.assertRegex(src, r"# Commandes verrouillées tant que non connecté.*\s+"
-                              r"self\.machine_panel\.set_connected\(self\.connection\.is_connected\(\)\)")
+                              r"panel\.set_connected\(connection\.is_connected\(\)\)")
 
 
 @unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")
@@ -247,19 +245,21 @@ class WindowWiringTests(unittest.TestCase):
         from unittest import mock
         tmp = tempfile.mkdtemp()                       # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": tmp, "XDG_DATA_HOME": tmp}):
-            from laser_studio import main_window
+            from laser_studio.ui.app import main_window
             cls.app = QApplication.instance() or QApplication([])
             # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
-            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+            mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
+            from job_fakes import start_memory_preferences
+            start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
             cls.win = main_window.FullLaserStudio()
 
     def test_speed_slider_follows_the_machine_max_speed(self):
         win = self.win
         slider = win.machine_panel.jog_panel.speed_slider
-        self.assertEqual(slider.maximum(), int(win.spin_machine_max_speed.value()))
-        win.spin_machine_max_speed.setValue(2000)
+        self.assertEqual(slider.maximum(), int(win.tab_machine_params.max_speed_spin.value()))
+        win.tab_machine_params.max_speed_spin.setValue(2000)
         self.assertEqual((slider.maximum(), slider.value()), (2000, 2000))
-        win.spin_machine_max_speed.setValue(8000)
+        win.tab_machine_params.max_speed_spin.setValue(8000)
         slider.setValue(10000)
         self.assertEqual(slider.value(), 8000)
 

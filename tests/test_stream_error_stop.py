@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio.workers import GCodeStreamerThread
+    from laser_studio.controllers.workers import GCodeStreamerThread
 except ImportError:  # PyQt6, numpy... manquants
     GCodeStreamerThread = None
 

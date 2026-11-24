@@ -1,5 +1,5 @@
 """Réglages de tramage de l'onglet « Graver une image » : luminosité,
-contraste, gamma, netteté, négatif, matière, miroirs, algorithme ; et leur
+contraste, gamma, netteté, effet bande dessinée, négatif, matière, miroirs, algorithme ; et leur
 historique d'annulation propre à l'onglet (Ctrl+Z / Ctrl+Y).
 
     settings = ImageSettings(window)
@@ -23,6 +23,8 @@ PROJECT_KEYS = {
     "contrast": "contrast",
     "gamma": "gamma",
     "sharpness": "sharp",
+    "cartoon_radius": "cartoon_r",
+    "cartoon_black": "cartoon_k",
     "invert": "invert",
     "material_bg": "material_bg",
     "mirror_h": "mirror_h",
@@ -36,6 +38,9 @@ class ImageSettings(SettingsModel):
 
     - brightness, contrast : -100 à 100 ; gamma : × 100 (100 = 1,0) ;
       sharpness : 0 à 100 ;
+    - cartoon_radius : rayon du masque de l'effet bande dessinée, en dixièmes
+      de mm (0 = pas d'effet, 50 = 5 mm) ; cartoon_black : pourcentage de noir
+      (0 à 100) ;
     - invert : négatif ; material_bg : "dark" (fond noir) ou "light" (fond
       clair) ; choisir une matière coche ou décoche le négatif (voir
       choose_material), qui reste modifiable à part ;
@@ -49,6 +54,8 @@ class ImageSettings(SettingsModel):
         "contrast": (int, 0),
         "gamma": (int, 100),
         "sharpness": (int, 0),
+        "cartoon_radius": (int, 0),
+        "cartoon_black": (int, 20),
         "invert": (bool, False),
         "material_bg": (str, "light"),
         "mirror_h": (bool, False),
@@ -73,7 +80,7 @@ class ImageSettings(SettingsModel):
 
     def processing_params(self):
         """Réglages au format des paramètres de ImageProcessingWorker
-        (bright, contrast, gamma, sharp, invert, mirror_h, mirror_v, algo)."""
+        (bright, contrast, gamma, sharp, cartoon_r, cartoon_k, invert, mirror_h, mirror_v, algo)."""
         return {key: self._values[name] for name, key in PROJECT_KEYS.items()
                 if name != "material_bg"}
 

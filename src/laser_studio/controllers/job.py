@@ -3,7 +3,7 @@ G-Code dans un thread, estimation rapide, export et import du G-Code, matrice
 de test et motif aller/retour.
 
 Le G-Code lui-même est calculé par le paquet gcode/ (sans Qt), dans les
-threads de workers.py. Ce contrôleur ne touche pas aux widgets : il lit
+threads de controllers/workers.py. Ce contrôleur ne touche pas aux widgets : il lit
 l'état de l'interface par des fonctions qu'on lui donne, pose ses questions
 par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
 
@@ -24,10 +24,16 @@ from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, ima
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
 from laser_studio.gcode.test_matrix import matrix_cell_at
 from laser_studio.i18n import tr
+from laser_studio.i18n.durations import duration_text
 from laser_studio.models.layer_modes import MODE_FILL, layer_laser_cmd, layer_overscan_enabled
+from laser_studio.vector import placement
 from laser_studio.models.layers import BASE_LAYER_DEFAULTS, layer_label
 from laser_studio.vector.layer_data import extract_vector_layer_data
-from laser_studio.workers import AdvancedGCodeWorker, TestMatrixWorker, build_gain_test_array
+from laser_studio.controllers.workers import AdvancedGCodeWorker, TestMatrixWorker
+from laser_studio.image.gain_test import build_gain_test_array
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 # Bornes de la vitesse (mm/min) et de la puissance (%) de gravure d'une image.
 ENGRAVE_SPEED_RANGE = (10, 20000)
@@ -44,13 +50,9 @@ def _clamp(value, bounds):
 
 
 def estimate_duration_text(seconds):
-    """Durée de l'estimation rapide, par exemple « 3min 07s » ou « 1h 05min »."""
-    seconds = max(0, int(seconds))
-    h, rem = divmod(seconds, 3600)
-    m, s = divmod(rem, 60)
-    if h > 0:
-        return f"{h}h {m:02d}min"
-    return f"{m}min {s:02d}s"
+    """Durée de l'estimation rapide (sans la marge des accélérations, comme le dit son message), au même
+    format que partout : i18n.durations.duration_text."""
+    return duration_text(seconds)
 
 
 class JobController(QObject):
@@ -81,7 +83,7 @@ class JobController(QObject):
 
     started = pyqtSignal()
     progress = pyqtSignal(int)
-    generated = pyqtSignal(str, int, float, str)
+    generated = pyqtSignal(str, int, float, float)
     failed = pyqtSignal(str)
     imported = pyqtSignal(str, str)
     log = pyqtSignal(str)
@@ -152,6 +154,12 @@ class JobController(QObject):
         calque de gravure, sinon celle de Configuration GRBL."""
         return layer_laser_cmd(self.layers.engrave_layer(), self.grbl.laser_cmd)
 
+    @property
+    def cut_laser_cmd(self):
+        """Commande laser de la découpe SVG autour de l'image : celle du calque de découpe (premier
+        calque en mode Découpe), sinon celle de Configuration GRBL, comme les calques vectoriels."""
+        return layer_laser_cmd(self.layers.default_svg_layer(), self.grbl.laser_cmd)
+
     def set_engrave_settings(self, speed, power):
         """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
         image dans le calque de gravure (ex. case de la matrice de test,
@@ -184,6 +192,20 @@ class JobController(QObject):
 
     # -- paramètres
 
+    def overscan_margin(self, width_mm):
+        """Marge à gauche (mm) laissée au surbalayage devant un dessin vectoriel importé de largeur
+        `width_mm` (voir vector/placement.py) ; 0 si le surbalayage est désactivé."""
+        percent = self.overscan_mode_value() == OVERSCAN_PERCENT
+        return placement.overscan_margin(self.grbl.overscan_enabled, percent, self.grbl.overscan_dist_mm,
+                                         self.grbl.overscan_pct, width_mm)
+
+    def image_frame(self):
+        """(x, y, largeur, hauteur) en mm de l'image à graver sur le plateau, marge de surbalayage
+        comprise (gcode.image_origin) : sert à caler le puzzle sur l'image."""
+        params = self.build_params()
+        x, y = image_origin(params)
+        return float(x), float(y), float(params['width_mm']), float(params['height_mm'])
+
     def overscan_mode_value(self):
         """Mode de surbalayage sous une forme indépendante de la langue : les
         libellés du menu sont traduits, le générateur compare à
@@ -211,6 +233,7 @@ class JobController(QObject):
             'power_cut': self.cut_power,
             'passes_cut': self.cut_passes,
             'laser_cmd': self.grbl.laser_cmd,
+            'cut_laser_cmd': self.cut_laser_cmd,
             # Gravure d'image : commande et surbalayage de son calque de gravure.
             'image_laser_cmd': self.image_laser_cmd,
             'image_overscan': self.image_overscan_enabled,
@@ -401,13 +424,13 @@ class JobController(QObject):
                     if d:
                         try:
                             total_len_svg += parse_path(d).length(error=1e-3)
-                        except Exception:
-                            pass
+                        except Exception:       # tracé illisible : ignoré dans l'estimation
+                            log.debug("Estimation : tracé SVG illisible ignoré", exc_info=True)
                 t = (total_len_svg / max(self.cut_speed, 1)) * 60.0 * self.cut_passes
                 total_seconds += t
                 details.append(tr("gcode.svg_details").format(duration=estimate_duration_text(t)))
             except Exception:
-                pass
+                log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
 
         objects = list(self._vector_objects())
         for layer in self.layers.layers:
@@ -533,14 +556,14 @@ class JobController(QObject):
         self.gain_test_worker.start()
         return True
 
-    def _on_gain_test_ready(self, gcode, n_lines, avg_power, time_str):
+    def _on_gain_test_ready(self, gcode, n_lines, avg_power, seconds):
         header = (
             "; --- TEST DU GAIN DE POINT ---\n"
             "; Lignes de haut en bas : gain 0, 5, 10, 15, 20. Colonnes : 0 % (peinture intacte) a 100 % (verre degage).\n"
             "; Repere la ligne dont les cases passent regulierement du noir au clair,\n"
             "; puis regle le curseur Gain de point sur la valeur ecrite a gauche de cette ligne.\n"
         )
-        self.generated.emit(header + gcode, n_lines + header.count("\n"), avg_power, time_str)
+        self.generated.emit(header + gcode, n_lines + header.count("\n"), avg_power, seconds)
         self.dialogs.info(tr("sep.gain_test_title"), tr("sep.gain_test_done"))
 
     def generate_test_matrix(self, page_params, engraving, image_test=False, build_tile=None):
@@ -588,5 +611,5 @@ class JobController(QObject):
             else:
                 self.set_cut_settings(speed, round(params.get('single_power', self.cut_power)), value)
                 self.log.emit(f">>> Case matrice appliquée : {speed} mm/min, {value} passe(s) (découpe)")
-        except Exception:
-            pass  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+        except Exception:  # un clic hors matrice ou une erreur de calcul ne doit jamais planter l'appli
+            log.warning("Clic sur la matrice de test : case non appliquée", exc_info=True)

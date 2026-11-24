@@ -30,6 +30,16 @@ sudo dnf install laser-studio-pro
 
 L’application apparaît dans le menu des applications (Stencil Studio par un clic droit sur son icône) et se lance aussi avec `laser-studio-pro`. Les mises à jour arrivent avec celles du système. La détection du sujet par IA de Stencil Studio est facultative : `sudo dnf install --setopt=install_weak_deps=False python3-onnxruntime`. L’accès au port série demande d’appartenir au groupe `dialout` (voir plus bas).
 
+### Debian et Ubuntu (.deb)
+
+Sous Debian 13 (trixie) ou Ubuntu 25.04 et plus récentes, téléchargez `laser-studio-pro_<version>_all.deb` sur la page des [releases](https://github.com/Jgood3d/laser-studio-pro/releases), puis :
+
+```bash
+sudo apt install ./laser-studio-pro_<version>_all.deb
+```
+
+Le paquet utilise les bibliothèques Python du système (PyQt6, OpenCV, NumPy…) et installe l’entrée de menu. Ubuntu 24.04, trop ancienne pour PyQt6 6.7, utilise l’AppImage. Construction et choix du paquet : `packaging/debian/README.md`.
+
 ### Avec pip (Windows, Linux, macOS)
 
 Python 3.10 à 3.14 convient : le Python fourni par la distribution suffit (Ubuntu 22.04 et suivantes, Debian 12 et 13, Fedora récentes). Installez les dépendances selon votre système :
@@ -84,7 +94,7 @@ NOWARNING=1 python main.py
 Le code suit la disposition `src/` recommandée pour les projets Python (voir `pyproject.toml`) :
 - `src/laser_studio/` — l’application Laser Studio ; les chemins ci-dessous lui sont relatifs ;
 - `src/laser_common/` — code partagé par Laser Studio et Stencil Studio, indépendant des deux (`files.py` : écriture sûre des fichiers de données) ;
-- `src/stencil_studio/` — Stencil Studio, sous-application ouverte depuis le menu Outils (ou seule : `python main.py --stencil-studio`) ;
+- `src/stencil_studio/` — Stencil Studio, sous-application ouverte depuis le menu Outils (ou seule, dans le navigateur : `cd src && python -m stencil_studio`). Calcul (`core.py`…), modèles (`models/`), contrôleurs (`controllers/`), interface (`ui/` : page web, fenêtre Qt), serveur local (`server.py`) ;
 - `tests/`, `tools/`, `packaging/`, `docs/` à la racine du dépôt.
 
 On lance l’application avec `python main.py` depuis le dépôt, ou `python -m laser_studio` après `pip install -e .`.
@@ -95,9 +105,9 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `models/` — modèles de données, des `QObject` qui préviennent de chaque changement par des signaux : `layers.py` (`LayersModel` : la liste des calques et leurs réglages ; chaque modification est écrite dans le journal de débogage avec l’ancienne et la nouvelle valeur), `machine.py` (`MachineConfig` : plateau, spot, limites), `grbl.py` (`GrblConfig` : commande laser, S-Max, homing, surbalayage, G-Code de début et de fin, réglages `$$`), `materials.py` (`MaterialsModel` : les matériaux et le matériau choisi, qui suit chaque changement de calque), `image_settings.py` (`ImageSettings` : réglages de tramage de « Graver une image », et `ImageSettingsHistory`, leur annulation), `settings.py` (base des réglages nommés), `layer_modes.py` (codes des modes de calque, `engrave_fill` / `cut` / `mark`, et conversion des anciens libellés français), `change_log.py` (journal : une ligne par changement, une seule à la fin d’une saisie au clavier) ; les champs des pages de réglages y sont liés par `ui/binding.py`
 
 ### Composants autonomes
-- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView`, boîtes de saisie (texte, médaille, forme, calque) ; objets du dessin dans `models/vector_objects.py` ; `vector_layers.py` ne fait plus que réexporter ces noms pour le code existant
-- `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
-- `workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
+- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView` et ses outils de la souris (`tools/`), menu du clic droit (`context_menu.py`), boîtes de saisie (texte, médaille, forme, calque, taille du groupe) ; objets du dessin dans `models/vector_objects.py`
+- `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série), `streaming.py` (envoi d'un job : tampon de GRBL, lecture des réponses), `macros.py` (macros de l'utilisateur : macros.yaml) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
+- `controllers/workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
 - `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas ou à droite : actions image, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel), `TabCloseButton` (croix d’un onglet), `TabToolBar` (barre d’outils d’un onglet, avec le bouton « Plein écran »), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
 - `ui/fonts.py` — polices embarquées (`resources/fonts/`, licences libres), enregistrées au démarrage pour être disponibles sur tous les systèmes (Dancing Script, police manuscrite, et Rubik, titres des médailles et des totems, pour les modèles de la bibliothèque)
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
@@ -109,18 +119,21 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
   - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
   - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
+  - `vector/text_follow.py` — texte posé sur le contour d’un objet, textes de médaille
+  - `vector/group_transform.py` — sélection traitée comme un groupe (redimensionner, quart de tour, calque)
   - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
   - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
   - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-  - `vector/svg_import.py` — import SVG de la bibliothèque, selon la convention des modèles : calques `Cut` (découpe, rouge), `Engrave` (gravure, noir ; le blanc est creusé) et `Mark` (marquage), le reste ignoré ; options en sous-calques ; textes modifiables et remplaçables ; unités et transformations prises en compte. Destiné à remplacer l’import SVG de `vector_layers.py` une fois validé
+  - `vector/svg_import.py` — import SVG de la bibliothèque, selon la convention des modèles : calques `Cut` (découpe, rouge), `Engrave` (gravure, noir ; le blanc est creusé) et `Mark` (marquage), le reste ignoré ; options en sous-calques ; textes modifiables et remplaçables ; unités et transformations prises en compte. Destiné à remplacer l’import SVG de `vector/svg_extract.py` une fois validé
   - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
-- `i18n/` — système de traduction multilingue : `translations.py` (les textes dans chaque langue), `language.py` (langue choisie, `tr()`)
+- `i18n/` — système de traduction multilingue : `texts/` (les textes dans chaque langue, un module par zone : app, vector, box, ornament, generators, camera, image, machine, materials), `translations.py` (les assemble), `errors.py` (message d'une erreur de générateur), `language.py` (langue choisie, `tr()`)
 
 ### Fenêtre principale
-- `main_window.py` — fenêtre principale, sans mixin : construction (`init_ui`), création des modèles, contrôleurs et objets de `ui/app/`, branchement de leurs signaux, fermeture, glisser-déposer, messages, onglet « Éditeur vectoriel » (partira dans `ui/tabs/`)
+- `ui/app/main_window.py` — fenêtre principale, sans mixin : assemblage (modèles, contrôleurs partagés, builder de chaque partie de l’interface, objets de `ui/app/`), fermeture, glisser-déposer, messages
+- `ui/…/builder.py` — un builder par partie de l’interface (onglets, éditeur vectoriel, panneau machine, pages de réglages) : crée la vue et sa logique et les relie, avec ses dépendances en paramètres
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar`
-- `ui/app/window_controller.py` — contrôleur de la fenêtre (`WindowController`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, outils de dessin
+- `ui/app/window_controller.py` — contrôleur de la fenêtre (`WindowController`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
 - `ui/app/window_state.py` — ce que la fenêtre enregistre et restaure (`WindowState`) : réglages machine, champs d’un profil machine, état d’un projet, recopie automatique des calques dans le matériau choisi
 - `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs mémorisés
 - `ui/app/job_display.py` — affichage des résultats du job et de l’état du graveur (`JobDisplay`) : console, statistiques, aperçu 2D, position, suivi de l’envoi
@@ -146,7 +159,8 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code généré ou importé (les messages vont dans la barre d’état) ; affiché ou masqué par le menu Affichage ou sa croix (`TabCloseButton`), choix mémorisé
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (affiché ou masqué par le menu Affichage, le bouton de la barre d’outils ou sa croix, choix mémorisé) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : barre des profils matériaux (liste, nouveau, supprimer, exporter, importer ; pas de bouton « Enregistrer », le matériau choisi suit chaque changement de calque ; un matériau mémorise les réglages des calques, voir `controllers/materials.py`), puis la liste des calques (`LayerManagerWidget`, `ui/tabs/layers/layer_table.py`, vue abonnée au modèle `LayersModel`), dont il relaie `layers_changed`
-- `controllers/vector_editor.py` — actions de l’éditeur vectoriel (`VectorEditorController` : import SVG / DXF, insertion, alignement, générateurs, imbrication) sur le modèle `models/vector_document.py` ; le canevas et le panneau des propriétés sont dans `ui/vector_editor/`
+- `controllers/vector_editor.py` — actions de l’éditeur vectoriel (`VectorEditorController` : import SVG / DXF et placement, insertion, alignement) sur le modèle `models/vector_document.py` ; le canevas et le panneau des propriétés sont dans `ui/vector_editor/`, les fenêtres de saisie derrière `ui/vector_editor/forms.py` (`EditorForms`)
+- `controllers/generators.py` — générateurs (`GeneratorsController` : boîte, puzzle, boules de Noël, porte-clés, gabarit) ; `controllers/layout.py` — imbrication et duplication en série (`LayoutController`)
 - `gcode/` — génération du G-Code sans Qt (job, image, découpe SVG, calques vectoriels, matrice de test, motif aller/retour) et modèle de l’aperçu 2D (`preview.py`) ; `controllers/job.py` (`JobController`) prépare et lance le job, exporte et importe le G-Code
 - `controllers/engraver.py` — pilotage du graveur (`EngraverController` : ports, connexion, jog, cadrage, envoi des jobs, configuration `$$`) ; commandes GRBL dans `grbl/commands.py` (sans Qt) ; le dialogue avec GRBL (port série, threads) est dans `controllers/machine_connection.py`
 - `controllers/` — contrôleurs, objets Python ordinaires qui ont remplacé les mixins : `machine_connection.py` (`MachineConnection` : port série, threads de dialogue avec GRBL, état « référencé », lecture de `$$`, envoi du job ; sans boîte de dialogue, la fenêtre s’abonne à ses signaux), `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `machine_profiles.py` (`MachineProfilesController` : profils machine, leurs actions et la mémoire continue des calques ; chaque page fournit ses champs par `profile_values()` / `apply_profile_values()`), `layer_memory.py` (mémoire des calques par machine : réglages des calques enregistrés dans chaque profil et réappliqués au modèle des calques), `materials.py` (`MaterialsController` : profils matériaux, et la liste par défaut `DEFAULT_MATERIALS_DB`), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par `WindowState`, `capture_project` / `restore_project` dans `ui/app/window_state.py`)
@@ -282,7 +296,7 @@ Les images de l’application sont dans le dossier `resources/` : `laser_studio_
 Vérifier la syntaxe Python :
 
 ```bash
-py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/main_window.py
+py -m py_compile src/laser_studio/i18n/translations.py src/laser_studio/i18n/texts/*.py src/laser_studio/ui/app/main_window.py
 ```
 
 Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :

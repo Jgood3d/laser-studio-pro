@@ -88,7 +88,8 @@ En pratique :
 - Toute modification de géométrie sur le canevas appelle `push_undo_snapshot()`
   avant de changer quoi que ce soit (annuler / refaire).
 - Tout texte affiché passe par `tr("clé")`, avec la clé dans les quatre langues
-  de `src/laser_studio/i18n/translations.py` (fr, en, de, es).
+  de `src/laser_studio/i18n/texts/` (fr, en, de, es), dans le module de la zone
+  concernée (vector, box, machine, image…).
 - Avant d'ajouter une méthode, cherche si elle existe déjà ailleurs
   (`git grep "def nom_de_la_methode"`) : pas de doublon entre l'ancien et le
   nouveau code.
@@ -126,7 +127,7 @@ Dans le même commit que le code, selon ce qui change :
 | Nouveauté ou correction visible par l'utilisateur | `CHANGELOG.md`, section `[Non publié]` (Ajouté / Modifié / Corrigé) |
 | Nouveau fichier, fichier déplacé ou rôle changé | `ARCHITECTURE.md` (arborescence et tableau des rôles) et la liste « Structure du projet » de `README.md` |
 | Nouvelle fonction ou fonction modifiée dans l'interface | aide intégrée `src/laser_studio/resources/doc/fr/*.md` (F1 dans l'application ; voir le `README.md` de ce dossier) |
-| Nouveau texte d'interface | clés dans `i18n/translations.py`, dans les quatre langues |
+| Nouveau texte d'interface | clés dans `i18n/texts/<zone>.py`, dans les quatre langues |
 | Signaux de l'interface modifiés | `python tools/signal_map.py` régénère la carte des signaux |
 
 Écris pour l'utilisateur dans le CHANGELOG et l'aide (ce qu'il voit et ce

@@ -12,7 +12,6 @@ from laser_studio.i18n import tr
 # job : le mode, le nom et l'activation des calques ne changent pas avec la
 # matière).
 MATERIAL_LAYER_KEYS = ("power", "speed", "passes", "line_interval", "line_interval_linked")
-from laser_studio.models.layer_modes import MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE
 
 # Base de matériaux utilisée (1) au tout premier lancement de l'application,
 # avant tout profil machine, et (2) comme repli pour un ancien profil machine

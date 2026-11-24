@@ -6,14 +6,14 @@ plus qu'en rappel, tous les REMINDER_EVERY démarrages. La variable
 d'environnement NOWARNING (toute valeur sauf vide ou « 0 ») le désactive
 complètement, pour les tests.
 
-    policy = StartupSafetyPolicy(QSettings("LaserStudioPro", "UIConfig"))
+    policy = StartupSafetyPolicy(ui_preferences())
     if policy.should_show_at_launch():
         accepted, hide = confirm_startup_safety(None, policy.hidden())
         if accepted:
             policy.record(hide)
 
-`settings` : tout objet qui offre value(clé, défaut) et setValue(clé,
-valeur), comme QSettings (un dictionnaire adapté suffit dans les tests).
+`settings` : Preferences (core/preferences.py) ; dans les tests,
+Preferences(MemoryStore()).
 """
 
 import os
@@ -45,7 +45,7 @@ class StartupSafetyPolicy:
 
     def hidden(self):
         """Vrai si l'utilisateur a coché « Ne plus afficher »."""
-        return _as_bool(self._settings.value(HIDDEN_KEY, False))
+        return _as_bool(self._settings.get(HIDDEN_KEY, False))
 
     def should_show_at_launch(self):
         """À appeler une fois par démarrage : faut-il afficher l'avertissement ?
@@ -58,17 +58,17 @@ class StartupSafetyPolicy:
         if not self.hidden():
             return True
         try:
-            count = int(self._settings.value(COUNT_KEY, 0)) + 1
+            count = int(self._settings.get(COUNT_KEY, 0)) + 1
         except (TypeError, ValueError):
             count = 1
         if count >= REMINDER_EVERY:
-            self._settings.setValue(COUNT_KEY, 0)
+            self._settings.set(COUNT_KEY, 0)
             return True
-        self._settings.setValue(COUNT_KEY, count)
+        self._settings.set(COUNT_KEY, count)
         return False
 
     def record(self, hide):
         """L'utilisateur a validé l'avertissement, case « Ne plus afficher »
         cochée (`hide`) ou non. Le compte des démarrages repart de zéro."""
-        self._settings.setValue(HIDDEN_KEY, bool(hide))
-        self._settings.setValue(COUNT_KEY, 0)
+        self._settings.set(HIDDEN_KEY, bool(hide))
+        self._settings.set(COUNT_KEY, 0)

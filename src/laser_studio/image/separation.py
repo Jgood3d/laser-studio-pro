@@ -7,7 +7,7 @@ module fournit seulement ce qui est propre à la séparation : tonalité (canal 
 envoyée à Image & Filtres, calque couleur, simulation, PDF d'impression.
 """
 import numpy as np
-from PIL import Image, ImageDraw, ImageOps
+from PIL import Image, ImageDraw
 
 
 def boite_recadrage(sw, sh, aspect, zoom=1.0, ox=0.5, oy=0.5):

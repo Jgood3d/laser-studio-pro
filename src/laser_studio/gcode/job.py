@@ -4,7 +4,7 @@ import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode.common import (
-    GcodeResult, job_duration_text, overscan_distance, scan_offset_mm, start_lines,
+    GcodeResult, overscan_distance, scan_offset_mm, start_lines, with_time_margin,
 )
 from laser_studio.gcode.raster import image_origin, raster_image_gcode
 from laser_studio.gcode.svg_cut import svg_cut_gcode
@@ -18,7 +18,7 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
     svg_path : SVG dont les tracés sont découpés autour de l'image si
     params['enable_cut'] (ou None).
     vector_layers_data : calques vectoriels (voir
-    vector_layers.extract_vector_layer_data), ou None.
+    vector.layer_data.extract_vector_layer_data), ou None.
     params : réglages du job (voir JobController.build_params).
     progress : fonction appelée avec l'avancement (0 à 100), facultative.
 
@@ -100,4 +100,4 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
 
     avg_power = float(np.mean(total_power_samples)) if total_power_samples else 0.0
     report(100)
-    return GcodeResult("\n".join(gcode), len(gcode), avg_power, job_duration_text(total_time_seconds))
+    return GcodeResult("\n".join(gcode), len(gcode), avg_power, with_time_margin(total_time_seconds))

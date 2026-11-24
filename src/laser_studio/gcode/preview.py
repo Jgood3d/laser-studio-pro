@@ -252,7 +252,9 @@ def cut_contours(segment_lists):
 
 def material_background_rect(raster_stroke_lists, segment_lists, margin=MATERIAL_BACKGROUND_MARGIN_MM):
     """Rectangle (x, y, largeur, hauteur) couvrant tout le job (traits gravés
-    et tracés vectoriels) plus une marge, ou None s'il n'y a rien."""
+    et tracés vectoriels) plus une marge, ou None s'il n'y a rien. La marge ne
+    descend pas sous 0 : un job posé à l'origine n'a pas de matière en X ou Y
+    négatif (le plateau commence là)."""
     xs, ys = [], []
     for strokes in raster_stroke_lists:
         for x1, y1, x2, y2, _s in strokes:
@@ -263,8 +265,9 @@ def material_background_rect(raster_stroke_lists, segment_lists, margin=MATERIAL
         ys += [v for v in seg_ys if v == v]
     if not xs or not ys:
         return None
-    return (min(xs) - margin, min(ys) - margin,
-            max(xs) - min(xs) + 2 * margin, max(ys) - min(ys) + 2 * margin)
+    x0 = min(xs) - margin if min(xs) < 0 else max(0.0, min(xs) - margin)
+    y0 = min(ys) - margin if min(ys) < 0 else max(0.0, min(ys) - margin)
+    return x0, y0, max(xs) + margin - x0, max(ys) + margin - y0
 
 
 def raster_image(raster_strokes, material_rgb, burn_rgb, gamma=1.0, negative=False,

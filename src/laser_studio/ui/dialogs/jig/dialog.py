@@ -6,17 +6,14 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.i18n.errors import generator_error_text
 from laser_studio.models.layer_modes import MODE_CUT
 from laser_studio.vector import jig as jg
 
 
 def error_message(error):
     """Texte (traduit) d'une JigError."""
-    text = tr(f"jig.err.{error.code}")
-    try:
-        return text.format(**error.info)
-    except (KeyError, IndexError, ValueError):
-        return text
+    return generator_error_text("jig", error, generic_key=f"jig.err.{error.code}")
 
 
 def _spin(minimum, maximum, value, decimals=1, step=1.0):

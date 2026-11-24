@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 try:
     from PyQt6.QtWidgets import QApplication, QLineEdit
     from laser_studio.ui.tabs.layers import LayersTab
-    from laser_studio.vector_layers import LayerManager
+    from laser_studio.models.layers import LayersModel
 except ImportError:  # PyQt6 manquant
     LayersTab = None
 
@@ -22,7 +22,7 @@ class LayersTabTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def make(self):
-        manager = LayerManager()
+        manager = LayersModel()
         tab = LayersTab(manager, focal_getter=lambda: 0.1)
         self.addCleanup(tab.deleteLater)
         return tab, manager

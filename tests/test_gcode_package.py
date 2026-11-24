@@ -1,6 +1,6 @@
 """Paquet gcode/ : génération du G-Code sans Qt.
 
-Vérifie que le paquet n'importe pas PyQt6, que les threads de workers.py
+Vérifie que le paquet n'importe pas PyQt6, que les threads de controllers/workers.py
 produisent exactement le G-Code des fonctions pures, et le contenu du G-Code
 (puissance S, commande laser, surbalayage, décalage retour, en-tête et fin).
 """
@@ -22,7 +22,8 @@ from laser_studio.gcode import (  # noqa: E402
     image_origin,
 )
 from laser_studio.gcode.common import (  # noqa: E402
-    OVERSCAN_PERCENT, job_duration_text, matrix_duration_text, overscan_distance, scan_offset_mm,
+    OVERSCAN_PERCENT, TIME_MARGIN, duration_parts, overscan_distance, power_value, scan_offset_mm,
+    with_time_margin,
 )
 
 MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcode.raster",
@@ -72,9 +73,26 @@ class CommonTests(unittest.TestCase):
         self.assertEqual(scan_offset_mm({}), 0.0)
 
     def test_durations(self):
-        self.assertEqual(job_duration_text(30), "34 sec")            # 15 % de marge
-        self.assertEqual(job_duration_text(600), "11 min 30 sec")
-        self.assertEqual(matrix_duration_text(46), "0 min 46 sec")
+        self.assertEqual(TIME_MARGIN, 1.15)
+        self.assertAlmostEqual(with_time_margin(600), 690.0)         # 15 % de marge des accélérations
+        self.assertEqual(with_time_margin(-5), 0.0)
+        self.assertEqual(duration_parts(46), (0, 0, 46))
+        self.assertEqual(duration_parts(192.4), (0, 3, 12))
+        self.assertEqual(duration_parts(7503), (2, 5, 3))           # plus d'une heure : des heures, pas « 125 min »
+
+    def test_power_is_rounded_to_the_nearest_everywhere(self):
+        # Issue #118 : avec S-Max 255, 10 % donne S26 (25,5 arrondi), plus S25 (arrondi vers le bas).
+        self.assertEqual(power_value(10, 255), 26)
+        self.assertEqual(power_value(47.5, 1000), 475)
+        self.assertEqual(power_value(-3, 1000), 0)
+
+    def test_test_matrix_and_layers_give_the_same_s(self):
+        import re as _re
+        matrix = build_test_matrix_gcode(MatrixTests.params(None, s_max=255, min_power=10, max_power=10,
+                                                                 steps_power=1))
+        values = {int(v) for v in _re.findall(r"\bS(\d+)", matrix.gcode)} - {0}
+        self.assertIn(26, values)
+        self.assertNotIn(25, values)
 
 
 class RasterTests(unittest.TestCase):
@@ -82,7 +100,7 @@ class RasterTests(unittest.TestCase):
         arr = np.array([[0, 0, 255, 255]], dtype=np.uint8)            # 2 pixels brûlés sur 4
         result = build_job_gcode(arr, None, job_params(height_mm=1.0))
         self.assertIsInstance(result, GcodeResult)
-        self.assertIn("G1 X12.000 F1000 S350", lines(result))         # 35 % de S1000, jusqu'au bord du 2e pixel
+        self.assertIn("G1 X2.000 F1000 S350", lines(result))          # 35 % de S1000, jusqu'au bord du 2e pixel
         self.assertNotIn("OVERSCAN", result.gcode)
         self.assertEqual(result.avg_power, 35.0)
 
@@ -102,11 +120,13 @@ class RasterTests(unittest.TestCase):
 
     def test_overscan_and_return_offset(self):
         arr = np.zeros((2, 4), dtype=np.uint8)
-        g = lines(build_job_gcode(arr, None, job_params(enable_overscan=True, image_overscan=True, scan_offset_mm=0.2)))
+        params = job_params(enable_overscan=True, image_overscan=True, scan_offset_mm=0.2)
+        g = lines(build_job_gcode(arr, None, params))
         starts = [line for line in g if line.endswith("OVERSCAN_START")]
-        x0, _ = image_origin(job_params())
-        self.assertEqual(starts[0], f"G0 X{x0 - 2.5:.3f} Y{11.0:.3f} ; OVERSCAN_START")         # aller
-        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:.3f} Y{10.0:.3f} ; OVERSCAN_START")  # retour décalé
+        x0, _ = image_origin(params)
+        self.assertEqual(x0, 2.5)                                     # marge = surbalayage : départ à X0
+        self.assertEqual(starts[0], f"G0 X{x0 - 2.5:.3f} Y{1.0:.3f} ; OVERSCAN_START")          # aller
+        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:.3f} Y{0.0:.3f} ; OVERSCAN_START")   # retour décalé
 
     def test_overscan_off_for_the_engrave_layer(self):
         arr = np.zeros((1, 4), dtype=np.uint8)
@@ -114,7 +134,9 @@ class RasterTests(unittest.TestCase):
         self.assertNotIn("OVERSCAN", g)
 
     def test_image_origin(self):
-        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0)), (15.0, 7.0))
+        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0)), (5.0, -3.0))   # sans surbalayage
+        self.assertEqual(image_origin(job_params(offset_x=5.0, offset_y=-3.0, enable_overscan=True,
+                                                 image_overscan=True)), (7.5, -3.0))
         self.assertEqual(image_origin(job_params(origin_pos=ORIGIN_CENTER, offset_x=50.0, offset_y=40.0)),
                          (48.0, 39.0))
 
@@ -125,7 +147,7 @@ class JobTests(unittest.TestCase):
         self.assertEqual(lines(result), ["; --- G-CODE HYBRIDE GRBL PRO ---",
                                          "M4 S0 ; Mode laser dynamique activé pour tout le job",
                                          "M5", "G0 X0 Y0", "; FIN DU TRAVAIL"])
-        self.assertEqual((result.line_count, result.avg_power, result.duration), (3, 0.0, "0 sec"))
+        self.assertEqual((result.line_count, result.avg_power, result.duration), (3, 0.0, 0.0))
 
     def test_homing_start_and_end_gcode(self):
         g = lines(build_job_gcode(None, None, job_params(homing=True, start_gcode=" G21 ", end_gcode=" M5 ")))
@@ -166,7 +188,7 @@ class MatrixTests(unittest.TestCase):
         result = build_test_matrix_gcode(self.params(mode=MATRIX_CUT))
         self.assertEqual(result.gcode.count("; Passe 3/3"), 2)
         self.assertEqual(result.avg_power, 85.0)
-        self.assertRegex(result.duration, r"^\d+ min \d+ sec$")
+        self.assertGreater(result.duration, 0.0)                      # secondes, marge comprise
 
 
 class CalibrationTests(unittest.TestCase):
@@ -185,7 +207,7 @@ class CalibrationTests(unittest.TestCase):
 
 try:
     from PyQt6.QtWidgets import QApplication as QCoreApplication  # QApplication : la fenêtre est créée dans le même processus
-    from laser_studio import workers
+    from laser_studio.controllers import workers
 except ImportError:  # PyQt6 absent
     workers = None
 

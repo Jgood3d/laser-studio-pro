@@ -5,6 +5,8 @@ PyQt6>=6.7
 PyQt6-sip>=13.6
 PyQt6-WebEngine>=6.7
 pyserial>=3.5
+# Macros de l'utilisateur (fichier macros.yaml)
+PyYAML>=6.0
 pyqtgraph>=0.13
 # numpy 2 : Python 3.10 à 3.14. Ne pas monter le minimum : pip choisit lui-même
 # la version adaptée au Python installé (2.2 pour Python 3.10, 2.4 pour 3.11,

@@ -1,5 +1,6 @@
-"""Éléments communs aux générateurs de G-Code : le résultat d'une génération,
-la distance de surbalayage et la mise en forme de la durée estimée."""
+"""Éléments communs aux générateurs de G-Code : le résultat d'une génération, la puissance (valeur S),
+la distance de surbalayage et la durée estimée (en secondes, marge comprise ; sa mise en forme traduite
+est dans i18n/durations.py)."""
 from typing import NamedTuple
 
 # Mode de surbalayage (params['overscan_mode']) : valeur indépendante de la
@@ -10,14 +11,22 @@ OVERSCAN_FIXED = "Distance Fixe (mm)"
 
 class GcodeResult(NamedTuple):
     """Résultat d'une génération : le G-Code, son nombre de lignes, la
-    puissance moyenne (%) des tracés gravés et la durée estimée (texte).
+    puissance moyenne (%) des tracés gravés et la durée estimée en secondes,
+    marge des accélérations comprise (with_time_margin).
 
     C'est un tuple : il se décompose comme les signaux `finished` des workers
     (gcode, nb_lignes, puissance_moyenne, durée)."""
     gcode: str
     line_count: int
     avg_power: float
-    duration: str
+    duration: float
+
+
+def power_value(percent, s_max):
+    """Valeur S de GRBL pour une puissance de `percent` % (S-Max = `s_max`), arrondie au plus proche.
+    Seul calcul de la puissance du G-Code : une case de la matrice de test et un calque réglé au même
+    pourcentage donnent ainsi le même S."""
+    return max(0, int(round(float(percent) / 100.0 * float(s_max))))
 
 
 def overscan_distance(params, width_mm, default_dist=2.5):
@@ -38,21 +47,23 @@ def scan_offset_mm(params):
         return 0.0
 
 
-def job_duration_text(total_seconds):
-    """Durée estimée d'un job, avec 15 % de marge (accélérations), par exemple
-    « 3 min 12 sec » ou « 45 sec »."""
-    time_minutes = (total_seconds / 60.0) * 1.15
-    mins = int(time_minutes)
-    secs = int((time_minutes - mins) * 60)
-    return f"{mins} min {secs} sec" if mins > 0 else f"{secs} sec"
+# Marge ajoutée à toute durée calculée d'après le G-Code (job, matrice de test, motif aller/retour) : les
+# accélérations et décélérations de la machine allongent le temps des trajets à vitesse constante.
+# L'estimation rapide (bouton « Estimer ») n'en a pas : elle le dit dans son message.
+TIME_MARGIN = 1.15
 
 
-def matrix_duration_text(total_seconds):
-    """Durée estimée d'une matrice de test, sans marge, toujours avec les
-    minutes (« 0 min 46 sec »)."""
-    mins = int(total_seconds / 60)
-    secs = int(total_seconds % 60)
-    return f"{mins} min {secs} sec"
+def with_time_margin(seconds):
+    """Durée calculée d'après le G-Code (secondes), plus la marge des accélérations (TIME_MARGIN)."""
+    return max(0.0, float(seconds)) * TIME_MARGIN
+
+
+def duration_parts(seconds):
+    """(heures, minutes, secondes) entières d'une durée, arrondie à la seconde."""
+    total = max(0, int(round(float(seconds))))
+    hours, rest = divmod(total, 3600)
+    minutes, secs = divmod(rest, 60)
+    return hours, minutes, secs
 
 
 def start_lines(params):

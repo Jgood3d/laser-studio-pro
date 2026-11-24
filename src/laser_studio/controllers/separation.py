@@ -11,7 +11,7 @@ celui de « Graver une image » (lignes/mm × 25,4).
 
     separation = SeparationController(settings, image_settings,
                                       frame_args=tab.frame_args,
-                                      engrave_lmm=lambda: spin_lmm.value(),
+                                      engrave_lmm=resolution_box.lines_per_mm,
                                       dialogs=window.dialogs, engraved=lambda: window.processed_array,
                                       current_preview=tab.preview_tabs.currentIndex,
                                       is_visible=tab.isVisible)

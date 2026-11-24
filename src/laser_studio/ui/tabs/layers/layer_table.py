@@ -7,9 +7,8 @@ from PyQt6.QtWidgets import (
     QSpinBox, QCheckBox, QLineEdit, QMessageBox, QAbstractItemView, QToolButton,
 )
 from laser_studio.i18n import tr
-from laser_studio.models.layers import (
-    CONTOUR_MODES, ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel,
-)
+from laser_studio.models.layer_modes import CONTOUR_MODES
+from laser_studio.models.layers import ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, LaserLayer, LayersModel
 
 
 class LayerManagerWidget(QWidget):

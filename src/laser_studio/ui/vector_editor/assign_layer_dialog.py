@@ -4,7 +4,6 @@ from laser_studio.i18n import tr
 from laser_studio.models.layers import LayersModel, layer_label
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 class AssignLayerDialog(QDialog):
@@ -14,7 +13,7 @@ class AssignLayerDialog(QDialog):
     sa position et sa rotation sont modifiables (position/rotation via le
     panneau dédié de l'éditeur vectoriel)."""
 
-    def __init__(self, layer_manager: LayerManager, svg_obj=None, current_layer_id=None,
+    def __init__(self, layer_manager: LayersModel, svg_obj=None, current_layer_id=None,
                  title="Propriétés de l'élément SVG", parent=None):
         super().__init__(parent)
         self.setWindowTitle(title)

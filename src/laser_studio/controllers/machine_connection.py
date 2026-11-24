@@ -19,7 +19,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from laser_studio.core.debug_log import get_logger
 from laser_studio.grbl.commands import HOME, UNLOCK, READ_SETTINGS, jog_command, parse_grbl_settings  # noqa: F401
 from laser_studio.grbl.connection import LaserUSBController
-from laser_studio.workers import (
+from laser_studio.controllers.workers import (
     CommandThread, GCodeStreamerThread, ReconnectThread, StatusPollThread,
 )
 

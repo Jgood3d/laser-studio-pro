@@ -1,7 +1,6 @@
 """Langue de l'interface (mémorisée entre deux sessions) et traduction."""
 
-from PyQt6.QtCore import QSettings
-
+from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n.translations import DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES, TRANSLATIONS
 
 _current_lang = None
@@ -11,8 +10,7 @@ def get_current_language():
     """Langue actuellement sélectionnée (mémorisée entre sessions)."""
     global _current_lang
     if _current_lang is None:
-        settings = QSettings("LaserStudioPro", "UIConfig")
-        stored = settings.value("language", DEFAULT_LANGUAGE)
+        stored = ui_preferences().get("language", DEFAULT_LANGUAGE)
         _current_lang = stored if stored in SUPPORTED_LANGUAGES else DEFAULT_LANGUAGE
     return _current_lang
 
@@ -23,8 +21,7 @@ def set_language(lang_code):
     if lang_code not in SUPPORTED_LANGUAGES:
         return
     _current_lang = lang_code
-    settings = QSettings("LaserStudioPro", "UIConfig")
-    settings.setValue("language", lang_code)
+    ui_preferences().set("language", lang_code)
 
 
 def tr(key):

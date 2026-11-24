@@ -14,6 +14,7 @@ from PyQt6.QtWidgets import QApplication
 
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import tr
+from laser_studio.i18n.durations import duration_text
 
 
 def set_homing_available(checkboxes, available, tip):
@@ -40,7 +41,7 @@ def beep_job_done():
 class JobDisplay(QObject):
     """Résultats du job et état du graveur, montrés dans la fenêtre.
 
-    `status_bar` : StatusBar ; `console` : console G-Code (QPlainTextEdit) ;
+    `status_bar` : StatusBar ; `console` : onglet de la console G-Code (ConsoleTab) ;
     `preview` : Preview2DTab ; `machine_panel` : MachinePanel ; `actions` :
     AppActions (« Enregistrer le G-Code ») ; `dialogs` : UserDialogs.
 
@@ -85,14 +86,14 @@ class JobDisplay(QObject):
         self._log(f"\n; ERREUR DE GÉNÉRATION :\n; {error_text}")
         self.dialogs.error(tr("gen.failed_title"), tr("gen.failed_body").format(error=error_text))
 
-    def show_generated(self, gcode_str, num_lines, avg_power, time_str):
+    def show_generated(self, gcode_str, num_lines, avg_power, seconds):
         """G-Code prêt : console, statistiques, aperçu 2D."""
         self.status_bar.show_progress(100, tr("gen.done"))
         self.status_bar.hide_progress(delay_ms=1500)
-        self.console.setPlainText(gcode_str)
+        self.console.set_gcode(gcode_str)
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
-                                               tr("gen.stat_time").format(value=time_str))
+                                               tr("gen.stat_time").format(value=duration_text(seconds)))
         # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
         self.actions.set_gcode_export_enabled(True)
         self.plot(gcode_str)
@@ -101,7 +102,7 @@ class JobDisplay(QObject):
     def show_imported(self, gcode_text, path):
         """Affiche un fichier G-Code importé (JobController.import_gcode) dans
         la console et l'aperçu 2D."""
-        self.console.setPlainText(gcode_text)
+        self.console.set_gcode(gcode_text)
         num_lines = len([line for line in gcode_text.split('\n') if line.strip()])
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power_imported"),
@@ -163,7 +164,7 @@ class JobDisplay(QObject):
         e.direct_job_finished.connect(lambda: panel.jog_panel.set_send_enabled(True))
         e.stream_starting.connect(self._stream_starting)
         e.stream_ended.connect(self._stream_ended)
-        e.gcode_restored.connect(self.console.setPlainText)
+        e.gcode_restored.connect(self.console.set_gcode)
         e.job_done.connect(beep_job_done)
         self.update_connection()
 

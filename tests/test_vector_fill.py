@@ -58,7 +58,6 @@ class UnionTests(unittest.TestCase):
         for y, segs in rows.items():
             xs = sorted(segs)
             self.assertEqual((xs[0][0], xs[-1][1]), (0.0, 30.0), y)
-            covered = 0.0
             last = 0.0
             for a, b in xs:
                 self.assertLessEqual(a, last + 1e-6, f"trou non gravé à y={y} entre {last} et {a}")

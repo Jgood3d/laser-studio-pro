@@ -5,7 +5,7 @@ coché) d'une commande. Le menu et la barre d'outils affichent les mêmes
 actions : un seul endroit les crée, et un seul endroit émet les signaux.
 """
 
-from PyQt6.QtCore import QObject, QSettings, Qt, pyqtSignal
+from PyQt6.QtCore import QObject, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence
 from PyQt6.QtWidgets import QApplication, QStyle
 
@@ -73,6 +73,7 @@ class AppActions(QObject):
     ornament_generator_requested = pyqtSignal()
     library_requested = pyqtSignal()
     camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
+    macros_requested = pyqtSignal()  # éditeur des macros de l'utilisateur
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
 
@@ -255,14 +256,12 @@ class AppActions(QObject):
             action.setChecked(code == current_lang)
             self.language_actions[code] = action
 
-        from laser_studio.ui.app.theme import available_themes, normalize_theme_name
+        from laser_studio.ui.app.theme import available_themes, current_theme_name
 
         self.theme_icon = standard_icon(
             "preferences-desktop-theme", QStyle.StandardPixmap.SP_DesktopIcon
         )
-        current_theme = normalize_theme_name(
-            QSettings("LaserStudioPro", "UIConfig").value("app_theme", "dark")
-        )
+        current_theme = current_theme_name()
         self.theme_actions = {}
         for code, label_key in available_themes():
             action = self._action(
@@ -345,6 +344,11 @@ class AppActions(QObject):
             tr("menu.tools.camera"),
             self.camera_requested,
         )
+        self.macros = self._action(
+            bundled_icon("document-properties", QStyle.StandardPixmap.SP_FileDialogDetailedView),
+            tr("menu.tools.macros"),
+            self.macros_requested,
+        )
         self.vector_tool_actions = (
             self.library,
             self.vector_import,
@@ -353,10 +357,11 @@ class AppActions(QObject):
             self.ornament_generator,
             self.keychain_generator,
         )
-        # Caméra : placée avec les outils généraux (pas seulement vectoriel).
+        # Caméra et macros : placées avec les outils généraux (pas seulement vectoriel).
         self.tool_actions = (
             *self.tool_actions,
             self.camera,
+            self.macros,
         )
 
     def _create_help_actions(self, parent):

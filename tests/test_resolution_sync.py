@@ -130,19 +130,21 @@ class SeparationFollowsTheResolutionTests(unittest.TestCase):
 
 class SeparationHooksStillPresentTests(unittest.TestCase):
     """Garde-fou : les liaisons « Graver une image » <-> Séparation ne doivent pas disparaître
-    quand main_window.py ou window_controller.py est remplacé par une autre version."""
+    quand ui/app/main_window.py ou window_controller.py est remplacé par une autre version."""
 
     def source(self, *parts):
         with open(os.path.join(REPO, "src", "laser_studio", *parts), encoding="utf-8") as f:
             return f.read()
 
     def test_load_image_releases_the_separation_settings(self):
-        self.assertIn("self.image.loading_file.connect(separation.release_glass_settings)",
-                      self.source("main_window.py"))
+        self.assertIn("image.loading_file.connect(separation.release_glass_settings)",
+                      self.source("ui", "tabs", "separation", "builder.py"))
 
     def test_reset_forgets_the_separation_state(self):
-        self.assertIn("self.image.resetting.connect(separation.forget_glass_settings)",
-                      self.source("main_window.py"))
+        self.assertIn("image.resetting.connect(separation.forget_glass_settings)",
+                      self.source("ui", "tabs", "separation", "builder.py"))
 
     def test_resolution_reaches_the_separation(self):
-        self.assertIn("separation.resolution_changed()", self.source("ui", "app", "window_controller.py"))
+        main = self.source("ui", "app", "main_window.py")
+        self.assertIn("settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())", main)
+        self.assertIn("settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)", main)

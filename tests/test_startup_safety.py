@@ -8,19 +8,15 @@ from unittest import mock
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 
+from laser_studio.core.preferences import MemoryStore, Preferences  # noqa: E402
 from laser_studio.controllers.startup_safety import (  # noqa: E402
     COUNT_KEY, HIDDEN_KEY, REMINDER_EVERY, StartupSafetyPolicy,
 )
 
 
-class FakeSettings(dict):
-    """Faux QSettings : rien n'est écrit dans les réglages de l'utilisateur."""
-
-    def value(self, key, default=None):
-        return self.get(key, default)
-
-    def setValue(self, key, value):
-        self[key] = value
+def FakeSettings(values=None):
+    """Préférences en mémoire : rien n'est écrit dans les réglages de l'utilisateur."""
+    return Preferences(MemoryStore(values))
 
 
 class StartupSafetyPolicyTests(unittest.TestCase):
@@ -44,7 +40,7 @@ class StartupSafetyPolicyTests(unittest.TestCase):
         policy = self.policy(settings)
         self.assertTrue(policy.hidden())
         policy.record(hide=False)
-        self.assertEqual(settings, {HIDDEN_KEY: False, COUNT_KEY: 0})
+        self.assertEqual(settings.store.values, {HIDDEN_KEY: False, COUNT_KEY: 0})
         self.assertTrue(policy.should_show_at_launch())
 
     def test_nowarning_disables_it_completely(self):
@@ -57,12 +53,12 @@ class StartupSafetyPolicyTests(unittest.TestCase):
     def test_nowarning_does_not_touch_the_settings(self):
         settings = FakeSettings({HIDDEN_KEY: True, COUNT_KEY: 5})
         self.policy(settings, {"NOWARNING": "1"}).should_show_at_launch()
-        self.assertEqual(settings[COUNT_KEY], 5)
+        self.assertEqual(settings.store.values[COUNT_KEY], 5)
 
     def test_corrupt_counter_is_restarted(self):
         settings = FakeSettings({HIDDEN_KEY: True, COUNT_KEY: "abc"})
         self.assertFalse(self.policy(settings).should_show_at_launch())
-        self.assertEqual(settings[COUNT_KEY], 1)
+        self.assertEqual(settings.store.values[COUNT_KEY], 1)
 
 
 try:
@@ -107,7 +103,7 @@ class MainWiringTests(unittest.TestCase):
     def test_main_asks_the_policy_before_showing_the_dialog(self):
         with open(os.path.join(REPO, "src", "laser_studio", "main.py"), encoding="utf-8") as f:
             src = f.read()
-        block = src[src.index("safety = StartupSafetyPolicy("):src.index("from laser_studio.main_window import")]
+        block = src[src.index("safety = StartupSafetyPolicy("):src.index("from laser_studio.ui.app.main_window import")]
         self.assertLess(block.index("if safety.should_show_at_launch():"), block.index("confirm_startup_safety("))
         self.assertLess(block.index("sys.exit(0)"), block.index("safety.record(hide)"))   # Annuler : rien d'enregistré
 

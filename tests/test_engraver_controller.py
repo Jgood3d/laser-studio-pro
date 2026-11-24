@@ -312,10 +312,12 @@ class SimulatedWindowTests(unittest.TestCase):
         cls.env = mock.patch.dict(os.environ, {"LASER_STUDIO_SIMULATION": "50", "XDG_CONFIG_HOME": cls.tmp.name,
                                                "XDG_DATA_HOME": cls.tmp.name})
         cls.env.start()
-        from laser_studio import main_window
+        from laser_studio.ui.app import main_window
         cls.app = QApplication.instance() or QApplication([])
-        cls.stencil = mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio")
+        cls.stencil = mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload")
         cls.stencil.start()
+        from job_fakes import start_memory_preferences
+        start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
         cls.win = main_window.FullLaserStudio()
 
     @classmethod
@@ -346,7 +348,7 @@ class SimulatedWindowTests(unittest.TestCase):
             panel.connection_panel.connect_requested.emit()
             self.assertTrue(win.connection.is_connected())
             self.assertTrue(panel.jog_panel.isEnabled())                    # commandes déverrouillées
-            win.txt_console.setPlainText("G21\nG90\nM4 S0\nG1 X5 Y5 F3000 S100\nG0 X0 Y0\nM5\n")
+            win.tab_console_gcode.set_gcode("G21\nG90\nM4 S0\nG1 X5 Y5 F3000 S100\nG0 X0 Y0\nM5\n")
             panel.jog_panel.send_job_requested.emit()
             self.assertFalse(panel.jog_panel.send_button.isEnabled())       # pendant le job
             self.assertTrue(self.wait(lambda: info.called), "le job ne s'est pas terminé")

@@ -7,12 +7,12 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio import workers
+    from laser_studio.controllers import workers
 except ImportError:  # PyQt6/svg.path manquants
     workers = None
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici")
 class ConsoleMessagesTests(unittest.TestCase):
     def test_application_messages_are_not_sent(self):
         console = "\n".join([

@@ -42,7 +42,7 @@ class AppToolBar(QToolBar):
         self.addSeparator()
         # Actions sur l'image (annuler, pivoter, miroirs, réinitialiser,
         # supprimer) : barre flottante des aperçus d'image (FloatingToolBar,
-        # main_window._add_image_floating_toolbars).
+        # ui/app/main_window._add_image_floating_toolbars).
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
         self.addSeparator()

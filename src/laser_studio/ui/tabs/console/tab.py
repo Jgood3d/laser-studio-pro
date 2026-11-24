@@ -15,7 +15,8 @@ class ConsoleTab(QWidget):
     (menu Affichage). Le plein écran est celui de la barre principale.
 
         tab = ConsoleTab()
-        tab.console_edit.setPlainText(gcode)
+        tab.set_gcode(gcode)
+        tab.gcode()
     """
 
     def __init__(self, parent=None):
@@ -26,3 +27,10 @@ class ConsoleTab(QWidget):
         self.console_edit = QTextEdit()
         self.console_edit.setFontFamily("Courier")
         layout.addWidget(self.console_edit)
+
+    def gcode(self):
+        """G-Code affiché (relu par l'export, la file d'attente et l'envoi au laser)."""
+        return self.console_edit.toPlainText()
+
+    def set_gcode(self, text):
+        self.console_edit.setPlainText(text)

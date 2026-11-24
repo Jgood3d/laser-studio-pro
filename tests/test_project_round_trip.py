@@ -22,10 +22,12 @@ class ProjectRoundTripTests(unittest.TestCase):
     def setUpClass(cls):
         cls.tmp = tempfile.mkdtemp()               # préférences isolées : rien chez l'utilisateur
         with mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": cls.tmp, "XDG_DATA_HOME": cls.tmp}):
-            from laser_studio import main_window
+            from laser_studio.ui.app import main_window
             cls.app = QApplication.instance() or QApplication([])
             # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
-            mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio").start()
+            mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
+            from job_fakes import start_memory_preferences
+            start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
             cls.win = main_window.FullLaserStudio()
 
     def test_saved_project_reopens_with_its_layers(self):

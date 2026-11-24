@@ -1,7 +1,6 @@
 """Aucun widget ni méthode privée ne doit être utilisé sans être construit quelque part
 (typiquement : un mixin mis à jour avec un ui_setup_mixin.py resté à l'ancienne version)."""
 import os
-import shutil
 import sys
 import tempfile
 import unittest

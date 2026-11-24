@@ -3,7 +3,7 @@
 
 # Police de Stencil Studio : lien vers celle de dejavu-sans-fonts (Requires),
 # absente là où rpmlint tourne, présente chez l'utilisateur.
-addFilter("dangling-symlink .*/stencil_studio/fonts/DejaVuSans-Bold.ttf")
+addFilter("dangling-symlink .*/stencil_studio/resources/fonts/DejaVuSans-Bold.ttf")
 
 # Application graphique, sans option en ligne de commande à documenter.
 addFilter("no-manual-page-for-binary laser-studio-pro")

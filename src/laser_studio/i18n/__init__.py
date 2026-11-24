@@ -7,7 +7,8 @@ d'avoir à retenir et reconstruire chaque widget affiché un par un.
 Utilisation : from i18n import tr
               menu_bar.addMenu(tr("menu.file"))
 
-Les textes sont dans i18n/translations.py, la langue choisie et tr() dans
+Les textes sont dans i18n/texts/ (un module par zone, assemblés par
+i18n/translations.py), la langue choisie et tr() dans
 i18n/language.py.
 """
 

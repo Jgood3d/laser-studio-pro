@@ -2,15 +2,15 @@
 
 import os
 import sys
-import tempfile
 import unittest
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from PyQt6.QtCore import QSettings
+    from job_fakes import memory_preferences
     from PyQt6.QtWidgets import QApplication, QHBoxLayout, QLabel, QWidget
     from laser_studio.ui.settings.window import SettingsWindow
 except ImportError:  # PyQt6 manquant
@@ -31,15 +31,9 @@ class SettingsWindowSizeTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
-        cls.config = tempfile.mkdtemp()
-        QSettings.setPath(
-            QSettings.Format.NativeFormat,
-            QSettings.Scope.UserScope,
-            cls.config,
-        )
 
-    def tearDown(self):
-        QSettings("LaserStudioPro", "UIConfig").remove("settings_window/test")
+    def setUp(self):
+        memory_preferences(self)                 # rien d'écrit dans les vrais réglages
 
     def make(self, page):
         window = SettingsWindow(None, "Test", page, "test")

@@ -587,7 +587,7 @@ def _load_font(px, path=""):
     from PIL import ImageFont
     base = os.path.dirname(os.path.abspath(__file__))
     cands = ([path] if path else []) + [
-        os.path.join(base, "fonts", "DejaVuSans-Bold.ttf"),
+        os.path.join(base, "resources", "fonts", "DejaVuSans-Bold.ttf"),
         "C:/Windows/Fonts/arialbd.ttf", "/Library/Fonts/Arial Bold.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]
     for c in cands:

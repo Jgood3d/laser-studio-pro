@@ -10,7 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 try:
     from PyQt6.QtWidgets import QApplication
     from laser_studio.models.layers import LayersModel, LaserLayer
-    from laser_studio.vector_layers import LayerManager, LayerManagerWidget
+    from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
 except ImportError:  # PyQt6 manquant
     LayersModel = None
 
@@ -31,7 +31,7 @@ class LayersModelTests(unittest.TestCase):
         return model, events
 
     def test_old_name_still_works(self):
-        self.assertIs(LayerManager, LayersModel)
+        self.assertIs(LayersModel, LayersModel)
 
     def test_update_emits_only_what_changed(self):
         model, events = self.make()

@@ -1,30 +1,26 @@
-"""Bibliothèque de modèles : ouverture de la fenêtre et import du modèle
-choisi dans l'éditeur vectoriel."""
-
-from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QDialog
+"""Bibliothèque de modèles : choix d'un modèle (fenêtre ouverte par EditorForms) et import dans
+l'éditeur vectoriel."""
 
 from laser_studio.i18n import get_current_language, tr
 from laser_studio.library.catalog import library_roots, load_catalog
 from laser_studio.vector.svg_import import SvgImportError, import_svg
+from laser_studio.core.preferences import ui_preferences
 
 # Clé de UIConfig : taille des vignettes de la bibliothèque (px).
 ICON_SIZE_SETTING = "library_icon_size"
-
-
-def _settings():
-    return QSettings("LaserStudioPro", "UIConfig")
 
 
 class LibraryController:
     """Ouvre la bibliothèque et importe le modèle choisi.
 
         library = LibraryController(
-            self, self.layer_manager,
-            bed_height=lambda: self.machine.bed_h,
-            add_to_vector_editor=self.vector_editor.add_objects,
+            layers, bed_height=lambda: machine.bed_h,
+            add_to_vector_editor=editor.import_objects, forms=EditorForms(window), dialogs=dialogs,
         )
         action.triggered.connect(library.open)
+
+    La fenêtre de la bibliothèque est ouverte par `forms.library(...)` (ui/vector_editor/forms.py) :
+    le contrôleur ne construit aucune fenêtre.
 
     Chaque tracé du modèle va sur le calque de même rôle (découpe, gravure,
     marquage, voir vector.svg_import) ; sans calque de ce rôle, sur le
@@ -32,14 +28,11 @@ class LibraryController:
     library_roots, remplaçable pour les tests).
     """
 
-    def __init__(self, parent, layer_manager, bed_height, add_to_vector_editor,
-                 roots=library_roots, dialogs=None):
-        self._parent = parent                   # parent de la fenêtre de la bibliothèque
-        # Boîtes de dialogue (UserDialogs) : celles de la fenêtre, ou un objet
-        # qui répond à la place de l'utilisateur dans les tests.
-        if dialogs is None:
-            from laser_studio.ui.user_dialogs import UserDialogs
-            dialogs = UserDialogs(parent)
+    def __init__(self, layer_manager, bed_height, add_to_vector_editor, *, forms, dialogs,
+                 roots=library_roots):
+        # Fenêtres (EditorForms) et messages (UserDialogs) : ceux de la fenêtre, ou des objets qui répondent
+        # à la place de l'utilisateur dans les tests.
+        self._forms = forms
         self._dialogs = dialogs
         self._layers = layer_manager
         self._bed_height = bed_height
@@ -51,7 +44,6 @@ class LibraryController:
 
     def open(self):
         """Fenêtre de la bibliothèque ; importe le modèle choisi."""
-        from laser_studio.ui.dialogs.library import LibraryDialog
         if not self._layers.layers:
             self._dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
             return
@@ -60,14 +52,14 @@ class LibraryController:
             self._dialogs.info(tr("library.title"), tr("library.empty"))
             return
         try:
-            icon_size = int(_settings().value(ICON_SIZE_SETTING, 160))
+            icon_size = ui_preferences().get_int(ICON_SIZE_SETTING, 160)
         except (TypeError, ValueError):
             icon_size = 160
-        dialog = LibraryDialog(self._parent, categories, icon_size)
-        dialog.icon_size_changed.connect(lambda size: _settings().setValue(ICON_SIZE_SETTING, size))
-        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.chosen() is None:
+        chosen = self._forms.library(categories, icon_size,
+                                     on_icon_size=lambda size: ui_preferences().set(ICON_SIZE_SETTING, size))
+        if chosen is None:
             return
-        item, variants, texts = dialog.chosen()
+        item, variants, texts = chosen
         self.import_item(item, variants, texts)
 
     def layer_for_role(self, role):

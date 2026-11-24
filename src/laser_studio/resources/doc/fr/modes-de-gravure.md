@@ -91,6 +91,12 @@ l'est à vitesse constante.
 Le surbalayage n'a pas d'effet sur la découpe et le marquage, qui suivent
 des contours.
 
+Quand il est activé, l'image à graver est décalée vers la droite de la
+distance de surbalayage (le décalage du job s'y ajoute), et les dessins
+importés dans l'éditeur vectoriel arrivent avec la même marge à gauche :
+avec un décalage de 0, la tête part du bord du plateau. Sans surbalayage,
+aucune marge n'est ajoutée.
+
 > **Attention** : la tête sort du dessin. Si la gravure commence trop près
 > du bord gauche du plateau, le départ tomberait hors de la machine :
 > Laser Studio Pro refuse alors de générer le G-code. Décalez le dessin ou

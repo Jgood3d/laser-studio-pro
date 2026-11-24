@@ -1,4 +1,4 @@
-"""Code source de l'interface, réparti entre main_window.py, les fichiers ui_*.py et le paquet ui/."""
+"""Code source de l'interface, réparti entre les fichiers ui_*.py et le paquet ui/ (dont ui/app/main_window.py)."""
 import glob
 import os
 import re
@@ -8,9 +8,8 @@ ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
 def ui_files():
-    """Fichiers de l'interface, relatifs à la racine : main_window.py, ui_*.py et le paquet ui/."""
-    files = [os.path.join(ROOT, "main_window.py")]
-    files += glob.glob(os.path.join(ROOT, "ui_*.py"))
+    """Fichiers de l'interface, relatifs à la racine : ui_*.py et le paquet ui/ (dont ui/app/main_window.py)."""
+    files = glob.glob(os.path.join(ROOT, "ui_*.py"))
     files += glob.glob(os.path.join(ROOT, "ui", "**", "*.py"), recursive=True)
     return sorted(os.path.relpath(p, ROOT) for p in files)
 

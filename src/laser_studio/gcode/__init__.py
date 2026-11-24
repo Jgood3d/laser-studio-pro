@@ -1,5 +1,5 @@
 """Génération du G-Code, sans Qt : fonctions pures, testables sans fenêtre ni
-machine. Les threads de workers.py ne font que les appeler.
+machine. Les threads de controllers/workers.py ne font que les appeler.
 
 - job.build_job_gcode : un job complet (image, découpe SVG, calques vectoriels) ;
 - raster : gravure d'une image tramée ;
@@ -13,14 +13,13 @@ Aucun module de ce paquet n'importe PyQt6 (vérifié par tests/test_gcode_packag
 from laser_studio.gcode.calibration import BIDIR_TEST_DEFAULT_OFFSETS, bidir_test_gcode
 from laser_studio.gcode.common import GcodeResult
 from laser_studio.gcode.job import build_job_gcode
-from laser_studio.gcode.raster import IMAGE_MARGIN_MM, image_origin
+from laser_studio.gcode.raster import image_origin
 from laser_studio.gcode.test_matrix import MATRIX_CUT, MATRIX_ENGRAVE, build_test_matrix_gcode
 from laser_studio.gcode.vector import build_vector_layers_gcode
 
 __all__ = [
     "BIDIR_TEST_DEFAULT_OFFSETS",
     "GcodeResult",
-    "IMAGE_MARGIN_MM",
     "MATRIX_CUT",
     "MATRIX_ENGRAVE",
     "bidir_test_gcode",

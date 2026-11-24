@@ -36,6 +36,7 @@ class StatusBar(QStatusBar):
 
         window.setStatusBar(StatusBar(window))
         window.statusBar().show_info("Image chargée", "/chemin/image.png")
+        window.statusBar().show_log(">>> Connecté sur COM3")   # texte de journal : « Connecté sur COM3 »
         window.statusBar().show_progress(40, "Génération en cours… 40%")
         window.statusBar().hide_progress(delay_ms=1500)
     """
@@ -61,6 +62,14 @@ class StatusBar(QStatusBar):
         self.message_label.setToolTip(tooltip or text)
         if text:
             self.message_timer.start(STATUS_BAR_MESSAGE_DURATION)
+
+    def show_log(self, text):
+        """Message d'une action écrit pour un journal (plusieurs lignes, repères « >>> », « ; »,
+        cadres « --- ») : une ligne dans la barre (status_text), le texte complet en infobulle.
+        Rien n'est affiché s'il ne reste aucun texte."""
+        short = status_text(text)
+        if short:
+            self.show_info(short, str(text).strip())
 
     def show_progress(self, percent, text):
         """Affiche la progression : barre à `percent` %, libellé `text`.

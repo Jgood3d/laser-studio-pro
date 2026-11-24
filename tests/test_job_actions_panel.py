@@ -50,8 +50,24 @@ class JobActionsPanelTests(unittest.TestCase):
         panel = self.make()
         tooltips = {b.toolTip() for b in panel.findChildren(QToolButton)}
         self.assertEqual(tooltips, {tr(k) for k in ("ui.frame", "ui.zero_work", "ui.go_zero",
-                                                    "ui.repeat_last_job")})
-        self.assertEqual(panel.findChildren(QPushButton), [])     # boutons à icône seulement
+                                                    "ui.repeat_last_job", "macros.manage_tip")})
+        self.assertEqual(panel.findChildren(QPushButton), [])     # sans macro : boutons à icône seulement
+
+    def test_macro_buttons(self):
+        panel = self.make()
+        got, managed = [], []
+        panel.macro_requested.connect(got.append)
+        panel.manage_macros_requested.connect(lambda: managed.append(True))
+        panel.set_macros([(3, "Décaler", "Déplace la tête", False), (5, "Pointeur", "", True)])
+        buttons = panel.findChildren(QPushButton)
+        self.assertEqual([b.text() for b in buttons], ["Décaler", "⚠ Pointeur"])
+        self.assertIn(tr("macros.laser_tip"), buttons[1].toolTip())
+        buttons[1].click()
+        panel.buttons["macros"].click()
+        self.assertEqual((got, managed), ([5], [True]))
+        panel.set_macros([])
+        self.app.processEvents()
+        self.assertFalse(panel.macro_area.isVisibleTo(panel))
 
     def test_repeat_is_disabled_until_a_job_was_sent(self):
         panel = self.make()
@@ -60,12 +76,20 @@ class JobActionsPanelTests(unittest.TestCase):
         panel.set_repeat_enabled(True)
         self.assertTrue(button.isEnabled())
 
-    def test_set_connected_locks_the_panel(self):
+    def test_set_connected_locks_the_actions_but_not_the_macros_editor(self):
         panel = self.make()
+        panel.set_macros([(0, "Décaler", "", False)])
+        panel.set_repeat_enabled(True)
         panel.set_connected(False)
-        self.assertFalse(panel.isEnabled())
+        actions = [b for name, b in panel.buttons.items() if name != "macros"]
+        self.assertFalse(any(b.isEnabled() for b in actions))
+        self.assertFalse(panel.macro_buttons[0].isEnabled())
+        self.assertTrue(panel.buttons["macros"].isEnabled())          # macros modifiables sans graveur
         panel.set_connected(True)
-        self.assertTrue(panel.isEnabled())
+        self.assertTrue(all(b.isEnabled() for b in actions))
+        self.assertTrue(panel.macro_buttons[0].isEnabled())
+        panel.set_repeat_enabled(False)
+        self.assertFalse(panel.buttons["repeat"].isEnabled())
 
 
 @unittest.skipIf(JobActionsPanel is None, "PyQt6 non importable ici")

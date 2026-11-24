@@ -1,7 +1,7 @@
 """Onglet « Graver une image » : réglages, aperçus original et tramé."""
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon, QImage
+from PyQt6.QtGui import QAction, QIcon, QImage
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
+from laser_studio.ui.utils import palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import TabToolBar, ZoomableGraphicsView
 
 
@@ -44,7 +45,8 @@ class ImageTab(QWidget):
         self.settings = ImageSettingsPanel()
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        layout.addWidget(self._toolbar())
+        self.toolbar = self._toolbar()
+        layout.addWidget(self.toolbar)
         row = QHBoxLayout()
         # Réglages de l'image à gauche, comme dans Séparation.
         self._settings_scroll = self._side_scroll(self.settings)
@@ -52,8 +54,27 @@ class ImageTab(QWidget):
         row.addWidget(self._settings_scroll)
         row.addWidget(self._previews(), 1)
         layout.addLayout(row)
+        # Loupes : placées par la fenêtre dans la barre flottante des aperçus (avec annuler, pivoter…).
+        self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
+        self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
+        zoom_shortcuts(self, self.zoom_in, self.zoom_out)
 
     # -- construction
+
+    def zoom_in(self):
+        """Loupe « + » : les deux aperçus (originale et rendu tramé) ensemble."""
+        for view in (self.source_view, self.dither_view):
+            view.zoom_in()
+
+    def zoom_out(self):
+        for view in (self.source_view, self.dither_view):
+            view.zoom_out()
+
+    def _zoom_action(self, icon, tip_key, slot):
+        action = QAction(palette_icon(icon, self.palette()), tr(tip_key), self)
+        action.setToolTip(tr(tip_key))
+        action.triggered.connect(slot)
+        return action
 
     def _toolbar(self):
         """Comparaison des algorithmes et « Afficher l'originale »."""
@@ -77,7 +98,7 @@ class ImageTab(QWidget):
                     tr("img.compare_algos"),
                     tr("img.compare_algos_tip"),
                     lambda: self.compare_requested.emit(),
-                )
+                ),
             ],
             left_widgets=[self.show_original_check],
         )

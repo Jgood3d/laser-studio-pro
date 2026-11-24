@@ -109,12 +109,9 @@ def validate_params(params: PuzzleParams):
         raise PuzzleError("kerf", value=params.kerf)
     piece_w = params.width / params.nx
     piece_h = params.height / params.ny
-    # profondeur max ~ 34 % du côté (voir generate_jigsaw_edge) ; garder une marge
-    max_depth_ratio = 0.34
     min_side = min(piece_w, piece_h)
     if min_side < 3.0:
         raise PuzzleError("piece_too_small", side=min_side, minimum=3.0)
-    tab_mm = params.tab_depth * min_side  # approx si depth est relatif au côté
     # tab_depth est déjà un ratio dans generate_jigsaw_edge (depth = length * tab_depth)
     if params.tab_depth > 0.40:
         raise PuzzleError("tab_too_deep", value=params.tab_depth, maximum=0.40)

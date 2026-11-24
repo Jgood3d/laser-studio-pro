@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))   # job_fakes
 
 try:
     from PIL import Image
-    from PyQt6.QtCore import QSettings
+    from job_fakes import memory_preferences
     from PyQt6.QtWidgets import (
         QApplication,
         QComboBox,
@@ -30,7 +30,7 @@ try:
     from laser_studio.controllers import project as project_module
     from laser_studio.controllers.png2svg import Png2SvgController
     from laser_studio.controllers.project import ProjectController
-    from laser_studio.vector_layers import LayerManager
+    from laser_studio.models.layers import LayersModel
 except ImportError:  # PyQt6, Pillow... manquants
     JobQueueController = None
 
@@ -64,7 +64,7 @@ class Png2SvgControllerTests(_QtTest):
         added = []
         controller = Png2SvgController(
             None,
-            layers or LayerManager(),
+            layers or LayersModel(),
             bed_height=lambda: 300.0,
             add_to_vector_editor=added.extend,
         )
@@ -89,7 +89,7 @@ class Png2SvgControllerTests(_QtTest):
         self.assertEqual((added, self.messages), ([], ["critical"]))
 
     def test_without_layer_nothing_happens(self):
-        layers = LayerManager()
+        layers = LayersModel()
         layers.layers = []
         controller, added = self.make(layers)
         controller.send_to_vector_editor(SVG)
@@ -329,14 +329,7 @@ class ProjectControllerTests(_QtTest):
         self.addCleanup(patcher.stop)
         # Projets récents dans un fichier temporaire, jamais dans les
         # réglages de l'utilisateur.
-        settings_path = os.path.join(self.dir, "UIConfig.ini")
-        patcher = mock.patch.object(
-            project_module,
-            "QSettings",
-            lambda *_a: QSettings(settings_path, QSettings.Format.IniFormat),
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        memory_preferences(self)
         self.state = {"bright": 12, "raw_image_b64": None}
         self.image = Image.new("L", (8, 4), 200)
         self.restored, self.recent = [], []

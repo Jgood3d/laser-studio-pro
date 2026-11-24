@@ -2,7 +2,7 @@
 
 Si onnxruntime n'est pas installé ou si le modèle ne peut pas être téléchargé, `available()` / `mask()`
 renvoient False / None et le Studio utilise ses méthodes classiques (aucune erreur).
-Modèle : téléchargé une seule fois dans le dossier « models » à côté de ce fichier.
+Modèle : téléchargé une seule fois dans resources/models/ (à côté de ce fichier).
 """
 import os
 import threading
@@ -17,7 +17,7 @@ def _model_dir():
     """Modèle téléchargé à côté du module, ou dans le profil de l'utilisateur si on ne peut pas y écrire (appli compilée)."""
     import sys
     if not getattr(sys, "frozen", False) and os.access(HERE, os.W_OK):
-        return os.path.join(HERE, "models")
+        return os.path.join(HERE, "resources", "models")
     base = os.environ.get("LOCALAPPDATA") or os.environ.get("XDG_DATA_HOME") or os.path.join(os.path.expanduser("~"), ".local", "share")
     return os.path.join(base, "StencilStudio", "models")
 

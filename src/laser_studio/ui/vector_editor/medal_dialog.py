@@ -7,13 +7,12 @@ from laser_studio.i18n import tr
 from laser_studio.models.layers import LayersModel, layer_label
 
 # Ancien nom du modèle des calques (models/layers.py).
-LayerManager = LayersModel
 
 
 class MedalTextDialog(QDialog):
     """Texte de médaille : un texte en haut et un en bas, à l'intérieur du contour fermé sélectionné."""
 
-    def __init__(self, layer_manager: LayerManager, parent=None):
+    def __init__(self, layer_manager: LayersModel, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("vector.medal_title"))
         layout = QFormLayout(self)

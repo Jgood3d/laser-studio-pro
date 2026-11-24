@@ -190,7 +190,7 @@ class TestPatternTests(unittest.TestCase):
         worker.start.assert_called_once()
         got = []
         job.generated.connect(lambda *a: got.append(a))
-        job._on_gain_test_ready("G1 X1\n", 1, 50.0, "1 min")
+        job._on_gain_test_ready("G1 X1\n", 1, 50.0, 60.0)
         self.assertTrue(got[0][0].startswith("; --- TEST DU GAIN DE POINT ---\n"))
         self.assertTrue(got[0][0].endswith("G1 X1\n"))
         self.assertEqual(got[0][1], 5)                                      # 4 lignes d'en-tête + 1
@@ -273,10 +273,12 @@ class WindowTests(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.env = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": cls.tmp.name, "XDG_DATA_HOME": cls.tmp.name})
         cls.env.start()
-        from laser_studio import main_window
+        from laser_studio.ui.app import main_window
         cls.app = QApplication.instance() or QApplication([])
-        cls.stencil = mock.patch("laser_studio.ui.app.window_controller.preload_stencil_studio")
+        cls.stencil = mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload")
         cls.stencil.start()
+        from job_fakes import start_memory_preferences
+        start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
         cls.win = main_window.FullLaserStudio()
 
     @classmethod
@@ -289,14 +291,13 @@ class WindowTests(unittest.TestCase):
     def test_generated_gcode_reaches_the_console_and_the_2d_tab(self):
         win = self.win
         win.image.processed_array = np.zeros((6, 8), np.uint8)
-        win.spin_w.setValue(8.0)
-        win.spin_h.setValue(6.0)
+        win.tab_previews.settings.set_size(8.0, 6.0)
         with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
                 mock.patch.object(QMessageBox, "warning", return_value=QMessageBox.StandardButton.Yes):
             self.assertTrue(win.job.generate())
         win.job.worker.wait(10000)
         self.app.processEvents()
-        self.assertIn("PHASE 1 : GRAVURE IMAGE", win.txt_console.toPlainText())
+        self.assertIn("PHASE 1 : GRAVURE IMAGE", win.tab_console_gcode.gcode())
         self.assertIs(win.main_tabs_view.currentWidget(), win.tab_vector_2d)
 
 

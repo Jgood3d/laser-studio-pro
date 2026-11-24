@@ -123,3 +123,15 @@ def busy_cursor():
         yield
     finally:
         QApplication.restoreOverrideCursor()
+
+
+def zoom_shortcuts(widget, zoom_in, zoom_out):
+    """Ctrl++ (ou Ctrl+=, la touche « + » des claviers QWERTY) et Ctrl+- appellent `zoom_in()` /
+    `zoom_out()` quand `widget` ou l'un de ses champs a le focus."""
+    from PyQt6.QtGui import QKeySequence, QShortcut     # importé ici : seuls quelques onglets s'en servent
+
+    for keys, slot in ((QKeySequence.StandardKey.ZoomIn, zoom_in), (QKeySequence("Ctrl+="), zoom_in),
+                       (QKeySequence.StandardKey.ZoomOut, zoom_out)):
+        shortcut = QShortcut(keys if isinstance(keys, QKeySequence) else QKeySequence(keys), widget)
+        shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        shortcut.activated.connect(slot)

@@ -6,6 +6,9 @@ from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier
 from PyQt6.QtCore import QPointF
 from PyQt6.QtGui import QPainterPath, QTransform, QPolygonF
 from laser_studio.models.vector_objects import SvgPathObject
+from laser_studio.core.debug_log import get_logger
+
+log = get_logger()
 
 
 def _svg_path_element_to_subpaths(d):
@@ -41,7 +44,7 @@ def _svg_path_element_to_subpaths(d):
         elif isinstance(seg, Arc):
             try:
                 length = seg.length()
-            except Exception:
+            except Exception:   # arc dégénéré : tracé comme un segment
                 length = 0
             n = max(4, int(length / 0.3)) if length else 8
             for i in range(1, n + 1):
@@ -244,6 +247,7 @@ def extract_svg_objects(svg_path, layer_id, bed_h_mm, offset_x_mm=10.0, offset_y
                 qp.lineTo(x2, y2)
                 raw.append((qp, source_tag_for(elem, tag)))
         except Exception:
+            log.warning("Import SVG : élément <%s> illisible ignoré", tag, exc_info=True)
             continue
 
     objects = []

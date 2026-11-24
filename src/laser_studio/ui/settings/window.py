@@ -4,8 +4,8 @@ La fenêtre héberge une page de réglages déjà construite (ses widgets resten
 le code qui les lit continue de fonctionner) dans une zone défilante. Non modale : on peut garder la
 fenêtre ouverte et continuer à travailler. La fermer la masque seulement ; sa taille et sa position
 sont mémorisées entre deux sessions."""
-from PyQt6.QtCore import QSettings
 from PyQt6.QtWidgets import QDialog, QScrollArea, QVBoxLayout
+from laser_studio.core.preferences import ui_preferences
 
 
 class SettingsWindow(QDialog):
@@ -26,9 +26,6 @@ class SettingsWindow(QDialog):
         layout.addWidget(self.scroll)
         self._apply_initial_size(default_width)
 
-    def _settings(self):
-        return QSettings("LaserStudioPro", "UIConfig")
-
     def _apply_initial_size(self, width):
         try:
             height = int(self.screen().availableGeometry().height() * 0.85)
@@ -38,7 +35,7 @@ class SettingsWindow(QDialog):
         if needed:
             width = max(width, needed)
         self.resize(width, min(max(height, 420), 900))
-        saved = self._settings().value(f"settings_window/{self._key}/geometry")
+        saved = ui_preferences().get(f"settings_window/{self._key}/geometry")
         if saved:
             self.restoreGeometry(saved)
             # Taille mémorisée plus étroite que la page (ancienne largeur fixe
@@ -64,7 +61,7 @@ class SettingsWindow(QDialog):
         return min(width, int(screen_width * 0.9))
 
     def _remember_geometry(self):
-        self._settings().setValue(f"settings_window/{self._key}/geometry", self.saveGeometry())
+        ui_preferences().set(f"settings_window/{self._key}/geometry", self.saveGeometry())
 
     def closeEvent(self, event):
         self._remember_geometry()
