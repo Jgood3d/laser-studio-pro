@@ -98,6 +98,8 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Macros : le bouton « Macros… » du panneau des actions de job reste actif graveur déconnecté (on prépare ses macros sans graveur branché) ; dans l'éditeur, les boutons de la liste sont en colonne et leurs libellés lisibles en entier.
+
 Envoi d'un job : une réponse « ERROR: » (renvoyée par certains clones de GRBL) arrivant pendant l'attente des derniers « ok » arrête maintenant la machine, comme pendant le reste de l'envoi ; elle était ignorée.
 
 Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).

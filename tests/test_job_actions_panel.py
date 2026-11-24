@@ -76,12 +76,20 @@ class JobActionsPanelTests(unittest.TestCase):
         panel.set_repeat_enabled(True)
         self.assertTrue(button.isEnabled())
 
-    def test_set_connected_locks_the_panel(self):
+    def test_set_connected_locks_the_actions_but_not_the_macros_editor(self):
         panel = self.make()
+        panel.set_macros([(0, "Décaler", "", False)])
+        panel.set_repeat_enabled(True)
         panel.set_connected(False)
-        self.assertFalse(panel.isEnabled())
+        actions = [b for name, b in panel.buttons.items() if name != "macros"]
+        self.assertFalse(any(b.isEnabled() for b in actions))
+        self.assertFalse(panel.macro_buttons[0].isEnabled())
+        self.assertTrue(panel.buttons["macros"].isEnabled())          # macros modifiables sans graveur
         panel.set_connected(True)
-        self.assertTrue(panel.isEnabled())
+        self.assertTrue(all(b.isEnabled() for b in actions))
+        self.assertTrue(panel.macro_buttons[0].isEnabled())
+        panel.set_repeat_enabled(False)
+        self.assertFalse(panel.buttons["repeat"].isEnabled())
 
 
 @unittest.skipIf(JobActionsPanel is None, "PyQt6 non importable ici")

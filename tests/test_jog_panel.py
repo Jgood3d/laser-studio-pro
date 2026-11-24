@@ -178,8 +178,9 @@ class CommandsLockTests(unittest.TestCase):
         for connected in (False, True):
             panel.set_connected(connected)
             connection = panel.connection_panel
-            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.isEnabled(),
+            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.is_connected(),
                               connection.console.isEnabled()), (connected, connected, connected))
+            self.assertTrue(panel.job_actions_panel.buttons["macros"].isEnabled())
             self.assertEqual(connection.connect_button.text(),
                              tr("laser.disconnect") if connected else tr("laser.connect"))
             self.assertTrue(connection.isEnabled() and connection.state_view.isEnabled())

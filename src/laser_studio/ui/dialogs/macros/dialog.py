@@ -23,7 +23,7 @@ class MacroEditorDialog(QDialog):
     def __init__(self, macros, profiles, read_file, write_file, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("macros.title"))
-        self.resize(820, 520)
+        self.resize(980, 560)
         self._read_file = read_file
         self._write_file = write_file
         self._profiles = list(profiles)
@@ -35,6 +35,7 @@ class MacroEditorDialog(QDialog):
         splitter.addWidget(self._list_side())
         splitter.addWidget(self._detail_side())
         splitter.setStretchFactor(1, 1)
+        splitter.setChildrenCollapsible(False)
 
         files = QHBoxLayout()
         for key, slot in (("macros.import", self._import), ("macros.export", self._export)):
@@ -43,6 +44,7 @@ class MacroEditorDialog(QDialog):
             files.addWidget(button)
         files.addStretch()
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        buttons.button(QDialogButtonBox.StandardButton.Cancel).setText(tr("common.cancel"))
         buttons.accepted.connect(self._accept)
         buttons.rejected.connect(self.reject)
         files.addWidget(buttons)
@@ -58,22 +60,25 @@ class MacroEditorDialog(QDialog):
     # -- construction
 
     def _list_side(self):
+        """Liste des macros, et ses boutons en colonne à sa droite (libellés lisibles en entier)."""
         side = QWidget()
-        layout = QVBoxLayout(side)
+        layout = QHBoxLayout(side)
         layout.setContentsMargins(0, 0, 0, 0)
         self.list = QListWidget()
+        self.list.setMinimumWidth(200)
         self.list.currentRowChanged.connect(self._select)
         layout.addWidget(self.list, 1)
-        row = QHBoxLayout()
+        column = QVBoxLayout()
         self.list_buttons = {}
         for name, key, slot in (("add", "macros.add", self._add), ("duplicate", "macros.duplicate", self._duplicate),
                                 ("delete", "macros.delete", self._delete), ("up", "macros.up", lambda: self._move(-1)),
                                 ("down", "macros.down", lambda: self._move(1))):
             button = QPushButton(tr(key))
             button.clicked.connect(slot)
-            row.addWidget(button)
+            column.addWidget(button)
             self.list_buttons[name] = button
-        layout.addLayout(row)
+        column.addStretch()
+        layout.addLayout(column)
         return side
 
     def _detail_side(self):

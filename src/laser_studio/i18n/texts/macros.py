@@ -20,10 +20,10 @@ TEXTS = {
         "es": "Macros: añadir o editar sus botones de comandos G-Code",
     },
     "macros.intro": {
-        "fr": "Une macro envoie quelques lignes de G-Code d'un clic, depuis le panneau des actions de job (graveur connecté, jamais pendant un job). Elles sont enregistrées dans macros.yaml, que vous pouvez aussi exporter ou importer.",
-        "en": "A macro sends a few lines of G-code in one click, from the job actions panel (engraver connected, never during a job). They are saved in macros.yaml, which you can also export or import.",
-        "de": "Ein Makro sendet mit einem Klick einige G-Code-Zeilen aus dem Bereich der Auftragsaktionen (Graviergerät verbunden, nie während eines Auftrags). Sie werden in macros.yaml gespeichert, das Sie auch exportieren oder importieren können.",
-        "es": "Una macro envía unas líneas de G-Code con un clic, desde el panel de acciones del trabajo (grabadora conectada, nunca durante un trabajo). Se guardan en macros.yaml, que también puede exportar o importar.",
+        "fr": "Une macro envoie quelques lignes de G-Code d'un clic, depuis le panneau des actions de job (graveur connecté, jamais pendant un job ; elles se préparent aussi graveur débranché). Elles sont enregistrées dans macros.yaml, que vous pouvez aussi exporter ou importer.",
+        "en": "A macro sends a few lines of G-code in one click, from the job actions panel (engraver connected, never during a job; they can be prepared with the engraver unplugged). They are saved in macros.yaml, which you can also export or import.",
+        "de": "Ein Makro sendet mit einem Klick einige G-Code-Zeilen aus dem Bereich der Auftragsaktionen (Graviergerät verbunden, nie während eines Auftrags; vorbereiten geht auch ohne Gerät). Sie werden in macros.yaml gespeichert, das Sie auch exportieren oder importieren können.",
+        "es": "Una macro envía unas líneas de G-Code con un clic, desde el panel de acciones del trabajo (grabadora conectada, nunca durante un trabajo; se preparan también con la grabadora desconectada). Se guardan en macros.yaml, que también puede exportar o importar.",
     },
     "macros.name": {
         "fr": "Nom",
