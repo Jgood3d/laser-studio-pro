@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Historique des gravures (**Outils › Historique des gravures…**) : chaque job envoyé au graveur, direct ou depuis la file d'attente, y est noté à sa fin, avec la date, l'issue (terminée, arrêtée, erreur GRBL), la durée réelle et la durée estimée avec leur écart, la distance gravée, le nombre de lignes et la machine. Export CSV pour un tableur. Gardé sur l'ordinateur, dans `historique-gravures.jsonl`.
+
 Graver une image : bouton « Recadrer » dans la barre flottante des aperçus. On trace le cadre à garder sur l'image entière (déplacer, redimensionner par les coins et les bords, proportions gardées au choix, « Toute l'image » pour revenir en arrière) ; la taille gravée suit le cadre, à la même échelle.
 
 Debian et Ubuntu : paquet `.deb` (Debian 13 et plus récentes, Ubuntu 25.04 et plus récentes), avec les bibliothèques Python du système : `sudo apt install ./laser-studio-pro_<version>_all.deb`. Joint à chaque release ; construit par `packaging/debian/build-deb.sh`.
