@@ -269,14 +269,15 @@ class FullLaserStudio(QMainWindow):
         """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
         barre d'outils (état actif / coché partagé, voir ImageToolbarActions.update_state).
 
-        « Graver une image » : loupes, annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
+        « Graver une image » : loupes, recadrer, annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
         Séparation : pivoter, miroirs, réinitialiser (réglages image et miroirs qu'elle reprend),
         supprimer. PNG ⇒ SVG : pivoter, supprimer (miroirs et réglages image n'y servent pas)."""
         a = self.app_actions
         rotate = [a.image_rotate_left, a.image_rotate_right]
         mirrors = [a.mirror_h, a.mirror_v]
         self.image_floating_toolbar = FloatingToolBar(
-            [self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action, None, a.image_undo, a.image_redo,
+            [self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action, None,
+             self.tab_previews.crop_action, None, a.image_undo, a.image_redo,
              None, *rotate, None, *mirrors, None, a.image_reset, a.image_delete],
             self.tab_previews.preview_area)
         self.separation_floating_toolbar = FloatingToolBar(
