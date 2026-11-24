@@ -18,7 +18,9 @@ try:
     from laser_studio.models.vector_document import VectorDocument, clone_object
     from laser_studio.models.vector_objects import GroupObject, ShapeObject, TextObject, VectorObject
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView
-    from laser_studio.ui.vector_editor.objects_panel import ObjectsPanel, object_label
+    from laser_studio.models.vector_objects import IGNORED_LAYER_ID
+    from laser_studio.ui.vector_editor.objects_panel import (
+        DELETE_COLUMN, EYE_COLUMN, IGNORE_COLUMN, LAYER_COLUMN, NAME_COLUMN, ObjectsPanel, object_label)
     from laser_studio.vector import boolean_ops
     from laser_studio.vector.layer_data import extract_vector_layer_data
     from job_fakes import FakeDialogs
@@ -108,6 +110,33 @@ class GroupModelTests(unittest.TestCase):
         self.assertEqual(clone.x_mm, group.x_mm + 5)
         self.assertIsNot(clone.children[0], group.children[0])
 
+    def test_ignored_objects_remember_their_layer(self):
+        group = GroupObject([self.big, self.small])
+        group.set_ignored(True)
+        self.assertTrue(group.is_ignored())
+        self.assertEqual((self.big.layer_id, self.small.layer_id), (IGNORED_LAYER_ID, IGNORED_LAYER_ID))
+        group = VectorObject.from_dict(group.to_dict())             # gardé dans le projet
+        group.set_ignored(False)
+        self.assertEqual([c.layer_id for c in group.children], ["A", "B"])
+        self.assertEqual(group.layer_id, "A")
+        lone = square(0, 0, 5, layer=None)
+        lone.layer_id = IGNORED_LAYER_ID                            # jamais noté : calque de repli
+        lone.set_ignored(False, "L9")
+        self.assertEqual(lone.layer_id, "L9")
+
+    def test_ignored_object_inside_a_group(self):
+        group = GroupObject([self.big, self.small], operation=boolean_ops.DIFFERENCE)
+        self.small.set_ignored(True)
+        group.child_ignored_changed()
+        self.assertTrue(inside(group.world_path(), 30, 30))         # le petit carré ne creuse plus
+        self.big.set_ignored(True)
+        group.child_ignored_changed()
+        self.assertTrue(group.is_ignored())
+        plain = GroupObject([square(0, 0, 10, "A"), square(20, 0, 10, "B")])
+        plain.children[1].set_ignored(True)
+        plain.child_ignored_changed()
+        self.assertEqual([layer for layer, _p, _white in plain.local_parts()], ["A"])
+
     def test_engraving_data_by_layer(self):
         layers = LayersModel()
         first, second = layers.layers[0].id, layers.layers[1].id
@@ -119,6 +148,13 @@ class GroupModelTests(unittest.TestCase):
         self.assertEqual(len(data[first]["polygon_groups"]), 1)
         self.assertEqual(len(data[first]["polygon_groups"][0]), 2)      # contour et trou, règle pair-impair
         self.assertEqual(data[second]["polygon_groups"], [])
+        small.set_ignored(True)
+        data = extract_vector_layer_data([big, small], layers, optimize_path=False)
+        self.assertEqual(data[second]["polygon_groups"], [])           # ni gravé ni découpé
+        self.assertEqual(len(data[first]["polygon_groups"]), 1)
+        big.hidden = True                                              # masqué : toujours gravé
+        data = extract_vector_layer_data([big], layers, optimize_path=False)
+        self.assertEqual(len(data[first]["polygon_groups"]), 1)
 
 
 @unittest.skipIf(GroupObject is None, "PyQt6 non importable ici")
@@ -191,6 +227,84 @@ class EditorGroupTests(unittest.TestCase):
         self.editor.move_objects([(group, bottom)], 1)
         self.assertIs(group.children[1], bottom)
 
+    def test_layer_of_a_group_goes_to_all_its_objects(self):
+        other = self.layers.layers[1].id
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.canvas.select_objects([group])
+        self.editor.set_selected_layer(other)
+        self.assertEqual({c.layer_id for c in group.children}, {other})
+
+    def test_eye_and_ignore(self):
+        item = self.canvas.item_for(self.a)
+        self.editor.set_object_visible(self.a, False)
+        self.assertTrue(item.inactive)
+        self.assertTrue(item.shape().isEmpty())               # la souris le traverse
+        self.assertTrue(self.a.is_hidden())
+        self.editor.set_object_visible(self.a, True)
+        self.assertFalse(item.inactive)
+        layer = self.b.layer_id
+        self.editor.toggle_ignored(None, self.b)
+        self.assertEqual(self.b.layer_id, IGNORED_LAYER_ID)
+        self.assertTrue(self.canvas.item_for(self.b).inactive)
+        self.editor.toggle_ignored(None, self.b)
+        self.assertEqual(self.b.layer_id, layer)
+        self.document.undo()
+        self.assertTrue(self.document.objects[1].is_ignored())
+
+    def test_an_ignored_group_chosen_in_the_list_takes_a_new_layer(self):
+        cut = self.layers.layer_for_role("cut").id
+        self.canvas.select_objects([self.a, self.b])
+        group = self.editor.group_selection(boolean_ops.GROUP)
+        self.editor.toggle_ignored(None, group)
+        self.assertEqual(self.canvas.select_objects([group]), [group])          # choisi dans la liste
+        self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
+        from laser_studio.ui.vector_editor.tab import VectorEditorTab
+        from laser_studio.ui.vector_editor.properties_panel import VectorPropertiesPanel
+        tab = VectorEditorTab(self.canvas)
+        self.addCleanup(tab.deleteLater)
+        panel = VectorPropertiesPanel(tab.properties_widgets, self.layers, self.canvas, self.editor)
+        panel.refresh()
+        self.assertFalse(tab.properties_widgets.x.isEnabled())                  # pas de position fiable
+        self.assertIn("Ignoré", tab.properties_widgets.label.text())
+        self.editor.set_selected_layer(cut)
+        self.assertFalse(group.is_ignored())
+        self.assertEqual({c.layer_id for c in group.children}, {cut})
+        self.assertFalse(self.canvas.item_for(group).inactive)
+
+    def test_trash(self):
+        self.editor.delete_object(None, self.c)
+        self.assertEqual(self.document.objects, [self.a, self.b])
+        inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
+        outer = GroupObject([inner, square(40, 50, 10)])
+        self.canvas.add_object(outer)
+        self.editor.delete_object(inner, inner.children[0])
+        self.assertEqual(len(inner.children), 1)
+        self.assertEqual(outer.world_path().boundingRect().left(), 20.0)       # recalculé jusqu'en haut
+        self.editor.delete_object(inner, inner.children[0])                    # groupe vidé : retiré
+        self.assertEqual(len(outer.children), 1)
+        self.editor.delete_object(outer, outer.children[0])                    # tout s'est vidé
+        self.assertEqual(self.document.objects, [self.a, self.b])
+        self.document.undo()
+        self.assertEqual(len(self.document.objects), 3)
+
+    def test_nested_groups(self):
+        inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
+        outer = GroupObject([inner, square(40, 50, 10)])
+        self.canvas.add_object(outer)
+        deep = inner.children[1]
+        self.editor.toggle_ignored(inner, deep)
+        self.assertTrue(deep.is_ignored())
+        self.assertEqual(outer.world_path().boundingRect().width(), 50.0)       # recalculé jusqu'en haut
+        self.editor.move_objects([(inner, inner.children[0])], 1)
+        self.assertIs(inner.children[1].is_ignored(), False)
+        panel = ObjectsPanel()
+        self.addCleanup(panel.deleteLater)
+        panel.show_objects(self.document.objects, lambda _id: None)
+        row = panel.tree.topLevelItem(0).child(1).child(0)                       # objet de « inner »
+        row.setSelected(True)
+        self.assertEqual(panel.selected_objects(), [outer])
+
     def test_rename(self):
         self.editor.rename_object(self.a, " Plaque ")
         self.assertEqual(object_label(self.a), "Plaque")
@@ -215,8 +329,8 @@ class ObjectsPanelTests(unittest.TestCase):
     def test_top_of_the_pile_first_and_group_children(self):
         tree = self.panel.tree
         self.assertEqual(tree.topLevelItemCount(), 2)
-        self.assertEqual(tree.topLevelItem(0).text(0), "Différence")
-        self.assertEqual(tree.topLevelItem(1).text(0), "« Bonjour »")
+        self.assertEqual(tree.topLevelItem(0).text(NAME_COLUMN), "Différence")
+        self.assertEqual(tree.topLevelItem(1).text(NAME_COLUMN), "« Bonjour »")
         self.assertEqual(tree.topLevelItem(0).childCount(), 2)
 
     def test_selecting_a_child_selects_its_group_and_signals(self):
@@ -232,6 +346,29 @@ class ObjectsPanelTests(unittest.TestCase):
         self.assertTrue(self.panel.boolean_button.isEnabled())
         self.panel.boolean_actions[boolean_ops.UNION].trigger()
         self.assertEqual(groups, [boolean_ops.UNION])
+
+    def test_eye_and_ignore_buttons(self):
+        shown, ignored = [], []
+        self.panel.visibility_requested.connect(lambda obj, visible: shown.append((obj, visible)))
+        self.panel.ignore_requested.connect(lambda group, obj: ignored.append((group, obj)))
+        tree = self.panel.tree
+        text_row = tree.topLevelItem(1)
+        tree.itemClicked.emit(text_row, EYE_COLUMN)
+        self.assertEqual(shown, [(self.text, False)])
+        child = tree.topLevelItem(0).child(0)
+        tree.itemClicked.emit(child, EYE_COLUMN)                   # pas d'œil dans un groupe
+        self.assertEqual(len(shown), 1)
+        tree.itemClicked.emit(child, IGNORE_COLUMN)
+        self.assertEqual(ignored, [(self.group, self.b)])
+        deleted = []
+        self.panel.delete_requested.connect(lambda group, obj: deleted.append((group, obj)))
+        tree.itemClicked.emit(text_row, DELETE_COLUMN)
+        tree.itemClicked.emit(child, DELETE_COLUMN)
+        self.assertEqual(deleted, [(None, self.text), (self.group, self.b)])
+        self.text.set_ignored(True)
+        self.panel.show_objects([self.text, self.group], lambda _id: None)
+        self.assertEqual(tree.topLevelItem(1).text(LAYER_COLUMN), "Ignoré")
+        self.assertTrue(tree.topLevelItem(1).font(NAME_COLUMN).strikeOut())
 
     def test_canvas_selection_is_shown(self):
         self.panel.show_selection([self.text])

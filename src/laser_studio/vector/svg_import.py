@@ -39,6 +39,7 @@ from PyQt6.QtGui import QFont, QPainterPath, QPainterPathStroker, QPolygonF, QTr
 
 from laser_studio.models.vector_objects import SvgPathObject, TextObject
 from laser_studio.vector.svg_extract import _merge_path_objects, _svg_path_element_to_single
+from laser_studio.vector.svg_style import parse_color
 
 ROLE_CUT = "cut"
 ROLE_ENGRAVE = "engrave"
@@ -179,14 +180,17 @@ def role_of_label(label):
     return ROLE_NAMES.get((label or "").strip().lower())
 
 
-def _length_mm(value, default_unit=""):
-    """Longueur SVG (« 30mm », « 12.5 », « 1in ») en mm, ou None."""
+def _length_mm(value, default_unit="", px_mm=None):
+    """Longueur SVG (« 30mm », « 12.5 », « 1in ») en mm, ou None. `px_mm` : taille d'un px (ou d'une
+    longueur sans unité) en mm, 25,4 / 96 par défaut (CSS)."""
     if value is None:
         return None
     match = re.fullmatch(r"\s*([-+]?[\d.]+(?:[eE][-+]?\d+)?)\s*([a-z%]*)\s*", value)
     if not match or match.group(2) == "%":
         return None
     unit = match.group(2) or default_unit
+    if unit in ("", "px"):
+        return float(match.group(1)) * (px_mm or UNIT_MM["px"])
     return float(match.group(1)) * UNIT_MM.get(unit, UNIT_MM["px"])
 
 
@@ -222,21 +226,47 @@ def parse_transform(text):
     return result
 
 
-def _document_transform(root):
-    """Unités du document -> mm (viewBox, width, height)."""
-    vb = _numbers(root.attrib.get("viewBox"))
-    width = _length_mm(root.attrib.get("width"))
-    height = _length_mm(root.attrib.get("height"))
+def viewbox_transform(viewbox, width, height, aspect="xMidYMid meet"):
+    """Transformation du viewBox (x, y, largeur, hauteur) vers une zone `width` × `height`, selon
+    preserveAspectRatio (SVG 1.1 § 7.8) : « none » étire, sinon échelle uniforme (« meet » : tout tient,
+    « slice » : la zone est remplie) et alignement xMin / xMid / xMax, yMin / yMid / yMax."""
+    vx, vy, vw, vh = viewbox
+    sx, sy = width / vw, height / vh
+    parts = (aspect or "xMidYMid meet").replace("defer", "").split()
+    align = parts[0] if parts else "xMidYMid"
     t = QTransform()
-    if len(vb) == 4 and vb[2] > 0 and vb[3] > 0:
-        sx = (width / vb[2]) if width else UNIT_MM["px"]
-        sy = (height / vb[3]) if height else sx
-        if not width and height:
-            sx = sy
+    if align == "none":
         t.scale(sx, sy)
-        t.translate(-vb[0], -vb[1])
-    else:
-        t.scale(UNIT_MM["px"], UNIT_MM["px"])
+        t.translate(-vx, -vy)
+        return t
+    scale = max(sx, sy) if len(parts) > 1 and parts[1] == "slice" else min(sx, sy)
+    dx = {"xMin": 0.0, "xMid": 0.5, "xMax": 1.0}.get(align[:4], 0.5) * (width - vw * scale)
+    dy = {"YMin": 0.0, "YMid": 0.5, "YMax": 1.0}.get(align[4:], 0.5) * (height - vh * scale)
+    t.translate(dx, dy)
+    t.scale(scale, scale)
+    t.translate(-vx, -vy)
+    return t
+
+
+def _document_transform(root, px_mm=None):
+    """Unités du document -> mm (viewBox, width, height, preserveAspectRatio). `px_mm` : taille d'un px (ou
+    d'une longueur sans unité) en mm, 25,4 / 96 par défaut (CSS)."""
+    px_mm = px_mm or UNIT_MM["px"]
+    vb = _numbers(root.attrib.get("viewBox"))
+    width = _length_mm(root.attrib.get("width"), px_mm=px_mm)
+    height = _length_mm(root.attrib.get("height"), px_mm=px_mm)
+    if len(vb) == 4 and vb[2] > 0 and vb[3] > 0:
+        # Sans width / height : 1 unité du viewBox = 1 px (taille intrinsèque) ; un seul des deux : l'autre
+        # suit les proportions du viewBox.
+        if not width and not height:
+            width, height = vb[2] * px_mm, vb[3] * px_mm
+        elif not width:
+            width = height * vb[2] / vb[3]
+        elif not height:
+            height = width * vb[3] / vb[2]
+        return viewbox_transform(vb, width, height, root.attrib.get("preserveAspectRatio"))
+    t = QTransform()
+    t.scale(px_mm, px_mm)
     return t
 
 
@@ -362,28 +392,16 @@ def find_texts(path, variants=None):
 
 # -- couleurs
 
-NAMED_COLORS = {"white": (255, 255, 255), "black": (0, 0, 0), "red": (255, 0, 0),
-                "blue": (0, 0, 255), "green": (0, 128, 0), "yellow": (255, 255, 0),
-                "gray": (128, 128, 128), "grey": (128, 128, 128), "silver": (192, 192, 192)}
-
 # Au-dessus de cette luminance (0 à 1), une couleur est « claire » : non gravée.
 LIGHT_LUMINANCE = 0.8
 
 
 def _rgb(color):
-    color = (color or "").strip().lower()
-    if color in NAMED_COLORS:
-        return NAMED_COLORS[color]
-    match = re.fullmatch(r"#([0-9a-f]{3}|[0-9a-f]{6})", color)
-    if match:
-        h = match.group(1)
-        if len(h) == 3:
-            h = "".join(c * 2 for c in h)
-        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-    match = re.fullmatch(r"rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)", color)
-    if match:
-        return tuple(int(v) for v in match.groups())
-    return None
+    """(r, g, b) d'une couleur CSS / SVG (voir svg_style.parse_color), ou None (« none », transparent…)."""
+    parsed = parse_color(color)
+    if parsed is None or parsed[3] <= 0:
+        return None
+    return parsed[:3]
 
 
 def is_light(color):
@@ -505,12 +523,15 @@ def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm
     return _to_artwork(outlines, text_items, offset_x_mm, offset_y_mm, bed_h_mm)
 
 
-def _stroke_outline(geometry, style):
+def _stroke_outline(geometry, style, width=None, dashes=None):
     """Trait d'une forme épaissi en surface (repère de la forme), comme le
-    dessine un afficheur SVG : épaisseur `stroke-width`, bouts et angles
-    selon `stroke-linecap` / `stroke-linejoin`. None sans trait visible."""
+    dessine un afficheur SVG : épaisseur `stroke-width` (ou `width`, déjà en
+    unités utilisateur), bouts et angles selon `stroke-linecap` /
+    `stroke-linejoin`, tirets `dashes` ((longueurs, décalage) en unités
+    utilisateur, voir svg_tree_import). None sans trait visible."""
     stroke = (style.get("stroke") or "none").strip().lower()
-    width = (_numbers(style.get("stroke-width")) or [1.0])[0]
+    if width is None:
+        width = (_numbers(style.get("stroke-width")) or [1.0])[0]
     if stroke in ("none", "transparent") or width <= 0:
         return None
     stroker = QPainterPathStroker()
@@ -519,6 +540,13 @@ def _stroke_outline(geometry, style):
         (style.get("stroke-linecap") or "butt").strip(), Qt.PenCapStyle.FlatCap))
     stroker.setJoinStyle({"round": Qt.PenJoinStyle.RoundJoin, "bevel": Qt.PenJoinStyle.BevelJoin}.get(
         (style.get("stroke-linejoin") or "miter").strip(), Qt.PenJoinStyle.MiterJoin))
+    miter = _numbers(style.get("stroke-miterlimit"))
+    if miter:
+        stroker.setMiterLimit(max(1.0, miter[0]))
+    if dashes:
+        # Qt compte les tirets en épaisseurs de trait.
+        stroker.setDashPattern([max(v / width, 1e-6) for v in dashes[0]])
+        stroker.setDashOffset(dashes[1] / width)
     # simplified() : surface sans recouvrements (le trait se recoupe aux angles), lisible en
     # pair-impair comme le reste de la gravure.
     outline = stroker.createStroke(geometry).simplified()
@@ -531,10 +559,12 @@ def _inherited(style):
     return {k: v for k, v in style.items() if k not in ("display", "visibility", "opacity")}
 
 
-def _shape_path(elem, tag):
-    """Géométrie d'une forme SVG dans son propre repère, ou None."""
+def _shape_path(elem, tag, length=None):
+    """Géométrie d'une forme SVG dans son propre repère, ou None. `length(nom, défaut)` : valeur d'un
+    attribut de longueur en unités utilisateur (unités, pourcentages : voir svg_tree_import) ; par défaut,
+    le premier nombre de l'attribut."""
     a = elem.attrib
-    f = lambda name, default=0.0: (_numbers(a.get(name)) or [default])[0]  # noqa: E731
+    f = length or (lambda name, default=0.0: (_numbers(a.get(name)) or [default])[0])
     path = QPainterPath()
     if tag == "path":
         d = a.get("d")

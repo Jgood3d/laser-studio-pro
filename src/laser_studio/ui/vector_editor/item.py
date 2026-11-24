@@ -2,7 +2,7 @@
 from typing import TYPE_CHECKING
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QPen, QBrush, QTransform
+from PyQt6.QtGui import QColor, QPainterPath, QPen, QBrush, QTransform
 from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsItem
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_objects import VectorObject
@@ -36,6 +36,8 @@ class VectorGraphicsItem(QGraphicsPathItem):
         )
         self.double_click_callback = None  # défini par VectorCanvasView.add_object
         self._parts = []
+        self._ghost = None
+        self.inactive = False
         self.refresh()
 
     def mouseDoubleClickEvent(self, event):
@@ -70,22 +72,50 @@ class VectorGraphicsItem(QGraphicsPathItem):
         t.scale(sx, sy)                   # 1) miroir éventuel
         self.setTransform(t)
         self.setPos(0, 0)
+        # Masqué (œil) ou sur le calque « Ignoré » : plus dessiné, et la souris le traverse (shape vide) ; il
+        # reste sélectionnable depuis la liste des objets, pour changer son calque (contour gris en pointillés).
+        self.inactive = self.obj.is_hidden() or self.obj.is_ignored()
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, not self.inactive)
+        self._ghost = None
+        if self.inactive:
+            full = getattr(self.obj, "full_local_path", self.obj.local_path)()
+            self._ghost = QTransform().scale(s, s).map(full)
 
-        pen = self._layer_pen(self.obj.layer_id)
+        pen = self._layer_pen(self.obj.layer_id, self.obj.is_knockout())
         self.setPen(pen)
         self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
         # Simple groupe : chaque objet dans la couleur de son calque (paint).
         parts = getattr(self.obj, "local_parts", lambda: [])()
         scale = QTransform().scale(s, s)
-        self._parts = [(scale.map(path), self._layer_pen(layer)) for layer, path in parts]
+        self._parts = [(scale.map(path), self._layer_pen(layer, knockout)) for layer, path, knockout in parts]
 
-    def _layer_pen(self, layer_id):
+    def _layer_pen(self, layer_id, knockout=False):
+        """Trait dans la couleur du calque ; en pointillés pour un objet blanc (il efface la gravure)."""
         layer = self.layer_manager.get(layer_id)
         pen = QPen(QColor(layer.color) if layer else QColor("#dddddd"), 1.4)
+        if knockout:
+            pen.setStyle(Qt.PenStyle.DashLine)
         pen.setCosmetic(True)
         return pen
 
+    def shape(self):
+        if self.inactive:
+            return QPainterPath()
+        return super().shape()
+
+    def boundingRect(self):
+        rect = super().boundingRect()
+        return rect.united(self._ghost.boundingRect()) if self._ghost is not None else rect
+
     def paint(self, painter, option, widget=None):
+        if self.inactive:
+            if self.isSelected() and self._ghost is not None:
+                ghost = QPen(QColor("#9a9a9a"), 1.2, Qt.PenStyle.DashLine)
+                ghost.setCosmetic(True)
+                painter.setPen(ghost)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+                painter.drawPath(self._ghost)
+            return
         if not self._parts:
             super().paint(painter, option, widget)
             return

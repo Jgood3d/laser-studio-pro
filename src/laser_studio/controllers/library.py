@@ -64,10 +64,7 @@ class LibraryController:
 
     def layer_for_role(self, role):
         """Identifiant du calque de rôle `role`, sinon du calque SVG par défaut."""
-        for layer in self._layers.layers:
-            if getattr(layer, "role", None) == role:
-                return layer.id
-        return self._layers.default_svg_layer().id
+        return self._layers.layer_for_role(role).id
 
     def import_item(self, item, variants=None, texts=None):
         """Importe le modèle `item` (avec ses `variants` et ses `texts`

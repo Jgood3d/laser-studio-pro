@@ -768,7 +768,8 @@ class VectorCanvasView(QGraphicsView):
             return
         if event.matches(QKeySequence.StandardKey.SelectAll):
             for item in self.scene_obj.items():
-                if isinstance(item, VectorGraphicsItem):
+                # Les objets masqués ou ignorés ne se sélectionnent que depuis la liste des objets.
+                if isinstance(item, VectorGraphicsItem) and not item.inactive:
                     item.setSelected(True)
             event.accept()
             return

@@ -59,6 +59,9 @@ def _connect_objects_panel(panel, document, canvas, layers, controller):
     panel.group_requested.connect(controller.group_selection)
     panel.ungroup_requested.connect(controller.ungroup_selection)
     panel.rename_requested.connect(controller.rename_object)
+    panel.visibility_requested.connect(controller.set_object_visible)
+    panel.ignore_requested.connect(controller.toggle_ignored)
+    panel.delete_requested.connect(controller.delete_object)
     refresh()
 
 

@@ -1,5 +1,7 @@
 """Liste des objets de l'éditeur vectoriel (ObjectsPanel), à droite du canevas, à la manière de
-l'outliner de Blender : du dessus de la pile vers le dessous, un groupe déplié montre ses objets.
+l'outliner de Blender : du dessus de la pile vers le dessous, un groupe déplié montre ses objets. Devant
+chaque objet du dessus de la pile, un œil le masque à l'affichage ; au bout de chaque ligne, « X » le met
+sur le calque « Ignoré » (ni gravé ni découpé) ou lui rend son calque, et la poubelle le supprime.
 
 Simple vue : elle affiche ce qu'on lui donne (show_objects, show_selection) et émet des signaux quand
 l'utilisateur agit ; le contrôleur de l'éditeur modifie le document.
@@ -9,8 +11,8 @@ l'utilisateur agit ; le contrôleur de l'éditeur modifie le document.
     panel.move_requested.connect(editor.move_objects)
     document.order_changed.connect(lambda: panel.show_objects(document.objects, layers.get))
 """
-from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QIcon, QPainterPath, QPen, QPixmap
+from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont, QIcon, QPainterPath, QPen, QPixmap
 from PyQt6.QtWidgets import (
     QAbstractItemView, QHBoxLayout, QHeaderView, QMenu, QToolButton, QTreeWidget, QTreeWidgetItem,
     QVBoxLayout, QWidget,
@@ -21,8 +23,13 @@ from laser_studio.models.vector_objects import GroupObject, ShapeObject, SvgPath
 from laser_studio.ui.utils import painted_icon, palette_icon
 from laser_studio.vector import boolean_ops
 
+# Colonnes : œil, nom, calque, « X », poubelle.
+EYE_COLUMN, NAME_COLUMN, LAYER_COLUMN, IGNORE_COLUMN, DELETE_COLUMN = range(5)
+# Couleur du calque « Ignoré » dans la liste.
+IGNORED_COLOR = "#7a7a7a"
 OBJECT_ROLE = Qt.ItemDataRole.UserRole
-PARENT_ROLE = Qt.ItemDataRole.UserRole + 1
+PARENT_ROLE = Qt.ItemDataRole.UserRole + 1     # groupe qui contient l'objet (None en haut de la pile)
+TOP_ROLE = Qt.ItemDataRole.UserRole + 2        # objet du document qui le contient (lui-même en haut)
 # Longueur maximale d'un texte affiché dans la liste.
 MAX_TEXT_CHARS = 28
 
@@ -65,6 +72,33 @@ def operation_icon(palette, operation):
     return painted_icon(palette, draw)
 
 
+def eye_icon(palette, open_eye):
+    """Œil ouvert (objet affiché) ou barré (masqué)."""
+    def draw(painter, color):
+        painter.setPen(QPen(color, 2))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        lid = QPainterPath()
+        lid.moveTo(3, 16)
+        lid.quadTo(16, 4, 29, 16)
+        lid.quadTo(16, 28, 3, 16)
+        painter.drawPath(lid)
+        if open_eye:
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(16, 16), 4.5, 4.5)
+        else:
+            painter.drawLine(QPointF(5, 27), QPointF(27, 5))
+    return painted_icon(palette, draw)
+
+
+def ignore_icon(palette, ignored):
+    """« X » : discret pour un objet gravé, rouge pour un objet ignoré."""
+    def draw(painter, color):
+        painter.setPen(QPen(QColor("#ff453a") if ignored else color, 3.5 if ignored else 2.5))
+        painter.drawLine(QPointF(8, 8), QPointF(24, 24))
+        painter.drawLine(QPointF(24, 8), QPointF(8, 24))
+    return painted_icon(palette, draw)
+
+
 def _color_icon(color):
     pixmap = QPixmap(12, 12)
     pixmap.fill(QColor(color))
@@ -79,7 +113,10 @@ class ObjectsPanel(QWidget):
     - move_requested([(groupe ou None, objet)], pas) : monter (+1) ou descendre (-1) ;
     - group_requested(opération) : grouper la sélection (boolean_ops.GROUP) ou la combiner (UNION…) ;
     - ungroup_requested() ;
-    - rename_requested(objet, nom).
+    - rename_requested(objet, nom) ;
+    - visibility_requested(objet, affiché) : œil (objets du dessus de la pile) ;
+    - ignore_requested(groupe ou None, objet) : « X », calque « Ignoré » ou retour au calque d'avant ;
+    - delete_requested(groupe ou None, objet) : poubelle, supprimer l'objet (ou le retirer de son groupe).
     """
 
     selection_requested = pyqtSignal(list)
@@ -87,20 +124,35 @@ class ObjectsPanel(QWidget):
     group_requested = pyqtSignal(str)
     ungroup_requested = pyqtSignal()
     rename_requested = pyqtSignal(object, str)
+    visibility_requested = pyqtSignal(object, bool)
+    ignore_requested = pyqtSignal(object, object)
+    delete_requested = pyqtSignal(object, object)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._updating = False
         self._expanded = set()
         self.tree = QTreeWidget()
-        self.tree.setColumnCount(2)
-        self.tree.setHeaderLabels([tr("objects.col_name"), tr("objects.col_layer")])
-        self.tree.header().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
-        self.tree.header().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
-        self.tree.header().setStretchLastSection(False)
+        self.tree.setColumnCount(5)
+        self.tree.setHeaderLabels(["", tr("objects.col_name"), tr("objects.col_layer"), "", ""])
+        header = self.tree.header()
+        for column, mode in ((EYE_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
+                             (NAME_COLUMN, QHeaderView.ResizeMode.Stretch),
+                             (LAYER_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
+                             (IGNORE_COLUMN, QHeaderView.ResizeMode.ResizeToContents),
+                             (DELETE_COLUMN, QHeaderView.ResizeMode.ResizeToContents)):
+            header.setSectionResizeMode(column, mode)
+        header.setStretchLastSection(False)
+        self.tree.headerItem().setToolTip(EYE_COLUMN, tr("objects.eye_tip"))
+        self.tree.headerItem().setToolTip(IGNORE_COLUMN, tr("objects.ignore_tip"))
+        self.tree.headerItem().setToolTip(DELETE_COLUMN, tr("objects.delete_tip"))
+        # L'arbre (flèche des groupes) est dans la colonne du nom, après l'œil.
+        self.tree.setTreePosition(NAME_COLUMN)
         self.tree.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
-        self.tree.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked
-                                  | QAbstractItemView.EditTrigger.EditKeyPressed)
+        # Renommer : double-clic sur le nom seulement (l'œil et le « X » sont des boutons).
+        self.tree.setEditTriggers(QAbstractItemView.EditTrigger.EditKeyPressed)
+        self.tree.itemDoubleClicked.connect(self._on_double_clicked)
+        self.tree.itemClicked.connect(self._on_clicked)
         self.tree.setIconSize(QSize(18, 18))
         self.tree.itemSelectionChanged.connect(self._on_selection_changed)
         self.tree.itemChanged.connect(self._on_item_changed)
@@ -119,6 +171,9 @@ class ObjectsPanel(QWidget):
         }
         for operation in boolean_ops.BOOLEAN_OPERATIONS:
             self._icons[operation] = operation_icon(self.palette(), operation)
+        self._eye_icons = {shown: eye_icon(self.palette(), shown) for shown in (True, False)}
+        self._ignore_icons = {ignored: ignore_icon(self.palette(), ignored) for ignored in (True, False)}
+        self._delete_icon = palette_icon("edit-delete", self.palette())
 
     # -- construction
 
@@ -172,28 +227,60 @@ class ObjectsPanel(QWidget):
         try:
             self.tree.clear()
             for obj in reversed(objects):
-                item = self._item(obj, None, layer_of)
+                item = self._item(obj, None, layer_of, obj)
                 self.tree.addTopLevelItem(item)
-                if isinstance(obj, GroupObject):
-                    for child in reversed(obj.children):
-                        item.addChild(self._item(child, obj, layer_of))
-                    item.setExpanded(id(obj) in self._expanded)
+                self._add_children(item, obj, obj, layer_of)
                 item.setSelected(id(obj) in selected)
         finally:
             self._updating = False
         self._update_buttons()
 
-    def _item(self, obj, parent, layer_of):
-        item = QTreeWidgetItem([object_label(obj), ""])
+    def _add_children(self, item, obj, top, layer_of):
+        """Objets d'un groupe, du dessus vers le dessous, et ceux de ses sous-groupes."""
+        if not isinstance(obj, GroupObject):
+            return
+        for child in reversed(obj.children):
+            child_item = self._item(child, obj, layer_of, top)
+            item.addChild(child_item)
+            self._add_children(child_item, child, top, layer_of)
+        item.setExpanded(id(obj) in self._expanded)
+
+    def _item(self, obj, parent, layer_of, top):
+        item = QTreeWidgetItem(["", object_label(obj), "", "", ""])
         item.setData(0, OBJECT_ROLE, obj)
         item.setData(0, PARENT_ROLE, parent)
+        item.setData(0, TOP_ROLE, top)
         icon_key = obj.operation if isinstance(obj, GroupObject) else obj.kind
-        item.setIcon(0, self._icons.get(icon_key, QIcon()))
-        item.setToolTip(0, tr(f"objects.op.{obj.operation}_tip") if isinstance(obj, GroupObject) else "")
-        layer = layer_of(obj.layer_id)
-        if layer is not None:
-            item.setText(1, layer.name)
-            item.setIcon(1, _color_icon(layer.color))
+        item.setIcon(NAME_COLUMN, self._icons.get(icon_key, QIcon()))
+        item.setToolTip(NAME_COLUMN, tr(f"objects.op.{obj.operation}_tip") if isinstance(obj, GroupObject) else "")
+        ignored, hidden = obj.is_ignored(), obj.is_hidden()
+        if parent is None:
+            # Œil : seulement pour les objets du dessus de la pile (un objet groupé suit son groupe).
+            item.setIcon(EYE_COLUMN, self._eye_icons[not hidden])
+            item.setToolTip(EYE_COLUMN, tr("objects.show_tip" if hidden else "objects.hide_tip"))
+        item.setIcon(IGNORE_COLUMN, self._ignore_icons[ignored])
+        item.setIcon(DELETE_COLUMN, self._delete_icon)
+        item.setToolTip(DELETE_COLUMN, tr("objects.delete_tip" if parent is None else "objects.delete_child_tip"))
+        item.setToolTip(IGNORE_COLUMN, tr("objects.restore_tip" if ignored else "objects.ignore_tip"))
+        if ignored:
+            item.setText(LAYER_COLUMN, tr("objects.ignored_layer"))
+            item.setIcon(LAYER_COLUMN, _color_icon(IGNORED_COLOR))
+        else:
+            layer = layer_of(obj.layer_id)
+            if layer is not None:
+                knockout = obj.is_knockout()
+                # Objet blanc : sur ce calque, il efface la gravure au lieu d'être gravé.
+                item.setText(LAYER_COLUMN, f"{layer.name} ({tr('objects.knockout')})" if knockout else layer.name)
+                item.setIcon(LAYER_COLUMN, _color_icon("#ffffff" if knockout else layer.color))
+                if knockout:
+                    item.setToolTip(LAYER_COLUMN, tr("objects.knockout_tip"))
+        if ignored or hidden:
+            # Objet masqué ou ignoré : nom grisé (et barré s'il n'est plus gravé).
+            item.setForeground(NAME_COLUMN, QColor(IGNORED_COLOR))
+            font = QFont(item.font(NAME_COLUMN))
+            font.setStrikeOut(ignored)
+            font.setItalic(hidden and not ignored)
+            item.setFont(NAME_COLUMN, font)
         # Seuls les objets du dessus de la pile se renomment (un objet groupé se renomme une fois dégroupé).
         flags = item.flags()
         if parent is None:
@@ -209,8 +296,11 @@ class ObjectsPanel(QWidget):
             for index in range(self.tree.topLevelItemCount()):
                 item = self.tree.topLevelItem(index)
                 item.setSelected(id(item.data(0, OBJECT_ROLE)) in wanted)
-                for child in range(item.childCount()):
-                    item.child(child).setSelected(False)
+                stack = [item.child(i) for i in range(item.childCount())]
+                while stack:
+                    child = stack.pop()
+                    child.setSelected(False)
+                    stack += [child.child(i) for i in range(child.childCount())]
         finally:
             self._updating = False
         self._update_buttons()
@@ -223,10 +313,10 @@ class ObjectsPanel(QWidget):
         return entries
 
     def selected_objects(self):
-        """Objets du document choisis : un objet d'un groupe donne le groupe."""
+        """Objets du document choisis : un objet d'un groupe donne le groupe du dessus de la pile."""
         objects, seen = [], set()
-        for parent, obj in self.selected_entries():
-            target = parent if parent is not None else obj
+        for item in self.tree.selectedItems():
+            target = item.data(0, TOP_ROLE)
             if id(target) not in seen:
                 seen.add(id(target))
                 objects.append(target)
@@ -250,11 +340,24 @@ class ObjectsPanel(QWidget):
         if not self._updating:
             self.selection_requested.emit(self.selected_objects())
 
+    def _on_clicked(self, item, column):
+        obj, parent = item.data(0, OBJECT_ROLE), item.data(0, PARENT_ROLE)
+        if column == EYE_COLUMN and parent is None:
+            self.visibility_requested.emit(obj, obj.is_hidden())
+        elif column == IGNORE_COLUMN:
+            self.ignore_requested.emit(parent, obj)
+        elif column == DELETE_COLUMN:
+            self.delete_requested.emit(parent, obj)
+
+    def _on_double_clicked(self, item, column):
+        if column == NAME_COLUMN and item.flags() & Qt.ItemFlag.ItemIsEditable:
+            self.tree.editItem(item, NAME_COLUMN)
+
     def _on_item_changed(self, item, column):
-        if self._updating or column != 0:
+        if self._updating or column != NAME_COLUMN:
             return
         obj = item.data(0, OBJECT_ROLE)
-        name = item.text(0).strip()
+        name = item.text(NAME_COLUMN).strip()
         if name != object_label(obj):
             self.rename_requested.emit(obj, name)
 

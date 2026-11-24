@@ -7,6 +7,10 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Import SVG : le dessin arrive tel que votre logiciel de dessin le montre. Les calques et groupes du fichier deviennent des groupes de la liste des objets, avec leur nom ; chaque objet va sur un calque d'après sa couleur (noir : gravure, rouge : découpe, vert : marquage, avec une tolérance sur la teinte) ; le blanc efface la gravure en dessous au lieu d'être gravé ; les textes restent modifiables ; ce qui est caché dans le fichier arrive sur le calque « Ignoré », d'où le bouton « X » le fait réapparaître. Lecture conforme à la spécification SVG : styles en cascade (feuille `<style>` comprise) et héritage, visibilité, opacité, règle de remplissage, `<use>`, `<symbol>`, `<switch>`, `<svg>` imbriqué, toutes les couleurs CSS, détourages (`clipPath`) et masques (`mask`), traits en pointillés (`stroke-dasharray`, découpés en tirets), longueurs avec unité ou en pourcentage dans les attributs (`10mm`, `50%`, `2em`), propriété CSS `transform` avec `transform-origin`. Les fichiers d'Inkscape antérieurs à 0.92 (90 px par pouce) et d'Adobe Illustrator (72 px par pouce) gardent leur taille réelle.
+
+Liste des objets de l'éditeur vectoriel : un œil devant chaque objet le masque sur le canevas (il reste gravé), et un bouton « X » le met sur le calque « Ignoré » : plus affiché, ni gravé ni découpé. L'objet retient son calque ; un nouveau clic sur « X » le lui rend, avec ses réglages. Sur un groupe, chaque objet retrouve son propre calque. Un objet masqué ou ignoré se choisit dans la liste (contour gris en pointillés) pour lui donner un autre calque. Une poubelle au bout de chaque ligne supprime l'objet, ou le retire de son groupe.
+
 Éditeur vectoriel : liste des objets à droite du canevas, à la manière de Blender. Elle montre les objets du dessus de la pile vers le dessous, avec leur calque ; un clic sélectionne l'objet (plusieurs avec Maj ou Ctrl), un double-clic le renomme. Ses propriétés (position, rotation, calque, taille) s'affichent juste en dessous, plutôt qu'en bas de la page. Boutons pour monter ou descendre un objet, grouper et dégrouper.
 
 Éditeur vectoriel : les groupes gardent leurs objets entiers. Un objet groupé garde son calque et son remplissage, et un texte redevient un texte modifiable une fois dégroupé (avant, grouper fusionnait tout en un seul tracé sur un seul calque).
@@ -59,6 +63,14 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Import SVG : les arcs des tracés sont convertis en courbes exactes ; dans un fichier à petite unité (viewBox de 0 à 1), un cercle devenait un polygone grossier.
+
+Import SVG : le cadrage du `viewBox` respecte `preserveAspectRatio` (centré sans déformation par défaut, comme les navigateurs) ; un document aux proportions différentes de son `viewBox` était étiré.
+
+Opérations booléennes des groupes (union, différence…) : les courbes sont calculées au centième de millimètre (un cercle de 5 mm s'écartait de 0,1 mm).
+
+Éditeur vectoriel : changer le calque d'un groupe le change pour tous les objets du groupe.
+
 Barres d'outils flottantes : partout les mêmes icônes que dans l'éditeur vectoriel (annuler, refaire, pivoter, miroirs, supprimer…), et annuler / refaire puis les loupes toujours au bout, à droite.
 
 Graver une image : « Algorithme de tramage » et « Afficher l'originale » passent dans une barre flottante à gauche de l'aperçu ; le bandeau au-dessus des aperçus disparaît, l'image gagne en hauteur.

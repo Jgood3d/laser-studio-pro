@@ -27,11 +27,28 @@ vous voyez d'un coup d'œil ce qui sera gravé, marqué ou découpé.
 
 ## Importer un dessin
 
-**Importer SVG / DXF** (ou glisser-déposer le fichier sur l'éditeur). Le
-dessin arrive :
+**Importer SVG / DXF** (ou glisser-déposer le fichier sur l'éditeur). Un
+SVG arrive tel que votre logiciel de dessin (Inkscape, Illustrator…) le
+montre :
 
-- **groupé** : on le déplace et on le redimensionne d'un bloc ;
-- sur le **premier calque de découpe** ;
+- **ses calques et groupes sont gardés** : chacun devient un groupe de la
+  liste des objets, avec son nom ;
+- **chaque objet va sur un calque d'après sa couleur** : noir ou gris foncé
+  sur la **gravure**, rouge sur la **découpe**, vert sur le **marquage**
+  (les teintes proches comptent aussi) ; une autre couleur va sur le premier
+  calque de découpe ;
+- **le blanc n'est pas gravé** : il efface la gravure en dessous, comme à
+  l'écran. Un texte blanc sur un fond noir reste lisible. Dans la liste, son
+  calque est suivi de « (blanc) » ;
+- **les textes restent des textes**, modifiables par double-clic ;
+- **ce qui est caché dans le fichier** (calque masqué, objet invisible ou
+  transparent) arrive sur le calque **Ignoré** : rien n'est affiché ni gravé,
+  mais le bouton **X** de la liste le fait réapparaître. Pratique pour un
+  modèle qui contient plusieurs variantes ;
+- **ce qui est masqué par un détourage** (clipPath) ou un masque n'est pas
+  gravé : seule la partie visible à l'écran est gardée ;
+- **un trait en pointillés** donne des tirets (lignes de pliage ou de
+  perforation), pas un trait continu ;
 - en bas à gauche du plateau, décalé vers la droite de la distance de
   **surbalayage** quand il est activé, pour que la tête ait la place de
   dépasser à gauche.
@@ -50,8 +67,9 @@ garde la position choisie dans sa fenêtre (calée sur l'image), sauf si
 vous l'ajoutez à droite ou au-dessus. **Ctrl+Z** annule l'ajout d'un
 coup, objets supprimés compris.
 
-Pour donner des calques différents à ses parties, **dégroupez-le** :
-clic droit › **Dégrouper**. Chaque tracé devient un objet séparé.
+Un DXF arrive groupé sur le premier calque de découpe. Pour donner des
+calques différents à ses parties, **dégroupez-le** : clic droit ›
+**Dégrouper**. Chaque tracé devient un objet séparé.
 
 ## Assigner un calque
 
@@ -70,6 +88,28 @@ grille, du dessus de la pile vers le dessous, avec le calque de chacun.
 Cliquer une ligne sélectionne l'objet sur le canevas (**Maj + clic** ou
 **Ctrl + clic** pour en choisir plusieurs) ; ses propriétés s'affichent
 juste en dessous. Un double-clic sur un nom permet de le renommer.
+
+Sur chaque ligne :
+
+- l'**œil**, devant le nom, masque l'objet sur le canevas pour y voir plus
+  clair. Un objet masqué **reste gravé** : son nom passe en italique.
+- le **X**, au bout de la ligne, met l'objet sur le calque **Ignoré** : il
+  n'est plus affiché, ni gravé, ni découpé, et son nom est barré. L'objet
+  retient son calque : un nouveau clic sur le X le lui rend, avec ses
+  réglages de gravure ou de découpe. Sur un groupe, le X agit sur tous ses
+  objets, chacun retrouvant son propre calque ; dans un groupe combiné, un
+  objet ignoré ne compte plus dans l'opération.
+- la **poubelle**, tout au bout, supprime l'objet. Dans un groupe, elle le
+  retire du groupe (un groupe vidé disparaît aussi). **Ctrl+Z** l'annule.
+
+Un objet masqué ou ignoré ne réagit plus à la souris sur le canevas, mais
+on peut le choisir dans la liste : son contour apparaît en pointillés
+gris et ses propriétés s'ouvrent. Choisir un calque dans la liste
+**Calque** fait réapparaître un objet ignoré sur ce calque (pour un
+groupe, sur tous ses objets).
+
+Changer le calque d'un groupe (liste **Calque** des propriétés, ou clic
+droit › **Assigner au calque**) le change pour tous les objets du groupe.
 
 Les boutons sous la liste :
 

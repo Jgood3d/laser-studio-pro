@@ -9,6 +9,11 @@ from laser_studio.vector import boolean_ops
 from laser_studio.vector.text_on_arc import arc_placements
 from laser_studio.vector.text_on_path import path_placements, anchor_offset_mm
 
+# Calque « Ignoré » : l'objet n'est ni affiché ni gravé ni découpé. Ce n'est pas un calque du modèle des
+# calques (models/layers.py) : la génération, qui ne prend que les calques actifs, le saute d'elle-même.
+# L'objet garde son calque d'avant (saved_layer_id) pour le retrouver.
+IGNORED_LAYER_ID = "__ignored__"
+
 
 class VectorObject:
     """Classe de base : position (mm), rotation, miroirs, calque associé.
@@ -53,14 +58,42 @@ class VectorObject:
     def world_path(self) -> QPainterPath:
         return self.world_transform().map(self.local_path())
 
+    def is_knockout(self):
+        """Objet blanc (importé d'un SVG) : sur son calque, il efface ce qui est gravé sous lui au lieu
+        d'être gravé, comme le blanc à l'écran."""
+        return bool(getattr(self, "knockout", False))
+
+    def engraving_items(self):
+        """[(calque, tracé monde, blanc)] dans l'ordre du dessin : l'objet entier sur son calque. Un simple
+        groupe donne ceux de ses objets (chacun sur son calque, avec son remplissage)."""
+        return [(self.layer_id, self.world_path(), self.is_knockout())]
+
     def engraving_parts(self):
-        """[(calque, tracé monde)] à graver : l'objet entier sur son calque. Un simple groupe donne ceux de
-        ses objets (chacun sur son calque, avec son remplissage)."""
-        return [(self.layer_id, self.world_path())]
+        """[(calque, tracé monde)] gravés (sans les objets blancs, qui effacent : voir engraving_items)."""
+        return [(layer, path) for layer, path, knockout in self.engraving_items() if not knockout]
 
     def set_layer(self, layer_id):
         """Change le calque de l'objet (et de tous ceux d'un groupe)."""
         self.layer_id = layer_id
+
+    # -- masquer, ignorer
+
+    def is_hidden(self):
+        """Masqué à l'affichage (œil de la liste des objets) ; il reste gravé."""
+        return bool(getattr(self, "hidden", False))
+
+    def is_ignored(self):
+        """Sur le calque « Ignoré » : ni affiché, ni gravé, ni découpé."""
+        return self.layer_id == IGNORED_LAYER_ID
+
+    def set_ignored(self, ignored, fallback_layer_id=None):
+        """Met l'objet sur le calque « Ignoré » en retenant son calque, ou le lui rend (à défaut
+        `fallback_layer_id`, si le calque retenu n'existe plus ou n'a jamais été noté)."""
+        if ignored and not self.is_ignored():
+            self.saved_layer_id = self.layer_id
+            self.layer_id = IGNORED_LAYER_ID
+        elif not ignored and self.is_ignored():
+            self.layer_id = getattr(self, "saved_layer_id", None) or fallback_layer_id
 
     def to_dict(self):
         d = dict(self.__dict__)
@@ -409,7 +442,8 @@ class GroupObject(VectorObject):
             raise ValueError(f"opération inconnue : {operation!r}")
         self.operation = operation
         if self.is_boolean() and self.children:
-            self.layer_id = self.children[0].layer_id
+            active = self._active_children()
+            self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
         self.invalidate()
 
     def move_child(self, child, step):
@@ -422,7 +456,8 @@ class GroupObject(VectorObject):
             return False
         self.children.insert(target, self.children.pop(index))
         if self.is_boolean():
-            self.layer_id = self.children[0].layer_id
+            active = self._active_children()
+            self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
         self.invalidate()
         return True
 
@@ -436,31 +471,70 @@ class GroupObject(VectorObject):
     def combined_path(self):
         """Tracé des objets à leur place au groupement, combinés selon l'opération (gardé en cache)."""
         if self._combined is None:
-            self._combined = boolean_ops.combine([c.world_path() for c in self.children], self.operation)
+            # Un objet ignoré ne compte pas dans l'opération (ni à l'affichage, ni à la gravure).
+            self._combined = boolean_ops.combine([c.world_path() for c in self._active_children()], self.operation)
         return QPainterPath(self._combined)
 
     def local_path(self) -> QPainterPath:
         return self._to_local().map(self.combined_path())
 
+    def full_local_path(self):
+        """Contour de tous les objets du groupe, ignorés compris (repère local) : pour montrer un groupe
+        ignoré qu'on vient de choisir dans la liste."""
+        def gather(group):
+            path = QPainterPath()
+            for child in group.children:
+                if isinstance(child, GroupObject):
+                    path.addPath(child.placement().map(gather(child)))
+                else:
+                    path.addPath(child.world_path())
+            return path
+        return self._to_local().map(gather(self))
+
     def local_parts(self):
-        """[(calque, tracé local)] de chaque objet d'un simple groupe (affichage de chacun dans la couleur
-        de son calque) ; [] pour une opération booléenne."""
+        """[(calque, tracé local, blanc)] de chaque objet d'un simple groupe (affichage de chacun dans la
+        couleur de son calque) ; [] pour une opération booléenne."""
         if self.is_boolean():
             return []
         to_local = self._to_local()
-        return [(layer, to_local.map(path)) for child in self.children for layer, path in child.engraving_parts()]
+        return [(layer, to_local.map(path), knockout) for child in self.children
+                for layer, path, knockout in child.engraving_items() if layer != IGNORED_LAYER_ID]
 
-    def engraving_parts(self):
+    def engraving_items(self):
         if self.is_boolean():
-            return [(self.layer_id, self.world_path())]
+            return [(self.layer_id, self.world_path(), self.is_knockout())]
         placement = self.placement()
-        return [(layer, placement.map(path)) for child in self.children for layer, path in child.engraving_parts()]
+        return [(layer, placement.map(path), knockout) for child in self.children
+                for layer, path, knockout in child.engraving_items()]
 
     def set_layer(self, layer_id):
         self.layer_id = layer_id
         for child in self.children:
             child.set_layer(layer_id)
         self.invalidate()
+
+    def is_ignored(self):
+        """Ignoré quand tous ses objets le sont (ou le groupe lui-même, groupe vide)."""
+        if not self.children:
+            return self.layer_id == IGNORED_LAYER_ID
+        return all(child.is_ignored() for child in self.children)
+
+    def set_ignored(self, ignored, fallback_layer_id=None):
+        """Ignore (ou rend) tout le groupe : chaque objet retient et retrouve son propre calque."""
+        for child in self.children:
+            child.set_ignored(ignored, fallback_layer_id)
+        self.child_ignored_changed()
+
+    def child_ignored_changed(self):
+        """À appeler après avoir ignoré (ou rendu) un objet du groupe : le groupe prend le calque de son premier
+        objet non ignoré (« Ignoré » s'il n'en reste aucun), son tracé est recalculé."""
+        active = self._active_children()
+        self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
+        self.invalidate()
+
+    def _active_children(self):
+        """Objets du groupe qui ne sont pas sur le calque « Ignoré »."""
+        return [child for child in self.children if not child.is_ignored()]
 
     def released_children(self):
         """Les objets du groupe, chacun à sa place actuelle (dégrouper). Un groupe retourné (miroir) donne

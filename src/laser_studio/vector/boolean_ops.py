@@ -10,7 +10,7 @@ tous les autres.
 from functools import reduce
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QPainterPath
+from PyQt6.QtGui import QPainterPath, QTransform
 
 GROUP = "group"                  # simple groupe : chaque objet garde son remplissage et son calque
 UNION = "union"                  # la surface couverte par au moins un objet
@@ -20,11 +20,21 @@ EXCLUSION = "exclusion"          # la surface couverte par un nombre impair d'ob
 OPERATIONS = (GROUP, UNION, DIFFERENCE, INTERSECTION, EXCLUSION)
 BOOLEAN_OPERATIONS = OPERATIONS[1:]
 
+# Qt aplatit les courbes des opérations booléennes avec une tolérance d'environ une unité : en mm, un
+# cercle de 5 mm s'écarterait de 0,1 mm. Les tracés sont donc combinés à cette échelle, puis ramenés en mm.
+BOOLEAN_SCALE = 100.0
+
 
 def _even_odd(path):
     path = QPainterPath(path)
     path.setFillRule(Qt.FillRule.OddEvenFill)
     return path
+
+
+def _scaled(path, factor):
+    mapped = QTransform.fromScale(factor, factor).map(path)
+    mapped.setFillRule(path.fillRule())
+    return mapped
 
 
 def _xor(a, b):
@@ -44,6 +54,7 @@ def combine(paths, operation):
         for p in paths:
             out.addPath(p)
         return out
+    paths = [_scaled(p, BOOLEAN_SCALE) for p in paths]
     if operation == UNION:
         result = reduce(lambda a, b: a.united(b), paths)
     elif operation == DIFFERENCE:
@@ -52,4 +63,21 @@ def combine(paths, operation):
         result = reduce(lambda a, b: a.intersected(b), paths)
     else:
         result = reduce(_xor, paths)
-    return _even_odd(result.simplified())
+    return _even_odd(_scaled(result.simplified(), 1 / BOOLEAN_SCALE))
+
+
+def paint_region(items):
+    """Surface peinte par des tracés superposés, dans l'ordre du dessin : [(tracé, clair)] ; un tracé foncé
+    s'ajoute, un tracé clair (blanc) efface ce qui est dessous, comme à l'écran. Chaque tracé en règle
+    pair-impair ; tracé vide si rien ne reste."""
+    region = None
+    for path, light in items:
+        scaled = _scaled(_even_odd(path), BOOLEAN_SCALE)
+        if region is None:
+            if not light:
+                region = scaled
+            continue
+        region = region.subtracted(scaled) if light else region.united(scaled)
+    if region is None:
+        return QPainterPath()
+    return _even_odd(_scaled(region.simplified(), 1 / BOOLEAN_SCALE))

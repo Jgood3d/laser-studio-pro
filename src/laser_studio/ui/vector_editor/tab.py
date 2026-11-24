@@ -28,8 +28,10 @@ from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets
 from laser_studio.ui.widgets import FloatingToolBar
 
 # Largeur de la colonne de droite (liste des objets et propriétés), en px.
-SIDE_WIDTH = 330
-SIDE_MIN_WIDTH = 240
+SIDE_WIDTH = 380
+SIDE_MIN_WIDTH = 280
+# Écart entre la poignée du séparateur et la colonne de droite, en px.
+SIDE_LEFT_MARGIN = 6
 # Rangée du haut : (commande, clé du libellé, clé de l'infobulle ou None, icône Breeze).
 TOP_BUTTONS = (
     ("import", "ui.vector_import_svg", None, "document-import"),
@@ -113,7 +115,7 @@ class VectorEditorTab(QWidget):
         self.properties_box = self._properties_box()
         side = QWidget()
         side_layout = QVBoxLayout(side)
-        side_layout.setContentsMargins(0, 0, 0, 0)
+        side_layout.setContentsMargins(SIDE_LEFT_MARGIN, 0, 0, 0)
         side_layout.setSpacing(4)
         objects_box = QGroupBox(tr("objects.box"))
         objects_layout = QVBoxLayout(objects_box)

@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QLabel, QWidge
 
 from laser_studio.i18n import tr
 from laser_studio.models.layers import layer_label
-from laser_studio.models.vector_objects import GroupObject, SvgPathObject, TextObject
+from laser_studio.models.vector_objects import IGNORED_LAYER_ID, GroupObject, SvgPathObject, TextObject
 from laser_studio.vector import arrange
 
 
@@ -83,7 +83,7 @@ class VectorPropertiesPanel(QObject):
         else:
             obj = objects[0]
             layer = self.layers.get(obj.layer_id)
-            layer_name = layer.name if layer else "?"
+            layer_name = tr("objects.ignored_layer") if obj.is_ignored() else layer.name if layer else "?"
             if isinstance(obj, TextObject):
                 desc = (
                     f"Texte : « {obj.text} » — "
@@ -91,8 +91,9 @@ class VectorPropertiesPanel(QObject):
                     f"Calque : {layer_name}"
                 )
             elif isinstance(obj, GroupObject):
-                desc = tr("objects.group_desc").format(
-                    operation=tr(f"objects.op.{obj.operation}"), n=len(obj.children), layer=layer_name)
+                key = "objects.group_desc_one" if len(obj.children) == 1 else "objects.group_desc"
+                desc = tr(key).format(operation=(getattr(obj, "name", "") or "").strip()
+                                      or tr(f"objects.op.{obj.operation}"), n=len(obj.children), layer=layer_name)
             elif isinstance(obj, SvgPathObject):
                 desc = f"Élément SVG importé ({obj.source_tag}) — Calque : {layer_name}"
             else:
@@ -104,6 +105,11 @@ class VectorPropertiesPanel(QObject):
         w.label.setText(desc)
         w.box.setEnabled(True)
         w.box.setVisible(True)
+        # Objet ignoré : plus de tracé actif, donc pas de position fiable ; seul son calque se change (le
+        # remettre sur un calque le fait réapparaître).
+        movable = not any(obj.is_ignored() for obj in objects)
+        for spin in (w.x, w.y, w.rotation):
+            spin.setEnabled(movable)
 
         spins = (w.x, w.y, w.rotation, w.width, w.height)
         for spin in spins:
@@ -130,6 +136,8 @@ class VectorPropertiesPanel(QObject):
         w.layer.clear()
         for layer in self.layers.layers:
             w.layer.addItem(layer_label(layer), layer.id)
+        # Calque « Ignoré » : l'objet disparaît (ni gravé ni découpé) ; le bouton X de la liste le rend.
+        w.layer.addItem(tr("objects.ignored_layer"), IGNORED_LAYER_ID)
         if len(objects) == 1:
             idx = w.layer.findData(objects[0].layer_id)
             if idx >= 0:

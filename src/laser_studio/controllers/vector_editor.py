@@ -18,13 +18,14 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.controllers.stencil_import import import_summary, remove_temporary_export, route_objects
-from laser_studio.models.vector_objects import GroupObject, SvgPathObject, TextObject
+from laser_studio.models.vector_objects import IGNORED_LAYER_ID, GroupObject, SvgPathObject, TextObject
 from laser_studio.vector import arrange, placement
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.vector.importers import dxf_to_objects
 from laser_studio.vector.serial_apply import object_bounds
 from laser_studio.vector.serial_duplicate import union_bounds
 from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.vector.svg_tree_import import import_svg_tree, svg_tree_counts
 
 log = get_logger()
 
@@ -268,16 +269,17 @@ class VectorEditorController(QObject):
         inside = [(parent, obj) for parent, obj in entries if parent is not None]
         self.canvas.push_undo_snapshot()
         changed = self.document.move(top, step) if top else False
-        groups = []
+        tops = []
         # Du plus haut au plus bas en montant (et l'inverse), pour qu'un objet ne bloque pas son voisin.
         for parent, obj in sorted(inside, key=lambda e: e[0].children.index(e[1]), reverse=step > 0):
             if parent.move_child(obj, step):
                 changed = True
-                if parent not in groups:
-                    groups.append(parent)
-        if groups:
-            self.document.notify_changed(groups)
-            self.properties_changed.emit(groups[0])
+                top = self._refresh_ancestors(obj)
+                if top not in tops:
+                    tops.append(top)
+        if tops:
+            self.document.notify_changed(tops)
+            self.properties_changed.emit(tops[0])
         if not changed:
             self.document.drop_last_snapshot()
         return changed
@@ -341,10 +343,79 @@ class VectorEditorController(QObject):
         item, obj = self.canvas.selected_object()
         if obj is None:
             return
-        if layer_id and layer_id != obj.layer_id:
-            self.canvas.push_undo_snapshot()
-            obj.layer_id = layer_id
-            self.document.notify_changed([obj])
+        if not layer_id or layer_id == obj.layer_id:
+            return
+        self.canvas.push_undo_snapshot()
+        if layer_id == IGNORED_LAYER_ID:
+            obj.set_ignored(True)
+        else:
+            # Un groupe passe tous ses objets sur ce calque.
+            obj.set_layer(layer_id)
+        self.document.notify_changed([obj])
+
+    def set_object_visible(self, obj, visible):
+        """Œil de la liste des objets : masque l'objet à l'affichage (il reste gravé). Annulable."""
+        if obj.is_hidden() == (not visible):
+            return
+        self.canvas.push_undo_snapshot()
+        obj.hidden = not visible
+        self.document.notify_changed([obj])
+
+    def toggle_ignored(self, group, obj):
+        """Bouton « X » de la liste des objets : met l'objet sur le calque « Ignoré » (ni affiché, ni gravé,
+        ni découpé) en retenant son calque, ou le lui rend. `group` : le groupe de l'objet, ou None. Un
+        groupe ignore ou rend tous ses objets, chacun retrouvant son propre calque. Annulable."""
+        self.canvas.push_undo_snapshot()
+        fallback = self.layers.layers[0].id if self.layers.layers else None
+        obj.set_ignored(not obj.is_ignored(), fallback)
+        self.document.notify_changed([self._refresh_ancestors(obj)])
+
+    def delete_object(self, group, obj):
+        """Poubelle de la liste des objets : supprime `obj` du dessin, ou le retire de son groupe `group`
+        (un groupe vidé disparaît à son tour). Annulable."""
+        self.canvas.exit_node_edit()
+        self.canvas.push_undo_snapshot()
+        if group is None:
+            self.document.remove(obj)
+            self.properties_changed.emit(None)
+            return
+        chain = self._ancestors(obj)
+        # Du groupe de l'objet vers le haut : chaque groupe vidé est retiré de son propre parent.
+        target = obj
+        for level in range(len(chain) - 1, -1, -1):
+            parent = chain[level]
+            parent.children = [child for child in parent.children if child is not target]
+            parent.child_ignored_changed()
+            if parent.children:
+                for upper in reversed(chain[:level]):
+                    upper.child_ignored_changed()
+                self.document.notify_changed([chain[0]])
+                self.properties_changed.emit(chain[0])
+                return
+            target = parent
+        self.document.remove(target)                   # tout le groupe du dessus s'est vidé
+        self.properties_changed.emit(None)
+
+    def _ancestors(self, target):
+        """Groupes qui contiennent `target`, du dessus de la pile jusqu'à son groupe ([] en haut)."""
+        def search(objects, chain):
+            for obj in objects:
+                if obj is target:
+                    return chain
+                if isinstance(obj, GroupObject):
+                    found = search(obj.children, chain + [obj])
+                    if found is not None:
+                        return found
+            return None
+        return search(self.document.objects, []) or []
+
+    def _refresh_ancestors(self, obj):
+        """Recalcule les groupes qui contiennent `obj` (calque, tracé), du plus proche au plus haut ;
+        renvoie l'objet du document qui le contient (lui-même s'il est en haut de la pile)."""
+        chain = self._ancestors(obj)
+        for group in reversed(chain):
+            group.child_ignored_changed()
+        return chain[0] if chain else obj
 
     def move_selection_to(self, left_mm, bottom_mm, rotation_deg):
         """Déplace l'objet ou le groupe sélectionné : coin bas-gauche de
@@ -432,17 +503,20 @@ class VectorEditorController(QObject):
             self._import_dxf(path, default_layer)
             return
         try:
-            objects = extract_svg_objects(path, default_layer.id, self.machine.bed_h)
+            # Calques et groupes du fichier gardés ; calque de chaque objet d'après sa couleur ; ce qui est
+            # masqué dans le fichier arrive sur le calque « Ignoré » (vector/svg_tree_import.py).
+            objects = import_svg_tree(path, lambda role: self.layers.layer_for_role(role).id if role
+                                      else default_layer.id, self.machine.bed_h)
         except Exception as e:
             self.dialogs.error(tr("vector.svg_error_title"), tr("vector.svg_error").format(error=e))
             return
-        if not objects:
+        if not objects or all(obj.is_ignored() for obj in objects):
             self.dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return
         if not self.import_objects(objects):
             return
         self.dialogs.info(tr("vector.svg_success_title"),
-                          tr("vector.svg_success").format(count=len(objects), layer=default_layer.name))
+                          tr("vector.svg_tree_success").format(**svg_tree_counts(objects, self.layers)))
 
     def import_stencil_export(self, path):
         """Fichier SVG ou DXF exporté par Stencil Studio : objets rangés dans les calques de LSP d'après

@@ -1,6 +1,7 @@
 """Import SVG classique (extract_svg_objects) : tracés et textes d'un fichier
 SVG en objets de l'éditeur vectoriel. Le nouvel importeur, utilisé par la
 bibliothèque, est vector/svg_import.py."""
+import math
 import re
 from svg.path import parse_path, Move, Line, Close, CubicBezier, QuadraticBezier, Arc
 from PyQt6.QtCore import QPointF
@@ -11,14 +12,45 @@ from laser_studio.core.debug_log import get_logger
 log = get_logger()
 
 
+def _arc_to_cubics(path, arc):
+    """Ajoute à `path` l'arc d'ellipse `arc` (svg.path.Arc : centre, rayons, rotation, angle de départ et
+    balayage en degrés) en cubiques de Bézier d'au plus 90° chacune (écart inférieur à 0,03 % du rayon), sans
+    dépendre de l'unité du document. Un arc dégénéré (rayon nul) est un segment, comme le veut SVG."""
+    scale = getattr(arc, "radius_scale", 1.0) or 1.0
+    rx, ry = abs(arc.radius.real) * scale, abs(arc.radius.imag) * scale
+    if rx == 0 or ry == 0 or arc.delta == 0:
+        path.lineTo(arc.end.real, arc.end.imag)
+        return
+    phi = math.radians(arc.rotation)
+    cos_phi, sin_phi = math.cos(phi), math.sin(phi)
+
+    def point(t):
+        x, y = rx * math.cos(t), ry * math.sin(t)
+        return arc.center.real + cos_phi * x - sin_phi * y, arc.center.imag + sin_phi * x + cos_phi * y
+
+    def tangent(t):
+        x, y = -rx * math.sin(t), ry * math.cos(t)
+        return cos_phi * x - sin_phi * y, sin_phi * x + cos_phi * y
+
+    pieces = max(1, math.ceil(abs(arc.delta) / 90.0 - 1e-9))
+    step = math.radians(arc.delta) / pieces
+    k = 4.0 / 3.0 * math.tan(step / 4.0)
+    t = math.radians(arc.theta)
+    for _ in range(pieces):
+        (x1, y1), (dx1, dy1) = point(t), tangent(t)
+        (x2, y2), (dx2, dy2) = point(t + step), tangent(t + step)
+        path.cubicTo(x1 + k * dx1, y1 + k * dy1, x2 - k * dx2, y2 - k * dy2, x2, y2)
+        t += step
+
+
 def _svg_path_element_to_subpaths(d):
     """Convertit le 'd' d'un <path> SVG en une liste de QPainterPath
     INDÉPENDANTS, un par sous-tracé (une commande M/m démarre un nouveau
     sous-tracé). Utilisé par le dégroupage manuel (clic droit).
 
     Les courbes de Bézier sont converties EXACTEMENT (cubicTo/quadTo, pas
-    d'échantillonnage) ; seuls les arcs (rares en pratique) sont échantillonnés
-    faute d'équivalent direct dans QPainterPath."""
+    d'échantillonnage) ; les arcs d'ellipse deviennent des cubiques (voir
+    _arc_to_cubics), quelle que soit l'unité du fichier."""
     parsed = parse_path(d)
     paths = []
     current = None
@@ -42,14 +74,7 @@ def _svg_path_element_to_subpaths(d):
             current.quadTo(seg.control.real, seg.control.imag,
                             seg.end.real, seg.end.imag)
         elif isinstance(seg, Arc):
-            try:
-                length = seg.length()
-            except Exception:   # arc dégénéré : tracé comme un segment
-                length = 0
-            n = max(4, int(length / 0.3)) if length else 8
-            for i in range(1, n + 1):
-                pt = seg.point(i / n)
-                current.lineTo(pt.real, pt.imag)
+            _arc_to_cubics(current, seg)
     if current is not None and current.elementCount() > 0:
         paths.append(current)
     return paths

@@ -1201,4 +1201,74 @@ TEXTS = {
     "objects.boolean_menu": {
         "fr": "Combiner", "en": "Combine", "de": "Kombinieren", "es": "Combinar",
     },
+    "objects.ignored_layer": {
+        "fr": "Ignoré",
+        "en": "Ignored",
+        "de": "Ignoriert",
+        "es": "Ignorado",
+    },
+    "objects.eye_tip": {
+        "fr": "Afficher ou masquer l'objet sur le canevas (il reste gravé)",
+        "en": "Show or hide the object on the canvas (it is still engraved)",
+        "de": "Objekt auf der Arbeitsfläche ein- oder ausblenden (es wird weiterhin graviert)",
+        "es": "Mostrar u ocultar el objeto en el lienzo (se sigue grabando)",
+    },
+    "objects.hide_tip": {
+        "fr": "Masquer sur le canevas (l'objet reste gravé)",
+        "en": "Hide on the canvas (the object is still engraved)",
+        "de": "Auf der Arbeitsfläche ausblenden (das Objekt wird weiterhin graviert)",
+        "es": "Ocultar en el lienzo (el objeto se sigue grabando)",
+    },
+    "objects.show_tip": {
+        "fr": "Masqué : cliquer pour l'afficher (il est quand même gravé)",
+        "en": "Hidden: click to show it (it is engraved anyway)",
+        "de": "Ausgeblendet: klicken zum Einblenden (es wird trotzdem graviert)",
+        "es": "Oculto: clic para mostrarlo (se graba de todos modos)",
+    },
+    "objects.ignore_tip": {
+        "fr": "Ignorer : ni gravé ni découpé, plus affiché (le calque est retenu)",
+        "en": "Ignore: neither engraved nor cut, no longer shown (the layer is remembered)",
+        "de": "Ignorieren: weder graviert noch geschnitten, nicht mehr angezeigt (die Ebene wird gemerkt)",
+        "es": "Ignorar: ni grabado ni cortado, ya no se muestra (la capa se recuerda)",
+    },
+    "objects.restore_tip": {
+        "fr": "Ignoré : cliquer pour lui rendre son calque",
+        "en": "Ignored: click to give it back its layer",
+        "de": "Ignoriert: klicken, um die Ebene wiederherzustellen",
+        "es": "Ignorado: clic para devolverle su capa",
+    },
+    "vector.svg_tree_success": {
+        "fr": "{count} objets importés, avec les calques et groupes du fichier.\nCalques utilisés d'après les couleurs : {layers}.\n{hidden} objets masqués dans le fichier sont sur le calque « Ignoré » : le bouton X de la liste des objets les fait réapparaître.",
+        "en": "{count} objects imported, with the file's layers and groups.\nLayers used from the colours: {layers}.\n{hidden} objects hidden in the file are on the « Ignored » layer: the X button of the object list brings them back.",
+        "de": "{count} Objekte importiert, mit den Ebenen und Gruppen der Datei.\nNach Farben verwendete Ebenen: {layers}.\n{hidden} in der Datei ausgeblendete Objekte liegen auf der Ebene „Ignoriert“: die X-Schaltfläche der Objektliste holt sie zurück.",
+        "es": "{count} objetos importados, con las capas y grupos del archivo.\nCapas usadas según los colores: {layers}.\n{hidden} objetos ocultos en el archivo están en la capa «Ignorado»: el botón X de la lista de objetos los hace reaparecer.",
+    },
+    "objects.knockout": {
+        "fr": "blanc",
+        "en": "white",
+        "de": "weiß",
+        "es": "blanco",
+    },
+    "objects.knockout_tip": {
+        "fr": "Blanc : n'est pas gravé, efface la gravure en dessous (comme à l'écran)",
+        "en": "White: not engraved, erases the engraving below (as on screen)",
+        "de": "Weiß: wird nicht graviert, löscht die Gravur darunter (wie auf dem Bildschirm)",
+        "es": "Blanco: no se graba, borra el grabado de debajo (como en pantalla)",
+    },
+    "objects.group_desc_one": {
+        "fr": "{operation} de {n} objet — Calque : {layer}", "en": "{operation} of {n} object — Layer: {layer}",
+        "de": "{operation} aus {n} Objekt — Ebene: {layer}", "es": "{operation} de {n} objeto — Capa: {layer}",
+    },
+    "objects.delete_tip": {
+        "fr": "Supprimer l'objet (Ctrl+Z pour annuler)",
+        "en": "Delete the object (Ctrl+Z to undo)",
+        "de": "Objekt löschen (Strg+Z zum Rückgängigmachen)",
+        "es": "Eliminar el objeto (Ctrl+Z para deshacer)",
+    },
+    "objects.delete_child_tip": {
+        "fr": "Retirer l'objet du groupe et le supprimer (Ctrl+Z pour annuler)",
+        "en": "Remove the object from the group and delete it (Ctrl+Z to undo)",
+        "de": "Objekt aus der Gruppe entfernen und löschen (Strg+Z zum Rückgängigmachen)",
+        "es": "Quitar el objeto del grupo y eliminarlo (Ctrl+Z para deshacer)",
+    },
 }
