@@ -197,7 +197,13 @@
 
 <script>
 "use strict";
-const UI_VERSION = "2026.11.86";  // doit être identique à core.py
+const UI_VERSION = "2026.11.86";  // doit être identique à core/params.py (VERSION)
+// Jeton du serveur local, glissé par server.py à l'envoi de la page : exigé sur chaque /api/, pour qu'aucun
+// autre site ouvert dans un navigateur ne puisse piloter le serveur.
+const API_TOKEN = "__STENCIL_TOKEN__";
+const _fetch = window.fetch.bind(window);
+window.fetch = (url, options = {}) => _fetch(url, {...options,
+  headers: {...(options.headers || {}), "X-Stencil-Token": API_TOKEN}});
 const $ = id => document.getElementById(id);
 /* Thème : appelé par l'application hôte (Laser Studio Pro) pour reprendre ses couleurs.
    t = {bg, panel, panel2, line, fg, mut, acc, acc2, onacc} (couleurs CSS) ; les clés absentes sont ignorées. */
@@ -1667,7 +1673,7 @@ function loadDisplay(v){
       F = {cx:.5, cy:.5, w:1}; B = null; lastStats = null; MB = []; GV = {pts:[], edges:[]}; mbSyncUI();
       computeView(); clampFrame(); drawSource(); histReset(); schedule(); res();
     };
-    im.src = "/api/image?v=" + v;
+    im.src = "/api/image?v=" + v + "&t=" + encodeURIComponent(API_TOKEN);   // une image n'envoie pas d'en-tête
   });
 }
 function downloadB64(name, b64, type){
