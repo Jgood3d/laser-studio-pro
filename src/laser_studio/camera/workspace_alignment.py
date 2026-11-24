@@ -37,6 +37,9 @@ class WorkspaceAlignment:
     image_size: Tuple[int, int]      # (width, height) de l'image utilisée
     used_tags: List[int] = field(default_factory=list)
     reprojection_error_mm: float = 0.0
+    # Hauteur du plan des tags au-dessus du plateau : 0 pour des tags imprimés à plat sur le plateau,
+    # l'épaisseur de la matière quand ils sont gravés dessus.
+    tag_height_mm: float = 0.0
 
     def to_dict(self) -> dict:
         return {
@@ -45,6 +48,7 @@ class WorkspaceAlignment:
             "image_size": list(self.image_size),
             "used_tags": list(self.used_tags),
             "reprojection_error_mm": float(self.reprojection_error_mm),
+            "tag_height_mm": float(self.tag_height_mm),
         }
 
     @classmethod
@@ -57,6 +61,7 @@ class WorkspaceAlignment:
             image_size=tuple(data["image_size"]),
             used_tags=list(data.get("used_tags", [])),
             reprojection_error_mm=float(data.get("reprojection_error_mm", 0.0)),
+            tag_height_mm=float(data.get("tag_height_mm", 0.0)),
         )
 
 
@@ -317,6 +322,7 @@ def compute_alignment(
     detections: Dict[int, np.ndarray],
     image_size: Tuple[int, int],
     min_tags: int = 3,
+    tag_height_mm: float = 0.0,
 ) -> WorkspaceAlignment:
     """Homographie pixel → mm à partir des 4 COINS de chaque tag détecté.
 
@@ -381,7 +387,8 @@ def compute_alignment(
     except np.linalg.LinAlgError:
         inv = np.linalg.pinv(H)
     return WorkspaceAlignment(homography=H, inverse=inv, image_size=image_size,
-                              used_tags=ids, reprojection_error_mm=mean_err)
+                              used_tags=ids, reprojection_error_mm=mean_err,
+                              tag_height_mm=float(tag_height_mm))
 
 
 def compute_homography(
@@ -460,14 +467,72 @@ def mm_to_pixel(
     return float(p[0] / p[2]), float(p[1] / p[2])
 
 
+def camera_pose_from_alignment(
+    alignment: WorkspaceAlignment, camera_matrix: np.ndarray
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Position de la caméra par rapport au plateau, déduite de l'alignement.
+
+    `camera_matrix` : matrice de la caméra REDRESSÉE (`LensCalibration.new_camera_matrix`). Les tags sont dans le
+    plan situé à `alignment.tag_height_mm` au-dessus du plateau (0 s'ils sont imprimés à plat dessus). Renvoie
+    (R, t, C) : R et t passent du repère machine (mm, Z vers le haut, Z = 0 au niveau du plateau) au repère
+    caméra, C est le centre optique en mm. Lève ValueError si le résultat n'est pas plausible (matrice caméra
+    fausse, alignement douteux).
+    """
+    A = np.linalg.inv(np.asarray(camera_matrix, dtype=np.float64)) @ alignment.inverse
+    n1, n2 = np.linalg.norm(A[:, 0]), np.linalg.norm(A[:, 1])
+    if not np.isfinite(n1 + n2) or n1 <= 0 or n2 <= 0 or not 0.7 <= n1 / n2 <= 1.43:
+        raise ValueError("pose de la caméra non calculable à partir de l'alignement")
+    s = 2.0 / (n1 + n2)
+    r1, r2, t_plane = A[:, 0] * s, A[:, 1] * s, A[:, 2] * s
+    if t_plane[2] < 0:                             # l'origine du plateau doit être devant la caméra
+        r1, r2, t_plane = -r1, -r2, -t_plane
+    U, _sv, Vt = np.linalg.svd(np.column_stack([r1, r2, np.cross(r1, r2)]))
+    R = U @ Vt                                     # rotation la plus proche (orthonormale)
+    if np.linalg.det(R) < 0:
+        raise ValueError("pose de la caméra non calculable à partir de l'alignement")
+    # L'alignement décrit le plan z = tag_height : t_plane = tag_height * r3 + t.
+    t = t_plane - float(alignment.tag_height_mm) * R[:, 2]
+    C = -R.T @ t
+    if not (50.0 <= C[2] <= 20000.0):
+        raise ValueError(f"hauteur de caméra estimée invraisemblable ({C[2]:.0f} mm)")
+    return R, t, C
+
+
+def camera_height_mm(alignment: WorkspaceAlignment, camera_matrix: np.ndarray) -> float:
+    """Hauteur estimée de la caméra au-dessus du plateau, en mm."""
+    return float(camera_pose_from_alignment(alignment, camera_matrix)[2][2])
+
+
+def plane_inverse_at_height(
+    alignment: WorkspaceAlignment, camera_matrix: np.ndarray, height_mm: float
+) -> np.ndarray:
+    """Homographie mm → pixels pour le plan horizontal situé `height_mm` au-dessus du PLATEAU (dessus d'une
+    pièce épaisse). Pour la hauteur des tags, c'est `alignment.inverse`."""
+    if abs(height_mm - alignment.tag_height_mm) < 1e-9:
+        return alignment.inverse
+    R, t, C = camera_pose_from_alignment(alignment, camera_matrix)
+    if height_mm >= C[2] * 0.9:
+        raise ValueError(f"épaisseur {height_mm:g} mm trop proche de la caméra (à {C[2]:.0f} mm)")
+    K = np.asarray(camera_matrix, dtype=np.float64)
+    return K @ np.column_stack([R[:, 0], R[:, 1], height_mm * R[:, 2] + t])
+
+
 def warp_to_bed(
     image: np.ndarray,
     alignment: WorkspaceAlignment,
     bed_w: float,
     bed_h: float,
     px_per_mm: float = 5.0,
+    thickness_mm: Optional[float] = None,
+    camera_matrix: Optional[np.ndarray] = None,
 ) -> np.ndarray:
     """Projette l'image caméra dans le repère machine (image orthographique).
+
+    `thickness_mm` : épaisseur de la matière, mesurée depuis le plateau ; None = on reste dans le plan des tags,
+    sans correction. Sinon on redresse le plan du DESSUS de la pièce
+    au lieu du plan des tags (`alignment.tag_height_mm`), ce qui supprime le décalage de parallaxe ; sans effet
+    si les deux hauteurs sont égales. Sinon demande `camera_matrix` (celle de la caméra redressée) et lève
+    ValueError si la pose de la caméra n'est pas calculable.
 
     Le résultat a une taille (bed_w * px_per_mm) × (bed_h * px_per_mm).
     Origine image = coin bas-gauche machine ; Y image vers le haut du plateau
@@ -490,7 +555,13 @@ def warp_to_bed(
         [0.0, 0.0, 1.0],
     ], dtype=np.float64)
     # pixel_cam = inverse @ bed_from_out @ pixel_out
-    M = alignment.inverse @ bed_from_out
+    if thickness_mm is not None and abs(thickness_mm - alignment.tag_height_mm) > 1e-9:
+        if camera_matrix is None:
+            raise ValueError("matrice de la caméra nécessaire pour corriger l'épaisseur")
+        inverse = plane_inverse_at_height(alignment, camera_matrix, thickness_mm)
+    else:
+        inverse = alignment.inverse
+    M = inverse @ bed_from_out
     # M va de la sortie vers la caméra (« dst → src ») : sans WARP_INVERSE_MAP, OpenCV l'inverserait et l'image
     # de la caméra se retrouverait minuscule et déplacée dans le plateau.
     return cv2.warpPerspective(image, M, (out_w, out_h), flags=cv2.INTER_LINEAR | cv2.WARP_INVERSE_MAP)

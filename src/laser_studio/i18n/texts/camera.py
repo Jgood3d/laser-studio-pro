@@ -81,6 +81,30 @@ TEXTS = {
         "de": "Kamerabild im Vektoreditor aktualisiert (unter dem Raster).",
         "es": "Imagen de la cámara actualizada en el editor vectorial (bajo la cuadrícula).",
     },
+    "camera.status.overlay_thickness": {
+        "fr": "Image caméra posée sur le dessus de la pièce (épaisseur {t} mm, caméra estimée à {h} mm au-dessus du plateau).",
+        "en": "Camera image placed on the top of the piece (thickness {t} mm, camera estimated {h} mm above the bed).",
+        "de": "Kamerabild auf der Oberseite des Werkstücks platziert (Stärke {t} mm, Kamera geschätzt {h} mm über der Fläche).",
+        "es": "Imagen de la cámara colocada sobre la cara superior de la pieza (grosor {t} mm, cámara estimada a {h} mm sobre el área).",
+    },
+    "camera.err.thickness": {
+        "fr": "Correction d'épaisseur impossible ({error}). L'image est posée sans correction : refaites l'alignement et la calibration optique si besoin.",
+        "en": "Thickness correction impossible ({error}). The image is placed without correction: redo the alignment and the lens calibration if needed.",
+        "de": "Stärkenkorrektur nicht möglich ({error}). Das Bild wird ohne Korrektur platziert: Ausrichtung und Objektivkalibrierung ggf. wiederholen.",
+        "es": "Corrección de grosor imposible ({error}). La imagen se coloca sin corrección: repita la alineación y la calibración óptica si es necesario.",
+    },
+    "camera.thickness_title": {
+        "fr": "Fond caméra",
+        "en": "Camera background",
+        "de": "Kamera-Hintergrund",
+        "es": "Fondo de cámara",
+    },
+    "camera.thickness_label": {
+        "fr": "Épaisseur de la matière (mm), mesurée depuis le plateau. 0 si la pièce est à plat sur le plateau. Les tags de l'alignement sont à {tag} mm du plateau.",
+        "en": "Material thickness (mm), measured from the bed. 0 if the piece lies flat on the bed. The alignment tags are {tag} mm above the bed.",
+        "de": "Materialstärke (mm), von der Fläche aus gemessen. 0, wenn das Werkstück flach aufliegt. Die Tags der Ausrichtung liegen {tag} mm über der Fläche.",
+        "es": "Grosor del material (mm), medido desde el área. 0 si la pieza está plana sobre el área. Las etiquetas de la alineación están a {tag} mm del área.",
+    },
     "camera.overlay_opacity": {
         "fr": "Opacité de l'image :",
         "en": "Image opacity:",
@@ -366,6 +390,18 @@ TEXTS = {
         "en": "Rows",
         "de": "Zeilen",
         "es": "Filas",
+    },
+    "camera.align_wizard.tag_height": {
+        "fr": "Hauteur des tags",
+        "en": "Tag height",
+        "de": "Höhe der Tags",
+        "es": "Altura de las etiquetas",
+    },
+    "camera.align_wizard.tag_height_tip": {
+        "fr": "Hauteur du plan des tags au-dessus du plateau. 0 si les tags sont imprimés sur une feuille posée à plat sur le plateau. Si les tags sont gravés sur une matière, indiquez l'épaisseur de cette matière : elle sert à corriger la parallaxe du fond caméra.",
+        "en": "Height of the tag plane above the bed. 0 if the tags are printed on a sheet lying flat on the bed. If the tags are engraved on a material, enter that material's thickness: it is used to correct the parallax of the camera background.",
+        "de": "Höhe der Tag-Ebene über der Fläche. 0, wenn die Tags auf ein flach aufliegendes Blatt gedruckt sind. Wenn die Tags in ein Material graviert sind, geben Sie dessen Stärke an: Sie dient zur Korrektur der Parallaxe des Kamera-Hintergrunds.",
+        "es": "Altura del plano de las etiquetas sobre el área. 0 si las etiquetas están impresas en una hoja plana sobre el área. Si están grabadas en un material, indique su grosor: sirve para corregir el paralaje del fondo de cámara.",
     },
     "camera.align_wizard.resolution": {
         "fr": "Résolution caméra",

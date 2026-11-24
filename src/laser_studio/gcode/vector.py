@@ -11,7 +11,9 @@ from laser_studio.gcode.common import power_value
 from laser_studio.models.layer_modes import (
     MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
-from laser_studio.vector.order import order_layers_for_cutting, order_polygons_inner_first
+from laser_studio.vector.kerf import compensate_kerf
+from laser_studio.vector.order import nesting_depths, order_layers_for_cutting, order_polygons_inner_first
+from laser_studio.vector.tabs import cut_runs, effective_count, is_closed, perimeter
 
 # Écart (mm) sous lequel un tracé dont le dernier point n'est pas exactement le premier est tout de même
 # considéré comme fermé (arrondis). Au-delà, c'est un vrai tracé ouvert, parcouru une seule fois.
@@ -80,6 +82,51 @@ def _overscan_runs(segments, overscan):
     return runs
 
 
+def _layer_tabs(layer):
+    """(nombre de ponts par contour, largeur en mm) du calque ; (0, 0.0) si le calque n'en a pas
+    (ponts désactivés, ancien projet, valeurs inutilisables)."""
+    if not layer.get("tabs", False):
+        return 0, 0.0
+    try:
+        count = max(0, int(layer.get("tab_count") or 0))
+        width = max(0.0, float(layer.get("tab_width") or 0.0))
+    except (TypeError, ValueError):
+        return 0, 0.0
+    return (count, width) if count > 0 and width > 0 else (0, 0.0)
+
+
+def _layer_kerf(layer):
+    """Largeur de la saignée (mm) à compenser pour ce calque ; 0.0 si la compensation est désactivée
+    (case décochée, ancien projet, valeur inutilisable)."""
+    if not layer.get("kerf", False):
+        return 0.0
+    try:
+        return max(0.0, float(layer.get("kerf_width") or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _tabbed_polygons(polygons, count, width):
+    """Tracés de découpe avec leurs ponts de maintien : (nouvelle liste de tracés, nombre de ponts posés).
+
+    Seuls les contours extérieurs fermés reçoivent des ponts : les trous (contour contenu dans un nombre
+    impair d'autres contours) tombent avec leur chute, et un pont n'y retiendrait que la chute. Un contour
+    trop court pour porter un pont est coupé en entier (voir vector.tabs.effective_count). Les tronçons à
+    couper d'un même contour restent côte à côte, dans l'ordre d'origine des tracés : l'ordre de découpe
+    (intérieur avant extérieur, plus proche voisin) n'est pas modifié."""
+    depths = nesting_depths(polygons)
+    result, placed = [], 0
+    for poly, depth in zip(polygons, depths):
+        if depth % 2 == 0 and is_closed(poly):
+            n = effective_count(perimeter(poly), count, width)
+            if n:
+                result.extend(cut_runs(poly, count, width))
+                placed += n
+                continue
+        result.append(poly)
+    return result, placed
+
+
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                                laser_cmd, s_max, overscan_dist=0.0, safe_cut_order=False, scan_offset=0.0):
     """Construit le G-Code (Phase "Calques Vectoriels") pour tous les calques actifs,
@@ -116,10 +163,21 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
         polygons = data["polygons"]
         if not polygons:
             continue
+        # Compensation du kerf (calque de découpe seulement) : avant l'ordre de coupe et les ponts, qui
+        # travaillent sur les contours décalés.
+        kerf_note = None
+        kerf_width = _layer_kerf(layer) if layer["mode"] == CUT_MODE else 0.0
+        if kerf_width > 0:
+            polygons, n_shifted, n_skipped = compensate_kerf(polygons, kerf_width)
+            kerf_note = f"; Compensation du kerf : {kerf_width:g} mm ({n_shifted} contours décalés)"
+            if n_skipped:
+                kerf_note += f" ; ATTENTION : {n_skipped} contour(s) trop fin(s), non compensé(s)"
         if safe_cut_order and layer["mode"] == CUT_MODE:
             polygons = order_polygons_inner_first(polygons)
 
         gcode.append(f"; --- CALQUE '{layer['name']}' [{layer['mode']}] ---")
+        if kerf_note:
+            gcode.append(kerf_note)
         if safe_cut_order and layer["mode"] == CUT_MODE:
             gcode.append("; Ordre de découpe : intérieur avant extérieur")
         speed = layer["speed"]
@@ -195,10 +253,18 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             # migré…) produisait un calque « vide » alors que la géométrie
             # était bien présente. On force au moins 1 passe.
             n_passes = max(1, int(layer.get("passes") or 1))
+            # Ponts de maintien (calque de découpe seulement) : voir _tabbed_polygons.
+            tab_count, tab_width = _layer_tabs(layer)
+            if layer["mode"] == CUT_MODE and tab_count > 0:
+                cut_polygons, n_tabs = _tabbed_polygons(polygons, tab_count, tab_width)
+                if n_tabs:
+                    gcode.append(f"; Ponts de maintien : {n_tabs} (largeur {tab_width:g} mm)")
+            else:
+                cut_polygons = polygons
             for pass_num in range(n_passes):
                 if n_passes > 1:
                     gcode.append(f"; Passe {pass_num + 1}/{n_passes}")
-                for poly in polygons:
+                for poly in cut_polygons:
                     if len(poly) < 2:
                         continue
                     sx, sy = to_gcode_xy(*poly[0])

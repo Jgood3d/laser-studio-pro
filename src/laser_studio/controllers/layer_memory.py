@@ -17,6 +17,11 @@ LAYER_SETTING_CASTS = (
     ("enabled", bool),
     ("overscan", bool),
     ("laser_cmd", str),
+    ("tabs", bool),
+    ("tab_count", int),
+    ("tab_width", float),
+    ("kerf", bool),
+    ("kerf_width", float),
 )
 
 

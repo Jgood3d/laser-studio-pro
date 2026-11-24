@@ -78,6 +78,13 @@ class UserDialogsTests(unittest.TestCase):
         with mock.patch.object(QInputDialog, "getText", return_value=("ignoré", False)):
             self.assertIsNone(self.dialogs.ask_text("Nouveau", "Nom :"))
 
+    def test_ask_number(self):
+        with mock.patch.object(QInputDialog, "getDouble", return_value=(12.5, True)) as ask:
+            self.assertEqual(self.dialogs.ask_number("Épaisseur", "mm :", 3.0, 0.0, 200.0), 12.5)
+        ask.assert_called_once_with(self.parent, "Épaisseur", "mm :", 3.0, 0.0, 200.0, 1)
+        with mock.patch.object(QInputDialog, "getDouble", return_value=(7.0, False)):
+            self.assertIsNone(self.dialogs.ask_number("Épaisseur", "mm :", 3.0, 0.0, 200.0))
+
 
 if __name__ == "__main__":
     unittest.main()
