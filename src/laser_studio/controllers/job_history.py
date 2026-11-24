@@ -6,12 +6,18 @@ réglages de la machine.
     engraver.stream_starting.connect(recorder.job_started)
     engraver.stream_ended.connect(recorder.job_ended)
     job.generated.connect(recorder.remember_estimate)
+
+Actions de la fenêtre « Historique des gravures » (elle émet, ces fonctions agissent sur le modèle) :
+
+    dialog.export_requested.connect(lambda: export_history(history, dialogs))
+    dialog.clear_requested.connect(lambda: clear_history(history, dialogs))
 """
 import hashlib
 import threading
 import time
 
 from laser_studio.gcode.stats import gcode_statistics
+from laser_studio.i18n import tr
 
 # Issue d'une gravure (champ « result »).
 DONE = "done"            # tout envoyé, machine revenue à l'arrêt
@@ -80,3 +86,24 @@ class JobHistoryRecorder:
         entry.update({k: stats.get(k) for k in ("lines", "burn_mm", "travel_mm", "max_feed", "max_power", "bounds")})
         self.history.append(entry)
         return entry
+
+
+def export_history(history, dialogs):
+    """Exporte l'historique en CSV, dans le fichier choisi par l'utilisateur. Renvoie le chemin, ou None."""
+    path = dialogs.save_file(tr("history.export"), "historique-gravures.csv", tr("history.csv_filter"))
+    if not path:
+        return None
+    try:
+        history.export_csv(path)
+    except OSError as error:
+        dialogs.warning(tr("history.title"), str(error))
+        return None
+    return path
+
+
+def clear_history(history, dialogs):
+    """Efface l'historique, après confirmation (Non par défaut). Renvoie True s'il a été effacé."""
+    if not dialogs.confirm_default_no(tr("history.title"), tr("history.clear_question")):
+        return False
+    history.clear()
+    return True

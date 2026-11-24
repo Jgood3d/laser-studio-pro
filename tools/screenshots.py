@@ -128,7 +128,7 @@ def main():
     print("Pages de réglages")
     for number, kind in enumerate(SETTINGS_PAGES, start=10):
         window.window_controller.show_settings_window(kind)
-        settings = window.window_controller._settings_windows[kind]
+        settings = window.window_controller.forms._settings_windows[kind]
         shot(settings, f"{number}-page-{slug(settings.windowTitle())}")
         settings.close()
 

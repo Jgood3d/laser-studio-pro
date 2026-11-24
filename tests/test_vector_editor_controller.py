@@ -16,7 +16,7 @@ try:
     from laser_studio.models.layers import LayersModel
     from laser_studio.models.machine import MachineConfig
     from laser_studio.models.vector_document import VectorDocument
-    from laser_studio.models.vector_objects import ShapeObject
+    from laser_studio.models.vector_objects import ShapeObject, TextObject
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView
     from laser_studio.vector import arrange
     from laser_studio.i18n import tr
@@ -197,6 +197,93 @@ class EditorTests(unittest.TestCase):
         self.assertEqual((self.dialogs.kinds(), self.document.objects), (["error"], []))
 
 
+class FakeForms:
+    """Répond à la place des fenêtres de saisie (EditorForms)."""
+
+    def __init__(self, resize=None, medal=None, text=True):
+        self.resize, self.medal_values, self.text_answer = resize, medal, text
+
+    def group_resize(self, width_mm, height_mm):
+        return self.resize
+
+    def medal(self, layers):
+        return self.medal_values
+
+    def text(self, layers, obj, on_preview, is_new=False, before_apply=lambda: None):
+        return self.text_answer
+
+
+@unittest.skipIf(VectorEditorController is None, "PyQt6 non importable ici")
+class SelectionCommandsTests(unittest.TestCase):
+    """Opérations sur la sélection reprises du canevas (VectorEditorController) : elles passent par le
+    document, une étape d'annulation chacune."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.layers = LayersModel()
+        self.document = VectorDocument()
+        self.canvas = VectorCanvasView(self.layers, document=self.document)
+        self.addCleanup(self.canvas.deleteLater)
+        self.editor = VectorEditorController(self.document, self.canvas, self.layers, MachineConfig(),
+                                             FakeDialogs(), forms=FakeForms())
+
+    def add(self, *objects):
+        for obj in objects:
+            self.canvas.add_object(obj)
+        return objects
+
+    def test_copy_paste_duplicate_delete(self):
+        a, = self.add(rect(0, 0))
+        self.canvas.select_objects([a])
+        self.editor.copy_selected()
+        pasted = self.editor.paste_clipboard()
+        self.assertEqual(len(self.document.objects), 2)
+        self.assertEqual(self.editor.selected_objects(), pasted)              # la copie collée est choisie
+        copies = self.editor.duplicate_selected()
+        self.assertEqual(len(self.document.objects), 3)
+        self.canvas.select_objects(copies)
+        self.editor.delete_selected()
+        self.assertEqual(len(self.document.objects), 2)
+        self.document.undo()
+        self.assertEqual(len(self.document.objects), 3)
+
+    def test_explode_and_basic_shape(self):
+        a, = self.add(rect(0, 0))
+        self.canvas.select_objects([a])
+        self.assertEqual(len(self.editor.explode_selected()), 4)               # un rectangle : 4 segments
+        shape = self.editor.add_basic_shape("Cercle", 50.0, 50.0, size_mm=10.0)
+        self.assertEqual((shape.shape_type, shape.x_mm, shape.y_mm), ("Ellipse", 45.0, 45.0))
+        self.assertEqual(self.editor.selected_objects(), [shape])
+
+    def test_resize_through_the_form(self):
+        a, b = self.add(rect(0, 0), rect(30, 0))
+        self.canvas.select_objects([a, b])
+        self.editor.forms.resize = (100.0, 20.0)
+        self.editor.resize_group()
+        self.assertEqual((round(b.x_mm, 6), round(b.width_mm, 6)), (60.0, 40.0))
+        self.editor.forms.resize = None                                      # annulé : rien ne change
+        self.editor.resize_group()
+        self.assertEqual(round(b.width_mm, 6), 40.0)
+
+    def test_text_follow_resync_and_medal(self):
+        text = TextObject(text="ABC", size_mm=5, layer_id="L1")
+        ring = ShapeObject("Ellipse", 40, 40, layer_id="L1", x_mm=0, y_mm=0)
+        self.add(text, ring)
+        self.canvas.select_objects([text, ring])
+        self.assertIs(self.editor.make_text_follow(), text)
+        self.assertEqual(text.follow_guide_id, ring.id)
+        ring.x_mm += 10
+        self.assertEqual(self.editor.resync_linked_texts([ring]), 1)            # le texte suit le contour
+        self.canvas.select_objects([ring])
+        self.editor.forms.medal_values = dict(top_text="HAUT", bottom_text="BAS", font_family="DejaVu Sans",
+                                              size_mm=4, margin_mm=1, layer_id="L1")
+        self.editor.open_medal_text()
+        self.assertEqual(sorted(o.text for o in self.editor.selected_objects()), ["BAS", "HAUT"])
+
+
 @unittest.skipIf(VectorEditorController is None, "PyQt6 non importable ici")
 class ArrangeTests(unittest.TestCase):
     def test_align_offsets(self):
@@ -243,7 +330,9 @@ class TabCommandsTests(unittest.TestCase):
                  layout.commands()]
         names = [name for part in parts for name in part]
         self.assertEqual(len(names), len(set(names)))                  # aucune commande traitée deux fois
-        self.assertEqual(sorted(set(COMMANDS) - {"library"}), sorted(names))
+        # Les boutons de l'onglet, plus les commandes du clavier et du clic droit du canevas.
+        keyboard = {"copy", "paste", "group", "ungroup", "resize"}
+        self.assertEqual(sorted((set(COMMANDS) - {"library"}) | keyboard), sorted(names))
         self.assertTrue(all(callable(action) for part in parts for action in part.values()))
 
     def test_buttons_emit_their_command(self):

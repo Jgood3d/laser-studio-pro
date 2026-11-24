@@ -27,7 +27,8 @@ from laser_studio.ui.app.image_actions import ImageToolbarActions
 from laser_studio.ui.app.job_display import JobDisplay, set_homing_available
 from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
 from laser_studio.ui.app.tabs import GCODE_CONSOLE_SETTING, JOB_QUEUE_SETTING, MainTabs
-from laser_studio.ui.app.window_controller import WindowController
+from laser_studio.controllers.window import WindowController
+from laser_studio.ui.app.window_forms import WindowForms
 from laser_studio.ui.app.window_state import WindowState
 from laser_studio.ui.binding import bind
 from laser_studio.ui.machine.builder import build_machine_panel
@@ -61,7 +62,7 @@ class FullLaserStudio(QMainWindow):
         
         self.setAcceptDrops(True)
         # Actions qui touchent toute la fenêtre (menus, réglages, résolution, Stencil Studio).
-        self.window_controller = WindowController(self)
+        self.window_controller = WindowController(self, WindowForms(self))
         # État qui s'enregistre et se restaure : réglages machine, profils, projet, matériau choisi.
         self.state = WindowState(self)
 

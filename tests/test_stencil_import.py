@@ -110,6 +110,25 @@ class ImportTests(unittest.TestCase):
         self.assertFalse(os.path.exists(path))
         self.assertEqual(self.dialogs.kinds(), [])                # message dans la barre d'état seulement
 
+    def test_svg_of_the_studio_keeps_its_groups_and_is_routed(self):
+        svg = core.svg_string([square(0, 0)], 50.0, 50.0, frame=(0, 0, 50, 50), marks=[square(20, 20, 4)])
+        path = self.export(svg, "pochoir.svg")
+        self.editor.import_stencil_export(path)
+        groups = {obj.name: obj for obj in self.document.objects}
+        self.assertEqual(set(groups), {"CUT", "ENGRAVE", "FRAME"})        # groupes de l'export gardés
+        modes = {name: self.layers.get(group.children[0].layer_id).mode for name, group in groups.items()}
+        self.assertEqual(modes, {"CUT": "cut", "ENGRAVE": "engrave_fill", "FRAME": "mark"})
+        self.assertEqual(groups["CUT"].layer_id, groups["CUT"].children[0].layer_id)
+        self.assertFalse(os.path.exists(path))
+
+    def test_svg_plates_get_their_own_layers(self):
+        svg = core.svg_string([], 50.0, 50.0, layers=[("LAYER_1", [square(0, 0)]), ("LAYER_2", [square(20, 0)])])
+        path = self.export(svg, "plaques.svg")
+        self.editor.import_stencil_export(path)
+        names = [layer.name for layer in self.layers.layers]
+        self.assertIn("LAYER_1", names)
+        self.assertIn("LAYER_2", names)
+
     def test_unreadable_export_falls_back_to_the_standard_import(self):
         path = self.export("pas un dxf", "casse.dxf")
         self.editor.import_stencil_export(path)

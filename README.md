@@ -135,7 +135,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/…/builder.py` — un builder par partie de l’interface (onglets, éditeur vectoriel, panneau machine, pages de réglages) : crée la vue et sa logique et les relie, avec ses dépendances en paramètres
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar`
-- `ui/app/window_controller.py` — contrôleur de la fenêtre (`WindowController`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
+- `controllers/window.py` — contrôleur de la fenêtre (`WindowController`), qui fait ouvrir ses fenêtres par `ui/app/window_forms.py` (`WindowForms`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
 - `ui/app/window_state.py` — ce que la fenêtre enregistre et restaure (`WindowState`) : réglages machine, champs d’un profil machine, état d’un projet, recopie automatique des calques dans le matériau choisi
 - `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs mémorisés
 - `ui/app/job_display.py` — affichage des résultats du job et de l’état du graveur (`JobDisplay`) : console, statistiques, aperçu 2D, position, suivi de l’envoi

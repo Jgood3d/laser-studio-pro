@@ -1,5 +1,5 @@
-"""Import SVG des modèles de la bibliothèque (et, une fois validé, pour
-remplacer extract_svg_objects de vector/svg_extract.py).
+"""Import SVG des modèles de la bibliothèque, selon leur convention (calques Cut / Engrave / Mark).
+Le bouton « Importer » de l'éditeur utilise vector/svg_tree_import.py.
 
 Convention (voir resources/library/README.md) :
 - calque (ou groupe) « Cut » : découpe, dessinée en rouge ;

@@ -13,18 +13,22 @@ UserDialogs ; il prévient la fenêtre par signaux.
     editor = VectorEditorController(document, canvas, layers, machine, UserDialogs(window), EditorForms(window))
     editor.show_editor.connect(lambda: tabs.setCurrentWidget(vector_tab))
 """
+import time
+
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
-from laser_studio.controllers.stencil_import import import_summary, remove_temporary_export, route_objects
-from laser_studio.models.vector_objects import IGNORED_LAYER_ID, GroupObject, SvgPathObject, TextObject
-from laser_studio.vector import arrange, placement
+from laser_studio.controllers.stencil_import import (
+    import_summary, remove_temporary_export, route_objects, route_tree,
+)
+from laser_studio.models.vector_objects import IGNORED_LAYER_ID, GroupObject, ShapeObject, SvgPathObject, TextObject
+from laser_studio.vector import arrange, boolean_ops, group_transform, path_ops, placement, text_follow
+from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.vector.importers import dxf_to_objects
 from laser_studio.vector.serial_apply import object_bounds
 from laser_studio.vector.serial_duplicate import union_bounds
-from laser_studio.vector.svg_extract import extract_svg_objects
 from laser_studio.vector.svg_tree_import import import_svg_tree, svg_tree_counts
 
 log = get_logger()
@@ -69,6 +73,7 @@ class VectorEditorController(QObject):
         self.dialogs = dialogs
         self.forms = forms
         self._overscan_margin = overscan_margin
+        self._last_nudge_time = -1e9          # flèches : pressions rapprochées = une seule étape d'annulation
 
     # -- outils
 
@@ -79,7 +84,9 @@ class VectorEditorController(QObject):
         commands = {
             "import": self.import_dialog, "edit": self.edit_selected, "rotate": self.rotate_selected,
             "duplicate": self.duplicate_selected, "delete": self.delete_selected, "delete_all": self.delete_all,
-            "explode": canvas.explode_selected, "nodes": canvas.enter_node_edit,
+            "explode": self.explode_selected, "nodes": canvas.enter_node_edit,
+            "copy": self.copy_selected, "paste": self.paste_clipboard, "group": self.group_selection,
+            "ungroup": self.ungroup_selection, "resize": self.resize_group,
             "text_follow": self.make_text_follow_selection, "medal": self.open_medal_text,
             "undo": canvas.undo, "redo": canvas.redo, "zoom_in": canvas.zoom_in, "zoom_out": canvas.zoom_out,
             "text": self.insert_text, "shape": self.insert_shape,
@@ -174,10 +181,12 @@ class VectorEditorController(QObject):
         if self.forms.text(self.layers, obj, on_preview=lambda: (item.refresh(), canvas.follow_handle.sync()),
                            is_new=True):
             item.refresh()
-            canvas.scene_obj.clearSelection()
-            item.setSelected(True)
+            canvas.select_objects([obj])
         else:
-            canvas.discard_added_object(item)
+            # Annulé : l'objet de l'aperçu et l'étape d'annulation prise juste avant disparaissent.
+            self.document.remove(obj)
+            self.document.drop_last_snapshot()
+            canvas.follow_handle.sync()
 
     def insert_shape(self):
         if not self.require_layers():
@@ -231,33 +240,74 @@ class VectorEditorController(QObject):
 
     def make_text_follow_selection(self):
         """Fait suivre à un texte le contour d'un autre objet : sélectionner le texte ET l'objet (Maj + clic)."""
-        pair = self.canvas.text_follow_candidates()
-        resync = bool(pair and getattr(pair[0].obj, "follow_points", None))
-        if not self.canvas.make_text_follow_object():
+        pair = text_follow.text_follow_pair(self.selected_objects())
+        resync = bool(pair and getattr(pair[0], "follow_points", None))
+        text = self.make_text_follow()
+        if text is None:
             self.dialogs.info(tr("vector.text_follow_title"), tr("vector.text_follow_need_two"))
             return
-        item, obj = self.canvas.selected_object()
-        if obj is not None:
-            self.properties_changed.emit(obj)
-            if resync:
-                self.status.emit(tr("vector.text_resynced"))
-            else:
-                # Ouvre tout de suite les réglages du texte (position, côté, distance...).
-                self.edit_dialog(item, obj)
+        self.properties_changed.emit(text)
+        if resync:
+            self.status.emit(tr("vector.text_resynced"))
+        else:
+            # Ouvre tout de suite les réglages du texte (position, côté, distance...).
+            self.edit_dialog(self.canvas.item_for(text), text)
+
+    def make_text_follow(self):
+        """Fait suivre au texte sélectionné le contour de l'autre objet sélectionné. Le contour est COPIÉ dans
+        le texte : l'objet guide n'est pas modifié (on peut le garder pour la découpe ou le supprimer). Si le
+        texte suivait déjà un contour, ses réglages (position, côté, distance) sont conservés : c'est une
+        resynchronisation. Renvoie le texte, ou None si la sélection ne convient pas."""
+        pair = text_follow.text_follow_pair(self.selected_objects())
+        if pair is None:
+            return None
+        text, guide = pair
+        pts = text_follow.follow_path(guide)
+        if pts is None:
+            return None
+        self.canvas.push_undo_snapshot()
+        text_follow.apply_follow(text, guide, pts, keep_settings=text_follow.follows_a_path(text))
+        self.document.notify_changed([text])
+        self.canvas.select_objects([text])
+        return text
+
+    def resync_text_guide(self, text, push_undo=True):
+        """Recopie le contour de l'objet guide dans le texte (le guide a bougé ou changé de taille), en
+        gardant la position, le côté et la distance. Renvoie False si le guide n'existe plus."""
+        guide = text_follow.linked_guide(text, self.document.objects)
+        pts = text_follow.follow_path(guide) if guide is not None else None
+        if pts is None:
+            return False
+        if push_undo:
+            self.canvas.push_undo_snapshot()
+        text_follow.apply_follow(text, guide, pts, keep_settings=True)
+        self.document.notify_changed([text])
+        return True
+
+    def resync_linked_texts(self, guides):
+        """Resynchronise (sans nouvelle étape d'annulation) les textes liés aux objets `guides` : appelé quand
+        on vient de les déplacer ou de les modifier à la souris. Renvoie le nombre de textes recalés."""
+        ids = {o.id for o in guides if not isinstance(o, TextObject)}
+        texts = [o for o in self.document.objects
+                 if isinstance(o, TextObject) and getattr(o, "follow_guide_id", None) in ids]
+        return sum(1 for text in texts if self.resync_text_guide(text, push_undo=False))
 
     def open_medal_text(self):
         """Texte de médaille : un texte en haut et un en bas, à l'intérieur du contour fermé sélectionné."""
-        if self.canvas.medal_guide_item() is None:
+        guide = text_follow.medal_guide(self.selected_objects())
+        if guide is None:
             self.dialogs.info(tr("vector.medal_title"), tr("vector.medal_need_guide"))
             return
         values = self.forms.medal(self.layers)
-        if values is not None:
-            created = self.canvas.make_medal_texts(**values)
-            if created:
-                self.canvas.scene_obj.clearSelection()
-                for item in self.canvas.scene_obj.items():
-                    if getattr(item, "obj", None) in created:
-                        item.setSelected(True)
+        if values is None:
+            return
+        pts = text_follow.closed_follow_path(guide)
+        self.canvas.push_undo_snapshot()
+        created = text_follow.medal_texts(guide, pts, **values)
+        for obj in created:
+            self.document.add(obj)
+        if created:
+            self.canvas.select_objects(created)
 
     # -- liste des objets (ObjectsPanel)
 
@@ -284,18 +334,90 @@ class VectorEditorController(QObject):
             self.document.drop_last_snapshot()
         return changed
 
-    def group_selection(self, operation):
+    def group_selection(self, operation=boolean_ops.GROUP):
         """Groupe la sélection (simple groupe) ou la combine (union, différence…) ; un groupe seul change
         d'opération. Renvoie le groupe, ou None."""
-        group = self.canvas.combine_selected(operation)
+        objects = self.selected_objects()
+        if len(objects) == 1 and isinstance(objects[0], GroupObject):
+            group = objects[0]
+            self.set_group_operation(group, operation)
+        else:
+            group = self._group(objects, operation)
         if group is not None:
             self.properties_changed.emit(group)
         return group
 
+    def _group(self, objects, operation):
+        """Groupe `objects` (au moins 2) en un GroupObject : chaque objet reste entier (un texte redevient un
+        texte modifiable au dégroupage) et le groupe se manipule d'un bloc. Avec une opération booléenne
+        (union, différence…), les objets ne forment plus qu'un tracé, rempli sur le calque de celui du
+        dessous. Le groupe prend la place du plus haut des objets dans l'empilement. Annulable."""
+        if len(objects) < 2:
+            return None
+        order = {id(o): i for i, o in enumerate(self.document.objects)}
+        objects = sorted(objects, key=lambda o: order.get(id(o), 0))
+        group = GroupObject(objects, operation=operation)
+        top = max(order[id(o)] for o in objects)
+        self.canvas.push_undo_snapshot()
+        self.document.replace(objects, [group])
+        # À la place du plus haut des objets groupés, pas tout en haut de la pile.
+        above = sum(1 for o in self.document.objects[:-1] if order.get(id(o), -1) > top)
+        for _ in range(above):
+            self.document.move([group], -1)
+        self.canvas.select_objects([group])
+        return group
+
+    def set_group_operation(self, group, operation):
+        """Change l'opération d'un groupe (simple groupe, union, différence…). Annulable. True si changée."""
+        if not isinstance(group, GroupObject) or group.operation == operation:
+            return False
+        self.canvas.push_undo_snapshot()
+        group.set_operation(operation)
+        self.document.notify_changed([group])
+        return True
+
     def ungroup_selection(self):
-        released = self.canvas.ungroup_selected()
-        self.properties_changed.emit(released[0].obj if released else None)
+        """Dégroupe la sélection : un groupe rend ses objets, à leur place (un texte redevient un texte) ;
+        un tracé importé est séparé en sous-tracés indépendants. Annulable. Renvoie les nouveaux objets."""
+        targets = [o for o in self.selected_objects() if isinstance(o, GroupObject) or path_ops.can_ungroup(o)]
+        if not targets:
+            return []
+        self.canvas.push_undo_snapshot()
+        released = []
+        for obj in targets:
+            if isinstance(obj, GroupObject):
+                index = self.document.objects.index(obj)
+                children = obj.released_children()
+                self.document.replace([obj], children)
+                # Les objets reprennent la place du groupe dans l'empilement.
+                for _ in range(len(self.document.objects) - len(children) - index):
+                    self.document.move(children, -1)
+            else:
+                children = path_ops.ungroup_object(obj)
+                if not children:
+                    continue                      # rien d'utile à séparer : l'objet reste tel quel
+                self.document.replace([obj], children)
+            released += children
+        self.canvas.select_objects(released)
+        self.properties_changed.emit(released[0] if released else None)
         return released
+
+    def explode_selected(self):
+        """Découpe chaque objet sélectionné en segments indépendants (une ligne = un objet) : supprimer une
+        seule encoche ou un seul trait, puis le redessiner. Annulable. Renvoie les segments."""
+        self.canvas.exit_node_edit()
+        targets = [o for o in self.selected_objects() if path_ops.can_explode(o)]
+        if not targets:
+            return []
+        self.canvas.push_undo_snapshot()
+        segments = []
+        for obj in targets:
+            parts = path_ops.explode_object(obj)
+            if parts:
+                self.document.replace([obj], parts)
+                segments += parts
+        self.canvas.select_objects(segments)
+        return segments
 
     def rename_object(self, obj, name):
         """Nom donné dans la liste des objets (vide : nom par défaut). Annulable."""
@@ -309,21 +431,107 @@ class VectorEditorController(QObject):
     # -- sélection
 
     def rotate_selected(self):
-        """Pivote l'objet sélectionné de 90°."""
-        item, obj = self.canvas.selected_object()
-        if obj is None:
+        """Pivote chaque objet sélectionné de 90° sur lui-même (bouton, clic droit). Annulable."""
+        objects = self.selected_objects()
+        if not objects:
             self.dialogs.info(tr("vector.selection_title"), tr("vector.no_selection"))
             return
         self.canvas.push_undo_snapshot()
-        obj.rotation_deg = (obj.rotation_deg + 90.0) % 360.0
-        self.document.notify_changed([obj])
-        self.properties_changed.emit(obj)
+        group_transform.rotate_quarter(objects)
+        self.document.notify_changed(objects)
+        self.properties_changed.emit(objects[0])
 
     def duplicate_selected(self):
-        self.canvas.duplicate_selected()
+        """Copie décalée de chaque objet sélectionné (Ctrl+D). Annulable. Renvoie les copies."""
+        objects = self.selected_objects()
+        if not objects:
+            return []
+        self.canvas.push_undo_snapshot()
+        return self.document.duplicate(objects)
 
     def delete_selected(self):
-        self.canvas.remove_selected()
+        """Supprime les objets sélectionnés (Suppr). Annulable."""
+        objects = self.selected_objects()
+        self.canvas.exit_node_edit()
+        if not objects:
+            return
+        self.canvas.push_undo_snapshot()
+        for obj in objects:
+            self.document.remove(obj)
+        self.properties_changed.emit(None)
+
+    def copy_selected(self):
+        """Ctrl+C : copie les objets sélectionnés dans le presse-papiers de l'éditeur (pas celui du système)."""
+        self.document.copy(self.selected_objects())
+
+    def paste_clipboard(self):
+        """Ctrl+V : colle les objets copiés, décalés pour rester distincts de l'original, et les sélectionne."""
+        if not self.document.has_clipboard():
+            return []
+        self.canvas.push_undo_snapshot()
+        pasted = self.document.paste()
+        self.canvas.select_objects(pasted)
+        return pasted
+
+    def nudge_selection(self, dir_x, dir_y, shift=False, alt=False):
+        """Flèches du clavier : déplace la sélection de 1 mm (Maj : 10 mm ; Alt : 0,1 mm). Les pressions
+        rapprochées (touche maintenue) ne comptent que pour UN « Annuler »."""
+        objects = self.selected_objects()
+        if not objects:
+            return False
+        step = nudge_step(shift=shift, alt=alt)
+        now = time.monotonic()
+        if now - self._last_nudge_time > NUDGE_UNDO_WINDOW_S:
+            self.canvas.push_undo_snapshot()
+        self._last_nudge_time = now
+        for obj in objects:
+            obj.x_mm += dir_x * step
+            obj.y_mm += dir_y * step
+        self.document.notify_changed(objects)
+        return True
+
+    def assign_layer(self, layer_id):
+        """Clic droit › Assigner au calque : la sélection (et tous les objets de ses groupes). Annulable."""
+        objects = self.selected_objects()
+        if not objects:
+            return
+        self.canvas.push_undo_snapshot()
+        group_transform.assign_layer(objects, layer_id)
+        self.document.notify_changed(objects)
+        self.properties_changed.emit(objects[0])
+
+    def resize_group(self):
+        """Redimensionne toute la sélection comme un groupe, en mm : proportions et positions relatives
+        conservées, coin bas-gauche fixe. Taille demandée par une fenêtre (EditorForms.group_resize)."""
+        objects = self.selected_objects()
+        if not objects:
+            return
+        _x, _y, width, height = group_transform.group_bounds(objects)
+        size = self.forms.group_resize(max(width, 1e-6), max(height, 1e-6))
+        if size is None:
+            return
+        self.canvas.push_undo_snapshot()
+        group_transform.resize_group(objects, *size)
+        self.document.notify_changed(objects)
+        self.properties_changed.emit(objects[0])
+
+    def add_basic_shape(self, kind, cx_mm, cy_mm, size_mm=20.0):
+        """Clic droit › Ajouter : une ligne, un carré ou un cercle centré sur (cx_mm, cy_mm), sur le calque
+        SVG par défaut, sélectionné. Renvoie l'objet, ou None sans calque."""
+        if not self.require_layers():
+            return None
+        layer_id = self.layers.default_svg_layer().id
+        if kind == "Ligne":
+            obj = ShapeObject(shape_type="Ligne", width_mm=size_mm * 1.5, height_mm=0.1,
+                              layer_id=layer_id, x_mm=cx_mm - size_mm * 0.75, y_mm=cy_mm)
+        else:
+            shape_type = "Ellipse" if kind == "Cercle" else "Rectangle"
+            obj = ShapeObject(shape_type=shape_type, width_mm=size_mm, height_mm=size_mm,
+                              layer_id=layer_id, x_mm=cx_mm - size_mm / 2.0, y_mm=cy_mm - size_mm / 2.0)
+        self.canvas.push_undo_snapshot()
+        self.document.add(obj)
+        self.canvas.select_objects([obj])
+        return obj
 
     def delete_all(self):
         """« Tout supprimer » : vide l'éditeur, après confirmation. Annulable d'un coup."""
@@ -531,11 +739,14 @@ class VectorEditorController(QObject):
                 default_layer = self.layers.default_svg_layer()
                 if lower.endswith(".dxf"):
                     objects = dxf_to_objects(dxf_import.read_dxf(path), default_layer.id)
+                    route = route_objects
                 else:
-                    objects = extract_svg_objects(path, default_layer.id, self.machine.bed_h, ungroup=True)
+                    # Même lecture que « Importer » ; les groupes de l'export (CUT, ENGRAVE…) sont gardés.
+                    objects = import_svg_tree(path, lambda _role: default_layer.id, self.machine.bed_h)
+                    route = route_tree
                 if not objects:
                     raise ValueError(tr("vector.svg_empty"))
-                stats = route_objects(objects, self.layers, default_layer.id, focal=self.machine.focal)
+                stats = route(objects, self.layers, default_layer.id, focal=self.machine.focal)
                 if not self.import_objects(objects):
                     return
             else:

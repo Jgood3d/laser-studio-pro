@@ -14,7 +14,8 @@ from laser_studio.gcode.stats import gcode_statistics  # noqa: E402  (sans Qt)
 
 try:
     from PyQt6.QtWidgets import QApplication
-    from laser_studio.controllers.job_history import DONE, ERROR, STOPPED, JobHistoryRecorder
+    from laser_studio.controllers.job_history import (
+        DONE, ERROR, STOPPED, JobHistoryRecorder, clear_history, export_history)
     from laser_studio.models.job_history import JobHistory
 except ImportError:  # PyQt6 manquant
     JobHistory = None
@@ -88,6 +89,19 @@ class HistoryTests(unittest.TestCase):
         entry = self.run_job(False, gcode="G1 X2")
         self.assertEqual((entry["result"], entry["estimated_s"]), (STOPPED, None))   # G-Code jamais généré ici
         self.assertIsNone(self.recorder.job_ended(True))                             # pas d'envoi en cours
+
+    def test_export_and_clear_go_through_the_controller(self):
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from job_fakes import FakeDialogs
+        self.run_job(True)
+        out = os.path.join(self.dir.name, "export.csv")
+        self.assertEqual(export_history(self.history, FakeDialogs(path=out)), out)
+        self.assertTrue(os.path.exists(out))
+        self.assertIsNone(export_history(self.history, FakeDialogs(path="")))          # annulé
+        self.assertFalse(clear_history(self.history, FakeDialogs(answer=False)))        # Non : rien d'effacé
+        self.assertEqual(len(self.history.entries()), 1)
+        self.assertTrue(clear_history(self.history, FakeDialogs(answer=True)))
+        self.assertEqual(self.history.entries(), [])
 
     def test_file_survives_a_bad_line_exports_and_clears(self):
         self.run_job(True)

@@ -23,6 +23,7 @@ from laser_studio.ui.dialogs.puzzle import PuzzleGeneratorDialog
 from laser_studio.ui.dialogs.serial_duplicate import SerialDuplicateDialog
 from laser_studio.ui.vector_editor.assign_layer_dialog import AssignLayerDialog
 from laser_studio.ui.vector_editor.medal_dialog import MedalTextDialog
+from laser_studio.ui.vector_editor.resize_dialog import GroupResizeDialog
 from laser_studio.ui.vector_editor.shape_dialog import ShapeInsertDialog
 from laser_studio.ui.vector_editor.text_dialog import TextInsertDialog
 
@@ -70,9 +71,15 @@ class EditorForms:
         return True
 
     def medal(self, layers):
-        """Textes de médaille : arguments de VectorCanvasView.make_medal_texts, ou None."""
+        """Textes de médaille : arguments de text_follow.medal_texts (textes, police, taille, marge, calque),
+        ou None."""
         dialog = MedalTextDialog(layers, parent=self.parent)
         return dialog.values() if dialog.exec() else None
+
+    def group_resize(self, width_mm, height_mm):
+        """Nouvelle taille (largeur, hauteur) en mm de la sélection, à partir de sa taille actuelle, ou None."""
+        dialog = GroupResizeDialog(width_mm, height_mm, self.parent)
+        return dialog.size_mm() if _accepted(dialog) else None
 
     # -- générateurs
 

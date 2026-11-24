@@ -1,10 +1,12 @@
 """Fenêtre « Historique des gravures » : une ligne par job envoyé, du plus récent au plus ancien (date,
 issue, durée réelle et estimée, écart, distance gravée, lignes, profil machine), export CSV et effacement.
-Elle suit le modèle (JobHistory.changed) : une gravure qui se termine apparaît aussitôt."""
-from PyQt6.QtCore import Qt
+Elle suit le modèle (JobHistory.changed) : une gravure qui se termine apparaît aussitôt. C'est une vue :
+« Exporter » et « Effacer » émettent export_requested et clear_requested, que le contrôleur traite
+(controllers/job_history.py)."""
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
-    QAbstractItemView, QDialog, QFileDialog, QHBoxLayout, QHeaderView, QLabel, QMessageBox, QPushButton,
-    QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QAbstractItemView, QDialog, QHBoxLayout, QHeaderView, QLabel, QPushButton, QTableWidget, QTableWidgetItem,
+    QVBoxLayout,
 )
 
 from laser_studio.i18n import tr
@@ -24,6 +26,9 @@ def gap_text(entry):
 
 
 class JobHistoryDialog(QDialog):
+    export_requested = pyqtSignal()
+    clear_requested = pyqtSignal()
+
     def __init__(self, history, parent=None):
         super().__init__(parent)
         self.setWindowTitle(tr("history.title"))
@@ -40,9 +45,9 @@ class JobHistoryDialog(QDialog):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.summary = QLabel()
         export = QPushButton(tr("history.export"))
-        export.clicked.connect(self._export)
+        export.clicked.connect(lambda: self.export_requested.emit())
         clear = QPushButton(tr("history.clear"))
-        clear.clicked.connect(self._clear)
+        clear.clicked.connect(lambda: self.clear_requested.emit())
         close = QPushButton(tr("history.close"))
         close.clicked.connect(self.close)
         row = QHBoxLayout()
@@ -77,22 +82,6 @@ class JobHistoryDialog(QDialog):
         total = sum(e.get("duration_s") or 0 for e in entries if e.get("result") == "done")
         self.summary.setText(tr("history.summary").format(count=len(entries), total=duration_text(total)))
 
-    def _export(self):
-        path, _ = QFileDialog.getSaveFileName(self, tr("history.export"), "historique-gravures.csv",
-                                              tr("history.csv_filter"))
-        if not path:
-            return
-        try:
-            self.history.export_csv(path)
-        except OSError as error:
-            QMessageBox.warning(self, tr("history.title"), str(error))
-
-    def _clear(self):
-        answer = QMessageBox.question(self, tr("history.title"), tr("history.clear_question"),
-                                      QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                                      QMessageBox.StandardButton.No)
-        if answer == QMessageBox.StandardButton.Yes:
-            self.history.clear()
 
 
 def _machine_text(entry):

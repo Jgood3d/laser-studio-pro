@@ -7,7 +7,7 @@ objets sans toucher au document : l'appelant les remplace
 Les tracés sont des QPainterPath (QtGui, sans widget). Repère « monde » :
 origine bas-gauche, Y vers le haut ; repère local d'un SvgPathObject : ancré
 sur le coin bas-gauche de sa boîte englobante, Y vers le bas (comme
-extract_svg_objects).
+vector/svg_tree_import.py).
 """
 from PyQt6.QtCore import QPointF
 from PyQt6.QtGui import QPainterPath, QTransform

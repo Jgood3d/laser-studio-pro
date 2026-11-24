@@ -187,12 +187,13 @@ class CanvasViewTests(unittest.TestCase):
         removed = []
         doc.object_removed.connect(removed.append)
         a, b = doc.add(rect()), doc.add(rect(60))
-        for obj in (a, b):
-            canvas.item_for(obj).setSelected(True)
-        group_item = canvas.group_selected()
+        from laser_studio.controllers.vector_editor import VectorEditorController
+        editor = VectorEditorController(doc, canvas, LayersModel(), machine=None, dialogs=None)
+        canvas.select_objects([a, b])
+        group = editor.group_selection()
         self.assertEqual(removed, [a, b])
-        self.assertEqual(doc.objects, [group_item.obj])
-        canvas.remove_selected()
+        self.assertEqual(doc.objects, [group])
+        editor.delete_selected()
         self.assertEqual(doc.objects, [])
         canvas.undo()
         self.assertEqual(len(doc.objects), 1)

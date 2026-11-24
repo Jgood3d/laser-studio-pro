@@ -252,8 +252,8 @@ class MainWindowTests(unittest.TestCase):
         language.set_language("fr")
         w.app_actions.documentation_requested.emit()
         self.pump(0.1)
-        self.assertIsNotNone(w.window_controller._help_dialog)
-        w.window_controller._help_dialog.close()
+        self.assertIsNotNone(w.window_controller.forms._help_dialog)
+        w.window_controller.forms._help_dialog.close()
 
     # -- fermeture, projet
 

@@ -14,11 +14,14 @@ class Png2SvgTab(QWidget):
 
         tab = Png2SvgTab()
         tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)
+        tab.export_requested.connect(png2svg.export_svg)
         tab.image_changed.connect(image_actions.update_state)
     """
 
     # Texte du SVG généré, à ajouter à l'éditeur vectoriel.
     send_to_vector_requested = pyqtSignal(str)
+    # Texte du SVG généré, à enregistrer dans un fichier.
+    export_requested = pyqtSignal(str)
     # Une image a été chargée ou retirée.
     image_changed = pyqtSignal()
 
@@ -32,4 +35,5 @@ class Png2SvgTab(QWidget):
             self.send_to_vector_requested
         )
         self.converter.imageChanged.connect(self.image_changed)
+        self.converter.exportRequested.connect(self.export_requested)
         layout.addWidget(self.converter)

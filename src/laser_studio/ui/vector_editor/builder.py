@@ -83,6 +83,14 @@ def build_vector_editor(document, layers, machine, dialogs, parent, *, image_fra
     tab = VectorEditorTab(canvas)
     commands = {**controller.commands(), **generators.commands(), **layout.commands(), "library": library.open}
     tab.command.connect(lambda name: commands[name]())
+    # Clavier et clic droit du canevas : mêmes commandes que les boutons de l'onglet.
+    canvas.command_requested.connect(lambda name: commands[name]())
+    canvas.nudge_requested.connect(controller.nudge_selection)
+    canvas.layer_requested.connect(controller.assign_layer)
+    canvas.combine_requested.connect(controller.group_selection)
+    canvas.shape_requested.connect(controller.add_basic_shape)
+    canvas.text_resync_requested.connect(controller.resync_text_guide)
+    canvas.objects_moved.connect(controller.resync_linked_texts)
     tab.draw_tool_requested.connect(controller.choose_draw_tool)
     controller.draw_tool_changed.connect(tab.show_draw_tool)
     controller.show_editor.connect(lambda: show_tab(tab))

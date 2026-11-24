@@ -87,15 +87,17 @@ def color_role(color, current_color=None):
 
 
 def element_name(elem):
-    """Nom lisible : inkscape:label, sinon le texte du premier <title> enfant ; « » sinon (les id
-    générés, path42, n'apprennent rien)."""
+    """Nom lisible : inkscape:label, sinon le texte du premier <title> enfant, sinon l'id s'il a été donné
+    par quelqu'un (« CUT », « Coeur », « LAYER_1 ») ; « » pour un id généré par un logiciel (path42, g5,
+    layer1 : des lettres minuscules suivies de chiffres), qui n'apprend rien."""
     label = (_attr(elem, "label") or "").strip()
     if label:
         return label
     for child in elem:
         if _local(child.tag) == "title" and child.text and child.text.strip():
             return child.text.strip()
-    return ""
+    ident = (elem.attrib.get("id") or "").strip()
+    return "" if re.fullmatch(r"[a-z]+\d+", ident) else ident
 
 
 def even_odd_equivalent(path, fill_rule):

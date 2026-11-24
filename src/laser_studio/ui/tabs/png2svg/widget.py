@@ -23,7 +23,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
 )
 
-from laser_studio.image.vectorize import ConversionSettings, convert_image_to_svg, save_svg
+from laser_studio.image.vectorize import ConversionSettings, convert_image_to_svg
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.png2svg.svg_view import HAS_SVG_WIDGET, ZoomableSvgView
 from laser_studio.core.preferences import ui_preferences
@@ -35,6 +35,7 @@ class PngToSvgWidget(QWidget):
     svgGenerated = pyqtSignal(str)       # émis à chaque régénération réussie du SVG
     sendToVectorEditor = pyqtSignal(str)  # émis quand l'utilisateur clique "Envoyer vers l'Éditeur Vectoriel"
     imageChanged = pyqtSignal()           # émis quand une image est chargée ou retirée
+    exportRequested = pyqtSignal(str)     # « Exporter en SVG » : texte du SVG, enregistré par le contrôleur
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -495,17 +496,8 @@ class PngToSvgWidget(QWidget):
         self.svgGenerated.emit(result.svg_text)
 
     def _on_export(self):
-        if not self.last_result:
-            return
-        path, _ = QFileDialog.getSaveFileName(
-            self, tr("png2svg.export_svg"), "", "SVG (*.svg)"
-        )
-        if not path:
-            return
-        if not path.lower().endswith(".svg"):
-            path += ".svg"
-        save_svg(self.last_result, path)
-        QMessageBox.information(self, tr("png2svg.export_svg"), tr("png2svg.export_success"))
+        if self.last_result:
+            self.exportRequested.emit(self.last_result.svg_text)
 
     def _on_send_to_vector(self):
         if not self.last_result:

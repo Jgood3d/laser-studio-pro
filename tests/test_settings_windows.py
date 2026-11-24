@@ -265,7 +265,7 @@ class MenuStructureTests(unittest.TestCase):
                      "self.open_fullscreen(", "self._restore_close_button(tab)"):
             self.assertIn(call, body)
         self.assertIn("actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)",
-                      read(os.path.join("ui", "app", "window_controller.py")))
+                      read(os.path.join("controllers", "window.py")))
         self.assertNotIn("fullscreen_requested.connect", src)          # plus de bouton par onglet
 
     def test_preview_options_are_in_the_2d_floating_toolbar(self):
@@ -365,19 +365,21 @@ class MenuStructureTests(unittest.TestCase):
 
 
 class ShowWindowTests(unittest.TestCase):
-    """WindowController : fenêtres de réglages, onglets demandés par le menu."""
+    """WindowController : fenêtres de réglages (ouvertes par WindowForms), onglets demandés par le menu."""
 
     def setUp(self):
         try:
-            self.mod = importlib.import_module("laser_studio.ui.app.window_controller")
+            self.mod = importlib.import_module("laser_studio.controllers.window")
+            self.forms_mod = importlib.import_module("laser_studio.ui.app.window_forms")
         except ImportError:
-            self.skipTest("window_controller non importable ici")
+            self.skipTest("controllers.window non importable ici")
 
     def make(self, with_pages=True):
         # Sans __init__ : la fenêtre est un simple espace de noms, pas un QObject.
         controller = self.mod.WindowController.__new__(self.mod.WindowController)
         controller.window = types.SimpleNamespace(tabs=mock.Mock())
-        controller._settings_windows, controller._settings_pages, controller._main_tabs = {}, {}, {}
+        controller.forms = self.forms_mod.WindowForms(None)
+        controller._settings_pages, controller._main_tabs = {}, {}
         if with_pages:
             controller.window.tab_machine_params = object()
             controller.window.tab_grbl_config = object()
@@ -399,7 +401,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_window_is_created_once_and_reused(self):
         self.Recorder.created = []
         obj = self.make()
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
             obj.show_settings_window("machine_params")
             obj.show_settings_window("machine_params")
             obj.show_settings_window("grbl")
@@ -417,7 +419,7 @@ class ShowWindowTests(unittest.TestCase):
         obj.window.tab_machine_params, obj.window.tab_matrix = object(), object()
         obj.add_settings_page("machine_params", obj.window.tab_machine_params, "tab.machine_params")
         obj.add_settings_page("test_matrix", obj.window.tab_matrix, "tab.test_matrix")
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
             for kind in ("machine_params", "grbl", "test_matrix"):
                 obj.show_settings_window(kind)
         pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
@@ -428,7 +430,7 @@ class ShowWindowTests(unittest.TestCase):
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []
         obj = self.make(with_pages=False)
-        with mock.patch.object(self.mod, "SettingsWindow", self.Recorder):
+        with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
             obj.show_settings_window("grbl")
         self.assertEqual(self.Recorder.created, [])
 
@@ -469,8 +471,11 @@ class ShowWindowTests(unittest.TestCase):
         self.assertIn("settings.algorithm_combo.textActivated.connect(image.remember_algorithm)",
                       read(os.path.join("ui", "tabs", "image", "builder.py")))
         self.assertIn("self.image.restore_remembered_algorithm()", src)
-        self.assertIn("dialog.algorithm_chosen.connect(image.choose_algorithm)",
-                      read(os.path.join("ui", "app", "window_controller.py")))
+        # L'algorithme cliqué dans la comparaison est choisi (WindowForms branche le clic sur on_choose).
+        self.assertIn("self.forms.dither_comparison(thumbnails, image.choose_algorithm)",
+                      read(os.path.join("controllers", "window.py")))
+        self.assertIn("dialog.algorithm_chosen.connect(on_choose)",
+                      read(os.path.join("ui", "app", "window_forms.py")))
 
 
 class ImageToolbarActionsTests(unittest.TestCase):

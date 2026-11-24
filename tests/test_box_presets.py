@@ -1,8 +1,11 @@
 import os
+import sys
 import tempfile
 import unittest
 
-from laser_studio.vector import box_presets as bp
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+from laser_studio.vector import box_presets as bp  # noqa: E402
 
 
 class PresetFileTests(unittest.TestCase):
