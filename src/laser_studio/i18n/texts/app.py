@@ -638,4 +638,10 @@ TEXTS = {
                        "es": "Acercar (Ctrl++)"},
     "ui.zoom_out_tip": {"fr": "Zoom arrière (Ctrl+-)", "en": "Zoom out (Ctrl+-)", "de": "Verkleinern (Strg+-)",
                         "es": "Alejar (Ctrl+-)"},
+    # --- Durées (i18n/durations.py) ---
+    "time.seconds": {"fr": "{s} s", "en": "{s} s", "de": "{s} s", "es": "{s} s"},
+    "time.minutes": {"fr": "{m} min {s:02d} s", "en": "{m} min {s:02d} s", "de": "{m} min {s:02d} s",
+                     "es": "{m} min {s:02d} s"},
+    "time.hours": {"fr": "{h} h {m:02d} min", "en": "{h} h {m:02d} min", "de": "{h} Std. {m:02d} min",
+                   "es": "{h} h {m:02d} min"},
 }

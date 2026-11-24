@@ -3,7 +3,7 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import overscan_distance, scan_offset_mm
+from laser_studio.gcode.common import overscan_distance, power_value, scan_offset_mm
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
 # proportionnelle à son gris (params['algo']).
@@ -139,7 +139,7 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             val = arr[y, x_pixel]
 
             p_percent = pixel_power_percent(val)
-            p_val = int(round((p_percent / 100.0) * s_max))
+            p_val = power_value(p_percent, s_max)
 
             if p_val != last_p_val:
                 # Frontière entre le pixel précédent et celui-ci, dans

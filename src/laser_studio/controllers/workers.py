@@ -420,7 +420,7 @@ class StatusPollThread(QThread):
 
 class AdvancedGCodeWorker(QThread):
     """Thread de génération G-Code optimisé (RLE & Surbalayage)"""
-    finished = pyqtSignal(str, int, float, str)
+    finished = pyqtSignal(str, int, float, float)    # G-Code, lignes, puissance moyenne, durée (s)
     progress = pyqtSignal(int)  # 0-100 : avancement de la génération
     error = pyqtSignal(str)     # émis si la génération échoue (au lieu de mourir silencieusement)
 
@@ -464,7 +464,7 @@ class CommandThread(QThread):
 
 class TestMatrixWorker(QThread):
     """Thread de génération de matrice de test Vitesse vs Puissance (Gravure) ou Vitesse vs Passes (Découpe)"""
-    finished = pyqtSignal(str, int, float, str)
+    finished = pyqtSignal(str, int, float, float)    # G-Code, lignes, puissance moyenne, durée (s)
 
     def __init__(self, params):
         super().__init__()

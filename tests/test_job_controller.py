@@ -190,7 +190,7 @@ class TestPatternTests(unittest.TestCase):
         worker.start.assert_called_once()
         got = []
         job.generated.connect(lambda *a: got.append(a))
-        job._on_gain_test_ready("G1 X1\n", 1, 50.0, "1 min")
+        job._on_gain_test_ready("G1 X1\n", 1, 50.0, 60.0)
         self.assertTrue(got[0][0].startswith("; --- TEST DU GAIN DE POINT ---\n"))
         self.assertTrue(got[0][0].endswith("G1 X1\n"))
         self.assertEqual(got[0][1], 5)                                      # 4 lignes d'en-tête + 1

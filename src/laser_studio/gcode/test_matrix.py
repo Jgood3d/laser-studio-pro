@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from laser_studio.gcode.common import GcodeResult, matrix_duration_text, overscan_distance, scan_offset_mm
+from laser_studio.gcode.common import GcodeResult, overscan_distance, power_value, scan_offset_mm, with_time_margin
 from laser_studio.image.matrix import tile_raster_gcode
 from laser_studio.vector.font import VectorFont
 
@@ -77,7 +77,7 @@ def build_test_matrix_gcode(params):
     start_x = mat_off_x + offset_labels_x
     start_y = mat_off_y + offset_labels_y
 
-    text_p_val = int((40.0 / 100.0) * s_max)
+    text_p_val = power_value(40.0, s_max)
 
     if mode == MATRIX_ENGRAVE:
         min_p, max_p, steps_p = params['min_power'], params['max_power'], params['steps_power']
@@ -127,7 +127,7 @@ def build_test_matrix_gcode(params):
                 x0 = start_x + j * (cell_w + gap)
                 y0 = start_y + i * (cell_h + gap)
 
-                p_val = int((p / 100.0) * s_max)
+                p_val = power_value(p, s_max)
                 power_samples.append(p)
 
                 gcode.append(f"\n; --- Carré Speed={int(s)} mm/min | Power={p:.1f}% (Gravure) ---")
@@ -193,7 +193,7 @@ def build_test_matrix_gcode(params):
         num_cols = len(passes_arr)
         num_rows = len(speeds)
 
-        p_val = int((single_p / 100.0) * s_max)
+        p_val = power_value(single_p, s_max)
         power_samples.append(single_p)
 
         for j, pass_val in enumerate(passes_arr):
@@ -252,7 +252,7 @@ def build_test_matrix_gcode(params):
     gcode.append("\nM5\nG0 X0 Y0\n; FIN MATRICE DE TEST")
 
     avg_p = float(np.mean(power_samples)) if power_samples else 0.0
-    return GcodeResult("\n".join(gcode), len(gcode), avg_p, matrix_duration_text(total_time_sec))
+    return GcodeResult("\n".join(gcode), len(gcode), avg_p, with_time_margin(total_time_sec))
 
 
 def matrix_cell_at(params, x_mm, y_mm):
