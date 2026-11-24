@@ -4,8 +4,9 @@ import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode.common import (
-    GcodeResult, overscan_distance, scan_offset_mm, start_lines, with_time_margin,
+    GcodeResult, overscan_distance, scan_offset_mm, start_lines,
 )
+from laser_studio.gcode.timing import job_duration
 from laser_studio.gcode.raster import image_origin, raster_image_gcode
 from laser_studio.gcode.svg_cut import svg_cut_gcode
 from laser_studio.gcode.vector import build_vector_layers_gcode
@@ -99,5 +100,7 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
         gcode.append("M5\nG0 X0 Y0\n; FIN DU TRAVAIL")
 
     avg_power = float(np.mean(total_power_samples)) if total_power_samples else 0.0
+    text = "\n".join(gcode)
+    seconds = job_duration(text, params, total_time_seconds)
     report(100)
-    return GcodeResult("\n".join(gcode), len(gcode), avg_power, with_time_margin(total_time_seconds))
+    return GcodeResult(text, len(gcode), avg_power, seconds)

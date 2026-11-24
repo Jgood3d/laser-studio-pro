@@ -74,6 +74,7 @@ class AppActions(QObject):
     library_requested = pyqtSignal()
     camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
     macros_requested = pyqtSignal()  # éditeur des macros de l'utilisateur
+    history_requested = pyqtSignal()  # historique des gravures
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
 
@@ -344,6 +345,11 @@ class AppActions(QObject):
             tr("menu.tools.camera"),
             self.camera_requested,
         )
+        self.history = self._action(
+            bundled_icon("chronometer", QStyle.StandardPixmap.SP_FileDialogInfoView),
+            tr("menu.tools.history"),
+            self.history_requested,
+        )
         self.macros = self._action(
             bundled_icon("document-properties", QStyle.StandardPixmap.SP_FileDialogDetailedView),
             tr("menu.tools.macros"),
@@ -362,6 +368,7 @@ class AppActions(QObject):
             *self.tool_actions,
             self.camera,
             self.macros,
+            self.history,
         )
 
     def _create_help_actions(self, parent):

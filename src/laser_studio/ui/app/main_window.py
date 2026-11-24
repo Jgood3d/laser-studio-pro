@@ -32,6 +32,8 @@ from laser_studio.ui.app.window_state import WindowState
 from laser_studio.ui.binding import bind
 from laser_studio.ui.machine.builder import build_machine_panel
 from laser_studio.ui.machine.macros_builder import build_macros
+from laser_studio.controllers.job_history import JobHistoryRecorder
+from laser_studio.models.job_history import JobHistory
 from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
 from laser_studio.ui.settings.machine_params.builder import build_machine_params_page
@@ -225,6 +227,14 @@ class FullLaserStudio(QMainWindow):
         self.tab_vector_2d.splitter.splitterMoved.connect(self.tabs.save_splitter_sizes)
 
         main_layout.addWidget(center_widget)
+        # Historique des gravures : chaque job envoyé (direct ou file d'attente) y est noté à sa fin.
+        self.job_history = JobHistory(parent=self)
+        self.job_history_recorder = JobHistoryRecorder(self.job_history, self.connection, context=lambda: {
+            "profile": self.machines.current_name(), "max_speed": self.machine.max_speed,
+            "accel": self.machine.accel, "s_max": self.grbl.smax, "laser_cmd": self.grbl.laser_cmd})
+        self.engraver.stream_starting.connect(self.job_history_recorder.job_started)
+        self.engraver.stream_ended.connect(self.job_history_recorder.job_ended)
+        self.job.generated.connect(self.job_history_recorder.remember_estimate)
         # Macros de l'utilisateur : boutons du panneau des actions de job, filtrés par profil machine.
         self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver, self.connection,
                                    self.machines, self.dialogs, parent=self)
@@ -269,14 +279,15 @@ class FullLaserStudio(QMainWindow):
         """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
         barre d'outils (état actif / coché partagé, voir ImageToolbarActions.update_state).
 
-        « Graver une image » : loupes, annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
+        « Graver une image » : loupes, recadrer, annuler / refaire, pivoter, miroirs, réinitialiser, supprimer.
         Séparation : pivoter, miroirs, réinitialiser (réglages image et miroirs qu'elle reprend),
         supprimer. PNG ⇒ SVG : pivoter, supprimer (miroirs et réglages image n'y servent pas)."""
         a = self.app_actions
         rotate = [a.image_rotate_left, a.image_rotate_right]
         mirrors = [a.mirror_h, a.mirror_v]
         self.image_floating_toolbar = FloatingToolBar(
-            [self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action, None, a.image_undo, a.image_redo,
+            [self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action, None,
+             self.tab_previews.crop_action, None, a.image_undo, a.image_redo,
              None, *rotate, None, *mirrors, None, a.image_reset, a.image_delete],
             self.tab_previews.preview_area)
         self.separation_floating_toolbar = FloatingToolBar(

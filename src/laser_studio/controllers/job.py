@@ -22,6 +22,8 @@ from svg.path import parse_path
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
+from laser_studio.gcode.timing import MachineLimits, straight_lines_seconds
+from laser_studio.grbl.commands import parse_grbl_settings
 from laser_studio.gcode.test_matrix import matrix_cell_at
 from laser_studio.i18n import tr
 from laser_studio.i18n.durations import duration_text
@@ -206,6 +208,13 @@ class JobController(QObject):
         x, y = image_origin(params)
         return float(x), float(y), float(params['width_mm']), float(params['height_mm'])
 
+    def machine_limits(self):
+        """Limites de la machine pour estimer les durées (gcode.timing.MachineLimits, en dictionnaire) :
+        réglages lus avec « Lire la config » ($110/$111, $120/$121, $11), sinon vitesse maximale et
+        accélération de « Paramètres du graveur »."""
+        settings = parse_grbl_settings(self.grbl.grbl_settings)
+        return MachineLimits.from_grbl_settings(settings, self.machine.max_speed, self.machine.accel).to_dict()
+
     def overscan_mode_value(self):
         """Mode de surbalayage sous une forme indépendante de la langue : les
         libellés du menu sont traduits, le générateur compare à
@@ -244,6 +253,8 @@ class JobController(QObject):
             'end_gcode': self.grbl.end_gcode,
             # Graver avant de découper ; intérieurs avant extérieurs (voir vector/order.py).
             'safe_cut_order': self.grbl.safe_cut_order,
+            # Durée estimée comme GRBL planifie ses déplacements (gcode.timing).
+            'machine_limits': self.machine_limits(),
         })
         params.update(self._overscan_values())
         return params
@@ -385,7 +396,7 @@ class JobController(QObject):
         """Estimation RAPIDE du temps de gravure/découpe, sans générer le
         G-Code complet : utile pour ajuster vitesse/résolution avant de
         lancer un calcul complet (qui peut prendre du temps sur une grande
-        image). Approximatif par nature (ignore accélérations/G0)."""
+        image). Approximatif : compte l'accélération à chaque ligne de l'image, pas les G0 ni les virages."""
         total_seconds = 0.0
         details = []
 
@@ -409,8 +420,9 @@ class JobController(QObject):
             first = burned.argmax(axis=1)
             last = burned.shape[1] - 1 - burned[:, ::-1].argmax(axis=1)
             step_x = w_mm / max(burned.shape[1], 1)
-            distance = float(((last + 1 - first) * step_x + 2 * overscan)[swept].sum())
-            t = (distance / max(speed, 1)) * 60.0
+            # Chaque ligne part et s'arrête (demi-tour) : accélération et freinage comptés.
+            lengths = ((last + 1 - first) * step_x + 2 * overscan)[swept]
+            t = straight_lines_seconds(lengths, speed, self.machine_limits()["accel_x"])
             total_seconds += t
             details.append(tr("gcode.image_details").format(duration=estimate_duration_text(t)))
 
@@ -526,6 +538,7 @@ class JobController(QObject):
             'end_gcode': self.grbl.end_gcode,
             'overscan_dist': overscan,
             'line_pitch_mm': 1.0 / max(self._lines_mm(), 0.1),
+            'machine_limits': self.machine_limits(),
         }
         result = bidir_test_gcode(params)
         # La matrice de test mémorisée ne correspond plus au G-Code affiché.
@@ -576,7 +589,8 @@ class JobController(QObject):
         Renvoie True si la génération a démarré."""
         params = dict(page_params)
         # Mode indépendant de la langue : le générateur et apply_matrix_cell comparent un code.
-        params.update({'mode': MATRIX_ENGRAVE if engraving else MATRIX_CUT, 's_max': self.grbl.smax})
+        params.update({'mode': MATRIX_ENGRAVE if engraving else MATRIX_CUT, 's_max': self.grbl.smax,
+                       'machine_limits': self.machine_limits()})
         params.update(self._overscan_values())
         # Test à partir d'une image : chaque case grave la zone choisie au lieu d'un carré plein.
         if engraving and image_test:

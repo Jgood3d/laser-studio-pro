@@ -46,6 +46,7 @@ class WindowController(QObject):
         self._settings_pages = {}
         self._main_tabs = {}
         self.camera = None
+        self._history_dialog = None           # fenêtre « Historique des gravures » ouverte
         self.stencil_studio = None
 
     # -- menu et barre d'outils
@@ -79,6 +80,7 @@ class WindowController(QObject):
             lambda: self.run_in_vector_editor(generators.open_keychain_generator))
         actions.camera_requested.connect(self.open_camera_dialog)
         actions.macros_requested.connect(w.macros.manage)
+        actions.history_requested.connect(self.show_job_history)
         # Affichage
         actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)
         actions.gcode_console_toggled.connect(
@@ -177,6 +179,21 @@ class WindowController(QObject):
             self.camera.overlay_cleared.connect(canvas.clear_camera_background)
             self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
         return self.camera
+
+    def show_job_history(self):
+        """Fenêtre « Historique des gravures » (non modale, une seule à la fois)."""
+        from laser_studio.ui.dialogs.job_history import JobHistoryDialog   # chargée à la première ouverture
+
+        dialog = self._history_dialog
+        try:
+            if dialog is not None and dialog.isVisible():
+                dialog.raise_()
+                dialog.activateWindow()
+                return
+        except RuntimeError:          # fenêtre déjà détruite (fermée)
+            pass
+        self._history_dialog = JobHistoryDialog(self.window.job_history, self.window)
+        self._history_dialog.show()
 
     def open_camera_dialog(self):
         """Ouvre le dialogue Caméra (choix appareil, état, actions)."""

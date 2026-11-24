@@ -134,6 +134,20 @@ Deux assistants guident les réglages : la calibration de l'objectif (avec
 un damier imprimé), puis l'alignement sur le plateau (avec des repères
 gravés).
 
+### Historique des gravures
+
+**Outils › Historique des gravures…** liste chaque job envoyé au graveur,
+du plus récent au plus ancien : date, issue (terminée, arrêtée, erreur
+GRBL), **durée réelle**, **durée estimée** et l'**écart** entre les deux,
+distance gravée, nombre de lignes et machine. Le bas de la fenêtre donne le
+total du temps de gravure.
+
+**Exporter (CSV)…** ouvre l'historique dans un tableur, avec en plus la
+vitesse et la puissance maximales, l'encombrement et les réglages de la
+machine. L'historique reste sur l'ordinateur (fichier
+`historique-gravures.jsonl` dans le dossier des données) ; **Vider
+l'historique** l'efface.
+
 ### Les macros
 
 Une macro envoie quelques lignes de G-code d'un clic : décaler la tête de

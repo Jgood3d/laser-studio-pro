@@ -132,7 +132,8 @@ class AppMenusTests(unittest.TestCase):
                                     tr("menu.language"), tr("menu.theme")])
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
                          [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
-                          tr("png2svg.tab_title"), tr("menu.tools.camera"), tr("menu.tools.macros"), tr("menu.tools.library"),
+                          tr("png2svg.tab_title"), tr("menu.tools.camera"), tr("menu.tools.macros"), tr("menu.tools.history"),
+                          tr("menu.tools.library"),
                           tr("menu.tools.import_vector"), tr("menu.tools.box"),
                           tr("menu.tools.puzzle"), tr("menu.tools.ornament"), tr("menu.tools.keychain")])
 

@@ -5,7 +5,8 @@ import math
 
 import numpy as np
 
-from laser_studio.gcode.common import GcodeResult, overscan_distance, power_value, scan_offset_mm, with_time_margin
+from laser_studio.gcode.common import GcodeResult, overscan_distance, power_value, scan_offset_mm
+from laser_studio.gcode.timing import job_duration
 from laser_studio.image.matrix import tile_raster_gcode
 from laser_studio.vector.font import VectorFont
 
@@ -252,7 +253,8 @@ def build_test_matrix_gcode(params):
     gcode.append("\nM5\nG0 X0 Y0\n; FIN MATRICE DE TEST")
 
     avg_p = float(np.mean(power_samples)) if power_samples else 0.0
-    return GcodeResult("\n".join(gcode), len(gcode), avg_p, with_time_margin(total_time_sec))
+    text = "\n".join(gcode)
+    return GcodeResult(text, len(gcode), avg_p, job_duration(text, params, total_time_sec))
 
 
 def matrix_cell_at(params, x_mm, y_mm):
