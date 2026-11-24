@@ -172,6 +172,23 @@ class MachineProfilesController:
         self.profiles.append(profile)
         self.refresh_combo(select_name=profile["name"])
 
+    def new_profile_from_catalog(self, model):
+        """Nouveau profil d'après un modèle du catalogue (library.machine_catalog.MachineModel) : les
+        réglages affichés, remplacés par ce que le constructeur publie (surface, point, vitesse maximale).
+        Nommé d'après le modèle (« (2) », « (3) »… s'il existe déjà), sélectionné et appliqué."""
+        names = set(self.names())
+        name, number = model.title, 2
+        while name in names:
+            name, number = f"{model.title} ({number})", number + 1
+        profile = {"name": name}
+        profile.update(self._fields.capture())
+        profile.update(model.profile_values())
+        self.profiles.append(profile)
+        self.refresh_combo(select_name=name)
+        self.apply(profile)
+        self._fields.profile_selected()
+        return profile
+
     def update_profile(self):
         """Enregistre les réglages affichés dans le profil sélectionné."""
         index = self._current_index()

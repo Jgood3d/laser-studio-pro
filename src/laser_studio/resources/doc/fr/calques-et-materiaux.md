@@ -82,6 +82,16 @@ Les matériaux sont propres à chaque **profil de machine** (menu
 *Paramètres › Paramètres du graveur*) : deux graveurs de puissances
 différentes gardent chacun leurs réglages.
 
+Pour créer le profil d'un graveur du commerce (Elegoo Phecda, Ortur Laser
+Master 3, Sculpfun, Creality Falcon, Longer Ray5, xTool D1 Pro…), cliquez
+sur **Depuis le catalogue…** : choisissez la marque et le modèle, puis
+**Créer le profil**. La surface de travail, la taille du point et la
+vitesse maximale publiées par le constructeur sont reprises, avec les liens
+vers ses documents. L'accélération n'est pas publiée : une fois connecté,
+**Lire la config** (*Paramètres › Configuration GRBL*) lit les réglages
+réels de la machine, dont se sert la durée estimée des gravures. Le
+catalogue n'envoie rien au graveur.
+
 ## Trouver les bons réglages
 
 **Outils › Matrice de Test** grave une grille de carrés, chacun avec une

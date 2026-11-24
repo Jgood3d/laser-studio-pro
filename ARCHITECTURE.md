@@ -112,6 +112,7 @@ laser-studio-pro/
 │   │   ├── camera/                   # module caméra sans Qt : capture, lens_calibration (objectif), workspace_alignment (homographie du plateau), storage
 │   │   ├── controllers/              # contrôleurs : job, png2svg, matrix_image, job_queue, project, materials, layer_memory, machine_profiles, machine_connection, separation, camera, startup_safety, vector_editor, generators, layout, macros (remplacent des mixins) ; workers.py : threads (QThread) du traitement d'image, de l'envoi du G-Code, du sondage d'état, de la génération
 │   │   ├── resources/                # images : icône (.ico, 512 px), bannière, « Buy me a coffee »
+│   │   │   ├── machines/             # catalogue des machines : un YAML par marque (README.md : format, sources)
 │   │   │   └── icons/                # thèmes d’icônes FreeDesktop embarqués
 │   │   │       ├── breeze/           # pack par défaut (LGPL-3) : 16x16, 22x22, 32x32
 │   │   │       └── jarvis/           # pack cyan « HUD », activé avec le thème jarvis
@@ -154,6 +155,7 @@ laser-studio-pro/
 │   │       │   └── tools/            # outils de la souris du canevas : snapping (accroche), drawing (ligne, rectangle, cercle, ellipse), measure, node_edit (nœuds), moving (déplacement, panoramique), follow_handle (poignée du texte sur contour)
 │   │       └── dialogs/              # fenêtres des outils
 │   │           ├── library/          # LibraryDialog (grille, catégories, recherche), LibraryItemDialog (fiche, variantes)
+│   │           ├── machine_catalog/  # MachineCatalogDialog (marques et modèles, recherche, fiche avec sources)
 │   │           ├── box_generator/    # BoxGeneratorDialog + preview.py (BoxPreview) + preview_3d.py (Box3DView)
 │   │           ├── ornament/         # OrnamentGeneratorDialog
 │   │           ├── puzzle/           # PuzzleGeneratorDialog
@@ -290,6 +292,7 @@ laser-studio-pro/
 | **vector/svg_extract.py** / **vector/layer_data.py** | Import SVG classique (`extract_svg_objects`) ; objets → polygones en mm par calque pour `gcode/vector` (`extract_vector_layer_data`) | Import, `controllers/png2svg`, `controllers/job` |
 | **vector/importers.py** / **vector/dxf.py** | Import SVG/DXF (groupé par défaut) | `controllers/vector_editor` |
 | **vector/svg_import.py** | Import SVG selon la convention des modèles (`resources/library/README.md`) : seuls les calques `Cut`, `Engrave` (noir gravé, blanc creusé) et `Mark` sont importés ; options = sous-calques d'un groupe, un seul visible (`find_variant_groups`) ; textes en objets texte modifiables (`TextObject`, calés sur le rendu SVG) et remplaçables (`find_texts`) ; aperçu tel qu'importé (`svg_preview`) ; unités et transformations cumulées. Utilisé par la bibliothèque ; à valider pour remplacer `extract_svg_objects` | `controllers/library`, `ui/dialogs/library` |
+| **library/machine_catalog.py** | Catalogue des machines, sans Qt : `MachineModel` (surface, point, vitesses par axe, laser, sources, date de vérification ; `profile_values()` donne les clés w, h, focal, max_speed d'un profil machine, la focale étant la moyenne des deux dimensions du point et la vitesse celle de l'axe le plus lent), `load_machine_catalog` (fichiers de `resources/machines/` puis du dossier `machines/` des données, prioritaire). Fenêtre `ui/dialogs/machine_catalog/` ouverte par « Depuis le catalogue… » (`open_machine_catalog`, `ui/settings/machine_params/builder.py`) ; profil créé par `MachineProfilesController.new_profile_from_catalog` | `ui/settings/machine_params/builder` |
 | **library/catalog.py** | Catalogue de la bibliothèque, sans Qt : catégories et modèles des dossiers `resources/library/` (à côté de l'exécutable et dans le bundle), `_category.json`, `info.json`, aperçu, readme | `controllers/library` |
 | **controllers/library.py** | `LibraryController` : ouvre la bibliothèque par `EditorForms.library` (taille des aperçus mémorisée), importe le modèle choisi avec ses variantes, chaque rôle sur le calque de base de même rôle, par `VectorEditorController.import_objects`. Plus aucun contrôleur ne construit de fenêtre (garde-fou : `tests/test_generators_controller.py`) | `main_window`, `window_controller` |
 | **vector/order.py** / **vector/nudge.py** / **vector/font.py** | Ordre de coupe, nudge clavier, polices | Éditeur |

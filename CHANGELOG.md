@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Paramètres du graveur : bouton « Depuis le catalogue… », qui crée le profil d'un graveur GRBL du commerce (Elegoo Phecda, Ortur Laser Master 3, Sculpfun S9 et S30 Pro Max, Creality Falcon, Longer Ray5, xTool D1 Pro, Atomstack A5 Pro). Surface de travail, taille du point et vitesse maximale publiées par le constructeur, avec les liens vers ses documents ; une valeur qu'il ne publie pas n'est pas inventée. Rien n'est envoyé au graveur. On peut ajouter ses propres modèles dans le dossier `machines/` des données (format : `resources/machines/README.md`).
+
 Historique des gravures (**Outils › Historique des gravures…**) : chaque job envoyé au graveur, direct ou depuis la file d'attente, y est noté à sa fin, avec la date, l'issue (terminée, arrêtée, erreur GRBL), la durée réelle et la durée estimée avec leur écart, la distance gravée, le nombre de lignes et la machine. Export CSV pour un tableur. Gardé sur l'ordinateur, dans `historique-gravures.jsonl`.
 
 Graver une image : bouton « Recadrer » dans la barre flottante des aperçus. On trace le cadre à garder sur l'image entière (déplacer, redimensionner par les coins et les bords, proportions gardées au choix, « Toute l'image » pour revenir en arrière) ; la taille gravée suit le cadre, à la même échelle.
