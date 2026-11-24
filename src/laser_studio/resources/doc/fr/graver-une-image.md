@@ -77,6 +77,10 @@ Chaque réglage s'annule avec **Ctrl+Z** et se refait avec **Ctrl+Y**.
 **Réinitialiser Réglages Image** remet tout à zéro. Le bouton **Afficher
 l'originale** (deux cadres côte à côte, dans la barre à gauche de l'aperçu)
 montre l'image de départ à côté du rendu ; un second clic la masque.
+Cochez **Aperçu avec les réglages**, au-dessus de l'originale, pour lui
+appliquer en direct la luminosité, le contraste, le gamma et la netteté :
+vous voyez l'effet de vos réglages avant le tramage. C'est un aperçu, la
+gravure n'en dépend pas, et le tramage et le négatif n'y sont pas montrés.
 
 Dans la barre en haut de l'aperçu, comme dans les autres vues, annuler /
 refaire puis les loupes sont toujours au bout, à droite.

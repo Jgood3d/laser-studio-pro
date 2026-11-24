@@ -227,6 +227,18 @@ TEXTS = {
         "fr": "Afficher l'originale", "en": "Show Original",
         "de": "Original anzeigen", "es": "Mostrar el original",
     },
+    "img.preview_tones": {
+        "fr": "Aperçu avec les réglages",
+        "en": "Preview with adjustments",
+        "de": "Vorschau mit Einstellungen",
+        "es": "Vista previa con ajustes",
+    },
+    "img.preview_tones_tip": {
+        "fr": "Applique à l'image originale la luminosité, le contraste, le gamma et la netteté, pour voir l'effet des réglages avant le tramage. N'affecte pas la gravure.",
+        "en": "Applies brightness, contrast, gamma and sharpness to the original image to see the effect of the settings before dithering. Does not affect the engraving.",
+        "de": "Wendet Helligkeit, Kontrast, Gamma und Schärfe auf das Originalbild an, um die Wirkung der Einstellungen vor der Rasterung zu sehen. Hat keinen Einfluss auf die Gravur.",
+        "es": "Aplica brillo, contraste, gamma y nitidez a la imagen original para ver el efecto de los ajustes antes del tramado. No afecta al grabado.",
+    },
     "img.show_original_tip": {
         "fr": "Afficher l'image originale à côté du rendu tramé.",
         "en": "Show the original image next to the dithered result.",
