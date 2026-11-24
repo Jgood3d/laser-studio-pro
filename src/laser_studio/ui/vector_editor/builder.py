@@ -7,6 +7,8 @@ propriétés, reliés. Les contrôleurs ouvrent leurs fenêtres par un seul Edit
 """
 from dataclasses import dataclass
 
+from PyQt6.QtCore import QTimer
+
 from laser_studio.controllers.generators import GeneratorsController
 from laser_studio.controllers.layout import LayoutController
 from laser_studio.controllers.library import LibraryController
@@ -28,6 +30,36 @@ class VectorEditor:
     layout: LayoutController
     library: LibraryController
     properties: VectorPropertiesPanel
+
+
+def _connect_objects_panel(panel, document, canvas, layers, controller):
+    """Liste des objets à droite du canevas : suit le document et la sélection du canevas ; ses boutons
+    passent par le contrôleur de l'éditeur. La liste est remplie une fois par tour de boucle d'événements
+    (un groupement retire et ajoute plusieurs objets d'un coup)."""
+    timer = QTimer(panel)
+    timer.setSingleShot(True)
+    timer.setInterval(0)
+
+    def refresh():
+        panel.show_objects(document.objects, layers.get)
+        panel.show_selection([item.obj for item in canvas.selected_items_vector()])
+
+    timer.timeout.connect(refresh)
+
+    def schedule(*_args):
+        timer.start()
+
+    for signal in (document.object_added, document.object_removed, document.objects_changed,
+                   document.objects_reset, document.order_changed, layers.changed):
+        signal.connect(schedule)
+    canvas.selection_changed.connect(
+        lambda _obj: panel.show_selection([item.obj for item in canvas.selected_items_vector()]))
+    panel.selection_requested.connect(canvas.select_objects)
+    panel.move_requested.connect(controller.move_objects)
+    panel.group_requested.connect(controller.group_selection)
+    panel.ungroup_requested.connect(controller.ungroup_selection)
+    panel.rename_requested.connect(controller.rename_object)
+    refresh()
 
 
 def build_vector_editor(document, layers, machine, dialogs, parent, *, image_frame, status, show_tab,
@@ -54,6 +86,7 @@ def build_vector_editor(document, layers, machine, dialogs, parent, *, image_fra
     controller.status.connect(status)
     # Panneau des propriétés : rempli d'après la sélection, saisies transmises au contrôleur.
     properties = VectorPropertiesPanel(tab.properties_widgets, layers, canvas, controller, parent=parent)
+    _connect_objects_panel(tab.objects_panel, document, canvas, layers, controller)
     canvas.edit_requested.connect(controller.edit_object)
     canvas.insert_text_requested.connect(controller.insert_text)
     canvas.serial_duplicate_requested.connect(layout.open_serial_duplicate)

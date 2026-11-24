@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import QCheckBox, QComboBox, QDoubleSpinBox, QLabel, QWidge
 
 from laser_studio.i18n import tr
 from laser_studio.models.layers import layer_label
-from laser_studio.models.vector_objects import SvgPathObject, TextObject
+from laser_studio.models.vector_objects import GroupObject, SvgPathObject, TextObject
 from laser_studio.vector import arrange
 
 
@@ -90,6 +90,9 @@ class VectorPropertiesPanel(QObject):
                     f"police {obj.font_family}, {obj.size_mm:.1f} mm — "
                     f"Calque : {layer_name}"
                 )
+            elif isinstance(obj, GroupObject):
+                desc = tr("objects.group_desc").format(
+                    operation=tr(f"objects.op.{obj.operation}"), n=len(obj.children), layer=layer_name)
             elif isinstance(obj, SvgPathObject):
                 desc = f"Élément SVG importé ({obj.source_tag}) — Calque : {layer_name}"
             else:

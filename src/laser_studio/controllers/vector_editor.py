@@ -18,7 +18,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.controllers.stencil_import import import_summary, remove_temporary_export, route_objects
-from laser_studio.models.vector_objects import SvgPathObject, TextObject
+from laser_studio.models.vector_objects import GroupObject, SvgPathObject, TextObject
 from laser_studio.vector import arrange, placement
 from laser_studio.vector import dxf as dxf_import
 from laser_studio.vector.importers import dxf_to_objects
@@ -215,6 +215,9 @@ class VectorEditorController(QObject):
                 item.refresh()
                 self.properties_changed.emit(obj)
             canvas.follow_handle.sync()
+        elif isinstance(obj, GroupObject):
+            # Un groupe n'a pas de boîte : ses objets se modifient une fois dégroupés.
+            self.status.emit(tr("objects.group_edit_hint"))
         elif isinstance(obj, SvgPathObject):
             if self.forms.svg_properties(self.layers, obj, tr("vector.svg_properties"),
                                          before_apply=canvas.push_undo_snapshot):
@@ -254,6 +257,52 @@ class VectorEditorController(QObject):
                 for item in self.canvas.scene_obj.items():
                     if getattr(item, "obj", None) in created:
                         item.setSelected(True)
+
+    # -- liste des objets (ObjectsPanel)
+
+    def move_objects(self, entries, step):
+        """Monte (`step` > 0) ou descend des objets : [(groupe ou None, objet)]. Un objet du dessus de la
+        pile change de place dans le document ; un objet d'un groupe, dans son groupe (l'ordre compte pour
+        une différence). Annulable."""
+        top = [obj for parent, obj in entries if parent is None]
+        inside = [(parent, obj) for parent, obj in entries if parent is not None]
+        self.canvas.push_undo_snapshot()
+        changed = self.document.move(top, step) if top else False
+        groups = []
+        # Du plus haut au plus bas en montant (et l'inverse), pour qu'un objet ne bloque pas son voisin.
+        for parent, obj in sorted(inside, key=lambda e: e[0].children.index(e[1]), reverse=step > 0):
+            if parent.move_child(obj, step):
+                changed = True
+                if parent not in groups:
+                    groups.append(parent)
+        if groups:
+            self.document.notify_changed(groups)
+            self.properties_changed.emit(groups[0])
+        if not changed:
+            self.document.drop_last_snapshot()
+        return changed
+
+    def group_selection(self, operation):
+        """Groupe la sélection (simple groupe) ou la combine (union, différence…) ; un groupe seul change
+        d'opération. Renvoie le groupe, ou None."""
+        group = self.canvas.combine_selected(operation)
+        if group is not None:
+            self.properties_changed.emit(group)
+        return group
+
+    def ungroup_selection(self):
+        released = self.canvas.ungroup_selected()
+        self.properties_changed.emit(released[0].obj if released else None)
+        return released
+
+    def rename_object(self, obj, name):
+        """Nom donné dans la liste des objets (vide : nom par défaut). Annulable."""
+        name = name.strip()
+        if name == (getattr(obj, "name", "") or ""):
+            return
+        self.canvas.push_undo_snapshot()
+        obj.name = name
+        self.document.notify_changed([obj])
 
     # -- sélection
 

@@ -128,12 +128,6 @@ class PathOpsTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_group_keeps_the_first_layer(self):
-        group = path_ops.group_objects([rect(layer="A"), rect(60, layer="B")])
-        self.assertIsInstance(group, SvgPathObject)
-        self.assertEqual((group.layer_id, group.source_tag), ("A", "group"))
-        self.assertTrue(path_ops.can_ungroup(group))
-
     def test_ungroup(self):
         children = path_ops.ungroup_object(two_squares())
         self.assertEqual(len(children), 2)

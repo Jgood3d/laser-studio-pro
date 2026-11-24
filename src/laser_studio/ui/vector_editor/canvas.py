@@ -10,7 +10,8 @@ from laser_studio.vector import group_transform, text_follow
 from laser_studio.vector.nudge import NUDGE_UNDO_WINDOW_S, nudge_step
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_document import VectorDocument
-from laser_studio.models.vector_objects import ShapeObject, SvgPathObject, TextObject, VectorObject
+from laser_studio.models.vector_objects import GroupObject, ShapeObject, SvgPathObject, TextObject, VectorObject
+from laser_studio.vector import boolean_ops
 from laser_studio.vector import path_ops
 from laser_studio.ui.vector_editor.context_menu import build_context_menu
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
@@ -96,6 +97,7 @@ class VectorCanvasView(QGraphicsView):
         self.set_work_area(100.0, 100.0)
 
         self.scene_obj.selectionChanged.connect(self._on_selection_changed)
+        self.document.order_changed.connect(self._apply_order)
 
     # -- zone de travail ----------------------------------------------------
     def request_recenter(self, items=None):
@@ -456,7 +458,31 @@ class VectorCanvasView(QGraphicsView):
         item.double_click_callback = lambda o=obj: self.edit_requested.emit(o)
         self.scene_obj.addItem(item)
         self._items[id(obj)] = item
+        self._apply_order()
         return item
+
+    def _apply_order(self):
+        """Empilement des éléments dans l'ordre du document : le dernier objet est au-dessus."""
+        for index, obj in enumerate(self.document.objects):
+            item = self._items.get(id(obj))
+            if item is not None:
+                item.setZValue(index)
+
+    def select_objects(self, objects):
+        """Sélectionne exactement `objects` (choisis dans la liste des objets)."""
+        wanted = {id(o) for o in objects}
+        self.scene_obj.blockSignals(True)
+        try:
+            for item in self.selected_items_vector():
+                item.setSelected(False)
+            for obj in objects:
+                item = self._items.get(id(obj))
+                if item is not None:
+                    item.setSelected(True)
+        finally:
+            self.scene_obj.blockSignals(False)
+        self._on_selection_changed()
+        return [o for o in self.document.objects if id(o) in wanted]
 
     def _on_object_added(self, obj):
         self._create_item(obj)
@@ -505,56 +531,83 @@ class VectorCanvasView(QGraphicsView):
         objects = [item.obj for item in list(self.scene_obj.selectedItems()) if isinstance(item, VectorGraphicsItem)]
         return [self._items[id(clone)] for clone in self.document.duplicate(objects)]
 
-    def group_selected(self):
-        """Regroupe les objets sélectionnés (Ctrl+clic, rectangle ou Ctrl+A)
-        en UN SEUL objet tracé (SvgPathObject) : la géométrie de chaque
-        partie est reprise telle qu'elle est actuellement positionnée sur
-        le canevas (position, rotation, miroir, taille), puis fusionnée.
-        Le nouvel objet se déplace / se redimensionne / change de calque
-        comme un tout. Le calque retenu est celui de l'objet le plus ancien
-        de la sélection. Annulable avec Ctrl+Z. Renvoie le nouvel item, ou
-        None si moins de 2 objets sont sélectionnés."""
+    def group_selected(self, operation=boolean_ops.GROUP):
+        """Groupe les objets sélectionnés (au moins 2) en un GroupObject : chaque objet reste entier (un texte
+        redevient un texte modifiable au dégroupage) et le groupe se manipule d'un bloc. Avec une opération
+        booléenne (union, différence…), les objets ne forment plus qu'un tracé, rempli sur le calque de
+        celui du dessous. Le groupe prend la place du plus haut des objets dans l'empilement. Annulable.
+        Renvoie l'élément du groupe, ou None."""
         items = self.selected_items_vector()
         if len(items) < 2:
             return None
         order = {id(o): i for i, o in enumerate(self.objects)}
         items.sort(key=lambda it: order.get(id(it.obj), 0))
-        group_obj = path_ops.group_objects([it.obj for it in items])
-        if group_obj is None:
-            return None
+        objects = [it.obj for it in items]
+        group = GroupObject(objects, operation=operation)
+        top = max(order[id(o)] for o in objects)
         self.push_undo_snapshot()
-        self.document.replace([it.obj for it in items], [group_obj])
-        new_item = self._items[id(group_obj)]
-        new_item.setSelected(True)
-        return new_item
+        self.document.replace(objects, [group])
+        # À la place du plus haut des objets groupés, pas tout en haut de la pile.
+        remaining_above = sum(1 for o in self.document.objects[:-1] if order.get(id(o), -1) > top)
+        for _ in range(remaining_above):
+            self.document.move([group], -1)
+        self.select_objects([group])
+        return self._items[id(group)]
+
+    def set_group_operation(self, group, operation):
+        """Change l'opération d'un groupe (simple groupe, union, différence…). Annulable."""
+        if not isinstance(group, GroupObject) or group.operation == operation:
+            return False
+        self.push_undo_snapshot()
+        group.set_operation(operation)
+        self.document.notify_changed([group])
+        self.selection_changed.emit(group)
+        return True
+
+    def combine_selected(self, operation):
+        """Opération `operation` sur la sélection : un groupe seul change d'opération, plusieurs objets sont
+        groupés avec elle. Renvoie l'objet du groupe, ou None."""
+        objects = [it.obj for it in self.selected_items_vector()]
+        if len(objects) == 1 and isinstance(objects[0], GroupObject):
+            self.set_group_operation(objects[0], operation)
+            return objects[0]
+        item = self.group_selected(operation)
+        return item.obj if item is not None else None
 
     def can_ungroup_item(self, item):
-        """True si l'item est un SvgPathObject avec au moins 2 sous-tracés."""
-        return path_ops.can_ungroup(getattr(item, "obj", None))
+        """True pour un groupe, ou un tracé (SvgPathObject) d'au moins 2 sous-tracés."""
+        obj = getattr(item, "obj", None)
+        return isinstance(obj, GroupObject) or path_ops.can_ungroup(obj)
 
     def ungroup_selected(self):
-        """Dégroupe les SvgPathObject sélectionnés : chaque sous-tracé devient
-        un objet indépendant (sélectionnable, assignable à un autre calque).
-        Inverse de group_selected / de l'import groupé. Annulable (Ctrl+Z).
-        Renvoie la liste des nouveaux items créés."""
+        """Dégroupe la sélection : un groupe rend ses objets, à leur place (un texte redevient un texte) ;
+        un tracé importé est séparé en sous-tracés indépendants. Annulable (Ctrl+Z). Renvoie les nouveaux
+        éléments."""
         items = self.selected_items_vector()
         expandable = [it for it in items if self.can_ungroup_item(it)]
         if not expandable:
             return []
 
         self.push_undo_snapshot()
-        new_items = []
+        new_objects = []
         for it in expandable:
-            children = path_ops.ungroup_object(it.obj)
-            if not children:
-                # Rien d'utile à séparer : on laisse l'objet tel quel.
-                continue
-            self.document.replace([it.obj], children)
-            new_items += [self._items[id(child)] for child in children]
-
-        for it in new_items:
-            it.setSelected(True)
-        return new_items
+            obj = it.obj
+            if isinstance(obj, GroupObject):
+                index = self.document.objects.index(obj)
+                children = obj.released_children()
+                self.document.replace([obj], children)
+                # Les objets reprennent la place du groupe dans l'empilement.
+                for _ in range(len(self.document.objects) - len(children) - index):
+                    self.document.move(children, -1)
+            else:
+                children = path_ops.ungroup_object(obj)
+                if not children:
+                    # Rien d'utile à séparer : on laisse l'objet tel quel.
+                    continue
+                self.document.replace([obj], children)
+            new_objects += children
+        self.select_objects(new_objects)
+        return [self._items[id(o)] for o in new_objects]
 
     # ------------------------------------------------------------------
     # Exploser en segments + édition de nœuds

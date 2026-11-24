@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import QMenu
 
 from laser_studio.i18n import tr
 from laser_studio.models.layers import layer_label
-from laser_studio.models.vector_objects import TextObject
+from laser_studio.models.vector_objects import GroupObject, TextObject
+from laser_studio.vector import boolean_ops
 
 
 def build_context_menu(canvas, selected, click_mm):
@@ -32,7 +33,14 @@ def add_selection_entries(menu, canvas, selected):
         lambda: canvas.resize_group(selected))
 
     if n >= 2:
-        menu.addAction(tr("vector.group_objects").format(n=n)).triggered.connect(canvas.group_selected)
+        menu.addAction(tr("vector.group_objects").format(n=n)).triggered.connect(
+            lambda: canvas.group_selected())
+    if n >= 2 or (n == 1 and isinstance(selected[0].obj, GroupObject)):
+        # Opérations booléennes : grouper en combinant (ou changer l'opération d'un groupe).
+        combine = menu.addMenu(tr("objects.boolean_menu"))
+        for operation in boolean_ops.OPERATIONS:
+            combine.addAction(tr(f"objects.op.{operation}")).triggered.connect(
+                lambda _checked=False, op=operation: canvas.combine_selected(op))
     if any(canvas.can_ungroup_item(it) for it in selected):
         menu.addAction(tr("vector.ungroup_objects")).triggered.connect(canvas.ungroup_selected)
     if any(canvas.can_explode_item(it) for it in selected):

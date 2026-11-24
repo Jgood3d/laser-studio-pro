@@ -7,6 +7,12 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Éditeur vectoriel : liste des objets à droite du canevas, à la manière de Blender. Elle montre les objets du dessus de la pile vers le dessous, avec leur calque ; un clic sélectionne l'objet (plusieurs avec Maj ou Ctrl), un double-clic le renomme. Ses propriétés (position, rotation, calque, taille) s'affichent juste en dessous, plutôt qu'en bas de la page. Boutons pour monter ou descendre un objet, grouper et dégrouper.
+
+Éditeur vectoriel : les groupes gardent leurs objets entiers. Un objet groupé garde son calque et son remplissage, et un texte redevient un texte modifiable une fois dégroupé (avant, grouper fusionnait tout en un seul tracé sur un seul calque).
+
+Éditeur vectoriel : opérations booléennes **Union**, **Différence**, **Intersection** et **Exclusion** (bouton « Combiner » de la liste des objets, ou clic droit › Combiner). Le groupe ne grave plus qu'une surface, sur le calque de l'objet du dessous : une différence évide l'objet du dessous de la forme de ceux du dessus. L'ordre des objets dans le groupe se change avec Monter et Descendre.
+
 Historique des gravures (**Outils › Historique des gravures…**) : chaque job envoyé au graveur, direct ou depuis la file d'attente, y est noté à sa fin, avec la date, l'issue (terminée, arrêtée, erreur GRBL), la durée réelle et la durée estimée avec leur écart, la distance gravée, le nombre de lignes et la machine. Export CSV pour un tableur. Gardé sur l'ordinateur, dans `historique-gravures.jsonl`.
 
 Graver une image : bouton « Recadrer » dans la barre flottante des aperçus. On trace le cadre à garder sur l'image entière (déplacer, redimensionner par les coins et les bords, proportions gardées au choix, « Toute l'image » pour revenir en arrière) ; la taille gravée suit le cadre, à la même échelle.

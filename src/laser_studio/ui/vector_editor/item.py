@@ -35,6 +35,7 @@ class VectorGraphicsItem(QGraphicsPathItem):
             QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
         self.double_click_callback = None  # défini par VectorCanvasView.add_object
+        self._parts = []
         self.refresh()
 
     def mouseDoubleClickEvent(self, event):
@@ -70,12 +71,34 @@ class VectorGraphicsItem(QGraphicsPathItem):
         self.setTransform(t)
         self.setPos(0, 0)
 
-        layer = self.layer_manager.get(self.obj.layer_id)
-        color = QColor(layer.color) if layer else QColor("#dddddd")
-        pen = QPen(color, 1.4)
-        pen.setCosmetic(True)
+        pen = self._layer_pen(self.obj.layer_id)
         self.setPen(pen)
         self.setBrush(QBrush(Qt.BrushStyle.NoBrush))
+        # Simple groupe : chaque objet dans la couleur de son calque (paint).
+        parts = getattr(self.obj, "local_parts", lambda: [])()
+        scale = QTransform().scale(s, s)
+        self._parts = [(scale.map(path), self._layer_pen(layer)) for layer, path in parts]
+
+    def _layer_pen(self, layer_id):
+        layer = self.layer_manager.get(layer_id)
+        pen = QPen(QColor(layer.color) if layer else QColor("#dddddd"), 1.4)
+        pen.setCosmetic(True)
+        return pen
+
+    def paint(self, painter, option, widget=None):
+        if not self._parts:
+            super().paint(painter, option, widget)
+            return
+        for path, pen in self._parts:
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPath(path)
+        if self.isSelected():
+            # Cadre de sélection, comme QGraphicsPathItem.
+            selection = QPen(QColor("#ffffff"), 1, Qt.PenStyle.DashLine)
+            selection.setCosmetic(True)
+            painter.setPen(selection)
+            painter.drawRect(self.boundingRect())
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemTransformHasChanged:

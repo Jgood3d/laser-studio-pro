@@ -60,8 +60,39 @@ clic droit › **Dégrouper**. Chaque tracé devient un objet séparé.
 2. Choisissez le calque dans la liste **Calque** du panneau des
    propriétés, ou faites clic droit › **Assigner au calque**.
 
-Pour traiter plusieurs objets comme un seul, sélectionnez-les puis clic
-droit › **Regrouper en un seul objet**.
+Pour traiter plusieurs objets comme un seul, groupez-les (voir
+ci-dessous) : chacun garde son calque.
+
+## La liste des objets
+
+À droite du canevas, la liste **Objets** montre tout ce qui est sur la
+grille, du dessus de la pile vers le dessous, avec le calque de chacun.
+Cliquer une ligne sélectionne l'objet sur le canevas (**Maj + clic** ou
+**Ctrl + clic** pour en choisir plusieurs) ; ses propriétés s'affichent
+juste en dessous. Un double-clic sur un nom permet de le renommer.
+
+Les boutons sous la liste :
+
+- **Monter** / **Descendre** : change la place de l'objet dans la pile.
+- **Grouper** (Ctrl+G) : les objets se déplacent d'un bloc, et gardent
+  chacun leur calque et leur remplissage. Un groupe se déplie dans la
+  liste pour voir ses objets.
+- **Dégrouper** : rend les objets du groupe, à leur place. Un texte
+  redevient un texte modifiable.
+- **Combiner** : groupe les objets en ne gardant qu'une surface, gravée
+  sur le calque de l'objet du dessous :
+
+| Opération | Ce qui est gravé |
+|-----------|------------------|
+| Union | Tout ce que couvre au moins un objet |
+| Différence | L'intérieur de l'objet du dessous, moins celui des objets du dessus (pour évider une forme) |
+| Intersection | Seulement la partie commune à tous les objets |
+| Exclusion | Ce que couvre un seul objet ; les chevauchements restent vides |
+
+Pour une différence, l'ordre compte : dépliez le groupe et utilisez
+**Monter** / **Descendre** sur ses objets. Choisir une autre opération
+avec le groupe sélectionné la change ; **Grouper** revient à un simple
+groupe. Les mêmes choix sont dans le clic droit › **Combiner**.
 
 ## Les outils de l'éditeur
 

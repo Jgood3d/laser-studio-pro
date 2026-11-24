@@ -1,6 +1,7 @@
 """Onglet « Graver une image vectorielle » : boutons des outils, canevas avec
-ses barres flottantes (créer et dessiner, édition, alignement) et champs des
-propriétés de la sélection.
+ses barres flottantes (créer et dessiner, édition, alignement) et, à droite,
+la liste des objets (ObjectsPanel) avec les propriétés de la sélection en
+dessous.
 
     tab = VectorEditorTab(canvas)
     tab.command.connect(lambda name: commands[name]())      # "rotate", "align_left"...
@@ -12,18 +13,23 @@ les outils de la souris `draw_tool_requested(outil)`, l'interrupteur « Fond
 caméra » `camera_background_toggled(actif)` et son bouton « Actualiser »
 `camera_refresh_requested()` ; la grille magnétique
 règle le canevas directement. Le panneau des propriétés
-(VectorPropertiesPanel) remplit `properties_widgets`.
+(VectorPropertiesPanel) remplit `properties_widgets` ; la liste des objets
+(`objects_panel`) émet ses propres signaux.
 """
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGroupBox, QHBoxLayout, QLabel,
-                             QPushButton, QStyle, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout,
+                             QLabel, QPushButton, QSplitter, QStyle, QVBoxLayout, QWidget)
 
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import palette_icon
+from laser_studio.ui.vector_editor.objects_panel import ObjectsPanel
 from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets
 from laser_studio.ui.widgets import FloatingToolBar
 
+# Largeur de la colonne de droite (liste des objets et propriétés), en px.
+SIDE_WIDTH = 330
+SIDE_MIN_WIDTH = 240
 # Rangée du haut : (commande, clé du libellé, clé de l'infobulle ou None, icône Breeze).
 TOP_BUTTONS = (
     ("import", "ui.vector_import_svg", None, "document-import"),
@@ -102,10 +108,29 @@ class VectorEditorTab(QWidget):
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
         layout.addLayout(self._top_row())
-        layout.addWidget(canvas, 1)  # stretch: occupe l'espace restant
-        self._floating_toolbars()
+        # Canevas à gauche ; à droite la liste des objets, et sous elle les propriétés de la sélection.
+        self.objects_panel = ObjectsPanel()
         self.properties_box = self._properties_box()
-        layout.addWidget(self.properties_box)
+        side = QWidget()
+        side_layout = QVBoxLayout(side)
+        side_layout.setContentsMargins(0, 0, 0, 0)
+        side_layout.setSpacing(4)
+        objects_box = QGroupBox(tr("objects.box"))
+        objects_layout = QVBoxLayout(objects_box)
+        objects_layout.setContentsMargins(4, 4, 4, 4)
+        objects_layout.addWidget(self.objects_panel)
+        side_layout.addWidget(objects_box, 1)
+        side_layout.addWidget(self.properties_box)
+        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter.addWidget(canvas)
+        self.splitter.addWidget(side)
+        self.splitter.setStretchFactor(0, 1)
+        self.splitter.setStretchFactor(1, 0)
+        self.splitter.setChildrenCollapsible(False)
+        side.setMinimumWidth(SIDE_MIN_WIDTH)
+        self.splitter.setSizes([100000, SIDE_WIDTH])
+        layout.addWidget(self.splitter, 1)  # stretch: occupe l'espace restant
+        self._floating_toolbars()
 
     # -- construction
 
@@ -199,40 +224,47 @@ class VectorEditorTab(QWidget):
         self.align_toolbar.setToolTip(tr("ui.vector_align_box"))
 
     def _properties_box(self):
-        """Propriétés compactes : une rangée position + calque ; une rangée taille / ancrage (formes
-        seulement). Masquées sans sélection ; remplies par VectorPropertiesPanel."""
+        """Propriétés de la sélection, sous la liste des objets : description, position, rotation, calque ;
+        taille et ancrage (formes seulement). Masquées sans sélection ; remplies par VectorPropertiesPanel."""
         box = QGroupBox(tr("ui.selection_props_box"))
         form = QVBoxLayout(box)
         form.setContentsMargins(8, 6, 8, 6)
         form.setSpacing(4)
 
-        row = QHBoxLayout()
-        row.setSpacing(6)
-        x, y, rotation = (self._spin(-1000.0, 1000.0, 2, 90), self._spin(-1000.0, 1000.0, 2, 90),
-                          self._spin(-360.0, 360.0, 1, 70))
-        layer = QComboBox()
-        layer.setMinimumWidth(120)
-        for key, widget, stretch in (("ui.vector_x_mm", x, 0), ("ui.vector_y_mm", y, 0),
-                                     ("ui.vector_rotation_deg", rotation, 0), ("ui.vector_layer", layer, 1)):
-            row.addWidget(QLabel(tr(key)))
-            row.addWidget(widget, stretch)
-        form.addLayout(row)
+        label = QLabel(tr("ui.no_selection_label"))
+        label.setWordWrap(True)
+        label.setStyleSheet("color: #9aa3b5; font-size: 12px;")
+        form.addWidget(label)
 
-        # Rangée taille + ancrage (masquée pour texte / SVG)
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(4)
+        x, y, rotation = (self._spin(-1000.0, 1000.0, 2, 110), self._spin(-1000.0, 1000.0, 2, 110),
+                          self._spin(-360.0, 360.0, 1, 110))
+        layer = QComboBox()
+        for row, (key, widget) in enumerate((("ui.vector_x_mm", x), ("ui.vector_y_mm", y),
+                                              ("ui.vector_rotation_deg", rotation), ("ui.vector_layer", layer))):
+            grid.addWidget(QLabel(tr(key)), row, 0)
+            grid.addWidget(widget, row, 1)
+        grid.setColumnStretch(1, 1)
+        form.addLayout(grid)
+
+        # Taille + ancrage (masqués pour texte / SVG / groupe)
         size_row = QWidget()
-        size = QHBoxLayout(size_row)
+        size = QGridLayout(size_row)
         size.setContentsMargins(0, 0, 0, 0)
-        size.setSpacing(6)
-        width, height = self._spin(0.05, 5000.0, 2, 100, " mm"), self._spin(0.05, 5000.0, 2, 100, " mm")
-        size.addWidget(QLabel(tr("ui.vector_width_mm")))
-        size.addWidget(width)
-        size.addWidget(QLabel(tr("ui.vector_height_mm")))
-        size.addWidget(height)
+        size.setHorizontalSpacing(6)
+        size.setVerticalSpacing(4)
+        width, height = self._spin(0.05, 5000.0, 2, 110, " mm"), self._spin(0.05, 5000.0, 2, 110, " mm")
+        size.addWidget(QLabel(tr("ui.vector_width_mm")), 0, 0)
+        size.addWidget(width, 0, 1)
+        size.addWidget(QLabel(tr("ui.vector_height_mm")), 1, 0)
+        size.addWidget(height, 1, 1)
         anchor_lock = QCheckBox(tr("ui.vector_anchor_lock"))
         anchor_lock.setChecked(True)
         anchor_lock.setToolTip(tr("ui.vector_anchor_lock_tip"))
-        size.addWidget(anchor_lock)
-        size.addWidget(QLabel(tr("ui.vector_anchor")))
+        size.addWidget(anchor_lock, 2, 0, 1, 2)
+        size.addWidget(QLabel(tr("ui.vector_anchor")), 3, 0)
         anchor = QComboBox()
         for anchor_id, key in (("origin", "ui.vector_anchor_origin"), ("bl", "ui.vector_anchor_bl"),
                                ("br", "ui.vector_anchor_br"), ("tl", "ui.vector_anchor_tl"),
@@ -240,14 +272,11 @@ class VectorEditorTab(QWidget):
             anchor.addItem(tr(key), anchor_id)
         anchor.setCurrentIndex(0)
         anchor.setToolTip(tr("ui.vector_anchor_tip"))
-        size.addWidget(anchor)
-        size.addStretch()
+        size.addWidget(anchor, 3, 1)
+        size.setColumnStretch(1, 1)
         size_row.setVisible(False)
         form.addWidget(size_row)
 
-        label = QLabel(tr("ui.no_selection_label"))
-        label.setStyleSheet("color: #9aa3b5; font-size: 12px;")
-        form.addWidget(label)
         box.setEnabled(False)
         box.setVisible(False)
         self.properties_widgets = PropertiesWidgets(
