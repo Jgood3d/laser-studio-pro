@@ -132,6 +132,12 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Configuration GRBL : seuls les réglages numériques ($110=6000…) sont importés et envoyés à la carte, sans leur commentaire. Un fichier de réglages ne peut plus effacer la configuration ($RST=*), ajouter une ligne exécutée au démarrage de la carte ($N0=…, qui pouvait allumer le laser), déplacer la tête ($J=…) ni la mettre en veille.
+
+Stencil Studio : son serveur local n'accepte plus que sa propre page (nom d'hôte et jeton vérifiés). Un site web ouvert dans un navigateur pendant que Laser Studio Pro tourne pouvait effacer les préréglages du Studio ou lire l'image chargée.
+
+Récupération après plantage : si la sauvegarde automatique ne peut pas être ouverte, elle est gardée pour un nouvel essai (elle était supprimée).
+
 Générateur de boîte : un décor SVG est lu comme par « Importer » (transformations des groupes, cadrage du `viewBox`, unités ; éléments cachés et contenu de `<defs>` écartés). Un SVG d'Inkscape dont les calques sont décalés arrivait en morceaux mal placés.
 
 Préréglages du générateur de boîte : enregistrés sans risque de perte (un disque plein ou un arrêt en cours d'écriture laisse l'ancien fichier intact).

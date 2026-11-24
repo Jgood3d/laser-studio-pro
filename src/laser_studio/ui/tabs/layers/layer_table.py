@@ -7,8 +7,9 @@ from PyQt6.QtWidgets import (
     QSpinBox, QCheckBox, QLineEdit, QMessageBox, QAbstractItemView, QToolButton,
 )
 from laser_studio.i18n import tr
+from laser_studio.models.layer_modes import CONTOUR_MODES
 from laser_studio.models.layers import (
-    CONTOUR_MODES, CUT_MODE, ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, KERF_WIDTH_MAX_MM, KERF_WIDTH_MIN_MM,
+    CUT_MODE, ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, KERF_WIDTH_MAX_MM, KERF_WIDTH_MIN_MM,
     TAB_COUNT_MAX, TAB_WIDTH_MAX_MM, TAB_WIDTH_MIN_MM, LaserLayer, LayersModel,
 )
 
@@ -91,11 +92,6 @@ class LayerManagerWidget(QWidget):
         for layer in self.mgr.layers:
             self._add_row(layer)
         self.table.blockSignals(False)
-
-    @property
-    def _fill_spins(self):
-        """[(champ du pas de remplissage, calque), ...] (compatibilité)."""
-        return [(e["line_interval"], self.mgr.get(i)) for i, e in self._editors.items()]
 
     def _add_row(self, layer: LaserLayer):
         row = self.table.rowCount()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Ligne de commande : photo -> silhouette de découpe laser (SVG + DXF).
-Utilise le même traitement que l'interface (core.py). Interface : `py studio.py`."""
+Utilise le même traitement que l'interface (paquet core). Interface : `py studio.py`."""
 import argparse
 import os
 import sys

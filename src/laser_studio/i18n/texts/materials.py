@@ -347,6 +347,48 @@ TEXTS = {
         "de": "Laser",
         "es": "Láser",
     },
+    "layers.col.tab_count": {
+        "fr": 'Ponts',
+        "en": 'Tabs',
+        "de": 'Haltestege',
+        "es": 'Puentes',
+    },
+    "layers.col.tab_width": {
+        "fr": 'Larg. pont (mm)',
+        "en": 'Tab width (mm)',
+        "de": 'Stegbreite (mm)',
+        "es": 'Ancho puente (mm)',
+    },
+    "layers.col.kerf": {
+        "fr": 'Kerf (mm)',
+        "en": 'Kerf (mm)',
+        "de": 'Schnittfuge (mm)',
+        "es": 'Kerf (mm)',
+    },
+    "layers.kerf_tip": {
+        "fr": "Compensation du kerf (découpe) : le laser enlève une bande de matière large du kerf, centrée sur le tracé. Les contours extérieurs sont décalés vers l'extérieur et les trous vers l'intérieur de la moitié du kerf, pour que la pièce et les trous gardent les cotes du dessin. Les tracés ouverts ne changent pas. Un contour trop fin pour être décalé est coupé tel quel (signalé dans le G-Code). Décocher désactive sans perdre la largeur.",
+        "en": "Kerf compensation (cut): the laser removes a strip of material as wide as the kerf, centred on the path. Outer contours are shifted outwards and holes inwards by half the kerf, so parts and holes keep the drawing's dimensions. Open paths are unchanged. A contour too thin to be offset is cut as is (flagged in the G-code). Unchecking disables it without losing the width.",
+        "de": 'Schnittfugenkompensation (Schnitt): Der Laser entfernt einen Materialstreifen in Breite der Schnittfuge, zentriert auf dem Pfad. Außenkonturen werden um die halbe Fuge nach außen, Löcher nach innen versetzt, damit Teile und Löcher die Maße der Zeichnung behalten. Offene Pfade bleiben unverändert. Eine zu dünne Kontur wird unverändert geschnitten (im G-Code vermerkt). Abwählen deaktiviert, ohne die Breite zu verlieren.',
+        "es": 'Compensación del kerf (corte): el láser elimina una franja de material tan ancha como el kerf, centrada en el trazado. Los contornos exteriores se desplazan hacia fuera y los agujeros hacia dentro la mitad del kerf, para que piezas y agujeros conserven las medidas del dibujo. Los trazados abiertos no cambian. Un contorno demasiado fino se corta tal cual (se indica en el G-code). Desmarcar lo desactiva sin perder el ancho.',
+    },
+    "layers.tabs_tip": {
+        "fr": "Ponts de maintien : laisse des tronçons non coupés sur chaque contour extérieur fermé, pour que la pièce reste attachée à la plaque jusqu'à la fin du job. Décocher les désactive sans perdre le nombre ni la largeur.",
+        "en": 'Holding tabs: leaves uncut sections on each closed outer contour so the part stays attached to the sheet until the job ends. Unchecking disables them without losing the count or the width.',
+        "de": 'Haltestege: lässt ungeschnittene Abschnitte auf jeder geschlossenen Außenkontur, damit das Teil bis zum Jobende mit der Platte verbunden bleibt. Abwählen deaktiviert sie, ohne Anzahl und Breite zu verlieren.',
+        "es": 'Puentes de sujeción: deja tramos sin cortar en cada contorno exterior cerrado para que la pieza quede unida a la plancha hasta el final del trabajo. Desmarcar los desactiva sin perder el número ni el ancho.',
+    },
+    "layers.tab_count_tip": {
+        "fr": "Ponts de maintien (découpe) : nombre de tronçons laissés non coupés sur chaque contour extérieur fermé, répartis à égale distance. La pièce reste attachée à la plaque jusqu'à la fin du job. 0 : aucun pont. Les trous et les tracés ouverts n'en reçoivent pas ; un contour trop petit en reçoit moins, ou aucun.",
+        "en": 'Holding tabs (cut): number of uncut sections left on each closed outer contour, evenly spaced. The part stays attached to the sheet until the job ends. Holes and open paths get none; a contour that is too small gets fewer, or none.',
+        "de": 'Haltestege (Schnitt): Anzahl der ungeschnittenen Abschnitte auf jeder geschlossenen Außenkontur, gleichmäßig verteilt. Das Teil bleibt bis zum Jobende mit der Platte verbunden. Löcher und offene Pfade erhalten keine; eine zu kleine Kontur erhält weniger oder keine.',
+        "es": 'Puentes de sujeción (corte): número de tramos sin cortar en cada contorno exterior cerrado, a distancias iguales. La pieza queda unida a la plancha hasta el final del trabajo. Los agujeros y los trazados abiertos no los reciben; un contorno demasiado pequeño recibe menos, o ninguno.',
+    },
+    "layers.tab_width_tip": {
+        "fr": "Largeur d'un pont de maintien, mesurée le long du contour (mm). Un pont large tient mieux mais se détache plus difficilement.",
+        "en": 'Width of one holding tab, measured along the contour (mm). A wide tab holds better but is harder to break off.',
+        "de": 'Breite eines Haltestegs, entlang der Kontur gemessen (mm). Ein breiter Steg hält besser, lässt sich aber schwerer lösen.',
+        "es": 'Ancho de un puente de sujeción, medido a lo largo del contorno (mm). Un puente ancho sujeta mejor pero cuesta más separarlo.',
+    },
     "layers.overscan_tip": {
         "fr": "Surbalayage de ce calque (gravure remplie). Actif seulement si le surbalayage est activé dans Configuration GRBL, qui en donne le mode et la distance.",
         "en": "Overscan for this layer (fill engraving). Only applies if overscan is enabled in GRBL Configuration, which sets its mode and distance.",

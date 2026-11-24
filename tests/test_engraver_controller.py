@@ -44,9 +44,15 @@ class CommandsTests(unittest.TestCase):
 
     def test_setting_lines(self):
         text = " $22=1 \n$32=1 (laser)\nGrbl 1.1h\n$$\nok\n"
-        self.assertEqual(commands.setting_lines(text), ["$22=1", "$32=1 (laser)"])
+        self.assertEqual(commands.setting_lines(text), ["$22=1", "$32=1"])          # commentaire écarté
         self.assertEqual(commands.response_setting_lines(text), ["$22=1", "$32=1 (laser)", "$$"])
         self.assertEqual(commands.setting_lines(None), [])
+
+    def test_only_numeric_settings_are_ever_written(self):
+        """Effacer la carte, une ligne de démarrage (le laser s'y allumerait), un déplacement ou la veille
+        ont la même forme qu'un réglage : jamais importés ni envoyés."""
+        text = "$110=6000\n$RST=*\n$N0=M3 S1000\n$J=G91 X50 F3000\n$SLP=1\n$32 = 1"
+        self.assertEqual(commands.setting_lines(text), ["$110=6000", "$32=1"])
 
     def test_homing_support(self):
         self.assertEqual(commands.homing_support({"$22": "1"}), (True, None))
