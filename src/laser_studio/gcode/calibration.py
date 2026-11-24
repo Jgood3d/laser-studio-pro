@@ -3,7 +3,8 @@ retour » de la Configuration GRBL)."""
 import math
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import power_value, with_time_margin
+from laser_studio.gcode.common import power_value
+from laser_studio.gcode.timing import job_duration
 from laser_studio.vector.font import VectorFont
 
 
@@ -131,4 +132,4 @@ def bidir_test_gcode(params):
         gcode.append("M5\nG0 X0 Y0\n; FIN DU TEST")
     avg_power = power_pct if burn_len > 0 else 0.0
     text = "\n".join(gcode)
-    return text, len(text.split("\n")), avg_power, with_time_margin(total_time)
+    return text, len(text.split("\n")), avg_power, job_duration(text, params, total_time)

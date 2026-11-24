@@ -110,6 +110,29 @@ TEXTS = {
         "de": "Verstärkt die Kanten vor der Rasterung (Unscharf-Maskierung): feine Details, Gesichter und Texte treten beim Gravieren besser hervor. 0 = keine Wirkung. Über 60 können Lichthöfe entstehen: prüfe die Vorschau.",
         "es": "Realza los bordes antes del tramado (máscara de enfoque): los detalles pequeños, rostros y textos destacan mejor al grabar. 0 = sin efecto. Por encima de 60 pueden aparecer halos: comprueba la vista previa.",
     },
+    # --- Recadrer ---
+    "img.crop_tip": {
+        "fr": "Recadrer l'image", "en": "Crop the image", "de": "Bild zuschneiden", "es": "Recortar la imagen",
+    },
+    "img.crop_title": {
+        "fr": "Recadrer l'image", "en": "Crop the image", "de": "Bild zuschneiden", "es": "Recortar la imagen",
+    },
+    "img.crop_hint": {
+        "fr": "Tracez le cadre à garder. Glissez dans le cadre pour le déplacer, sur un coin ou un bord pour le redimensionner. La taille gravée suit le cadre, à la même échelle.",
+        "en": "Draw the frame to keep. Drag inside the frame to move it, on a corner or edge to resize it. The engraved size follows the frame, at the same scale.",
+        "de": "Zeichnen Sie den zu behaltenden Rahmen. Im Rahmen ziehen zum Verschieben, an einer Ecke oder Kante zum Ändern der Größe. Die Gravurgröße folgt dem Rahmen im gleichen Maßstab.",
+        "es": "Dibuje el marco que se conserva. Arrastre dentro del marco para moverlo, en una esquina o un borde para cambiar su tamaño. El tamaño grabado sigue al marco, a la misma escala.",
+    },
+    "img.crop_keep_ratio": {
+        "fr": "Garder les proportions", "en": "Keep proportions", "de": "Seitenverhältnis beibehalten",
+        "es": "Mantener las proporciones",
+    },
+    "img.crop_whole": {
+        "fr": "Toute l'image", "en": "Whole image", "de": "Ganzes Bild", "es": "Toda la imagen",
+    },
+    "img.crop_size": {
+        "fr": "{w} × {h} px", "en": "{w} × {h} px", "de": "{w} × {h} px", "es": "{w} × {h} px",
+    },
     # --- Filtres : effet bande dessinée ---
     "img.filter": {
         "fr": "Appliquer un filtre :", "en": "Apply a filter:", "de": "Filter anwenden:", "es": "Aplicar un filtro:",

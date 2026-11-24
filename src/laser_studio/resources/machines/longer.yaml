@@ -1,0 +1,10 @@
+brand: Longer
+machines:
+  - model: Ray5 10W
+    work_area_mm: [400, 400]
+    spot_mm: [0.06, 0.06]
+    max_speed_mm_min: {x: 10000, y: 10000}
+    laser: {power_w: 10, wavelength_nm: 455}
+    sources:
+      - https://www.longer3d.com/products/longer-ray5-10w-laser-engraver
+    checked: 2026-11-24

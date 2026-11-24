@@ -5,6 +5,7 @@
 """
 from laser_studio.controllers.image import ImageController
 from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
+from laser_studio.ui.tabs.image.crop_dialog import CropDialog
 from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON
 from laser_studio.ui.tabs.image.tab import ImageTab
 
@@ -62,6 +63,27 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
             image_settings.update(cartoon_radius=0)
 
     settings.filter_requested.connect(choose_filter)
+
+    # « Recadrer » : l'image entière et le cadre actuel ; la taille en mm suit le cadre (ImageController.crop).
+    # Fenêtre non modale (comme l'effet BD) : GNOME accrocherait une fenêtre modale à la fenêtre principale.
+    open_crop_dialog = []
+
+    def open_crop():
+        if image.source_image is None or image.raw_image is None:
+            return
+        if open_crop_dialog:
+            open_crop_dialog[0].raise_()
+            open_crop_dialog[0].activateWindow()
+            return
+        mm_per_px = settings.size_mm()[0] / max(image.raw_image.width, 1)
+        dialog = CropDialog(image.source_image, image.crop_box, mm_per_px, parent or tab)
+        dialog.accepted.connect(lambda: image.crop(dialog.box()))
+        dialog.finished.connect(lambda _result: open_crop_dialog.clear())
+        open_crop_dialog.append(dialog)
+        dialog.show()
+
+    tab.crop_requested.connect(open_crop)
+    image.source_changed.connect(lambda source: tab.set_crop_enabled(source is not None))
     settings.undo_requested.connect(image_history.undo)
     settings.redo_requested.connect(image_history.redo)
     tab.compare_requested.connect(compare)

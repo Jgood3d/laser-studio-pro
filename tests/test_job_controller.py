@@ -125,6 +125,15 @@ class ParamsTests(unittest.TestCase):
         self.assertFalse(p['safe_cut_order'])
         self.assertTrue(p['image_overscan'])
 
+    def test_machine_limits_come_from_the_grbl_settings_then_the_machine_page(self):
+        job, _ = make_job()
+        job.machine.update(max_speed=4000.0, accel=800.0)
+        limits = job.build_params()['machine_limits']
+        self.assertEqual((limits['max_rate_x'], limits['accel_y']), (4000.0, 800.0))
+        job.grbl.update(grbl_settings="$110=9000\n$121=300\n")                   # lu avec « Lire la config »
+        limits = job.machine_limits()
+        self.assertEqual((limits['max_rate_x'], limits['max_rate_y'], limits['accel_y']), (9000.0, 4000.0, 300.0))
+
 
 @unittest.skipIf(job_module is None, "PyQt6 non importable ici")
 class FileTests(unittest.TestCase):
