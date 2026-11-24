@@ -150,48 +150,6 @@ def _polygon_area(pts: Sequence[Point]) -> float:
     return 0.5 * s
 
 
-def offset_closed_polygon(pts: Sequence[Point], delta: float) -> List[Point]:
-    """Décale un polygone fermé de `delta` mm (positif = extérieur si CCW).
-
-    Utilise la normale moyenne aux sommets. Pour le kerf laser on appellera
-    avec delta négatif (rétrécir chaque pièce d'environ kerf/2).
-    """
-    if abs(delta) < 1e-12 or len(pts) < 3:
-        return list(pts)
-    # Retirer le point de fermeture dupliqué pour le calcul
-    work = list(pts)
-    if abs(work[0][0] - work[-1][0]) < 1e-12 and abs(work[0][1] - work[-1][1]) < 1e-12:
-        work = work[:-1]
-    n = len(work)
-    if n < 3:
-        return list(pts)
-    # Sens : CCW → normale gauche = extérieur
-    area = _polygon_area(work)
-    sign = 1.0 if area >= 0 else -1.0
-    out = []
-    for i in range(n):
-        p_prev = work[i - 1]
-        p = work[i]
-        p_next = work[(i + 1) % n]
-        e1x, e1y = p[0] - p_prev[0], p[1] - p_prev[1]
-        e2x, e2y = p_next[0] - p[0], p_next[1] - p[1]
-        l1 = math.hypot(e1x, e1y) or 1e-12
-        l2 = math.hypot(e2x, e2y) or 1e-12
-        # normales sortantes (gauche de l'arête si CCW)
-        n1x, n1y = -e1y / l1 * sign, e1x / l1 * sign
-        n2x, n2y = -e2y / l2 * sign, e2x / l2 * sign
-        nx, ny = n1x + n2x, n1y + n2y
-        ln = math.hypot(nx, ny) or 1e-12
-        nx, ny = nx / ln, ny / ln
-        # correction miter simple (limite les pics)
-        dot = max(-1.0, min(1.0, n1x * nx + n1y * ny))
-        miter = min(4.0, 1.0 / max(0.25, abs(dot)))
-        out.append((p[0] + nx * delta * miter, p[1] + ny * delta * miter))
-    # refermer
-    out.append(out[0])
-    return out
-
-
 def apply_kerf(result: PuzzleResult, kerf: float) -> PuzzleResult:
     """Compense la largeur du trait laser.
 

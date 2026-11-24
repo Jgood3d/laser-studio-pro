@@ -415,19 +415,21 @@ class AppActions(QObject):
         )
 
     def _create_image_actions(self):
+        # Icônes Breeze embarquées, dans la couleur du thème : les mêmes que dans les barres flottantes de
+        # l'éditeur vectoriel (annuler, pivoter, supprimer…), quel que soit le thème d'icônes du bureau.
         # Annuler / refaire des réglages image. Les raccourcis Ctrl+Z /
         # Ctrl+Y restent ceux de l'onglet (QShortcut limité à l'onglet), pour
         # ne pas entrer en conflit avec l'annulation de l'éditeur vectoriel.
         self.image_undo = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.EditUndo, QStyle.StandardPixmap.SP_ArrowBack
+            bundled_icon(
+                "edit-undo", QStyle.StandardPixmap.SP_ArrowBack
             ),
             tr("ui.img_undo"),
             self.image_undo_requested,
         )
         self.image_redo = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.EditRedo, QStyle.StandardPixmap.SP_ArrowForward
+            bundled_icon(
+                "edit-redo", QStyle.StandardPixmap.SP_ArrowForward
             ),
             tr("ui.img_redo"),
             self.image_redo_requested,
@@ -435,15 +437,15 @@ class AppActions(QObject):
         # Image chargée : suppression, rotation, puis miroirs. Elles agissent
         # sur l'image de l'onglet affiché.
         self.image_delete = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.EditDelete, QStyle.StandardPixmap.SP_TrashIcon
+            bundled_icon(
+                "edit-delete", QStyle.StandardPixmap.SP_TrashIcon
             ),
             tr("img.delete"),
             self.image_delete_requested,
         )
         self.image_rotate_left = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.ObjectRotateLeft,
+            bundled_icon(
+                "object-rotate-left",
                 QStyle.StandardPixmap.SP_ArrowBack,
             ),
             tr("img.rotate_left"),
@@ -451,24 +453,23 @@ class AppActions(QObject):
             False,
         )
         self.image_rotate_right = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.ObjectRotateRight,
+            bundled_icon(
+                "object-rotate-right",
                 QStyle.StandardPixmap.SP_ArrowForward,
             ),
             tr("img.rotate_right"),
             self.image_rotate_requested,
             True,
         )
-        # Pas d'équivalent QIcon.ThemeIcon pour les miroirs : nom d'icône
-        # freedesktop. Cochables : ils gardent l'état.
+        # Miroirs cochables : ils gardent l'état.
         self.mirror_h = self._action(
-            standard_icon(
+            bundled_icon(
                 "object-flip-horizontal", QStyle.StandardPixmap.SP_ArrowLeft
             ),
             tr("img.mirror_h"),
         )
         self.mirror_v = self._action(
-            standard_icon(
+            bundled_icon(
                 "object-flip-vertical", QStyle.StandardPixmap.SP_ArrowUp
             ),
             tr("img.mirror_v"),
@@ -477,8 +478,8 @@ class AppActions(QObject):
             action.setCheckable(True)
             action.toggled.connect(self._emit_mirror_changed)
         self.image_reset = self._action(
-            standard_icon(
-                QIcon.ThemeIcon.DocumentRevert,
+            bundled_icon(
+                "document-revert",
                 QStyle.StandardPixmap.SP_BrowserReload,
             ),
             tr("img.reset"),

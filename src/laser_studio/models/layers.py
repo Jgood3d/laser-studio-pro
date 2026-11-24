@@ -253,6 +253,13 @@ class LayersModel(QObject):
         self.engrave_layer_selected.emit(layer_id)
         return True
 
+    def layer_for_role(self, role):
+        """Calque de base de rôle `role` (« engrave », « cut », « mark »), sinon le calque SVG par défaut."""
+        for layer in self.layers:
+            if getattr(layer, "role", None) == role:
+                return layer
+        return self.default_svg_layer()
+
     def default_svg_layer(self):
         """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
         le premier calque en mode Découpe. À défaut, le premier calque."""

@@ -1,8 +1,11 @@
 import os
+import sys
 import tempfile
 import unittest
 
-from laser_studio.vector import box_presets as bp
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+
+from laser_studio.vector import box_presets as bp  # noqa: E402
 
 
 class PresetFileTests(unittest.TestCase):
@@ -26,6 +29,11 @@ class PresetFileTests(unittest.TestCase):
         with open(self.path, "w", encoding="utf-8") as fh:
             fh.write("{pas du json")
         self.assertEqual(bp.load_user(self.path), {})
+
+    def test_failed_write_keeps_the_existing_presets(self):
+        self.assertTrue(bp.save_user("Gardée", {"width": 90.0}, self.path))
+        self.assertFalse(bp.save_user("Cassée", {"width": object()}, self.path))     # non enregistrable
+        self.assertEqual(list(bp.load_user(self.path)), ["Gardée"])
 
     def test_builtin_presets_build(self):
         from laser_studio.vector import box_generator as bg

@@ -1,6 +1,6 @@
 """Contrôleur de la fenêtre : ce qui agit sur la fenêtre entière.
 
-    controller = WindowController(window)
+    controller = WindowController(window, WindowForms(window))
     controller.connect_actions(window.app_actions)
 
 Il abonne la fenêtre aux signaux du menu et de la barre d'outils
@@ -13,22 +13,16 @@ plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
 ImageToolbarActions (actions de la barre d'outils sur l'image).
 
 La fenêtre (`window`) est le point d'assemblage : le contrôleur y lit les
-modèles, contrôleurs et pages qu'elle a construits.
+modèles, contrôleurs et pages qu'elle a construits. Il ne construit aucune
+fenêtre : `forms` (ui/app/window_forms.py) les ouvre pour lui.
 """
 
 from PyQt6.QtCore import QObject, QTimer
-from PyQt6.QtWidgets import QApplication
 
+from laser_studio.controllers.job_history import clear_history, export_history
 from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import get_current_language, set_language, tr
-from laser_studio.ui.about import AboutDialog
-from laser_studio.ui.app.theme import apply_app_theme, current_theme_name, normalize_theme_name, page_colors
-from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
-from laser_studio.ui.dialogs.dither_comparison import DitherComparisonDialog
-from laser_studio.ui.help import HelpDialog
-from laser_studio.ui.settings.window import SettingsWindow
-from laser_studio.ui.support import SupportDialog
-from laser_studio.ui.utils import busy_cursor
+from laser_studio.ui.app.theme import current_theme_name, normalize_theme_name, page_colors
 from stencil_studio.controllers.studio import StencilStudioController
 
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
@@ -36,17 +30,15 @@ STENCIL_PRELOAD_DELAY_MS = 3000
 
 
 class WindowController(QObject):
-    def __init__(self, window):
+    def __init__(self, window, forms):
         super().__init__(window)
         self.window = window
-        self._help_dialog = None
-        self._settings_windows = {}
+        self.forms = forms
         # Pages des fenêtres de réglages (kind -> (page, clé du titre)) et onglets que le menu peut
         # demander par leur nom, inscrits par la fenêtre (add_settings_page, add_main_tab).
         self._settings_pages = {}
         self._main_tabs = {}
         self.camera = None
-        self._history_dialog = None           # fenêtre « Historique des gravures » ouverte
         self.stencil_studio = None
 
     # -- menu et barre d'outils
@@ -88,9 +80,9 @@ class WindowController(QObject):
         actions.job_queue_toggled.connect(lambda visible: w.tabs.set_optional_visible(w.tab_job_queue, visible))
         # Aide
         actions.documentation_requested.connect(self.show_documentation)
-        actions.about_requested.connect(lambda: AboutDialog(w).exec())
-        actions.support_requested.connect(lambda: SupportDialog(w).exec())
-        actions.coffee_requested.connect(lambda: BuyMeACoffeeDialog(w).exec())
+        actions.about_requested.connect(self.forms.about)
+        actions.support_requested.connect(self.forms.support)
+        actions.coffee_requested.connect(self.forms.coffee)
         # Image
         actions.image_undo_requested.connect(w.image_history.undo)
         actions.image_redo_requested.connect(w.image_history.redo)
@@ -126,7 +118,7 @@ class WindowController(QObject):
         """
         theme_name = normalize_theme_name(theme_name)
         ui_preferences().set("app_theme", theme_name)
-        apply_app_theme(QApplication.instance(), theme_name)
+        self.forms.apply_theme(theme_name)
         self.window.app_actions.set_theme(theme_name)
 
         # Stencil Studio ouvert : même thème que LSP
@@ -141,9 +133,7 @@ class WindowController(QObject):
 
     def show_documentation(self, page="index.md"):
         """Ouvre la fenêtre de documentation (une seule, réutilisée)."""
-        if self._help_dialog is None:
-            self._help_dialog = HelpDialog(self.window)
-        self._help_dialog.show_page(page)
+        self.forms.help(page)
 
     def add_main_tab(self, name, tab):
         """Onglet que le menu Outils peut demander par son nom (ex. "tab_separation")."""
@@ -182,30 +172,19 @@ class WindowController(QObject):
 
     def show_job_history(self):
         """Fenêtre « Historique des gravures » (non modale, une seule à la fois)."""
-        from laser_studio.ui.dialogs.job_history import JobHistoryDialog   # chargée à la première ouverture
-
-        dialog = self._history_dialog
-        try:
-            if dialog is not None and dialog.isVisible():
-                dialog.raise_()
-                dialog.activateWindow()
-                return
-        except RuntimeError:          # fenêtre déjà détruite (fermée)
-            pass
-        self._history_dialog = JobHistoryDialog(self.window.job_history, self.window)
-        self._history_dialog.show()
+        history, dialogs = self.window.job_history, self.window.dialogs
+        self.forms.job_history(history, on_export=lambda: export_history(history, dialogs),
+                               on_clear=lambda: clear_history(history, dialogs))
 
     def open_camera_dialog(self):
         """Ouvre le dialogue Caméra (choix appareil, état, actions)."""
-        from laser_studio.ui.dialogs.camera import CameraDialog
-
-        CameraDialog(self._ensure_camera(), self.window).exec()
+        self.forms.camera(self._ensure_camera())
 
     def refresh_camera_background(self):
         """Capture la caméra et met l'image en fond de l'éditeur vectoriel (bouton de la barre de l'éditeur).
         Renvoie True si l'image est posée."""
         camera = self._ensure_camera()
-        with busy_cursor():
+        with self.forms.busy():
             return bool(camera.refresh_overlay())
 
     def set_camera_background_enabled(self, enabled):
@@ -226,13 +205,10 @@ class WindowController(QObject):
         """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »
         (kind="machine_params"), « Configuration GRBL » (kind="grbl") ou « Matrice de test »
         (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
-        windows = self._settings_windows
-        if kind not in windows:
-            if kind not in self._settings_pages:
-                return                     # page pas (encore) construite
-            page, title_key = self._settings_pages[kind]
-            windows[kind] = SettingsWindow(self.window, tr(title_key), page, kind)
-        windows[kind].bring_to_front()
+        if kind not in self._settings_pages:
+            return                     # page pas (encore) construite
+        page, title_key = self._settings_pages[kind]
+        self.forms.settings_window(kind, tr(title_key), page)
 
     def add_settings_page(self, kind, page, title_key):
         """Page affichée par show_settings_window(kind), titre tr(`title_key`)."""
@@ -295,6 +271,4 @@ class WindowController(QObject):
         thumbnails = image.comparison()
         if thumbnails is None:
             return
-        dialog = DitherComparisonDialog(self.window, thumbnails)
-        dialog.algorithm_chosen.connect(image.choose_algorithm)
-        dialog.exec()
+        self.forms.dither_comparison(thumbnails, image.choose_algorithm)

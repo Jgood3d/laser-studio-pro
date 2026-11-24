@@ -27,11 +27,30 @@ vous voyez d'un coup d'œil ce qui sera gravé, marqué ou découpé.
 
 ## Importer un dessin
 
-**Importer SVG / DXF** (ou glisser-déposer le fichier sur l'éditeur). Le
-dessin arrive :
+**Importer SVG / DXF** (ou glisser-déposer le fichier sur l'éditeur). Un
+SVG arrive tel que votre logiciel de dessin (Inkscape, Illustrator…) le
+montre :
 
-- **groupé** : on le déplace et on le redimensionne d'un bloc ;
-- sur le **premier calque de découpe** ;
+- **ses calques et groupes sont gardés** : chacun devient un groupe de la
+  liste des objets, avec son nom ;
+- **chaque objet va sur un calque d'après sa couleur** : noir ou gris foncé
+  sur la **gravure**, rouge sur la **découpe**, vert sur le **marquage**
+  (les teintes proches comptent aussi) ; une autre couleur va sur le premier
+  calque de découpe ;
+- **le blanc n'est pas une couleur de laser** : un objet blanc arrive sur
+  le calque **Ignoré**, rien n'est gravé. Pour évider une forme (un texte
+  blanc sur un bandeau noir, par exemple), choisissez l'objet blanc dans la
+  liste, donnez-lui un calque, puis groupez-le avec la forme en
+  **Différence** ;
+- **les textes restent des textes**, modifiables par double-clic ;
+- **ce qui est caché dans le fichier** (calque masqué, objet invisible ou
+  transparent) arrive sur le calque **Ignoré** : rien n'est affiché ni gravé,
+  mais la tête laser de la liste le fait réapparaître. Pratique pour un
+  modèle qui contient plusieurs variantes ;
+- **ce qui est masqué par un détourage** (clipPath) ou un masque n'est pas
+  gravé : seule la partie visible à l'écran est gardée ;
+- **un trait en pointillés** donne des tirets (lignes de pliage ou de
+  perforation), pas un trait continu ;
 - en bas à gauche du plateau, décalé vers la droite de la distance de
   **surbalayage** quand il est activé, pour que la tête ait la place de
   dépasser à gauche.
@@ -50,8 +69,9 @@ garde la position choisie dans sa fenêtre (calée sur l'image), sauf si
 vous l'ajoutez à droite ou au-dessus. **Ctrl+Z** annule l'ajout d'un
 coup, objets supprimés compris.
 
-Pour donner des calques différents à ses parties, **dégroupez-le** :
-clic droit › **Dégrouper**. Chaque tracé devient un objet séparé.
+Un DXF arrive groupé sur le premier calque de découpe. Pour donner des
+calques différents à ses parties, **dégroupez-le** : clic droit ›
+**Dégrouper**. Chaque tracé devient un objet séparé.
 
 ## Assigner un calque
 
@@ -60,8 +80,67 @@ clic droit › **Dégrouper**. Chaque tracé devient un objet séparé.
 2. Choisissez le calque dans la liste **Calque** du panneau des
    propriétés, ou faites clic droit › **Assigner au calque**.
 
-Pour traiter plusieurs objets comme un seul, sélectionnez-les puis clic
-droit › **Regrouper en un seul objet**.
+Pour traiter plusieurs objets comme un seul, groupez-les (voir
+ci-dessous) : chacun garde son calque.
+
+## La liste des objets
+
+À droite du canevas, la liste **Objets** montre tout ce qui est sur la
+grille, du dessus de la pile vers le dessous, avec le calque de chacun.
+Cliquer une ligne sélectionne l'objet sur le canevas (**Maj + clic** ou
+**Ctrl + clic** pour en choisir plusieurs) ; ses propriétés s'affichent
+juste en dessous. Un double-clic sur un nom permet de le renommer.
+
+Sur chaque ligne :
+
+- l'**œil**, en première colonne, masque l'objet sur le canevas pour y voir
+  plus clair, y compris un objet à l'intérieur d'un groupe (le groupe est
+  dessiné sans lui). Un objet masqué **reste gravé** : son nom passe en
+  italique.
+- la **tête laser**, en deuxième colonne (faisceau rouge : l'objet est
+  gravé), met l'objet sur le calque **Ignoré** quand on clique dessus : il
+  n'est plus affiché, ni gravé, ni découpé, son nom est barré et la tête
+  laser aussi. L'objet retient son calque : un nouveau clic le lui rend,
+  avec ses réglages de gravure ou de découpe. Sur un groupe, elle agit sur tous ses
+  objets, chacun retrouvant son propre calque ; dans un groupe combiné, un
+  objet ignoré ne compte plus dans l'opération.
+- la **poubelle**, tout au bout, supprime l'objet. Dans un groupe, elle le
+  retire du groupe (un groupe vidé disparaît aussi). **Ctrl+Z** l'annule.
+
+Un objet masqué ou ignoré ne réagit plus à la souris sur le canevas, mais
+on peut le choisir dans la liste : son contour apparaît en pointillés
+gris et ses propriétés s'ouvrent. Choisir un calque dans la liste
+**Calque** fait réapparaître un objet ignoré sur ce calque (pour un
+groupe, sur tous ses objets).
+
+Changer le calque d'un groupe (liste **Calque** des propriétés, ou clic
+droit › **Assigner au calque**) le change pour tous les objets du groupe.
+
+Les boutons sous la liste :
+
+- **Monter** / **Descendre** : change la place de l'objet dans la pile.
+- **Grouper** (Ctrl+G) : les objets se déplacent d'un bloc, et gardent
+  chacun leur calque et leur remplissage. Un groupe se déplie dans la
+  liste pour voir ses objets.
+- **Dégrouper** : rend les objets du groupe, à leur place. Un texte
+  redevient un texte modifiable.
+- **Combiner** : groupe les objets en ne gardant qu'une surface, gravée
+  sur le calque de l'objet du dessous :
+
+| Opération | Ce qui est gravé |
+|-----------|------------------|
+| Union | Tout ce que couvre au moins un objet |
+| Différence | L'intérieur de l'objet du dessous, moins celui des objets du dessus (pour évider une forme) |
+| Intersection | Seulement la partie commune à tous les objets |
+| Exclusion | Ce que couvre un seul objet ; les chevauchements restent vides |
+
+Pour une différence, l'ordre compte : dépliez le groupe et utilisez
+**Monter** / **Descendre** sur ses objets. Choisir une autre opération
+avec le groupe sélectionné la change ; **Grouper** revient à un simple
+groupe. Les mêmes choix sont dans le clic droit › **Combiner** sur le
+canevas, et dans le clic droit sur la liste quand plusieurs objets y sont
+sélectionnés (Groupe, Union, Différence, Intersection, Exclusion,
+Dégrouper).
 
 ## Les outils de l'éditeur
 

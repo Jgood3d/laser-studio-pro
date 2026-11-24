@@ -121,7 +121,7 @@ class ImageTabTests(_QtTest):
         tab.show()
         self.assertFalse(tab.source_view.isVisible())
         self.assertTrue(tab.dither_view.isVisible())
-        tab.show_original_check.setChecked(True)
+        tab.show_original_action.setChecked(True)
         self.assertTrue(tab.source_view.isVisible())
 
     def test_toolbar_requests(self):
@@ -131,6 +131,9 @@ class ImageTabTests(_QtTest):
         toolbar_actions = [a for a in tab.findChildren(QAction) if a.text() == tr("img.compare_algos")]
         toolbar_actions[0].trigger()
         self.assertEqual(compare, [()])
+        # Barre flottante à gauche des aperçus : comparer, puis « Afficher l'originale » (cochable).
+        self.assertEqual(tab.view_toolbar.actions(), [tab.compare_action, tab.show_original_action])
+        self.assertTrue(tab.show_original_action.isCheckable())
         # Plein écran : celui de la barre d'outils principale, plus de bouton dans l'onglet.
         self.assertFalse(hasattr(tab, "fullscreen_requested"))
 

@@ -51,6 +51,20 @@ class MainWindowTests(unittest.TestCase):
         language._current_lang = cls._language
         cls._memory.__exit__(None, None, None)
 
+    def test_screenshot_tool_uses_existing_attributes(self):
+        """tools/screenshots.py appelle la fenêtre (window.image.load_path, window.job.generate…) : chaque
+        chemin qu'il emploie existe encore, sinon l'outil casse sans que personne ne le voie."""
+        import re
+        tool = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools", "screenshots.py")
+        with open(tool, encoding="utf-8") as f:
+            paths = set(re.findall(r"\bwindow((?:\.[A-Za-z_]\w*)+)", f.read()))
+        self.assertTrue(paths)
+        for path in paths:
+            target = self.win
+            for name in path.strip(".").split("."):
+                self.assertTrue(hasattr(target, name), f"window{path}")
+                target = getattr(target, name)
+
     def pump(self, seconds=0.05):
         end = time.time() + seconds
         while time.time() < end:
@@ -238,8 +252,8 @@ class MainWindowTests(unittest.TestCase):
         language.set_language("fr")
         w.app_actions.documentation_requested.emit()
         self.pump(0.1)
-        self.assertIsNotNone(w.window_controller._help_dialog)
-        w.window_controller._help_dialog.close()
+        self.assertIsNotNone(w.window_controller.forms._help_dialog)
+        w.window_controller.forms._help_dialog.close()
 
     # -- fermeture, projet
 

@@ -97,6 +97,32 @@ def ensure_multi_layer(layers_model, index, focal=None):
     return layers_model.append_layer(layer)
 
 
+def route_tree(objects, layers_model, default_id, focal=None):
+    """Comme route_objects, pour l'arbre d'un SVG importé (vector/svg_tree_import.py) : chaque tracé est
+    rangé d'après le nom de son plus proche groupe (CUT, FRAME, ENGRAVE, LAYER_n), puis chaque groupe
+    reprend le calque de ses objets. Les objets cachés dans le fichier (calque « Ignoré ») y restent."""
+    leaves, groups = [], []
+
+    def collect(obj, group_name):
+        children = getattr(obj, "children", None)
+        if children is None:
+            if not obj.is_ignored():
+                obj.source_tag = f"svg:{group_name}"
+                leaves.append(obj)
+            return
+        groups.append(obj)
+        name = (getattr(obj, "name", "") or "").strip() or group_name
+        for child in children:
+            collect(child, name)
+
+    for obj in objects:
+        collect(obj, "")
+    stats = route_objects(leaves, layers_model, default_id, focal)
+    for group in reversed(groups):          # les sous-groupes d'abord, puis ceux qui les contiennent
+        group.child_ignored_changed()
+    return stats
+
+
 def route_objects(objects, layers_model, default_id, focal=None):
     """Affecte obj.layer_id selon obj.source_tag. Renvoie les statistiques :
     {"counts": {cut, mark, engrave, multi}, "missing_modes": [...], "multi_created": [noms]}."""

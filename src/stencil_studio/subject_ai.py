@@ -4,6 +4,7 @@ Si onnxruntime n'est pas installé ou si le modèle ne peut pas être téléchar
 renvoient False / None et le Studio utilise ses méthodes classiques (aucune erreur).
 Modèle : téléchargé une seule fois dans resources/models/ (à côté de ce fichier).
 """
+import hashlib
 import os
 import threading
 import time
@@ -25,6 +26,17 @@ def _model_dir():
 MODEL_DIR = _model_dir()
 MODEL_FILE = os.path.join(MODEL_DIR, "u2netp.onnx")
 MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
+# Empreinte du modèle attendu (celui livré dans resources/models/ et à MODEL_URL) : un fichier corrompu ou
+# altéré n'est ni gardé ni chargé.
+MODEL_SHA256 = "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8"
+
+
+def _sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 16), b""):
+            digest.update(block)
+    return digest.hexdigest()
 _LOCK = threading.Lock()
 _SESS = [None]
 _ERR = [""]
@@ -85,7 +97,7 @@ def _session():
             return _SESS[0]
         try:
             import onnxruntime as ort
-            if not os.path.isfile(MODEL_FILE) or os.path.getsize(MODEL_FILE) < 1_000_000:
+            if not os.path.isfile(MODEL_FILE) or _sha256(MODEL_FILE) != MODEL_SHA256:
                 os.makedirs(MODEL_DIR, exist_ok=True)
                 tmp = MODEL_FILE + ".part"
                 with urllib.request.urlopen(MODEL_URL, timeout=60) as r, open(tmp, "wb") as f:
@@ -94,6 +106,9 @@ def _session():
                         if not b:
                             break
                         f.write(b)
+                if _sha256(tmp) != MODEL_SHA256:
+                    os.remove(tmp)
+                    raise ValueError("modèle téléchargé corrompu ou différent de celui attendu")
                 os.replace(tmp, MODEL_FILE)
             _SESS[0] = ort.InferenceSession(MODEL_FILE, providers=["CPUExecutionProvider"])
             _ERR[0] = ""

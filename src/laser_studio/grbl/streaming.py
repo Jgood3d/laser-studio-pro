@@ -88,9 +88,6 @@ class CharacterCountingStream:
         """Plus ancienne ligne en attente d'un « ok » (celle que vise la prochaine réponse), ou None."""
         return self._pending[0][0] if self._pending else None
 
-    def next_line(self):
-        return self.lines[self.next_index]
-
     def next_to_send(self):
         """Octets de la prochaine ligne (avec son saut de ligne) si elle tient dans le tampon, sinon None.
         Le tampon est toujours accepté vide : une ligne trop longue part seule."""

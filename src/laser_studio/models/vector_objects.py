@@ -5,8 +5,14 @@ import math
 import uuid
 from PyQt6.QtCore import QPointF
 from PyQt6.QtGui import QFont, QFontMetricsF, QPainterPath, QTransform, QPolygonF
+from laser_studio.vector import boolean_ops
 from laser_studio.vector.text_on_arc import arc_placements
 from laser_studio.vector.text_on_path import path_placements, anchor_offset_mm
+
+# Calque « Ignoré » : l'objet n'est ni affiché ni gravé ni découpé. Ce n'est pas un calque du modèle des
+# calques (models/layers.py) : la génération, qui ne prend que les calques actifs, le saute d'elle-même.
+# L'objet garde son calque d'avant (saved_layer_id) pour le retrouver.
+IGNORED_LAYER_ID = "__ignored__"
 
 
 class VectorObject:
@@ -52,6 +58,42 @@ class VectorObject:
     def world_path(self) -> QPainterPath:
         return self.world_transform().map(self.local_path())
 
+    def engraving_parts(self):
+        """[(calque, tracé monde)] à graver : l'objet entier sur son calque. Un simple groupe donne ceux de
+        ses objets (chacun sur son calque, avec son remplissage)."""
+        return [(self.layer_id, self.world_path())]
+
+    def display_world_path(self):
+        """Tracé monde affiché : celui de l'objet (un groupe n'y met pas ses objets masqués)."""
+        return self.world_path()
+
+    def display_parts(self):
+        """[(calque, tracé monde)] affichés : rien pour un objet masqué (œil), sinon engraving_parts."""
+        return [] if self.is_hidden() else [(self.layer_id, self.display_world_path())]
+
+    def set_layer(self, layer_id):
+        """Change le calque de l'objet (et de tous ceux d'un groupe)."""
+        self.layer_id = layer_id
+
+    # -- masquer, ignorer
+
+    def is_hidden(self):
+        """Masqué à l'affichage (œil de la liste des objets) ; il reste gravé."""
+        return bool(getattr(self, "hidden", False))
+
+    def is_ignored(self):
+        """Sur le calque « Ignoré » : ni affiché, ni gravé, ni découpé."""
+        return self.layer_id == IGNORED_LAYER_ID
+
+    def set_ignored(self, ignored, fallback_layer_id=None):
+        """Met l'objet sur le calque « Ignoré » en retenant son calque, ou le lui rend (à défaut
+        `fallback_layer_id`, si le calque retenu n'existe plus ou n'a jamais été noté)."""
+        if ignored and not self.is_ignored():
+            self.saved_layer_id = self.layer_id
+            self.layer_id = IGNORED_LAYER_ID
+        elif not ignored and self.is_ignored():
+            self.layer_id = getattr(self, "saved_layer_id", None) or fallback_layer_id
+
     def to_dict(self):
         d = dict(self.__dict__)
         d["kind"] = self.kind
@@ -60,6 +102,8 @@ class VectorObject:
     @staticmethod
     def from_dict(d):
         kind = d.get("kind")
+        if kind == "group":
+            return GroupObject.from_dict(d)
         if kind == "text":
             obj = TextObject.__new__(TextObject)
             obj.__dict__.update({k: v for k, v in d.items() if k != "kind"})
@@ -343,4 +387,215 @@ class SvgPathObject(VectorObject):
         obj._local_path_data = path
         obj.scale_x = data.get("scale_x", 1.0)
         obj.scale_y = data.get("scale_y", 1.0)
+        return obj
+
+
+class GroupObject(VectorObject):
+    """Groupe d'objets qui restent entiers (un texte reste un texte, modifiable une fois dégroupé), avec
+    une opération (vector/boolean_ops.py) :
+
+    - GROUP : simple groupe, déplacé d'un bloc ; chaque objet garde son calque et son remplissage ;
+    - UNION, DIFFERENCE, INTERSECTION, EXCLUSION : les objets, du dessous (`children[0]`) vers le dessus,
+      ne forment plus qu'un tracé, rempli et gravé sur le calque du groupe (celui de l'objet du dessous).
+
+    Les objets gardent leur place au moment du groupement (repère monde) ; `origin` est le coin bas-gauche
+    de leur ensemble à ce moment-là. Le groupe se déplace, pivote ou se retourne comme un objet : son
+    repère local est celui d'un tracé SVG (ancré sur `origin`, Y vers le bas), et placement() ramène les
+    objets à leur place actuelle.
+
+        group = GroupObject([dessous, dessus], operation=boolean_ops.DIFFERENCE)
+    """
+    kind = "group"
+
+    def __init__(self, children=(), operation=boolean_ops.GROUP, origin=None, name="", **kwargs):
+        children = list(children)
+        if operation not in boolean_ops.OPERATIONS:
+            raise ValueError(f"opération inconnue : {operation!r}")
+        if origin is None:
+            box = QPainterPath()
+            for child in children:
+                box.addPath(child.world_path())
+            rect = box.boundingRect()
+            origin = (rect.left(), rect.top())
+        kwargs.setdefault("x_mm", origin[0])
+        kwargs.setdefault("y_mm", origin[1])
+        kwargs.setdefault("layer_id", children[0].layer_id if children else None)
+        super().__init__(**kwargs)
+        self.children = children
+        self.operation = operation
+        self.origin = (float(origin[0]), float(origin[1]))
+        self.name = name
+        self._combined = None
+
+    # -- géométrie
+
+    def is_boolean(self):
+        return self.operation != boolean_ops.GROUP
+
+    def invalidate(self):
+        """À appeler après avoir changé les objets ou l'opération du groupe."""
+        self._combined = None
+
+    def set_operation(self, operation):
+        if operation not in boolean_ops.OPERATIONS:
+            raise ValueError(f"opération inconnue : {operation!r}")
+        self.operation = operation
+        if self.is_boolean() and self.children:
+            active = self._active_children()
+            self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
+        self.invalidate()
+
+    def move_child(self, child, step):
+        """Monte (`step` > 0) ou descend un objet du groupe ; True s'il a bougé."""
+        index = next((i for i, c in enumerate(self.children) if c is child), None)
+        if index is None:
+            return False
+        target = max(0, min(len(self.children) - 1, index + step))
+        if target == index:
+            return False
+        self.children.insert(target, self.children.pop(index))
+        if self.is_boolean():
+            active = self._active_children()
+            self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
+        self.invalidate()
+        return True
+
+    def _to_local(self):
+        return QTransform(1, 0, 0, -1, -self.origin[0], self.origin[1])
+
+    def placement(self):
+        """Transformation qui mène les objets de leur place au groupement à leur place actuelle."""
+        return self._to_local() * self.world_transform()
+
+    def combined_path(self):
+        """Tracé des objets à leur place au groupement, combinés selon l'opération (gardé en cache)."""
+        if self._combined is None:
+            # Un objet ignoré ne compte pas dans l'opération (ni à l'affichage, ni à la gravure).
+            self._combined = boolean_ops.combine([c.world_path() for c in self._active_children()], self.operation)
+        return QPainterPath(self._combined)
+
+    def local_path(self) -> QPainterPath:
+        return self._to_local().map(self.combined_path())
+
+    def full_local_path(self):
+        """Contour de tous les objets du groupe, ignorés compris (repère local) : pour montrer un groupe
+        ignoré qu'on vient de choisir dans la liste."""
+        def gather(group):
+            path = QPainterPath()
+            for child in group.children:
+                if isinstance(child, GroupObject):
+                    path.addPath(child.placement().map(gather(child)))
+                else:
+                    path.addPath(child.world_path())
+            return path
+        return self._to_local().map(gather(self))
+
+    def display_local_path(self):
+        """Tracé affiché (repère local) : comme local_path, sans les objets masqués d'un œil (ils restent
+        gravés)."""
+        if not self._has_hidden():
+            return self.local_path()
+        visible = [c for c in self._active_children() if not c.is_hidden()]
+        combined = boolean_ops.combine([c.display_world_path() for c in visible], self.operation)
+        return self._to_local().map(combined)
+
+    def _has_hidden(self):
+        """Vrai si un objet du groupe (ou d'un sous-groupe) est masqué d'un œil."""
+        return any(c.is_hidden() or (isinstance(c, GroupObject) and c._has_hidden()) for c in self.children)
+
+    def display_world_path(self):
+        return self.world_transform().map(self.display_local_path())
+
+    def display_parts(self):
+        if self.is_hidden():
+            return []
+        if self.is_boolean():
+            return [(self.layer_id, self.display_world_path())]
+        placement = self.placement()
+        return [(layer, placement.map(path)) for child in self.children for layer, path in child.display_parts()]
+
+    def local_parts(self):
+        """[(calque, tracé local)] affichés de chaque objet d'un simple groupe (chacun dans la couleur de son
+        calque, sans les objets masqués ni ignorés) ; [] pour une opération booléenne."""
+        if self.is_boolean():
+            return []
+        to_local = self._to_local()
+        return [(layer, to_local.map(path)) for child in self.children
+                for layer, path in child.display_parts() if layer != IGNORED_LAYER_ID]
+
+    def engraving_parts(self):
+        if self.is_boolean():
+            return [(self.layer_id, self.world_path())]
+        placement = self.placement()
+        return [(layer, placement.map(path)) for child in self.children for layer, path in child.engraving_parts()]
+
+    def set_layer(self, layer_id):
+        self.layer_id = layer_id
+        for child in self.children:
+            child.set_layer(layer_id)
+        self.invalidate()
+
+    def is_ignored(self):
+        """Ignoré quand tous ses objets le sont (ou le groupe lui-même, groupe vide)."""
+        if not self.children:
+            return self.layer_id == IGNORED_LAYER_ID
+        return all(child.is_ignored() for child in self.children)
+
+    def set_ignored(self, ignored, fallback_layer_id=None):
+        """Ignore (ou rend) tout le groupe : chaque objet retient et retrouve son propre calque."""
+        for child in self.children:
+            child.set_ignored(ignored, fallback_layer_id)
+        self.child_ignored_changed()
+
+    def child_ignored_changed(self):
+        """À appeler après avoir ignoré (ou rendu) un objet du groupe : le groupe prend le calque de son premier
+        objet non ignoré (« Ignoré » s'il n'en reste aucun), son tracé est recalculé."""
+        active = self._active_children()
+        self.layer_id = active[0].layer_id if active else IGNORED_LAYER_ID
+        self.invalidate()
+
+    def _active_children(self):
+        """Objets du groupe qui ne sont pas sur le calque « Ignoré »."""
+        return [child for child in self.children if not child.is_ignored()]
+
+    def released_children(self):
+        """Les objets du groupe, chacun à sa place actuelle (dégrouper). Un groupe retourné (miroir) donne
+        des tracés figés ; sinon chaque objet garde sa nature (texte, forme…), déplacé et pivoté."""
+        placement = self.placement()
+        mirrored = placement.determinant() < 0
+        angle = math.degrees(math.atan2(placement.m12(), placement.m11()))
+        released = []
+        for child in self.children:
+            if mirrored:
+                world = placement.map(child.world_path())
+                rect = world.boundingRect()
+                local = QTransform(1, 0, 0, -1, -rect.left(), rect.top()).map(world)
+                released.append(SvgPathObject(local_path_data=local, source_tag=child.kind,
+                                              layer_id=child.layer_id, x_mm=rect.left(), y_mm=rect.top()))
+                continue
+            position = placement.map(QPointF(child.x_mm, child.y_mm))
+            child.x_mm, child.y_mm = position.x(), position.y()
+            child.rotation_deg = (child.rotation_deg + angle) % 360.0
+            released.append(child)
+        return released
+
+    # -- enregistrement
+
+    def to_dict(self):
+        d = {k: v for k, v in self.__dict__.items() if not k.startswith("_")}
+        d["kind"] = self.kind
+        d["children"] = [child.to_dict() for child in self.children]
+        d["origin"] = list(self.origin)
+        return d
+
+    @staticmethod
+    def from_dict(d):
+        obj = GroupObject.__new__(GroupObject)
+        data = {k: v for k, v in d.items() if k not in ("kind", "children")}
+        obj.__dict__.update(data)
+        obj.children = [VectorObject.from_dict(child) for child in d.get("children") or []]
+        obj.operation = data.get("operation", boolean_ops.GROUP)
+        obj.origin = tuple(data.get("origin") or (obj.x_mm, obj.y_mm))
+        obj.name = data.get("name", "")
+        obj._combined = None
         return obj

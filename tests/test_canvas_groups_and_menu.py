@@ -85,15 +85,33 @@ class ContextMenuTests(unittest.TestCase):
         self.assertIn(tr("vector.text_follow"), found)
         self.assertIn(tr("vector.group_objects").format(n=2), found)
 
-    def test_menu_entries_act_on_the_selection(self):
+    def test_menu_entries_ask_the_editor(self):
+        """Le menu ne modifie rien lui-même : il émet une commande, que le contrôleur traite (branché comme
+        dans ui/vector_editor/builder.py)."""
+        from laser_studio.controllers.vector_editor import VectorEditorController
+        editor = VectorEditorController(self.canvas.document, self.canvas, self.canvas.layer_manager,
+                                        machine=None, dialogs=None)
+        commands = editor.commands()
+        asked = []
+        self.canvas.command_requested.connect(asked.append)
+        self.canvas.command_requested.connect(lambda name: commands[name]())
+        self.canvas.layer_requested.connect(editor.assign_layer)
         item = self.canvas.add_object(ShapeObject("Rectangle", 10, 10, layer_id=self.layer))
         item.setSelected(True)
         menu = build_context_menu(self.canvas, [item], (0.0, 0.0))
-        rotate = next(a for a in menu.actions() if a.text() == tr("ui.vector_rotate_90"))
-        rotate.trigger()
+        next(a for a in menu.actions() if a.text() == tr("ui.vector_rotate_90")).trigger()
+        self.assertEqual(asked, ["rotate"])
         self.assertEqual(item.obj.rotation_deg, 90.0)
         self.canvas.undo()
         self.assertEqual(self.canvas.objects[0].rotation_deg, 0.0)
+        # Après Ctrl+Z les objets sont recréés : nouveau clic droit sur la nouvelle sélection.
+        restored = self.canvas.item_for(self.canvas.objects[0])
+        restored.setSelected(True)
+        menu = build_context_menu(self.canvas, [restored], (0.0, 0.0))
+        other = self.canvas.layer_manager.layers[1]
+        layer_menu = next(a.menu() for a in menu.actions() if a.menu() is not None)
+        next(a for a in layer_menu.actions() if a.text().startswith(other.name)).trigger()
+        self.assertEqual(self.canvas.objects[0].layer_id, other.id)
 
 
 if __name__ == "__main__":

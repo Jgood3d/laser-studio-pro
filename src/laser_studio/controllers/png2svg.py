@@ -1,19 +1,19 @@
-"""Envoi vers l'éditeur vectoriel du SVG créé par l'onglet « Vectorisation
-d'image » (Png2SvgTab)."""
+"""SVG créé par l'onglet « Vectorisation d'image » (Png2SvgTab) : envoi vers l'éditeur vectoriel et
+enregistrement dans un fichier."""
 
 import os
 import tempfile
 
-
+from laser_common.files import atomic_write_text
 from laser_studio.i18n import tr
-from laser_studio.vector.svg_extract import extract_svg_objects
+from laser_studio.vector.svg_tree_import import import_svg_tree
 
 
 class Png2SvgController:
-    """Transforme le SVG de l'onglet en objets de l'éditeur vectoriel.
+    """Transforme le SVG de l'onglet en objets de l'éditeur vectoriel, ou l'enregistre.
 
-    Même chemin que l'import SVG classique (extract_svg_objects), via un
-    fichier temporaire : le convertisseur ne travaille qu'en mémoire.
+    Même lecture que le bouton « Importer » (vector/svg_tree_import.py), via un fichier temporaire : le
+    convertisseur ne travaille qu'en mémoire. Tout va sur le calque SVG par défaut.
 
         png2svg = Png2SvgController(
             self, self.layer_manager,
@@ -21,6 +21,7 @@ class Png2SvgController:
             add_to_vector_editor=self.vector_editor.add_objects,
         )
         tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)
+        tab.export_requested.connect(png2svg.export_svg)
 
     `parent` : fenêtre des messages. `layer_manager` : calques (les objets
     vont sur le calque SVG par défaut). `bed_height()` : profondeur du lit
@@ -59,14 +60,29 @@ class Png2SvgController:
         self._dialogs.info(tr("vector.svg_success_title"),
                            tr("vector.svg_success").format(count=len(objects), layer=layer.name))
 
+    def export_svg(self, svg_text):
+        """Enregistre le SVG dans le fichier choisi par l'utilisateur. Renvoie le chemin, ou None."""
+        path = self._dialogs.save_file(tr("png2svg.export_svg"), "vectorisation.svg", "SVG (*.svg)")
+        if not path:
+            return None
+        if not path.lower().endswith(".svg"):
+            path += ".svg"
+        try:
+            atomic_write_text(path, svg_text)
+        except OSError as error:
+            self._dialogs.error(tr("png2svg.export_svg"), str(error))
+            return None
+        self._dialogs.info(tr("png2svg.export_svg"), tr("png2svg.export_success"))
+        return path
+
     def _svg_objects(self, svg_text, layer_id):
-        """Objets vectoriels du SVG (extract_svg_objects attend un
-        chemin : le texte passe par un fichier temporaire)."""
+        """Objets vectoriels du SVG, tous sur `layer_id` (l'importeur lit un fichier : le texte passe par
+        un fichier temporaire)."""
         fd, path = tempfile.mkstemp(suffix=".svg")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(svg_text)
-            return extract_svg_objects(path, layer_id, self._bed_height())
+            return import_svg_tree(path, lambda _role: layer_id, self._bed_height())
         finally:
             try:
                 os.remove(path)

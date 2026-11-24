@@ -43,6 +43,16 @@ def _optimize_polygon_order(polygons):
 # puisque extract_vector_layer_data s'exécute dans le thread principal Qt.
 MAX_POLYGONS_FOR_PATH_OPTIMIZATION = 1500
 
+def _path_polygons(path):
+    """Polygones (listes de (x, y) en mm) d'un tracé, sans les morceaux de moins de 2 points."""
+    polygons = []
+    for poly in path.toSubpathPolygons(QTransform()):
+        pts = [(p.x(), p.y()) for p in poly]
+        if len(pts) >= 2:
+            polygons.append(pts)
+    return polygons
+
+
 def extract_vector_layer_data(objects, layer_manager: LayersModel, optimize_path=True):
     """À appeler dans le thread principal (Qt). Convertit chaque VectorObject en
     polygones purement numériques (mm), groupés par calque. Aucun objet Qt
@@ -60,21 +70,17 @@ def extract_vector_layer_data(objects, layer_manager: LayersModel, optimize_path
             continue
         layers_data[layer.id] = {"layer": layer.to_dict(), "polygons": [], "polygon_groups": []}
 
-    for obj in objects:
-        if obj.layer_id not in layers_data:
+    # Un simple groupe donne chacun de ses objets, sur son calque ; un groupe booléen (union, différence…)
+    # donne son tracé résultant (GroupObject.engraving_parts).
+    for layer_id, path in (part for obj in objects for part in obj.engraving_parts()):
+        if layer_id not in layers_data:
             continue
-        path = obj.world_path()
-        polygons = path.toSubpathPolygons(QTransform())
-        poly_points = []
-        for poly in polygons:
-            pts = [(p.x(), p.y()) for p in poly]
-            if len(pts) >= 2:
-                poly_points.append(pts)
+        poly_points = _path_polygons(path)
         if poly_points:
-            layers_data[obj.layer_id]["polygons"].extend(poly_points)
+            layers_data[layer_id]["polygons"].extend(poly_points)
             # Un groupe par objet : le remplissage applique la règle pair-impair DANS un objet (trous),
             # puis réunit les objets entre eux (voir _scanline_fill_union).
-            layers_data[obj.layer_id]["polygon_groups"].append(poly_points)
+            layers_data[layer_id]["polygon_groups"].append(poly_points)
 
     if optimize_path:
         for layer_id, data in layers_data.items():
