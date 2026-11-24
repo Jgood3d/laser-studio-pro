@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import re
+import secrets
 import socket
 import sys
 import threading
@@ -28,6 +29,8 @@ from .models.session import StudioSession
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UI_FILE = os.path.join(HERE, "ui", "studio.html")
+# Jeton tiré à chaque lancement, glissé dans la page servie et exigé sur les routes /api/ (voir Handler._refused).
+TOKEN = secrets.token_urlsafe(24)
 DEFAULT_PORT = 8765
 
 API = StudioApi(StudioSession())
@@ -35,15 +38,15 @@ PRESETS = PresetsStore()
 
 
 def check_versions():
-    """Affiche les versions des fichiers et signale un mélange (ex. core.py ancien)."""
+    """Affiche les versions des fichiers et signale un mélange (ex. paquet core ancien)."""
     ui_ver = "?"
     if os.path.isfile(UI_FILE):
         with open(UI_FILE, encoding="utf-8") as f:
             m = re.search(r'UI_VERSION = "([^"]+)"', f.read())
         ui_ver = m.group(1) if m else "ancienne version / old version"
-    print(f"Versions : core.py {core.VERSION} | studio.html {ui_ver}")
+    print(f"Versions : core {core.VERSION} | studio.html {ui_ver}")
     if ui_ver != core.VERSION:
-        return [f"Fichiers de versions différentes / mixed versions : core.py={core.VERSION}, studio.html={ui_ver}."]
+        return [f"Fichiers de versions différentes / mixed versions : core={core.VERSION}, studio.html={ui_ver}."]
     return []
 
 
@@ -72,17 +75,32 @@ class Handler(BaseHTTPRequestHandler):
     def _body(self):
         return self.rfile.read(int(self.headers.get("Content-Length") or 0))
 
+    def _refused(self, u):
+        """Vrai (et réponse 403 envoyée) pour une requête qui ne vient pas de la page du Studio : nom d'hôte
+        autre que 127.0.0.1 / localhost (un site qui ferait pointer son nom vers 127.0.0.1), ou route /api/
+        sans le jeton de la page (en-tête X-Stencil-Token, ou paramètre t pour une image)."""
+        port = self.server.server_address[1]
+        host_ok = self.headers.get("Host", "") in (f"127.0.0.1:{port}", f"localhost:{port}")
+        token = self.headers.get("X-Stencil-Token") or parse_qs(u.query).get("t", [""])[0]
+        if host_ok and (not u.path.startswith("/api/") or secrets.compare_digest(token, TOKEN)):
+            return False
+        self._send(403, {"error": "forbidden"})
+        return True
+
     # -- routes
     def do_GET(self):
         u = urlparse(self.path)
         session = API.session
+        if self._refused(u):
+            return
         try:
             if u.path in ("/", "/index.html", "/studio.html"):
                 if not os.path.isfile(UI_FILE):
                     self._send(404, "studio.html introuvable / not found", "text/plain; charset=utf-8")
                 else:
-                    with open(UI_FILE, "rb") as f:
-                        self._send(200, f.read(), "text/html; charset=utf-8")
+                    with open(UI_FILE, encoding="utf-8") as f:
+                        page = f.read().replace("__STENCIL_TOKEN__", TOKEN)
+                    self._send(200, page, "text/html; charset=utf-8")
             elif u.path == "/api/langs":
                 self._send(200, {"langs": available_languages() or ["en"], "default": detect_language()})
             elif u.path == "/api/catalog":
@@ -104,6 +122,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
         session = API.session
+        if self._refused(u):
+            return
         try:
             data = self._body()
             if u.path == "/api/upload":

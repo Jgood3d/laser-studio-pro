@@ -10,6 +10,8 @@ futurs boutons « macros » s'appuieront dessus.
     parse_grbl_settings(reponse_a_dollar_dollar)   # {"$22": "1", "$32": "1", ...}
 """
 
+import re
+
 HOME = "$H"                         # cycle de homing
 UNLOCK = "$X"                       # déverrouillage après une alarme
 READ_SETTINGS = "$$"                # réglages du graveur
@@ -50,11 +52,21 @@ def parse_grbl_settings(response):
     return grbl_settings
 
 
+# Réglage numérique « $110=6000 », commentaire « (…) » éventuel écarté. Les autres commandes qui ont
+# la même forme ne sont jamais écrites : $RST=* efface la carte, $N0=… s'exécute à chaque démarrage
+# (un M3 y allumerait le laser), $J=… déplace la tête, $SLP=… met la carte en veille.
+_SETTING_RE = re.compile(r"\s*\$(\d+)\s*=\s*([^\s(]+)")
+
+
 def setting_lines(text):
-    """Lignes « $N=valeur » d'un texte (réglages affichés, fichier importé),
-    sans espaces autour ; les autres lignes sont ignorées."""
-    return [line.strip() for line in (text or "").splitlines()
-            if line.strip().startswith("$") and "=" in line]
+    """Réglages numériques « $N=valeur » d'un texte (réglages affichés, fichier importé), sans espaces
+    ni commentaire ; toute autre ligne est ignorée."""
+    lines = []
+    for line in (text or "").splitlines():
+        match = _SETTING_RE.match(line)
+        if match:
+            lines.append(f"${match.group(1)}={match.group(2)}")
+    return lines
 
 
 def response_setting_lines(response):

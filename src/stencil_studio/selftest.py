@@ -267,12 +267,12 @@ def measure():
 
 def main():
     print(f"Python {sys.version.split()[0]} | OpenCV {cv2.__version__} | numpy {np.__version__} | scipy {scipy.__version__}")
-    print(f"core.py version {getattr(core, 'VERSION', '?')}")
+    print(f"core version {getattr(core, 'VERSION', '?')}")
     import re as _re, os as _os
     _h = open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "ui", "studio.html"), encoding="utf-8").read()
     _m = _re.search(r'UI_VERSION = "([0-9.]+)"', _h)
     if not _m or _m.group(1) != core.VERSION:
-        print(f"ERREUR : studio.html est en version {_m.group(1) if _m else '?'} mais core.py en {core.VERSION}")
+        print(f"ERREUR : studio.html est en version {_m.group(1) if _m else '?'} mais core en {core.VERSION}")
         sys.exit(1)
     m = measure()
     if "--record" in sys.argv:

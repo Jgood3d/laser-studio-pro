@@ -396,6 +396,22 @@ class ProjectControllerTests(_QtTest):
         self.project.open_path(path)
         self.assertEqual((self.restored, self.messages), ([], ["critical"]))
 
+    def test_failed_recovery_keeps_the_autosave(self):
+        """Récupération après plantage qui échoue : la sauvegarde reste, pour un nouvel essai ; réussie ou
+        refusée, elle est oubliée."""
+        autosave = os.path.join(self.dir, project_module.AUTOSAVE_FILENAME)
+        with open(autosave, "w", encoding="utf-8") as f:
+            f.write("{abîmé")
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+            self.project.offer_autosave_recovery()
+        self.assertTrue(os.path.exists(autosave))
+        with open(autosave, "w", encoding="utf-8") as f:                 # sauvegarde lisible
+            json.dump(self.project.data(), f)
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+            self.project.offer_autosave_recovery()
+        self.assertFalse(os.path.exists(autosave))
+        self.assertEqual(self.restored[-1][0]["bright"], 12)
+
     def test_data_without_image(self):
         self.assertIsNone(
             self.project.data(encode_image=False)["raw_image_b64"]
