@@ -23,8 +23,8 @@ log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 # Modes des calques : codes indépendants de la langue (voir layer_modes.py).
 # ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
 from laser_studio.models.layer_modes import (  # noqa: E402
-    LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, MODE_CUT,
-    MODE_FILL, MODE_MARK, normalize_mode,
+    CONTOUR_MODES, LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT,
+    MODE_FILL, MODE_MARK, layer_laser_cmd, layer_overscan_enabled, normalize_mode,
 )
 
 ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
@@ -60,7 +60,22 @@ LAYER_FIELD_CASTS = {
     "enabled": bool,
     "overscan": bool,
     "laser_cmd": str,
+    "tabs": bool,
+    "tab_count": int,
+    "tab_width": float,
+    "kerf": bool,
+    "kerf_width": float,
 }
+
+# Ponts de maintien d'un calque de découpe (voir vector/tabs.py) : bornes des réglages.
+TAB_COUNT_MAX = 20
+TAB_WIDTH_MIN_MM, TAB_WIDTH_MAX_MM = 0.1, 10.0
+# Compensation du kerf d'un calque de découpe (voir vector/kerf.py) : largeur de la saignée, en mm.
+KERF_WIDTH_MIN_MM, KERF_WIDTH_MAX_MM = 0.01, 2.0
+DEFAULT_KERF_WIDTH_MM = 0.15
+
+DEFAULT_TAB_COUNT = 4
+DEFAULT_TAB_WIDTH_MM = 0.5
 
 
 def base_layer_name(role):
@@ -99,6 +114,18 @@ def validated_settings(source, defaults=None):
                 value = value.strip().upper()
                 if value not in LAYER_LASER_CMDS:
                     raise ValueError(value)
+            elif key == "tab_count":
+                value = min(max(0, int(value)), TAB_COUNT_MAX)
+            elif key == "tab_width":
+                value = float(value)
+                if not value == value:                  # NaN
+                    raise ValueError(value)
+                value = min(max(value, TAB_WIDTH_MIN_MM), TAB_WIDTH_MAX_MM)
+            elif key == "kerf_width":
+                value = float(value)
+                if not value == value:                  # NaN
+                    raise ValueError(value)
+                value = min(max(value, KERF_WIDTH_MIN_MM), KERF_WIDTH_MAX_MM)
             elif key == "passes":
                 # 0 passe = aucune découpe/marquage généré. On refuse 0 et les
                 # négatifs (souvent issus d'un ancien matériau pass_c=0 ou d'un
@@ -124,7 +151,8 @@ class LaserLayer:
     def __init__(self, name="Calque", color="#ff3b30", mode=MODE_CUT,
                  power=80.0, speed=300, passes=1, line_interval=0.10,
                  enabled=True, layer_id=None, line_interval_linked=False, role=None,
-                 overscan=True, laser_cmd=""):
+                 overscan=True, laser_cmd="", tabs=False, tab_count=DEFAULT_TAB_COUNT,
+                 tab_width=DEFAULT_TAB_WIDTH_MM, kerf=False, kerf_width=DEFAULT_KERF_WIDTH_MM):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.role = role
         self.name = name
@@ -135,7 +163,7 @@ class LaserLayer:
         self.passes = max(1, int(passes))   # 0 passe = aucune découpe générée
         self.line_interval = float(line_interval)  # mm (pas du remplissage)
         # Si True, line_interval suit automatiquement la taille du spot
-        # (MachineConfig.focal) à chaque changement — voir LayersTab.link_all_to_focal.
+        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
         self.line_interval_linked = bool(line_interval_linked)
         self.enabled = bool(enabled)
         # Surbalayage : appliqué à ce calque seulement si l'option est aussi activée dans Configuration
@@ -143,6 +171,16 @@ class LaserLayer:
         self.overscan = bool(overscan)
         # Commande laser propre au calque ("" : celle de Configuration GRBL, voir LAYER_LASER_CMDS).
         self.laser_cmd = laser_cmd if laser_cmd in LAYER_LASER_CMDS else ""
+        # Ponts de maintien (calque de découpe) : `tabs` les active (le nombre et la largeur sont conservés
+        # quand on le désactive) ; nombre par contour extérieur fermé et largeur en mm le long du tracé.
+        # Sans effet hors découpe.
+        self.tabs = bool(tabs)
+        self.tab_count = min(max(0, int(tab_count)), TAB_COUNT_MAX)
+        self.tab_width = min(max(float(tab_width), TAB_WIDTH_MIN_MM), TAB_WIDTH_MAX_MM)
+        # Compensation du kerf (calque de découpe) : `kerf` l'active, `kerf_width` (mm) est la largeur de la
+        # saignée du laser ; les contours sont décalés de la moitié. Sans effet hors découpe.
+        self.kerf = bool(kerf)
+        self.kerf_width = min(max(float(kerf_width), KERF_WIDTH_MIN_MM), KERF_WIDTH_MAX_MM)
 
     def to_dict(self):
         return dict(self.__dict__)
@@ -253,13 +291,6 @@ class LayersModel(QObject):
         self.engrave_layer_selected.emit(layer_id)
         return True
 
-    def layer_for_role(self, role):
-        """Calque de base de rôle `role` (« engrave », « cut », « mark »), sinon le calque SVG par défaut."""
-        for layer in self.layers:
-            if getattr(layer, "role", None) == role:
-                return layer
-        return self.default_svg_layer()
-
     def default_svg_layer(self):
         """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
         le premier calque en mode Découpe. À défaut, le premier calque."""
@@ -310,14 +341,6 @@ class LayersModel(QObject):
         if line_interval is not None:
             kwargs["line_interval"] = line_interval
         layer = LaserLayer(name=f"Calque {idx + 1}", color=color, **kwargs)
-        self.layers.append(layer)
-        log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
-        self.layer_added.emit(layer.id)
-        self.changed.emit()
-        return layer
-
-    def append_layer(self, layer):
-        """Ajoute un calque déjà réglé (`LaserLayer`, ex. plaque importée de Stencil Studio) et le renvoie."""
         self.layers.append(layer)
         log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
         self.layer_added.emit(layer.id)

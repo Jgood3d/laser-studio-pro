@@ -8,6 +8,7 @@ en direct. L'onglet Visualisation 2D (ui/tabs/preview_2d) dessine le résultat.
         if is_raster_group(group, matrix_engrave=False):
             ...
 """
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -221,11 +222,24 @@ def is_cut_group(group):
     return group.mode == MODE_CUT or group.kind == KIND_SVG_CUT
 
 
+# Écart maximal (mm) entre deux tronçons de découpe qu'un pont de maintien sépare (largeur maximale d'un
+# pont : models.layers.TAB_WIDTH_MAX_MM). Au-delà, les tronçons ne forment pas un même contour.
+TAB_BRIDGE_MAX_MM = 10.0
+
+
+def _gap(a, b):
+    return math.hypot(a[0] - b[0], a[1] - b[1])
+
+
 def cut_contours(segment_lists):
     """Contours fermés des découpes, à partir de leurs segments G1 (listes
     x / y, un NaN entre deux segments) : les segments qui se suivent sont
     chaînés bout à bout. Un contour répété (découpe en plusieurs passes)
-    n'est gardé qu'une fois."""
+    n'est gardé qu'une fois.
+
+    Un contour à ponts de maintien est coupé en plusieurs tronçons séparés par un petit vide : des
+    tronçons consécutifs, chacun ouvert, dont le vide ne dépasse pas TAB_BRIDGE_MAX_MM sont rejoints en
+    un seul contour (fermé par le dernier vide), pour que la matière de la pièce reste dessinée."""
     contours, seen = [], set()
     for xs, ys in segment_lists:
         chain = []
@@ -239,9 +253,28 @@ def cut_contours(segment_lists):
                 chain = [start, end]
         if len(chain) > 2:
             contours.append(chain)
-    result = []
+
+    def is_closed(chain, tolerance=0.05):
+        return _gap(chain[0], chain[-1]) < tolerance
+
+    # Rejoint les tronçons qu'un pont sépare : [contour, nombre de tronçons, départ de chaque tronçon].
+    # Un tronçon qui repart d'un départ déjà vu est la passe suivante du même contour : il en commence un
+    # nouveau (sinon les passes s'enchaîneraient en un seul tracé qui fait deux fois le tour).
+    merged = []
     for chain in contours:
-        closed = abs(chain[0][0] - chain[-1][0]) < 0.05 and abs(chain[0][1] - chain[-1][1]) < 0.05
+        if merged:
+            current, n_runs, starts = merged[-1]
+            gap = _gap(current[-1], chain[0])
+            if (not is_closed(current) and not is_closed(chain) and 1e-3 < gap <= TAB_BRIDGE_MAX_MM
+                    and not any(_gap(chain[0], start) < 1e-3 for start in starts)):
+                merged[-1] = [current + chain, n_runs + 1, starts + [chain[0]]]
+                continue
+        merged.append([chain, 1, [chain[0]]])
+
+    result = []
+    for chain, n_runs, _starts in merged:
+        # Un contour rejoint se ferme par le dernier vide (celui du dernier pont).
+        closed = is_closed(chain) or (n_runs >= 2 and _gap(chain[0], chain[-1]) <= TAB_BRIDGE_MAX_MM)
         key = (round(min(x for x, _ in chain), 2), round(min(y for _, y in chain), 2),
                round(max(x for x, _ in chain), 2), round(max(y for _, y in chain), 2))
         if closed and key not in seen:
@@ -252,9 +285,7 @@ def cut_contours(segment_lists):
 
 def material_background_rect(raster_stroke_lists, segment_lists, margin=MATERIAL_BACKGROUND_MARGIN_MM):
     """Rectangle (x, y, largeur, hauteur) couvrant tout le job (traits gravés
-    et tracés vectoriels) plus une marge, ou None s'il n'y a rien. La marge ne
-    descend pas sous 0 : un job posé à l'origine n'a pas de matière en X ou Y
-    négatif (le plateau commence là)."""
+    et tracés vectoriels) plus une marge, ou None s'il n'y a rien."""
     xs, ys = [], []
     for strokes in raster_stroke_lists:
         for x1, y1, x2, y2, _s in strokes:
@@ -265,9 +296,8 @@ def material_background_rect(raster_stroke_lists, segment_lists, margin=MATERIAL
         ys += [v for v in seg_ys if v == v]
     if not xs or not ys:
         return None
-    x0 = min(xs) - margin if min(xs) < 0 else max(0.0, min(xs) - margin)
-    y0 = min(ys) - margin if min(ys) < 0 else max(0.0, min(ys) - margin)
-    return x0, y0, max(xs) + margin - x0, max(ys) + margin - y0
+    return (min(xs) - margin, min(ys) - margin,
+            max(xs) - min(xs) + 2 * margin, max(ys) - min(ys) + 2 * margin)
 
 
 def raster_image(raster_strokes, material_rgb, burn_rgb, gamma=1.0, negative=False,
