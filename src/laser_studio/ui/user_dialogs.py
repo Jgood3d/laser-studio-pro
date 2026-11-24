@@ -71,6 +71,11 @@ class UserDialogs:
         text, ok = QInputDialog.getText(self.parent, title, label)
         return text if ok else None
 
+    def ask_number(self, title, label, value, minimum, maximum, decimals=1):
+        """Nombre saisi (entre `minimum` et `maximum`), ou None si annulé."""
+        number, ok = QInputDialog.getDouble(self.parent, title, label, value, minimum, maximum, decimals)
+        return number if ok else None
+
     def choose(self, title, text, choices):
         """Choix entre plusieurs réponses, plus Annuler. `choices` : liste de (clé, libellé), le premier
         étant le bouton par défaut. Renvoie la clé choisie, ou None si annulé (bouton ou Échap)."""

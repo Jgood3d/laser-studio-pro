@@ -39,6 +39,7 @@ from laser_studio.camera.workspace_alignment import (
     merge_detections,
     generate_apriltag_targets,
     tag_cell_px,
+    targets_to_engrave_paths,
 )
 from laser_studio.controllers.camera import CameraController
 from laser_studio.i18n import tr
@@ -132,6 +133,15 @@ class WorkspaceAlignmentWizard(QDialog):
         self.spin_rows.setRange(2, 5)
         self.spin_rows.setValue(saved.get("rows", 2))
         form.addRow(tr("camera.align_wizard.rows"), self.spin_rows)
+
+        # 0 = tags imprimés à plat sur le plateau ; sinon l'épaisseur de la matière sur laquelle ils sont gravés.
+        self.spin_tag_height = QDoubleSpinBox()
+        self.spin_tag_height.setRange(0.0, 100.0)
+        self.spin_tag_height.setDecimals(1)
+        self.spin_tag_height.setSuffix(" mm")
+        self.spin_tag_height.setValue(saved.get("tag_height", 0.0))
+        self.spin_tag_height.setToolTip(tr("camera.align_wizard.tag_height_tip"))
+        form.addRow(tr("camera.align_wizard.tag_height"), self.spin_tag_height)
 
         # Plus la résolution est haute, plus les cases du tag font de pixels : c'est ce qui décide de la détection.
         self.combo_res = QComboBox()
@@ -238,6 +248,7 @@ class WorkspaceAlignmentWizard(QDialog):
             self._ctrl.align_tag_params = {
                 "margin": self.spin_margin.value(), "tag": self.spin_tag.value(),
                 "cols": self.spin_cols.value(), "rows": self.spin_rows.value(),
+                "tag_height": self.spin_tag_height.value(),
             }
             self._lbl_targets.setText(
                 tr("camera.align_wizard.targets_ok").format(
@@ -416,7 +427,8 @@ class WorkspaceAlignmentWizard(QDialog):
         w, h = self._img_size
         try:
             alignment = compute_alignment(
-                self._targets, detections, (w, h), min_tags=3
+                self._targets, detections, (w, h), min_tags=3,
+                tag_height_mm=self.spin_tag_height.value(),
             )
         except ValueError as e:
             self._lbl_result.setText(tr("camera.align_wizard.failed").format(error=e))
@@ -496,3 +508,7 @@ class WorkspaceAlignmentWizard(QDialog):
                 n=len(self._targets), layer=layer.name, size=f"{self.spin_tag.value():.0f}",
             ),
         )
+
+    def engrave_paths(self) -> list:
+        """Contours à graver pour le motif d'alignement (utilisable par l'appelant)."""
+        return targets_to_engrave_paths(self._targets)

@@ -17,9 +17,11 @@ from laser_studio.camera.storage import (
     CameraProfile,
     load_profile,
     save_profile,
+    list_profiles,
 )
 from laser_studio.camera.workspace_alignment import (
     WorkspaceAlignment,
+    camera_height_mm,
     warp_to_bed,
 )
 from laser_studio.i18n import tr
@@ -42,6 +44,7 @@ class CameraController(QObject):
     profile_changed = pyqtSignal()
 
     SETTINGS_KEY = "camera/active_device_id"
+    THICKNESS_KEY = "camera/overlay_thickness_mm"
 
     def __init__(
         self,
@@ -105,6 +108,9 @@ class CameraController(QObject):
     def list_devices(self) -> List[CameraDevice]:
         return list_cameras()
 
+    def list_saved_profiles(self) -> List[CameraProfile]:
+        return list_profiles()
+
     # ------------------------------------------------------------------
     # Capture ponctuelle
     # ------------------------------------------------------------------
@@ -133,10 +139,25 @@ class CameraController(QObject):
     # Overlay
     # ------------------------------------------------------------------
 
-    def refresh_overlay(self) -> bool:
+    @property
+    def overlay_thickness_mm(self) -> float:
+        """Dernière épaisseur de matière (depuis le plateau) utilisée pour le fond caméra ; à défaut, la hauteur
+        des tags de l'alignement (matière sur laquelle ils sont gravés)."""
+        prefs = app_preferences()
+        if prefs.get(self.THICKNESS_KEY) is not None:
+            return max(0.0, prefs.get_float(self.THICKNESS_KEY, 0.0))
+        alignment = self._profile.alignment if self._profile is not None else None
+        return float(alignment.tag_height_mm) if alignment is not None else 0.0
+
+    def set_overlay_thickness_mm(self, value: float) -> None:
+        app_preferences().set(self.THICKNESS_KEY, max(0.0, float(value)))
+
+    def refresh_overlay(self, thickness_mm: Optional[float] = None) -> bool:
         """Capture → undistort → warp sur le lit → signal overlay_ready.
 
-        Renvoie True si l'image a été émise.
+        `thickness_mm` : épaisseur de la matière, mesurée depuis le plateau, mémorisée pour la fois suivante ;
+        None reprend la dernière valeur. Le dessus de la pièce est redressé à sa hauteur (pas de parallaxe) ;
+        sans effet si elle égale la hauteur des tags. Renvoie True si l'image a été émise.
         """
         if self._profile is None or not self._profile.is_ready:
             self._warn(tr("camera.err.not_ready"))
@@ -144,13 +165,30 @@ class CameraController(QObject):
         frame = self.capture_frame()
         if frame is None:
             return False
+        if thickness_mm is None:
+            thickness_mm = self.overlay_thickness_mm
+        else:
+            self.set_overlay_thickness_mm(thickness_mm)
         und = undistort(frame, self._profile.lens)
         bed_w, bed_h = self._bed_size()
-        warped = warp_to_bed(
-            und, self._profile.alignment, bed_w, bed_h, px_per_mm=self._px_per_mm
-        )
+        K = self._profile.lens.new_camera_matrix((und.shape[1], und.shape[0]))
+        status = tr("camera.status.overlay_ok")
+        try:
+            warped = warp_to_bed(
+                und, self._profile.alignment, bed_w, bed_h, px_per_mm=self._px_per_mm,
+                thickness_mm=thickness_mm, camera_matrix=K,
+            )
+            if abs(thickness_mm - self._profile.alignment.tag_height_mm) > 1e-9:
+                status = tr("camera.status.overlay_thickness").format(
+                    t=f"{thickness_mm:g}",
+                    h=f"{camera_height_mm(self._profile.alignment, K):.0f}",
+                )
+        except ValueError as e:
+            # Pose de la caméra non calculable : on pose l'image sans correction, en le disant.
+            self._warn(tr("camera.err.thickness").format(error=e))
+            warped = warp_to_bed(und, self._profile.alignment, bed_w, bed_h, px_per_mm=self._px_per_mm)
         self.overlay_ready.emit(warped, bed_w, bed_h)
-        self.status_changed.emit(tr("camera.status.overlay_ok"))
+        self.status_changed.emit(status)
         return True
 
     def clear_overlay(self) -> None:

@@ -44,6 +44,11 @@ class FakeDialogs:
         self._record("ask_text", title, label)
         return self.text
 
+    def ask_number(self, title, label, value, minimum, maximum, decimals=1):
+        """Renvoie `self.number` (None = annulé), sinon la valeur proposée."""
+        self._record("ask_number", title, label)
+        return getattr(self, "number", value)
+
     def ask_yes_no(self, title, text):
         self._record("ask_yes_no", title, text)
         return self.answer
