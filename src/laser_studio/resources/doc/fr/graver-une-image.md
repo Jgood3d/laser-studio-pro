@@ -36,6 +36,13 @@ elle dépasse la zone de travail. La barre d'outils permet aussi de la
 **pivoter** de 90°, de la **retourner** (miroir horizontal ou vertical) et
 de la **supprimer**.
 
+**Recadrer** (barre flottante au-dessus de l'aperçu) ouvre l'image entière :
+tracez le cadre à garder, déplacez-le en glissant à l'intérieur,
+redimensionnez-le par ses coins et ses bords (**Garder les proportions** au
+choix). La taille gravée suit le cadre, à la même échelle. Le cadre reste
+modifiable : rouvrez **Recadrer** pour l'élargir, ou cliquez sur **Toute
+l'image** pour revenir à l'image complète.
+
 ## La matière
 
 Le laser ne grave pas de la même façon sur toutes les surfaces :

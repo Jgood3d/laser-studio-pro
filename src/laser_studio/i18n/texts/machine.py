@@ -97,17 +97,21 @@ TEXTS = {
     },
     "mach.limits_info": {
         "fr": "Ces valeurs servent à t'avertir si une vitesse configurée dépasse\n"
-              "les capacités de la machine active — elles ne modifient pas les\n"
-              "réglages GRBL eux-mêmes ($110/$120 etc.).",
+              "les capacités de la machine active, et à estimer la durée des\n"
+              "gravures (si la config GRBL n'a pas été lue). Elles ne modifient\n"
+              "pas les réglages GRBL eux-mêmes ($110/$120 etc.).",
         "en": "These values are used to warn you if a configured speed exceeds\n"
-              "the active machine's capabilities — they do not change the GRBL\n"
-              "settings themselves ($110/$120 etc.).",
-        "de": "Diese Werte dienen dazu, dich zu warnen, wenn eine eingestellte\n"
-              "Geschwindigkeit die Fähigkeiten der aktiven Maschine übersteigt —\n"
-              "sie ändern nicht die GRBL-Einstellungen selbst ($110/$120 usw.).",
+              "the active machine's capabilities, and to estimate job durations\n"
+              "(if the GRBL config has not been read). They do not change the\n"
+              "GRBL settings themselves ($110/$120 etc.).",
+        "de": "Diese Werte dienen dazu, dich zu warnen, wenn eine eingestellte Geschwindigkeit\n"
+              "die Fähigkeiten der aktiven Maschine übersteigt, und um die Gravurdauer zu\n"
+              "schätzen (wenn die GRBL-Konfiguration nicht gelesen wurde). Sie ändern nicht\n"
+              "die GRBL-Einstellungen selbst ($110/$120 usw.).",
         "es": "Estos valores sirven para avisarte si una velocidad configurada\n"
-              "supera las capacidades de la máquina activa — no modifican los\n"
-              "ajustes de GRBL en sí ($110/$120, etc.).",
+              "supera las capacidades de la máquina activa, y para estimar la\n"
+              "duración de los grabados (si no se ha leído la config GRBL). No\n"
+              "modifican los ajustes de GRBL en sí ($110/$120, etc.).",
     },
     "gen.material_dark": {
         "fr": "fond noir", "en": "dark background",
@@ -889,18 +893,20 @@ TEXTS = {
     "gcode.estimate_details": {
         "fr": "Estimation RAPIDE (approximative, sans générer le G-Code complet) :\n\n{details}\n\n"
               "TOTAL estimé : {total}\n\n"
-              "(Ignore les accélérations/décélérations et les déplacements rapides G0 — "
-              "le temps réel sera généralement un peu supérieur à cette estimation.)",
+              "(Compte l'accélération à chaque ligne de l'image, pas les déplacements rapides G0 ni les "
+              "virages : la durée affichée après « Générer » est plus précise.)",
         "en": "QUICK estimate (approximate, without generating the complete G-Code):\n\n{details}\n\n"
               "Estimated TOTAL: {total}\n\n"
-              "(Acceleration/deceleration and rapid G0 moves are ignored — the actual time "
-              "will generally be slightly longer.)",
+              "(Counts the acceleration on each image line, not rapid G0 moves or corners: the duration "
+              "shown after « Generate » is more accurate.)",
         "de": "SCHNELLE Schätzung (ungefähr, ohne vollständige G-Code-Erzeugung):\n\n{details}\n\n"
               "Geschätzte GESAMTZEIT: {total}\n\n"
-              "(Beschleunigungen/Verzögerungen und schnelle G0-Bewegungen werden ignoriert.)",
+              "(Berücksichtigt die Beschleunigung jeder Bildzeile, nicht G0-Eilgänge oder Kurven: die Dauer nach "
+              "„Erzeugen“ ist genauer.)",
         "es": "Estimación RÁPIDA (aproximada, sin generar el G-Code completo):\n\n{details}\n\n"
               "TOTAL estimado: {total}\n\n"
-              "(Ignora aceleraciones/desaceleraciones y movimientos rápidos G0.)",
+              "(Cuenta la aceleración en cada línea de la imagen, no los movimientos rápidos G0 ni las curvas: "
+              "la duración tras «Generar» es más precisa.)",
     },
     "gcode.import_title": {
         "fr": "Importer un G-Code",
@@ -1558,5 +1564,132 @@ TEXTS = {
         "en": "Checked on {date}",
         "de": "Geprüft am {date}",
         "es": "Verificado el {date}",
+    },
+    # --- Historique des gravures ---
+    "menu.tools.history": {
+        "fr": "Historique des gravures…",
+        "en": "Engraving history…",
+        "de": "Gravurverlauf…",
+        "es": "Historial de grabados…",
+    },
+    "history.title": {
+        "fr": "Historique des gravures",
+        "en": "Engraving history",
+        "de": "Gravurverlauf",
+        "es": "Historial de grabados",
+    },
+    "history.intro": {
+        "fr": "Chaque job envoyé au graveur est noté ici : durée réelle et durée estimée, issue, distance gravée. L'historique reste sur cet ordinateur ; l'export CSV s'ouvre dans un tableur.",
+        "en": "Every job sent to the engraver is recorded here: real and estimated duration, outcome, engraved distance. The history stays on this computer; the CSV export opens in a spreadsheet.",
+        "de": "Jeder an das Graviergerät gesendete Auftrag wird hier notiert: tatsächliche und geschätzte Dauer, Ergebnis, gravierte Strecke. Der Verlauf bleibt auf diesem Computer; der CSV-Export öffnet sich in einer Tabellenkalkulation.",
+        "es": "Cada trabajo enviado a la grabadora se anota aquí: duración real y estimada, resultado, distancia grabada. El historial queda en este ordenador; la exportación CSV se abre en una hoja de cálculo.",
+    },
+    "history.col_date": {
+        "fr": "Date",
+        "en": "Date",
+        "de": "Datum",
+        "es": "Fecha",
+    },
+    "history.col_result": {
+        "fr": "Issue",
+        "en": "Outcome",
+        "de": "Ergebnis",
+        "es": "Resultado",
+    },
+    "history.col_duration": {
+        "fr": "Durée réelle",
+        "en": "Real duration",
+        "de": "Tatsächliche Dauer",
+        "es": "Duración real",
+    },
+    "history.col_estimate": {
+        "fr": "Estimée",
+        "en": "Estimated",
+        "de": "Geschätzt",
+        "es": "Estimada",
+    },
+    "history.col_gap": {
+        "fr": "Écart",
+        "en": "Gap",
+        "de": "Abweichung",
+        "es": "Desviación",
+    },
+    "history.col_burn": {
+        "fr": "Gravé",
+        "en": "Engraved",
+        "de": "Graviert",
+        "es": "Grabado",
+    },
+    "history.col_lines": {
+        "fr": "Lignes",
+        "en": "Lines",
+        "de": "Zeilen",
+        "es": "Líneas",
+    },
+    "history.col_profile": {
+        "fr": "Machine",
+        "en": "Machine",
+        "de": "Maschine",
+        "es": "Máquina",
+    },
+    "history.result.done": {
+        "fr": "Terminée",
+        "en": "Finished",
+        "de": "Fertig",
+        "es": "Terminado",
+    },
+    "history.result.stopped": {
+        "fr": "Arrêtée",
+        "en": "Stopped",
+        "de": "Abgebrochen",
+        "es": "Detenido",
+    },
+    "history.result.error": {
+        "fr": "Erreur GRBL",
+        "en": "GRBL error",
+        "de": "GRBL-Fehler",
+        "es": "Error GRBL",
+    },
+    "history.result.interrupted": {
+        "fr": "Interrompue",
+        "en": "Interrupted",
+        "de": "Unterbrochen",
+        "es": "Interrumpido",
+    },
+    "history.summary": {
+        "fr": "{count} gravure(s), {total} de gravures terminées",
+        "en": "{count} job(s), {total} of finished jobs",
+        "de": "{count} Auftrag/Aufträge, {total} abgeschlossene Gravuren",
+        "es": "{count} grabado(s), {total} de grabados terminados",
+    },
+    "history.export": {
+        "fr": "Exporter (CSV)…",
+        "en": "Export (CSV)…",
+        "de": "Exportieren (CSV)…",
+        "es": "Exportar (CSV)…",
+    },
+    "history.clear": {
+        "fr": "Vider l'historique",
+        "en": "Clear history",
+        "de": "Verlauf leeren",
+        "es": "Vaciar el historial",
+    },
+    "history.close": {
+        "fr": "Fermer",
+        "en": "Close",
+        "de": "Schließen",
+        "es": "Cerrar",
+    },
+    "history.clear_question": {
+        "fr": "Effacer tout l'historique des gravures ? C'est définitif.",
+        "en": "Delete the whole engraving history? This cannot be undone.",
+        "de": "Den gesamten Gravurverlauf löschen? Das ist endgültig.",
+        "es": "¿Borrar todo el historial de grabados? Es definitivo.",
+    },
+    "history.csv_filter": {
+        "fr": "Fichier CSV (*.csv)",
+        "en": "CSV file (*.csv)",
+        "de": "CSV-Datei (*.csv)",
+        "es": "Archivo CSV (*.csv)",
     },
 }

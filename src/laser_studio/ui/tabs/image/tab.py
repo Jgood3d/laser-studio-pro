@@ -1,7 +1,7 @@
 """Onglet « Graver une image » : réglages, aperçus original et tramé."""
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QIcon, QImage
+from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
+from PyQt6.QtGui import QAction, QIcon, QImage, QPen, QPolygonF
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
 
 from laser_studio.i18n import tr
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
-from laser_studio.ui.utils import palette_icon, zoom_shortcuts
+from laser_studio.ui.utils import painted_icon, palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import TabToolBar, ZoomableGraphicsView
 
 
@@ -39,6 +39,7 @@ class ImageTab(QWidget):
     """
 
     compare_requested = pyqtSignal()
+    crop_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -57,6 +58,11 @@ class ImageTab(QWidget):
         # Loupes : placées par la fenêtre dans la barre flottante des aperçus (avec annuler, pivoter…).
         self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
         self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
+        # Recadrer : dans la même barre flottante ; actif seulement avec une image (set_crop_enabled).
+        self.crop_action = QAction(self._crop_icon(), tr("img.crop_tip"), self)
+        self.crop_action.setToolTip(tr("img.crop_tip"))
+        self.crop_action.triggered.connect(lambda: self.crop_requested.emit())
+        self.crop_action.setEnabled(False)
         zoom_shortcuts(self, self.zoom_in, self.zoom_out)
 
     # -- construction
@@ -69,6 +75,17 @@ class ImageTab(QWidget):
     def zoom_out(self):
         for view in (self.source_view, self.dither_view):
             view.zoom_out()
+
+    def set_crop_enabled(self, enabled):
+        self.crop_action.setEnabled(bool(enabled))
+
+    def _crop_icon(self):
+        """Recadrer : deux équerres croisées, dans la couleur du texte du thème."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2.5))
+            painter.drawPolyline(QPolygonF([QPointF(9, 3), QPointF(9, 23), QPointF(29, 23)]))
+            painter.drawPolyline(QPolygonF([QPointF(3, 9), QPointF(23, 9), QPointF(23, 29)]))
+        return painted_icon(self.palette(), draw)
 
     def _zoom_action(self, icon, tip_key, slot):
         action = QAction(palette_icon(icon, self.palette()), tr(tip_key), self)

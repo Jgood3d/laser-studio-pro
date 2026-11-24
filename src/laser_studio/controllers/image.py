@@ -61,8 +61,8 @@ class ImageController(QObject):
     - lines_mm() : résolution de gravure (lignes/mm).
 
     Signaux :
-    - source_changed(image ou None) : image chargée, pivotée, reçue de la
-      Séparation ou d'un projet, ou retirée ;
+    - source_changed(image ou None) : image chargée, pivotée, recadrée, reçue
+      de la Séparation ou d'un projet, ou retirée ;
     - processed(tableau, image PIL) : nouveau rendu tramé ;
     - status(texte, infobulle) : message pour la barre d'état ;
     - loading_file() : un fichier va être chargé (la Séparation rend les
@@ -87,6 +87,11 @@ class ImageController(QObject):
         self._keep_ratio = keep_ratio
         self._lines_mm = lines_mm
         self.raw_image = None
+        # Image avant recadrage (telle que chargée ou pivotée) et cadre (gauche, haut, droite, bas) en pixels
+        # de celle-ci, ou None : raw_image en est le recadrage. La fenêtre de recadrage repart de l'image
+        # entière, on peut donc élargir à nouveau le cadre.
+        self.source_image = None
+        self.crop_box = None
         self.processed_array = None
         self.worker = None
         self.pending_reprocess = False
@@ -115,9 +120,14 @@ class ImageController(QObject):
         finally:
             self._applying_size = False
 
-    def _set_source(self, image, size_mm=None):
+    def _set_source(self, image, size_mm=None, cropped=False):
         """Nouvelle image (ou None), puis sa taille si `size_mm` est donnée :
-        l'image est déjà en place quand les champs de taille changent."""
+        l'image est déjà en place quand les champs de taille changent. Sauf
+        pour un recadrage (`cropped`), elle devient aussi l'image d'avant
+        recadrage, sans cadre."""
+        if not cropped:
+            self.source_image = image
+            self.crop_box = None
         self.raw_image = image
         if size_mm is not None:
             self._apply_size(*size_mm)
@@ -172,6 +182,29 @@ class ImageController(QObject):
         image = self.raw_image.rotate(angle, expand=True)
         w, h = image.size
         self._set_source(image, (100.0, 100.0 * (h / w)))
+        self.schedule_processing()
+
+    def crop(self, box):
+        """Recadre l'image d'avant recadrage sur `box` (gauche, haut, droite, bas, en pixels), ou la remet
+        entière si `box` est None ou couvre toute l'image. La taille en mm suit le cadre, au même nombre de
+        mm par pixel : le dessin gravé garde son échelle."""
+        source = self.source_image
+        if source is None or self.raw_image is None:
+            return
+        full = (0, 0, source.width, source.height)
+        box = None if box is None else tuple(int(round(v)) for v in box)
+        if box is not None:
+            left, top = max(0, min(box[0], box[2])), max(0, min(box[1], box[3]))
+            right, bottom = min(source.width, max(box[0], box[2])), min(source.height, max(box[1], box[3]))
+            box = (left, top, right, bottom) if right - left >= 1 and bottom - top >= 1 else None
+        if box == full:
+            box = None
+        if box == self.crop_box:
+            return
+        mm_per_px = self._size_mm()[0] / max(self.raw_image.width, 1)
+        image = source if box is None else source.crop(box)
+        self.crop_box = box
+        self._set_source(image, (image.width * mm_per_px, image.height * mm_per_px), cropped=True)
         self.schedule_processing()
 
     def clear(self):

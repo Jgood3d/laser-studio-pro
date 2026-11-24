@@ -88,6 +88,11 @@ class GCodeStreamerThread(QThread):
         """« ok » reçus depuis le début du job."""
         return self.stream.acked
 
+    @property
+    def stopped_by_user(self):
+        """Vrai si l'envoi a été arrêté par l'utilisateur (Reset, arrêt d'urgence)."""
+        return self._stopped_by_user
+
     def _flush_sent_lines(self, force=False):
         """Émet les lignes envoyées et le nombre de « ok » reçus depuis la dernière émission
         (toutes les SENT_LINES_INTERVAL s, ou tout de suite si `force`)."""
