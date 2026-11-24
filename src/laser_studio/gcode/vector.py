@@ -3,10 +3,11 @@ remplie par balayage de lignes, découpe et marquage des contours (phase 3
 d'un job).
 
 Les données d'entrée sont déjà purement numériques (polygones en mm, réglages
-des calques en dictionnaires) : voir vector_layers.extract_vector_layer_data,
+des calques en dictionnaires) : voir vector.layer_data.extract_vector_layer_data,
 qui les prépare dans le thread de l'interface."""
 import math
 
+from laser_studio.gcode.common import power_value
 from laser_studio.models.layer_modes import (
     MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
@@ -180,7 +181,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
         if safe_cut_order and layer["mode"] == CUT_MODE:
             gcode.append("; Ordre de découpe : intérieur avant extérieur")
         speed = layer["speed"]
-        power_val = int(round((layer["power"] / 100.0) * s_max))
+        power_val = power_value(layer["power"], s_max)
         gcode.append(f"F{speed}")
         # Commande laser et surbalayage de CE calque (réglages globaux si le calque n'a pas les siens).
         cmd = layer_laser_cmd(layer, laser_cmd)

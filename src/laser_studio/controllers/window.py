@@ -181,11 +181,22 @@ class WindowController(QObject):
         self.forms.camera(self._ensure_camera())
 
     def refresh_camera_background(self):
-        """Capture la caméra et met l'image en fond de l'éditeur vectoriel (bouton de la barre de l'éditeur).
-        Renvoie True si l'image est posée."""
+        """Demande l'épaisseur de la matière, capture la caméra et met l'image en fond de l'éditeur vectoriel.
+        Renvoie True si l'image est posée (False si annulé ou si la caméra n'est pas prête)."""
         camera = self._ensure_camera()
+        profile = camera.profile
+        if profile is None or not profile.is_ready:
+            camera.refresh_overlay()                   # affiche le message « calibrez / alignez d'abord »
+            return False
+        thickness = self.window.dialogs.ask_number(
+            tr("camera.thickness_title"),
+            tr("camera.thickness_label").format(tag=f"{profile.alignment.tag_height_mm:g}"),
+            camera.overlay_thickness_mm, 0.0, 200.0,
+        )
+        if thickness is None:
+            return False
         with self.forms.busy():
-            return bool(camera.refresh_overlay())
+            return bool(camera.refresh_overlay(thickness_mm=thickness))
 
     def set_camera_background_enabled(self, enabled):
         """Interrupteur « Fond caméra » de l'éditeur vectoriel : capture et affiche, ou retire l'image."""

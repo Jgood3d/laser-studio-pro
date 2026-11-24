@@ -23,8 +23,8 @@ log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 # Modes des calques : codes indépendants de la langue (voir layer_modes.py).
 # ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
 from laser_studio.models.layer_modes import (  # noqa: E402
-    CONTOUR_MODES, LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, LEGACY_MODE_CODES, MODE_CUT,
-    MODE_FILL, MODE_MARK, layer_laser_cmd, layer_overscan_enabled, normalize_mode,
+    LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, MODE_CUT,
+    MODE_FILL, MODE_MARK, normalize_mode,
 )
 
 ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
@@ -163,7 +163,7 @@ class LaserLayer:
         self.passes = max(1, int(passes))   # 0 passe = aucune découpe générée
         self.line_interval = float(line_interval)  # mm (pas du remplissage)
         # Si True, line_interval suit automatiquement la taille du spot
-        # (spin_machine_focal) à chaque changement — voir LayerManagerWidget.
+        # (MachineConfig.focal) à chaque changement — voir LayersTab.link_all_to_focal.
         self.line_interval_linked = bool(line_interval_linked)
         self.enabled = bool(enabled)
         # Surbalayage : appliqué à ce calque seulement si l'option est aussi activée dans Configuration
@@ -291,6 +291,13 @@ class LayersModel(QObject):
         self.engrave_layer_selected.emit(layer_id)
         return True
 
+    def layer_for_role(self, role):
+        """Calque de base de rôle `role` (« engrave », « cut », « mark »), sinon le calque SVG par défaut."""
+        for layer in self.layers:
+            if getattr(layer, "role", None) == role:
+                return layer
+        return self.default_svg_layer()
+
     def default_svg_layer(self):
         """Calque par défaut des imports SVG (import classique et PNG -> SVG) :
         le premier calque en mode Découpe. À défaut, le premier calque."""
@@ -341,6 +348,14 @@ class LayersModel(QObject):
         if line_interval is not None:
             kwargs["line_interval"] = line_interval
         layer = LaserLayer(name=f"Calque {idx + 1}", color=color, **kwargs)
+        self.layers.append(layer)
+        log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
+        self.layer_added.emit(layer.id)
+        self.changed.emit()
+        return layer
+
+    def append_layer(self, layer):
+        """Ajoute un calque déjà réglé (`LaserLayer`, ex. plaque importée de Stencil Studio) et le renvoie."""
         self.layers.append(layer)
         log.info("Calques : ajout de %s : %s", _describe(layer), layer.to_dict())
         self.layer_added.emit(layer.id)
