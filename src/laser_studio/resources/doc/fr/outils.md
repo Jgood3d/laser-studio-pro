@@ -134,6 +134,24 @@ Deux assistants guident les réglages : la calibration de l'objectif (avec
 un damier imprimé), puis l'alignement sur le plateau (avec des repères
 gravés).
 
+**L'alignement** utilise 4 repères (des AprilTags de 40 mm) aux coins du
+plateau, imprimés sur une feuille ou gravés. Leur orientation n'a pas
+d'importance. Le portique peut en cacher une partie : faites 2 à 3
+captures en le déplaçant entre deux, l'assistant garde tous les repères
+vus. Il indique la taille d'une case en pixels (6 px ou plus pour une
+détection fiable). Indiquez aussi la **hauteur des repères** : 0 s'ils sont
+imprimés sur une feuille à plat sur le plateau, l'épaisseur de la matière
+s'ils sont gravés dessus. Les repères imprimés restent en place : on ne
+refait pas l'alignement à chaque pièce.
+
+**Fond caméra** : dans l'éditeur vectoriel, l'interrupteur « Fond caméra »
+affiche l'image de la caméra sous la grille, et « Actualiser l'image
+caméra » la recapture (après avoir posé ou déplacé la matière). Le
+logiciel demande à chaque fois l'**épaisseur de la matière**, mesurée
+depuis le plateau : le dessus d'une pièce épaisse est vu plus haut que les
+repères et paraît décalé vers les bords de l'image, et cette correction
+le remet à sa vraie place. Mettez 0 si la pièce est à plat sur le plateau.
+
 ### Historique des gravures
 
 **Outils › Historique des gravures…** liste chaque job envoyé au graveur,

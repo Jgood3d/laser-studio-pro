@@ -14,10 +14,12 @@ from laser_studio.camera.workspace_alignment import (  # noqa: E402
     AlignmentTarget,
     WorkspaceAlignment,
     generate_apriltag_targets,
+    camera_height_mm,
     compute_alignment,
     compute_homography,
     detect_apriltag_corners,
     merge_detections,
+    plane_inverse_at_height,
     tag_cut_side_mm,
     warp_to_bed,
     apriltag_engrave_polygons,
@@ -221,6 +223,79 @@ class CornerAlignmentTests(unittest.TestCase):
         wrong = [AlignmentTarget(t.tag_id, t.cx_mm, t.cy_mm, t.size_mm * 3) for t in self.targets]
         with self.assertRaises(ValueError):
             compute_alignment(wrong, det, self.img.shape[::-1])
+
+
+class ThicknessCompensationTests(unittest.TestCase):
+    """Caméra pinhole connue au-dessus du plateau : le dessus d'une pièce épaisse doit retomber au bon endroit."""
+
+    def setUp(self):
+        self.K = np.array([[900.0, 0, 640.0], [0, 900.0, 360.0], [0, 0, 1.0]])
+        a = np.deg2rad(6.0)
+        tilt = np.array([[1, 0, 0], [0, np.cos(a), -np.sin(a)], [0, np.sin(a), np.cos(a)]])
+        self.R = tilt @ np.diag([1.0, -1.0, -1.0])               # l'axe optique regarde vers le bas
+        self.C = np.array([240.0, 170.0, 600.0])                  # centre optique, en mm
+        self.t = -self.R @ self.C
+
+    def _project(self, pts):
+        p = (self.K @ (self.R @ np.asarray(pts, float).T + self.t[:, None])).T
+        return p[:, :2] / p[:, 2:3]
+
+    def _alignment(self, tag_height=0.0):
+        """Alignement fait avec des tags situés `tag_height` mm au-dessus du plateau."""
+        pts = np.array([[cx + dx, cy + dy, tag_height] for cx, cy in ((40, 40), (360, 40), (40, 360), (360, 360))
+                        for dx, dy in ((-20, 20), (20, 20), (20, -20), (-20, -20))])
+        H, _ = cv2.findHomography(self._project(pts), pts[:, :2], 0)
+        return WorkspaceAlignment(homography=H, inverse=np.linalg.inv(H), image_size=(1280, 720),
+                                  used_tags=[0, 1, 2, 3], reprojection_error_mm=0.0, tag_height_mm=tag_height)
+
+    def test_camera_height_is_recovered(self):
+        self.assertAlmostEqual(camera_height_mm(self._alignment(), self.K), 600.0, delta=3.0)
+
+    def test_top_of_a_thick_piece_lands_on_the_right_place(self):
+        al = self._alignment()
+        top = np.array([[x, y, 15.0] for x in (30, 200, 370) for y in (30, 200, 370)], float)
+        px = self._project(top).astype(np.float64)
+        uncorrected = cv2.perspectiveTransform(px[None], al.homography)[0]
+        corrected = cv2.perspectiveTransform(px[None], np.linalg.inv(plane_inverse_at_height(al, self.K, 15.0)))[0]
+        self.assertGreater(np.linalg.norm(uncorrected - top[:, :2], axis=1).max(), 3.0)   # la parallaxe existe
+        self.assertLess(np.linalg.norm(corrected - top[:, :2], axis=1).max(), 0.05)       # et elle est corrigée
+
+    def test_zero_thickness_changes_nothing(self):
+        al = self._alignment()
+        self.assertTrue(np.array_equal(plane_inverse_at_height(al, self.K, 0.0), al.inverse))
+
+    def test_nonsense_camera_matrix_is_refused(self):
+        al = self._alignment()
+        with self.assertRaises(ValueError):
+            plane_inverse_at_height(al, np.array([[1e-3, 0, 0], [0, 1e-3, 0], [0, 0, 1.0]]), 10.0)
+
+    def _max_error_at(self, al, height):
+        top = np.array([[x, y, height] for x in (30, 200, 370) for y in (30, 200, 370)], float)
+        px = self._project(top).astype(np.float64)
+        mm = cv2.perspectiveTransform(px[None], np.linalg.inv(plane_inverse_at_height(al, self.K, height)))[0]
+        return np.linalg.norm(mm - top[:, :2], axis=1).max()
+
+    def test_tags_engraved_on_a_material_are_taken_into_account(self):
+        """Tags gravés sur une matière de 10 mm : la hauteur de la caméra reste mesurée depuis le plateau, et
+        une pièce plus épaisse ou plus mince que cette matière est corrigée."""
+        al = self._alignment(tag_height=10.0)
+        self.assertAlmostEqual(camera_height_mm(al, self.K), 600.0, delta=3.0)
+        self.assertLess(self._max_error_at(al, 25.0), 0.05)      # plus épaisse que la matière des tags
+        self.assertLess(self._max_error_at(al, 4.0), 0.05)       # plus mince (plan sous les tags)
+        self.assertLess(self._max_error_at(al, 0.0), 0.05)       # directement sur le plateau
+
+    def test_thickness_equal_to_tag_height_changes_nothing(self):
+        al = self._alignment(tag_height=10.0)
+        self.assertTrue(np.array_equal(plane_inverse_at_height(al, self.K, 10.0), al.inverse))
+        img = np.full((720, 1280, 3), 128, np.uint8)
+        self.assertTrue(np.array_equal(warp_to_bed(img, al, 400, 400, 2.0),
+                                       warp_to_bed(img, al, 400, 400, 2.0, thickness_mm=10.0, camera_matrix=self.K)))
+
+    def test_tag_height_survives_saving(self):
+        al = self._alignment(tag_height=10.0)
+        self.assertEqual(WorkspaceAlignment.from_dict(al.to_dict()).tag_height_mm, 10.0)
+        legacy = al.to_dict(); legacy.pop("tag_height_mm")          # profils enregistrés avant cette option
+        self.assertEqual(WorkspaceAlignment.from_dict(legacy).tag_height_mm, 0.0)
 
 
 if __name__ == "__main__":
