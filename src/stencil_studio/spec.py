@@ -16,11 +16,13 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 
+from .models.frame import is_full
+
 UI_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "studio.html")
 
 # Littéraux de la page à lire : nom de la constante -> caractère ouvrant.
 CONSTANTS = {"SPEC": "[", "MODES": "[", "MODE_COMMON": "[", "MODE_EXTRA": "{", "MODE_NOT": "{", "MODE_ROWS": "{",
-             "TIPS": "{"}
+             "TIPS": "{", "PRESETS": "{", "PRESET_MODE": "{"}
 _CLOSING = {"[": "]", "{": "}"}
 # Fonction d'affichage d'une valeur (« fmt:mm », « fmt:v => … ») : inutile hors de la page, remplacée par son nom.
 _FMT = re.compile(r'fmt:\s*(v\s*=>.*?|\w+)(?=,\s*\w+\s*:|\s*\})')
@@ -101,6 +103,8 @@ class Spec:
     mode_not: dict
     mode_rows: dict
     tips: dict
+    presets: dict         # styles prédéfinis : nom -> réglages
+    preset_mode: dict     # style -> mode où il est proposé
 
     def items(self):
         return [item for group in self.groups for item in group["items"]]
@@ -127,6 +131,80 @@ class Spec:
         """Réglage propre à certains modes (MODE_ROWS) : affiché pour `mode` ?"""
         return key not in self.mode_rows or mode in self.mode_rows[key]
 
+    def presets_for(self, mode):
+        """Styles proposés dans « Partir d'un style » pour `mode` (PRESET_MODE), dans l'ordre de la liste."""
+        return [value for value, _label in self.item("preset")["opts"]
+                if value and self.preset_mode.get(value) == mode]
+
+    def row_states(self, state):
+        """(grisés, masqués) : réglages qui ne s'appliquent pas avec les autres réglages, comme la page
+        (refreshDisabled). Les groupes et lignes propres à un mode sont à part (groups_for, row_shown)."""
+        s, o = state, state.get("output")
+        disabled, hidden = set(), set()
+
+        def dis(key, on):
+            if on:
+                disabled.add(key)
+
+        def hid(key, on):
+            if on:
+                hidden.add(key)
+        dis("threshold", s.get("auto_threshold"))
+        dis("aspect", s.get("shape") == "circle")
+        picks = [t.strip() for t in str(s.get("ml_picks") or "").split(",")
+                 if re.fullmatch(r"#[0-9a-fA-F]{6}", t.strip())]
+        dis("ml_color_auto", o == "layers" and s.get("ml_sep") == "color" and len(picks) >= 2)
+        for key in ("custom_w", "custom_h"):
+            dis(key, s.get("shape") == "circle" or s.get("aspect") != "custom")
+        dis("margin", not s.get("isolate"))
+        for key in ("rot", "zoom", "img_mm"):
+            dis(key, is_full(s))
+        for key in ("hang_style", "hang_hole_mm", "hang_tab_mm"):
+            dis(key, s.get("hang") == "none")
+        no_text = not s.get("text_top") and not s.get("text_bottom")
+        text_shape = s.get("shape") in ("circle", "oval", "rect", "rrect")
+        for key in ("text_top", "text_bottom"):
+            dis(key, not text_shape)
+        for key in ("text_size_mm", "text_spacing", "text_bridge_mm"):
+            dis(key, no_text or not text_shape)
+        dis("lightcolor", not s.get("backlight"))
+        dis("outline_mm", not s.get("isolate"))
+        is_stencil = o == "stencil" or not any(m["id"] == o for m in self.modes)
+        for i in self.items():
+            k = i["k"]
+            if i.get("local"):
+                hid(k, not is_stencil or s.get("mode") != "local")
+            if i.get("st") and not i.get("local"):
+                hid(k, not is_stencil and not (o == "lowpoly" and i.get("sl")))
+            if i.get("ml"):
+                hid(k, o != "layers" or (i.get("mlcol") and s.get("ml_sep") != "color") or i.get("mlorder")
+                    or (i.get("mlpin") and not s.get("ml_pins")) or (i.get("mlbg") and s.get("ml_bg") != "own")
+                    or (i.get("mleng") and not s.get("ml_engrave")))
+            if i.get("qr"):
+                hid(k, o != "qr" or (i.get("qrk") and i["qrk"] != s.get("qr_kind"))
+                    or (i.get("qrcut") and s.get("qr_mode") != "cut"))
+            if i.get("lp"):
+                hid(k, o != "lowpoly" or (i.get("lpsolid") and s.get("lp_style") != "solid"))
+            if i.get("ni"):
+                hid(k, o == "engrave")
+            if i.get("ht"):
+                hid(k, o not in ("halftone", "lines"))
+            if i.get("dt"):
+                hid(k, o != "halftone")
+            if i.get("ln"):
+                hid(k, o != "lines")
+            if i.get("eg"):
+                hid(k, o != "engrave")
+            if i.get("bs"):
+                hid(k, s.get("box_style") == "fingers")
+            if i.get("bf"):
+                hid(k, s.get("box_style") != "fingers")
+            if i.get("sf"):
+                hid(k, s.get("box_support") not in ("foot", "both"))
+            if i.get("sk"):
+                hid(k, s.get("box_support") not in ("wall", "both"))
+        return disabled, hidden
+
 
 @lru_cache(maxsize=1)
 def load(path=UI_FILE):
@@ -135,4 +213,4 @@ def load(path=UI_FILE):
     parsed = {name: js_to_json(_literal(html, name)) for name in CONSTANTS}
     return Spec(groups=parsed["SPEC"], modes=parsed["MODES"], mode_common=parsed["MODE_COMMON"],
                 mode_extra=parsed["MODE_EXTRA"], mode_not=parsed["MODE_NOT"], mode_rows=parsed["MODE_ROWS"],
-                tips=parsed["TIPS"])
+                tips=parsed["TIPS"], presets=parsed["PRESETS"], preset_mode=parsed["PRESET_MODE"])

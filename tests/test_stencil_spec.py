@@ -57,12 +57,47 @@ class SpecTests(unittest.TestCase):
                          {"k": 'a"b', "n": -1.5, "ok": True, "fmt": "custom", "l": [1, 2]})
 
 
+class RowStateTests(unittest.TestCase):
+    """Réglages grisés ou masqués selon les autres, comme refreshDisabled de la page."""
+
+    def test_threshold_greys_out_with_the_automatic_threshold(self):
+        s = spec.load()
+        state = s.defaults()
+        disabled, _hidden = s.row_states(state)
+        self.assertIn("threshold", disabled)
+        state["auto_threshold"] = False
+        self.assertNotIn("threshold", s.row_states(state)[0])
+
+    def test_mode_specific_settings_are_hidden_elsewhere(self):
+        s = spec.load()
+        state = dict(s.defaults(), output="stencil")
+        hidden = s.row_states(state)[1]
+        self.assertIn("qr_text", hidden)                              # réglage du QR code
+        state["output"] = "qr"
+        self.assertNotIn("qr_text", s.row_states(state)[1])
+
+    def test_presets_offered_for_the_mode(self):
+        s = spec.load()
+        self.assertEqual(s.presets_for("halftone"), ["halftone"])
+        self.assertIn("portrait", s.presets_for("stencil"))
+        self.assertEqual(s.presets["halftone"]["output"], "halftone")
+
+
 class FrameTests(unittest.TestCase):
     def test_largest_centred_frame_at_the_shape_ratio(self):
         circle = centered_frame({"shape": "circle"}, 1600, 1200)
         self.assertEqual((circle["cx"], circle["cy"], circle["w"], circle["aspect"]), (0.5, 0.5, 0.75, 1.0))
         full = centered_frame({"shape": "rect", "aspect": "full"}, 1600, 1200)
         self.assertEqual((full["w"], full["full"]), (1.0, True))
+
+    def test_a_rotated_frame_is_placed_freely(self):
+        from stencil_studio.models import frame
+        state = {"shape": "circle", "rot": 10}
+        f = frame.clamp(state, 1600, 1200, {"cx": 0.95, "cy": 0.5, "w": 3.0})
+        self.assertEqual((f["cx"], f["w"]), (0.95, 3.0))           # peut déborder de la photo
+        self.assertTrue(frame.request_frame(state, 1600, 1200, f)["free"])
+        f = frame.clamp({"shape": "circle"}, 1600, 1200, {"cx": 0.95, "cy": 0.5, "w": 3.0})
+        self.assertEqual((round(f["cx"], 3), f["w"]), (0.625, 0.75))   # sinon : contenu dans la photo
 
 
 @unittest.skipIf(StudioService is None, "OpenCV ou PyQt6 non importables ici")
