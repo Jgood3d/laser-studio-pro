@@ -71,6 +71,21 @@ def centered_frame(state, iw, ih, width=1.0):
     return request_frame(state, iw, ih, clamp(state, iw, ih, {"cx": 0.5, "cy": 0.5, "w": width}))
 
 
+def frame_width_mm(state, iw, ih):
+    """Largeur du cadre sur la plaque, en mm (frameWidthMm) : la taille vaut pour le plus grand côté."""
+    return float(state.get("size_mm") or 100) * min(1.0, aspect(state, iw, ih))
+
+
+def image_width_mm(state, iw, ih, f):
+    """Largeur de toute la photo une fois placée sur la plaque (syncImgMm), arrondie au dixième de mm."""
+    return round(frame_width_mm(state, iw, ih) / f["w"] * 10) / 10
+
+
+def width_for_image_mm(state, iw, ih, mm):
+    """Largeur du cadre (fraction de la photo) qui donne à la photo `mm` de large sur la plaque."""
+    return frame_width_mm(state, iw, ih) / max(10.0, float(mm))
+
+
 def unit_polygon(shape):
     """Contour d'une forme (heart, star, tree) dans le carré unité, mêmes formules que la page (unitPoly) et que
     core : pour dessiner le cadre."""

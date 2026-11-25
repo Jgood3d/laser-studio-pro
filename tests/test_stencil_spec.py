@@ -83,12 +83,33 @@ class RowStateTests(unittest.TestCase):
         self.assertEqual(s.presets["halftone"]["output"], "halftone")
 
 
+class HistoryTests(unittest.TestCase):
+    def test_undo_redo_like_the_page(self):
+        from stencil_studio.models.history import History
+        history = History()
+        history.reset("a")
+        history.commit("a")                                    # identique : pas d'étape
+        self.assertFalse(history.can_undo())
+        history.commit("b")
+        self.assertEqual(history.undo("c"), "b")               # « c » enregistré d'abord, puis retour à « b »
+        self.assertEqual(history.undo("b"), "a")
+        self.assertEqual(history.redo("a"), "b")
+        history.commit("d")                                     # nouvel état : « refaire » vidé
+        self.assertFalse(history.can_redo())
+
+
 class FrameTests(unittest.TestCase):
     def test_largest_centred_frame_at_the_shape_ratio(self):
         circle = centered_frame({"shape": "circle"}, 1600, 1200)
         self.assertEqual((circle["cx"], circle["cy"], circle["w"], circle["aspect"]), (0.5, 0.5, 0.75, 1.0))
         full = centered_frame({"shape": "rect", "aspect": "full"}, 1600, 1200)
         self.assertEqual((full["w"], full["full"]), (1.0, True))
+
+    def test_image_width_on_the_plate(self):
+        from stencil_studio.models import frame
+        state = {"shape": "circle", "size_mm": 100}
+        self.assertEqual(frame.image_width_mm(state, 1600, 1200, {"w": 0.5}), 200.0)   # cadre = moitié de la photo
+        self.assertEqual(frame.width_for_image_mm(state, 1600, 1200, 400), 0.25)
 
     def test_a_rotated_frame_is_placed_freely(self):
         from stencil_studio.models import frame

@@ -16,6 +16,7 @@ Les calculs tournent dans un fil à part : la fenêtre ne se fige pas. Un aperç
 récent est abandonné (numéro de demande « seq », comme la page).
 """
 import io
+import json
 import math
 import os
 import tempfile
@@ -24,21 +25,23 @@ import threading
 import numpy as np
 from PIL import Image
 from PyQt6.QtCore import QByteArray, QObject, QSize, Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QIcon, QImage, QPainter, QPalette, QPixmap
+from PyQt6.QtGui import QIcon, QImage, QKeySequence, QPainter, QPalette, QPixmap, QShortcut
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QDialog, QFileDialog, QHBoxLayout, QLabel,
-                             QMenu, QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolButton, QVBoxLayout,
-                             QWidget)
+from PyQt6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
+                             QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolButton,
+                             QVBoxLayout, QWidget)
 
 from ... import spec as spec_module
 from ...controllers.service import StudioService
 from ...i18n import load_catalog
 from ...models import frame as frame_model
+from ...models.history import History, snapshot
 from ...models.session import StudioSession
 from .controls import SettingsForm
 from .source_view import SourceView
 
 PREVIEW_DELAY_MS = 140          # réglages regroupés avant de relancer l'aperçu, comme la page (schedule)
+HISTORY_DELAY_MS = 450          # changements regroupés en une étape d'annulation, comme la page (histNote)
 IMAGE_FILTER = "Images (*.png *.jpg *.jpeg *.bmp *.webp)"
 # Vues de l'aperçu, comme les boutons de la page : (vue, libellé).
 VIEWS = (("result", "Result"), ("material", "Material"), ("original", "Original"), ("overlay", "Overlay"),
@@ -57,6 +60,8 @@ EXPORTS = (
     ("flexdxf", "Flexibility test (DXF)", "flextest", "flex_dxf", "_flex_test.dxf", "DXF (*.dxf)"),
 )
 TO_LASER_STUDIO = ("svg", "dxf")
+# Aperçu avant export d'un fichier qui ne se dessine pas lui-même : son SVG (comme la page).
+PREVIEW_KEY = {"dxf": "svg", "boxdxf": "box_svg", "flexdxf": "flex_svg", "boxpdf": "diffuser_svg"}
 ENGRAVE_ONLY = ("png", "svgimg")
 # Outils de la photo, comme les boutons de la page : (outil, libellé, visible seulement avec « isoler le sujet »).
 TOOLS = (("move", "Move frame", False), ("box", "Subject box", False), ("fg", "Subject (green)", True),
@@ -140,6 +145,9 @@ class QStencilDialog(QDialog):
         self._results.failed.connect(lambda msg: self.status.setText(self.tr_("Error: {msg}", msg=msg)))
         self._timer = QTimer(self, singleShot=True, interval=PREVIEW_DELAY_MS)
         self._timer.timeout.connect(self._send_preview)
+        self.history = History()
+        self._history_timer = QTimer(self, singleShot=True, interval=HISTORY_DELAY_MS)
+        self._history_timer.timeout.connect(self._commit_history)
 
         self.form = SettingsForm(self.spec, self.tr_)
         self.form.changed.connect(self._changed)
@@ -153,6 +161,8 @@ class QStencilDialog(QDialog):
         self.source_view.rotation_changed.connect(lambda angle: self._changed("rot", angle, from_view=True))
         self.source_view.subject_box_drawn.connect(self._subject_box_drawn)
         self.source_view.hints_painted.connect(self._hints_painted)
+        self.source_view.custom_size_changed.connect(self._custom_size_changed)
+        self.source_view.message.connect(lambda text: self.status.setText(self.tr_(text)))
         self.result_view = ImageView()
         views = QSplitter(Qt.Orientation.Horizontal)
         views.addWidget(self._titled(self._tool_row(), self.source_view))
@@ -168,6 +178,8 @@ class QStencilDialog(QDialog):
         layout.addWidget(body, 1)
         layout.addWidget(self.status)
         self.setAcceptDrops(True)
+        QShortcut(QKeySequence.StandardKey.Undo, self, activated=self.undo)
+        QShortcut(QKeySequence.StandardKey.Redo, self, activated=self.redo)
         self._set_mode(self.state.get("output") or "stencil")
 
     # -- construction
@@ -178,6 +190,14 @@ class QStencilDialog(QDialog):
         open_button = QPushButton(self.tr_("Open image..."))
         open_button.clicked.connect(self.open_dialog)
         row.addWidget(open_button)
+        self.undo_button, self.redo_button = QToolButton(), QToolButton()
+        for button, text, tip, slot in ((self.undo_button, "↶", "Undo (Ctrl+Z)", self.undo),
+                                        (self.redo_button, "↷", "Redo (Ctrl+Y)", self.redo)):
+            button.setText(text)
+            button.setToolTip(self.tr_(tip))
+            button.setEnabled(False)
+            button.clicked.connect(slot)
+            row.addWidget(button)
         self.mode_buttons = QButtonGroup(self)
         self.mode_buttons.setExclusive(True)
         color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
@@ -270,6 +290,8 @@ class QStencilDialog(QDialog):
             return
         self.source_view.set_image(to_qimage(self.service.session.disp_rgb))
         self._sync_zoom()
+        self.history.reset(self._snapshot())                # nouvelle image : historique vidé (histReset)
+        self._history_buttons()
         self.schedule()
 
     def _blank_image(self):
@@ -323,6 +345,12 @@ class QStencilDialog(QDialog):
                 return
         if key == "zoom":
             self.source_view.set_frame({**self.source_view.frame(), "w": float(value)})
+        elif key == "img_mm" and self.source_view.iw:
+            width = frame_model.width_for_image_mm(self.state, self.source_view.iw, self.source_view.ih, value)
+            if width > 1 and not self.state.get("free"):     # image plus petite que le cadre : marges vides
+                self.state["free"] = True
+                self.form.set_value("free", True)
+            self.source_view.set_frame({**self.source_view.frame(), "w": width})
         elif key == "aspect" and value == "custom" and self.state.get("shape") != "circle":
             self._fill_custom_size(previous_ratio)          # pré-rempli avec les dimensions actuelles
         elif key in ("custom_w", "custom_h"):
@@ -346,10 +374,57 @@ class QStencilDialog(QDialog):
             self.form.set_value(key, value)
 
     def _sync_zoom(self):
-        """Réglage « zoom » = largeur du cadre (comme setControl("zoom") de la page)."""
-        zoom = round(self.source_view.frame()["w"], 2)
+        """Réglages « zoom » (largeur du cadre) et « img_mm » (largeur de la photo sur la plaque), d'après le
+        cadre, comme clampFrame / syncImgMm de la page."""
+        f = self.source_view.frame()
+        zoom = round(f["w"], 2)
         self.state["zoom"] = zoom
         self.form.set_value("zoom", zoom)
+        if self.source_view.iw:
+            mm = frame_model.image_width_mm(self.state, self.source_view.iw, self.source_view.ih, f)
+            self.state["img_mm"] = mm
+            self.form.set_value("img_mm", mm)
+
+    def _custom_size_changed(self):
+        """Poignées ou double-clic sur le cadre : largeur, hauteur et taille du format personnalisé."""
+        for key in ("custom_w", "custom_h", "size_mm"):
+            self.form.set_value(key, self.state[key])
+        self._sync_zoom()
+
+    # -- annuler / refaire
+
+    def _snapshot(self):
+        return snapshot(self.state, self.source_view.frame(), self.source_view.subject_box)
+
+    def _commit_history(self):
+        if self.service.session.has_image():
+            self.history.commit(self._snapshot())
+            self._history_buttons()
+
+    def _history_buttons(self):
+        self.undo_button.setEnabled(self.history.can_undo())
+        self.redo_button.setEnabled(self.history.can_redo())
+
+    def undo(self):
+        self._restore(self.history.undo(self._snapshot()))
+
+    def redo(self):
+        self._restore(self.history.redo(self._snapshot()))
+
+    def _restore(self, snap):
+        """Réglages, cadre et rectangle du sujet d'un état de l'historique (histRestore)."""
+        self._history_timer.stop()
+        if snap is not None:
+            o = json.loads(snap)
+            self.state.update(o["S"])
+            for key, value in self.state.items():
+                self.form.set_value(key, value)
+            self.source_view.subject_box = o["B"]
+            self.source_view.set_frame(o["F"])
+            self._set_mode(self.state.get("output") or "stencil")
+            self._sync_zoom()
+            self.schedule()
+        self._history_buttons()
 
     def _choose_tool(self, tool):
         self.source_view.tool = tool
@@ -433,6 +508,7 @@ class QStencilDialog(QDialog):
 
     def schedule(self):
         self._timer.start()
+        self._history_timer.start()           # une étape d'annulation par série de changements (histNote)
 
     def _send_preview(self):
         if not self.service.session.has_image():
@@ -486,6 +562,37 @@ class QStencilDialog(QDialog):
         self.status.setText(self.tr_("Exporting..."))
         self._run(lambda: self.service.export_result(req), lambda out: self._results.export.emit(fmt, out))
 
+    def confirm_export(self, name, picture, out):
+        """Aperçu avant export (« Aperçu avant l'export », showExportPreview de la page) : `picture` est le SVG
+        (texte) ou le PNG (octets) à montrer. True pour exporter."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle(name)
+        layout = QVBoxLayout(dialog)
+        preview = ImageView()
+        preview.setMinimumSize(520, 420)
+        image = QImage()
+        if isinstance(picture, bytes):
+            image.loadFromData(picture)                    # gravure PNG
+        elif picture:
+            renderer = QSvgRenderer(QByteArray(picture.encode("utf-8")))
+            size = renderer.defaultSize().scaled(1000, 1000, Qt.AspectRatioMode.KeepAspectRatio)
+            image = QImage(size, QImage.Format.Format_RGB32)
+            image.fill(Qt.GlobalColor.white)
+            painter = QPainter(image)
+            renderer.render(painter)
+            painter.end()
+        if not image.isNull():
+            preview.set_image(image)
+        layout.addWidget(preview, 1)
+        layout.addWidget(QLabel(self.stats_text(out.get("stats") or {})))
+        buttons = QDialogButtonBox()
+        buttons.addButton(self.tr_("Download"), QDialogButtonBox.ButtonRole.AcceptRole)
+        buttons.addButton(self.tr_("Back to editing"), QDialogButtonBox.ButtonRole.RejectRole)
+        buttons.accepted.connect(dialog.accept)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+        return dialog.exec() == QDialog.DialogCode.Accepted
+
     def _deliver_export(self, fmt, out):
         _fmt, _label, _what, key, suffix, file_filter = next(e for e in EXPORTS if e[0] == fmt)
         content = out.get(key)
@@ -494,6 +601,8 @@ class QStencilDialog(QDialog):
                                 else self.tr_("Error: {msg}", msg=key))
             return
         name = (out.get("name") or "stencil") + suffix
+        if self.state.get("exp_preview") and not self.confirm_export(name, out.get(PREVIEW_KEY.get(fmt, key)), out):
+            return
         if fmt in TO_LASER_STUDIO:          # vers l'éditeur vectoriel, comme la version web dans Laser Studio
             path = os.path.join(tempfile.mkdtemp(prefix="qstencil-"), name)
         else:
