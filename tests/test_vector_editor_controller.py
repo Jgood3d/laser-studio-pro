@@ -332,15 +332,17 @@ class TabCommandsTests(unittest.TestCase):
         self.assertEqual(len(names), len(set(names)))                  # aucune commande traitée deux fois
         # Les boutons de l'onglet, plus les commandes du clavier et du clic droit du canevas.
         keyboard = {"copy", "paste", "group", "ungroup", "resize"}
-        self.assertEqual(sorted((set(COMMANDS) - {"library"}) | keyboard), sorted(names))
+        self.assertEqual(sorted(set(COMMANDS) | keyboard), sorted(names))   # « library » : page des générateurs
         self.assertTrue(all(callable(action) for part in parts for action in part.values()))
 
     def test_buttons_emit_their_command(self):
         got = []
         self.tab.command.connect(got.append)
-        self.tab.top_buttons["nesting"].click()
+        self.tab.top_buttons["import"].click()
+        next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_generators")).trigger()
+        next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_nesting")).trigger()
         next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_rotate_90")).trigger()
-        self.assertEqual(got, ["nesting", "rotate"])
+        self.assertEqual(got, ["import", "generators", "nesting", "rotate"])
 
     def test_draw_tool_goes_through_the_controller(self):
         self.tab.draw_tool_requested.connect(self.editor.choose_draw_tool)

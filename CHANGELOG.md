@@ -7,6 +7,10 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Barre d'état : à droite, une pastille colorée donne l'état du graveur (comme le panneau machine) avec la position X / Y de la tête, ou « Graveur déconnecté » ; la durée estimée du dernier G-Code généré y reste affichée.
+
+Thème « New Dusk » (Fichier › Paramètres… › Langue et thème), inspiré du Solarized Dark de VS Code : bleu pétrole, interface à plat, onglets soulignés par l'accent, coins arrondis, barres de défilement fines et police Inter (ou celle de l'interface du système). Le canevas de l'éditeur vectoriel, l'aperçu de l'image et la visualisation 2D prennent ses couleurs. Sa version claire, « New Dawn », reprend le thème « Light Modern » de VS Code : blanc et gris neutres, accents bleus, mêmes icônes d'une seule couleur. Les icônes suivent maintenant un changement de thème sans redémarrer.
+
 Import SVG : le dessin arrive tel que votre logiciel de dessin le montre. Les calques et groupes du fichier deviennent des groupes de la liste des objets, avec leur nom ; chaque objet va sur un calque d'après sa couleur (noir : gravure, rouge : découpe, vert : marquage, avec une tolérance sur la teinte) ; un objet blanc arrive sur le calque « Ignoré » (pour évider une forme, on fait une Différence) ; les textes restent modifiables ; ce qui est caché dans le fichier arrive sur le calque « Ignoré », d'où la tête laser de la liste des objets le fait réapparaître. Lecture conforme à la spécification SVG : styles en cascade (feuille `<style>` comprise) et héritage, visibilité, opacité, règle de remplissage, `<use>`, `<symbol>`, `<switch>`, `<svg>` imbriqué, toutes les couleurs CSS, détourages (`clipPath`) et masques (`mask`), traits en pointillés (`stroke-dasharray`, découpés en tirets), longueurs avec unité ou en pourcentage dans les attributs (`10mm`, `50%`, `2em`), propriété CSS `transform` avec `transform-origin`. Les fichiers d'Inkscape antérieurs à 0.92 (90 px par pouce) et d'Adobe Illustrator (72 px par pouce) gardent leur taille réelle.
 
 Liste des objets de l'éditeur vectoriel : un œil devant chaque objet, groupes compris, le masque sur le canevas (il reste gravé), et une tête laser en deuxième colonne le met sur le calque « Ignoré » : plus affiché, ni gravé ni découpé. L'objet retient son calque ; un nouveau clic le lui rend, avec ses réglages. Sur un groupe, chaque objet retrouve son propre calque. Un objet masqué ou ignoré se choisit dans la liste (contour gris en pointillés) pour lui donner un autre calque. Une poubelle au bout de chaque ligne supprime l'objet, ou le retire de son groupe. Clic droit sur plusieurs objets sélectionnés dans la liste : Groupe, Union, Différence, Intersection, Exclusion, Dégrouper.
@@ -65,6 +69,26 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Barre d'outils du haut allégée : les outils de l'éditeur vectoriel (bibliothèque, import, générateurs) restent dans l'éditeur et le menu Outils. « Visualisation 2D G-Code » suit la disposition des autres onglets : ses options d'affichage (matière, miroir, négatif, déplacements rapides, optimisation du chemin) passent dans un cadre « Affichage » de la colonne de droite, les loupes dans une barre verticale ; dans « Calques », la barre des actions devient verticale, à droite du tableau. Les aperçus des générateurs, le recadrage de l'image et le bouton de sortie du plein écran prennent les couleurs du thème.
+
+Éditeur vectoriel : un bouton « Vectoriser une image » à côté d'« Importer SVG / DXF » ouvre l'onglet Vectorisation. Après un import, la vue se cadre sur le dessin importé sans trop zoomer sur un petit dessin ; dans « Graver une image », chaque nouvelle image remplit l'aperçu (rendu tramé comme originale), qui suit la taille de la fenêtre tant qu'on ne zoome pas soi-même.
+
+Onglets à la manière de VS Code (thème New Dusk) : bande d'onglets, séparateurs fins, onglet actif de la couleur de la zone de travail, plus de petites flèches de défilement. « Séparation Couleur / Verre » et « Vectorisation d'image » ont une croix pour se refermer (le menu Outils les rouvre). Les panneaux latéraux (propriétés, listes de catégories) prennent la couleur de la barre latérale de VS Code. L'onglet Graveur du panneau du bas est plus compact (le bouton de connexion rejoint la ligne du port, boutons de déplacement un peu plus petits).
+
+Panneau du bas, comme celui de VS Code : ses onglets Graveur (connexion, déplacements, lancement et suivi), Console G-Code et File d'attente restent sous les onglets de travail, sur tous les onglets. Replié, il ne montre que ses onglets ; il se déplie d'un clic sur l'un d'eux, avec **Ctrl+J**, par un clic sur la pastille du graveur de la barre d'état, et tout seul quand une gravure démarre ou qu'une alarme survient. La console G-Code et la file d'attente quittent les onglets principaux.
+
+Éditeur vectoriel épuré : une seule barre flottante sur le canevas (la sélection en tête, puis créer et dessiner). La barre d'édition (avec l'imbrication automatique) passe à droite du canevas, contre la liste des objets ; l'alignement apparaît sous les propriétés dès que deux objets sont sélectionnés. Un canevas vide propose de gros boutons : importer un fichier, dessiner une forme, ouvrir la bibliothèque, vectoriser une image, et un par générateur (boîte, puzzle, boule de Noël, porte-clés).
+
+Générateurs : la bibliothèque, la boîte, le puzzle, la boule de Noël et le porte-clés partagent une fenêtre, avec leur liste à gauche, les réglages au milieu et l'aperçu à droite. Le menu Outils l'ouvre sur le générateur choisi, l'icône « Générateurs » de la barre d'édition sur le dernier utilisé, Outils › Bibliothèque… et le bouton « Bibliothèque » de l'éditeur sur la bibliothèque. Le menu Affichage disparaît (Ctrl+J reste). Un seul couple de boutons « Importer » / « Annuler » sert aux quatre générateurs.
+
+Thème New Dusk : les cases à cocher deviennent des interrupteurs.
+
+Paramètres : une seule fenêtre pour tous les réglages, avec la liste des catégories à gauche (Paramètres du graveur, Configuration GRBL, Macros, Langue et thème). L'éditeur des macros y devient la page « Macros » (le bouton des actions de job l'ouvre) ; l'historique des gravures passe dans le menu Fichier. Elle s'ouvre par **Fichier › Paramètres…**, juste au-dessus de « Quitter » : le menu Paramètres disparaît.
+
+Onglet « Graver une image » disposé comme l'éditeur vectoriel : le gros bouton vert « Charger Image » en haut (identique à « Importer SVG / DXF », qui annonce lui aussi le glisser-déposer), la barre d'outils verticale à droite de l'aperçu, et les propriétés de l'image à droite, affichées une fois l'image chargée.
+
+Thème New Dusk : icônes d'une seule couleur, comme dans VS Code (les icônes à plusieurs teintes sont redessinées au trait).
+
 Bibliothèque de modèles : les modèles sont importés comme avec le bouton « Importer » (calque d'après la couleur, groupes et textes gardés). Le blanc ne creuse plus la gravure : les pictogrammes en réserve des médailles, totems et porte-clés sont devenus de vraies Différences, et le texte « Compétition de XXXX » des médailles est un masque du bandeau, toujours remplaçable dans la fiche. Les options non choisies n'arrivent plus dans l'éditeur. Le marquage d'un modèle se dessine en vert.
 
 Éditeur vectoriel : « Pivoter 90° » de la barre d'édition fait tourner tous les objets sélectionnés (avant : seulement le premier), comme le clic droit. « Texte le long d'un objet » du clic droit ouvre ensuite les réglages du texte, comme le bouton.
@@ -134,6 +158,12 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Éditeur vectoriel : la liste « Calque » des propriétés n'est plus coupée ; le bouton « Connecter GRBL » non plus.
+
+Thème New Dusk : le texte de la barre d'avancement de la gravure (« Gravure : 42 % ») n'est plus rogné.
+
+Thèmes : les flèches des champs numériques s'affichaient en petits carrés ; ce sont maintenant des chevrons à la couleur du thème. Les boutons « Générer le G-code » et « Importer SVG / DXF » prennent les couleurs du thème (le second n'est plus vert).
+
 Gravure saccadée : la tête ne s'arrête plus à chaque allumage du laser. Le G-Code envoyait la puissance sur des lignes à part (« M4 S500 », « S0 », « M5 » autour de chaque segment ou de chaque contour), et GRBL vide son tampon de mouvements à chaque ligne de ce genre : la tête marquait un temps d'arrêt à chaque allumage et à chaque extinction, et la gravure durait bien plus que la durée estimée (calques vectoriels, découpe, matrice de test, image en M3). La puissance voyage maintenant sur chaque mouvement, la commande laser n'est envoyée qu'une fois et M5 à la fin. Le G-Code est aussi plus compact (mots inchangés non répétés, nombres sans zéros inutiles, espaces et commentaires non envoyés) : deux à trois fois moins d'octets sur la liaison série, qui n'est plus en retard sur la gravure dans les zones denses d'une image. Ce qui est gravé ne change pas.
 
 Configuration GRBL : seuls les réglages numériques ($110=6000…) sont importés et envoyés à la carte, sans leur commentaire. Un fichier de réglages ne peut plus effacer la configuration ($RST=*), ajouter une ligne exécutée au démarrage de la carte ($N0=…, qui pouvait allumer le laser), déplacer la tête ($J=…) ni la mettre en veille.

@@ -3,6 +3,8 @@
 TEXTS = {
 
     # --- Onglet Image & Filtres ---
+    "img.properties_box": {"fr": "Propriétés de l'image", "en": "Image properties", "de": "Bildeigenschaften",
+                           "es": "Propiedades de la imagen"},
     "img.load": {
         "fr": "Charger Image\n(ou glisser-déposer)", "en": "Load Image\n(or drag & drop)",
         "de": "Bild laden\n(oder per Drag & Drop)", "es": "Cargar imagen\n(o arrastrar y soltar)",
@@ -289,6 +291,7 @@ TEXTS = {
               "con los ajustes actuales (brillo, contraste, gamma, nitidez, negativo). "
               "Hacer clic en una miniatura selecciona ese algoritmo.",
     },
+    "preview.display_box": {"fr": "Affichage", "en": "Display", "de": "Anzeige", "es": "Visualización"},
     "preview.material_label": {
         "fr": "Matière :",
         "en": "Material:",

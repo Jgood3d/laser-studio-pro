@@ -92,33 +92,32 @@ class SplitterTests(unittest.TestCase):
         self.assertNotIn("self.left_v_splitter", src)
         self.assertIn("main_layout.addWidget(center_widget)", src)
 
-    def test_generate_button_padding(self):
+    def test_generate_button_takes_the_theme_colors(self):
+        # Bouton principal : ses couleurs viennent du thème (QPushButton[role="primary"] dans theme.py).
         with open(os.path.join(ROOT, "ui", "app", "menu", "toolbar.py"), encoding="utf-8") as f:
             toolbar = f.read()
-        self.assertRegex(toolbar, r'button\.setStyleSheet\(\s*"background-color: #2b5c8f; color: white; "\s*'
-                                  r'"font-weight: bold; padding: 3px;"')
+        self.assertIn('button.setProperty("role", "primary")', toolbar)
+        self.assertNotIn("setStyleSheet", toolbar)
 
 
 @unittest.skipIf(i18n is None or vector_tab is None, "i18n / PyQt6 non importables ici")
 class VectorToolbarTests(unittest.TestCase):
-    """Barre d'outils de l'éditeur vectoriel (ui/vector_editor/tab.py) : une rangée (importer et outils),
-    libellés entièrement visibles. Créer / dessiner, édition et alignement sont dans des barres
-    flottantes du canevas."""
+    """Barre d'outils de l'éditeur vectoriel (ui/vector_editor/tab.py) : Importer en haut, l'édition (générateurs
+    compris) contre la liste des objets, créer / dessiner dans la barre flottante du canevas, l'alignement dans
+    les propriétés."""
 
     def rows(self):
-        return {"top": [key for _name, key, _tip, _icon in vector_tab.TOP_BUTTONS]}
+        return {"top": ["ui.vector_import_drop"]}
 
     def estimated_width(self, keys):
         """~7 px par caractère de la traduction la plus longue + 28 px de marges de bouton."""
         return sum(max(len(v) for v in i18n.TRANSLATIONS[k].values()) * 7 + 28 for k in keys)
 
     def test_one_row_with_import_and_tools(self):
-        self.assertEqual(self.rows(), {"top": ["ui.vector_import_svg", "ui.vector_box_generator",
-                                               "ui.vector_puzzle_generator", "ui.vector_ornament_generator",
-                                               "ui.vector_keychain_generator", "ui.vector_nesting"]})
-        icons = [icon for *_rest, icon in vector_tab.TOP_BUTTONS]
-        for icon in ("document-import", "draw-cuboid", "games-config-board", "keychain", "object-group"):
-            self.assertIn(icon, icons)
+        self.assertEqual(list(vector_tab.COMMANDS[:1]), ["import"])
+        # Les générateurs : une icône en tête de la barre d'édition, qui ouvre leur fenêtre unique.
+        self.assertEqual(vector_tab.EDIT_ACTIONS[0], ("generators", "ui.vector_generators", "draw-cuboid"))
+        self.assertIn(("nesting", "ui.vector_nesting", "object-group"), vector_tab.EDIT_ACTIONS)
 
     def test_create_and_draw_tools_float_on_the_left_with_icons(self):
         pairs = {(key, icon) for _name, key, icon in vector_tab.CREATE_ACTIONS + vector_tab.DRAW_TOOLS}
@@ -129,13 +128,14 @@ class VectorToolbarTests(unittest.TestCase):
             self.assertIn(pair, pairs)
         with open(os.path.join(ROOT, "ui", "vector_editor", "tab.py"), encoding="utf-8") as f:
             src = f.read()
+        # Une seule barre flottante sur le canevas : l'édition est dans la rangée du haut, l'alignement dans
+        # les propriétés.
+        self.assertEqual(src.count("FloatingToolBar("), 1)
         self.assertIn('self.canvas, anchor="left")', src)
-        self.assertIn('self.canvas, anchor="right"', src)
-        self.assertIn("FloatingToolBar(edit_actions, self.canvas, top_margin=8)", src)
         # Alignement : pictogramme seul sur le bouton, action complète en infobulle (4 langues).
         self.assertIn('tr(key).split(" ", 1)[0], tr(f"{key}_tip")', src)
 
-    def test_edit_and_align_actions_float_over_the_canvas(self):
+    def test_edit_and_align_actions(self):
         edit = [entry[1] for entry in vector_tab.EDIT_ACTIONS if entry]
         for key in ("ui.vector_edit_selection", "ui.vector_rotate_90", "ui.vector_duplicate", "ui.vector_delete",
                     "vector.explode_path", "vector.edit_nodes", "vector.text_follow", "ui.vector_undo", "ui.vector_redo"):

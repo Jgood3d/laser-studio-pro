@@ -1,5 +1,5 @@
-"""Bibliothèque de modèles : choix d'un modèle (fenêtre ouverte par EditorForms) et import dans
-l'éditeur vectoriel."""
+"""Bibliothèque de modèles : catalogue (page « Bibliothèque » de la fenêtre des générateurs, voir
+GeneratorsController) et import du modèle choisi dans l'éditeur vectoriel."""
 
 from laser_studio.i18n import get_current_language, tr
 from laser_studio.library.catalog import library_roots, load_catalog
@@ -12,16 +12,16 @@ ICON_SIZE_SETTING = "library_icon_size"
 
 
 class LibraryController:
-    """Ouvre la bibliothèque et importe le modèle choisi.
+    """Catalogue de la bibliothèque et import du modèle choisi.
 
         library = LibraryController(
             layers, bed_height=lambda: machine.bed_h,
-            add_to_vector_editor=editor.import_objects, forms=EditorForms(window), dialogs=dialogs,
+            add_to_vector_editor=editor.import_objects, dialogs=dialogs,
         )
-        action.triggered.connect(library.open)
+        generators = GeneratorsController(editor, layout, forms, library=library)
 
-    La fenêtre de la bibliothèque est ouverte par `forms.library(...)` (ui/vector_editor/forms.py) :
-    le contrôleur ne construit aucune fenêtre.
+    La bibliothèque est une page de la fenêtre des générateurs (EditorForms.generators) : le contrôleur
+    ne construit aucune fenêtre.
 
     Le modèle est lu comme un SVG ordinaire (vector.svg_tree_import) : chaque
     tracé va sur le calque du rôle de sa couleur (découpe, gravure, marquage) ;
@@ -29,11 +29,8 @@ class LibraryController:
     library_roots, remplaçable pour les tests).
     """
 
-    def __init__(self, layer_manager, bed_height, add_to_vector_editor, *, forms, dialogs,
-                 roots=library_roots):
-        # Fenêtres (EditorForms) et messages (UserDialogs) : ceux de la fenêtre, ou des objets qui répondent
-        # à la place de l'utilisateur dans les tests.
-        self._forms = forms
+    def __init__(self, layer_manager, bed_height, add_to_vector_editor, *, dialogs, roots=library_roots):
+        # Messages (UserDialogs) : ceux de la fenêtre, ou un objet qui répond à la place de l'utilisateur.
         self._dialogs = dialogs
         self._layers = layer_manager
         self._bed_height = bed_height
@@ -43,25 +40,22 @@ class LibraryController:
     def catalog(self):
         return load_catalog(self._roots(), get_current_language())
 
-    def open(self):
-        """Fenêtre de la bibliothèque ; importe le modèle choisi."""
-        if not self._layers.layers:
-            self._dialogs.warning(tr("vector.no_layer_title"), tr("vector.no_layer_body"))
-            return
+    def generator_request(self):
+        """Arguments de la page « Bibliothèque » de la fenêtre des générateurs (EditorForms.generators) :
+        (catégories, taille des vignettes, rappel qui la mémorise), ou None si la bibliothèque est vide."""
         categories = self.catalog()
         if not categories:
-            self._dialogs.info(tr("library.title"), tr("library.empty"))
-            return
+            return None
         try:
             icon_size = ui_preferences().get_int(ICON_SIZE_SETTING, 160)
         except (TypeError, ValueError):
             icon_size = 160
-        chosen = self._forms.library(categories, icon_size,
-                                     on_icon_size=lambda size: ui_preferences().set(ICON_SIZE_SETTING, size))
-        if chosen is None:
-            return
+        return categories, icon_size, lambda size: ui_preferences().set(ICON_SIZE_SETTING, size)
+
+    def import_choice(self, chosen):
+        """Importe le choix de la page « Bibliothèque » : (modèle, variantes, textes)."""
         item, variants, texts = chosen
-        self.import_item(item, variants, texts)
+        return self.import_item(item, variants, texts)
 
     def layer_for_role(self, role):
         """Identifiant du calque de rôle `role`, sinon du calque SVG par défaut."""

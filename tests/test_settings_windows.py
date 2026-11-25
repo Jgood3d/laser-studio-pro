@@ -57,23 +57,19 @@ class AppMenusTests(unittest.TestCase):
             last.click()
         self.assertEqual(open_url.call_args[0][0].toString(), button_module.KOFI_URL)
 
-    def test_menu_bar_order_is_file_settings_view_tools_help(self):
+    def test_menu_bar_order_is_file_tools_help(self):
         tr = self.tr
-        self.assertEqual(self.texts(self.menu_bar),
-                         [tr("menu.file"), tr("menu.settings"), tr("menu.view"), tr("menu.tools"),
-                          tr("menu.help")])
+        self.assertEqual(self.texts(self.menu_bar), [tr("menu.file"), tr("menu.tools"), tr("menu.help")])
 
-    def test_view_menu_toggles_the_gcode_console(self):
-        from laser_studio.ui.app.menu import AppActions, AppMenuBar
-        a = AppActions()                                 # instance neuve : état de départ
-        menu_bar = AppMenuBar(a)
-        self.assertEqual(menu_bar.view_menu.actions(), [a.gcode_console, a.job_queue])
-        self.assertTrue(a.gcode_console.isCheckable())
-        self.assertFalse(a.gcode_console.isChecked())    # console masquée au démarrage
-        received = self.record(a.gcode_console_toggled)
-        a.gcode_console.trigger()
-        a.gcode_console.trigger()
-        self.assertEqual(received, [(True,), (False,)])
+    def test_bottom_panel_action_has_ctrl_j(self):
+        # Plus de menu Affichage : Ctrl+J est une action de la fenêtre.
+        from laser_studio.ui.app.menu import AppActions
+        a = AppActions()
+        self.assertTrue(a.bottom_panel.isCheckable())
+        self.assertEqual(a.bottom_panel.shortcut().toString(), "Ctrl+J")
+        toggled = self.record(a.bottom_panel_toggled)
+        a.bottom_panel.trigger()
+        self.assertEqual(toggled, [(True,)])
 
     def test_fullscreen_sits_just_before_kofi(self):
         from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
@@ -94,20 +90,19 @@ class AppMenusTests(unittest.TestCase):
         tr, fm = self.tr, self.menu_bar.file_menu
         self.assertEqual(self.texts(fm), [tr("menu.file.save_project"), tr("menu.file.open_project"),
                                           tr("menu.file.recent_projects"), tr("gcode.import"),
-                                          tr("menu.file.save_gcode"), tr("menu.file.quit")])
+                                          tr("menu.file.save_gcode"), tr("menu.tools.history"),
+                                          tr("menu.file.settings"), tr("menu.file.quit")])
         received = self.record(self.actions.gcode_import_requested)
         self.actions.gcode_import.trigger()
         self.assertEqual(received, [()])
 
-    def test_job_queue_toggle_in_view_menu_and_toolbar(self):
+    def test_job_queue_in_view_menu_and_toolbar(self):
         a = self.actions
         self.assertIn(a.job_queue, self.toolbar.actions())
         self.assertEqual(a.job_queue.text(), self.tr("menu.view.job_queue"))
-        self.assertTrue(a.job_queue.isCheckable())
-        received = self.record(a.job_queue_toggled)
-        a.job_queue.setChecked(True)
-        a.job_queue.setChecked(False)
-        self.assertEqual(received, [(True,), (False,)])
+        received = self.record(a.job_queue_requested)
+        a.job_queue.trigger()
+        self.assertEqual(received, [()])
 
     def test_save_gcode_submenu_is_enabled_after_generation(self):
         from laser_studio.ui.app.menu import AppActions, AppMenuBar
@@ -127,27 +122,31 @@ class AppMenusTests(unittest.TestCase):
 
     def test_settings_and_tools_entries_are_in_their_menu(self):
         tr = self.tr
-        settings = self.texts(self.menu_bar.settings_menu)
-        self.assertEqual(settings, [tr("tab.machine_params"), tr("tab.grbl_config"),
-                                    tr("menu.language"), tr("menu.theme")])
+        # Plus de menu Paramètres : « Paramètres… » (une seule fenêtre) dans Fichier, juste avant « Quitter ».
+        titles = [action.text() for action in self.menu_bar.actions()]
+        self.assertNotIn(tr("menu.settings"), titles)
+        self.assertEqual(self.menu_bar.file_menu.actions()[-2:], [self.actions.machine_params_window,
+                                                                 self.actions.quit])
+        self.assertEqual(self.actions.machine_params_window.text(), tr("menu.file.settings"))
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
                          [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
-                          tr("png2svg.tab_title"), tr("menu.tools.camera"), tr("menu.tools.macros"), tr("menu.tools.history"),
-                          tr("menu.tools.library"),
-                          tr("menu.tools.import_vector"), tr("menu.tools.box"),
-                          tr("menu.tools.puzzle"), tr("menu.tools.ornament"), tr("menu.tools.keychain")])
+                          tr("png2svg.tab_title"), tr("menu.tools.camera"), tr("menu.tools.library"),
+                          tr("menu.tools.import_vector"), tr("menu.tools.box"), tr("menu.tools.puzzle"),
+                          tr("menu.tools.ornament"), tr("menu.tools.keychain")])
+        # Historique des gravures : menu Fichier ; macros : fenêtre Paramètres.
+        self.assertIn(self.actions.history, self.menu_bar.file_menu.actions())
 
     def test_toolbar_reuses_the_menu_actions(self):
         # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
         a = self.actions
         in_toolbar = set(self.toolbar.actions())
-        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window,
-                       a.grbl_window, *a.tool_actions, *a.vector_tool_actions):
+        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window, *a.tool_actions):
             self.assertIn(action, in_toolbar, action.text())
-        # Le menu Outils, sans séparateur, est repris en entier dans la barre.
+        # Barre allégée : les outils de l'éditeur vectoriel restent dans le menu et dans l'éditeur.
+        self.assertFalse(set(a.vector_tool_actions) & in_toolbar)
         tools = self.menu_bar.tools_menu.actions()
         self.assertFalse(any(x.isSeparator() for x in tools))
-        self.assertTrue(set(tools) <= in_toolbar)
+        self.assertTrue(set(a.vector_tool_actions) <= set(tools))
         self.assertIn(a.save_project, self.menu_bar.file_menu.actions())
 
     def test_toolbar_order_image_and_gcode(self):
@@ -191,16 +190,13 @@ class AppMenusTests(unittest.TestCase):
                 (a.save_project, a.save_project_requested, ()),
                 (a.open_project, a.open_project_requested, ()),
                 (a.quit, a.quit_requested, ()),
-                (a.grbl_window, a.settings_window_requested, ("grbl",)),
                 (a.test_matrix_window, a.settings_window_requested, ("test_matrix",)),
                 (a.separation_tab, a.main_tab_requested, ("tab_separation",)),
                 (a.language_actions["en"], a.language_selected, ("en",)),
                 (a.theme_actions["light"], a.theme_selected, ("light",)),
                 (a.image_rotate_right, a.image_rotate_requested, (True,)),
                 (a.vector_import, a.vector_import_requested, ()),
-                (a.box_generator, a.box_generator_requested, ()),
-                (a.puzzle_generator, a.puzzle_generator_requested, ()),
-                (a.ornament_generator, a.ornament_generator_requested, ())):
+                (a.generator_actions["ornament"], a.generator_requested, ("ornament",))):
             received = self.record(signal)
             action.setEnabled(True)
             action.trigger()
@@ -240,9 +236,9 @@ class MenuStructureTests(unittest.TestCase):
         for key in ("gcode.estimate", "gcode.generate", "gcode.import"):   # plus dans la colonne de gauche
             self.assertEqual(src.count(f'tr("{key}")'), 1, key)
 
-    def test_separation_vectorization_and_console_tabs_are_hidden_at_startup(self):
+    def test_separation_and_vectorization_tabs_are_hidden_at_startup(self):
         src = ui_source()
-        self.assertIn("for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):\n"
+        self.assertIn("for tab in (self.tab_separation, self.tab_png2svg):\n"
                       "            self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)", src)
 
     def test_no_tab_toolbar_left(self):
@@ -251,7 +247,7 @@ class MenuStructureTests(unittest.TestCase):
         image_tab = read(os.path.join("ui", "tabs", "image", "tab.py"))
         previews = image_tab[image_tab.index("def _view_toolbar"):image_tab.index("def _original_icon")]
         self.assertIn('tr("img.compare_algos_tip")', previews)
-        self.assertEqual(src.count("compare=controller.show_dither_comparison"), 1)   # plus dans Image & Filtres
+        self.assertEqual(src.count("compare=lambda: self.window_controller.show_dither_comparison()"), 1)
         self.assertEqual(src.count("TabToolBar"), 0)
         self.assertEqual(src.count("._fullscreen_control"), 0)
 
@@ -262,19 +258,16 @@ class MenuStructureTests(unittest.TestCase):
         body = tabs[tabs.index("def toggle_current_fullscreen"):]
         body = body[:body.index("\n    def ", 10)]
         for call in ("self.open_vector_editor_fullscreen()", 'tr("png2svg.fullscreen_title")',
-                     "self.open_fullscreen(", "self._restore_close_button(tab)"):
+                     "self.open_fullscreen("):
             self.assertIn(call, body)
-        self.assertIn("actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)",
-                      read(os.path.join("controllers", "window.py")))
-        self.assertNotIn("fullscreen_requested.connect", src)          # plus de bouton par onglet
+        self.assertEqual(src.count("fullscreen_requested.connect"), 1)     # plus de bouton par onglet
+        self.assertIn("actions.fullscreen_requested.connect(self.tabs.toggle_current_fullscreen)", src)
 
-    def test_preview_options_are_in_the_2d_floating_toolbar(self):
+    def test_preview_options_are_in_the_2d_side_panel(self):
         src = ui_source()
         tab = read(os.path.join("ui", "tabs", "preview_2d", "tab.py"))
-        bar = tab[tab.index("self.options_toolbar = FloatingToolBar("):]
-        bar = bar[:bar.index("self.plot_widget,")]
-        for check in ("flip_check", "negative_check", "hide_rapid_check", "optimize_path_check"):
-            self.assertIn(f"self.{check}", bar, check)
+        self.assertIn("for check in (self.flip_check, self.negative_check, self.hide_rapid_check, "
+                      "self.optimize_path_check):\n            form.addRow(check)", tab)
         # Les options d'affichage sont lues par l'onglet lui-même ; « Optimiser le chemin » par le job.
         self.assertEqual(src.count("self.tab_vector_2d.optimize_path_check.isChecked()"), 1)
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
@@ -294,8 +287,9 @@ class MenuStructureTests(unittest.TestCase):
     def test_machine_panel_scrolls_instead_of_being_crushed(self):
         src = ui_source()
         self.assertIn("center_bottom_scroll.setWidget(self.machine_panel)", src)
-        self.assertIn("self.center_v_splitter.addWidget(center_bottom_scroll)", src)
-        self.assertIn("self.center_bottom_widget = center_bottom_scroll", src)
+        # La zone défilante est l'onglet « Graveur » du panneau du bas.
+        self.assertIn('("machine", tr("panel.machine"), center_bottom_scroll)', src)
+        self.assertIn("self.center_v_splitter.addWidget(self.bottom_panel)", src)
 
     def test_original_image_is_hidden_in_the_image_tab(self):
         src = ui_source()
@@ -315,9 +309,11 @@ class MenuStructureTests(unittest.TestCase):
         self.assertIn("sent_log=self.machine_panel.sent_gcode_log", ui_source())
         self.assertIn("start_stream=engraver.start_stream", ui_source())
 
-    def test_load_button_and_keep_ratio_span_the_panel(self):
+    def test_load_button_is_the_shared_import_button_and_keep_ratio_spans_the_panel(self):
+        # « Charger Image » et « Importer SVG / DXF » : le même gros bouton (ui.utils.import_button).
         src = ui_source()
-        self.assertIn("layout.addRow(load_button)", src)
+        self.assertIn('self.load_button = import_button(tr("img.load"), self._picture_icon())', src)
+        self.assertIn('import_button(tr("ui.vector_import_drop")', src)
         self.assertIn("layout.addRow(self.keep_ratio_check)", src)
 
     def test_load_image_button_is_on_two_lines(self):
@@ -354,7 +350,7 @@ class MenuStructureTests(unittest.TestCase):
         for widget in ("self.offset_x_spin", "self.offset_y_spin"):
             self.assertRegex(src, rf"layout\.addRow\(tr\(\"[a-z_.]+\"\), {re.escape(widget)}\)")
         self.assertNotIn('tr("tab.dimensions")', src)
-        self.assertIn("self._settings_scroll = self._side_scroll(self.settings)", src)
+        self.assertIn("self._settings_scroll = self._side_scroll(holder)", src)
         self.assertNotIn('tr("tab.image_filters")', src)
         self.assertIn('tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))', src)
         self.assertIn('tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))', src)
@@ -373,19 +369,16 @@ class ShowWindowTests(unittest.TestCase):
             self.forms_mod = importlib.import_module("laser_studio.ui.app.window_forms")
         except ImportError:
             self.skipTest("controllers.window non importable ici")
+        self.pages = types.SimpleNamespace(machine_params=object(), grbl=object(), test_matrix=object())
 
-    def make(self, with_pages=True):
-        # Sans __init__ : la fenêtre est un simple espace de noms, pas un QObject.
-        controller = self.mod.WindowController.__new__(self.mod.WindowController)
-        controller.window = types.SimpleNamespace(tabs=mock.Mock())
-        controller.forms = self.forms_mod.WindowForms(None)
-        controller._settings_pages, controller._main_tabs = {}, {}
-        if with_pages:
-            controller.window.tab_machine_params = object()
-            controller.window.tab_grbl_config = object()
-            controller.add_settings_page("machine_params", controller.window.tab_machine_params, "tab.machine_params")
-            controller.add_settings_page("grbl", controller.window.tab_grbl_config, "tab.grbl_config")
-        return controller
+    def make(self, settings_pages=None, main_tabs=None, vector_tab=None):
+        # Sans fenêtre : le contrôleur reçoit ce dont il se sert.
+        if settings_pages is None:
+            settings_pages = {"machine_params": (self.pages.machine_params, "tab.machine_params"),
+                              "grbl": (self.pages.grbl, "tab.grbl_config")}
+        return self.mod.WindowController(
+            None, forms=self.forms_mod.WindowForms(None), dialogs=mock.Mock(), tabs=mock.Mock(),
+            vector=types.SimpleNamespace(tab=vector_tab), settings_pages=settings_pages, main_tabs=main_tabs)
 
     class Recorder:
         created = []
@@ -398,58 +391,50 @@ class ShowWindowTests(unittest.TestCase):
         def bring_to_front(self):
             self.fronted += 1
 
-    def test_window_is_created_once_and_reused(self):
-        self.Recorder.created = []
+    def test_machine_and_grbl_share_one_settings_window(self):
+        # « Paramètres du graveur » et « Configuration GRBL » : une fenêtre « Paramètres », la liste des
+        # catégories à gauche, ouverte sur la page demandée.
         obj = self.make()
-        with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
-            obj.show_settings_window("machine_params")
-            obj.show_settings_window("machine_params")
-            obj.show_settings_window("grbl")
-        self.assertEqual(len(self.Recorder.created), 2)
-        machine, grbl = self.Recorder.created
-        self.assertEqual(machine.fronted, 2)
-        self.assertEqual(grbl.fronted, 1)
-        self.assertIs(machine.args[1], obj.window.tab_machine_params)
-        self.assertIs(grbl.args[1], obj.window.tab_grbl_config)
-        self.assertEqual((machine.args[2], grbl.args[2]), ("machine_params", "grbl"))
+        obj.forms = mock.Mock()
+        obj.show_settings_window("grbl")
+        title, pages, current = obj.forms.settings_categories.call_args.args
+        self.assertEqual([(key, page) for key, _title, page in pages],
+                         [("machine_params", self.pages.machine_params), ("grbl", self.pages.grbl)])
+        self.assertEqual(current, "grbl")
+        obj.forms.settings_window.assert_not_called()
 
-    def test_all_three_menu_windows_are_wired_to_their_pages(self):
+    def test_the_test_matrix_keeps_its_own_window(self):
         self.Recorder.created = []
-        obj = self.make()
-        obj.window.tab_machine_params, obj.window.tab_matrix = object(), object()
-        obj.add_settings_page("machine_params", obj.window.tab_machine_params, "tab.machine_params")
-        obj.add_settings_page("test_matrix", obj.window.tab_matrix, "tab.test_matrix")
+        obj = self.make({"test_matrix": (self.pages.test_matrix, "tab.test_matrix")})
         with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
-            for kind in ("machine_params", "grbl", "test_matrix"):
-                obj.show_settings_window(kind)
-        pages = {w.args[2]: w.args[1] for w in self.Recorder.created}
-        self.assertEqual(sorted(pages), ["grbl", "machine_params", "test_matrix"])
-        self.assertIs(pages["machine_params"], obj.window.tab_machine_params)
-        self.assertIs(pages["test_matrix"], obj.window.tab_matrix)
+            obj.show_settings_window("test_matrix")
+            obj.show_settings_window("test_matrix")
+        self.assertEqual(len(self.Recorder.created), 1)
+        self.assertIs(self.Recorder.created[0].args[1], self.pages.test_matrix)
+        self.assertEqual(self.Recorder.created[0].fronted, 2)
 
     def test_missing_page_is_ignored(self):
         self.Recorder.created = []
-        obj = self.make(with_pages=False)
+        obj = self.make(settings_pages={})
         with mock.patch.object(self.forms_mod, "SettingsWindow", self.Recorder):
             obj.show_settings_window("grbl")
         self.assertEqual(self.Recorder.created, [])
 
     def test_vector_tools_open_the_vector_editor_first(self):
-        obj = self.make()
-        obj.window.tab_vector_editor = object()
+        editor_tab = object()
+        obj = self.make(vector_tab=editor_tab)
         calls = []
-        obj.window.tabs.show = lambda tab: calls.append(tab)
+        obj.tabs.show = lambda tab: calls.append(tab)
         obj.run_in_vector_editor(lambda: calls.append("puzzle"))
-        self.assertEqual(calls, [obj.window.tab_vector_editor, "puzzle"])
+        self.assertEqual(calls, [editor_tab, "puzzle"])
 
     def test_menu_shows_a_tab_by_its_name(self):
-        obj = self.make()
-        obj.window.tab_separation = object()
-        obj.add_main_tab("tab_separation", obj.window.tab_separation)
+        separation = object()
+        obj = self.make(main_tabs={"tab_separation": separation})
         obj.show_main_tab("tab_separation")
-        obj.window.tabs.show.assert_called_once_with(obj.window.tab_separation)
+        obj.tabs.show.assert_called_once_with(separation)
         obj.show_main_tab("tab_inconnu")                       # ignoré
-        self.assertEqual(obj.window.tabs.show.call_count, 1)
+        self.assertEqual(obj.tabs.show.call_count, 1)
 
     def test_dithering_algorithm_is_remembered(self):
         module = importlib.import_module("laser_studio.controllers.image")
@@ -566,8 +551,8 @@ class MainTabsTests(unittest.TestCase):
         self.vector_editor, self.png2svg = object(), object()
         self.preview_splitter = mock.Mock()
         self.tabs = self.mod.MainTabs(
-            self.view, mock.Mock(), splitter=mock.Mock(), bottom_panel=mock.Mock(isHidden=lambda: False),
-            panel_tabs=(), preview_splitter=self.preview_splitter, job_in_progress=lambda: False,
+            self.view, mock.Mock(), splitter=mock.Mock(), bottom_panel=mock.Mock(is_collapsed=lambda: False),
+            preview_splitter=self.preview_splitter,
             vector_editor=self.vector_editor, recenter_vector_editor=lambda: None, png2svg=self.png2svg)
 
     def test_show_selects_or_raises_the_fullscreen_window(self):
@@ -579,35 +564,6 @@ class MainTabsTests(unittest.TestCase):
         self.view.indexOf.return_value = -1                    # onglet ouvert en plein écran
         self.tabs.show(tab)
         tab.window().raise_.assert_called_once()
-
-    def test_job_queue_visibility_is_remembered_and_shown_by_default(self):
-        queue = object()
-        self.tabs.add_optional(queue, self.mod.JOB_QUEUE_SETTING, mock.Mock())
-        self.view.indexOf.return_value = 3
-        stored = memory_preferences(self)["UIConfig"].values
-        self.assertTrue(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))   # affichée au départ
-        self.tabs.set_optional_visible(queue, True)
-        self.assertEqual(stored, {})                          # inchangé : rien d'écrit
-        self.tabs.set_optional_visible(queue, False)
-        self.view.setTabVisible.assert_called_with(3, False)
-        self.assertEqual(stored, {"show_job_queue": False})
-        self.assertFalse(self.mod.optional_tab_was_visible(self.mod.JOB_QUEUE_SETTING))
-
-    def test_gcode_console_visibility_is_remembered(self):
-        console, action = object(), mock.Mock()
-        self.tabs.add_optional(console, self.mod.GCODE_CONSOLE_SETTING, action)
-        memory_preferences(self)
-        self.tabs.restore_optional_tabs()
-        action.setChecked.assert_called_once_with(False)     # masquée la première fois
-        self.view.indexOf.return_value = 7
-        self.tabs.set_optional_visible(console, True)
-        self.view.setTabVisible.assert_called_with(7, True)
-        self.assertTrue(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
-        self.view.indexOf.return_value = -1                  # en plein écran : onglet pas touché
-        self.view.setTabVisible.reset_mock()
-        self.tabs.set_optional_visible(console, False)
-        self.view.setTabVisible.assert_not_called()
-        self.assertFalse(self.mod.optional_tab_was_visible(self.mod.GCODE_CONSOLE_SETTING))
 
     def test_current_tab_fullscreen_dispatch(self):
         calls = []

@@ -22,18 +22,20 @@ TEXTS = {
     },
 
     # --- Menu Affichage ---
-    "menu.view": {"fr": "Affichage", "en": "View", "de": "Ansicht", "es": "Ver"},
+    "menu.view.bottom_panel": {"fr": "Panneau du bas", "en": "Bottom panel", "de": "Unteres Feld",
+                               "es": "Panel inferior"},
     "menu.view.job_queue": {
-        "fr": "Afficher/Masquer la file d'attente",
-        "en": "Show/Hide the job queue",
-        "de": "Warteschlange ein-/ausblenden",
-        "es": "Mostrar/Ocultar la cola de trabajos",
+        "fr": "File d'attente",
+        "en": "Job queue",
+        "de": "Warteschlange",
+        "es": "Cola de trabajos",
     },
-    "menu.view.gcode_console": {
-        "fr": "Afficher/Masquer la console G-Code",
-        "en": "Show/Hide the G-Code console",
-        "de": "G-Code-Konsole ein-/ausblenden",
-        "es": "Mostrar/Ocultar la consola G-Code",
+    "panel.machine": {"fr": "Graveur", "en": "Engraver", "de": "Graviergerät", "es": "Grabadora"},
+    "panel.toggle_tip": {
+        "fr": "Replier / déplier le panneau (Ctrl+J)",
+        "en": "Collapse / expand the panel (Ctrl+J)",
+        "de": "Feld ein-/ausklappen (Strg+J)",
+        "es": "Plegar / desplegar el panel (Ctrl+J)",
     },
 
     # --- Menus Paramètres et Outils ---
@@ -85,12 +87,6 @@ TEXTS = {
         "de": "Box-Generator…",
         "es": "Generador de cajas…",
     },
-    "ui.close_tab": {
-        "fr": "Fermer l'onglet",
-        "en": "Close tab",
-        "de": "Tab schließen",
-        "es": "Cerrar pestaña",
-    },
     "menu.tools.puzzle": {
         "fr": "Générateur de Puzzle…",
         "en": "Puzzle Generator…",
@@ -122,6 +118,18 @@ TEXTS = {
         "de": "Dusk (weiches Blaugrau)",
         "es": "Dusk (gris azulado suave)",
     },
+    "theme.new_dusk": {
+        "fr": "New Dusk (bleu pétrole moderne)",
+        "en": "New Dusk (modern petrol blue)",
+        "de": "New Dusk (modernes Petrolblau)",
+        "es": "New Dusk (azul petróleo moderno)",
+    },
+    "theme.new_dawn": {
+        "fr": "New Dawn (clair moderne)",
+        "en": "New Dawn (modern light)",
+        "de": "New Dawn (modern hell)",
+        "es": "New Dawn (claro moderno)",
+    },
     "theme.warm": {
         "fr": "Warm dim (gris chaud)",
         "en": "Warm dim (warm gray)",
@@ -151,6 +159,15 @@ TEXTS = {
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
 
     # --- Menu Langue ---
+    "settings.appearance": {"fr": "Langue et thème", "en": "Language and theme", "de": "Sprache und Design",
+                            "es": "Idioma y tema"},
+    "settings.language_hint": {
+        "fr": "Appliquée au prochain démarrage de l'application.",
+        "en": "Applied the next time the application starts.",
+        "de": "Wird beim nächsten Start der Anwendung übernommen.",
+        "es": "Se aplica la próxima vez que se inicie la aplicación.",
+    },
+    "menu.file.settings": {"fr": "Paramètres…", "en": "Settings…", "de": "Einstellungen…", "es": "Ajustes…"},
     "menu.language": {"fr": "Langue", "en": "Language", "de": "Sprache", "es": "Idioma"},
     "menu.language.restart_title": {
         "fr": "Redémarrage nécessaire", "en": "Restart required",
@@ -222,12 +239,6 @@ TEXTS = {
         "en": "Christmas ornament…",
         "de": "Weihnachtskugel…",
         "es": "Bola de Navidad…",
-    },
-    "menu.tools.library": {
-        "fr": "Bibliothèque…",
-        "en": "Library…",
-        "de": "Bibliothek…",
-        "es": "Biblioteca…",
     },
         # --- Interface principale ---
     "dialog.about.description": {
@@ -414,6 +425,19 @@ TEXTS = {
         "en": "No selection",
         "de": "Keine Auswahl",
         "es": "Ninguna selección",
+    },
+    "menu.tools.library": {
+        "fr": "Bibliothèque…",
+        "en": "Library…",
+        "de": "Bibliothek…",
+        "es": "Biblioteca…",
+    },
+    "common.save": {"fr": "Enregistrer", "en": "Save", "de": "Speichern", "es": "Guardar"},
+    "macros.discard": {
+        "fr": "Annuler les modifications",
+        "en": "Discard changes",
+        "de": "Änderungen verwerfen",
+        "es": "Descartar los cambios",
     },
     "common.cancel": {
         "fr": "Annuler",

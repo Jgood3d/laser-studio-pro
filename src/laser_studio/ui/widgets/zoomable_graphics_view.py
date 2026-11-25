@@ -1,13 +1,16 @@
 """Vue graphique zoomable/déplaçable utilisée pour l'aperçu image et le raster."""
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QMenu
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QEvent, QRectF
 from PyQt6.QtGui import QPainter, QPixmap, QWheelEvent, QAction
+
+from laser_studio.ui.app.theme import theme_color
 
 
 class ZoomableGraphicsView(QGraphicsView):
     """Vue graphique personnalisée permettant un zoom fluide à la molette, un déplacement (pan) fluide et un menu contextuel."""
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._autofit = True                   # image cadrée dans la vue tant qu'on n'a pas zoomé (voir set_image)
         self.scene_obj = QGraphicsScene(self)
         self.setScene(self.scene_obj)
         self.pixmap_item = QGraphicsPixmapItem()
@@ -21,7 +24,7 @@ class ZoomableGraphicsView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self.setBackgroundBrush(Qt.GlobalColor.darkGray)
+        self.setBackgroundBrush(theme_color("canvas", "#808080"))
         self.zoom_factor = 1.15
         
         self._dragging = False
@@ -35,16 +38,23 @@ class ZoomableGraphicsView(QGraphicsView):
     def set_image(self, qimg):
         pixmap = QPixmap.fromImage(qimg)
         self.pixmap_item.setPixmap(pixmap)
-        if self.scene_obj.sceneRect().size().isEmpty():
-            self.setSceneRect(QRectF(pixmap.rect()))
+        # Image entière dans la vue, à chaque nouvelle image (le tramage arrive en deux temps : aperçu réduit,
+        # puis pleine résolution) et à chaque redimensionnement, tant que l'utilisateur n'a pas zoomé lui-même.
+        # L'échelle de l'image (aperçu réduit remis à la taille de l'originale) est posée avant l'appel.
+        if self._autofit:
+            self.setSceneRect(self.pixmap_item.sceneBoundingRect())
             self.fitInView(self.pixmap_item, Qt.AspectRatioMode.KeepAspectRatio)
 
     def clear_image(self):
+        """Vide la vue ; la prochaine image sera cadrée (nouvelle image)."""
         self.pixmap_item.setPixmap(QPixmap())
         self.setSceneRect(QRectF())
+        self._autofit = True
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
+        if self._autofit and not self.pixmap_item.pixmap().isNull():
+            self.fitInView(self.pixmap_item, Qt.AspectRatioMode.KeepAspectRatio)
         self.viewport().update()
 
     def show_context_menu(self, pos):
@@ -86,12 +96,19 @@ class ZoomableGraphicsView(QGraphicsView):
 
     def _zoom_centered(self, factor):
         """Zoom autour du milieu de la vue (la molette, elle, zoome sous la souris)."""
+        self._autofit = False
         anchor = self.transformationAnchor()
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.scale(factor, factor)
         self.setTransformationAnchor(anchor)
 
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.PaletteChange:      # thème changé à la volée
+            self.setBackgroundBrush(theme_color("canvas", "#808080"))
+        super().changeEvent(event)
+
     def wheelEvent(self, event: QWheelEvent):
+        self._autofit = False
         if event.angleDelta().y() > 0:
             self.scale(self.zoom_factor, self.zoom_factor)
         else:

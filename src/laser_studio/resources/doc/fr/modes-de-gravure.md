@@ -34,7 +34,7 @@ pas de points brûlés, teinte régulière.
 
 ### Où le régler
 
-- Pour toute la machine : **Paramètres › Configuration GRBL**, réglage
+- Pour toute la machine : **Fichier › Paramètres › Configuration GRBL**, réglage
   *Commande Laser*.
 - Pour un calque : colonne **Laser** de l'onglet *Calques (Layers)* :
   - **Auto (global)** reprend le choix de la Configuration GRBL ;
@@ -81,7 +81,7 @@ l'est à vitesse constante.
 
 ### Où le régler
 
-- **Paramètres › Configuration GRBL** : *Activer le Surbalayage*, puis le
+- **Fichier › Paramètres › Configuration GRBL** : *Activer le Surbalayage*, puis le
   mode (**Distance Fixe** en mm, ou **Pourcentage** de la largeur gravée)
   et la valeur.
 - Onglet *Calques (Layers)* : la case **Surbalayage** de chaque calque en

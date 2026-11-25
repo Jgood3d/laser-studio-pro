@@ -6,6 +6,7 @@ from PyQt6.QtGui import QColor, QPainterPath, QPen, QBrush, QTransform
 from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsItem
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_objects import VectorObject
+from laser_studio.ui.app.theme import theme_color
 
 if TYPE_CHECKING:  # annotation seulement : canvas importe ce module
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView  # noqa: F401
@@ -124,7 +125,7 @@ class VectorGraphicsItem(QGraphicsPathItem):
             painter.drawPath(path)
         if self.isSelected():
             # Cadre de sélection, comme QGraphicsPathItem.
-            selection = QPen(QColor("#ffffff"), 1, Qt.PenStyle.DashLine)
+            selection = QPen(theme_color("canvas_selection", "#ffffff"), 1, Qt.PenStyle.DashLine)
             selection.setCosmetic(True)
             painter.setPen(selection)
             painter.drawRect(self.boundingRect())

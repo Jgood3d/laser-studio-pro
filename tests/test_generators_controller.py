@@ -64,31 +64,50 @@ class GeneratorsTests(unittest.TestCase):
 
     def test_cancelled_window_changes_nothing(self):
         self.make()
-        for open_window in (self.generators.open_box_generator, self.generators.open_puzzle_generator,
-                            self.generators.open_ornament_generator, self.generators.open_keychain_generator,
-                            self.generators.open_jig_generator):
-            open_window()
-        self.assertEqual(self.forms.opened, ["box", "puzzle", "ornament", "keychain", "jig"])
+        for kind in ("box", "puzzle", "ornament", "keychain"):
+            self.generators.open_generators(kind)
+        self.generators.open_jig_generator()
+        self.assertEqual(self.forms.opened, ["generators"] * 4 + ["jig"])
         self.assertEqual(self.document.objects, [])
         self.assertEqual(self.dialogs.calls, [])
 
     def test_box_is_built_placed_and_settings_remembered(self):
         params = box_generator.BoxParams(width=60, depth=40, height=30, lid=False)
-        self.make(box=SimpleNamespace(params=params, cut_layer=None, engrave_layer=None, decors=[],
-                                      settings={"w": 60}))
-        self.forms.answers["box"].cut_layer = self.cut
-        self.generators.open_box_generator()
+        box = SimpleNamespace(params=params, cut_layer=None, engrave_layer=None, decors=[], settings={"w": 60})
+        self.make(generators=("box", box))
+        box.cut_layer = self.cut
+        self.generators.open_generators("box")
         self.assertEqual(len(self.document.objects), 5)                 # boîte ouverte : 5 faces
         self.assertEqual(self.generators.box_settings, {"w": 60})
         self.assertEqual(self.dialogs.kinds(), ["info"])
 
     def test_box_error_is_translated(self):
         params = box_generator.BoxParams(width=60, depth=40, height=30, thickness=-1)
-        self.make(box=SimpleNamespace(params=params, cut_layer="x", engrave_layer="x", decors=[], settings={}))
-        self.generators.open_box_generator()
+        self.make(generators=("box", SimpleNamespace(params=params, cut_layer="x", engrave_layer="x", decors=[],
+                                                     settings={})))
+        self.generators.open_generators("box")
         kind, _title, text = self.dialogs.calls[0]
         self.assertEqual(kind, "warning")
         self.assertNotIn("box.err.", text)                               # un vrai message, pas la clé
+
+    def test_one_window_for_the_four_generators_reopens_on_the_last_one(self):
+        class Forms(FakeForms):
+            def generators(self, start, requests):
+                self.opened.append((start, sorted(requests)))
+                return self.answers.get("generators")
+        params = box_generator.BoxParams(width=60, depth=40, height=30, lid=False)
+        self.make()
+        self.forms = Forms(generators=None)
+        self.generators.forms = self.forms
+        self.generators.open_generators("puzzle")                         # menu Outils › Puzzle : sa page
+        self.generators.open_generators()                               # barre d'outils : la page par défaut
+        self.forms.answers["generators"] = ("box", SimpleNamespace(params=params, cut_layer=self.cut,
+                                                                   engrave_layer=None, decors=[], settings={}))
+        self.generators.open_generators("puzzle")                       # l'utilisateur valide la boîte
+        self.generators.open_generators()                               # rouvre sur la boîte
+        kinds = ["box", "keychain", "ornament", "puzzle"]
+        self.assertEqual(self.forms.opened, [("puzzle", kinds), ("box", kinds), ("puzzle", kinds), ("box", kinds)])
+        self.assertEqual(len(self.document.objects), 10)                # deux boîtes de 5 faces
 
     def test_jig_beside_the_selection(self):
         self.make()
@@ -163,8 +182,8 @@ class LayoutTests(GeneratorsTests.__base__):
         self.assertEqual(self.layout.sheet_default(), (self.editor.machine.bed_w, self.editor.machine.bed_h))
         self.layout.remember_sheet(300.0, 200.0)
         self.assertEqual(self.layout.sheet_default(), (300.0, 200.0))
-        self.generators.open_ornament_generator()                       # annulé : la feuille est proposée
-        self.assertEqual(self.forms.opened, ["ornament"])
+        self.generators.open_generators("ornament")                       # annulé : la feuille est proposée
+        self.assertEqual(self.forms.opened, ["generators"])
 
 
 class NoWindowInControllersTests(unittest.TestCase):

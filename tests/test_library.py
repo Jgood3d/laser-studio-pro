@@ -638,7 +638,7 @@ class LibraryControllerTests(unittest.TestCase):
         layers.load_list([])                     # les trois calques de base : gravure, découpe, marquage
         added = []
         controller = LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=added.extend,
-                                       forms=mock.Mock(), dialogs=mock.Mock(), roots=lambda: [LIBRARY])
+                                       dialogs=mock.Mock(), roots=lambda: [LIBRARY])
         item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-sportif-modele-1")
         objects = controller.import_item(item)
         self.assertEqual(objects, added)
@@ -646,29 +646,26 @@ class LibraryControllerTests(unittest.TestCase):
         layer_ids = {o.layer_id for o in leaves(objects)}
         self.assertEqual(layer_ids, {by_role["cut"], by_role["engrave"]})
 
-    def test_open_with_an_empty_library_says_so(self):
+    def test_empty_library_has_no_page_in_the_generators_window(self):
         layers = LayersModel()
         layers.load_list([])
-        dialogs = mock.Mock()                            # boîtes de dialogue simulées (UserDialogs)
         with tempfile.TemporaryDirectory() as empty:
-            LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=list,
-                              forms=mock.Mock(), roots=lambda: [empty], dialogs=dialogs).open()
-        dialogs.info.assert_called_once()
+            controller = LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=list,
+                                           roots=lambda: [empty], dialogs=mock.Mock())
+            self.assertIsNone(controller.generator_request())
 
-    def test_chosen_model_is_imported_and_cancel_does_nothing(self):
+    def test_chosen_model_is_imported(self):
         layers = LayersModel()
         layers.load_list([])
-        added, forms = [], mock.Mock()
+        added = []
         controller = LibraryController(layers, bed_height=lambda: 300.0, add_to_vector_editor=added.extend,
-                                       forms=forms, dialogs=mock.Mock(), roots=lambda: [LIBRARY])
-        forms.library.return_value = None
-        controller.open()
-        self.assertEqual(added, [])
-        item = next(i for c in controller.catalog() for i in c.items if i.key == "trophees/totem-sportif-modele-1")
-        forms.library.return_value = (item, None, None)
-        controller.open()
+                                       dialogs=mock.Mock(), roots=lambda: [LIBRARY])
+        categories, icon_size, _remember = controller.generator_request()
+        self.assertEqual(len(categories), len(controller.catalog()))
+        self.assertGreater(icon_size, 0)
+        item = next(i for c in categories for i in c.items if i.key == "trophees/totem-sportif-modele-1")
+        controller.import_choice((item, None, None))
         self.assertTrue(added)
-        self.assertEqual(len(forms.library.call_args.args[0]), len(controller.catalog()))
 
 
 if __name__ == "__main__":

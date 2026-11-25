@@ -161,7 +161,7 @@ class CommandsLockTests(unittest.TestCase):
 
     def make(self, connected):
         display = JobDisplay(None, None, None, _Box(), None, None, layers=None, test_matrix=lambda: None,
-                             show_preview=lambda: None, log=lambda _text: None, update_bottom_panel=lambda: None)
+                             show_preview=lambda: None, log=lambda _text: None, show_machine_panel=lambda: None)
         display.connection = mock.Mock(is_connected=lambda: connected)
         return display
 
@@ -204,9 +204,10 @@ class CommandsLockTests(unittest.TestCase):
         self.addCleanup(panel.deleteLater)
         layout = panel.layout()
         widgets = [layout.itemAt(i).widget() for i in range(layout.count())]
-        # Bouton de connexion, puis l'état, puis la console directe, en dessous.
-        self.assertEqual([w for w in widgets if w is not None],
-                         [panel.connect_button, panel.state_view, panel.console])
+        # Port et bouton de connexion sur une ligne, puis l'état, puis la console directe, en dessous.
+        self.assertEqual([w for w in widgets if w is not None], [panel.state_view, panel.console])
+        ports_row = layout.itemAt(0).layout()
+        self.assertIs(ports_row.itemAt(ports_row.count() - 1).widget(), panel.connect_button)
         commands, unlocks = [], []
         panel.command_submitted.connect(commands.append)
         panel.unlock_requested.connect(lambda: unlocks.append(True))

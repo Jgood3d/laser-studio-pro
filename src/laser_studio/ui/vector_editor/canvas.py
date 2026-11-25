@@ -7,13 +7,14 @@ clavier, calque, taille, texte sur contour…) sont faites par VectorEditorContr
 droit les demandent par signaux (command_requested, nudge_requested, layer_requested…), que
 ui/vector_editor/builder.py branche sur le contrôleur."""
 import time
-from PyQt6.QtCore import Qt, QRectF, QPointF, QTimer, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QRectF, QPointF, QTimer, pyqtSignal
 from PyQt6.QtGui import QColor, QPen, QTransform, QPainter, QKeySequence
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsRectItem
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.vector_document import VectorDocument
 from laser_studio.models.vector_objects import SvgPathObject, VectorObject
 from laser_studio.vector import path_ops
+from laser_studio.ui.app.theme import theme_color
 from laser_studio.ui.vector_editor.context_menu import build_context_menu
 from laser_studio.ui.vector_editor.item import VectorGraphicsItem
 from laser_studio.ui.vector_editor.tools.follow_handle import FollowHandle
@@ -69,7 +70,7 @@ class VectorCanvasView(QGraphicsView):
         self.scene_obj = QGraphicsScene(self)
         self.setScene(self.scene_obj)
         self.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        self.setBackgroundBrush(QColor("#1c1c1c"))
+        self.setBackgroundBrush(theme_color("canvas", "#1c1c1c"))
         self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
@@ -130,7 +131,7 @@ class VectorCanvasView(QGraphicsView):
         self._recenter_items = None
         self.center_on_items(items)
 
-    def center_on_items(self, items=None, margin_px=40, max_scale=10.0):
+    def center_on_items(self, items=None, margin_px=60, max_scale=6.0):
         """Cadre la vue sur la boîte englobante de `items` (sinon la
         sélection, sinon tous les objets, sinon la zone de travail) : zoom
         ajusté pour que l'ensemble remplisse la fenêtre (avec une marge), et
@@ -188,7 +189,7 @@ class VectorCanvasView(QGraphicsView):
         """Pas de la grille magnétique, en mm."""
         self.snap_step_mm = float(step_mm)
 
-    def set_work_area(self, w_mm, h_mm):
+    def set_work_area(self, w_mm, h_mm, fit=True):
         self.work_w_mm, self.work_h_mm = w_mm, h_mm
         if self.work_rect_item:
             self.scene_obj.removeItem(self.work_rect_item)
@@ -199,7 +200,7 @@ class VectorCanvasView(QGraphicsView):
         s = self.px_per_mm
         rect = QRectF(0, 0, w_mm * s, h_mm * s)
         self.work_rect_item = QGraphicsRectItem(rect)
-        pen = QPen(QColor("#666666"), 1)
+        pen = QPen(theme_color("canvas_edge", "#666666"), 1)
         pen.setCosmetic(True)
         self.work_rect_item.setPen(pen)
         self.work_rect_item.setZValue(-100)
@@ -208,7 +209,8 @@ class VectorCanvasView(QGraphicsView):
         self._draw_grid(w_mm, h_mm)
 
         self.scene_obj.setSceneRect(rect.adjusted(-50, -50, 50, 50))
-        self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
+        if fit:
+            self.fitInView(rect, Qt.AspectRatioMode.KeepAspectRatio)
 
     def _draw_grid(self, w_mm, h_mm):
         """Grille en mm avec repères chiffrés le long des bords bas et gauche,
@@ -219,6 +221,7 @@ class VectorCanvasView(QGraphicsView):
         """
         s = self.px_per_mm
         work_h_px = h_mm * s
+        label_color = theme_color("canvas_label", "#999999")
         span = max(w_mm, h_mm)
         # Paliers plus fins qu'avant (l'ancien "50mm partout au-delà de 200mm"
         # était trop grossier pour se repérer précisément sur une zone de
@@ -235,10 +238,10 @@ class VectorCanvasView(QGraphicsView):
             step = 100
         minor_step = step / 4.0
 
-        minor_pen = QPen(QColor("#262626"), 0)
+        minor_pen = QPen(theme_color("canvas_minor", "#262626"), 0)
         minor_pen.setCosmetic(True)
 
-        grid_pen = QPen(QColor("#333333"), 0)
+        grid_pen = QPen(theme_color("canvas_grid", "#333333"), 0)
         grid_pen.setCosmetic(True)
 
         # Lignes mineures (sans étiquette) pour un repérage plus précis entre
@@ -263,7 +266,7 @@ class VectorCanvasView(QGraphicsView):
             line.setZValue(-90)
             self.grid_items.append(line)
             label = self.scene_obj.addSimpleText(f"{x:g}")
-            label.setBrush(QColor("#999999"))
+            label.setBrush(label_color)
             label.setPos(x * s + 2, work_h_px - 16)
             label.setZValue(-80)
             self.grid_items.append(label)
@@ -276,7 +279,7 @@ class VectorCanvasView(QGraphicsView):
             line.setZValue(-90)
             self.grid_items.append(line)
             label = self.scene_obj.addSimpleText(f"{y:g}")
-            label.setBrush(QColor("#999999"))
+            label.setBrush(label_color)
             label.setPos(2, screen_y - 16)
             label.setZValue(-80)
             self.grid_items.append(label)
@@ -287,6 +290,14 @@ class VectorCanvasView(QGraphicsView):
         origin_label.setPos(2, work_h_px - 32)
         origin_label.setZValue(-80)
         self.grid_items.append(origin_label)
+
+    def changeEvent(self, event):
+        # Thème changé à la volée : fond et grille reprennent ses couleurs.
+        if event.type() == QEvent.Type.PaletteChange:
+            self.setBackgroundBrush(theme_color("canvas", "#1c1c1c"))
+            if self.work_rect_item:
+                self.set_work_area(self.work_w_mm, self.work_h_mm, fit=False)
+        super().changeEvent(event)
 
     def wheelEvent(self, event):
         factor = WHEEL_ZOOM_STEP if event.angleDelta().y() > 0 else 1 / WHEEL_ZOOM_STEP

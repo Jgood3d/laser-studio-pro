@@ -1,21 +1,17 @@
-"""Contrôleur de la fenêtre : ce qui agit sur la fenêtre entière.
+"""Contrôleur de la fenêtre : les actions qui touchent plusieurs parties de la fenêtre à la fois.
 
-    controller = WindowController(window, WindowForms(window))
-    controller.connect_actions(window.app_actions)
+    controller = WindowController(window, forms=WindowForms(window), dialogs=dialogs, actions=app_actions, ...)
 
-Il abonne la fenêtre aux signaux du menu et de la barre d'outils
-(ui/app/menu/), et regroupe les actions qui touchent plusieurs parties de la
-fenêtre : thème, langue, aide, caméra, fenêtres de réglages, matrice de test,
-résolution et focale de « Graver une image », Stencil Studio.
+Thème, langue, aide, historique des gravures, Stencil Studio, caméra (fond de l'éditeur vectoriel),
+fenêtres de réglages, matrice de test, résolution et focale de « Graver une image ».
 
-Le reste a son propre objet, créé par la fenêtre : MainTabs (onglets,
-plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
-ImageToolbarActions (actions de la barre d'outils sur l'image).
-
-La fenêtre (`window`) est le point d'assemblage : le contrôleur y lit les
-modèles, contrôleurs et pages qu'elle a construits. Il ne construit aucune
-fenêtre : `forms` (ui/app/window_forms.py) les ouvre pour lui.
+Il reçoit à sa création ce dont il se sert (modèles, contrôleurs, pages) : la fenêtre le crée une fois
+construites toutes ses parties, et branche elle-même le menu et la barre d'outils sur ces parties
+(FullLaserStudio._connect_app_actions). `parent` (la fenêtre) ne sert que de parent Qt aux fenêtres
+qu'il fait ouvrir. Il ne construit aucune fenêtre : `forms` (ui/app/window_forms.py) les ouvre pour lui.
 """
+
+from types import SimpleNamespace
 
 from PyQt6.QtCore import QObject, QTimer
 
@@ -27,83 +23,45 @@ from stencil_studio.controllers.studio import StencilStudioController
 
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
 STENCIL_PRELOAD_DELAY_MS = 3000
+# Pages réunies dans la fenêtre « Paramètres » (liste des catégories à gauche), dans cet ordre.
+SETTINGS_CATEGORIES = ("machine_params", "grbl", "macros", "appearance")
 
 
 class WindowController(QObject):
-    def __init__(self, window, forms):
-        super().__init__(window)
-        self.window = window
+    """`forms` : WindowForms ; `dialogs` : UserDialogs ; `actions` : AppActions (thème, langue cochés) ;
+    `tabs` : MainTabs ; `machine` : MachineConfig ; `job` : JobController ; `image` : ImageController ;
+    `job_history` : JobHistory ; `vector` : éditeur vectoriel (`controller`, `canvas`, `tab`) ;
+    `pages` : pages et onglets (`machine_params`, `test_matrix`, `matrix_image`, `resolution`, `layers`,
+    `preview`) ; `settings_pages` : {kind: (page, clé du titre)} des fenêtres de réglages ;
+    `main_tabs` : {nom: onglet} que le menu Outils peut demander."""
+
+    def __init__(self, parent=None, *, forms, dialogs, actions=None, tabs=None, machine=None, job=None,
+                 image=None, job_history=None, vector=None, pages=None, settings_pages=None, main_tabs=None):
+        super().__init__(parent)
+        self.window = parent
         self.forms = forms
-        # Pages des fenêtres de réglages (kind -> (page, clé du titre)) et onglets que le menu peut
-        # demander par leur nom, inscrits par la fenêtre (add_settings_page, add_main_tab).
-        self._settings_pages = {}
-        self._main_tabs = {}
+        self.dialogs = dialogs
+        self.actions = actions
+        self.tabs = tabs
+        self.machine = machine
+        self.job = job
+        self.image = image
+        self.job_history = job_history
+        self.vector = vector
+        self.pages = SimpleNamespace(**(pages or {}))
+        self._settings_pages = dict(settings_pages or {})
+        self._main_tabs = dict(main_tabs or {})
         self.camera = None
         self.stencil_studio = None
-
-    # -- menu et barre d'outils
-
-    def connect_actions(self, actions):
-        """Abonne la fenêtre aux signaux du menu et de la barre d'outils
-        (AppActions). Appelé une fois toute la fenêtre construite."""
-        w = self.window
-        # Fichier
-        actions.save_project_requested.connect(w.project.save)
-        actions.gcode_export_requested.connect(
-            lambda extension: w.job.export_gcode(extension, w.tab_console_gcode.gcode()))
-        actions.open_project_requested.connect(w.project.open)
-        actions.recent_project_requested.connect(w.project.open_path)
-        actions.quit_requested.connect(w.close)
-        # Paramètres et outils
-        actions.settings_window_requested.connect(self.show_settings_window)
-        actions.language_selected.connect(self.select_language)
-        actions.theme_selected.connect(self.change_theme)
-        actions.stencil_studio_requested.connect(lambda: self.stencil().open())
-        actions.main_tab_requested.connect(self.show_main_tab)
-        editor, generators = w.vector_editor, w.vector_generators
-        actions.vector_import_requested.connect(lambda: self.run_in_vector_editor(editor.import_dialog))
-        actions.box_generator_requested.connect(lambda: self.run_in_vector_editor(generators.open_box_generator))
-        actions.puzzle_generator_requested.connect(
-            lambda: self.run_in_vector_editor(generators.open_puzzle_generator))
-        actions.library_requested.connect(lambda: self.run_in_vector_editor(w.library.open))
-        actions.ornament_generator_requested.connect(
-            lambda: self.run_in_vector_editor(generators.open_ornament_generator))
-        actions.keychain_generator_requested.connect(
-            lambda: self.run_in_vector_editor(generators.open_keychain_generator))
-        actions.camera_requested.connect(self.open_camera_dialog)
-        actions.macros_requested.connect(w.macros.manage)
-        actions.history_requested.connect(self.show_job_history)
-        # Affichage
-        actions.fullscreen_requested.connect(w.tabs.toggle_current_fullscreen)
-        actions.gcode_console_toggled.connect(
-            lambda visible: w.tabs.set_optional_visible(w.tab_console_gcode, visible))
-        actions.job_queue_toggled.connect(lambda visible: w.tabs.set_optional_visible(w.tab_job_queue, visible))
-        # Aide
-        actions.documentation_requested.connect(self.show_documentation)
-        actions.about_requested.connect(self.forms.about)
-        actions.support_requested.connect(self.forms.support)
-        actions.coffee_requested.connect(self.forms.coffee)
-        # Image
-        actions.image_undo_requested.connect(w.image_history.undo)
-        actions.image_redo_requested.connect(w.image_history.redo)
-        actions.image_delete_requested.connect(w.image_actions.delete)
-        actions.image_rotate_requested.connect(w.image_actions.rotate)
-        actions.mirror_changed.connect(w.image.schedule_processing)
-        actions.image_reset_requested.connect(w.image.reset_settings)
-        # G-code
-        actions.estimate_requested.connect(w.job.estimate)
-        actions.generate_requested.connect(w.job.generate)
-        actions.gcode_import_requested.connect(w.job.import_gcode)
 
     def stencil(self):
         """Contrôleur de Stencil Studio, créé à la première demande. Ses exports SVG / DXF arrivent
         dans l'éditeur vectoriel, rangés dans les calques (VectorEditorController.import_stencil_export)."""
         if self.stencil_studio is None:
-            w = self.window
             self.stencil_studio = StencilStudioController(
-                w, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
-                dialogs=w.dialogs, parent=self)
-            self.stencil_studio.export_ready.connect(w.vector_editor.import_stencil_export)
+                self.window, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
+                dialogs=self.dialogs, parent=self)
+            self.stencil_studio.export_ready.connect(self.vector.controller.import_stencil_export)
         return self.stencil_studio
 
     def schedule_stencil_preload(self):
@@ -119,7 +77,7 @@ class WindowController(QObject):
         theme_name = normalize_theme_name(theme_name)
         ui_preferences().set("app_theme", theme_name)
         self.forms.apply_theme(theme_name)
-        self.window.app_actions.set_theme(theme_name)
+        self.actions.set_theme(theme_name)
 
         # Stencil Studio ouvert : même thème que LSP
         if self.stencil_studio is not None:
@@ -128,27 +86,23 @@ class WindowController(QObject):
     def select_language(self, lang_code):
         """Langue choisie dans le menu : appliquée au prochain démarrage."""
         set_language(lang_code)
-        self.window.app_actions.set_language(lang_code)
-        self.window.dialogs.info(tr("menu.language.restart_title"), tr("menu.language.restart_body"))
+        self.actions.set_language(lang_code)
+        self.dialogs.info(tr("menu.language.restart_title"), tr("menu.language.restart_body"))
 
     def show_documentation(self, page="index.md"):
         """Ouvre la fenêtre de documentation (une seule, réutilisée)."""
         self.forms.help(page)
 
-    def add_main_tab(self, name, tab):
-        """Onglet que le menu Outils peut demander par son nom (ex. "tab_separation")."""
-        self._main_tabs[name] = tab
-
     def show_main_tab(self, name):
         """Affiche l'onglet central inscrit sous `name` (envoyé par le menu Outils) ; nom inconnu : rien."""
         tab = self._main_tabs.get(name)
         if tab is not None:
-            self.window.tabs.show(tab)
+            self.tabs.show(tab)
 
     def run_in_vector_editor(self, command):
         """Affiche l'onglet « Graver une image vectorielle », puis lance
         `command` (import SVG / DXF, générateur de boîte, puzzle, boule de Noël)."""
-        self.window.tabs.show(self.window.tab_vector_editor)
+        self.tabs.show(self.vector.tab)
         command()
 
     def _ensure_camera(self):
@@ -156,15 +110,14 @@ class WindowController(QObject):
         # Importé ici : OpenCV n'est chargé qu'à la première utilisation.
         from laser_studio.controllers.camera import CameraController
 
-        w = self.window
         if self.camera is None:
             self.camera = CameraController(
-                w,
-                bed_size=lambda: (w.machine.bed_w, w.machine.bed_h),
-                dialogs=w.dialogs,
+                self.window,
+                bed_size=lambda: (self.machine.bed_w, self.machine.bed_h),
+                dialogs=self.dialogs,
             )
             # L'image de la caméra (redressée sur le plateau) s'affiche sous la grille de l'éditeur vectoriel.
-            canvas = w.vector_canvas
+            canvas = self.vector.canvas
             self.camera.overlay_ready.connect(canvas.set_camera_background)
             self.camera.overlay_cleared.connect(canvas.clear_camera_background)
             self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
@@ -172,7 +125,7 @@ class WindowController(QObject):
 
     def show_job_history(self):
         """Fenêtre « Historique des gravures » (non modale, une seule à la fois)."""
-        history, dialogs = self.window.job_history, self.window.dialogs
+        history, dialogs = self.job_history, self.dialogs
         self.forms.job_history(history, on_export=lambda: export_history(history, dialogs),
                                on_clear=lambda: clear_history(history, dialogs))
 
@@ -188,7 +141,7 @@ class WindowController(QObject):
         if profile is None or not profile.is_ready:
             camera.refresh_overlay()                   # affiche le message « calibrez / alignez d'abord »
             return False
-        thickness = self.window.dialogs.ask_number(
+        thickness = self.dialogs.ask_number(
             tr("camera.thickness_title"),
             tr("camera.thickness_label").format(tag=f"{profile.alignment.tag_height_mm:g}"),
             camera.overlay_thickness_mm, 0.0, 200.0,
@@ -203,35 +156,28 @@ class WindowController(QObject):
         if enabled:
             if not self.refresh_camera_background():
                 # Pas de caméra prête : l'interrupteur revient sur « éteint ».
-                self.window.tab_vector_editor.show_camera_background(False)
+                self.vector.tab.show_camera_background(False)
         elif self.camera is not None:
             self.camera.clear_overlay()
 
     def refresh_camera_clicked(self):
         """Bouton « Actualiser l'image » : recapture, et allume l'interrupteur si l'image est posée."""
         if self.refresh_camera_background():
-            self.window.tab_vector_editor.show_camera_background(True)
+            self.vector.tab.show_camera_background(True)
 
     def show_settings_window(self, kind):
-        """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres du graveur »
-        (kind="machine_params"), « Configuration GRBL » (kind="grbl") ou « Matrice de test »
-        (kind="test_matrix"). Créée à la première demande, puis réutilisée."""
+        """Ouvre (ou ramène au premier plan) une fenêtre de réglages : « Paramètres » sur la page « Paramètres
+        du graveur » (kind="machine_params") ou « Configuration GRBL » (kind="grbl"), ou la « Matrice de test »
+        (kind="test_matrix"), un outil dans sa propre fenêtre. Créée à la première demande, puis réutilisée."""
         if kind not in self._settings_pages:
             return                     # page pas (encore) construite
+        if kind in SETTINGS_CATEGORIES:
+            pages = [(key, tr(self._settings_pages[key][1]), self._settings_pages[key][0])
+                     for key in SETTINGS_CATEGORIES if key in self._settings_pages]
+            self.forms.settings_categories(tr("menu.settings"), pages, kind)
+            return
         page, title_key = self._settings_pages[kind]
         self.forms.settings_window(kind, tr(title_key), page)
-
-    def add_settings_page(self, kind, page, title_key):
-        """Page affichée par show_settings_window(kind), titre tr(`title_key`)."""
-        self._settings_pages[kind] = (page, title_key)
-
-    # -- onglets
-
-    def main_tab_changed(self, index):
-        """Onglet Séparation affiché : ses aperçus, en retard, sont refaits."""
-        w = self.window
-        if w.main_tabs_view.widget(index) is w.tab_separation:
-            w.separation.refresh_if_dirty()
 
     # -- matrice de test
 
@@ -239,23 +185,23 @@ class WindowController(QObject):
         """Génère la matrice de test, puis ferme sa fenêtre et affiche
         l'aperçu 2D, où le G-Code apparaît. En cas d'erreur, la fenêtre
         reste ouverte pour corriger les réglages."""
-        w = self.window
         # Lignes/mm toujours identiques à l'onglet « Graver une image ».
         self.sync_matrix_lines_mm()
-        page = w.tab_matrix
-        if not w.job.generate_test_matrix(page.matrix_params(), page.is_engraving(),
-                                          page.image_test_enabled(), w.matrix_image.build_tile):
+        page = self.pages.test_matrix
+        if not self.job.generate_test_matrix(page.matrix_params(), page.is_engraving(),
+                                             page.image_test_enabled(), self.pages.matrix_image.build_tile):
             return
         page.window().close()
-        w.tabs.show(w.tab_vector_2d)
-        w.raise_()
-        w.activateWindow()
+        self.tabs.show(self.pages.preview)
+        if self.window is not None:
+            self.window.raise_()
+            self.window.activateWindow()
 
     def sync_matrix_lines_mm(self):
         """Lignes/mm de « Graver une image » reportées dans la matrice de test
         gravure : le test est fait avec la même densité de lignes que la
         gravure réelle."""
-        self.window.tab_matrix.set_lines_mm(self.window.resolution_box.lines_per_mm())
+        self.pages.test_matrix.set_lines_mm(self.pages.resolution.lines_per_mm())
 
     # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
 
@@ -264,21 +210,20 @@ class WindowController(QObject):
         changement dans les Paramètres Machine recale lignes/mm, DPI et
         l'avis sur l'écart des lignes de « Graver une image », quel que soit
         le mode de saisie, et la qualité du pas de remplissage des calques."""
-        w = self.window
-        w.resolution_box.set_focal(focal)
-        w.resolution_box.apply_focal()
-        w.layers_tab.refresh_focal_quality()
+        self.pages.resolution.set_focal(focal)
+        self.pages.resolution.apply_focal()
+        self.pages.layers.refresh_focal_quality()
 
     def goto_focal_settings(self):
         """Ouvre les Paramètres Machine sur le champ de focale (bouton de la
         résolution de « Graver une image »)."""
         self.show_settings_window("machine_params")
-        self.window.tab_machine_params.focal_spin.setFocus()
+        self.pages.machine_params.focal_spin.setFocus()
 
     def show_dither_comparison(self):
         """Grille de vignettes comparant chaque algorithme de tramage sur l'image
         chargée, avec les réglages actuels ; un clic choisit l'algorithme."""
-        image = self.window.image
+        image = self.image
         thumbnails = image.comparison()
         if thumbnails is None:
             return

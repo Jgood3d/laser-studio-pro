@@ -97,7 +97,7 @@ alors à jour tout seul quand vous changez de lentille ou de focale.
 même puissance tout le temps. En mode *M4 dynamique*, il adapte sa
 puissance à la vitesse réelle de la tête : dans les angles, où la tête
 ralentit, il chauffe moins, ce qui évite les points brûlés. *Auto* reprend
-le choix fait dans **Paramètres › Configuration GRBL**.
+le choix fait dans **Fichier › Paramètres › Configuration GRBL**.
 
 **L'ordre des calques** compte : ils sont exécutés de haut en bas. Placez
 la découpe en dernier, pour que la pièce ne bouge pas pendant la gravure.
@@ -131,8 +131,15 @@ pour les partager. Voir [Comprendre les calques et les
 matériaux](calques-et-materiaux.md).
 
 D'autres onglets complètent ces trois-là : *Vectorisation d'image* (une
-image devient un dessin vectoriel), *Séparation Couleur / Verre*,
-*Visualisation 2D G-Code*, *Console / G-Code* et *File d'attente*.
+image devient un dessin vectoriel), *Séparation Couleur / Verre* et
+*Visualisation 2D G-Code*.
+
+**Le panneau du bas**, comme celui de VS Code, reste sous les onglets :
+**Graveur** (connexion, déplacements de la tête, lancement et suivi du
+travail), **Console G-Code** et **File d'attente**. Replié, il ne montre
+que ses onglets ; un clic sur l'un d'eux, **Ctrl+J** ou
+un clic sur la pastille du graveur, en bas à droite, le déplie. Il se
+déplie tout seul quand une gravure démarre et en cas d'alarme.
 
 ## Le G-code
 

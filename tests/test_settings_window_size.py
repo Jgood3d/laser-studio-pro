@@ -60,5 +60,64 @@ class SettingsWindowSizeTests(unittest.TestCase):
         self.assertGreater(again.width(), 600)
 
 
+@unittest.skipIf(SettingsWindow is None, "PyQt6 non importable ici")
+class SettingsCategoriesTests(unittest.TestCase):
+    """Fenêtre « Paramètres » : liste des catégories à gauche, page choisie à droite."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        memory_preferences(self)
+
+    def test_the_list_chooses_the_page_and_the_window_scrolls_only_once(self):
+        from laser_studio.ui.settings.categories import SettingsCategories
+        machine, grbl = wide_page(100), wide_page(100)
+        categories = SettingsCategories([("machine_params", "Graveur", machine), ("grbl", "GRBL", grbl)])
+        window = SettingsWindow(None, "Paramètres", categories, "settings")
+        self.addCleanup(window.deleteLater)
+        self.assertIs(window.scroll, categories)                     # pas de zone défilante autour de la liste
+        categories.show_page("grbl")
+        self.assertIs(categories.stack.currentWidget().widget(), grbl)
+        self.assertEqual(categories.list.currentRow(), 1)
+        categories.list.setCurrentRow(0)
+        self.assertIs(categories.stack.currentWidget().widget(), machine)
+
+
+@unittest.skipIf(SettingsWindow is None, "PyQt6 non importable ici")
+class AppearancePageTests(unittest.TestCase):
+    """Page « Langue et thème » : les listes déclenchent les actions de langue et de thème, et suivent leur coche."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_choosing_a_theme_triggers_its_action_and_the_list_follows_the_checked_one(self):
+        from PyQt6.QtGui import QAction
+        from laser_studio.ui.settings.appearance import AppearancePage
+        def actions(codes, checked):
+            made = {}
+            for code in codes:
+                made[code] = QAction(code)
+                made[code].setCheckable(True)
+                made[code].setChecked(code == checked)
+            return made
+        languages, themes = actions(("fr", "en"), "fr"), actions(("dark", "new_dusk"), "dark")
+        page = AppearancePage(languages, themes)
+        self.addCleanup(page.deleteLater)
+        self.assertEqual((page.language.currentData(), page.theme.currentData()), ("fr", "dark"))
+        triggered = []
+        themes["new_dusk"].triggered.connect(lambda: triggered.append("new_dusk"))
+        page.theme.activated.emit(1)                                # l'utilisateur choisit New Dusk
+        self.assertEqual(triggered, ["new_dusk"])
+        for code, action in themes.items():                         # le contrôleur coche le seul thème choisi
+            action.setChecked(code == "new_dusk")
+        self.assertEqual(page.theme.currentData(), "new_dusk")
+        for code, action in themes.items():                         # puis revient au thème sombre
+            action.setChecked(code == "dark")
+        self.assertEqual(page.theme.currentData(), "dark")
+
+
 if __name__ == "__main__":
     unittest.main()

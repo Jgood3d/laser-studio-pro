@@ -1,6 +1,7 @@
 """Panneau des propriétés de la sélection, sous le canevas de l'éditeur
 vectoriel : description, position X / Y, rotation, calque, et pour une forme
-seule largeur / hauteur avec point d'ancrage.
+seule largeur / hauteur avec point d'ancrage, pour plusieurs objets
+aligner et répartir.
 
 Les widgets sont construits par la fenêtre ; ce panneau les remplit d'après
 la sélection (refresh) et transmet les saisies au contrôleur de l'éditeur
@@ -34,6 +35,7 @@ class PropertiesWidgets:
     height: QDoubleSpinBox
     anchor_lock: QCheckBox
     anchor: QComboBox
+    align_row: QWidget            # aligner / répartir (plusieurs objets)
 
 
 class VectorPropertiesPanel(QObject):
@@ -71,6 +73,7 @@ class VectorPropertiesPanel(QObject):
             w.box.setEnabled(False)
             w.box.setVisible(False)
             w.size_row.setVisible(False)
+            w.align_row.setVisible(False)
             return
 
         group_left, group_bottom, group_right, group_top = arrange.group_bounds(objects)
@@ -110,6 +113,7 @@ class VectorPropertiesPanel(QObject):
         movable = not any(obj.is_ignored() for obj in objects)
         for spin in (w.x, w.y, w.rotation):
             spin.setEnabled(movable)
+        w.align_row.setVisible(movable and len(objects) > 1)     # aligner demande au moins 2 objets
 
         spins = (w.x, w.y, w.rotation, w.width, w.height)
         for spin in spins:
