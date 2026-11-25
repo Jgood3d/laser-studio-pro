@@ -10,8 +10,8 @@ from laser_studio.i18n import tr
 from laser_studio.models.vector_objects import TextObject
 from laser_studio.vector import nesting
 from laser_studio.vector import serial_duplicate as serial_dup
-from laser_studio.vector.nesting_apply import apply_result, build_pieces
-from laser_studio.vector.serial_apply import object_bounds, run_serial_duplicate
+from laser_studio.vector.nesting_apply import apply_result, build_pieces, object_polygons
+from laser_studio.vector.serial_apply import object_bounds, plan_serial_duplicate
 
 
 class LayoutController:
@@ -76,7 +76,8 @@ class LayoutController:
             self.dialogs.warning(tr("nest.title"), tr("nest.nothing_placed"))
             return
         canvas.push_undo_snapshot()
-        moved = apply_result(canvas, members, result)
+        moved = apply_result(members, result)
+        self._show_positions(moved)
         moved_ids = {id(o) for o in moved}
         items = [item for item in canvas.scene_obj.items() if hasattr(item, "obj") and id(item.obj) in moved_ids]
         if items:
@@ -110,7 +111,7 @@ class LayoutController:
         params = choice.params
         try:
             with self._busy():
-                result = run_serial_duplicate(canvas, objects, params)
+                result = self._run_serial_duplicate(objects, params)
         except Exception as e:
             self.dialogs.warning(tr("serial.title"), tr("serial.error").format(error=e))
             return
@@ -124,3 +125,41 @@ class LayoutController:
             shown = ", ".join(labels[:8]) + (", …" if len(labels) > 8 else "")
             message += "\n\n" + tr("serial.overflow").format(names=shown)
         self.dialogs.info(tr("serial.title"), message)
+
+    def _run_serial_duplicate(self, objects, params):
+        """Place les exemplaires (vector/serial_apply.py) et les ajoute au canevas, en une action annulable ;
+        tout est annulé si le calcul échoue (l'exception est relancée)."""
+        canvas = self.canvas
+        canvas.push_undo_snapshot()
+        try:
+            obstacles = None
+            if params["layout"] == "nest" and params.get("avoid_existing", True):
+                obstacles = self._existing_polygons(objects)
+            result = plan_serial_duplicate(objects, params, obstacles)
+            for copy in result.copies[1:]:
+                for obj in copy:
+                    canvas.add_object(obj)
+            self._show_positions(result.copies[0])                       # texte et position modifiés en place
+        except Exception:
+            canvas.undo()
+            raise
+        ids = {id(obj) for copy in result.copies for obj in copy}
+        canvas.scene_obj.clearSelection()
+        selected = [it for it in canvas.scene_obj.items() if hasattr(it, "obj") and id(it.obj) in ids]
+        for it in selected:
+            it.setSelected(True)
+        canvas.request_recenter(selected)
+        return result
+
+    def _existing_polygons(self, template):
+        """Contours des objets déjà sur le canevas (calques actifs) hors du motif dupliqué : obstacles pour
+        l'imbrication (par exemple un lot dupliqué juste avant)."""
+        enabled = {layer.id for layer in self.layers.layers if layer.enabled}
+        skip = {id(o) for o in template}
+        return [poly for obj in self.canvas.objects if id(obj) not in skip and obj.layer_id in enabled
+                for poly in object_polygons(obj)]
+
+    def _show_positions(self, objects):
+        """Met la vue à jour après un placement écrit directement dans les objets."""
+        for obj in objects:
+            self.canvas.set_object_position(obj, obj.x_mm, obj.y_mm, obj.rotation_deg)

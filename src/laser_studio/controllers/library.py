@@ -3,7 +3,8 @@ l'éditeur vectoriel."""
 
 from laser_studio.i18n import get_current_language, tr
 from laser_studio.library.catalog import library_roots, load_catalog
-from laser_studio.vector.svg_import import SvgImportError, import_svg
+from laser_studio.vector.svg_import import SvgImportError
+from laser_studio.vector.svg_tree_import import import_library_svg
 from laser_studio.core.preferences import ui_preferences
 
 # Clé de UIConfig : taille des vignettes de la bibliothèque (px).
@@ -22,9 +23,9 @@ class LibraryController:
     La fenêtre de la bibliothèque est ouverte par `forms.library(...)` (ui/vector_editor/forms.py) :
     le contrôleur ne construit aucune fenêtre.
 
-    Chaque tracé du modèle va sur le calque de même rôle (découpe, gravure,
-    marquage, voir vector.svg_import) ; sans calque de ce rôle, sur le
-    calque SVG par défaut. `roots()` : dossiers de la bibliothèque (voir
+    Le modèle est lu comme un SVG ordinaire (vector.svg_tree_import) : chaque
+    tracé va sur le calque du rôle de sa couleur (découpe, gravure, marquage) ;
+    sans calque de ce rôle, sur le calque SVG par défaut. `roots()` : dossiers de la bibliothèque (voir
     library_roots, remplaçable pour les tests).
     """
 
@@ -71,15 +72,13 @@ class LibraryController:
         remplacés) dans l'éditeur vectoriel. Renvoie les objets ajoutés
         (liste vide en cas d'erreur)."""
         try:
-            artwork = import_svg(item.svg_path, variants=variants, texts=texts,
-                                 bed_h_mm=self._bed_height())
+            objects = import_library_svg(item.svg_path, self.layer_for_role, self._bed_height(),
+                                         variants=variants, texts=texts)
         except SvgImportError as e:
             self._dialogs.error(tr("vector.svg_error_title"), tr("vector.svg_error").format(error=e))
             return []
-        if not artwork.items:
+        if not objects or all(obj.is_ignored() for obj in objects):
             self._dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return []
-        for role, obj in artwork.items:
-            obj.layer_id = self.layer_for_role(role)
-        self._add_to_vector_editor(artwork.objects)
-        return artwork.objects
+        self._add_to_vector_editor(objects)
+        return objects

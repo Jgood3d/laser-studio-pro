@@ -1,6 +1,7 @@
-"""Passerelle entre l'éditeur vectoriel et l'algorithme d'imbrication (vector/nesting.py) : extrait les
-contours des objets, regroupe ceux qui vont ensemble (un trou ou un détail gravé suit sa pièce), puis
-applique les positions et rotations calculées en gardant chaque groupe rigide."""
+"""Objets de l'éditeur vectoriel <-> algorithme d'imbrication (vector/nesting.py) : extrait les contours des
+objets, regroupe ceux qui vont ensemble (un trou ou un détail gravé suit sa pièce), puis reporte sur les
+objets les positions et rotations calculées en gardant chaque groupe rigide. Sans canevas : le contrôleur
+(controllers/layout.py) met ensuite la vue à jour."""
 from PyQt6.QtGui import QTransform
 
 from laser_studio.vector import nesting as ng
@@ -20,8 +21,8 @@ def build_pieces(objects):
     return pieces, members
 
 
-def apply_result(canvas, members, result):
-    """Déplace et tourne chaque groupe placé, d'un seul bloc.
+def apply_result(members, result):
+    """Déplace et tourne chaque groupe placé, d'un seul bloc (positions écrites dans les objets).
 
     La transformation d'un objet est : translation (x, y), puis rotation, puis échelle. Tourner un groupe de
     `angle` autour de son pivot revient donc à tourner la position de chaque objet autour du pivot, et à
@@ -30,6 +31,7 @@ def apply_result(canvas, members, result):
     for placement in result.placements:
         for obj in members[placement.index]:
             x, y = placement.apply((obj.x_mm, obj.y_mm))
-            canvas.set_object_position(obj, x, y, (obj.rotation_deg + placement.angle) % 360.0)
+            obj.x_mm, obj.y_mm = x, y
+            obj.rotation_deg = (obj.rotation_deg + placement.angle) % 360.0
             moved.append(obj)
     return moved

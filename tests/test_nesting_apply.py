@@ -54,17 +54,6 @@ class FakeObj:
         return FakePath(self.world_polygons())
 
 
-class FakeCanvas:
-    def __init__(self):
-        self.calls = []
-
-    def set_object_position(self, obj, x, y, rotation_deg=None):
-        self.calls.append((obj, x, y, rotation_deg))
-        obj.x_mm, obj.y_mm = x, y
-        if rotation_deg is not None:
-            obj.rotation_deg = rotation_deg
-
-
 def rect(w, h):
     return [(0, 0), (w, 0), (w, h), (0, h), (0, 0)]
 
@@ -117,7 +106,7 @@ class RigidGroupTests(unittest.TestCase):
         pieces, members = na.build_pieces(objs)
         result = ng.nest(pieces, 220, 160, spacing=3, margin=2, angles=ng.ANGLE_SETS["quarters"])
         self.assertEqual(result.unplaced, [])
-        self.assertEqual(len(na.apply_result(FakeCanvas(), members, result)), len(objs))
+        self.assertEqual(len(na.apply_result(members, result)), len(objs))
         outlines = {}
         for pl in result.placements:
             for obj in members[pl.index]:
@@ -139,16 +128,15 @@ class RigidGroupTests(unittest.TestCase):
         pieces, members = na.build_pieces([obj])
         result = ng.nest(pieces, 40, 80, spacing=1, angles=ng.ANGLE_SETS["quarters"])    # ne tient qu'à 120° ou 300°
         self.assertEqual(result.unplaced, [])
-        canvas = FakeCanvas()
-        na.apply_result(canvas, members, result)
-        (_, _, _, rot), = canvas.calls
+        na.apply_result(members, result)
+        rot = obj.rotation_deg
         self.assertIn(result.placements[0].angle, (90.0, 270.0))          # relatif : 30 + 90 = 120
         self.assertIn(rot, (120.0, 300.0))
 
     def test_unplaced_groups_do_not_move(self):
         big, small = FakeObj([rect(500, 500)], 7, 8), FakeObj([rect(10, 10)], 600, 600)
         pieces, members = na.build_pieces([big, small])
-        moved = na.apply_result(FakeCanvas(), members, ng.nest(pieces, 100, 100))
+        moved = na.apply_result(members, ng.nest(pieces, 100, 100))
         self.assertEqual(moved, [small])
         self.assertEqual((big.x_mm, big.y_mm), (7, 8))
 
@@ -205,7 +193,7 @@ class WiringTests(unittest.TestCase):
         self.assertIn('"nesting": self.open_nesting', self.src(os.path.join("controllers", "layout.py")))
         src = self.src(os.path.join("controllers", "layout.py"))
         body = src[src.index("def open_nesting"):src.index("def open_serial_duplicate")]
-        self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(canvas, members, result)"))
+        self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(members, result)"))
         self.assertIn("layer.enabled", body)
         self.assertIn("with self._busy():", body)              # curseur d'attente pendant le calcul
 
