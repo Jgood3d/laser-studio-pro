@@ -20,7 +20,7 @@ from PIL import Image
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 from laser_studio.i18n import tr
-from laser_studio.image.dithering import ALGORITHMS, comparison_thumbnails
+from laser_studio.image.dithering import ALGORITHMS, comparison_thumbnails, is_binary
 from laser_studio.image.size import natural_size_mm, read_dpi
 from laser_studio.controllers.workers import ImageProcessingWorker
 from laser_studio.core.preferences import ui_preferences
@@ -277,6 +277,12 @@ class ImageController(QObject):
             self._process()
 
     # -- réglages du tramage
+
+    def warn_if_not_binary(self):
+        """Image à graver telle quelle (« déjà tramée ») qui n'est pas noir et blanc : elle sera seuillée, ce que
+        dit la barre d'état. Sans effet quand l'option est décochée ou sans image."""
+        if self.image_settings.as_is and self.raw_image is not None and not is_binary(self.raw_image):
+            self.status.emit(tr("image.as_is_not_binary"), "")
 
     def comparison(self):
         """[(algorithme, tableau tramé)] : une vignette par algorithme avec les

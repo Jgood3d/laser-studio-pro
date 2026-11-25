@@ -30,6 +30,7 @@ PROJECT_KEYS = {
     "mirror_h": "mirror_h",
     "mirror_v": "mirror_v",
     "algorithm": "algo",
+    "as_is": "as_is",
 }
 
 
@@ -45,7 +46,8 @@ class ImageSettings(SettingsModel):
       clair) ; choisir une matière coche ou décoche le négatif (voir
       choose_material), qui reste modifiable à part ;
     - mirror_h, mirror_v : miroirs ;
-    - algorithm : nom de l'algorithme de tramage (liste de l'onglet).
+    - algorithm : nom de l'algorithme de tramage (liste de l'onglet) ;
+    - as_is : image déjà tramée (Image-R…), gravée telle quelle : tons, netteté et tramage sont ignorés.
     """
 
     LABEL = "Image"
@@ -61,6 +63,7 @@ class ImageSettings(SettingsModel):
         "mirror_h": (bool, False),
         "mirror_v": (bool, False),
         "algorithm": (str, DEFAULT_ALGORITHM),
+        "as_is": (bool, False),
     }
     CHOICES = {"material_bg": ("dark", "light")}
 

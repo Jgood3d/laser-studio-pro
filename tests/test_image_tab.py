@@ -124,6 +124,18 @@ class ImageTabTests(_QtTest):
         tab.show_original_action.setChecked(True)
         self.assertTrue(tab.source_view.isVisible())
 
+    def test_as_is_greys_out_the_settings_it_ignores(self):
+        panel = self.make(ImageSettingsPanel)
+        self.assertFalse(panel.as_is_check.isChecked())
+        self.assertTrue(panel.brightness_slider.isEnabled())
+        panel.as_is_check.setChecked(True)
+        for widget in (panel.brightness_slider, panel.contrast_slider, panel.gamma_slider, panel.sharpness_slider,
+                       panel.algorithm_combo, panel.filter_combo):
+            self.assertFalse(widget.isEnabled())
+        self.assertTrue(panel.processing_settings()["as_is"])
+        panel.as_is_check.setChecked(False)
+        self.assertTrue(panel.algorithm_combo.isEnabled())
+
     def test_original_can_preview_the_tone_settings(self):
         from PIL import Image
         tab = self.make(ImageTab)
@@ -143,6 +155,27 @@ class ImageTabTests(_QtTest):
         self.assertEqual(tab.source_view.pixmap_item.scale(), 1.0)
         tab.preview_tones_check.setChecked(False)
         self.assertEqual(shown(), 100)                                    # retour à l'originale
+
+    def test_original_preview_can_be_inverted(self):
+        from PIL import Image
+        tab = self.make(ImageTab)
+        tab.show_source(Image.new("L", (40, 20), 100))
+
+        def shown():
+            return tab.source_view.pixmap_item.pixmap().toImage().pixelColor(2, 2).red()
+
+        self.assertFalse(tab.preview_invert_check.isChecked())            # décochée par défaut
+        self.assertEqual(shown(), 100)
+        tab.preview_invert_check.setChecked(True)
+        self.assertEqual(shown(), 155)                                    # négatif de 100
+        self.assertEqual(tab.source_view.pixmap_item.scale(), 1.0)
+        tab.preview_tones_check.setChecked(True)                          # les deux cases se combinent
+        tab.settings.brightness_slider.setValue(60)
+        tab._show_source_image()
+        self.assertLess(shown(), 155)                                     # plus clair avant inversion = plus sombre
+        tab.preview_invert_check.setChecked(False)
+        tab.preview_tones_check.setChecked(False)
+        self.assertEqual(shown(), 100)
 
     def test_toolbar_requests(self):
         from PyQt6.QtGui import QAction

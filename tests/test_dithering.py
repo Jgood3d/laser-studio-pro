@@ -55,5 +55,47 @@ class TonePreviewTests(unittest.TestCase):
         self.assertEqual(out.shape, (32, 64))
 
 
+class AsIsTests(unittest.TestCase):
+    """Image déjà tramée (Image-R…) gravée telle quelle."""
+
+    def setUp(self):
+        rng = np.random.default_rng(1)
+        self.dots = (rng.random((20, 30)) > 0.5).astype(np.uint8) * 255           # tramage binaire
+        self.img = Image.fromarray(self.dots)
+        # 1 pixel = 1 ligne : 30 px sur 3 mm à 10 lignes/mm.
+        self.params = dict(PARAMS, w_mm=3.0, h_mm=2.0, lmm=10.0, as_is=True, bright=80, contrast=-50, gamma=250,
+                           sharp=100, algo="Atkinson")
+
+    def test_points_are_kept_exactly_and_tones_are_ignored(self):
+        arr, image = dithering.process_image(self.img, self.params)
+        np.testing.assert_array_equal(arr, self.dots)
+        np.testing.assert_array_equal(np.array(image), self.dots)
+
+    def test_size_is_rounded_not_truncated(self):
+        # 30 px / 3,0000001 mm donne 9,9999997 lignes/mm : int() perdrait un pixel.
+        params = dict(self.params, w_mm=30 / 9.9999997, lmm=9.9999997, h_mm=20 / 9.9999997)
+        arr, _ = dithering.process_image(self.img, params)
+        self.assertEqual(arr.shape, (20, 30))
+
+    def test_scaling_keeps_pure_black_and_white(self):
+        arr, _ = dithering.process_image(self.img, dict(self.params, lmm=7.3))
+        self.assertTrue(set(np.unique(arr)) <= {0, 255})
+
+    def test_negative_and_mirror_still_apply(self):
+        arr, _ = dithering.process_image(self.img, dict(self.params, invert=True, mirror_h=True))
+        np.testing.assert_array_equal(arr, 255 - self.dots[:, ::-1])
+
+    def test_off_by_default_dithers_as_before(self):
+        params = {k: v for k, v in self.params.items() if k != "as_is"}
+        arr, _ = dithering.process_image(Image.new("L", (30, 20), 128), dict(params, bright=0, contrast=0, gamma=100))
+        self.assertTrue(set(np.unique(arr)) <= {0, 255})
+
+    def test_is_binary(self):
+        self.assertTrue(dithering.is_binary(self.img))
+        self.assertTrue(dithering.is_binary(Image.new("L", (10, 10), 250)))             # presque blanc
+        gradient = Image.fromarray(np.tile(np.linspace(0, 255, 64), (8, 1)).astype(np.uint8))
+        self.assertFalse(dithering.is_binary(gradient))                                  # photo en gris
+
+
 if __name__ == "__main__":
     unittest.main()

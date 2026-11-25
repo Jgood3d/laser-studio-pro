@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QImage, QPen, QPolygonF
+from PIL import ImageOps
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -29,7 +30,8 @@ class ImageTab(QWidget):
     « Afficher l'originale » (`show_original_action`, cochable) : l'image
     originale, masquée par défaut, s'affiche à côté du rendu tramé, de même
     largeur. La case `preview_tones_check`, au-dessus de l'originale, lui applique
-    luminosité, contraste, gamma et netteté en direct (aperçu seulement).
+    luminosité, contraste, gamma et netteté en direct, et `preview_invert_check` l'affiche
+    en négatif (aperçus seulement, sans effet sur la gravure).
 
         tab = ImageTab()
         tab.settings.processing_changed.connect(image.schedule_processing)
@@ -132,7 +134,15 @@ class ImageTab(QWidget):
         self.preview_tones_check = QCheckBox(tr("img.preview_tones"))
         self.preview_tones_check.setToolTip(tr("img.preview_tones_tip"))
         self.preview_tones_check.toggled.connect(lambda _checked: self._show_source_image())
-        self._source_box.layout().insertWidget(0, self.preview_tones_check)
+        # À côté : l'aperçu en négatif (affichage seulement, indépendant de « Inverser Couleurs » et des réglages).
+        self.preview_invert_check = QCheckBox(tr("img.preview_invert"))
+        self.preview_invert_check.setToolTip(tr("img.preview_invert_tip"))
+        self.preview_invert_check.toggled.connect(lambda _checked: self._show_source_image())
+        preview_options = QHBoxLayout()
+        preview_options.addWidget(self.preview_tones_check)
+        preview_options.addWidget(self.preview_invert_check)
+        preview_options.addStretch(1)
+        self._source_box.layout().insertLayout(0, preview_options)
         dither_box, self.dither_view = self._preview_box("ui.final_raster_box")
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
         self._splitter.addWidget(self._source_box)
@@ -218,27 +228,32 @@ class ImageTab(QWidget):
             self._tones_timer.start()
 
     def _show_source_image(self):
-        """Originale affichée : telle quelle, ou avec luminosité / contraste / gamma / netteté si la case est
-        cochée. L'image réglée, calculée en taille réduite, est remise à l'échelle de l'originale pour que le
-        zoom et la position ne bougent pas."""
+        """Originale affichée : telle quelle, avec luminosité / contraste / gamma / netteté si « Aperçu avec les
+        réglages » est cochée, et/ou en négatif si « Inverser l'aperçu » l'est. L'image modifiée, calculée en
+        taille réduite, est remise à l'échelle de l'originale pour que le zoom et la position ne bougent pas."""
         image = self._source_image
         if image is None:
             return
         view = self.source_view
         tones = self.preview_tones_check.isChecked()
-        # L'originale en pleine taille fixe la zone de la vue (ajustée une seule fois) : toujours sans réglages,
-        # et avec réglages seulement quand la vue est encore vide.
-        if not tones or view.scene_obj.sceneRect().size().isEmpty():
+        invert = self.preview_invert_check.isChecked()
+        modified = tones or invert
+        # L'originale en pleine taille fixe la zone de la vue (ajustée une seule fois) : toujours telle quelle,
+        # et modifiée seulement quand la vue est encore vide.
+        if not modified or view.scene_obj.sceneRect().size().isEmpty():
             view.pixmap_item.setScale(1.0)
             view.set_image(self._grayscale_qimage(image))
-        if not tones:
+        if not modified:
             return
         small = image.copy()
         small.thumbnail((self.TONES_PREVIEW_MAX_PX, self.TONES_PREVIEW_MAX_PX))
-        values = self.settings.processing_settings()
-        adjusted = tone_preview(small, values["bright"], values["contrast"], values["gamma"], values["sharp"])
-        view.set_image(self._grayscale_qimage(adjusted))
-        view.pixmap_item.setScale(image.width / adjusted.width)
+        if tones:
+            values = self.settings.processing_settings()
+            small = tone_preview(small, values["bright"], values["contrast"], values["gamma"], values["sharp"])
+        if invert:
+            small = ImageOps.invert(small.convert("L"))
+        view.set_image(self._grayscale_qimage(small))
+        view.pixmap_item.setScale(image.width / small.width)
 
     def show_processed(self, _array, image):
         """Rendu tramé (ImageController.processed)."""

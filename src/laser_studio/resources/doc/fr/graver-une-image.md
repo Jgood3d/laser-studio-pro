@@ -80,10 +80,31 @@ montre l'image de départ à côté du rendu ; un second clic la masque.
 Cochez **Aperçu avec les réglages**, au-dessus de l'originale, pour lui
 appliquer en direct la luminosité, le contraste, le gamma et la netteté :
 vous voyez l'effet de vos réglages avant le tramage. C'est un aperçu, la
-gravure n'en dépend pas, et le tramage et le négatif n'y sont pas montrés.
+gravure n'en dépend pas, et le tramage n'y est pas montré. La case **Inverser
+l'aperçu**, à côté, affiche l'originale en négatif (par exemple pour la comparer
+au rendu) ; elle se combine avec la précédente, sans effet sur la gravure ni sur
+« Inverser Couleurs ».
 
 Dans la barre en haut de l'aperçu, comme dans les autres vues, annuler /
 refaire puis les loupes sont toujours au bout, à droite.
+
+## Graver une image déjà tramée (Image-R, GIMP…)
+
+Si votre image a déjà été tramée par un autre logiciel (en noir et blanc),
+ouvrez-la puis cochez **Image déjà tramée (graver telle quelle)**, sous la
+liste des algorithmes. Chaque point est alors gravé exactement comme dans
+votre fichier : pas de réglage de tons, de netteté ni de nouveau tramage
+(ces champs sont grisés).
+
+- **Résolution** : à l'activation, elle se cale sur les pixels de l'image
+  (1 pixel = 1 ligne de gravure). Un PNG qui contient ses DPI (254 DPI donnent
+  10 lignes/mm) arrive à la bonne taille. À la désactivation, l'ancien mode de
+  résolution revient.
+- **Redimensionnement** : sans lissage (au plus proche voisin), pour ne pas
+  brouiller les points ; la taille en mm reste modifiable.
+- **Négatif et miroirs** : toujours disponibles.
+- Si l'image n'est pas en noir et blanc (une photo en gris, par exemple), la
+  barre d'état prévient : elle serait simplement seuillée, sans tramage.
 
 ## Le tramage
 

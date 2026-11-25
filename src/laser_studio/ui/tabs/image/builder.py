@@ -6,6 +6,7 @@
 from laser_studio.controllers.image import ImageController
 from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
 from laser_studio.ui.tabs.image.crop_dialog import CropDialog
+from laser_studio.ui.tabs.image.resolution_box import RESOLUTION_LMM
 from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON
 from laser_studio.ui.tabs.image.tab import ImageTab
 
@@ -40,6 +41,29 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     # de test et la Séparation se branchent sur settings.resolution_changed à leur création).
     settings.resolution_changed.connect(image.schedule_processing)
     settings.configure_focal_requested.connect(configure_focal)
+    # « Image déjà tramée » : la résolution se cale sur les pixels de l'image (1 pixel = 1 ligne de gravure,
+    # la taille en mm venant des DPI du fichier). L'ancien mode de résolution est rendu à la désactivation.
+    previous_resolution = []
+
+    def match_pixels():
+        if not image_settings.as_is or image.raw_image is None:
+            return
+        width_mm = settings.size_mm()[0]
+        if width_mm > 0:
+            resolution.mode_combo.setCurrentIndex(RESOLUTION_LMM)
+            resolution.set_lines_per_mm(image.raw_image.width / width_mm)
+
+    def as_is_clicked(checked):
+        if checked:
+            previous_resolution[:] = [resolution.saved_state()]
+            match_pixels()
+            image.warn_if_not_binary()
+        elif previous_resolution:
+            resolution.restore_state(*previous_resolution.pop())
+
+    settings.as_is_check.clicked.connect(as_is_clicked)
+    image.source_changed.connect(lambda source: (match_pixels(), image.warn_if_not_binary())
+                                 if source is not None else None)
     # Algorithme choisi dans la liste par l'utilisateur (pas par programme) : mémorisé.
     settings.algorithm_combo.textActivated.connect(image.remember_algorithm)
     # « Appliquer un filtre » : Effet BD ouvre sa fenêtre (aperçu en direct, Annuler remet l'image) ;

@@ -181,6 +181,22 @@ def _adjust_tones(img, bright, contrast, gamma):
     return arr
 
 
+# Image « déjà tramée » (Image-R, GIMP…) : part minimale de pixels proches du noir ou du blanc pour la
+# considérer comme binaire, et écart toléré (sur 255) autour de 0 et de 255.
+BINARY_MIN_SHARE = 0.95
+BINARY_TOLERANCE = 40
+
+
+def is_binary(img, min_share=BINARY_MIN_SHARE, tolerance=BINARY_TOLERANCE):
+    """Vrai si au moins `min_share` des pixels de `img` (PIL, niveaux de gris) sont presque noirs ou presque
+    blancs (à `tolerance` près) : une image déjà tramée, qu'on peut graver telle quelle."""
+    arr = np.asarray(img.convert("L"))
+    if arr.size == 0:
+        return True
+    extreme = (arr <= tolerance) | (arr >= 255 - tolerance)
+    return float(extreme.mean()) >= min_share
+
+
 def tone_preview(img, bright, contrast, gamma, sharp=0):
     """Image PIL en niveaux de gris (L) avec les réglages de tons (luminosité, contraste, gamma × 100,
     netteté), sans négatif ni tramage : l'aperçu de l'originale pendant qu'on règle."""
@@ -203,6 +219,9 @@ def process_image(raw_image, params):
     px_h = int(params['h_mm'] * lmm)
     if px_w < 1 or px_h < 1:
         return None
+
+    if params.get('as_is'):
+        return _process_as_is(raw_image, params)
 
     img = raw_image.resize((px_w, px_h), Image.Resampling.LANCZOS)
     if params['mirror_h']:
@@ -231,6 +250,28 @@ def process_image(raw_image, params):
         out_arr = np.where(arr > 128, 255, 0).astype(np.uint8)
     else:
         out_arr = apply_error_diffusion(arr, algo)
+    return out_arr, Image.fromarray(out_arr)
+
+
+def _process_as_is(raw_image, params):
+    """Image déjà tramée gravée telle quelle : ni tons, ni effet, ni netteté, ni nouveau tramage. Mise à la
+    taille de gravure au plus proche voisin (sans lissage, pour garder chaque point), miroirs, négatif, puis
+    seuil à 128. Renvoie comme process_image ; la taille est arrondie (et non tronquée) pour qu'une image
+    dont 1 pixel = 1 ligne de gravure ne perde pas un pixel."""
+    lmm = params['lmm']
+    px_w = max(1, round(params['w_mm'] * lmm))
+    px_h = max(1, round(params['h_mm'] * lmm))
+    img = raw_image.convert("L")
+    if img.size != (px_w, px_h):
+        img = img.resize((px_w, px_h), Image.Resampling.NEAREST)
+    if params['mirror_h']:
+        img = img.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+    if params['mirror_v']:
+        img = img.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+    arr = np.asarray(img, dtype=np.uint8)
+    if params['invert']:
+        arr = 255 - arr
+    out_arr = np.where(arr > 128, 255, 0).astype(np.uint8)
     return out_arr, Image.fromarray(out_arr)
 
 

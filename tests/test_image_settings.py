@@ -67,6 +67,17 @@ class ImageSettingsTests(unittest.TestCase):
         self.assertEqual((other.material_bg, other.brightness, other.algorithm),
                          ("dark", 0, "Floyd-Steinberg"))
 
+    def test_as_is_is_saved_and_sent_to_the_processing(self):
+        s = ImageSettings()
+        self.assertFalse(s.as_is)                                  # décoché par défaut
+        s.update(as_is=True)
+        self.assertTrue(s.processing_params()["as_is"])
+        other = ImageSettings()
+        other.load_project(s.to_project())
+        self.assertTrue(other.as_is)
+        other.load_project({})                                     # ancien projet : décoché
+        self.assertFalse(other.as_is)
+
     def test_reset_keeps_the_algorithm(self):
         s = ImageSettings()
         s.update(contrast=30, invert=True, algorithm="Stucki")
