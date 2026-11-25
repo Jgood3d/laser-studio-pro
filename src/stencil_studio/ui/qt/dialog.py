@@ -95,6 +95,18 @@ def mode_icon(path, color):
     return QIcon(pixmap)
 
 
+class _ModeBar(QWidget):
+    """Bande un peu plus foncée que la fenêtre, comme la barre des modes de la page ; la teinte est prise à
+    chaque dessin pour suivre un changement de thème."""
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(self.palette().color(QPalette.ColorRole.Window).darker(118))
+        painter.drawRoundedRect(self.rect(), 6, 6)
+
+
 class _Results(QObject):
     """Résultats des calculs, du fil de calcul vers la fenêtre."""
     preview = pyqtSignal(dict)
@@ -163,7 +175,7 @@ class QStencilDialog(QDialog):
         body.setStretchFactor(1, 1)
         layout = QVBoxLayout(self)
         layout.addLayout(self._header_row())
-        layout.addLayout(self._mode_row())
+        layout.addWidget(self._mode_row())
         layout.addWidget(body, 1)
         layout.addWidget(self.status)
         self.setAcceptDrops(True)
@@ -212,7 +224,9 @@ class QStencilDialog(QDialog):
 
     def _mode_row(self):
         """Barre des modes, sous la barre du haut (modebar de la page) : icône et libellé côte à côte."""
-        row = QHBoxLayout()
+        bar = _ModeBar()
+        row = QHBoxLayout(bar)
+        row.setContentsMargins(6, 4, 6, 4)
         self.mode_buttons = QButtonGroup(self)
         self.mode_buttons.setExclusive(True)
         color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
@@ -229,7 +243,7 @@ class QStencilDialog(QDialog):
             row.addWidget(button)
         self.mode_buttons.buttonClicked.connect(lambda b: self._changed("output", b.property("mode")))
         row.addStretch()
-        return row
+        return bar
 
     def _settings_panel(self):
         """Réglages, avec au-dessus la recherche, les réglages avancés et mes réglages enregistrés (buildTools)."""
