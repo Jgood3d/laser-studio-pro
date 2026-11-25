@@ -3,7 +3,7 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import overscan_distance, power_value, scan_offset_mm
+from laser_studio.gcode.common import LaserMoves, overscan_distance, power_value, scan_offset_mm
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
 # proportionnelle à son gris (params['algo']).
@@ -35,8 +35,8 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     gris en mode « Niveaux de Gris »), à la taille params['width_mm'] x
     params['height_mm'], coin bas-gauche en image_origin(params).
 
-    image_cmd : "M3" (renvoyé à chaque ligne) ou "M4" (activé une fois en tête
-    de job par l'appelant ; ici, seule la puissance S est pilotée).
+    image_cmd : "M3" ou "M4", écrit une fois au début ; ensuite, seule la puissance S de chaque
+    mouvement est pilotée (voir LaserMoves), et M5 à la fin.
     progress : fonction appelée avec l'avancement (0 à 70 %), facultative.
 
     Renvoie (lignes, durée en secondes, puissances % des tracés gravés)."""
@@ -49,7 +49,8 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     image_x, image_y = image_origin(params)
 
     speed_engrave = params['speed_engrave']
-    gcode.append(f"F{speed_engrave}")
+    moves = LaserMoves(gcode)
+    moves.laser(image_cmd)
 
     h, w = arr.shape
     step_x, step_y = w_mm / w, h_mm / h
@@ -106,28 +107,13 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
         margin_end_x = seg_right + overscan_dist if is_ltr else seg_left - overscan_dist
         image_edge_x = seg_right if is_ltr else seg_left
 
-        if overscan_dist > 0:
-            gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f} ; OVERSCAN_START")
-        else:
-            gcode.append(f"G0 X{margin_start_x:.3f} Y{actual_y:.3f}")
-
-        if image_cmd == "M3":
-            gcode.append(f"{image_cmd} S0")
-        else:
-            # Mode M4 déjà activé une fois en tête de job : ici on ne fait
-            # plus que remettre la puissance à 0 avant d'attaquer la ligne,
-            # sans renvoyer M4.
-            gcode.append("S0")
-
+        moves.travel(margin_start_x, actual_y, "OVERSCAN_START" if overscan_dist > 0 else "")
         image_start_x = seg_left if is_ltr else seg_right
 
         if overscan_dist > 0:
-            # Traverse la zone de surbalayage à puissance nulle avant
-            # d'atteindre le premier pixel de l'image : sans cette
-            # ligne, la première commande G1 du tramage (ci-dessous)
-            # parcourait toute la distance (surbalayage + image)
-            # directement à la puissance du premier pixel gravé.
-            gcode.append(f"G1 X{image_start_x:.3f} F{speed_engrave} S0")
+            # Traverse la zone de surbalayage à puissance nulle avant d'atteindre le premier pixel : la
+            # tête y prend sa vitesse.
+            moves.move(image_start_x, power=0, feed=speed_engrave)
             total_time_seconds += (abs(image_start_x - margin_start_x) / max(speed_engrave, 1)) * 60.0
 
         pixels = range(first_px, last_px + 1) if is_ltr else range(last_px, first_px - 1, -1)
@@ -142,17 +128,13 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             p_val = power_value(p_percent, s_max)
 
             if p_val != last_p_val:
-                # Frontière entre le pixel précédent et celui-ci, dans
-                # le sens du balayage : bord gauche du pixel en
-                # balayage gauche->droite, bord droit en droite->gauche.
+                # Frontière entre le pixel précédent et celui-ci, dans le sens du balayage : bord gauche du
+                # pixel en balayage gauche->droite, bord droit en droite->gauche.
                 boundary_x = row_x0 + (x_pixel if is_ltr else x_pixel + 1) * step_x
-                # GRBL applique le S d'une ligne G1 au déplacement de
-                # CETTE ligne : le trajet jusqu'à la frontière
-                # appartient au run qui se termine, donc on l'effectue
-                # à SA puissance (last_p_val), pas à celle du run
-                # suivant.
+                # GRBL applique le S d'une ligne G1 au déplacement de CETTE ligne : le trajet jusqu'à la
+                # frontière appartient au run qui se termine, donc il se fait à SA puissance (last_p_val).
                 if abs(boundary_x - cx) > 1e-9:
-                    gcode.append(f"G1 X{boundary_x:.3f} F{speed_engrave} S{last_p_val}")
+                    moves.move(boundary_x, power=last_p_val, feed=speed_engrave)
                     total_time_seconds += (abs(boundary_x - cx) / max(speed_engrave, 1)) * 60.0
                     cx = boundary_x
                 last_p_val = p_val
@@ -160,20 +142,13 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
                     total_power_samples.append(p_percent)
 
         if cx != image_edge_x:
-            gcode.append(f"G1 X{image_edge_x:.3f} F{speed_engrave} S{last_p_val}")
+            moves.move(image_edge_x, power=last_p_val, feed=speed_engrave)
             total_time_seconds += (abs(image_edge_x - cx) / max(speed_engrave, 1)) * 60.0
             cx = image_edge_x
 
         if overscan_dist > 0:
-            gcode.append(f"G1 X{margin_end_x:.3f} F{speed_engrave} S0 ; OVERSCAN_END")
+            moves.move(margin_end_x, power=0, feed=speed_engrave, comment="OVERSCAN_END")
             total_time_seconds += (abs(margin_end_x - cx) / max(speed_engrave, 1)) * 60.0
 
-        if image_cmd == "M3":
-            gcode.append("M5")
-        elif overscan_dist == 0 and last_p_val != 0:
-            # Sécurité : sans surbalayage pour s'en charger, on
-            # s'assure que la puissance est bien à 0 avant le
-            # déplacement rapide (G0) vers la ligne suivante.
-            gcode.append("S0")
-
+    moves.off()
     return gcode, total_time_seconds, total_power_samples

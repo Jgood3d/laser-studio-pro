@@ -34,12 +34,20 @@ class CharacterCountingTests(unittest.TestCase):
         return sent
 
     def test_lines_are_sent_while_they_fit_in_the_buffer(self):
-        stream = CharacterCountingStream(["G1 X1"] * 30, buffer_size=20)    # 6 octets par ligne
+        stream = CharacterCountingStream(["G1X10"] * 30, buffer_size=20)    # 6 octets par ligne
         self.assertEqual(len(self.send_all_possible(stream)), 3)            # 18 < 20 ; 24 ne tient plus
         self.assertEqual((stream.pending, stream.occupancy), (3, 18))
         self.assertTrue(stream.acknowledge())
         self.assertEqual(len(self.send_all_possible(stream)), 1)
-        self.assertEqual((stream.acked, stream.next_index, stream.first_pending), (1, 4, "G1 X1"))
+        self.assertEqual((stream.acked, stream.next_index, stream.first_pending), (1, 4, "G1X10"))
+
+    def test_spaces_and_end_comments_are_not_sent(self):
+        """GRBL les retire lui-même : moins d'octets sur la liaison série, mais les lignes gardées (console,
+        suivi de la gravure) restent lisibles."""
+        stream = CharacterCountingStream(["G1 X12.5 S300 ; OVERSCAN_END", "G0 X1 (repère)"])
+        self.assertEqual(self.send_all_possible(stream), [b"G1X12.5S300\n", b"G0 X1 (rep\xc3\xa8re)\n"])
+        self.assertEqual(stream.first_pending, "G1 X12.5 S300 ; OVERSCAN_END")
+        self.assertEqual(stream.occupancy, len(b"G1X12.5S300\n") + len("G0 X1 (repère)\n".encode()))
 
     def test_a_line_longer_than_the_buffer_goes_alone(self):
         stream = CharacterCountingStream(["G1 " + "X1" * 80, "M5"], buffer_size=127)

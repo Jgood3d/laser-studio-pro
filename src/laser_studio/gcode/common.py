@@ -66,6 +66,91 @@ def duration_parts(seconds):
     return hours, minutes, secs
 
 
+def num(value):
+    """Nombre du G-Code, au millième, sans zéros inutiles : 12.5, 3, -0.25 (moins d'octets à envoyer)."""
+    text = f"{float(value):.3f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
+
+
+class LaserMoves:
+    """Écrit les déplacements laser dans `lines`, selon les règles de GRBL en mode laser ($32=1) :
+
+    - la puissance S voyage sur la ligne du mouvement. Une ligne qui change S sans bouger (« S0 », « M4 S500 »)
+      oblige GRBL à vider son tampon : la tête s'arrête à chaque allumage, d'où une gravure saccadée ;
+    - la commande laser (M3, M4) n'est écrite que quand elle change, et M5 qu'à la fin : GRBL vide aussi son
+      tampon à chaque changement M3 / M4 / M5 ;
+    - G0 coupe le laser de lui-même ; il porte quand même S0 si le laser était allumé (sans effet sur le
+      mouvement), pour qu'un graveur hors mode laser ne brûle pas pendant le trajet ;
+    - les mots inchangés (G1, F, X, Y, S) ne sont pas répétés : moins d'octets sur la liaison série, que le
+      graveur lit plus vite qu'il ne grave.
+
+    Le premier mouvement écrit tous ses mots. Après des lignes écrites par quelqu'un d'autre, forget()."""
+
+    def __init__(self, lines):
+        self.lines = lines
+        self.cmd = None
+        self.forget()
+
+    def forget(self):
+        """État de GRBL inconnu (lignes ajoutées sans passer par ici) : tout sera réécrit."""
+        self.motion = self.feed = self.power = self.x = self.y = None
+
+    def extend(self, lines):
+        """Ajoute des lignes écrites ailleurs (étiquette de la matrice…), qui se terminent laser éteint."""
+        self.lines.extend(lines)
+        self.cmd = None
+        self.forget()
+
+    def laser(self, cmd):
+        """Mode laser `cmd` (« M3 » ou « M4 »), puissance nulle, s'il n'est pas déjà actif."""
+        if cmd != self.cmd:
+            self.lines.append(f"{cmd} S0")
+            self.cmd, self.power = cmd, 0
+
+    def off(self):
+        """Laser éteint (M5), en fin de job (ou de partie de job)."""
+        self.lines.append("M5")
+        self.cmd, self.power = None, 0
+
+    def travel(self, x=None, y=None, comment=""):
+        """Déplacement rapide (G0), laser éteint."""
+        words = self._axes(x, y)
+        if not words:
+            return
+        if self.power:
+            words.append("S0")
+            self.power = 0
+        self.motion = 0
+        self.lines.append(" ".join(["G0"] + words) + (f" ; {comment}" if comment else ""))
+
+    def move(self, x=None, y=None, power=0, feed=None, comment=""):
+        """Déplacement gravé (G1) à la puissance S `power` (0 : laser éteint, la tête continue) et à la
+        vitesse `feed` (mm/min)."""
+        words = self._axes(x, y)
+        if not words:
+            return
+        if feed is not None and feed != self.feed:
+            words.append(f"F{num(feed)}")
+            self.feed = feed
+        if power != self.power:
+            words.append(f"S{int(power)}")
+            self.power = power
+        if self.motion != 1:
+            words.insert(0, "G1")
+            self.motion = 1
+        self.lines.append(" ".join(words) + (f" ; {comment}" if comment else ""))
+
+    def _axes(self, x, y):
+        words = []
+        if x is not None and (self.x is None or num(x) != num(self.x)):
+            words.append(f"X{num(x)}")
+            self.x = x
+        if y is not None and (self.y is None or num(y) != num(self.y)):
+            words.append(f"Y{num(y)}")
+            self.y = y
+        return words
+
+
 def start_lines(params):
     """Lignes de début de job : homing ($H) et G-Code de début, s'ils sont
     demandés."""

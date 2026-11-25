@@ -39,15 +39,6 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
     image_cmd = params.get('image_laser_cmd', laser_cmd) if processed_array is not None else laser_cmd
     s_max = params['s_max']
 
-    # En mode M4 (laser dynamique), pas besoin de renvoyer M4 à chaque
-    # ligne : on l'active une seule fois ici pour tout le job, et on ne
-    # pilote plus ensuite que la puissance (S...) — ce qui allège
-    # nettement le G-code sur une image de plusieurs centaines de lignes.
-    # M3 reste inchangé (renvoyé à chaque ligne) : certains firmwares /
-    # pilotes laser en dépendent en mode spindle classique.
-    if image_cmd == "M4":
-        gcode.append(f"{image_cmd} S0 ; Mode laser dynamique activé pour tout le job")
-
     w_mm, h_mm = params['width_mm'], params['height_mm']
     if params['origin_pos'] == ORIGIN_CENTER:
         base_offset_x = params['offset_x'] - (w_mm / 2.0)
@@ -97,7 +88,9 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
         gcode.append("; --- G-Code de Fin ---")
         gcode.append(end_gcode)
     else:
-        gcode.append("M5\nG0 X0 Y0\n; FIN DU TRAVAIL")
+        if gcode[-1] != "M5":                 # chaque phase se termine déjà laser éteint
+            gcode.append("M5")
+        gcode.append("G0 X0 Y0\n; FIN DU TRAVAIL")
 
     avg_power = float(np.mean(total_power_samples)) if total_power_samples else 0.0
     text = "\n".join(gcode)

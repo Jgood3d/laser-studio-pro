@@ -7,7 +7,7 @@ des calques en dictionnaires) : voir vector.layer_data.extract_vector_layer_data
 qui les prépare dans le thread de l'interface."""
 import math
 
-from laser_studio.gcode.common import power_value
+from laser_studio.gcode.common import LaserMoves, power_value
 from laser_studio.models.layer_modes import (
     MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
@@ -149,6 +149,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
     mécanique et le délai d'allumage du laser (même réglage que pour les images ; sinon les contours des
     remplissages sont en escalier et les petits traits se cassent)."""
     gcode = []
+    moves = LaserMoves(gcode)
     total_time_seconds = 0.0
     power_samples = []
 
@@ -182,9 +183,9 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             gcode.append("; Ordre de découpe : intérieur avant extérieur")
         speed = layer["speed"]
         power_val = power_value(layer["power"], s_max)
-        gcode.append(f"F{speed}")
         # Commande laser et surbalayage de CE calque (réglages globaux si le calque n'a pas les siens).
         cmd = layer_laser_cmd(layer, laser_cmd)
+        moves.laser(cmd)
         layer_overscan = overscan_dist if layer_overscan_enabled(layer, True) else 0.0
 
         if layer["mode"] == ENGRAVE_MODE:
@@ -214,36 +215,27 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                             post_x, post_y = to_gcode_xy(last_ex + direction * layer_overscan, y)
 
                             # Déplacement avant balayage avec laser éteint.
-                            gcode.append(f"G0 X{pre_x:.3f} Y{pre_y:.3f}")
-                            for k, (sx_mm, ex_mm) in enumerate(run):
+                            moves.travel(pre_x, pre_y)
+                            for sx_mm, ex_mm in run:
                                 real_sx, real_sy = to_gcode_xy(sx_mm, y)
                                 real_ex, real_ey = to_gcode_xy(ex_mm, y)
-                                # Approche (surbalayage, ou écart depuis le segment précédent) laser éteint.
-                                gcode.append(f"{cmd} S0")
-                                gcode.append(f"G1 X{real_sx:.3f} Y{real_sy:.3f} F{speed}")
-                                # Gravure du segment réel.
-                                gcode.append(f"{cmd} S{power_val}")
-                                gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
+                                # Approche (surbalayage, ou écart depuis le segment précédent) laser à 0,
+                                # puis le segment gravé : la tête ne s'arrête pas entre les deux.
+                                moves.move(real_sx, real_sy, 0, speed)
+                                moves.move(real_ex, real_ey, power_val, speed)
                                 power_samples.append(layer["power"])
 
                             # Sortie de balayage avec laser éteint.
-                            gcode.append(f"{cmd} S0")
-                            gcode.append(f"G1 X{post_x:.3f} Y{post_y:.3f} F{speed}")
+                            moves.move(post_x, post_y, 0, speed)
 
                             total_time_seconds += (abs(post_x - pre_x) / max(speed, 1)) * 60.0
                         else:
                             sx_mm, ex_mm = run[0]
                             real_sx, real_sy = to_gcode_xy(sx_mm, y)
                             real_ex, real_ey = to_gcode_xy(ex_mm, y)
-                            gcode.append(f"G0 X{real_sx:.3f} Y{real_sy:.3f}")
-                            gcode.append(f"{cmd} S{power_val}")
-                            gcode.append(f"G1 X{real_ex:.3f} Y{real_ey:.3f} F{speed}")
-
+                            moves.travel(real_sx, real_sy)
+                            moves.move(real_ex, real_ey, power_val, speed)
                             total_time_seconds += (abs(real_ex - real_sx) / max(speed, 1)) * 60.0
-
-                            # Prépare le prochain déplacement avec le laser
-                            # éteint, sans arrêter complètement le mode M4.
-                            gcode.append(f"{cmd} S0")
                             power_samples.append(layer["power"])
                 y += step
                 line_idx += 1
@@ -268,8 +260,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                     if len(poly) < 2:
                         continue
                     sx, sy = to_gcode_xy(*poly[0])
-                    gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
-                    gcode.append(f"{cmd} S{power_val}")
+                    moves.travel(sx, sy)
                     cx, cy = sx, sy
                     # Un tracé ouvert (ligne, fente, arête de puzzle) reste ouvert : le refermer faisait
                     # repasser le laser sur tout le tracé, en sens inverse. On ne ferme que les tracés
@@ -281,10 +272,10 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         pts = poly
                     for (px, py) in pts[1:]:
                         nx, ny = to_gcode_xy(px, py)
-                        gcode.append(f"G1 X{nx:.3f} Y{ny:.3f}")
+                        moves.move(nx, ny, power_val, speed)
                         total_time_seconds += (math.hypot(nx - cx, ny - cy) / max(speed, 1)) * 60.0
                         power_samples.append(layer["power"])
                         cx, cy = nx, ny
-                    gcode.append("M5")
 
+    moves.off()
     return gcode, total_time_seconds, power_samples

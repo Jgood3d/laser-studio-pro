@@ -5,7 +5,7 @@ from xml.dom import minidom
 
 from svg.path import parse_path
 
-from laser_studio.gcode.common import power_value
+from laser_studio.gcode.common import LaserMoves, power_value
 
 
 def svg_cut_gcode(svg_path, params, image_x, image_y):
@@ -24,12 +24,13 @@ def svg_cut_gcode(svg_path, params, image_x, image_y):
     s_max = params['s_max']
 
     speed_cut = params['speed_cut']
-    gcode.append(f"F{speed_cut}")
+    moves = LaserMoves(gcode)
     p_cut_percent = params['power_cut']
     p_cut_val = power_value(p_cut_percent, s_max)
     # Commande laser du calque de découpe (sinon celle de la Configuration GRBL), comme les calques
     # vectoriels ; M3 si les paramètres n'en disent rien (ancien comportement).
     cut_cmd = params.get('cut_laser_cmd') or "M3"
+    moves.laser(cut_cmd)
 
     doc = minidom.parse(svg_path)
     path_strings = [path.getAttribute('d') for path in doc.getElementsByTagName('path')]
@@ -46,8 +47,7 @@ def svg_cut_gcode(svg_path, params, image_x, image_y):
             sx = image_x + start_pt.real
             sy = image_y + (h_mm - start_pt.imag)
 
-            gcode.append(f"G0 X{sx:.3f} Y{sy:.3f}")
-            gcode.append(f"{cut_cmd} S{p_cut_val}")
+            moves.travel(sx, sy)
 
             curr_x, curr_y = sx, sy
 
@@ -67,7 +67,7 @@ def svg_cut_gcode(svg_path, params, image_x, image_y):
                 total_power_samples.append(p_cut_percent)
                 curr_x, curr_y = nx, ny
 
-                gcode.append(f"G1 X{nx:.3f} Y{ny:.3f}")
-            gcode.append("M5")
+                moves.move(nx, ny, p_cut_val, speed_cut)
 
+    moves.off()
     return gcode, total_time_seconds, total_power_samples

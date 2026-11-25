@@ -74,7 +74,8 @@ def tile_raster_gcode(arr, x0, y0, w_mm, h_mm, speed, power_pct, s_max, laser_cm
     puissance est proportionnelle au noir). Le coin bas-gauche de la zone est en (x0, y0) et
     elle fait w_mm x h_mm. Même balayage que la gravure d'image : lignes vides sautées,
     sens aller/retour alterné, surbalayage, ligne retour décalée de `scan_offset`.
-    Chaque ligne se termine par M5, comme les autres cases de la matrice.
+    Laser allumé une fois au début de la zone, éteint (M5) à la fin ; entre les deux, la puissance voyage sur
+    chaque mouvement (gcode.common.LaserMoves).
 
     Renvoie (lignes de G-Code, durée en secondes, puissances en % des segments gravés).
     """
@@ -84,8 +85,10 @@ def tile_raster_gcode(arr, x0, y0, w_mm, h_mm, speed, power_pct, s_max, laser_cm
     h, w = arr.shape
     step_x, step_y = w_mm / w, h_mm / h
     speed = max(float(speed), 1.0)
+    from laser_studio.gcode.common import LaserMoves   # import local : le paquet gcode importe ce module
     f = int(speed)
     lines = []
+    moves = LaserMoves(lines)
     seconds = 0.0
     samples = []
     scanned = 0
@@ -113,14 +116,13 @@ def tile_raster_gcode(arr, x0, y0, w_mm, h_mm, speed, power_pct, s_max, laser_cm
         margin_in = edge_in - overscan_dist if ltr else edge_in + overscan_dist
         margin_out = edge_out + overscan_dist if ltr else edge_out - overscan_dist
 
+        moves.laser(laser_cmd)                 # à la première ligne gravée : rien pour une zone blanche
         if overscan_dist > 0:
-            lines.append(f"G0 X{margin_in:.3f} Y{ly:.3f} ; OVERSCAN_START")
-            lines.append(f"{laser_cmd} S0")
-            lines.append(f"G1 X{edge_in:.3f} F{f} S0")
+            moves.travel(margin_in, ly, "OVERSCAN_START")
+            moves.move(edge_in, power=0, feed=f)
             seconds += abs(edge_in - margin_in) / speed * 60.0
         else:
-            lines.append(f"G0 X{edge_in:.3f} Y{ly:.3f}")
-            lines.append(f"{laser_cmd} S0")
+            moves.travel(edge_in, ly)
 
         # Plages de pixels de même puissance, dans le sens du balayage.
         seg = s_vals[first:last + 1]
@@ -135,15 +137,16 @@ def tile_raster_gcode(arr, x0, y0, w_mm, h_mm, speed, power_pct, s_max, laser_cm
         for a, b in zip(starts, ends):
             nx = edge_in + b * step_x if ltr else edge_in - b * step_x
             s_run = int(seg[a])
-            lines.append(f"G1 X{nx:.3f} F{f} S{s_run}")
+            moves.move(nx, power=s_run, feed=f)
             seconds += abs(nx - cursor) / speed * 60.0
             if s_run > 0:
                 samples.append(float(pcts[a]))
             cursor = nx
 
         if overscan_dist > 0:
-            lines.append(f"G1 X{margin_out:.3f} F{f} S0 ; OVERSCAN_END")
+            moves.move(margin_out, power=0, feed=f, comment="OVERSCAN_END")
             seconds += abs(margin_out - cursor) / speed * 60.0
-        lines.append("M5")
 
+    if lines:
+        moves.off()
     return lines, seconds, samples

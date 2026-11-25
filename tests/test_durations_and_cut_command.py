@@ -53,9 +53,10 @@ class SvgCutCommandTests(unittest.TestCase):
         return svg_cut_gcode(self.path, base, 0.0, 0.0)[0]
 
     def test_follows_the_cut_layer_command_and_rounds_the_power(self):
-        self.assertIn("M4 S26", self.lines(cut_laser_cmd="M4"))         # 10 % de 255 : S26, plus S25
-        self.assertIn("M3 S26", self.lines(cut_laser_cmd="M3"))
-        self.assertIn("M3 S26", self.lines())                           # sans réglage : M3, comme avant
+        for cmd, expected in (("M4", "M4"), ("M3", "M3"), (None, "M3")):   # sans réglage : M3, comme avant
+            lines = self.lines(**({"cut_laser_cmd": cmd} if cmd else {}))
+            self.assertEqual(lines[0], f"{expected} S0", cmd)
+            self.assertTrue(any(line.startswith("G1") and "S26" in line for line in lines), cmd)  # 10 % de 255
 
 
 if __name__ == "__main__":

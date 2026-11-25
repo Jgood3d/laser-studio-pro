@@ -30,12 +30,15 @@ def disc(size=60, ring=4):
 
 def moves(gcode):
     """[(G, x0, y0, x1, y1)] de chaque déplacement G0/G1, avant le M5 final."""
-    out, x, y = [], 0.0, 0.0
+    out, x, y, motion = [], 0.0, 0.0, None
     for raw in gcode[:gcode.rindex("M5")].splitlines():
         line = raw.split(";")[0].strip()
+        if line[:1] in ("X", "Y") and motion:
+            line = f"{motion} {line}"             # mouvement modal, comme GRBL
         m = re.match(r"(G0|G1)\b(.*)", line)
         if not m:
             continue
+        motion = m.group(1)
         mx, my = re.search(r"X(-?[\d.]+)", m.group(2)), re.search(r"Y(-?[\d.]+)", m.group(2))
         nx = float(mx.group(1)) if mx else x
         ny = float(my.group(1)) if my else y

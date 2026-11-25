@@ -92,7 +92,7 @@ class StreamErrorStopTests(unittest.TestCase):
         self.assertEqual(results, [False])
 
     def test_alarm_also_resets_and_marks_position_lost(self):
-        ser = FakeGrbl(errors={"G1 X10 F1000": "ALARM:2"}, hold_state="Alarm")
+        ser = FakeGrbl(errors={"G1X10F1000": "ALARM:2"}, hold_state="Alarm")   # tel qu'envoyé, sans espaces
         streamer, _logs, results = self.run_stream(ser)
         self.assertEqual(ser.realtime()[-1], b"\x18")
         self.assertTrue(streamer.position_lost)
