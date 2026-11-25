@@ -54,7 +54,7 @@ class SpecTests(unittest.TestCase):
 
     def test_js_literals(self):
         self.assertEqual(spec.js_to_json("{k:'a\"b', n:-1.5, ok:true, fmt:v => v + ' mm', l:[1,2,],}"),
-                         {"k": 'a"b', "n": -1.5, "ok": True, "fmt": "custom", "l": [1, 2]})
+                         {"k": 'a"b', "n": -1.5, "ok": True, "fmt": "custom", "unit": "mm", "l": [1, 2]})
 
 
 class RowStateTests(unittest.TestCase):
