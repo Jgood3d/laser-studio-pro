@@ -1,8 +1,14 @@
-"""Photo et cadre de découpe, comme la vue source de la page web (drawSource, computeView, souris) : le cadre
-(forme du pochoir) se déplace à la souris, la molette change sa taille, Alt + molette le fait tourner. Ce qui
-sort du cadre est assombri.
+"""Photo et cadre de découpe, comme la vue source de la page web (drawSource, computeView, souris).
 
-    view = SourceView(state, frame_model)
+Outils (`tool`, comme les boutons de la page) :
+- « move » : glisser déplace le cadre, la poignée au-dessus le fait tourner (Maj : crans de 15°) ; la molette
+  change sa taille, Alt + molette le fait tourner ;
+- « box » : rectangle autour du sujet (subject_box_drawn) ;
+- « fg » / « bg » / « erase » : repères peints, vert = sujet, rouge = fond, gomme (hints_painted, PNG à la
+  taille de la photo affichée, comme la page l'envoie à /api/hints).
+Ce qui sort du cadre est assombri ; les repères s'affichent en transparence.
+
+    view = SourceView(state)
     view.frame_changed.connect(lambda moving: ...)       # moving : glissement en cours
     view.rotation_changed.connect(lambda deg: ...)
 
@@ -11,8 +17,8 @@ les limites et les dimensions viennent de models/frame.py, comme dans la page.
 """
 import math
 
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
-from PyQt6.QtGui import QColor, QPainter, QPainterPath, QPalette, QPen, QPixmap, QPolygonF, QTransform
+from PyQt6.QtCore import QBuffer, QByteArray, QIODevice, QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QImage, QPainter, QPainterPath, QPalette, QPen, QPixmap, QPolygonF, QTransform
 from PyQt6.QtWidgets import QApplication, QWidget
 
 from ...models import frame as frame_model
@@ -41,6 +47,8 @@ class SourceView(QWidget):
 
     frame_changed = pyqtSignal(bool)
     rotation_changed = pyqtSignal(float)
+    subject_box_drawn = pyqtSignal(object)        # {"x", "y", "w", "h"} (fractions de la photo), ou None
+    hints_painted = pyqtSignal(bytes)             # repères peints, PNG
 
     def __init__(self, state, placeholder="", parent=None):
         super().__init__(parent)
@@ -50,6 +58,12 @@ class SourceView(QWidget):
         self.iw = self.ih = 0
         self._frame = {"cx": 0.5, "cy": 0.5, "w": 1.0}
         self._drag = None
+        self._rotating = False
+        self._box_start = None
+        self._painting = None             # dernier point peint (pixels de la photo)
+        self.tool = "move"
+        self.subject_box = None           # rectangle du sujet (B de la page)
+        self.hints = None                 # repères peints (QImage à la taille de la photo affichée)
         self.setMinimumSize(200, 200)
         self.setMouseTracking(True)
 
@@ -59,6 +73,9 @@ class SourceView(QWidget):
         """Nouvelle photo : cadre de départ, centré (loadDisplay de la page)."""
         self.pixmap = QPixmap.fromImage(qimage)
         self.iw, self.ih = qimage.width(), qimage.height()
+        self.subject_box = None
+        self.hints = QImage(self.iw, self.ih, QImage.Format.Format_ARGB32)
+        self.hints.fill(Qt.GlobalColor.transparent)
         self.set_frame({"cx": 0.5, "cy": 0.5, "w": 1.0})
 
     def frame(self):
@@ -113,40 +130,131 @@ class SourceView(QWidget):
         painter.translate(ox, oy)
         painter.scale(s, s)
         painter.drawPixmap(0, 0, self.pixmap)
+        if frame_model.free_on(self.state):               # placement libre : bords de la photo en pointillés
+            painter.setPen(QPen(QColor(255, 255, 255, 140), 1 / s, Qt.PenStyle.DashLine))
+            painter.drawRect(QRectF(0, 0, self.iw, self.ih))
+        painter.setOpacity(0.6)
+        painter.drawImage(0, 0, self.hints)
+        painter.setOpacity(1.0)
         fw, fh = frame_model.dims(self.state, self.iw, self.ih, self._frame)
-        outline = QTransform()
-        outline.translate(self._frame["cx"] * self.iw, self._frame["cy"] * self.ih)
-        outline.rotate(frame_model.rotation(self.state))
-        frame_path = outline.map(shape_path(self.state.get("shape"), fw, fh))
+        frame_path = self._outline().map(shape_path(self.state.get("shape"), fw, fh))
         shade = QPainterPath()
         shade.addRect(QRectF(-1e5, -1e5, 2e5, 2e5))
-        painter.fillPath(shade.subtracted(frame_path), QColor(0, 0, 0, 110))   # hors du cadre : assombri
+        painter.fillPath(shade.subtracted(frame_path), QColor(0, 0, 0, 158))   # hors du cadre : assombri
         accent = QApplication.palette().color(QPalette.ColorRole.Highlight)
         painter.setPen(QPen(accent, 2 / s))
         painter.drawPath(frame_path)
+        if not frame_model.is_full(self.state):         # poignée de rotation au-dessus du cadre
+            top, handle = self._rotation_handle(s)
+            painter.drawLine(top, handle)
+            painter.setBrush(accent)
+            painter.setPen(QPen(Qt.GlobalColor.white, 1.5 / s))
+            painter.drawEllipse(handle, 6 / s, 6 / s)
+        if self.subject_box:                            # rectangle du sujet, en pointillés
+            b = self.subject_box
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor("#35d0ff"), 2 / s, Qt.PenStyle.DashLine))
+            painter.drawRect(QRectF(b["x"] * self.iw, b["y"] * self.ih, b["w"] * self.iw, b["h"] * self.ih))
+
+    def _outline(self):
+        """Repère du cadre : son centre, tourné."""
+        t = QTransform()
+        t.translate(self._frame["cx"] * self.iw, self._frame["cy"] * self.ih)
+        t.rotate(frame_model.rotation(self.state))
+        return t
+
+    def _rotation_handle(self, scale):
+        """(haut du cadre, poignée) en pixels de la photo : 22 px d'écran au-dessus du cadre."""
+        _fw, fh = frame_model.dims(self.state, self.iw, self.ih, self._frame)
+        t = self._outline()
+        return t.map(QPointF(0, -fh / 2)), t.map(QPointF(0, -fh / 2 - 22 / scale))
 
     # -- souris (glisser : déplacer ; molette : taille ; Alt + molette : rotation)
 
     def mousePressEvent(self, event):
-        if self.pixmap is not None and event.button() == Qt.MouseButton.LeftButton:
-            x, y = self._to_image(event.position())
-            self._drag = (x, y, self._frame["cx"], self._frame["cy"])
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-
-    def mouseMoveEvent(self, event):
-        if self._drag is None:
-            self.setCursor(Qt.CursorShape.OpenHandCursor if self.pixmap is not None else Qt.CursorShape.ArrowCursor)
+        if self.pixmap is None or event.button() != Qt.MouseButton.LeftButton:
             return
         x, y = self._to_image(event.position())
-        x0, y0, cx, cy = self._drag
-        self.set_frame({"cx": cx + (x - x0) / self.iw, "cy": cy + (y - y0) / self.ih, "w": self._frame["w"]})
-        self.frame_changed.emit(True)
+        if self.tool == "move":
+            scale = self._view()[0]
+            if not frame_model.is_full(self.state):
+                handle = self._rotation_handle(scale)[1]
+                if math.hypot(x - handle.x(), y - handle.y()) * scale < 12:
+                    self._rotating = True
+                    return
+            self._drag = (x, y, self._frame["cx"], self._frame["cy"])
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+        elif self.tool == "box":
+            self._box_start = (min(max(x / self.iw, 0), 1), min(max(y / self.ih, 0), 1))
+            self.subject_box = None
+        else:
+            self._painting = (x, y)
+            self._paint(x, y, x, y)
+
+    def mouseMoveEvent(self, event):
+        if self.pixmap is None:
+            return
+        x, y = self._to_image(event.position())
+        if self._rotating:
+            cx, cy = self._frame["cx"] * self.iw, self._frame["cy"] * self.ih
+            angle = math.degrees(math.atan2(x - cx, -(y - cy)))         # 0 : poignée en haut, sens horaire
+            step = 15 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
+            self.rotation_changed.emit(max(-180.0, min(180.0, float(round(angle / step) * step))))
+        elif self._drag is not None:
+            x0, y0, cx, cy = self._drag
+            self.set_frame({"cx": cx + (x - x0) / self.iw, "cy": cy + (y - y0) / self.ih, "w": self._frame["w"]})
+            self.frame_changed.emit(True)
+        elif self._box_start is not None:
+            bx, by = min(max(x / self.iw, 0), 1), min(max(y / self.ih, 0), 1)
+            x0, y0 = self._box_start
+            self.subject_box = {"x": min(x0, bx), "y": min(y0, by), "w": abs(bx - x0), "h": abs(by - y0)}
+            self.update()
+        elif self._painting is not None:
+            self._paint(*self._painting, x, y)
+            self._painting = (x, y)
+        else:
+            self.setCursor(Qt.CursorShape.OpenHandCursor if self.tool == "move" else Qt.CursorShape.CrossCursor)
 
     def mouseReleaseEvent(self, event):
-        if self._drag is not None:
+        if self._rotating:
+            self._rotating = False
+        elif self._drag is not None:
             self._drag = None
             self.setCursor(Qt.CursorShape.OpenHandCursor)
             self.frame_changed.emit(False)
+        elif self._box_start is not None:
+            self._box_start = None
+            b = self.subject_box
+            if b and (b["w"] < 0.03 or b["h"] < 0.03):    # trop petit : pas de rectangle (comme la page)
+                self.subject_box = None
+            self.update()
+            self.subject_box_drawn.emit(self.subject_box)
+        elif self._painting is not None:
+            self._painting = None
+            self.hints_painted.emit(self.hints_png())
+
+    # -- repères peints
+
+    def _paint(self, x0, y0, x1, y1):
+        """Trait de pinceau sur les repères (brushStyle / paintLine de la page) : vert, rouge ou gomme, de la
+        largeur « brush » en pixels d'écran."""
+        painter = QPainter(self.hints)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        if self.tool == "erase":
+            painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
+        color = QColor(0, 255, 0) if self.tool == "fg" else QColor(255, 0, 0)
+        width = float(self.state.get("brush") or 30) / self._view()[0]
+        painter.setPen(QPen(color, width, Qt.PenStyle.SolidLine, Qt.PenCapStyle.RoundCap, Qt.PenJoinStyle.RoundJoin))
+        painter.drawLine(QPointF(x0, y0), QPointF(x1, y1))
+        painter.end()
+        self.update()
+
+    def hints_png(self):
+        data = QByteArray()
+        buffer = QBuffer(data)
+        buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+        self.hints.save(buffer, "PNG")
+        return bytes(data)
 
     def wheelEvent(self, event):
         if self.pixmap is None:

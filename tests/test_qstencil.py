@@ -102,6 +102,35 @@ class QtDialogTests(unittest.TestCase):
         self.assertEqual(len(exported), 1)
         self.assertFalse(dialog.export_actions["png"].isEnabled())      # gravure PNG : mode Gravure seulement
 
+    def test_subject_box_and_painted_hints(self):
+        from PyQt6.QtCore import QPointF, Qt
+        from PyQt6.QtGui import QMouseEvent
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(1400, 900)
+        dialog.show()
+        dialog.open_path(IMAGE)
+        view = dialog.source_view
+        scale, ox, oy = view._view()
+
+        def drag(a, b):
+            for handler, (fx, fy) in ((view.mousePressEvent, a), (view.mouseMoveEvent, b), (view.mouseReleaseEvent, b)):
+                point = QPointF(ox + fx * view.iw * scale, oy + fy * view.ih * scale)
+                handler(QMouseEvent(QMouseEvent.Type.MouseMove, point, point, Qt.MouseButton.LeftButton,
+                                    Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        paint = [b for b in dialog.tool_buttons.buttons() if b.property("tool") in ("fg", "bg", "erase")]
+        self.assertTrue(all(b.isHidden() for b in paint))              # repères : seulement en isolant le sujet
+        next(b for b in dialog.tool_buttons.buttons() if b.property("tool") == "box").click()
+        drag((0.30, 0.15), (0.70, 0.60))
+        self.assertTrue(dialog.state["isolate"])                       # le rectangle isole le sujet
+        self.assertEqual(round(view.frame()["cx"], 3), 0.5)            # cadre réglé sur le rectangle
+        self.assertEqual(dialog.request(300)["box"], view.subject_box)
+        self.assertFalse(any(b.isHidden() for b in paint))
+        next(b for b in dialog.tool_buttons.buttons() if b.property("tool") == "fg").click()
+        drag((0.48, 0.30), (0.52, 0.45))                                # trait vert sur le sujet
+        self.wait(lambda: dialog.service.session.has_hints())
+
     def test_menu_entry_opens_the_qt_version_next_to_the_web_one(self):
         from unittest import mock
         from PyQt6.QtWidgets import QWidget
