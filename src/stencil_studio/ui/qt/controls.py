@@ -6,7 +6,10 @@ text : champ, color : bouton couleur). Les libellés et les bulles d'aide passen
     form.changed.connect(lambda key, value: ...)
     form.show_mode("halftone", state)   # groupes et lignes de ce mode, réglages grisés / masqués selon `state`
     form.set_value("rot", 15)           # sans émettre changed
+    form.set_filter("pont", advanced=False)   # recherche, réglages avancés masqués (applyFilter)
 """
+import unicodedata
+
 from PyQt6.QtCore import pyqtSignal
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox,
@@ -27,6 +30,9 @@ class SettingsForm(QWidget):
         self.tr = tr
         self.widgets = {}
         self.boxes = {}
+        self.query = ""
+        self.advanced = False
+        self._mode, self._state = "stencil", {}
         self._rows = {}                   # clé -> (formulaire, widget) : pour masquer une ligne
         layout = QVBoxLayout(self)
         for group in spec.groups:
@@ -86,21 +92,45 @@ class SettingsForm(QWidget):
 
     def show_mode(self, mode, state):
         """Groupes et lignes du mode `mode` (groupOK, MODE_ROWS), réglages grisés ou masqués selon les autres
-        réglages (refreshDisabled), styles du mode dans « Partir d'un style », comme la page."""
+        réglages (refreshDisabled), recherche et réglages avancés (applyFilter), styles du mode dans « Partir
+        d'un style », comme la page."""
+        self._mode, self._state = mode, state
         shown = {g["g"] for g in self.spec.groups_for(mode)}
-        for name, box in self.boxes.items():
-            box.setVisible(name in shown)
         disabled, hidden = self.spec.row_states(state)
-        for key, (form, widget) in self._rows.items():
-            form.setRowVisible(widget, self.spec.row_shown(key, mode) and key not in hidden)
-            widget.setEnabled(key not in disabled)
+        query = normalize(self.query.strip())
+        visible_in = {}
+        for group in self.spec.groups:
+            for item in group["items"]:
+                key = item["k"]
+                if key not in self._rows:
+                    continue
+                form, widget = self._rows[key]
+                advanced = (key in self.spec.advanced and not self.advanced
+                            and not (key not in self.spec.no_reset and self.spec.is_modified(key, state.get(key))))
+                text = normalize(" ".join((self.tr(item.get("label", key)), self.tr(self.spec.tips.get(key, "")),
+                                           self.tr(group["g"]))))
+                show = (self.spec.row_shown(key, mode) and key not in hidden and not (advanced and not query)
+                        and (not query or query in text))
+                form.setRowVisible(widget, show)
+                visible_in[group["g"]] = visible_in.get(group["g"], 0) + show
+                widget.setEnabled(key not in disabled)
             label = form.labelForField(widget)
             if label is not None:
                 label.setEnabled(key not in disabled)
+        for name, box in self.boxes.items():
+            box.setVisible(name in shown and visible_in.get(name, 0) > 0)
         if "zoom" in self.widgets:                       # au-delà de 1 : seulement en placement libre ou tourné
             free = bool(state.get("free")) or float(state.get("rot") or 0) != 0
             self.widgets["zoom"].setMaximum(10.0 if free else 1.0)
         self._fill_presets(mode)
+
+    def set_filter(self, query=None, advanced=None):
+        """Recherche dans les réglages et « afficher les réglages avancés », comme la page."""
+        if query is not None:
+            self.query = query
+        if advanced is not None:
+            self.advanced = bool(advanced)
+        self.show_mode(self._mode, self._state)
 
     def _fill_presets(self, mode):
         combo = self.widgets.get("preset")
@@ -163,3 +193,9 @@ class SettingsForm(QWidget):
         if color.isValid():
             self._set_color(button, color.name())
             self.changed.emit(key, color.name())
+
+
+def normalize(text):
+    """Texte comparable pour la recherche : minuscules, sans accents (norm de la page)."""
+    decomposed = unicodedata.normalize("NFD", str(text or "").lower())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
