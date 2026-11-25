@@ -221,6 +221,24 @@ class QtDialogTests(unittest.TestCase):
         self.assertEqual(dialog.state, dialog.spec.defaults())
         self.assertEqual(dialog.form.value("dot_gamma"), dialog.spec.defaults()["dot_gamma"])
 
+    def test_groups_fold_like_the_page(self):
+        """Groupes repliables : ouverts ou fermés au départ comme la page (DEF_OPEN), la recherche ouvre ceux où
+        elle trouve un réglage et rend l'état d'avant quand on la vide."""
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="en")
+        self.addCleanup(dialog.deleteLater)
+        boxes = dialog.form.boxes
+        self.assertTrue(boxes["Frame"].is_open())
+        closed = next(name for name in boxes if name not in dialog.spec.default_open)
+        self.assertFalse(boxes[closed].is_open())
+        self.assertTrue(boxes[closed].body.isHidden())
+        boxes["Frame"].header.click()
+        self.assertFalse(boxes["Frame"].is_open())
+        dialog.form.set_filter("rotation")
+        self.assertTrue(boxes["Frame"].is_open())
+        dialog.form.set_filter("")
+        self.assertFalse(boxes["Frame"].is_open())
+
     def test_stats_like_the_page(self):
         from stencil_studio.ui.qt.stats import stats_message
         tr = lambda text, **kw: text.format(**kw)                       # noqa: E731

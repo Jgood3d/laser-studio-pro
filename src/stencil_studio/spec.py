@@ -23,7 +23,7 @@ UI_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "studio
 # Littéraux de la page à lire : nom de la constante -> caractère ouvrant.
 CONSTANTS = {"SPEC": "[", "MODES": "[", "MODE_COMMON": "[", "MODE_EXTRA": "{", "MODE_NOT": "{", "MODE_ROWS": "{",
              "TIPS": "{", "PRESETS": "{", "PRESET_MODE": "{", "ADV": "[", "PRESET_SKIP": "[", "NO_RESET": "[",
-             "BOXMSG": "{"}
+             "BOXMSG": "{", "DEF_OPEN": "["}
 _CLOSING = {"[": "]", "{": "}"}
 # Fonction d'affichage d'une valeur (« fmt:mm », « fmt:v => … ») : inutile hors de la page, remplacée par son nom.
 _FMT = re.compile(r'fmt:\s*(v\s*=>.*?|\w+)(?=,\s*\w+\s*:|\s*\})')
@@ -110,6 +110,7 @@ class Spec:
     preset_skip: list     # réglages que « mes réglages enregistrés » ne gardent pas (PRESET_SKIP)
     no_reset: list        # réglages jamais comptés comme modifiés (NO_RESET)
     box_messages: dict    # avertissements du caisson : code -> texte (BOXMSG)
+    default_open: list    # groupes ouverts au départ, les autres repliés (DEF_OPEN)
 
     def items(self):
         return [item for group in self.groups for item in group["items"]]
@@ -230,4 +231,4 @@ def load(path=UI_FILE):
                 mode_extra=parsed["MODE_EXTRA"], mode_not=parsed["MODE_NOT"], mode_rows=parsed["MODE_ROWS"],
                 tips=parsed["TIPS"], presets=parsed["PRESETS"], preset_mode=parsed["PRESET_MODE"],
                 advanced=parsed["ADV"], preset_skip=parsed["PRESET_SKIP"], no_reset=parsed["NO_RESET"],
-                box_messages=parsed["BOXMSG"])
+                box_messages=parsed["BOXMSG"], default_open=parsed["DEF_OPEN"])
