@@ -13,9 +13,9 @@ from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox,
                              QLineEdit, QPushButton, QVBoxLayout, QWidget)
 
 # Réglages de la page absents de la fenêtre Qt : « output » est remplacé par les boutons des modes.
-# shortcut: largeur de l'image sur la plaque (img_mm), pinceau des repères (brush) et aperçu avant export
-# (exp_preview) pas encore repris ; à ajouter avec la peinture des repères et la fenêtre d'aperçu d'export.
-SKIPPED = {"output", "img_mm", "brush", "exp_preview"}
+# shortcut: largeur de l'image sur la plaque (img_mm) et aperçu avant export (exp_preview) pas encore repris ;
+# à ajouter avec la fenêtre d'aperçu d'export.
+SKIPPED = {"output", "img_mm", "exp_preview"}
 
 
 class SettingsForm(QWidget):

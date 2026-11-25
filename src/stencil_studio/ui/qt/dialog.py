@@ -16,6 +16,7 @@ Les calculs tournent dans un fil à part : la fenêtre ne se fige pas. Un aperç
 récent est abandonné (numéro de demande « seq », comme la page).
 """
 import io
+import math
 import os
 import tempfile
 import threading
@@ -57,6 +58,9 @@ EXPORTS = (
 )
 TO_LASER_STUDIO = ("svg", "dxf")
 ENGRAVE_ONLY = ("png", "svgimg")
+# Outils de la photo, comme les boutons de la page : (outil, libellé, visible seulement avec « isoler le sujet »).
+TOOLS = (("move", "Move frame", False), ("box", "Subject box", False), ("fg", "Subject (green)", True),
+         ("bg", "Background (red)", True), ("erase", "Eraser", True))
 # Réglages qui changent le cadre (forme, format, taille, rotation, placement libre, zoom).
 FRAME_KEYS = ("shape", "aspect", "custom_w", "custom_h", "size_mm", "rot", "free", "zoom")
 
@@ -147,9 +151,11 @@ class QStencilDialog(QDialog):
         self.source_view = SourceView(self.state, self.tr_("Open an image to start (or drop it on this window)."))
         self.source_view.frame_changed.connect(self._frame_moved)
         self.source_view.rotation_changed.connect(lambda angle: self._changed("rot", angle, from_view=True))
+        self.source_view.subject_box_drawn.connect(self._subject_box_drawn)
+        self.source_view.hints_painted.connect(self._hints_painted)
         self.result_view = ImageView()
         views = QSplitter(Qt.Orientation.Horizontal)
-        views.addWidget(self._titled(QLabel(f"<b>{self.tr_('Original')}</b>"), self.source_view))
+        views.addWidget(self._titled(self._tool_row(), self.source_view))
         views.addWidget(self._titled(self._view_combo(), self.result_view))
         self.status = QLabel()
         self.status.setWordWrap(True)
@@ -204,6 +210,24 @@ class QStencilDialog(QDialog):
         more.setMenu(self.export_menu)
         row.addWidget(more)
         return row
+
+    def _tool_row(self):
+        """Outils de la photo : déplacer le cadre, rectangle du sujet, repères (avec « isoler le sujet »)."""
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
+        self.tool_buttons = QButtonGroup(self)
+        self.tool_buttons.setExclusive(True)
+        for tool, label, _isolate_only in TOOLS:
+            button = QToolButton()
+            button.setText(self.tr_(label))
+            button.setCheckable(True)
+            button.setChecked(tool == "move")
+            button.setProperty("tool", tool)
+            self.tool_buttons.addButton(button)
+            row.addWidget(button)
+        self.tool_buttons.buttonClicked.connect(lambda b: setattr(self.source_view, "tool", b.property("tool")))
+        return box
 
     def _view_combo(self):
         """Vues de l'aperçu, comme les boutons au-dessus du résultat dans la page."""
@@ -276,6 +300,12 @@ class QStencilDialog(QDialog):
         self.form.show_mode(mode, self.state)
         for fmt in ENGRAVE_ONLY:                           # boutons « eg » de la page : gravure seulement
             self.export_actions[fmt].setEnabled(mode == "engrave")
+        isolate = bool(self.state.get("isolate"))
+        for button in self.tool_buttons.buttons():         # repères : seulement en isolant le sujet (« isoonly »)
+            only = next(t[2] for t in TOOLS if t[0] == button.property("tool"))
+            button.setVisible(isolate or not only)
+        if not isolate and self.source_view.tool in ("fg", "bg", "erase"):
+            self._choose_tool("move")
 
     def _changed(self, key, value, from_view=False):
         """Un réglage a changé (formulaire, boutons des modes, molette sur la photo), comme changed() de la page."""
@@ -321,6 +351,46 @@ class QStencilDialog(QDialog):
         self.state["zoom"] = zoom
         self.form.set_value("zoom", zoom)
 
+    def _choose_tool(self, tool):
+        self.source_view.tool = tool
+        for button in self.tool_buttons.buttons():
+            button.setChecked(button.property("tool") == tool)
+
+    def _subject_box_drawn(self, box):
+        """Rectangle du sujet tracé : le sujet est isolé et le cadre se règle sur lui (comme la page)."""
+        if box and not self.state.get("isolate"):
+            self.state["isolate"] = True
+            self.form.set_value("isolate", True)
+            self._refresh_form()
+        if box:
+            self.fit_frame_to_box(box)
+        self.schedule()
+
+    def fit_frame_to_box(self, box):
+        """Cadre réglé sur le rectangle du sujet, 8 % de marge (fitFrameToBox) ; hors cercle, au format usuel le
+        plus proche des proportions du sujet."""
+        iw, ih = self.source_view.iw, self.source_view.ih
+        if self.state.get("shape") != "circle":
+            target = (box["w"] * iw) / (box["h"] * ih)
+            ratios = [o[0] for o in self.spec.item("aspect")["opts"] if o[0] not in ("full", "custom")]
+            best = min(ratios, key=lambda r: abs(math.log(float(r) / target)))
+            self.state["aspect"] = best
+            self.form.set_value("aspect", best)
+        a = frame_model.aspect(self.state, iw, ih)
+        bw, bh = box["w"] * iw * 1.08, box["h"] * ih * 1.08
+        width = max(bw, bh * a) / iw
+        self.source_view.set_frame({"cx": box["x"] + box["w"] / 2, "cy": box["y"] + box["h"] / 2, "w": width})
+        self._sync_zoom()
+        self._refresh_form()
+
+    def _hints_painted(self, png):
+        """Repères peints : envoyés au calcul (dans le fil de calcul, sous son verrou, comme /api/hints)."""
+        def send():
+            with self.service.lock:
+                self.service.set_hints(png)
+            return {}
+        self._run(send, lambda _out: self._results.preview.emit({"hints": True}))
+
     def _frame_moved(self, moving):
         self._moving = moving
         self._sync_zoom()
@@ -355,7 +425,7 @@ class QStencilDialog(QDialog):
         frame = frame_model.request_frame(s, self.source_view.iw, self.source_view.ih, self.source_view.frame())
         return {"seq": self._seq, "params": self.spec.request_params(s), "frame": frame,
                 "isolate": bool(s.get("isolate")), "margin": s.get("margin"), "mbr": [], "lpg": {"pts": [], "edges": []},
-                "view": view or self.view, "work": work, "moving": self._moving, "box": None,
+                "view": view or self.view, "work": work, "moving": self._moving, "box": self.source_view.subject_box,
                 "style": {"material": s.get("material"), "backlight": bool(s.get("backlight")),
                           "light": s.get("lightcolor"), "lang": self.language}}
 
@@ -380,6 +450,10 @@ class QStencilDialog(QDialog):
         threading.Thread(target=target, name="qstencil-calcul", daemon=True).start()
 
     def _show_preview(self, out):
+        if out.get("hints"):                # repères reçus par le calcul : aperçu relancé en isolant le sujet
+            if self.state.get("isolate"):
+                self.schedule()
+            return
         if out.get("stale") or out.get("seq") != self._seq:
             return                          # un réglage plus récent a relancé l'aperçu
         self.result_view.set_image(to_qimage(out["image"]))
