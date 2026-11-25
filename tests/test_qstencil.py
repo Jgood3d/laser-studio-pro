@@ -46,6 +46,7 @@ class QtDialogTests(unittest.TestCase):
         exported = []
         dialog.export_ready.connect(exported.append)
         dialog.open_path(IMAGE)
+        dialog.form.widgets["exp_preview"].setChecked(False)             # sans aperçu avant export
         self.wait(lambda: dialog.result_view._pixmap is not None)
         self.assertIn("contours", dialog.status.text())
         halftone = next(b for b in dialog.mode_buttons.buttons() if b.property("mode") == "halftone")
@@ -92,6 +93,9 @@ class QtDialogTests(unittest.TestCase):
             self.assertEqual(dialog.state[key], value, key)
         exported = []
         dialog.export_ready.connect(exported.append)
+        previews = []
+        # Aperçu avant export : accepté pour le DXF et le caisson, refusé ensuite (« Retour aux réglages »).
+        dialog.confirm_export = lambda name, picture, out: previews.append(picture) or not previews[2:]
         dialog.export("dxf")                                            # DXF : vers Laser Studio
         self.wait(lambda: exported)
         self.assertTrue(exported[0].endswith("_cut.dxf"))
@@ -99,6 +103,11 @@ class QtDialogTests(unittest.TestCase):
         with mock.patch.object(QFileDialog, "getSaveFileName", return_value=(saved, "")):
             dialog.export("boxsvg")                                     # caisson : enregistré sur le disque
             self.wait(lambda: os.path.exists(saved))
+        self.assertEqual(len(exported), 1)
+        self.assertTrue(previews[0].lstrip().startswith("<"))          # DXF montré par son SVG avant l'export
+        dialog.export("svg")                                            # « Retour aux réglages » : pas d'export
+        self.wait(lambda: len(previews) == 3)
+        self.app.processEvents()
         self.assertEqual(len(exported), 1)
         self.assertFalse(dialog.export_actions["png"].isEnabled())      # gravure PNG : mode Gravure seulement
 
@@ -130,6 +139,40 @@ class QtDialogTests(unittest.TestCase):
         next(b for b in dialog.tool_buttons.buttons() if b.property("tool") == "fg").click()
         drag((0.48, 0.30), (0.52, 0.45))                                # trait vert sur le sujet
         self.wait(lambda: dialog.service.session.has_hints())
+
+    def test_undo_resize_handles_and_image_width(self):
+        from PyQt6.QtCore import QPointF, Qt
+        from PyQt6.QtGui import QMouseEvent
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(1400, 900)
+        dialog.show()
+        dialog.open_path(IMAGE)
+        dialog.form.widgets["size_mm"].setValue(150)
+        dialog._commit_history()                                        # fin d'une série de changements
+        self.assertTrue(dialog.undo_button.isEnabled())
+        dialog.undo()
+        self.assertEqual((dialog.state["size_mm"], dialog.form.value("size_mm")), (100, 100))
+        dialog.redo()
+        self.assertEqual(dialog.state["size_mm"], 150)
+        dialog.form.widgets["shape"].setCurrentIndex(dialog.form.widgets["shape"].findData("rect"))
+        dialog.form.widgets["aspect"].setCurrentIndex(dialog.form.widgets["aspect"].findData("custom"))
+        view = dialog.source_view
+        scale, ox, oy = view._view()
+        f = view.frame()
+        fw, fh = __import__("stencil_studio.models.frame", fromlist=["dims"]).dims(dialog.state, view.iw, view.ih, f)
+        corner = QPointF(ox + (f["cx"] * view.iw + fw / 2) * scale, oy + (f["cy"] * view.ih + fh / 2) * scale)
+        inside = QPointF(corner.x() - 40, corner.y() - 40)
+        width_before = dialog.state["custom_w"]
+        for handler, point in ((view.mousePressEvent, corner), (view.mouseMoveEvent, inside),
+                               (view.mouseReleaseEvent, inside)):
+            handler(QMouseEvent(QMouseEvent.Type.MouseMove, point, point, Qt.MouseButton.LeftButton,
+                                Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        self.assertLess(dialog.state["custom_w"], width_before)        # coin tiré vers l'intérieur
+        self.assertEqual(dialog.form.value("custom_w"), dialog.state["custom_w"])
+        dialog.form.widgets["img_mm"].setValue(dialog.state["img_mm"] / 3)   # photo plus petite que le cadre
+        self.assertTrue(dialog.state["free"])                          # placement libre, marges vides
 
     def test_menu_entry_opens_the_qt_version_next_to_the_web_one(self):
         from unittest import mock

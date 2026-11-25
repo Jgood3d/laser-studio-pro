@@ -12,10 +12,8 @@ from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox,
                              QLineEdit, QPushButton, QVBoxLayout, QWidget)
 
-# Réglages de la page absents de la fenêtre Qt : « output » est remplacé par les boutons des modes.
-# shortcut: largeur de l'image sur la plaque (img_mm) et aperçu avant export (exp_preview) pas encore repris ;
-# à ajouter avec la fenêtre d'aperçu d'export.
-SKIPPED = {"output", "img_mm", "exp_preview"}
+# Réglage de la page absent du formulaire : « output » est remplacé par les boutons des modes.
+SKIPPED = {"output"}
 
 
 class SettingsForm(QWidget):
@@ -124,6 +122,8 @@ class SettingsForm(QWidget):
             widget = QDoubleSpinBox()
             step = float(item.get("step", 1) or 1)
             decimals = 0 if step == int(step) else len(str(step).split(".")[1])
+            if kind == "number":
+                decimals = max(decimals, 1)    # champ libre de la page : garde les dixièmes (cadre redimensionné)
             widget.setDecimals(decimals)
             widget.setRange(float(item.get("min", -1e9)), float(item.get("max", 1e9)))
             widget.setSingleStep(step)
