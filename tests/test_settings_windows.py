@@ -130,7 +130,8 @@ class AppMenusTests(unittest.TestCase):
                                                                  self.actions.quit])
         self.assertEqual(self.actions.machine_params_window.text(), tr("menu.file.settings"))
         self.assertEqual(self.texts(self.menu_bar.tools_menu),
-                         [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("sep.tab_title"),
+                         [tr("tab.test_matrix"), tr("menu.tools.stencil_studio"), tr("menu.tools.stencil_studio_qt"),
+                          tr("sep.tab_title"),
                           tr("png2svg.tab_title"), tr("menu.tools.camera"), tr("menu.tools.library"),
                           tr("menu.tools.import_vector"), tr("menu.tools.box"), tr("menu.tools.puzzle"),
                           tr("menu.tools.ornament"), tr("menu.tools.keychain")])

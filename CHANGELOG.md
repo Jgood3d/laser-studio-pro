@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Stencil Studio en widgets Qt, expérimental (« Outils › Stencil Studio (Qt, expérimental) »), à côté de la version web qui ne change pas : ouvrir une image, choisir le mode et les réglages, voir l'aperçu, exporter vers l'éditeur vectoriel. Même calcul et mêmes réglages que la page web.
+
 Cadrage visible et au plus près : la tête fait le tour du travail laser allumé à 0,5 % du S-Max (assez pour voir le point sans marquer ; réglable par machine dans Configuration GRBL, « Puissance du cadrage », pour une diode qui ne s'allume qu'à 1 ou 2 %), d'après le G-Code qui sera gravé (image et calques vectoriels). Deux modes : le rectangle qui contient tout le travail (X max, Y max, retour à X0 puis Y0 ; F6), et le tour au plus près de chaque pièce, creux compris (forme en L, étoile), à 1 mm près (nouveau bouton, Maj+F6). Sans G-Code, le rectangle reprend le cadre de l'image.
 
 Reprendre un travail interrompu : après une alarme, un arrêt ou une coupure, le bouton « Reprendre » (⏩, panneau du graveur) relance le travail là où il s'est arrêté. La tête revient laser éteint au point exact où elle s'est arrêtée (position relue au graveur une fois arrêté, avant tout homing), avec la puissance, la vitesse et le mode du G-Code à ce point : seul le reste du trait en cours est gravé, sans décalage ni double passage. Si la position n'a pas pu être lue (coupure de courant), la reprise repart des derniers traits que le graveur avait en mémoire, regravés plutôt que laissés en trou.

@@ -176,9 +176,10 @@ laser-studio-pro/
 │       ├── LISEZMOI.md
 │       ├── core/ · engrave.py / lightbox.py / subject_ai.py   # calcul, sans Qt (core/ : un module par métier)
 │       ├── server.py                     # serveur local : page web et API (python -m stencil_studio)
-│       ├── models/                       # session.py (photo, repères peints), presets.py (réglages enregistrés)
-│       ├── controllers/                  # api.py (aperçu, visage, export), studio.py (StencilStudioController : fenêtre dans LSP)
-│       ├── ui/                           # studio.html, dialog.py (StudioDialog), window.py (processus séparé), themes.py
+│       ├── models/                       # session.py (photo, repères peints), presets.py (réglages enregistrés), frame.py (cadre de la page)
+│       ├── controllers/                  # service.py (StudioService : calcul commun), api.py (mise en forme pour la page), studio.py (StencilStudioController : fenêtres dans LSP)
+│       ├── spec.py                       # réglages, modes et bulles d'aide lus dans studio.html (fenêtre Qt)
+│       ├── ui/                           # studio.html, dialog.py (StudioDialog), window.py (processus séparé), themes.py, qt/ (QStencilDialog, expérimental)
 │       ├── timing.py                     # mesure du temps d'ouverture (stencil_studio_timing.log)
 │       ├── lasercut_stencil.py           # ligne de commande
 │       ├── selftest.py                   # autotest : mêmes résultats OpenCV / numpy / scipy que les valeurs attendues
@@ -371,9 +372,12 @@ Modèle / vue / contrôleur, comme LSP, et sans aucun import de `laser_studio` (
 | **core/**, **lightbox.py**, **engrave.py**, **subject_ai.py** | `core/` rangé par métier : params (réglages, résultat), framing (cadrage), subject (sujet, visage), tones (tons -> matière), plate (formes, anneau, œillet, ponts, contours), halftone (trame), engraving (gravure), lowpoly, qr, colors (palette), layers (multicouche), pipeline (`process`), render (aperçus), export (SVG, DXF) ; `core/__init__.py` expose les noms utilisés par l'API, la CLI et les tests (`core.process`, `core.Params`…). Calcul sans Qt : pochoir, trame, gravure, couches, QR, low poly, caisson lumineux, détourage par IA (onnxruntime, facultatif) |
 | **models/session.py** | `StudioSession` : photo chargée, version d'affichage, repères peints (sujet / fond), numéros de version pour le cache |
 | **models/presets.py** | `PresetsStore` : réglages enregistrés (`presets.json`, dans le dossier du Studio ou le profil de l'utilisateur) |
-| **controllers/api.py** | `StudioApi` : ce que la page demande (aperçu, détection du visage, export SVG / DXF / caisson / test de flexion), un calcul à la fois, résultat en cache |
+| **controllers/service.py** | `StudioService` : le calcul commun aux deux interfaces (aperçu, détection du visage, export SVG / DXF / caisson / test de flexion), un calcul à la fois, résultat en cache ; résultats bruts (image d'aperçu en tableau RGB, fichiers en texte ou en octets) |
+| **controllers/api.py** | `StudioApi` (hérite de `StudioService`) : réponses au format de la page (aperçu en PNG « data: », fichiers binaires en base64) |
+| **spec.py** · **models/frame.py** | La page reste la seule source des réglages : `spec.load()` lit dans `ui/studio.html` les constantes `SPEC`, `MODES`, `MODE_*` et `TIPS` (valeurs par défaut de la page, pas celles de `core.Params`) ; `frame.centered_frame` reprend le cadre de la page (curAspect, clampFrame, getFrame), centré, non tourné |
+| **ui/qt/** | `QStencilDialog` (expérimental, « Outils › Stencil Studio (Qt, expérimental) ») : parcours principal en widgets Qt (image, modes, réglages générés depuis `spec`, aperçu dans un fil de calcul, export SVG annoncé par `export_ready` comme la page) ; `SettingsForm` (`controls.py`) construit les réglages |
 | **server.py** | Serveur HTTP local (127.0.0.1) : routes vers `StudioApi`, page `ui/studio.html`, langues ; `start_server(port)` dans un thread |
-| **controllers/studio.py** | `StencilStudioController` : ouverture de la fenêtre, préchauffage (imports dans un thread, page chargée dans une fenêtre invisible), repli en processus séparé ou dans le navigateur, thème à chaud. Reçoit de LSP `theme()` (couleurs), la langue et `dialogs` ; émet `export_ready(chemin)` |
+| **controllers/studio.py** | `StencilStudioController` : ouverture de la fenêtre (page web : `open` ; version Qt : `open_qt`), préchauffage (imports dans un thread, page chargée dans une fenêtre invisible), repli en processus séparé ou dans le navigateur, thème à chaud. Reçoit de LSP `theme()` (couleurs), la langue et `dialogs` ; émet `export_ready(chemin)` |
 | **ui/dialog.py** | `StudioDialog` : vue QtWebEngine, couleurs passées à `window.setTheme`, exports SVG / DXF téléchargés puis annoncés (`export_downloaded`), les autres fichiers enregistrés |
 | **ui/window.py** | Le Studio dans son propre processus (Qt refuse QtWebEngine dans LSP) : écrit `STENCIL_EXPORT:<chemin>` sur sa sortie à chaque export |
 | **ui/themes.py** | Couleurs par défaut et repli d'après la palette Qt ; dans LSP, elles viennent de `laser_studio.ui.app.theme.page_colors` |

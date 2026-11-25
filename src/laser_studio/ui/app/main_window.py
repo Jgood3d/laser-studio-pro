@@ -280,6 +280,7 @@ class FullLaserStudio(QMainWindow):
         actions.language_selected.connect(controller.select_language)
         actions.theme_selected.connect(controller.change_theme)
         actions.stencil_studio_requested.connect(lambda: controller.stencil().open())
+        actions.stencil_studio_qt_requested.connect(lambda: controller.stencil().open_qt())
         actions.main_tab_requested.connect(controller.show_main_tab)
         in_editor, generators = controller.run_in_vector_editor, self.vector_generators
         actions.vector_import_requested.connect(lambda: in_editor(self.vector_editor.import_dialog))

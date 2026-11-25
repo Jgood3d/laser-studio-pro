@@ -65,6 +65,7 @@ class AppActions(QObject):
     language_selected = pyqtSignal(str)  # code de langue : "fr", "en"…
     theme_selected = pyqtSignal(str)  # code de thème : "dark", "light"…
     stencil_studio_requested = pyqtSignal()
+    stencil_studio_qt_requested = pyqtSignal()  # version Qt de Stencil Studio (expérimentale)
     main_tab_requested = pyqtSignal(str)  # "tab_separation", "tab_png2svg"
     # Outils de l'onglet « Graver une image vectorielle »
     vector_import_requested = pyqtSignal()
@@ -274,6 +275,11 @@ class AppActions(QObject):
             tr("menu.tools.stencil_studio"),
             self.stencil_studio_requested,
         )
+        self.stencil_studio_qt = self._action(
+            bundled_icon("applications-graphics", QStyle.StandardPixmap.SP_DesktopIcon),
+            tr("menu.tools.stencil_studio_qt"),
+            self.stencil_studio_qt_requested,
+        )
         # Raccourcis vers deux onglets centraux (voir show_main_tab).
         self.separation_tab = self._action(
             bundled_icon("color-management", QStyle.StandardPixmap.SP_DriveNetIcon),
@@ -290,6 +296,7 @@ class AppActions(QObject):
         self.tool_actions = (
             self.test_matrix_window,
             self.stencil_studio,
+            self.stencil_studio_qt,
             self.separation_tab,
             self.png2svg_tab,
         )

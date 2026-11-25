@@ -80,6 +80,7 @@ class StencilStudioController(QObject):
         self.language = language
         self.dialogs = dialogs
         self.dialog = None
+        self.qt_dialog = None             # version Qt (open_qt)
         self._process = None
         self._server = None               # (serveur, port)
         self._preload_started = False
@@ -140,6 +141,17 @@ class StencilStudioController(QObject):
         dlg.load(self._url())
 
     # -- ouverture
+
+    def open_qt(self):
+        """« Outils > Stencil Studio (Qt) » : la version en widgets Qt (expérimentale), à côté de la page web ;
+        ses exports arrivent par le même signal export_ready. Créée au premier appel, puis réaffichée."""
+        if self.qt_dialog is None:
+            from ..ui.qt import QStencilDialog        # chargé à la demande : OpenCV, SciPy… (plusieurs secondes)
+            self.qt_dialog = QStencilDialog(self.window, language=self.language)
+            self.qt_dialog.export_ready.connect(self.export_ready)
+        self.qt_dialog.show()
+        self.qt_dialog.raise_()
+        self.qt_dialog.activateWindow()
 
     def open(self):
         """« Outils > Stencil Studio » : crée la fenêtre au premier appel, puis la réaffiche."""
