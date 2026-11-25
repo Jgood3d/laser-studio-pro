@@ -54,6 +54,7 @@ class SourceView(QWidget):
     hints_painted = pyqtSignal(bytes)             # repères peints, PNG
     custom_size_changed = pyqtSignal()            # custom_w, custom_h et size_mm changés dans `state`
     message = pyqtSignal(str)                     # texte (anglais, à traduire) pour la barre d'état
+    point_picked = pyqtSignal(float, float)       # pipette : point cliqué (pixels de la photo)
 
     def __init__(self, state, placeholder="", parent=None):
         super().__init__(parent)
@@ -68,6 +69,7 @@ class SourceView(QWidget):
         self._box_start = None
         self._painting = None             # dernier point peint (pixels de la photo)
         self.tool = "move"
+        self.picking = False              # pipette du relief en couches : un clic donne un point (point_picked)
         self.subject_box = None           # rectangle du sujet (B de la page)
         self.hints = None                 # repères peints (QImage à la taille de la photo affichée)
         self.setMinimumSize(200, 200)
@@ -203,6 +205,9 @@ class SourceView(QWidget):
         if self.pixmap is None or event.button() != Qt.MouseButton.LeftButton:
             return
         x, y = self._to_image(event.position())
+        if self.picking:
+            self.point_picked.emit(x, y)
+            return
         if self.tool == "move":
             scale = self._view()[0]
             if not frame_model.is_full(self.state):
@@ -250,7 +255,8 @@ class SourceView(QWidget):
             self._paint(*self._painting, x, y)
             self._painting = (x, y)
         else:
-            self.setCursor(Qt.CursorShape.OpenHandCursor if self.tool == "move" else Qt.CursorShape.CrossCursor)
+            move = self.tool == "move" and not self.picking
+            self.setCursor(Qt.CursorShape.OpenHandCursor if move else Qt.CursorShape.CrossCursor)
 
     def mouseReleaseEvent(self, event):
         if self._resize is not None:
