@@ -187,7 +187,7 @@ class QtDialogTests(unittest.TestCase):
         form = dialog.form
         advanced = next(k for k in dialog.spec.advanced if k in form.widgets
                         and dialog.spec.row_shown(k, "stencil") and k not in dialog.spec.row_states(dialog.state)[1])
-        row_hidden = lambda key: not form._rows[key][0].isRowVisible(form.widgets[key])   # noqa: E731
+        row_hidden = lambda key: form._rows[key][0].isHidden()   # noqa: E731
         self.assertTrue(row_hidden(advanced))                            # réglage avancé masqué par défaut
         dialog.advanced_check.setChecked(True)
         self.assertFalse(row_hidden(advanced))
@@ -238,6 +238,19 @@ class QtDialogTests(unittest.TestCase):
         self.assertTrue(boxes["Frame"].is_open())
         dialog.form.set_filter("")
         self.assertFalse(boxes["Frame"].is_open())
+
+    def test_slider_field_like_the_page(self):
+        """Curseur des réglages « range » : pourcentages saisis × 100, unité de la page, curseur et champ d'accord."""
+        from stencil_studio.ui.qt.controls import SliderField
+        pct = SliderField({"k": "x", "t": "range", "min": 0, "max": 1, "step": 0.05, "def": 0.5, "fmt": "pct"})
+        self.assertEqual((pct.spin.value(), pct.spin.suffix(), pct.slider.value()), (50, " %", 10))
+        seen = []
+        pct.valueChanged.connect(seen.append)
+        pct.spin.setValue(75)
+        self.assertEqual((pct.value(), pct.slider.value(), seen), (0.75, 15, [0.75]))
+        rot = SliderField({"k": "rot", "t": "range", "min": -180, "max": 180, "step": 1, "def": 0, "unit": "°"})
+        rot.slider.setValue(rot.slider.maximum())
+        self.assertEqual((rot.value(), rot.spin.suffix()), (180, " °"))
 
     def test_stats_like_the_page(self):
         from stencil_studio.ui.qt.stats import stats_message

@@ -26,6 +26,7 @@ CONSTANTS = {"SPEC": "[", "MODES": "[", "MODE_COMMON": "[", "MODE_EXTRA": "{", "
              "BOXMSG": "{", "DEF_OPEN": "["}
 _CLOSING = {"[": "]", "{": "}"}
 # Fonction d'affichage d'une valeur (« fmt:mm », « fmt:v => … ») : inutile hors de la page, remplacée par son nom.
+_UNIT = re.compile(r'["\']\s*([^"\'\d\s+.]+)["\']\s*$')
 _FMT = re.compile(r'fmt:\s*(v\s*=>.*?|\w+)(?=,\s*\w+\s*:|\s*\})')
 
 
@@ -53,10 +54,18 @@ def _literal(html, name):
     raise ValueError(f"{name} : littéral non fermé dans studio.html")
 
 
+def _fmt_name(match):
+    """« fmt » de la page -> son nom ; une fonction garde l'unité qu'elle ajoute au nombre (« v + " °" »)."""
+    name = match.group(1)
+    if name in ("mm", "pct"):
+        return f'fmt:"{name}"'
+    unit = _UNIT.search(name)
+    return 'fmt:"custom"' + (f',unit:"{unit.group(1)}"' if unit else "")
+
+
 def js_to_json(text):
     """Littéral JavaScript de la page (clés sans guillemets, chaînes '…', virgules finales, noms nus) -> JSON."""
-    text = _FMT.sub(lambda m: 'fmt:"%s"' % ("mm" if m.group(1) == "mm" else "pct" if m.group(1) == "pct"
-                                             else "custom"), text)
+    text = _FMT.sub(_fmt_name, text)
     out, i, n = [], 0, len(text)
     while i < n:
         ch = text[i]
