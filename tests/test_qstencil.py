@@ -48,7 +48,8 @@ class QtDialogTests(unittest.TestCase):
         dialog.open_path(IMAGE)
         dialog.form.widgets["exp_preview"].setChecked(False)             # sans aperçu avant export
         self.wait(lambda: dialog.result_view._pixmap is not None)
-        self.assertIn("contours", dialog.status.text())
+        self.assertIn("Contours :", dialog.status.text())              # statistiques complètes, comme la page
+        self.assertIn("Ponts :", dialog.status.text())
         halftone = next(b for b in dialog.mode_buttons.buttons() if b.property("mode") == "halftone")
         halftone.click()
         self.assertEqual(dialog.state["output"], "halftone")
@@ -173,6 +174,44 @@ class QtDialogTests(unittest.TestCase):
         self.assertEqual(dialog.form.value("custom_w"), dialog.state["custom_w"])
         dialog.form.widgets["img_mm"].setValue(dialog.state["img_mm"] / 3)   # photo plus petite que le cadre
         self.assertTrue(dialog.state["free"])                          # placement libre, marges vides
+
+    def test_search_advanced_settings_and_saved_settings(self):
+        from unittest import mock
+        from PyQt6.QtWidgets import QInputDialog
+        from stencil_studio.models.presets import PresetsStore
+        from stencil_studio.ui.qt import QStencilDialog
+        store = PresetsStore(os.path.join(tempfile.mkdtemp(), "presets.json"))
+        dialog = QStencilDialog(language="fr", presets=store)
+        self.addCleanup(dialog.deleteLater)
+        dialog.show()
+        form = dialog.form
+        advanced = next(k for k in dialog.spec.advanced if k in form.widgets
+                        and dialog.spec.row_shown(k, "stencil") and k not in dialog.spec.row_states(dialog.state)[1])
+        row_hidden = lambda key: not form._rows[key][0].isRowVisible(form.widgets[key])   # noqa: E731
+        self.assertTrue(row_hidden(advanced))                            # réglage avancé masqué par défaut
+        dialog.advanced_check.setChecked(True)
+        self.assertFalse(row_hidden(advanced))
+        dialog.search.setText("ponts")                                   # recherche (sans tenir compte des accents)
+        self.assertFalse(row_hidden("bridge_mm"))
+        self.assertTrue(row_hidden("blur"))
+        dialog.search.clear()
+        form.widgets["size_mm"].setValue(120)
+        with mock.patch.object(QInputDialog, "getText", return_value=("Mes plaques", True)):
+            dialog.save_user_preset()
+        self.assertEqual(store.load()["Mes plaques"]["size_mm"], 120)   # même fichier que la page
+        self.assertNotIn("zoom", store.load()["Mes plaques"])          # réglage que la page ne garde pas
+        form.widgets["size_mm"].setValue(80)
+        dialog.apply_user_preset("Mes plaques")
+        self.assertEqual((dialog.state["size_mm"], form.value("size_mm")), (120, 120))
+
+    def test_stats_like_the_page(self):
+        from stencil_studio.ui.qt.stats import stats_message
+        tr = lambda text, **kw: text.format(**kw)                       # noqa: E731
+        warnings, parts = stats_message({"holes": 12, "dots_across": 40, "length_mm": 980.4, "w_mm": 100, "h_mm": 80,
+                                         "subject_pct": 20.0, "text_scaled": True}, {}, None, {}, tr, "1")
+        self.assertEqual(parts, ["Holes: 12", "Grid: 40 dots across", "Subject: 20.0 %", "Cut length: 980 mm",
+                                 "Size: 100.0 x 80.0 mm", "v1"])
+        self.assertEqual(len(warnings), 2)                              # texte réduit, masque trop petit
 
     def test_menu_entry_opens_the_qt_version_next_to_the_web_one(self):
         from unittest import mock

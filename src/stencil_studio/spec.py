@@ -22,7 +22,8 @@ UI_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ui", "studio
 
 # Littéraux de la page à lire : nom de la constante -> caractère ouvrant.
 CONSTANTS = {"SPEC": "[", "MODES": "[", "MODE_COMMON": "[", "MODE_EXTRA": "{", "MODE_NOT": "{", "MODE_ROWS": "{",
-             "TIPS": "{", "PRESETS": "{", "PRESET_MODE": "{"}
+             "TIPS": "{", "PRESETS": "{", "PRESET_MODE": "{", "ADV": "[", "PRESET_SKIP": "[", "NO_RESET": "[",
+             "BOXMSG": "{"}
 _CLOSING = {"[": "]", "{": "}"}
 # Fonction d'affichage d'une valeur (« fmt:mm », « fmt:v => … ») : inutile hors de la page, remplacée par son nom.
 _FMT = re.compile(r'fmt:\s*(v\s*=>.*?|\w+)(?=,\s*\w+\s*:|\s*\})')
@@ -105,6 +106,10 @@ class Spec:
     tips: dict
     presets: dict         # styles prédéfinis : nom -> réglages
     preset_mode: dict     # style -> mode où il est proposé
+    advanced: list        # réglages avancés, masqués sauf « afficher les réglages avancés » (ADV)
+    preset_skip: list     # réglages que « mes réglages enregistrés » ne gardent pas (PRESET_SKIP)
+    no_reset: list        # réglages jamais comptés comme modifiés (NO_RESET)
+    box_messages: dict    # avertissements du caisson : code -> texte (BOXMSG)
 
     def items(self):
         return [item for group in self.groups for item in group["items"]]
@@ -130,6 +135,16 @@ class Spec:
     def row_shown(self, key, mode):
         """Réglage propre à certains modes (MODE_ROWS) : affiché pour `mode` ?"""
         return key not in self.mode_rows or mode in self.mode_rows[key]
+
+    def is_modified(self, key, value):
+        """Réglage changé par rapport à sa valeur de départ (isMod de la page)."""
+        default = self.item(key).get("def")
+        if isinstance(default, (int, float)) and not isinstance(default, bool):
+            try:
+                return abs(float(value) - default) > 1e-9
+            except (TypeError, ValueError):
+                return True
+        return value != default
 
     def presets_for(self, mode):
         """Styles proposés dans « Partir d'un style » pour `mode` (PRESET_MODE), dans l'ordre de la liste."""
@@ -213,4 +228,6 @@ def load(path=UI_FILE):
     parsed = {name: js_to_json(_literal(html, name)) for name in CONSTANTS}
     return Spec(groups=parsed["SPEC"], modes=parsed["MODES"], mode_common=parsed["MODE_COMMON"],
                 mode_extra=parsed["MODE_EXTRA"], mode_not=parsed["MODE_NOT"], mode_rows=parsed["MODE_ROWS"],
-                tips=parsed["TIPS"], presets=parsed["PRESETS"], preset_mode=parsed["PRESET_MODE"])
+                tips=parsed["TIPS"], presets=parsed["PRESETS"], preset_mode=parsed["PRESET_MODE"],
+                advanced=parsed["ADV"], preset_skip=parsed["PRESET_SKIP"], no_reset=parsed["NO_RESET"],
+                box_messages=parsed["BOXMSG"])

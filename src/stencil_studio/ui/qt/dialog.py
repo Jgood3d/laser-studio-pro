@@ -15,6 +15,7 @@
 Les calculs tournent dans un fil à part : la fenêtre ne se fige pas. Un aperçu dépassé par un réglage plus
 récent est abandonné (numéro de demande « seq », comme la page).
 """
+import html
 import io
 import json
 import math
@@ -27,18 +28,21 @@ from PIL import Image
 from PyQt6.QtCore import QByteArray, QObject, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QImage, QKeySequence, QPainter, QPalette, QPixmap, QShortcut
 from PyQt6.QtSvg import QSvgRenderer
-from PyQt6.QtWidgets import (QApplication, QButtonGroup, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
-                             QHBoxLayout, QLabel, QMenu, QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolButton,
-                             QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
+                             QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMenu, QMessageBox,
+                             QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolButton, QVBoxLayout, QWidget)
 
+from ... import core
 from ... import spec as spec_module
 from ...controllers.service import StudioService
 from ...i18n import load_catalog
 from ...models import frame as frame_model
 from ...models.history import History, snapshot
+from ...models.presets import PresetsStore
 from ...models.session import StudioSession
 from .controls import SettingsForm
 from .source_view import SourceView
+from .stats import stats_message
 
 PREVIEW_DELAY_MS = 140          # réglages regroupés avant de relancer l'aperçu, comme la page (schedule)
 HISTORY_DELAY_MS = 450          # changements regroupés en une étape d'annulation, comme la page (histNote)
@@ -126,7 +130,7 @@ class QStencilDialog(QDialog):
 
     export_ready = pyqtSignal(str)
 
-    def __init__(self, parent=None, language="en", service=None):
+    def __init__(self, parent=None, language="en", service=None, presets=None):
         super().__init__(parent)
         self.setWindowTitle("Stencil Studio (Qt)")
         self.resize(1300, 820)
@@ -145,17 +149,15 @@ class QStencilDialog(QDialog):
         self._results.failed.connect(lambda msg: self.status.setText(self.tr_("Error: {msg}", msg=msg)))
         self._timer = QTimer(self, singleShot=True, interval=PREVIEW_DELAY_MS)
         self._timer.timeout.connect(self._send_preview)
+        self.presets_store = presets or PresetsStore()     # mêmes réglages enregistrés que la page (presets.json)
+        self.user_presets = self.presets_store.load()
         self.history = History()
         self._history_timer = QTimer(self, singleShot=True, interval=HISTORY_DELAY_MS)
         self._history_timer.timeout.connect(self._commit_history)
 
         self.form = SettingsForm(self.spec, self.tr_)
         self.form.changed.connect(self._changed)
-        settings = QScrollArea()
-        settings.setWidgetResizable(True)
-        settings.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        settings.setWidget(self.form)
-        settings.setMinimumWidth(380)
+        settings = self._settings_panel()
         self.source_view = SourceView(self.state, self.tr_("Open an image to start (or drop it on this window)."))
         self.source_view.frame_changed.connect(self._frame_moved)
         self.source_view.rotation_changed.connect(lambda angle: self._changed("rot", angle, from_view=True))
@@ -169,6 +171,7 @@ class QStencilDialog(QDialog):
         views.addWidget(self._titled(self._view_combo(), self.result_view))
         self.status = QLabel()
         self.status.setWordWrap(True)
+        self.status.setTextFormat(Qt.TextFormat.RichText)
         body = QSplitter(Qt.Orientation.Horizontal)
         body.addWidget(settings)
         body.addWidget(views)
@@ -230,6 +233,109 @@ class QStencilDialog(QDialog):
         more.setMenu(self.export_menu)
         row.addWidget(more)
         return row
+
+    def _settings_panel(self):
+        """Réglages, avec au-dessus la recherche, les réglages avancés et mes réglages enregistrés (buildTools)."""
+        panel = QWidget()
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        self.search = QLineEdit()
+        self.search.setPlaceholderText(self.tr_("Search a setting..."))
+        self.search.setClearButtonEnabled(True)
+        self.search.textChanged.connect(lambda text: self.form.set_filter(query=text))
+        layout.addWidget(self.search)
+        self.advanced_check = QCheckBox(self.tr_("Show advanced settings"))
+        self.advanced_check.toggled.connect(lambda on: self.form.set_filter(advanced=on))
+        layout.addWidget(self.advanced_check)
+        row = QHBoxLayout()
+        self.user_preset_combo = QComboBox()
+        self.user_preset_combo.activated.connect(lambda _i: self.apply_user_preset(self.user_preset_combo.currentData()))
+        row.addWidget(self.user_preset_combo, 1)
+        for label, slot in (("Save as...", self.save_user_preset), ("Delete", self.delete_user_preset),
+                            ("Export", self.export_user_presets), ("Import", self.import_user_presets)):
+            button = QToolButton()
+            button.setText(self.tr_(label))
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        layout.addLayout(row)
+        self._refresh_user_presets()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(self.form)
+        layout.addWidget(scroll, 1)
+        panel.setMinimumWidth(380)
+        return panel
+
+    # -- mes réglages enregistrés (mêmes que la page : presets.json)
+
+    def _refresh_user_presets(self, current=""):
+        combo = self.user_preset_combo
+        combo.clear()
+        combo.addItem(self.tr_("My saved settings..."), "")
+        for name in sorted(self.user_presets):
+            combo.addItem(name, name)
+        combo.setCurrentIndex(max(0, combo.findData(current)))
+
+    def _store_user_presets(self, current=""):
+        self.presets_store.save(self.user_presets)
+        self._refresh_user_presets(current)
+
+    def apply_user_preset(self, name):
+        """Réglages enregistrés `name` appliqués, sauf ceux que la page ne garde pas (applyUserPreset)."""
+        preset = self.user_presets.get(name)
+        if not preset:
+            return
+        for item in self.spec.items():
+            key = item["k"]
+            if key not in self.spec.preset_skip and key in preset:
+                self.state[key] = preset[key]
+                self.form.set_value(key, preset[key])
+        self._set_mode(self.state.get("output") or "stencil")
+        self.source_view.refresh_frame()
+        self._sync_zoom()
+        self.schedule()
+
+    def save_user_preset(self):
+        current = self.user_preset_combo.currentData() or ""
+        name, ok = QInputDialog.getText(self, self.tr_("Save as..."), self.tr_("Name for these settings:"), text=current)
+        name = name.strip()
+        if not ok or not name:
+            return
+        if name in self.user_presets and name != current and QMessageBox.question(
+                self, self.tr_("Save as..."), self.tr_('Replace the existing settings named "{n}"?', n=name)) \
+                != QMessageBox.StandardButton.Yes:
+            return
+        self.user_presets[name] = {k: v for k, v in self.state.items() if k not in self.spec.preset_skip}
+        self._store_user_presets(name)
+
+    def delete_user_preset(self):
+        name = self.user_preset_combo.currentData()
+        if not name or QMessageBox.question(self, self.tr_("Delete"), self.tr_('Delete the settings "{n}"?', n=name)) \
+                != QMessageBox.StandardButton.Yes:
+            return
+        del self.user_presets[name]
+        self._store_user_presets()
+
+    def export_user_presets(self):
+        path, _f = QFileDialog.getSaveFileName(self, self.tr_("Export"), "laser_presets.json", "JSON (*.json)")
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(self.user_presets, f, ensure_ascii=False, indent=2)
+
+    def import_user_presets(self):
+        path, _f = QFileDialog.getOpenFileName(self, self.tr_("Import"), "", "JSON (*.json)")
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                imported = json.load(f)
+        except (OSError, ValueError) as error:          # fichier illisible : message, rien n'est changé
+            self.status.setText(self.tr_("Error: {msg}", msg=str(error)))
+            return
+        if isinstance(imported, dict):
+            self.user_presets.update(imported)
+            self._store_user_presets()
 
     def _tool_row(self):
         """Outils de la photo : déplacer le cadre, rectangle du sujet, repères (avec « isoler le sujet »)."""
@@ -533,7 +639,15 @@ class QStencilDialog(QDialog):
         if out.get("stale") or out.get("seq") != self._seq:
             return                          # un réglage plus récent a relancé l'aperçu
         self.result_view.set_image(to_qimage(out["image"]))
-        self.status.setText(self.stats_text(out.get("stats") or {}))
+        self.show_stats(out.get("stats") or {})
+
+    def show_stats(self, stats):
+        """Statistiques complètes sous l'aperçu, avertissements en rouge (renderStats de la page)."""
+        warnings, parts = stats_message(stats, self.state, self.source_view.subject_box, self.spec.box_messages,
+                                        self.tr_, core.VERSION)
+        lines = ([f'<b style="color:#ff6b5e">{html.escape(w)}</b>' for w in warnings]
+                 + [" · ".join(html.escape(str(p)) for p in parts)])
+        self.status.setText("<br>".join(lines))
 
     def stats_text(self, stats):
         parts = []
