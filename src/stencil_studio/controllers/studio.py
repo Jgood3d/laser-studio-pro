@@ -149,7 +149,7 @@ class StencilStudioController(QObject):
             from ..ui.qt import QStencilDialog        # chargé à la demande : OpenCV, SciPy… (plusieurs secondes)
             self.qt_dialog = QStencilDialog(self.window, language=self.language)
             self.qt_dialog.export_ready.connect(self.export_ready)
-        self.qt_dialog.show()
+        self.qt_dialog.showMaximized()
         self.qt_dialog.raise_()
         self.qt_dialog.activateWindow()
 

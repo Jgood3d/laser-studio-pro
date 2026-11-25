@@ -266,15 +266,19 @@ class SettingsForm(QWidget):
         """Ligne de la page : titre au-dessus du champ (valeur du curseur à droite du titre) ; une case porte son
         texte. Rend (ligne, titre ou None)."""
         text = self.tr(item.get("label", item["k"]))
-        if item["t"] == "check":
-            widget.setText(text)
-            return widget, None
+        label = QLabel(text)
+        label.setWordWrap(True)                     # volet étroit : les longs libellés passent à la ligne
         row = QWidget()
+        if item["t"] == "check":                    # case et son texte (cliquable), sur une ligne
+            line = QHBoxLayout(row)
+            line.setContentsMargins(0, 2, 0, 2)
+            line.addWidget(widget)
+            line.addWidget(label, 1)
+            label.mousePressEvent = lambda _e: widget.isEnabled() and widget.toggle()
+            return row, label
         layout = QVBoxLayout(row)
         layout.setContentsMargins(0, 4, 0, 2)
         layout.setSpacing(2)
-        label = QLabel(text)
-        label.setWordWrap(True)
         top = QHBoxLayout()
         top.addWidget(label, 1)
         if isinstance(widget, SliderField):
@@ -300,6 +304,8 @@ class SettingsForm(QWidget):
             widget.valueChanged.connect(lambda v, k=key: self.changed.emit(k, v))
         elif kind == "select":
             widget = QComboBox()
+            widget.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+            widget.setMinimumContentsLength(8)      # longues options : la liste rétrécit avec le volet
             for value, label in item.get("opts", []):
                 widget.addItem(self.tr(label), value)
             widget.setCurrentIndex(max(0, widget.findData(item.get("def"))))

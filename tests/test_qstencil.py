@@ -252,6 +252,22 @@ class QtDialogTests(unittest.TestCase):
         rot.slider.setValue(rot.slider.maximum())
         self.assertEqual((rot.value(), rot.spin.suffix()), (180, " °"))
 
+    def test_view_bar_backlight_and_legend(self):
+        """Barre du résultat comme la page : vues en boutons, rétroéclairage relié au réglage, légende de la vue."""
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="en")
+        self.addCleanup(dialog.deleteLater)
+        self.assertTrue(dialog.view_buttons["result"].isChecked())
+        self.assertIn("material kept", dialog.legend.text())
+        dialog.view_buttons["render"].click()
+        self.assertEqual(dialog.view, "render")
+        self.assertIn("Simulated look", dialog.legend.text())
+        on = bool(dialog.state["backlight"])
+        dialog.light_button.click()
+        self.assertEqual((dialog.state["backlight"], dialog.form.value("backlight")), (not on, not on))
+        dialog.reset_settings()
+        self.assertEqual(dialog.light_button.isChecked(), bool(dialog.spec.defaults()["backlight"]))
+
     def test_stats_like_the_page(self):
         from stencil_studio.ui.qt.stats import stats_message
         tr = lambda text, **kw: text.format(**kw)                       # noqa: E731

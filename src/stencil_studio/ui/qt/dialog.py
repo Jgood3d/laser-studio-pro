@@ -173,6 +173,7 @@ class QStencilDialog(QDialog):
         body.addWidget(settings)
         body.addWidget(views)
         body.setStretchFactor(1, 1)
+        body.setSizes([330, 1600])                    # volet des réglages de la largeur de la page (330 px)
         layout = QVBoxLayout(self)
         layout.addLayout(self._header_row())
         layout.addWidget(self._mode_row())
@@ -258,10 +259,11 @@ class QStencilDialog(QDialog):
         self.advanced_check = QCheckBox(self.tr_("Show advanced settings"))
         self.advanced_check.toggled.connect(lambda on: self.form.set_filter(advanced=on))
         layout.addWidget(self.advanced_check)
-        row = QHBoxLayout()
         self.user_preset_combo = QComboBox()
+        self.user_preset_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.user_preset_combo.activated.connect(lambda _i: self.apply_user_preset(self.user_preset_combo.currentData()))
-        row.addWidget(self.user_preset_combo, 1)
+        layout.addWidget(self.user_preset_combo)
+        row = QHBoxLayout()                       # boutons sous la liste : volet étroit, comme la page
         for label, slot in (("Save as...", self.save_user_preset), ("Delete", self.delete_user_preset),
                             ("Export", self.export_user_presets), ("Import", self.import_user_presets)):
             button = QToolButton()
@@ -275,7 +277,7 @@ class QStencilDialog(QDialog):
         scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         scroll.setWidget(self.form)
         layout.addWidget(scroll, 1)
-        panel.setMinimumWidth(380)
+        panel.setMinimumWidth(280)
         return panel
 
     # -- mes réglages enregistrés (mêmes que la page : presets.json)
@@ -377,15 +379,28 @@ class QStencilDialog(QDialog):
         return box
 
     def _result_row(self):
-        """Au-dessus du résultat, comme la page : la vue, les ponts manuels et les guides du low poly."""
+        """Au-dessus du résultat, comme la barre de la page : les vues en boutons collés, les ponts manuels et les
+        guides du low poly ; dessous, le rétroéclairage et la légende de la vue."""
         box = QWidget()
-        row = QHBoxLayout(box)
-        row.setContentsMargins(0, 0, 0, 0)
-        self.view_combo = QComboBox()
+        lines = QVBoxLayout(box)
+        lines.setContentsMargins(0, 0, 0, 0)
+        row = QHBoxLayout()
+        lines.addLayout(row)
+        views = QHBoxLayout()
+        views.setSpacing(0)
+        self.view_buttons = {}
+        group = QButtonGroup(self)
         for view, label in VIEWS:
-            self.view_combo.addItem(self.tr_(label), view)
-        self.view_combo.currentIndexChanged.connect(lambda _i: self.set_view(self.view_combo.currentData()))
-        row.addWidget(self.view_combo)
+            button = QToolButton()
+            button.setText(self.tr_(label))
+            button.setCheckable(True)
+            button.setChecked(view == "result")
+            button.clicked.connect(lambda _c=False, v=view: self.set_view(v))
+            group.addButton(button)
+            views.addWidget(button)
+            self.view_buttons[view] = button
+        row.addLayout(views)
+        row.addSpacing(8)
         self.overlay_buttons = {}
         for key, label, slot in (("bridge", "Manual bridge", lambda: self.set_overlay_mode("bridge")),
                                  ("guide", "Low poly guides", lambda: self.set_overlay_mode("guide")),
@@ -398,7 +413,34 @@ class QStencilDialog(QDialog):
             row.addWidget(button)
             self.overlay_buttons[key] = button
         row.addStretch()
+        second = QHBoxLayout()
+        self.light_button = QToolButton()
+        self.light_button.setText(self.tr_("Backlight"))
+        self.light_button.setToolTip(self.tr_("Backlight on/off"))
+        self.light_button.setCheckable(True)
+        self.light_button.setStyleSheet("QToolButton:checked { background: #ffd479; color: #2a1c00; "
+                                        "border: 1px solid #ffd479; border-radius: 4px; font-weight: 600; }")
+        self.light_button.clicked.connect(lambda on: self._changed("backlight", on, from_view=True))
+        second.addWidget(self.light_button)
+        self.legend = QLabel()
+        self.legend.setEnabled(False)                   # texte d'aide, en gris
+        second.addWidget(self.legend, 1)
+        lines.addLayout(second)
         return box
+
+    def _update_pane(self):
+        """Bouton du rétroéclairage et légende de la vue (updateLightBtn, updateLegend de la page)."""
+        self.light_button.setChecked(bool(self.state.get("backlight")))
+        view, layers = self.view, self.state.get("output") == "layers"
+        key = ("Simulated look: colours of material and light are indicative" if view == "render"
+               else "Cutting layout of the box parts (front, diffuser, frames, back)" if view == "box"
+               else "Stacked plates seen from the front (shadows suggest the depth; first plate at the back)"
+               if view == "assembled" and layers
+               else "Assembled box seen from the front-left (approximate drawing: check proportions, depth and stand)"
+               if view == "assembled"
+               else "black = burned by the laser, grey = cut away, red line = cut" if self.last_stats.get("eng_px")
+               else "black = material kept, white = cut away, red = bridges")
+        self.legend.setText(self.tr_(key))
 
     # -- ponts manuels et guides low poly (tracés sur le résultat)
 
@@ -408,9 +450,9 @@ class QStencilDialog(QDialog):
         view = self.result_view
         view.mode = None if view.mode == mode else mode
         if view.mode == "bridge" and self.view != "result":
-            self.view_combo.setCurrentIndex(self.view_combo.findData("result"))
+            self.set_view("result")
         if view.mode == "guide" and self.view not in GUIDE_VIEWS:
-            self.view_combo.setCurrentIndex(self.view_combo.findData("overlay"))
+            self.set_view("overlay")
         self._overlay_buttons()
         if view.mode == "bridge":
             self.status.setText(self.tr_("Manual bridge: drag a short line across the cut-out to keep. Click an "
@@ -505,6 +547,7 @@ class QStencilDialog(QDialog):
         for button in self.mode_buttons.buttons():
             button.setChecked(button.property("mode") == mode)
         self._refresh_form()
+        self._update_pane()                          # aussi après annuler, charger ou réinitialiser les réglages
 
     def _refresh_form(self):
         mode = self.state.get("output") or "stencil"
@@ -584,6 +627,8 @@ class QStencilDialog(QDialog):
         self.state[key] = value
         if from_view:
             self.form.set_value(key, value)
+        if key == "backlight":
+            self._update_pane()
         if key == "output":
             self._set_mode(value)
             if value == "qr" and not self.service.session.has_image():
@@ -739,7 +784,9 @@ class QStencilDialog(QDialog):
         """Vue de l'aperçu ; recalculée tout de suite, comme dans la page (setView)."""
         self.view = view
         self.result_view.view = view
+        self.view_buttons[view].setChecked(True)
         self._overlay_buttons()
+        self._update_pane()
         self._timer.stop()
         self._send_preview()
 
@@ -786,6 +833,7 @@ class QStencilDialog(QDialog):
         self.result_view.set_image(to_qimage(out["image"]))
         self.last_stats = out.get("stats") or {}
         self.show_stats(self.last_stats)
+        self._update_pane()
         self._refresh_colors()                   # palette des plaques du dernier calcul
 
     def show_stats(self, stats):
