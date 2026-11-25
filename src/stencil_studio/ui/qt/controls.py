@@ -124,6 +124,12 @@ class SettingsForm(QWidget):
             self.widgets["zoom"].setMaximum(10.0 if free else 1.0)
         self._fill_presets(mode)
 
+    def insert_after(self, key, widget):
+        """Widget sur toute la largeur, juste sous le réglage `key` (panneau des couleurs sous « ml_sep »)."""
+        form, field = self._rows[key]
+        row, _role = form.getWidgetPosition(field)
+        form.insertRow(row + 1, widget)
+
     def set_filter(self, query=None, advanced=None):
         """Recherche dans les réglages et « afficher les réglages avancés », comme la page."""
         if query is not None:

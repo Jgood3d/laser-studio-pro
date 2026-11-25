@@ -213,6 +213,69 @@ class QtDialogTests(unittest.TestCase):
                                  "Size: 100.0 x 80.0 mm", "v1"])
         self.assertEqual(len(warnings), 2)                              # texte réduit, masque trop petit
 
+    def test_colour_helpers_like_the_page(self):
+        import numpy as np
+        from stencil_studio.ui.qt.layer_colors import merge_picks, pick_color, picks_list
+        self.assertEqual(merge_picks(["#ff0000", "#fe0101", "#00ff00", "bad"]), ["#ff0000", "#00ff00"])   # trop proches
+        self.assertEqual(len(merge_picks([f"#{i:02x}0000" for i in range(0, 250, 40)] * 2)), 7)
+        rgb = np.zeros((20, 20, 3), np.uint8)
+        rgb[:, :10] = (200, 10, 10)
+        self.assertEqual(pick_color(rgb, 4, 10), "#c80a0a")              # médiane 7 × 7
+        self.assertIsNone(pick_color(rgb, 30, 10))                       # hors de la photo
+        self.assertEqual(picks_list("#ff0000, oups,#00FF00"), ["#ff0000", "#00FF00"])
+
+    def test_colour_picker_bridges_and_guides(self):
+        from PyQt6.QtCore import QPointF, Qt
+        from PyQt6.QtGui import QMouseEvent
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(1400, 900)
+        dialog.show()
+        dialog.open_path(IMAGE)
+
+        def press(view, points, rect):
+            for handler, (fx, fy) in zip((view.mousePressEvent, view.mouseMoveEvent, view.mouseReleaseEvent), points):
+                x, y, w, h = rect()
+                p = QPointF(x + fx * w, y + fy * h)
+                handler(QMouseEvent(QMouseEvent.Type.MouseMove, p, p, Qt.MouseButton.LeftButton,
+                                    Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        source = dialog.source_view
+
+        def source_rect():
+            scale, ox, oy = source._view()
+            return ox, oy, source.iw * scale, source.ih * scale
+        self.assertTrue(dialog.colors_panel.isHidden())                  # seulement en couches par couleur
+        next(b for b in dialog.mode_buttons.buttons() if b.property("mode") == "layers").click()
+        dialog.form.widgets["ml_sep"].setCurrentIndex(dialog.form.widgets["ml_sep"].findData("color"))
+        self.assertFalse(dialog.colors_panel.isHidden())
+        dialog.colors_panel.request_picker(True, None)
+        press(source, [(0.5, 0.4)] * 3, source_rect)                    # clic à la pipette
+        self.assertRegex(dialog.state["ml_picks"], r"^#[0-9a-f]{6}$")
+        self.assertEqual(dialog.form.value("ml_picks"), dialog.state["ml_picks"])
+        result = dialog.result_view
+        self.wait(lambda: result.image_rect() is not None)
+
+        def result_rect():
+            r = result.image_rect()
+            return r.x(), r.y(), r.width(), r.height()
+        next(b for b in dialog.mode_buttons.buttons() if b.property("mode") == "stencil").click()
+        dialog.set_overlay_mode("bridge")                                # pont manuel
+        press(result, [(0.4, 0.4), (0.5, 0.45), (0.5, 0.45)], result_rect)
+        self.assertEqual(result.bridges, [[0.4, 0.4, 0.5, 0.45]])
+        self.assertEqual(dialog.request(300)["mbr"], result.bridges)
+        dialog._commit_history()
+        press(result, [(0.45, 0.425)] * 3, result_rect)                  # un clic sur le pont le retire
+        self.assertEqual(result.bridges, [])
+        dialog.undo()                                                    # l'historique garde les ponts
+        self.assertEqual(result.bridges, [[0.4, 0.4, 0.5, 0.45]])
+        next(b for b in dialog.mode_buttons.buttons() if b.property("mode") == "lowpoly").click()
+        dialog.set_overlay_mode("guide")                                 # guides du low poly
+        press(result, [(0.3, 0.3)] * 3, result_rect)
+        press(result, [(0.2, 0.2), (0.6, 0.2), (0.6, 0.2)], result_rect)
+        self.assertEqual(result.guides, {"pts": [[0.3, 0.3]], "edges": [[0.2, 0.2, 0.6, 0.2]]})
+        self.assertEqual(dialog.request(300)["lpg"], result.guides)
+
     def test_menu_entry_opens_the_qt_version_next_to_the_web_one(self):
         from unittest import mock
         from PyQt6.QtWidgets import QWidget

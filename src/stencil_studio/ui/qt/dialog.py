@@ -30,7 +30,7 @@ from PyQt6.QtGui import QIcon, QImage, QKeySequence, QPainter, QPalette, QPixmap
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
                              QFileDialog, QHBoxLayout, QInputDialog, QLabel, QLineEdit, QMenu, QMessageBox,
-                             QPushButton, QScrollArea, QSizePolicy, QSplitter, QToolButton, QVBoxLayout, QWidget)
+                             QPushButton, QScrollArea, QSplitter, QToolButton, QVBoxLayout, QWidget)
 
 from ... import core
 from ... import spec as spec_module
@@ -41,6 +41,8 @@ from ...models.history import History, snapshot
 from ...models.presets import PresetsStore
 from ...models.session import StudioSession
 from .controls import SettingsForm
+from .layer_colors import LayerColorsPanel, merge_picks, pick_color, picks_list
+from .result_view import GUIDE_VIEWS, ImageView, ResultView
 from .source_view import SourceView
 from .stats import stats_message
 
@@ -93,31 +95,6 @@ def mode_icon(path, color):
     return QIcon(pixmap)
 
 
-class ImageView(QLabel):
-    """Image d'aperçu toujours ajustée à la place disponible, proportions gardées."""
-
-    def __init__(self, placeholder="", parent=None):
-        super().__init__(placeholder, parent)
-        self._pixmap = None
-        self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Ignored)
-        self.setMinimumSize(200, 200)
-        self.setWordWrap(True)
-
-    def set_image(self, qimage):
-        self._pixmap = QPixmap.fromImage(qimage)
-        self._fit()
-
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
-        self._fit()
-
-    def _fit(self):
-        if self._pixmap is not None:
-            self.setPixmap(self._pixmap.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio,
-                                               Qt.TransformationMode.SmoothTransformation))
-
-
 class _Results(QObject):
     """Résultats des calculs, du fil de calcul vers la fenêtre."""
     preview = pyqtSignal(dict)
@@ -157,6 +134,12 @@ class QStencilDialog(QDialog):
 
         self.form = SettingsForm(self.spec, self.tr_)
         self.form.changed.connect(self._changed)
+        self.last_stats = {}
+        self.colors_panel = LayerColorsPanel(self.tr_)        # relief en couches par couleur : pipette, plaques
+        self.colors_panel.picker_requested.connect(self._picker_requested)
+        self.colors_panel.picks_changed.connect(self.set_picks)
+        self.colors_panel.order_changed.connect(lambda order: self._changed("ml_order", order, from_view=True))
+        self.form.insert_after("ml_sep", self.colors_panel)
         settings = self._settings_panel()
         self.source_view = SourceView(self.state, self.tr_("Open an image to start (or drop it on this window)."))
         self.source_view.frame_changed.connect(self._frame_moved)
@@ -165,10 +148,12 @@ class QStencilDialog(QDialog):
         self.source_view.hints_painted.connect(self._hints_painted)
         self.source_view.custom_size_changed.connect(self._custom_size_changed)
         self.source_view.message.connect(lambda text: self.status.setText(self.tr_(text)))
-        self.result_view = ImageView()
+        self.source_view.point_picked.connect(self._color_picked)
+        self.result_view = ResultView()
+        self.result_view.edited.connect(self._overlay_edited)
         views = QSplitter(Qt.Orientation.Horizontal)
         views.addWidget(self._titled(self._tool_row(), self.source_view))
-        views.addWidget(self._titled(self._view_combo(), self.result_view))
+        views.addWidget(self._titled(self._result_row(), self.result_view))
         self.status = QLabel()
         self.status.setWordWrap(True)
         self.status.setTextFormat(Qt.TextFormat.RichText)
@@ -355,13 +340,73 @@ class QStencilDialog(QDialog):
         self.tool_buttons.buttonClicked.connect(lambda b: setattr(self.source_view, "tool", b.property("tool")))
         return box
 
-    def _view_combo(self):
-        """Vues de l'aperçu, comme les boutons au-dessus du résultat dans la page."""
+    def _result_row(self):
+        """Au-dessus du résultat, comme la page : la vue, les ponts manuels et les guides du low poly."""
+        box = QWidget()
+        row = QHBoxLayout(box)
+        row.setContentsMargins(0, 0, 0, 0)
         self.view_combo = QComboBox()
         for view, label in VIEWS:
             self.view_combo.addItem(self.tr_(label), view)
         self.view_combo.currentIndexChanged.connect(lambda _i: self.set_view(self.view_combo.currentData()))
-        return self.view_combo
+        row.addWidget(self.view_combo)
+        self.overlay_buttons = {}
+        for key, label, slot in (("bridge", "Manual bridge", lambda: self.set_overlay_mode("bridge")),
+                                 ("guide", "Low poly guides", lambda: self.set_overlay_mode("guide")),
+                                 ("clear_bridges", "Clear manual bridges", self.clear_bridges),
+                                 ("clear_guides", "Clear guides", self.clear_guides)):
+            button = QToolButton()
+            button.setText(self.tr_(label))
+            button.setCheckable(key in ("bridge", "guide"))
+            button.clicked.connect(slot)
+            row.addWidget(button)
+            self.overlay_buttons[key] = button
+        row.addStretch()
+        return box
+
+    # -- ponts manuels et guides low poly (tracés sur le résultat)
+
+    def set_overlay_mode(self, mode):
+        """Pont manuel ou guides (setMode de la page) : le même bouton l'arrête ; la vue passe à celle où le
+        tracé se voit."""
+        view = self.result_view
+        view.mode = None if view.mode == mode else mode
+        if view.mode == "bridge" and self.view != "result":
+            self.view_combo.setCurrentIndex(self.view_combo.findData("result"))
+        if view.mode == "guide" and self.view not in GUIDE_VIEWS:
+            self.view_combo.setCurrentIndex(self.view_combo.findData("overlay"))
+        self._overlay_buttons()
+        if view.mode == "bridge":
+            self.status.setText(self.tr_("Manual bridge: drag a short line across the cut-out to keep. Click an "
+                                         "existing bridge to remove it."))
+        elif view.mode == "guide":
+            self.status.setText(self.tr_("Guides: click to place a vertex (eye, nose, ear tip), drag to place an "
+                                         "edge. Click an existing guide to remove it."))
+
+    def _overlay_buttons(self):
+        """Boutons des ponts et des guides selon le mode et ce qui est tracé (mbSyncUI)."""
+        view, buttons = self.result_view, self.overlay_buttons
+        view.lowpoly = self.state.get("output") == "lowpoly"
+        if not view.lowpoly and view.mode == "guide":
+            view.mode = None
+        buttons["bridge"].setChecked(view.mode == "bridge")
+        buttons["guide"].setChecked(view.mode == "guide")
+        buttons["guide"].setVisible(view.lowpoly)
+        buttons["clear_bridges"].setVisible(bool(view.bridges))
+        buttons["clear_guides"].setVisible(view.lowpoly and bool(view.guides["pts"] or view.guides["edges"]))
+        view.update()
+
+    def _overlay_edited(self):
+        self._overlay_buttons()
+        self.schedule()
+
+    def clear_bridges(self):
+        self.result_view.bridges = []
+        self._overlay_edited()
+
+    def clear_guides(self):
+        self.result_view.guides = {"pts": [], "edges": []}
+        self._overlay_edited()
 
     @staticmethod
     def _titled(title, widget):
@@ -395,6 +440,8 @@ class QStencilDialog(QDialog):
             self.status.setText(self.tr_("Error: {msg}", msg=str(error)))
             return
         self.source_view.set_image(to_qimage(self.service.session.disp_rgb))
+        self.result_view.clear()
+        self._overlay_buttons()
         self._sync_zoom()
         self.history.reset(self._snapshot())                # nouvelle image : historique vidé (histReset)
         self._history_buttons()
@@ -434,6 +481,63 @@ class QStencilDialog(QDialog):
             button.setVisible(isolate or not only)
         if not isolate and self.source_view.tool in ("fg", "bg", "erase"):
             self._choose_tool("move")
+        self._overlay_buttons()
+        self._refresh_colors()
+
+    # -- couleurs du relief en couches (pipette, plaques)
+
+    def _refresh_colors(self):
+        """Panneau des couleurs : seulement en relief en couches séparé par couleur (renderPick, renderPalette)."""
+        on = self.state.get("output") == "layers" and self.state.get("ml_sep") == "color"
+        self.colors_panel.setVisible(on)
+        if not on and self.colors_panel.picking:          # hors de ce mode : pipette arrêtée
+            self.colors_panel.picking, self.colors_panel.target = False, None
+            self.source_view.picking = False
+        if on:
+            stats = self.last_stats
+            self.colors_panel.show_colors(picks_list(self.state.get("ml_picks")), self.state.get("ml_layers"),
+                                          stats.get("ml_palette") or [], stats.get("ml_order_ids") or [])
+
+    def _picker_requested(self, active, target):
+        """Pipette en marche ou arrêtée : un clic sur la photo donne une couleur."""
+        self.source_view.picking = bool(active)
+        self.source_view.setCursor(Qt.CursorShape.CrossCursor if active else Qt.CursorShape.OpenHandCursor)
+        self._refresh_colors()
+
+    def set_picks(self, colors):
+        """Couleurs préférées (setPicks) : sans doublons trop proches, 8 au plus ; l'ordre des plaques repart."""
+        self.state["ml_picks"] = ",".join(merge_picks(colors))
+        self.state["ml_order"] = ""
+        self.form.set_value("ml_picks", self.state["ml_picks"])
+        self.form.set_value("ml_order", "")
+        self._refresh_form()
+        self.schedule()
+
+    def _color_picked(self, x, y):
+        """Clic à la pipette : couleur ajoutée, ou plaque affinée (pointerdown en mode pipette de la page)."""
+        color = pick_color(self.service.session.disp_rgb, x, y)
+        if color is None:
+            return
+        picks, target = picks_list(self.state.get("ml_picks")), self.colors_panel.target
+        palette = self.last_stats.get("ml_palette") or []
+        if target is not None and palette:
+            if len(picks) < 2:
+                picks = list(palette)
+            picks[max(0, min(target, len(picks) - 1))] = color
+            picks = list(dict.fromkeys(picks))[:8]
+            self.colors_panel.picking, self.colors_panel.target = False, None
+            self._picker_requested(False, None)
+            self.set_picks(picks)
+        elif len(picks) < 8 and color not in picks:
+            self.set_picks(picks + [color])
+
+    def keyPressEvent(self, event):
+        """Échap arrête la pipette (sans fermer la fenêtre)."""
+        if event.key() == Qt.Key.Key_Escape and self.colors_panel.picking:
+            self.colors_panel.picking, self.colors_panel.target = False, None
+            self._picker_requested(False, None)
+            return
+        super().keyPressEvent(event)
 
     def _changed(self, key, value, from_view=False):
         """Un réglage a changé (formulaire, boutons des modes, molette sur la photo), comme changed() de la page."""
@@ -500,7 +604,8 @@ class QStencilDialog(QDialog):
     # -- annuler / refaire
 
     def _snapshot(self):
-        return snapshot(self.state, self.source_view.frame(), self.source_view.subject_box)
+        return snapshot(self.state, self.source_view.frame(), self.source_view.subject_box, self.result_view.bridges,
+                        self.result_view.guides)
 
     def _commit_history(self):
         if self.service.session.has_image():
@@ -526,6 +631,7 @@ class QStencilDialog(QDialog):
             for key, value in self.state.items():
                 self.form.set_value(key, value)
             self.source_view.subject_box = o["B"]
+            self.result_view.bridges, self.result_view.guides = o["MB"], o["GV"]
             self.source_view.set_frame(o["F"])
             self._set_mode(self.state.get("output") or "stencil")
             self._sync_zoom()
@@ -596,6 +702,8 @@ class QStencilDialog(QDialog):
     def set_view(self, view):
         """Vue de l'aperçu ; recalculée tout de suite, comme dans la page (setView)."""
         self.view = view
+        self.result_view.view = view
+        self._overlay_buttons()
         self._timer.stop()
         self._send_preview()
 
@@ -605,7 +713,8 @@ class QStencilDialog(QDialog):
         self._seq += 1
         frame = frame_model.request_frame(s, self.source_view.iw, self.source_view.ih, self.source_view.frame())
         return {"seq": self._seq, "params": self.spec.request_params(s), "frame": frame,
-                "isolate": bool(s.get("isolate")), "margin": s.get("margin"), "mbr": [], "lpg": {"pts": [], "edges": []},
+                "isolate": bool(s.get("isolate")), "margin": s.get("margin"), "mbr": self.result_view.bridges,
+                "lpg": self.result_view.guides,
                 "view": view or self.view, "work": work, "moving": self._moving, "box": self.source_view.subject_box,
                 "style": {"material": s.get("material"), "backlight": bool(s.get("backlight")),
                           "light": s.get("lightcolor"), "lang": self.language}}
@@ -639,7 +748,9 @@ class QStencilDialog(QDialog):
         if out.get("stale") or out.get("seq") != self._seq:
             return                          # un réglage plus récent a relancé l'aperçu
         self.result_view.set_image(to_qimage(out["image"]))
-        self.show_stats(out.get("stats") or {})
+        self.last_stats = out.get("stats") or {}
+        self.show_stats(self.last_stats)
+        self._refresh_colors()                   # palette des plaques du dernier calcul
 
     def show_stats(self, stats):
         """Statistiques complètes sous l'aperçu, avertissements en rouge (renderStats de la page)."""

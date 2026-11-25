@@ -11,9 +11,10 @@ import json
 MAX_STEPS = 100
 
 
-def snapshot(state, frame, subject_box=None):
-    """Instantané des réglages, du cadre et du rectangle du sujet."""
-    return json.dumps({"S": state, "F": frame, "B": subject_box}, sort_keys=True)
+def snapshot(state, frame, subject_box=None, bridges=None, guides=None):
+    """Instantané des réglages, du cadre, du rectangle du sujet, des ponts manuels et des guides low poly."""
+    return json.dumps({"S": state, "F": frame, "B": subject_box, "MB": bridges or [],
+                       "GV": guides or {"pts": [], "edges": []}}, sort_keys=True)
 
 
 class History:
