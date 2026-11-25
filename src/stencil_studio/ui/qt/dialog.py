@@ -162,7 +162,8 @@ class QStencilDialog(QDialog):
         body.addWidget(views)
         body.setStretchFactor(1, 1)
         layout = QVBoxLayout(self)
-        layout.addLayout(self._top_row())
+        layout.addLayout(self._header_row())
+        layout.addLayout(self._mode_row())
         layout.addWidget(body, 1)
         layout.addWidget(self.status)
         self.setAcceptDrops(True)
@@ -172,20 +173,46 @@ class QStencilDialog(QDialog):
 
     # -- construction
 
-    def _top_row(self):
-        """Ouvrir une image, les modes de la page (boutons à icône), puis les exports."""
+    def _header_row(self):
+        """Barre du haut, comme la page : titre, ouvrir une image, menu Fichier ; à droite, le menu Exporter."""
         row = QHBoxLayout()
+        accent = QApplication.palette().color(QPalette.ColorRole.Highlight).name()
+        title = QLabel(f'<span style="font-size:15px"><b style="color:{accent}">Laser</b> '
+                       f'<b>{html.escape(self.tr_("Stencil Studio"))}</b></span>')
+        row.addWidget(title)
+        row.addSpacing(12)
         open_button = QPushButton(self.tr_("Open image..."))
         open_button.clicked.connect(self.open_dialog)
         row.addWidget(open_button)
-        self.undo_button, self.redo_button = QToolButton(), QToolButton()
-        for button, text, tip, slot in ((self.undo_button, "↶", "Undo (Ctrl+Z)", self.undo),
-                                        (self.redo_button, "↷", "Redo (Ctrl+Y)", self.redo)):
-            button.setText(text)
-            button.setToolTip(self.tr_(tip))
-            button.setEnabled(False)
-            button.clicked.connect(slot)
-            row.addWidget(button)
+        file_button = QPushButton(self.tr_("File"))
+        file_menu = QMenu(file_button)
+        file_menu.addAction(self.tr_("Save settings")).triggered.connect(self.save_settings)
+        file_menu.addAction(self.tr_("Load settings")).triggered.connect(self.load_settings)
+        file_menu.addSeparator()
+        file_menu.addAction(self.tr_("Reset")).triggered.connect(self.reset_settings)
+        file_button.setMenu(file_menu)
+        row.addWidget(file_button)
+        row.addStretch()
+        self.export_button = QPushButton(self.tr_("Export"))
+        self.export_button.setProperty("role", "primary")
+        self.export_menu = QMenu(self.export_button)
+        self.export_actions = {}
+        for section, formats in (("Plate", ("svg", "dxf", "png", "svgimg")),
+                                 ("Lightbox", ("boxsvg", "boxdxf", "boxpdf")),
+                                 ("Tools", ("flexsvg", "flexdxf"))):
+            self.export_menu.addSection(self.tr_(section))
+            for fmt in formats:
+                label = next(e[1] for e in EXPORTS if e[0] == fmt)
+                action = self.export_menu.addAction(self.tr_(label))
+                action.triggered.connect(lambda _c=False, f=fmt: self.export(f))
+                self.export_actions[fmt] = action
+        self.export_button.setMenu(self.export_menu)
+        row.addWidget(self.export_button)
+        return row
+
+    def _mode_row(self):
+        """Barre des modes, sous la barre du haut (modebar de la page) : icône et libellé côte à côte."""
+        row = QHBoxLayout()
         self.mode_buttons = QButtonGroup(self)
         self.mode_buttons.setExclusive(True)
         color = QApplication.palette().color(QPalette.ColorRole.WindowText).name()
@@ -194,29 +221,14 @@ class QStencilDialog(QDialog):
             button.setText(self.tr_(mode["label"]))
             button.setToolTip(self.tr_(mode["tip"]))
             button.setIcon(mode_icon(mode["ic"], color))
-            button.setIconSize(QSize(22, 22))
-            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
+            button.setIconSize(QSize(18, 18))
+            button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
             button.setCheckable(True)
             button.setProperty("mode", mode["id"])
             self.mode_buttons.addButton(button)
             row.addWidget(button)
         self.mode_buttons.buttonClicked.connect(lambda b: self._changed("output", b.property("mode")))
         row.addStretch()
-        self.export_button = QPushButton(self.tr_("Export SVG"))
-        self.export_button.setProperty("role", "primary")
-        self.export_button.clicked.connect(self.export_svg)
-        row.addWidget(self.export_button)
-        more = QToolButton()
-        more.setText(self.tr_("Export"))
-        more.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.export_menu = QMenu(more)
-        self.export_actions = {}
-        for fmt, label, *_rest in EXPORTS[1:]:
-            action = self.export_menu.addAction(self.tr_(label))
-            action.triggered.connect(lambda _c=False, f=fmt: self.export(f))
-            self.export_actions[fmt] = action
-        more.setMenu(self.export_menu)
-        row.addWidget(more)
         return row
 
     def _settings_panel(self):
@@ -338,6 +350,16 @@ class QStencilDialog(QDialog):
             self.tool_buttons.addButton(button)
             row.addWidget(button)
         self.tool_buttons.buttonClicked.connect(lambda b: setattr(self.source_view, "tool", b.property("tool")))
+        row.addSpacing(12)
+        self.undo_button, self.redo_button = QToolButton(), QToolButton()
+        for button, text, tip, slot in ((self.undo_button, "↶", "Undo (Ctrl+Z)", self.undo),
+                                        (self.redo_button, "↷", "Redo (Ctrl+Y)", self.redo)):
+            button.setText(text)
+            button.setToolTip(self.tr_(tip))
+            button.setEnabled(False)
+            button.clicked.connect(slot)
+            row.addWidget(button)
+        row.addStretch()
         return box
 
     def _result_row(self):
@@ -769,6 +791,58 @@ class QStencilDialog(QDialog):
         if stats.get("length_mm"):
             parts.append(self.tr_("Cut length: {mm} mm", mm=round(stats["length_mm"])))
         return " · ".join(parts)
+
+    # -- menu Fichier : réglages dans un fichier, réinitialiser (comme la page)
+
+    def save_settings(self):
+        """Réglages, cadre et rectangle du sujet dans un fichier JSON, au format de la page (saveSettings)."""
+        name = os.path.splitext(self.service.session.name or "stencil")[0] + "_settings.json"
+        path, _f = QFileDialog.getSaveFileName(self, self.tr_("Save settings"), name, "JSON (*.json)")
+        if path:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"format": "laser-stencil-studio", "S": self.state, "F": self.source_view.frame(),
+                           "B": self.source_view.subject_box, "lang": self.language}, f, indent=2)
+
+    def load_settings(self):
+        path, _f = QFileDialog.getOpenFileName(self, self.tr_("Load settings"), "", "JSON (*.json)")
+        if not path:
+            return
+        try:
+            with open(path, encoding="utf-8") as f:
+                self.apply_settings(json.load(f))
+        except (OSError, ValueError) as error:          # fichier illisible : message, rien n'est changé
+            self.status.setText(self.tr_("Error: {msg}", msg=str(error)))
+
+    def apply_settings(self, o):
+        """Réglages d'un fichier de la page ou de cette fenêtre (applySettings) ; le cadre et le sujet seulement
+        avec une image."""
+        if not isinstance(o, dict) or not isinstance(o.get("S"), dict):
+            return
+        for item in self.spec.items():
+            if item["k"] in o["S"]:
+                self.state[item["k"]] = o["S"][item["k"]]
+                self.form.set_value(item["k"], self.state[item["k"]])
+        if self.service.session.has_image():
+            f = o.get("F") or {}
+            self.source_view.set_frame({"cx": float(f.get("cx") or 0.5), "cy": float(f.get("cy") or 0.5),
+                                        "w": float(f.get("w") or 1)})
+            if "B" in o:
+                self.source_view.subject_box = o["B"]
+        self._set_mode(self.state.get("output") or "stencil")
+        self.source_view.refresh_frame()
+        self._sync_zoom()
+        self.schedule()
+
+    def reset_settings(self):
+        """Tous les réglages à leur valeur de départ (Tout réinitialiser)."""
+        self.state.clear()
+        self.state.update(self.spec.defaults())
+        for key, value in self.state.items():
+            self.form.set_value(key, value)
+        self._set_mode(self.state.get("output") or "stencil")
+        self.source_view.refresh_frame()
+        self._sync_zoom()
+        self.schedule()
 
     def export_svg(self):
         """Export SVG vers Laser Studio, comme « Exporter en SVG » de la page dans Laser Studio."""

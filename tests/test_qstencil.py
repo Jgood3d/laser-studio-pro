@@ -204,6 +204,23 @@ class QtDialogTests(unittest.TestCase):
         dialog.apply_user_preset("Mes plaques")
         self.assertEqual((dialog.state["size_mm"], form.value("size_mm")), (120, 120))
 
+    def test_header_file_menu_and_export_sections(self):
+        """Deux barres comme la page : menu Exporter en sections, réglages d'un fichier de la page, réinitialiser."""
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        sections = [a.text() for a in dialog.export_menu.actions() if a.isSeparator()]
+        self.assertEqual(sections, ["Plaque", "Caisson lumineux", "Outils"])
+        self.assertEqual(len(dialog.export_actions), 9)
+        dialog.apply_settings({"format": "laser-stencil-studio", "S": {"output": "halftone", "dot_gamma": 1.8,
+                                                                         "inconnu": 3}})
+        self.assertEqual(dialog.state["output"], "halftone")
+        self.assertEqual(dialog.form.value("dot_gamma"), 1.8)
+        self.assertNotIn("inconnu", dialog.state)
+        dialog.reset_settings()
+        self.assertEqual(dialog.state, dialog.spec.defaults())
+        self.assertEqual(dialog.form.value("dot_gamma"), dialog.spec.defaults()["dot_gamma"])
+
     def test_stats_like_the_page(self):
         from stencil_studio.ui.qt.stats import stats_message
         tr = lambda text, **kw: text.format(**kw)                       # noqa: E731
