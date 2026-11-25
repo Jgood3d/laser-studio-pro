@@ -64,13 +64,17 @@ def power_map(gcode, w, h):
     acc = np.zeros((h, w * SUB))
     x = y = 0.0
     s = 0.0
+    motion = None
     for raw in gcode.splitlines():
         line = raw.split(";")[0].strip()
         if not line:
             continue
+        if line[0] in "XY" and motion:
+            line = f"{motion} {line}"             # mouvement modal, comme GRBL
         move = re.match(r"(G0|G1)\b(.*)", line)
         if move:
             kind, rest = move.groups()
+            motion = kind
             mx = re.search(r"X(-?[\d.]+)", rest)
             my = re.search(r"Y(-?[\d.]+)", rest)
             ms = re.search(r"S(-?[\d.]+)", rest)

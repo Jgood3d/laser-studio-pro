@@ -1,6 +1,6 @@
 # Bibliothèque de modèles
 
-Les modèles de ce dossier sont proposés dans **Outils → Bibliothèque…** (et l'icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel), puis importés dans l'éditeur vectoriel. Ils sont embarqués dans les exécutables avec le reste de `resources/`.
+Les modèles de ce dossier sont proposés dans **Outils → Bibliothèque…** et par l'icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel (première page de la fenêtre des générateurs), puis importés dans l'éditeur vectoriel. Ils sont embarqués dans les exécutables avec le reste de `resources/`.
 
 On peut aussi en ajouter sans recompiler : un dossier `resources/library/` placé à côté de l'exécutable est lu en plus de celui-ci.
 

@@ -11,6 +11,7 @@ from laser_studio.i18n.errors import generator_error_text
 from laser_studio.models.layer_modes import MODE_CUT
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import keychain_generator as kg
+from laser_studio.ui.app.theme import theme_color
 
 
 class KeychainPreview(QWidget):
@@ -30,7 +31,7 @@ class KeychainPreview(QWidget):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor("#1a1d24"))
+        p.fillRect(self.rect(), theme_color("canvas", "#1a1d24"))
 
         if self.result and self.result.base_contours:
             w = max(self.result.width, 1e-6)

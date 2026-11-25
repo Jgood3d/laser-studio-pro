@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QPushButton,
+    QSizePolicy,
     QStyle,
     QVBoxLayout,
 )
@@ -80,9 +81,11 @@ class ConnectionPanel(QGroupBox):
         ports_row.addWidget(self.refresh_button)
         self.help_button = self._help_button()
         ports_row.addWidget(self.help_button)
+        # « Connecter » sur la ligne du port : une ligne de moins dans le panneau du bas ; jamais rogné.
+        self.connect_button.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        ports_row.addWidget(self.connect_button)
         layout = QVBoxLayout(self)
         layout.addLayout(ports_row)
-        layout.addWidget(self.connect_button)
         layout.addWidget(self.state_view)
         layout.addWidget(self.console)
         layout.addStretch()
@@ -129,7 +132,7 @@ class ConnectionPanel(QGroupBox):
         combo.setSizeAdjustPolicy(
             QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon
         )
-        combo.setMinimumContentsLength(16)
+        combo.setMinimumContentsLength(10)          # le port complet est dans l'infobulle
         combo.setToolTip(tr("usb.port"))
         combo.currentTextChanged.connect(
             lambda text: combo.setToolTip(text or tr("usb.port"))

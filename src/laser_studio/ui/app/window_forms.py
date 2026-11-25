@@ -13,6 +13,7 @@ from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.app.theme import apply_app_theme
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
 from laser_studio.ui.help import HelpDialog
+from laser_studio.ui.settings.categories import SettingsCategories
 from laser_studio.ui.settings.window import SettingsWindow
 from laser_studio.ui.support import SupportDialog
 from laser_studio.ui.utils import busy_cursor
@@ -85,6 +86,16 @@ class WindowForms:
         if kind not in self._settings_windows:
             self._settings_windows[kind] = SettingsWindow(self.parent, title, page, kind)
         self._settings_windows[kind].bring_to_front()
+
+    def settings_categories(self, title, pages, current):
+        """Fenêtre « Paramètres » : les pages `pages` ((clé, titre, page)) avec la liste des catégories à gauche,
+        créée à la première demande puis réutilisée, ouverte sur la page `current`."""
+        if "settings" not in self._settings_windows:
+            self._settings_windows["settings"] = SettingsWindow(self.parent, title, SettingsCategories(pages),
+                                                                "settings", default_width=1240)
+        window = self._settings_windows["settings"]
+        window.page.show_page(current)
+        window.bring_to_front()
 
     # -- Qt
 

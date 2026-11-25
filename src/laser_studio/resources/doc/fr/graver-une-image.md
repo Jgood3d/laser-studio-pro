@@ -13,8 +13,10 @@ l'onglet *Graver une image vectorielle* (voir
 
 ## En bref
 
-1. Cliquez sur **Charger Image**, ou glissez-déposez le fichier dans
-   l'onglet (PNG, JPEG ou BMP).
+1. Cliquez sur **Charger Image** (le bouton vert en haut de l'onglet), ou
+   glissez-déposez le fichier dans l'onglet (PNG, JPEG ou BMP). Les
+   **propriétés de l'image** s'affichent alors à droite, comme celles d'un
+   objet dans l'éditeur vectoriel.
 2. Donnez la **taille** voulue en millimètres.
 3. Choisissez la **matière** (fond clair ou fond noir) et le **calque de
    gravure**.
@@ -36,7 +38,7 @@ elle dépasse la zone de travail. La barre d'outils permet aussi de la
 **pivoter** de 90°, de la **retourner** (miroir horizontal ou vertical) et
 de la **supprimer**.
 
-**Recadrer** (barre flottante au-dessus de l'aperçu) ouvre l'image entière :
+**Recadrer** (barre d'outils verticale à droite de l'aperçu) ouvre l'image entière :
 tracez le cadre à garder, déplacez-le en glissant à l'intérieur,
 redimensionnez-le par ses coins et ses bords (**Garder les proportions** au
 choix). La taille gravée suit le cadre, à la même échelle. Le cadre reste

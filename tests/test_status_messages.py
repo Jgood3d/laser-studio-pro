@@ -36,6 +36,20 @@ class StatusMessagesTests(unittest.TestCase):
         cls.env.stop()
         cls.tmp.cleanup()
 
+    def test_machine_state_and_estimated_duration_stay_in_the_status_bar(self):
+        from laser_studio.i18n import tr
+        bar = self.win.statusBar()
+        self.assertIn(tr("status.disconnected"), bar.machine_label.text())     # au démarrage : pas de graveur
+        self.win.job_display.show_machine_state("Run", 12.5, 30.0, 0.0)
+        self.assertIn("Run  ·  X 12.50  Y 30.00", bar.machine_label.text())
+        self.assertIn("#3498db", bar.machine_label.text())                     # couleur de l'état, comme le panneau
+        self.win.job_display.show_machine_state(None, None, None, None)
+        self.assertIn(tr("status.disconnected"), bar.machine_label.text())
+        bar.set_duration("Temps Estimé: 2 min 5 s")
+        self.assertFalse(bar.duration_label.isHidden())
+        bar.set_duration(None)
+        self.assertTrue(bar.duration_label.isHidden())
+
     def test_loaded_image_is_announced_in_the_status_bar(self):
         path = os.path.join(self.tmp.name, "medaille.png")
         Image.new("L", (945, 945), 128).save(path, dpi=(300, 300))

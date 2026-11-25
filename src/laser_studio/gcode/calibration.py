@@ -3,7 +3,7 @@ retour » de la Configuration GRBL)."""
 import math
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import power_value
+from laser_studio.gcode.common import LaserMoves, power_value
 from laser_studio.gcode.timing import job_duration
 from laser_studio.vector.font import VectorFont
 
@@ -78,9 +78,8 @@ def bidir_test_gcode(params):
     if start:
         gcode.append("; --- G-Code de Début ---")
         gcode.append(start)
-    if laser_cmd == "M4":
-        gcode.append(f"{laser_cmd} S0 ; Mode laser dynamique")
-    gcode.append(f"F{speed}")
+    moves = LaserMoves(gcode)
+    moves.laser(laser_cmd)
 
     total_time = 0.0
     burn_len = 0.0
@@ -92,10 +91,8 @@ def bidir_test_gcode(params):
         text_w = len(text) * (5 + 2) * (label_h / 7.0) - 2 * (label_h / 7.0)
         tx = base_x + i * pitch_x + (bar_w - text_w) / 2.0
         for x1, y1, x2, y2 in _text_segments(text, tx, label_y, label_h):
-            gcode.append(f"G0 X{x1:.3f} Y{y1:.3f}")
-            gcode.append("S0" if laser_cmd == "M4" else f"{laser_cmd} S0")
-            gcode.append(f"G1 X{x2:.3f} Y{y2:.3f} F{speed} S{s_on}")
-            gcode.append("S0")
+            moves.travel(x1, y1)
+            moves.move(x2, y2, s_on, speed)
             seg = math.hypot(x2 - x1, y2 - y1)
             total_time += seg / speed * 60.0
             burn_len += seg
@@ -111,17 +108,16 @@ def bidir_test_gcode(params):
             runs = [(base_x + i * pitch_x + offsets[i], base_x + i * pitch_x + offsets[i] + bar_w)
                     for i in range(n)][::-1]
             start_x, end_x = base_x + total_w + overscan, base_x - overscan
-        gcode.append(f"G0 X{start_x:.3f} Y{y:.3f}")
-        gcode.append("S0" if laser_cmd == "M4" else f"{laser_cmd} S0")
+        moves.travel(start_x, y)
         cursor = start_x
         for a, b in runs:
             first, second = (a, b) if ltr else (b, a)          # entrée puis sortie dans le sens du balayage
-            gcode.append(f"G1 X{first:.3f} F{speed} S0")        # trajet à puissance nulle jusqu'à la barre
-            gcode.append(f"G1 X{second:.3f} F{speed} S{s_on}")  # la barre elle-même
+            moves.move(first, power=0, feed=speed)              # trajet à puissance nulle jusqu'à la barre
+            moves.move(second, power=s_on, feed=speed)          # la barre elle-même
             total_time += (abs(first - cursor) + abs(second - first)) / speed * 60.0
             burn_len += abs(second - first)
             cursor = second
-        gcode.append(f"G1 X{end_x:.3f} F{speed} S0")
+        moves.move(end_x, power=0, feed=speed)
         total_time += abs(end_x - cursor) / speed * 60.0
 
     end = str(params.get("end_gcode", "")).strip()

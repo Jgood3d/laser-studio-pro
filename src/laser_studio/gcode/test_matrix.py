@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from laser_studio.gcode.common import GcodeResult, overscan_distance, power_value, scan_offset_mm
+from laser_studio.gcode.common import GcodeResult, LaserMoves, overscan_distance, power_value, scan_offset_mm
 from laser_studio.gcode.timing import job_duration
 from laser_studio.image.matrix import tile_raster_gcode
 from laser_studio.vector.font import VectorFont
@@ -79,6 +79,7 @@ def build_test_matrix_gcode(params):
     start_y = mat_off_y + offset_labels_y
 
     text_p_val = power_value(40.0, s_max)
+    moves = LaserMoves(gcode)
 
     if mode == MATRIX_ENGRAVE:
         min_p, max_p, steps_p = params['min_power'], params['max_power'], params['steps_power']
@@ -89,7 +90,7 @@ def build_test_matrix_gcode(params):
             lbl_x = start_x + j * (cell_w + gap) + (cell_w / 2.0) - 4.0
             lbl_y = start_y - 8.0
             p_text = f"{_round_half_up(p)}%"
-            gcode.extend(VectorFont.generate_text_gcode(
+            moves.extend(VectorFont.generate_text_gcode(
                 text=p_text, start_x=lbl_x, start_y=lbl_y, 
                 char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
             ))
@@ -97,7 +98,7 @@ def build_test_matrix_gcode(params):
         matrix_total_w = (steps_p * cell_w) + ((steps_p - 1) * gap)
         title_pow_x = start_x + (matrix_total_w / 2.0) - 25.0
         title_pow_y = start_y - offset_labels_y
-        gcode.extend(VectorFont.generate_text_gcode(
+        moves.extend(VectorFont.generate_text_gcode(
             text="PUISSANCE (%)", start_x=title_pow_x, start_y=title_pow_y, 
             char_height=3.2, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
         ))
@@ -110,7 +111,7 @@ def build_test_matrix_gcode(params):
             lbl_x = label_zone_x + 5.0
             lbl_y = start_y + i * (cell_h + gap) + (cell_h / 3.0)
             s_text = f"{_round_half_up(s)}"
-            gcode.extend(VectorFont.generate_text_gcode(
+            moves.extend(VectorFont.generate_text_gcode(
                 text=s_text, start_x=lbl_x, start_y=lbl_y, 
                 char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
             ))
@@ -118,7 +119,7 @@ def build_test_matrix_gcode(params):
         matrix_total_h = (steps_s * cell_h) + ((steps_s - 1) * gap)
         title_spd_x = max(0.0, mat_off_x)
         title_spd_y = start_y + (matrix_total_h / 2.0) + 18.0
-        gcode.extend(VectorFont.generate_text_gcode(
+        moves.extend(VectorFont.generate_text_gcode(
             text="VITESSE", start_x=title_spd_x, start_y=title_spd_y, 
             char_height=3.2, feed_rate=2000, power_val=text_p_val, laser_cmd="M3", vertical=True
         ))
@@ -139,50 +140,28 @@ def build_test_matrix_gcode(params):
                         tile['arr'], x0, y0, cell_w, cell_h, s, p, s_max, laser_cmd,
                         overscan_dist=overscan_dist, grayscale=bool(tile.get('grayscale')),
                         scan_offset=scan_offset_mm(params))
-                    gcode.extend(tile_lines)
+                    moves.extend(tile_lines)
                     total_time_sec += tile_sec
                     continue
 
                 lines = max(1, int(cell_h * lmm))
                 step_y = cell_h / lines
+                moves.laser(laser_cmd)
+                feed = int(s)
 
-                for l in range(lines):
-                    ly = y0 + l * step_y
-
-                    if l % 2 == 0:
-                        margin_start_x = x0 - overscan_dist
-                        margin_end_x = x0 + cell_w + overscan_dist
-
-                        if overscan_dist > 0:
-                            gcode.append(f"G0 X{margin_start_x:.3f} Y{ly:.3f} ; OVERSCAN_START")
-                            gcode.append(f"{laser_cmd} S0")
-                            gcode.append(f"G1 X{x0:.3f} F{int(s)} S0")
-                        else:
-                            gcode.append(f"G0 X{x0:.3f} Y{ly:.3f}")
-                            gcode.append(f"{laser_cmd} S0")
-
-                        gcode.append(f"G1 X{x0 + cell_w:.3f} F{int(s)} S{p_val}")
-
-                        if overscan_dist > 0:
-                            gcode.append(f"G1 X{margin_end_x:.3f} F{int(s)} S0 ; OVERSCAN_END")
+                for line in range(lines):
+                    ly = y0 + line * step_y
+                    # Aller sur les lignes paires, retour sur les impaires.
+                    first, last = (x0, x0 + cell_w) if line % 2 == 0 else (x0 + cell_w, x0)
+                    direction = 1.0 if line % 2 == 0 else -1.0
+                    if overscan_dist > 0:
+                        moves.travel(first - direction * overscan_dist, ly, "OVERSCAN_START")
+                        moves.move(first, power=0, feed=feed)
                     else:
-                        margin_start_x = x0 + cell_w + overscan_dist
-                        margin_end_x = x0 - overscan_dist
-
-                        if overscan_dist > 0:
-                            gcode.append(f"G0 X{margin_start_x:.3f} Y{ly:.3f} ; OVERSCAN_START")
-                            gcode.append(f"{laser_cmd} S0")
-                            gcode.append(f"G1 X{x0 + cell_w:.3f} F{int(s)} S0")
-                        else:
-                            gcode.append(f"G0 X{x0 + cell_w:.3f} Y{ly:.3f}")
-                            gcode.append(f"{laser_cmd} S0")
-
-                        gcode.append(f"G1 X{x0:.3f} F{int(s)} S{p_val}")
-
-                        if overscan_dist > 0:
-                            gcode.append(f"G1 X{margin_end_x:.3f} F{int(s)} S0 ; OVERSCAN_END")
-
-                    gcode.append("M5")
+                        moves.travel(first, ly)
+                    moves.move(last, power=p_val, feed=feed)
+                    if overscan_dist > 0:
+                        moves.move(last + direction * overscan_dist, power=0, feed=feed, comment="OVERSCAN_END")
                     total_time_sec += ((cell_w + (2 * overscan_dist)) / max(s, 1)) * 60.0
     else:
         single_p = params['single_power']
@@ -201,7 +180,7 @@ def build_test_matrix_gcode(params):
             lbl_x = start_x + j * (sq_size + gap) + (sq_size / 2.0) - 4.0
             lbl_y = start_y - 8.0
             pass_text = f"{pass_val}p"
-            gcode.extend(VectorFont.generate_text_gcode(
+            moves.extend(VectorFont.generate_text_gcode(
                 text=pass_text, start_x=lbl_x, start_y=lbl_y, 
                 char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
             ))
@@ -209,7 +188,7 @@ def build_test_matrix_gcode(params):
         matrix_total_w = (num_cols * sq_size) + ((num_cols - 1) * gap)
         title_pass_x = start_x + (matrix_total_w / 2.0) - 30.0
         title_pass_y = start_y - offset_labels_y
-        gcode.extend(VectorFont.generate_text_gcode(
+        moves.extend(VectorFont.generate_text_gcode(
             text="NOMBRE DE PASSES", start_x=title_pass_x, start_y=title_pass_y, 
             char_height=3.2, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
         ))
@@ -219,7 +198,7 @@ def build_test_matrix_gcode(params):
             lbl_x = label_zone_x + 5.0
             lbl_y = start_y + i * (sq_size + gap) + (sq_size / 3.0)
             s_text = f"{_round_half_up(s)}"
-            gcode.extend(VectorFont.generate_text_gcode(
+            moves.extend(VectorFont.generate_text_gcode(
                 text=s_text, start_x=lbl_x, start_y=lbl_y, 
                 char_height=3.0, feed_rate=2000, power_val=text_p_val, laser_cmd="M3"
             ))
@@ -227,7 +206,7 @@ def build_test_matrix_gcode(params):
         matrix_total_h = (num_rows * sq_size) + ((num_rows - 1) * gap)
         title_spd_x = max(0.0, mat_off_x)
         title_spd_y = start_y + (matrix_total_h / 2.0) + 18.0
-        gcode.extend(VectorFont.generate_text_gcode(
+        moves.extend(VectorFont.generate_text_gcode(
             text="VITESSE", start_x=title_spd_x, start_y=title_spd_y, 
             char_height=3.2, feed_rate=2000, power_val=text_p_val, laser_cmd="M3", vertical=True
         ))
@@ -238,19 +217,16 @@ def build_test_matrix_gcode(params):
                 y0 = start_y + i * (sq_size + gap)
 
                 gcode.append(f"\n; --- Carré Speed={int(s)} mm/min | Passes={pass_val} | Power={single_p}% (Découpe) ---")
+                moves.laser(laser_cmd)
                 for pass_num in range(pass_val):
                     gcode.append(f"; Passe {pass_num + 1}/{pass_val}")
-                    gcode.append(f"G0 X{x0:.3f} Y{y0:.3f}")
-                    gcode.append(f"F{int(s)}")
-                    gcode.append(f"{laser_cmd} S{p_val}")
-                    gcode.append(f"G1 X{x0 + sq_size:.3f}")
-                    gcode.append(f"G1 Y{y0 + sq_size:.3f}")
-                    gcode.append(f"G1 X{x0:.3f}")
-                    gcode.append(f"G1 Y{y0:.3f}")
-                    gcode.append("M5")
+                    moves.travel(x0, y0)
+                    for cx, cy in ((x0 + sq_size, y0), (x0 + sq_size, y0 + sq_size), (x0, y0 + sq_size), (x0, y0)):
+                        moves.move(cx, cy, p_val, int(s))
                     total_time_sec += ((sq_size * 4) / max(s, 1)) * 60.0
 
-    gcode.append("\nM5\nG0 X0 Y0\n; FIN MATRICE DE TEST")
+    moves.off()
+    gcode.append("G0 X0 Y0\n; FIN MATRICE DE TEST")
 
     avg_p = float(np.mean(power_samples)) if power_samples else 0.0
     text = "\n".join(gcode)

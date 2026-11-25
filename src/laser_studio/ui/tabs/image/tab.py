@@ -1,6 +1,8 @@
-"""Onglet « Graver une image » : réglages, aperçus original et tramé."""
+"""Onglet « Graver une image », disposé comme « Graver une image vectorielle » : le gros bouton « Charger Image »
+en haut, les aperçus original et tramé, puis à droite la barre d'édition et les propriétés de l'image (affichées
+une fois l'image chargée)."""
 
-from PyQt6.QtCore import QPointF, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QPointF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QImage, QPen, QPolygonF
 from PIL import ImageOps
 from PyQt6.QtWidgets import (
@@ -10,6 +12,7 @@ from PyQt6.QtWidgets import (
     QScrollArea,
     QSizePolicy,
     QSplitter,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -17,12 +20,14 @@ from PyQt6.QtWidgets import (
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import tone_preview
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
-from laser_studio.ui.utils import painted_icon, palette_icon, zoom_shortcuts
+from laser_studio.ui.utils import import_button, painted_icon, palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import FloatingToolBar, ZoomableGraphicsView
 
 
 class ImageTab(QWidget):
-    """Réglages de l'image à gauche, aperçus original et tramé à droite.
+    """« Charger Image » en haut (émet load_requested), aperçus original et tramé, puis à droite la barre
+    d'édition `edit_toolbar` (verticale, remplie par la fenêtre : recadrer, pivoter, miroirs, annuler, loupes)
+    et les propriétés de l'image, masquées tant qu'aucune image n'est chargée.
 
     Les réglages sont dans `settings` (ImageSettingsPanel), qui émet ses
     propres signaux. La barre flottante à gauche des aperçus (`view_toolbar`)
@@ -38,11 +43,9 @@ class ImageTab(QWidget):
         image.source_changed.connect(tab.show_source)
         image.processed.connect(tab.show_processed)
 
-    `preview_area` (les deux aperçus) accueille aussi, en haut, la barre
-    flottante recadrer / pivoter / miroirs / annuler / loupes
-    (FloatingToolBar), posée par la fenêtre.
     """
 
+    load_requested = pyqtSignal()
     compare_requested = pyqtSignal()
     crop_requested = pyqtSignal()
 
@@ -56,13 +59,35 @@ class ImageTab(QWidget):
         self._tones_timer.timeout.connect(self._show_source_image)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        top = QHBoxLayout()
+        self.load_button = import_button(tr("img.load"), self._picture_icon())
+        self.load_button.clicked.connect(lambda: self.load_requested.emit())
+        top.addWidget(self.load_button)
+        top.addStretch()
+        layout.addLayout(top)
         row = QHBoxLayout()
-        # Réglages de l'image à gauche, comme dans Séparation.
-        self._settings_scroll = self._side_scroll(self.settings)
-        self.fit_settings_width()
-        row.addWidget(self._settings_scroll)
         row.addWidget(self._previews(), 1)
-        layout.addLayout(row)
+        # À droite, comme dans l'éditeur vectoriel : barre d'édition, puis les propriétés de l'image.
+        side = QWidget()
+        side.setProperty("role", "sidebar")              # panneau latéral (thèmes modernes : plus sombre, à plat)
+        side_row = QHBoxLayout(side)
+        side_row.setContentsMargins(0, 0, 0, 0)
+        self.edit_toolbar = QToolBar()
+        self.edit_toolbar.setOrientation(Qt.Orientation.Vertical)
+        self.edit_toolbar.setIconSize(QSize(20, 20))
+        side_row.addWidget(self.edit_toolbar)
+        properties = QGroupBox(tr("img.properties_box"))
+        QVBoxLayout(properties).addWidget(self.settings)
+        holder = QWidget()                               # fond du panneau latéral sous le cadre
+        holder.setProperty("role", "sidebar")
+        QVBoxLayout(holder).addWidget(properties)
+        self._settings_scroll = self._side_scroll(holder)
+        self._settings_scroll.setVisible(False)          # affichées une fois l'image chargée (show_source)
+        self.fit_settings_width()
+        side_row.addWidget(self._settings_scroll)
+        row.addWidget(side)
+        layout.addLayout(row, 1)
         # Loupes : placées par la fenêtre dans la barre flottante des aperçus (avec annuler, pivoter…).
         self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
         self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
@@ -116,6 +141,19 @@ class ImageTab(QWidget):
         self.show_original_action.toggled.connect(self._show_original)
         return FloatingToolBar([self.compare_action, self.show_original_action], self.preview_area,
                                anchor="left")
+
+    def _picture_icon(self):
+        """Icône « image » : cadre, montagnes et soleil, dans la couleur du texte du thème."""
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2))
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawRoundedRect(3, 5, 26, 22, 3, 3)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(color)
+            painter.drawEllipse(QPointF(22, 12), 3, 3)
+            painter.drawPolygon(QPolygonF([QPointF(5, 25), QPointF(13, 14), QPointF(19, 21), QPointF(22, 18),
+                                           QPointF(27, 25)]))
+        return painted_icon(self.palette(), draw)
 
     def _original_icon(self):
         """Afficher l'originale : deux cadres côte à côte, dans la couleur du texte du thème."""
@@ -196,8 +234,13 @@ class ImageTab(QWidget):
         for child in self.settings.findChildren(QWidget):
             child.updateGeometry()
         self.settings.layout().invalidate()
+        self.settings.updateGeometry()                # le cadre « Propriétés de l'image » relit sa taille
+        for widget in scroll.widget().findChildren(QGroupBox):
+            widget.updateGeometry()
+            widget.layout().invalidate()
+        scroll.widget().layout().invalidate()
         needed = (
-            self.settings.minimumSizeHint().width()
+            scroll.widget().minimumSizeHint().width()
             + scroll.verticalScrollBar().sizeHint().width()
             + 2 * scroll.frameWidth()
         )
@@ -214,9 +257,11 @@ class ImageTab(QWidget):
     def show_source(self, image):
         """Image chargée (PIL, niveaux de gris), ou None : les deux aperçus sont vidés."""
         self._source_image = image
+        self._settings_scroll.setVisible(image is not None)
+        # Nouvelle image (chargée, recadrée, pivotée) : aperçus vidés, donc cadrés sur elle à son affichage.
+        self.source_view.clear_image()
+        self.dither_view.clear_image()
         if image is None:
-            self.source_view.clear_image()
-            self.dither_view.clear_image()
             return
         self._show_source_image()
 
@@ -238,12 +283,9 @@ class ImageTab(QWidget):
         tones = self.preview_tones_check.isChecked()
         invert = self.preview_invert_check.isChecked()
         modified = tones or invert
-        # L'originale en pleine taille fixe la zone de la vue (ajustée une seule fois) : toujours telle quelle,
-        # et modifiée seulement quand la vue est encore vide.
-        if not modified or view.scene_obj.sceneRect().size().isEmpty():
+        if not modified:
             view.pixmap_item.setScale(1.0)
             view.set_image(self._grayscale_qimage(image))
-        if not modified:
             return
         small = image.copy()
         small.thumbnail((self.TONES_PREVIEW_MAX_PX, self.TONES_PREVIEW_MAX_PX))
@@ -252,8 +294,8 @@ class ImageTab(QWidget):
             small = tone_preview(small, values["bright"], values["contrast"], values["gamma"], values["sharp"])
         if invert:
             small = ImageOps.invert(small.convert("L"))
+        view.pixmap_item.setScale(image.width / small.width)      # avant set_image : cadrage à la bonne taille
         view.set_image(self._grayscale_qimage(small))
-        view.pixmap_item.setScale(image.width / small.width)
 
     def show_processed(self, _array, image):
         """Rendu tramé (ImageController.processed)."""

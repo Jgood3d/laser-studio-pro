@@ -37,8 +37,8 @@ def _engraving_moves(gcode):
     """X et Y des déplacements G0/G1 de la gravure (avant le M5 final et le retour à l'origine)."""
     xs, ys = [], []
     for line in gcode[:gcode.rindex("M5")].splitlines():
-        line = line.split(";")[0]
-        if re.match(r"G[01]\b", line):
+        line = line.split(";")[0].strip()
+        if re.match(r"G[01]\b", line) or line[:1] in ("X", "Y"):        # G0 / G1, ou mouvement modal
             xs += [float(v) for v in re.findall(r"X(-?[\d.]+)", line)]
             ys += [float(v) for v in re.findall(r"Y(-?[\d.]+)", line)]
     return xs, ys

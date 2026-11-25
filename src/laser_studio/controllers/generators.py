@@ -1,10 +1,11 @@
 """Générateurs de l'éditeur vectoriel : boîte à encoches, puzzle, boules de Noël, porte-clés prénom et gabarit
-de placement. Chacun ouvre sa fenêtre (par EditorForms), calcule les pièces (vector/) et les ajoute à l'éditeur
-par VectorEditorController.import_objects (placement : marge de surbalayage, ou à côté des objets présents).
+de placement. Les quatre premiers partagent une fenêtre (EditorForms.generators), le gabarit a la sienne.
+Le contrôleur calcule les pièces (vector/) et les ajoute à l'éditeur par VectorEditorController.import_objects
+(placement : marge de surbalayage, ou à côté des objets présents).
 Garde les derniers réglages de chaque fenêtre.
 
     generators = GeneratorsController(editor, layout, forms, image_frame=..., busy=busy_cursor)
-    actions.box_generator_requested.connect(generators.open_box_generator)
+    actions.generator_requested.connect(generators.open_generators)        # « box », « puzzle »…
 """
 from contextlib import nullcontext
 
@@ -33,7 +34,7 @@ class GeneratorsController:
     EditorForms. État de l'interface lu à chaque usage : `image_frame()` (x, y, largeur, hauteur) en mm de
     l'image à graver, pour caler le puzzle, ou None ; `busy()` : curseur d'attente pendant un calcul long."""
 
-    def __init__(self, editor, layout, forms, image_frame=lambda: None, busy=nullcontext):
+    def __init__(self, editor, layout, forms, image_frame=lambda: None, busy=nullcontext, library=None):
         self.editor = editor
         self.canvas = editor.canvas
         self.layers = editor.layers
@@ -43,18 +44,56 @@ class GeneratorsController:
         self.forms = forms
         self._image_frame = image_frame
         self._busy = busy
+        self.library = library               # LibraryController : page « Bibliothèque » (None : sans)
         # Derniers réglages de chaque fenêtre, repris à sa prochaine ouverture.
         self.box_settings = None
         self.puzzle_settings = None
         self.ornament_settings = None
         self.keychain_settings = None
         self.jig_settings = None
+        self.last_generator = "box"          # la fenêtre des générateurs rouvre sur le dernier utilisé
 
     def commands(self):
         """Commandes de l'onglet (VectorEditorTab.command) que ce contrôleur traite."""
-        return {"box": self.open_box_generator, "puzzle": self.open_puzzle_generator,
-                "ornament": self.open_ornament_generator, "keychain": self.open_keychain_generator,
-                "jig": self.open_jig_generator}
+        return {"generators": self.open_generators, "jig": self.open_jig_generator,
+                **{kind: (lambda kind=kind: self.open_generators(kind))
+                   for kind in ("library", "box", "puzzle", "ornament", "keychain")}}
+
+    def open_generators(self, kind=None):
+        """Fenêtre des générateurs, ouverte sur `kind` (« library », « box », « puzzle », « ornament »,
+        « keychain » ; par défaut le dernier utilisé) ; le générateur validé fabrique ses pièces (ou le modèle
+        de la bibliothèque) et les ajoute à l'éditeur."""
+        if not self.editor.require_layers():
+            return
+        try:
+            target_rect = self._image_frame()
+        except Exception:
+            log.warning("Puzzle : cadre de l'image illisible, puzzle non calé", exc_info=True)
+            target_rect = None
+        layers, bed_w, bed_h = self.layers.layers, self.machine.bed_w, self.machine.bed_h
+        requests = {
+            "box": (layers, bed_w, bed_h, self.box_settings),
+            "puzzle": (layers, bed_w, bed_h, self.puzzle_settings, target_rect),
+            # Taille de la feuille de matière : à choisir dans la fenêtre (dernière saisie, sinon le plateau).
+            "ornament": (layers, self.ornament_settings, self.layout.sheet_default()),
+            "keychain": (layers, self.keychain_settings),
+        }
+        library = self.library.generator_request() if self.library is not None else None
+        if library is not None:
+            requests["library"] = library
+        elif kind == "library":
+            self.dialogs.info(tr("library.title"), tr("library.empty"))
+            return
+        picked = self.forms.generators(kind or self.last_generator, requests)
+        if picked is None:
+            return
+        kind, choice = picked
+        self.last_generator = kind
+        if kind == "library":
+            self.library.import_choice(choice)
+            return
+        {"box": self._make_box, "puzzle": self._make_puzzle, "ornament": self._make_ornament,
+         "keychain": self._make_keychain}[kind](choice)
 
     def open_jig_generator(self):
         """Gabarit de placement : une plaque à découper avec une poche par objet (dimensions de la sélection, plus
@@ -93,14 +132,8 @@ class GeneratorsController:
                                                            bed_h=f"{self.machine.bed_h:.0f}")
         self.dialogs.info(tr("jig.title"), message)
 
-    def open_box_generator(self):
-        """Générateur de boîte à encoches : les panneaux (calque de découpe) et le
-        décor texte/SVG (calque de gravure)."""
-        if not self.editor.require_layers():
-            return
-        choice = self.forms.box(self.layers.layers, self.machine.bed_w, self.machine.bed_h, self.box_settings)
-        if choice is None:
-            return
+    def _make_box(self, choice):
+        """Boîte à encoches : les panneaux (calque de découpe) et le décor texte/SVG (calque de gravure)."""
         self.box_settings = choice.settings
         try:
             result = box_generator.build_box(choice.params)
@@ -130,19 +163,8 @@ class GeneratorsController:
             message += "\n\n" + tr("box.too_big").format(bed_w=self.machine.bed_w, bed_h=self.machine.bed_h)
         self.dialogs.info(tr("box.title"), message)
 
-    def open_puzzle_generator(self):
-        """Générateur de puzzle : les pièces sur le calque de découpe, calées sur l'image s'il y en a une."""
-        if not self.editor.require_layers():
-            return
-        try:
-            target_rect = self._image_frame()
-        except Exception:
-            log.warning("Puzzle : cadre de l'image illisible, puzzle non calé", exc_info=True)
-            target_rect = None
-        choice = self.forms.puzzle(self.layers.layers, self.machine.bed_w, self.machine.bed_h,
-                                   self.puzzle_settings, target_rect)
-        if choice is None:
-            return
+    def _make_puzzle(self, choice):
+        """Puzzle : les pièces sur le calque de découpe, calées sur l'image s'il y en a une."""
         self.puzzle_settings = choice.settings
         params = choice.params
         try:
@@ -164,15 +186,9 @@ class GeneratorsController:
         self.dialogs.info(tr("puzzle.title"), tr("puzzle.done").format(
             nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces)))
 
-    def open_ornament_generator(self):
-        """Générateur de boules de Noël : contours soudés (découpe) et prénom gravé ; un prénom par ligne
-        donne une boule par prénom, rangées en grille, avec proposition d'imbrication."""
-        if not self.editor.require_layers():
-            return
-        # Taille de la feuille de matière : à choisir dans la fenêtre (dernière saisie, sinon le plateau).
-        choice = self.forms.ornament(self.layers.layers, self.ornament_settings, self.layout.sheet_default())
-        if choice is None:
-            return
+    def _make_ornament(self, choice):
+        """Boules de Noël : contours soudés (découpe) et prénom gravé ; un prénom par ligne donne une boule par
+        prénom, rangées en grille, avec proposition d'imbrication."""
         self.ornament_settings = choice.settings
         sheet_w, sheet_h = choice.sheet
         # L'imbrication reprendra cette taille de feuille.
@@ -238,16 +254,11 @@ class GeneratorsController:
                 item.setSelected(True)
             self.layout.open_nesting()
 
-    def open_keychain_generator(self):
-        """Générateur de porte-clés prénom : la base découpée et le texte gravé."""
-        if not self.editor.require_layers():
-            return
+    def _make_keychain(self, choice):
+        """Porte-clés prénom : la base découpée et le texte gravé."""
         # Importé ici, comme avant : chargé à la première utilisation.
         from laser_studio.vector import keychain_generator
 
-        choice = self.forms.keychain(self.layers.layers, self.keychain_settings)
-        if choice is None:
-            return
         self.keychain_settings = choice.settings
         try:
             family, bold, italic = choice.font

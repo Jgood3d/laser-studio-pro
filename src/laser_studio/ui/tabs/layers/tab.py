@@ -2,11 +2,10 @@
 réglages laser."""
 
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtWidgets import QComboBox, QLabel, QToolBar, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QComboBox, QHBoxLayout, QLabel, QToolBar, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import palette_icon
-from laser_studio.ui.widgets import FloatingToolBar
 from laser_studio.ui.tabs.layers.layer_table import LayerManagerWidget
 
 # Icône (pack Breeze embarqué) et infobulle de chaque action de la barre, dans
@@ -69,19 +68,23 @@ class LayersTab(QWidget):
             layer_manager, focal_getter=focal_getter
         )
         self.layer_widget.layers_changed.connect(self.layers_changed)
-        layout = QVBoxLayout(self)
-        layout.addWidget(self._materials_toolbar(material_names))
-        layout.addWidget(self.layer_widget)
         for action, (icon, tip_key) in zip(
             self.layer_widget.layer_actions, LAYER_ACTION_ICONS
         ):
             action.setIcon(palette_icon(icon, self.palette()))
             action.setToolTip(tr(tip_key))
-        self.actions_toolbar = FloatingToolBar(
-            self.layer_widget.layer_actions,
-            self.layer_widget.table,
-            anchor="left",
-        )
+        # Actions des calques : barre verticale à droite du tableau, comme dans les autres onglets.
+        self.actions_toolbar = QToolBar()
+        self.actions_toolbar.setOrientation(Qt.Orientation.Vertical)
+        self.actions_toolbar.setIconSize(QSize(20, 20))
+        for action in self.layer_widget.layer_actions:
+            self.actions_toolbar.addAction(action)
+        row = QHBoxLayout()
+        row.addWidget(self.layer_widget, 1)
+        row.addWidget(self.actions_toolbar)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self._materials_toolbar(material_names))
+        layout.addLayout(row, 1)
 
     # -- état reçu de la fenêtre / du contrôleur
 

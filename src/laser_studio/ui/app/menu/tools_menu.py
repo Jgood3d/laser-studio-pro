@@ -6,8 +6,8 @@ from laser_studio.i18n import tr
 
 
 class ToolsMenu(QMenu):
-    """Menu Outils : matrice de test, Stencil Studio, onglets annexes, puis
-    les outils de l'éditeur vectoriel (import, boîte, puzzle)."""
+    """Menu Outils : matrice de test, Stencil Studio, onglets annexes, caméra, puis
+    les outils de l'éditeur vectoriel (bibliothèque, import, générateurs)."""
 
     def __init__(self, actions, parent=None):
         super().__init__(tr("menu.tools"), parent)

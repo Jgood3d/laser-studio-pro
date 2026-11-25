@@ -1,12 +1,14 @@
 """Fenêtre principale de l'application.
 
 FullLaserStudio construit la fenêtre (init_ui), crée les modèles et les
-contrôleurs, branche les signaux de ses panneaux et gère ses événements
-(fermeture, glisser-déposer). Ce qui agit sur la fenêtre est dans ui/app/ :
-WindowController (menus, réglages, actions transversales), MainTabs (onglets,
+contrôleurs, branche les signaux de ses panneaux et du menu (_connect_app_actions)
+et gère ses événements (fermeture, glisser-déposer). Ce qui agit sur la fenêtre :
+controllers/window.py WindowController (réglages, actions transversales), MainTabs (onglets,
 plein écran, panneau du bas), JobDisplay (résultats du job, état du graveur),
 ImageToolbarActions (actions de la barre d'outils sur l'image).
 """
+from types import SimpleNamespace
+
 from PyQt6.QtWidgets import (QHBoxLayout, QMainWindow, QMessageBox, QScrollArea, QSplitter, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QTimer
@@ -26,7 +28,8 @@ from laser_studio.models.vector_document import VectorDocument
 from laser_studio.ui.app.image_actions import ImageToolbarActions
 from laser_studio.ui.app.job_display import JobDisplay, set_homing_available
 from laser_studio.ui.app.menu import AppActions, AppMenuBar, AppToolBar
-from laser_studio.ui.app.tabs import GCODE_CONSOLE_SETTING, JOB_QUEUE_SETTING, MainTabs
+from laser_studio.ui.app.bottom_panel import BottomPanel
+from laser_studio.ui.app.tabs import MainTabs
 from laser_studio.controllers.window import WindowController
 from laser_studio.ui.app.window_forms import WindowForms
 from laser_studio.ui.app.window_state import WindowState
@@ -36,6 +39,9 @@ from laser_studio.ui.machine.macros_builder import build_macros
 from laser_studio.controllers.job_history import JobHistoryRecorder
 from laser_studio.models.job_history import JobHistory
 from laser_studio.ui.machine.job_position import JobPositionBox
+from laser_studio.ui.dialogs.macros import MacroEditorDialog
+from laser_studio.ui.settings.appearance import AppearancePage
+from laser_studio.ui.settings.macros_page import MacrosPage
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
 from laser_studio.ui.settings.machine_params.builder import build_machine_params_page
 from laser_studio.ui.settings.test_matrix.builder import build_test_matrix_page
@@ -61,8 +67,6 @@ class FullLaserStudio(QMainWindow):
         self.resize(1600, 980)
         
         self.setAcceptDrops(True)
-        # Actions qui touchent toute la fenêtre (menus, réglages, résolution, Stencil Studio).
-        self.window_controller = WindowController(self, WindowForms(self))
         # État qui s'enregistre et se restaure : réglages machine, profils, projet, matériau choisi.
         self.state = WindowState(self)
 
@@ -184,39 +188,39 @@ class FullLaserStudio(QMainWindow):
         center_panel.setContentsMargins(0, 0, 0, 0)
         self.main_tabs_view = QTabWidget()
         self.main_tabs_view.setMovable(True)
+        self.main_tabs_view.tabBar().setFocusPolicy(Qt.FocusPolicy.NoFocus)   # pas de cadre de focus (VS Code)
         self._build_center_tabs()
         center_bottom_scroll = self._build_machine_panel()
         center_panel.addWidget(self.center_v_splitter)
         self._build_job_tabs()
 
-        self.center_bottom_widget = center_bottom_scroll     # masqué / affiché selon l'onglet
-        # Onglets, plein écran, panneau du bas : le panneau machine n'est montré que sur les
-        # onglets du job (aperçu 2D, console, file d'attente) ou pendant un envoi.
+        # Panneau du bas, comme celui de VS Code : graveur, console G-Code et file d'attente, sous les onglets
+        # de travail sur tous les onglets ; replié ou déplié (Ctrl+J, menu Affichage).
+        self.bottom_panel = BottomPanel(
+            [("machine", tr("panel.machine"), center_bottom_scroll),
+             ("gcode", tr("ui.tab_console_gcode"), self.tab_console_gcode),
+             ("queue", tr("ui.tab_job_queue"), self.tab_job_queue)],
+            self.center_v_splitter)
+        self.center_v_splitter.addWidget(self.bottom_panel)
+        self.center_v_splitter.setCollapsible(1, False)       # sa barre d'onglets reste toujours visible
         self.tabs = MainTabs(
             self.main_tabs_view, self,
-            splitter=self.center_v_splitter, bottom_panel=center_bottom_scroll,
-            panel_tabs=(self.tab_vector_2d, self.tab_console_gcode, self.tab_job_queue),
+            splitter=self.center_v_splitter, bottom_panel=self.bottom_panel,
             preview_splitter=self.tab_vector_2d.splitter,
-            job_in_progress=self.connection.is_streaming,
             vector_editor=self.tab_vector_editor, recenter_vector_editor=self.vector_canvas.request_recenter,
             png2svg=self.tab_png2svg, parent=self,
         )
-        # Console G-Code (masquée la première fois) et file d'attente (affichée) : menu Affichage,
-        # croix sur l'onglet, choix mémorisé.
-        self.tabs.add_optional(self.tab_console_gcode, GCODE_CONSOLE_SETTING, self.app_actions.gcode_console)
-        self.tabs.add_optional(self.tab_job_queue, JOB_QUEUE_SETTING, self.app_actions.job_queue)
         self._build_job_display()
-        self.main_tabs_view.currentChanged.connect(self.tabs.update_bottom_panel)
-        self.main_tabs_view.currentChanged.connect(self.window_controller.main_tab_changed)
+        # Onglet Séparation affiché : ses aperçus, en retard, sont refaits.
+        self.main_tabs_view.currentChanged.connect(
+            lambda index: self.main_tabs_view.widget(index) is self.tab_separation and self.separation.refresh_if_dirty())
         self.main_tabs_view.currentChanged.connect(self.image_actions.update_state)
-        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (MainTabs.show),
-        # ou Affichage pour la console G-Code et la file d'attente (MainTabs.set_optional_visible).
-        for tab in (self.tab_separation, self.tab_png2svg, self.tab_console_gcode):
+        # Onglets masqués au démarrage, ouverts à la demande depuis le menu Outils (MainTabs.show).
+        for tab in (self.tab_separation, self.tab_png2svg):
             self.main_tabs_view.setTabVisible(self.main_tabs_view.indexOf(tab), False)
+        self.tabs.set_closable((self.tab_separation, self.tab_png2svg))     # croix : refermés, rouverts par Outils
         self._add_image_floating_toolbars()
-        self.tabs.update_bottom_panel()
         self.image_actions.update_state()
-        self.tabs.restore_optional_tabs()
 
         # Largeur minimale EXPLICITE du centre. Sans elle, la largeur minimale serait calculée
         # d'après le contenu : la barre d'outils de l'éditeur vectoriel (11 boutons, ~1500 px) et la
@@ -237,17 +241,86 @@ class FullLaserStudio(QMainWindow):
         self.engraver.stream_ended.connect(self.job_history_recorder.job_ended)
         self.job.generated.connect(self.job_history_recorder.remember_estimate)
         # Macros de l'utilisateur : boutons du panneau des actions de job, filtrés par profil machine.
+        # « Gérer les macros » : la page « Macros » de la fenêtre Paramètres.
         self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver, self.connection,
-                                   self.machines, self.dialogs, parent=self)
+                                   self.machines, self.dialogs, parent=self,
+                                   manage=lambda: self.window_controller.show_settings_window("macros"))
+        # Actions qui touchent plusieurs parties de la fenêtre (thème, langue, réglages, caméra, matrice,
+        # Stencil Studio) : créé une fois toutes ces parties construites, il les reçoit explicitement.
+        self.window_controller = WindowController(
+            self, forms=WindowForms(self), dialogs=self.dialogs, actions=self.app_actions, tabs=self.tabs,
+            machine=self.machine, job=self.job, image=self.image, job_history=self.job_history,
+            vector=SimpleNamespace(controller=self.vector_editor, canvas=self.vector_canvas, tab=self.tab_vector_editor),
+            pages={"machine_params": self.tab_machine_params, "test_matrix": self.tab_matrix,
+                   "matrix_image": self.matrix_image, "resolution": self.resolution_box, "layers": self.layers_tab,
+                   "preview": self.tab_vector_2d},
+            settings_pages={"machine_params": (self.tab_machine_params, "tab.machine_params"),
+                            "grbl": (self.tab_grbl_config, "tab.grbl_config"),
+                            "appearance": (AppearancePage(self.app_actions.language_actions,
+                                                          self.app_actions.theme_actions), "settings.appearance"),
+                            "macros": (MacrosPage(lambda: MacroEditorDialog(*self.macros.editor_args()),
+                                                  self.macros.save), "macros.title"),
+                            "test_matrix": (self.tab_matrix, "tab.test_matrix")},
+            main_tabs={"tab_png2svg": self.tab_png2svg, "tab_separation": self.tab_separation},
+        )
         # Menus abonnés une fois toute la fenêtre construite.
-        self.window_controller.connect_actions(self.app_actions)
+        self._connect_app_actions(self.app_actions)
         self.project.refresh_recent_projects()
         self.window_controller.schedule_stencil_preload()
+
+    def _connect_app_actions(self, actions):
+        """Abonne les parties de la fenêtre aux signaux du menu et de la barre d'outils (AppActions)."""
+        controller = self.window_controller
+        # Fichier
+        actions.save_project_requested.connect(self.project.save)
+        actions.gcode_export_requested.connect(
+            lambda extension: self.job.export_gcode(extension, self.tab_console_gcode.gcode()))
+        actions.open_project_requested.connect(self.project.open)
+        actions.recent_project_requested.connect(self.project.open_path)
+        actions.quit_requested.connect(self.close)
+        # Paramètres et outils
+        actions.settings_window_requested.connect(controller.show_settings_window)
+        actions.language_selected.connect(controller.select_language)
+        actions.theme_selected.connect(controller.change_theme)
+        actions.stencil_studio_requested.connect(lambda: controller.stencil().open())
+        actions.main_tab_requested.connect(controller.show_main_tab)
+        in_editor, generators = controller.run_in_vector_editor, self.vector_generators
+        actions.vector_import_requested.connect(lambda: in_editor(self.vector_editor.import_dialog))
+        actions.generator_requested.connect(lambda kind: in_editor(lambda: generators.open_generators(kind)))
+        actions.camera_requested.connect(controller.open_camera_dialog)
+        actions.history_requested.connect(controller.show_job_history)
+        # Affichage
+        actions.fullscreen_requested.connect(self.tabs.toggle_current_fullscreen)
+        panel = self.bottom_panel
+        actions.job_queue_requested.connect(lambda: panel.show_page("queue"))
+        # Ctrl+J : action de la fenêtre (plus de menu Affichage), comme dans VS Code.
+        self.addAction(actions.bottom_panel)
+        actions.bottom_panel_toggled.connect(lambda shown: panel.set_collapsed(not shown))
+        actions.bottom_panel.setChecked(not panel.is_collapsed())
+        panel.collapsed_changed.connect(lambda collapsed: actions.bottom_panel.setChecked(not collapsed))
+        self.statusBar().machine_clicked.connect(lambda: panel.show_page("machine"))
+        self.tab_vector_editor.vectorize_requested.connect(lambda: self.tabs.show(self.tab_png2svg))
+        # Aide
+        actions.documentation_requested.connect(controller.show_documentation)
+        actions.about_requested.connect(controller.forms.about)
+        actions.support_requested.connect(controller.forms.support)
+        actions.coffee_requested.connect(controller.forms.coffee)
+        # Image
+        actions.image_undo_requested.connect(self.image_history.undo)
+        actions.image_redo_requested.connect(self.image_history.redo)
+        actions.image_delete_requested.connect(self.image_actions.delete)
+        actions.image_rotate_requested.connect(self.image_actions.rotate)
+        actions.mirror_changed.connect(self.image.schedule_processing)
+        actions.image_reset_requested.connect(self.image.reset_settings)
+        # G-code
+        actions.estimate_requested.connect(self.job.estimate)
+        actions.generate_requested.connect(self.job.generate)
+        actions.gcode_import_requested.connect(self.job.import_gcode)
 
     def _build_app_menus(self):
         """Menu et barre d'outils : AppActions crée les actions partagées et
         émet les signaux, AppMenuBar et AppToolBar ne font que les ranger
-        (abonnés par WindowController.connect_actions)."""
+        (abonnés par _connect_app_actions)."""
         self.app_actions = AppActions(self)
         self.app_menu_bar = AppMenuBar(self.app_actions)
         self.setMenuBar(self.app_menu_bar)
@@ -265,7 +338,7 @@ class FullLaserStudio(QMainWindow):
             test_matrix=lambda: self.job.last_test_matrix_params,
             show_preview=lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_2d),
             log=self.log_message,
-            update_bottom_panel=self.tabs.update_bottom_panel,
+            show_machine_panel=lambda: self.bottom_panel.show_page("machine"),
             parent=self,
         )
         display = self.job_display
@@ -277,8 +350,8 @@ class FullLaserStudio(QMainWindow):
         self.tab_vector_2d.display_options_changed.connect(display.redraw)
 
     def _add_image_floating_toolbars(self):
-        """Barre flottante en haut des aperçus d'image : mêmes actions que celles de l'ancienne
-        barre d'outils (état actif / coché partagé, voir ImageToolbarActions.update_state).
+        """Barres des aperçus d'image (verticale à droite pour « Graver une image », flottantes ailleurs) : mêmes
+        actions que celles de l'ancienne barre d'outils (état actif / coché partagé, voir ImageToolbarActions.update_state).
 
         Même ordre que dans l'éditeur vectoriel : les actions propres à la vue, puis annuler / refaire et
         les loupes, toujours au bout à droite.
@@ -289,11 +362,15 @@ class FullLaserStudio(QMainWindow):
         a = self.app_actions
         rotate = [a.image_rotate_left, a.image_rotate_right]
         mirrors = [a.mirror_h, a.mirror_v]
-        self.image_floating_toolbar = FloatingToolBar(
-            [self.tab_previews.crop_action, None, *rotate, None, *mirrors, None, a.image_reset, a.image_delete,
-             None, a.image_undo, a.image_redo,
-             None, self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action],
-            self.tab_previews.preview_area)
+        # « Graver une image » : barre verticale à droite des aperçus, comme celle de l'éditeur vectoriel.
+        image_bar = self.tab_previews.edit_toolbar
+        for action in (self.tab_previews.crop_action, None, *rotate, None, *mirrors, None, a.image_reset,
+                       a.image_delete, None, a.image_undo, a.image_redo,
+                       None, self.tab_previews.zoom_in_action, self.tab_previews.zoom_out_action):
+            if action is None:
+                image_bar.addSeparator()
+            else:
+                image_bar.addAction(action)
         self.separation_floating_toolbar = FloatingToolBar(
             [*rotate, None, *mirrors, None, a.image_reset, a.image_delete],
             self.tab_separation.preview_tabs, top_margin=34)
@@ -301,8 +378,8 @@ class FullLaserStudio(QMainWindow):
             [*rotate, None, a.image_delete], self.tab_png2svg.converter.splitter)
 
     def _build_machine_panel(self):
-        """Panneau machine sous les onglets (build_machine_panel), dans une zone qui défile, placée sous
-        les onglets dans `center_v_splitter`. Renvoie la zone de défilement."""
+        """Panneau machine (build_machine_panel), dans une zone qui défile : l'onglet « Graveur » du panneau
+        du bas, sous les onglets dans `center_v_splitter`. Renvoie la zone de défilement."""
         self.machine_panel = build_machine_panel(
             self.engraver, self.connection, self.machine.max_speed,
             max_speed_changed=self.tab_machine_params.max_speed_changed, help_parent=self)
@@ -316,8 +393,7 @@ class FullLaserStudio(QMainWindow):
         center_bottom_scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         center_bottom_scroll.setMinimumHeight(100)
         self.center_v_splitter = QSplitter(Qt.Orientation.Vertical)
-        self.center_v_splitter.addWidget(self.main_tabs_view)
-        self.center_v_splitter.addWidget(center_bottom_scroll)
+        self.center_v_splitter.addWidget(self.main_tabs_view)       # puis le panneau du bas (init_ui)
         self.center_v_splitter.setStretchFactor(0, 3)
         self.center_v_splitter.setStretchFactor(1, 1)
         return center_bottom_scroll
@@ -326,20 +402,16 @@ class FullLaserStudio(QMainWindow):
         """Pages des fenêtres du menu Paramètres (WindowController.show_settings_window) : Paramètres du
         graveur (profils machine), Matrice de test, Configuration GRBL. La matrice suit les lignes/mm
         de « Graver une image » (WindowController.sync_matrix_lines_mm)."""
-        controller = self.window_controller
+        # Le contrôleur de la fenêtre est créé à la fin d'init_ui : les boutons l'appellent au moment du clic.
         self.tab_machine_params, self.machines = build_machine_params_page(
             self.machine, self.state, self.dialogs, self,
             link_layers_to_focal=lambda: self.layers_tab.link_all_to_focal(),
-            focal_changed=controller.machine_focal_changed)
+            focal_changed=lambda focal: self.window_controller.machine_focal_changed(focal))
         self.tab_matrix, self.matrix_image = build_test_matrix_page(
-            self.resolution_box.lines_per_mm(), generate=controller.generate_test_matrix_and_show,
+            self.resolution_box.lines_per_mm(), generate=lambda: self.window_controller.generate_test_matrix_and_show(),
             loaded_image=self._loaded_image_and_width,
             image_settings=self.tab_previews.settings.processing_settings)
         self.tab_grbl_config = build_grbl_config_page(self.grbl, self.job, self.engraver, self.machines)
-        for kind, page, title_key in (("machine_params", self.tab_machine_params, "tab.machine_params"),
-                                      ("grbl", self.tab_grbl_config, "tab.grbl_config"),
-                                      ("test_matrix", self.tab_matrix, "tab.test_matrix")):
-            controller.add_settings_page(kind, page, title_key)
         # Résolution de « Graver une image » reprise par la matrice de test (même densité de lignes).
         self.tab_previews.settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)
 
@@ -347,10 +419,10 @@ class FullLaserStudio(QMainWindow):
         """Onglet « Graver une image » (build_image_tab) et cadre « Position du job ». Construit tôt :
         la matrice de test lit ses lignes/mm, l'aperçu 2D reçoit le cadre « Position du job ».
         L'onglet est placé dans les onglets par init_ui."""
-        controller = self.window_controller
         self.tab_previews, self.image = build_image_tab(
             self.image_settings, self.image_history, self.machine, self.layer_manager, self.dialogs,
-            self.image_actions, configure_focal=controller.goto_focal_settings, compare=controller.show_dither_comparison,
+            self.image_actions, configure_focal=lambda: self.window_controller.goto_focal_settings(),
+            compare=lambda: self.window_controller.show_dither_comparison(),
             status=self.show_status_message, parent=self)
         self.resolution_box = self.tab_previews.settings.resolution_box
         # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
@@ -378,14 +450,12 @@ class FullLaserStudio(QMainWindow):
             self.layer_manager, self.machine, self.dialogs, self.image_actions, self,
             add_to_vector_editor=lambda objects: self.vector_editor.import_objects(objects))
         tabs.addTab(self.tab_png2svg, tr("png2svg.tab_title"))
-        self.window_controller.add_main_tab("tab_png2svg", self.tab_png2svg)
         self.tab_separation, self.separation = build_separation_tab(
             self.image_settings, self.image, self.job, self.dialogs, self.image_actions, self,
             lines_mm=self.resolution_box.lines_per_mm)
         tabs.addTab(self.tab_separation, tr("sep.tab_title"))
         # Résolution de « Graver une image » reprise par la Séparation (affichage, tonalité renvoyée).
         self.tab_previews.settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())
-        self.window_controller.add_main_tab("tab_separation", self.tab_separation)
         editor = build_vector_editor(
             self.vector_document, self.layer_manager, self.machine, self.dialogs, self,
             image_frame=self.job.image_frame, overscan_margin=self.job.overscan_margin, status=self.show_status_message,
@@ -395,8 +465,9 @@ class FullLaserStudio(QMainWindow):
         self.vector_generators, self.vector_layout = editor.generators, editor.layout
         # Fond caméra de l'éditeur : capture et image projetée sur le canevas (WindowController, caméra créée à
         # la première utilisation).
-        editor.tab.camera_background_toggled.connect(self.window_controller.set_camera_background_enabled)
-        editor.tab.camera_refresh_requested.connect(self.window_controller.refresh_camera_clicked)
+        editor.tab.camera_background_toggled.connect(
+            lambda enabled: self.window_controller.set_camera_background_enabled(enabled))
+        editor.tab.camera_refresh_requested.connect(lambda: self.window_controller.refresh_camera_clicked())
         tabs.addTab(self.tab_vector_editor, tr("ui.tab_vector_editor"))
         tabs.addTab(self.layers_tab, tr("tab.layers"))
         # Visualisation 2D : G-Code généré ou importé (JobDisplay.plot), position de la tête et traits
@@ -407,15 +478,13 @@ class FullLaserStudio(QMainWindow):
         tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))
 
     def _build_job_tabs(self):
-        """Console / G-Code (masquée au démarrage, menu Affichage) et File d'attente, qui envoie ses
-        jobs par le contrôleur du graveur et suit l'envoi dans le panneau machine."""
+        """Console / G-Code et File d'attente (onglets du panneau du bas), qui envoie ses jobs par le
+        contrôleur du graveur et suit l'envoi dans le panneau machine."""
         self.tab_console_gcode = ConsoleTab()
-        self.main_tabs_view.addTab(self.tab_console_gcode, tr("ui.tab_console_gcode"))
         self.tab_job_queue, self.job_queue = build_job_queue_tab(
             self.connection, self.engraver, self.dialogs, self,
             current_gcode=self.tab_console_gcode.gcode, log=self.log_message,
             sent_log=self.machine_panel.sent_gcode_log)
-        self.main_tabs_view.addTab(self.tab_job_queue, tr("ui.tab_job_queue"))
 
     # -- Événements de la fenêtre
 

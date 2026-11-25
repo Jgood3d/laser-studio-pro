@@ -1,21 +1,18 @@
-"""Réglages de l'onglet « Graver une image » (panneau de gauche)."""
+"""Réglages de l'onglet « Graver une image » (propriétés de l'image, à droite)."""
 
-from PyQt6.QtCore import QPointF, QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QKeySequence, QPen, QPolygonF, QShortcut
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
-    QSizePolicy,
-    QToolButton,
     QWidget,
 )
 
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS
 from laser_studio.ui.binding import bind
-from laser_studio.ui.utils import painted_icon
 from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
 from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
@@ -24,9 +21,6 @@ from laser_studio.ui.widgets import SliderWithButtons
 # Filtres de la liste « Appliquer un filtre ».
 FILTER_NONE = ""
 FILTER_CARTOON = "cartoon"
-
-# Hauteur du bouton « Charger Image » (px) : la cible la plus utilisée de l'onglet.
-LOAD_BUTTON_HEIGHT = 84
 
 
 class ImageSettingsPanel(QWidget):
@@ -46,7 +40,6 @@ class ImageSettingsPanel(QWidget):
     panneau, émettent undo_requested / redo_requested.
     """
 
-    load_requested = pyqtSignal()
     # Un réglage du tramage a changé (luminosité, contraste, gamma,
     # netteté, négatif, algorithme, lignes/mm) : l'image est à retraiter.
     processing_changed = pyqtSignal()
@@ -68,16 +61,6 @@ class ImageSettingsPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QFormLayout(self)
-        # Grande cible : image dessinée au-dessus du libellé, sur toute la largeur du panneau.
-        load_button = QToolButton()
-        load_button.setText(tr("img.load"))
-        load_button.setIcon(self._picture_icon())
-        load_button.setIconSize(QSize(32, 32))
-        load_button.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextUnderIcon)
-        load_button.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        load_button.setMinimumHeight(LOAD_BUTTON_HEIGHT)
-        load_button.clicked.connect(self.load_requested)
-        layout.addRow(load_button)  # toute la largeur du panneau
         self._build_size_fields()
         layout.addRow(tr("dim.width"), self.width_spin)
         layout.addRow(tr("dim.height"), self.height_spin)
@@ -99,19 +82,6 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
         self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
-
-    def _picture_icon(self):
-        """Icône « image » : cadre, montagnes et soleil, dans la couleur du texte du thème."""
-        def draw(painter, color):
-            painter.setPen(QPen(color, 2))
-            painter.setBrush(Qt.BrushStyle.NoBrush)
-            painter.drawRoundedRect(3, 5, 26, 22, 3, 3)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(color)
-            painter.drawEllipse(QPointF(22, 12), 3, 3)
-            painter.drawPolygon(QPolygonF([QPointF(5, 25), QPointF(13, 14), QPointF(19, 21), QPointF(22, 18),
-                                           QPointF(27, 25)]))
-        return painted_icon(self.palette(), draw)
 
     def bind_settings(self, settings):
         """Lie les champs du tramage (curseurs, négatif, matière, algorithme)

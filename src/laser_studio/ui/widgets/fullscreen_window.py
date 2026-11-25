@@ -37,10 +37,7 @@ class FullscreenWindow(QDialog):
 
     def _close_button(self, text):
         button = QPushButton(text)
-        button.setStyleSheet(
-            "background-color: #8f2b2b; color: white; padding: 6px; "
-            "font-weight: bold;"
-        )
+        button.setProperty("role", "primary")       # couleurs du thème (theme.py)
         button.clicked.connect(self.close)
         return button
 

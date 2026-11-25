@@ -40,6 +40,15 @@ def gcode_lines(gcode_text):
     return [line for line in lines if line and not line.startswith(';') and _GRBL_LINE_RE.match(line)]
 
 
+def wire_bytes(line):
+    """Octets réellement envoyés pour `line` : « G1 X12.5 S300 ; OVERSCAN_END » part en « G1X12.5S300 ».
+    GRBL retire lui-même espaces et commentaires ; sur une image, la liaison série est souvent plus lente
+    que la gravure, chaque octet compte. Une ligne avec un commentaire entre parenthèses part telle quelle."""
+    if "(" not in line:
+        line = line.split(";", 1)[0].replace(" ", "").replace("\t", "")
+    return (line + "\n").encode("utf-8")
+
+
 def classify(response):
     """Nature d'une réponse de GRBL (texte déjà décodé et nettoyé) : EMPTY, OK, ERROR, STATUS ou OTHER."""
     if not response:
@@ -93,7 +102,7 @@ class CharacterCountingStream:
         Le tampon est toujours accepté vide : une ligne trop longue part seule."""
         if self.all_sent:
             return None
-        data = (self.lines[self.next_index] + '\n').encode('utf-8')
+        data = wire_bytes(self.lines[self.next_index])
         if self._occupancy + len(data) >= self.buffer_size and self._pending:
             return None
         return data
@@ -101,7 +110,7 @@ class CharacterCountingStream:
     def mark_sent(self):
         """La ligne rendue par next_to_send vient d'être écrite sur le port."""
         line = self.lines[self.next_index]
-        size = len((line + '\n').encode('utf-8'))
+        size = len(wire_bytes(line))
         self._pending.append((line, size))
         self._occupancy += size
         self.next_index += 1

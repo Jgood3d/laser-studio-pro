@@ -14,6 +14,8 @@ try:
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gcode_reader import burn_paths  # noqa: E402
 
 
 def length(pts):
@@ -108,7 +110,8 @@ class OpenPathsAreNotClosedTests(unittest.TestCase):
         return build_vector_layers_gcode(data, 0.0, 0.0, 400.0, "M4", 1000)[0]
 
     def g1(self, gcode):
-        return [l for l in gcode if l.startswith("G1 X")]
+        """Déplacements gravés."""
+        return [step for path in burn_paths(gcode) for step in path[1:]]
 
     def test_open_polyline_is_cut_once_not_there_and_back(self):
         self.assertEqual(len(self.g1(self.build([[(0, 0), (10, 0), (10, 5)]]))), 2)
@@ -122,7 +125,10 @@ class OpenPathsAreNotClosedTests(unittest.TestCase):
 
     def test_contour_with_a_rounding_gap_is_still_closed(self):
         sq = [(0, 0), (10, 0), (10, 10), (0, 10), (0, 1e-6)]
-        self.assertEqual(len(self.g1(self.build([sq]))), 5)
+        # Refermé : retour au point de départ ; (0, 1e-6) et (0, 0) sont le même point au millième près,
+        # ce déplacement nul n'est pas écrit (GRBL l'ignorerait).
+        paths = burn_paths(self.build([sq]))
+        self.assertEqual((len(paths), paths[0][0], paths[0][-1]), (1, (0.0, 0.0), (0.0, 0.0)))
 
     def test_passes_are_still_honoured(self):
         self.assertEqual(len(self.g1(self.build([[(0, 0), (10, 0)]], passes=2))), 2)

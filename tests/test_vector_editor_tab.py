@@ -43,5 +43,43 @@ class CameraBackgroundButtonsTests(unittest.TestCase):
         self.assertEqual(self.toggled, [])
 
 
+@unittest.skipIf(VectorEditorTab is None, "PyQt6 non importable ici")
+class EmptyCanvasAndToolbarTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def setUp(self):
+        self.canvas = VectorCanvasView(LayersModel())
+        self.tab = VectorEditorTab(self.canvas)
+        self.addCleanup(self.tab.deleteLater)
+
+    def test_empty_canvas_offers_ways_to_start(self):
+        from laser_studio.models.vector_objects import ShapeObject
+        got, vectorize = [], []
+        self.tab.command.connect(got.append)
+        self.tab.vectorize_requested.connect(lambda: vectorize.append(True))
+        hint = self.tab.empty_hint
+        self.assertFalse(hint.isHidden())
+        for button in hint.buttons.values():
+            button.click()
+        # Pour commencer, puis un bouton par générateur (sa page de la fenêtre des générateurs).
+        self.assertEqual(got, ["import", "shape", "library", "box", "puzzle", "ornament", "keychain"])
+        self.assertEqual(vectorize, [True])                                    # l'onglet Vectorisation
+        self.canvas.add_object(ShapeObject("Rectangle", 10, 10))
+        self.assertTrue(hint.isHidden())                                       # un objet : l'accueil s'efface
+        self.canvas.document.load([])                                          # « Tout supprimer »
+        self.assertFalse(hint.isHidden())
+
+    def test_vectorize_button_asks_for_the_vectorization_tab(self):
+        asked = []
+        self.tab.vectorize_requested.connect(lambda: asked.append(True))
+        self.tab.top_buttons["vectorize"].click()
+        self.assertEqual(asked, [True])
+
+    def test_selection_tool_comes_first(self):
+        self.assertIs(self.tab.create_toolbar.actions()[0], self.tab.draw_buttons[None])
+
+
 if __name__ == "__main__":
     unittest.main()

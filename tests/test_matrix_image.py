@@ -79,14 +79,13 @@ class TileGcodeTests(unittest.TestCase):
         lines, seconds, samples = mi.tile_raster_gcode(
             arr, x0=10.0, y0=20.0, w_mm=4.0, h_mm=3.0, speed=1000, power_pct=50.0,
             s_max=1000, laser_cmd="M3")
-        self.assertEqual(lines.count("M5"), 2)             # deux lignes balayées
-        text = "\n".join(lines)
+        self.assertEqual((lines[0], lines.count("M5")), ("M3 S0", 1))   # laser allumé une fois, éteint à la fin
         # Ligne du haut (y=2) : Y = 20 + 2 = 22, aller : 10 -> 12 à S500 (50 % de 1000).
-        self.assertIn("G0 X10.000 Y22.000", text)
-        self.assertIn("G1 X12.000 F1000 S500", text)
+        self.assertIn("G0 X10 Y22", lines)
+        self.assertIn("G1 X12 F1000 S500", lines)
         # Ligne du bas (y=0) : Y = 20, retour : démarre à droite (14) et va jusqu'à 12.
-        self.assertIn("G0 X14.000 Y20.000", text)
-        self.assertIn("G1 X12.000 F1000 S500", text)
+        self.assertIn("G0 X14 Y20 S0", lines)
+        self.assertIn("G1 X12 S500", lines)
         self.assertEqual(samples, [50.0, 50.0])
         self.assertGreater(seconds, 0)
 
@@ -94,10 +93,8 @@ class TileGcodeTests(unittest.TestCase):
         arr = np.array([[0, 0]], dtype=np.uint8)
         lines, _, _ = mi.tile_raster_gcode(
             arr, 5.0, 5.0, 2.0, 1.0, 600, 100.0, 1000, "M4", overscan_dist=2.5)
-        self.assertIn("G0 X2.500 Y5.000 ; OVERSCAN_START", lines)
-        self.assertIn("G1 X5.000 F600 S0", lines)
-        self.assertIn("G1 X7.000 F600 S1000", lines)
-        self.assertIn("G1 X9.500 F600 S0 ; OVERSCAN_END", lines)
+        self.assertEqual(lines, ["M4 S0", "G0 X2.5 Y5 ; OVERSCAN_START", "G1 X5 F600", "X7 S1000",
+                                 "X9.5 S0 ; OVERSCAN_END", "M5"])
 
     def test_decalage_ligne_retour(self):
         arr = np.array([[0, 255], [0, 255]], dtype=np.uint8)

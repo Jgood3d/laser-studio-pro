@@ -29,7 +29,7 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
         lines_mm=resolution.lines_per_mm,
         parent=parent,
     )
-    settings.load_requested.connect(image.open_image)
+    tab.load_requested.connect(image.open_image)
     settings.processing_changed.connect(image.schedule_processing)
     # Matière choisie par l'utilisateur (pas par programme) : coche ou décoche le négatif.
     settings.material_combo.activated.connect(

@@ -68,18 +68,14 @@ class AppActions(QObject):
     main_tab_requested = pyqtSignal(str)  # "tab_separation", "tab_png2svg"
     # Outils de l'onglet « Graver une image vectorielle »
     vector_import_requested = pyqtSignal()
-    box_generator_requested = pyqtSignal()
-    puzzle_generator_requested = pyqtSignal()
-    ornament_generator_requested = pyqtSignal()
-    library_requested = pyqtSignal()
+    generator_requested = pyqtSignal(str)  # fenêtre des générateurs, sur « box », « puzzle », « ornament », « keychain »
     camera_requested = pyqtSignal()  # dialogue Caméra (alignement plateau)
-    macros_requested = pyqtSignal()  # éditeur des macros de l'utilisateur
     history_requested = pyqtSignal()  # historique des gravures
     # Affichage
     fullscreen_requested = pyqtSignal()  # onglet affiché en plein écran
 
-    gcode_console_toggled = pyqtSignal(bool)  # True : console affichée
-    job_queue_toggled = pyqtSignal(bool)  # True : file d'attente affichée
+    job_queue_requested = pyqtSignal()  # file d'attente : son onglet du panneau du bas
+    bottom_panel_toggled = pyqtSignal(bool)  # True : panneau du bas déplié (Ctrl+J)
     # Aide
     documentation_requested = pyqtSignal()
     about_requested = pyqtSignal()
@@ -96,7 +92,6 @@ class AppActions(QObject):
     estimate_requested = pyqtSignal()
     generate_requested = pyqtSignal()
     gcode_import_requested = pyqtSignal()
-    keychain_generator_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -205,17 +200,12 @@ class AppActions(QObject):
             self.fullscreen_requested,
         )
         self.fullscreen.setShortcut(QKeySequence(Qt.Key.Key_F11))
-        # Console G-Code : onglet masqué au démarrage.
-        self.gcode_console = self._action(
-            standard_icon(
-                "utilities-terminal",
-                QStyle.StandardPixmap.SP_FileDialogContentsView,
-            ),
-            tr("menu.view.gcode_console"),
-        )
-        self.gcode_console.setCheckable(True)
-        self.gcode_console.toggled.connect(self.gcode_console_toggled)
-        # File d'attente : onglet affiché au démarrage, sauf s'il a été masqué.
+        # Panneau du bas (graveur, G-Code, file d'attente) : déplié ou replié, Ctrl+J comme dans VS Code.
+        self.bottom_panel = self._action(QIcon(), tr("menu.view.bottom_panel"))
+        self.bottom_panel.setCheckable(True)
+        self.bottom_panel.setShortcut(QKeySequence("Ctrl+J"))
+        self.bottom_panel.toggled.connect(self.bottom_panel_toggled)
+        # File d'attente (barre d'outils) : son onglet du panneau du bas.
         self.job_queue = self._action(
             standard_icon(
                 "view-list-details",
@@ -223,8 +213,7 @@ class AppActions(QObject):
             ),
             tr("menu.view.job_queue"),
         )
-        self.job_queue.setCheckable(True)
-        self.job_queue.toggled.connect(self.job_queue_toggled)
+        self.job_queue.triggered.connect(lambda: self.job_queue_requested.emit())
 
     def _create_settings_actions(self):
         # Pas d'entrée QIcon.ThemeIcon pour ces réglages : noms d'icônes
@@ -233,18 +222,9 @@ class AppActions(QObject):
             standard_icon(
                 "preferences-system", QStyle.StandardPixmap.SP_ComputerIcon
             ),
-            tr("tab.machine_params"),
+            tr("menu.file.settings"),           # fenêtre « Paramètres » (graveur, GRBL, langue et thème)
             self.settings_window_requested,
             "machine_params",
-        )
-        self.grbl_window = self._action(
-            standard_icon(
-                "utilities-terminal",
-                QStyle.StandardPixmap.SP_FileDialogContentsView,
-            ),
-            tr("tab.grbl_config"),
-            self.settings_window_requested,
-            "grbl",
         )
         self.language_icon = standard_icon(
             "preferences-desktop-locale", QStyle.StandardPixmap.SP_DirIcon
@@ -308,38 +288,21 @@ class AppActions(QObject):
             self.png2svg_tab,
         )
 
-        self.keychain_generator = self._action(
-            bundled_icon("keychain", QStyle.StandardPixmap.SP_FileIcon),
-            tr("menu.tools.keychain"),
-            self.keychain_generator_requested,
-        )
-
         # Outils de l'éditeur vectoriel : ouvrent d'abord son onglet.
         self.vector_import = self._action(
             bundled_icon("document-import", QStyle.StandardPixmap.SP_FileIcon),
             tr("menu.tools.import_vector"),
             self.vector_import_requested,
         )
-        self.box_generator = self._action(
-            bundled_icon("draw-cuboid", QStyle.StandardPixmap.SP_DirIcon),
-            tr("menu.tools.box"),
-            self.box_generator_requested,
-        )
-        self.puzzle_generator = self._action(
-            bundled_icon("games-config-board", QStyle.StandardPixmap.SP_DesktopIcon),
-            tr("menu.tools.puzzle"),
-            self.puzzle_generator_requested,
-        )
-        self.ornament_generator = self._action(
-            bundled_icon("draw-ellipse", QStyle.StandardPixmap.SP_DesktopIcon),
-            tr("menu.tools.ornament"),
-            self.ornament_generator_requested,
-        )
-        self.library = self._action(
-            bundled_icon("view-app-grid", QStyle.StandardPixmap.SP_DirIcon),
-            tr("menu.tools.library"),
-            self.library_requested,
-        )
+        # Accès direct à chaque générateur : la fenêtre des générateurs, ouverte sur sa page.
+        self.generator_actions = {
+            kind: self._action(bundled_icon(icon, QStyle.StandardPixmap.SP_DirIcon), tr(key),
+                               self.generator_requested, kind)
+            for kind, key, icon in (("box", "menu.tools.box", "draw-cuboid"),
+                                    ("puzzle", "menu.tools.puzzle", "games-config-board"),
+                                    ("ornament", "menu.tools.ornament", "draw-ellipse"),
+                                    ("keychain", "menu.tools.keychain", "keychain"))
+        }
         self.camera = self._action(
             bundled_icon("camera-photo", QStyle.StandardPixmap.SP_ComputerIcon),
             tr("menu.tools.camera"),
@@ -350,25 +313,19 @@ class AppActions(QObject):
             tr("menu.tools.history"),
             self.history_requested,
         )
-        self.macros = self._action(
-            bundled_icon("document-properties", QStyle.StandardPixmap.SP_FileDialogDetailedView),
-            tr("menu.tools.macros"),
-            self.macros_requested,
-        )
+        # Bibliothèque : la fenêtre des générateurs, sur sa première page.
+        self.library = self._action(bundled_icon("view-app-grid", QStyle.StandardPixmap.SP_DirIcon),
+                                    tr("menu.tools.library"), self.generator_requested, "library")
         self.vector_tool_actions = (
             self.library,
             self.vector_import,
-            self.box_generator,
-            self.puzzle_generator,
-            self.ornament_generator,
-            self.keychain_generator,
+            *self.generator_actions.values(),
         )
-        # Caméra et macros : placées avec les outils généraux (pas seulement vectoriel).
+        # Caméra : placée avec les outils généraux (pas seulement vectoriel). L'historique des gravures est
+        # dans le menu Fichier, les macros dans la fenêtre Paramètres.
         self.tool_actions = (
             *self.tool_actions,
             self.camera,
-            self.macros,
-            self.history,
         )
 
     def _create_help_actions(self, parent):

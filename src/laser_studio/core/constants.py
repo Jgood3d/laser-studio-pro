@@ -36,7 +36,7 @@ JOG_SPEED_MIN = 100
 JOG_DEFAULT_SPEED = 3000
 
 # Panneaux de la machine : côté des boutons carrés à icône, en pixels.
-JOG_BUTTON_SIZE = 40
+JOG_BUTTON_SIZE = 34
 
 # Origine du repère du job (cadre « Position du job ») : codes indépendants de
 # la langue, passés à la génération (params["origin_pos"]) et enregistrés dans

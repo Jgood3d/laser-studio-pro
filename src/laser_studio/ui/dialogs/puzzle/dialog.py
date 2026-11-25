@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
 from laser_studio.models.layers import layer_label
 from laser_studio.vector.puzzle_generator import PuzzleParams, build_puzzle, generate_jigsaw_edge
 from laser_studio.i18n import tr
+from laser_studio.ui.app.theme import theme_color
 
 
 class TabShapePreview(QWidget):
@@ -25,7 +26,7 @@ class TabShapePreview(QWidget):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor("#1a1d24"))
+        p.fillRect(self.rect(), theme_color("canvas", "#1a1d24"))
         style = self.params.get("style", "Classique")
         w, h = self.width(), self.height()
         if style == "Organique":

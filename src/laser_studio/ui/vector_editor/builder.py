@@ -76,12 +76,13 @@ def build_vector_editor(document, layers, machine, dialogs, parent, *, image_fra
     controller = VectorEditorController(document, canvas, layers, machine, dialogs, parent, forms=forms,
                                         overscan_margin=overscan_margin)
     layout = LayoutController(controller, forms, busy=busy_cursor)
-    generators = GeneratorsController(controller, layout, forms, image_frame=image_frame, busy=busy_cursor)
-    # Bibliothèque de modèles (resources/library/) : import dans l'éditeur.
+    # Bibliothèque de modèles (resources/library/) : une page de la fenêtre des générateurs.
     library = LibraryController(layers, bed_height=lambda: machine.bed_h,
-                                add_to_vector_editor=controller.import_objects, forms=forms, dialogs=dialogs)
+                                add_to_vector_editor=controller.import_objects, dialogs=dialogs)
+    generators = GeneratorsController(controller, layout, forms, image_frame=image_frame, busy=busy_cursor,
+                                      library=library)
     tab = VectorEditorTab(canvas)
-    commands = {**controller.commands(), **generators.commands(), **layout.commands(), "library": library.open}
+    commands = {**controller.commands(), **generators.commands(), **layout.commands()}
     tab.command.connect(lambda name: commands[name]())
     # Clavier et clic droit du canevas : mêmes commandes que les boutons de l'onglet.
     canvas.command_requested.connect(lambda name: commands[name]())

@@ -15,6 +15,7 @@ from laser_studio.vector import ornament_presets
 from laser_studio.vector import ornament_batch
 from laser_studio.vector.ornament_batch import parse_names
 from laser_studio.vector.ornament_region import build_ornament_parts
+from laser_studio.ui.app.theme import theme_color
 
 # Couleurs de l'aperçu : la découpe en rouge (comme le laser la suit), la gravure en bleu.
 CUT_COLOR = QColor("#ff4b4b")
@@ -60,7 +61,7 @@ def paint_parts(p, rect, cut, name=(), frame=(), pad=14, line=1.6):
 def render_thumbnail(parts, size):
     """Vignette `size`×`size` d'un modèle (`OrnamentParts`)."""
     pix = QPixmap(size, size)
-    pix.fill(QColor("#1a1d24"))
+    pix.fill(theme_color("canvas", "#1a1d24"))
     p = QPainter(pix)
     p.setRenderHint(QPainter.RenderHint.Antialiasing)
     paint_parts(p, pix.rect(), parts.cut, parts.name, parts.frame, pad=8, line=1.2)
@@ -90,7 +91,7 @@ class OrnamentPreview(QWidget):
     def paintEvent(self, _event):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        p.fillRect(self.rect(), QColor("#1a1d24"))
+        p.fillRect(self.rect(), theme_color("canvas", "#1a1d24"))
         paint_parts(p, self.rect(), self.contours, self.name, self.frame)
         if self.message:
             p.setPen(QColor("#ffb86b"))

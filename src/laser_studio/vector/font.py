@@ -1,6 +1,9 @@
 """Générateur de tracés vectoriels (police 5x7) pour étiquettes texte G-Code, sans dépendance externe."""
 
 
+from laser_studio.gcode.common import LaserMoves
+
+
 class VectorFont:
     """Générateur de tracés vectoriels (5x7) pour étiquettes texte G-Code sans dépendance externe"""
     FONT_5X7 = {
@@ -39,6 +42,8 @@ class VectorFont:
     @staticmethod
     def generate_text_gcode(text, start_x, start_y, char_height=3.0, feed_rate=1500, power_val=500, laser_cmd="M3", vertical=False):
         gcode = [f"; --- Étiquette Texte: '{text}' ---"]
+        moves = LaserMoves(gcode)
+        moves.laser(laser_cmd)
         scale = char_height / 7.0
         char_width = 5 * scale
         char_spacing = 2 * scale
@@ -59,12 +64,11 @@ class VectorFont:
                     px2 = curr_x + (x2 * scale)
                     py2 = curr_y + (y2 * scale)
 
-                    gcode.append(f"G0 X{px1:.3f} Y{py1:.3f}")
-                    gcode.append(f"{laser_cmd} S{power_val}")
-                    gcode.append(f"G1 X{px2:.3f} Y{py2:.3f} F{feed_rate}")
-                    gcode.append("M5")
+                    moves.travel(px1, py1)
+                    moves.move(px2, py2, power_val, feed_rate)
             if vertical:
                 curr_y -= (7 * scale) + char_spacing
             else:
                 curr_x += char_width + char_spacing
+        moves.off()
         return gcode

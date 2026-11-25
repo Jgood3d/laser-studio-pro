@@ -34,10 +34,10 @@ class AppToolBar(QToolBar):
         self.addAction(actions.open_project)
         self.addSeparator()
         self.addAction(actions.machine_params_window)
-        self.addAction(actions.grbl_window)
         self.addSeparator()
-        # Toutes les entrées du menu Outils.
-        for action in (*actions.tool_actions, *actions.vector_tool_actions):
+        # Outils généraux du menu Outils ; ceux de l'éditeur vectoriel (bibliothèque, import, générateurs)
+        # sont dans l'éditeur lui-même (rangée du haut, barre d'édition, canevas vide).
+        for action in actions.tool_actions:
             self.addAction(action)
         self.addSeparator()
         # Actions sur l'image (annuler, pivoter, miroirs, réinitialiser,
@@ -46,7 +46,7 @@ class AppToolBar(QToolBar):
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
         self.addSeparator()
-        # Case à cocher : bouton enfoncé tant que la file d'attente est affichée.
+        # File d'attente : son onglet du panneau du bas.
         self.addAction(actions.job_queue)
         # Plein écran de l'onglet affiché et soutien du projet, alignés à
         # droite.
@@ -65,11 +65,8 @@ class AppToolBar(QToolBar):
 
     @staticmethod
     def _generate_button(actions):
-        """Bouton bleu « Générer le G-code », avec son libellé."""
+        """Bouton principal « Générer le G-code », avec son libellé."""
         button = QPushButton(tr("gcode.generate"))
-        button.setStyleSheet(
-            "background-color: #2b5c8f; color: white; "
-            "font-weight: bold; padding: 3px;"
-        )
+        button.setProperty("role", "primary")    # couleurs du thème (theme.py)
         button.clicked.connect(actions.generate_requested)
         return button

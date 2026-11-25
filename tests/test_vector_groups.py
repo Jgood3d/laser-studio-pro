@@ -272,6 +272,20 @@ class EditorGroupTests(unittest.TestCase):
         self.assertEqual({c.layer_id for c in group.children}, {cut})
         self.assertFalse(self.canvas.item_for(group).inactive)
 
+    def test_alignment_shows_in_the_properties_from_two_objects(self):
+        from laser_studio.ui.vector_editor.tab import VectorEditorTab
+        from laser_studio.ui.vector_editor.properties_panel import VectorPropertiesPanel
+        tab = VectorEditorTab(self.canvas)
+        self.addCleanup(tab.deleteLater)
+        panel = VectorPropertiesPanel(tab.properties_widgets, self.layers, self.canvas, self.editor)  # noqa: F841
+        align = tab.properties_widgets.align_row
+        self.canvas.select_objects([self.a])
+        self.assertTrue(align.isHidden())                                      # aligner demande 2 objets
+        self.canvas.select_objects([self.a, self.b])
+        self.assertFalse(align.isHidden())
+        self.canvas.select_objects([])
+        self.assertTrue(align.isHidden())
+
     def test_trash(self):
         self.editor.delete_object(None, self.c)
         self.assertEqual(self.document.objects, [self.a, self.b])

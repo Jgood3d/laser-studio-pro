@@ -49,11 +49,11 @@ class JobDisplay(QObject):
     - test_matrix() : paramètres de la dernière matrice de test, ou None ;
     - show_preview() : affiche l'onglet de l'aperçu 2D ;
     - log(texte) : message pour la barre d'état et le journal ;
-    - update_bottom_panel() : panneau du bas montré ou non (job en cours).
+    - show_machine_panel() : déplie le panneau du bas sur l'onglet « Graveur » (gravure lancée, alarme).
     """
 
     def __init__(self, status_bar, console, preview, machine_panel, actions, dialogs, *,
-                 layers, test_matrix, show_preview, log, update_bottom_panel, parent=None):
+                 layers, test_matrix, show_preview, log, show_machine_panel, parent=None):
         super().__init__(parent)
         self.status_bar = status_bar
         self.console = console
@@ -65,7 +65,8 @@ class JobDisplay(QObject):
         self._test_matrix = test_matrix
         self._show_preview = show_preview
         self._log = log
-        self._update_bottom_panel = update_bottom_panel
+        self._show_machine_panel = show_machine_panel
+        self._last_state = None                  # état GRBL précédent (alarme qui survient)
         self.connection = None
         # G-Code dessiné dans l'aperçu 2D (généré, importé ou envoyé).
         self.last_gcode_text = None
@@ -91,9 +92,11 @@ class JobDisplay(QObject):
         self.status_bar.show_progress(100, tr("gen.done"))
         self.status_bar.hide_progress(delay_ms=1500)
         self.console.set_gcode(gcode_str)
+        duration = tr("gen.stat_time").format(value=duration_text(seconds))
+        self.status_bar.set_duration(duration)
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power").format(value=f"{avg_power:.1f}"),
-                                               tr("gen.stat_time").format(value=duration_text(seconds)))
+                                               duration)
         # « Fichier > Enregistrer le G-Code » : actif une fois le G-Code généré.
         self.actions.set_gcode_export_enabled(True)
         self.plot(gcode_str)
@@ -107,6 +110,7 @@ class JobDisplay(QObject):
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power_imported"),
                                                tr("gen.stat_time_imported"))
+        self.status_bar.set_duration(None)
         self.plot(gcode_text)
         # « Fichier > Enregistrer le G-Code » : le G-Code importé peut être réenregistré.
         self.actions.set_gcode_export_enabled(True)
@@ -188,6 +192,11 @@ class JobDisplay(QObject):
         """État (cadre Connexion) et position (sous le pilotage) dans le
         panneau machine (MachinePanel.set_status)."""
         self.machine_panel.set_status(state, x, y, z)
+        # Alarme qui survient : le panneau du graveur se déplie, avec son bouton « Déverrouiller ».
+        if state == "Alarm" and self._last_state != "Alarm":
+            self._show_machine_panel()
+        self._last_state = state
+        self.status_bar.set_machine(state, x, y)
         # Déconnecté : plus de position connue, le point de la tête disparaît de l'aperçu 2D.
         if state is None:
             self.preview.clear_head_position()
@@ -206,7 +215,7 @@ class JobDisplay(QObject):
         montrer le G-Code envoyé (un job de la file n'est pas forcément celui
         affiché) et le tracé « déjà gravé » repart de zéro."""
         self.machine_panel.progress_bar.setValue(0)
-        self._update_bottom_panel()          # job en cours : panneau visible partout
+        self._show_machine_panel()           # gravure lancée : le panneau du graveur se déplie
         if gcode_text != self.last_gcode_text:
             self.plot(gcode_text)
         else:
@@ -216,4 +225,3 @@ class JobDisplay(QObject):
         """Un envoi se termine : repère de fin dans le suivi, aperçu 2D."""
         self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self.preview.finish_burn(clean_finish)
-        QTimer.singleShot(0, self._update_bottom_panel)   # une fois l'envoi vraiment terminé

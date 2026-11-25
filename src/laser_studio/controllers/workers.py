@@ -105,6 +105,8 @@ class GCodeStreamerThread(QThread):
         if self.acked != self._acked_emitted:
             self.lines_acked.emit(self.acked)
             self._acked_emitted = self.acked
+        # Avancement au même rythme : à chaque tour de boucle (~1000 par seconde), il encombrait l'interface.
+        self.progress.emit(self.stream.next_index, self.stream.total)
         self._last_sent_emit = now
 
     def stop(self):
@@ -305,7 +307,6 @@ class GCodeStreamerThread(QThread):
                 if not self.is_running:
                     break
 
-                self.progress.emit(stream.next_index, total)
                 self._flush_sent_lines()
                 time.sleep(0.001)
 
