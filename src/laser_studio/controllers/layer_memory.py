@@ -22,6 +22,8 @@ LAYER_SETTING_CASTS = (
     ("tab_width", float),
     ("kerf", bool),
     ("kerf_width", float),
+    ("lead", bool),
+    ("lead_radius", float),
 )
 
 

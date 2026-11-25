@@ -359,6 +359,18 @@ TEXTS = {
         "de": 'Stegbreite (mm)',
         "es": 'Ancho puente (mm)',
     },
+    "layers.col.lead": {
+        "fr": "Arc (mm)",
+        "en": "Lead (mm)",
+        "de": "Bogen (mm)",
+        "es": "Arco (mm)",
+    },
+    "layers.lead_tip": {
+        "fr": "Entrée et sortie en arc (découpe) : le laser s'allume sur la chute, à côté du contour, et le rejoint par un quart de cercle tangent ; il repart de la même façon à la fin. La marque du perçage et du démarrage tombe dans la chute et non sur le bord de la pièce. Rayon de l'arc en mm. Sans place (pièce voisine, petit trou), le rayon est réduit, puis le contour est coupé sans arc (signalé dans le G-Code). Sans effet sur les tracés ouverts ni sur les contours à ponts de maintien. Décocher désactive sans perdre le rayon.",
+        "en": "Lead-in and lead-out arcs (cut): the laser turns on in the waste, beside the contour, and joins it along a tangent quarter circle; it leaves the same way at the end. The pierce and start-up mark ends up in the waste rather than on the part's edge. Arc radius in mm. Without room (neighbouring part, small hole) the radius is reduced, then the contour is cut without an arc (flagged in the G-code). No effect on open paths or on contours with holding tabs. Unchecking disables it without losing the radius.",
+        "de": "Ein- und Auslaufbogen (Schnitt): Der Laser schaltet sich im Abfall neben der Kontur ein und erreicht sie über einen tangentialen Viertelkreis; am Ende verlässt er sie ebenso. Die Einstech- und Startmarke liegt im Abfall statt am Teilrand. Bogenradius in mm. Ohne Platz (Nachbarteil, kleines Loch) wird der Radius verkleinert, dann wird die Kontur ohne Bogen geschnitten (im G-Code vermerkt). Keine Wirkung auf offene Pfade und Konturen mit Haltestegen. Abwählen deaktiviert, ohne den Radius zu verlieren.",
+        "es": "Entrada y salida en arco (corte): el láser se enciende en el desecho, junto al contorno, y lo alcanza por un cuarto de círculo tangente; al final sale de la misma forma. La marca de perforación y arranque queda en el desecho y no en el borde de la pieza. Radio del arco en mm. Sin espacio (pieza vecina, agujero pequeño) se reduce el radio y luego el contorno se corta sin arco (se indica en el G-code). Sin efecto en trazados abiertos ni en contornos con puentes de sujeción. Desmarcar lo desactiva sin perder el radio.",
+    },
     "layers.col.kerf": {
         "fr": 'Kerf (mm)',
         "en": 'Kerf (mm)',

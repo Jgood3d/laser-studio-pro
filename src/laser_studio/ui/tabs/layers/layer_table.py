@@ -10,12 +10,13 @@ from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import CONTOUR_MODES
 from laser_studio.models.layers import (
     CUT_MODE, ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, KERF_WIDTH_MAX_MM, KERF_WIDTH_MIN_MM,
-    TAB_COUNT_MAX, TAB_WIDTH_MAX_MM, TAB_WIDTH_MIN_MM, LaserLayer, LayersModel,
+    LEAD_RADIUS_MAX_MM, LEAD_RADIUS_MIN_MM, TAB_COUNT_MAX, TAB_WIDTH_MAX_MM, TAB_WIDTH_MIN_MM, LaserLayer,
+    LayersModel,
 )
 
 
 class LayerManagerWidget(QWidget):
-    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Pas | Surbalayage | Laser | Ponts (case + nombre) | Larg. pont | Kerf | Actif
+    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Pas | Surbalayage | Laser | Ponts (case + nombre) | Larg. pont | Kerf | Arc | Actif
 
     Vue du modèle des calques (LayersModel) : chaque saisie appelle
     `mgr.update(...)`, et la table se met à jour à partir des signaux du
@@ -27,7 +28,8 @@ class LayerManagerWidget(QWidget):
     COLUMN_KEYS = ["layers.col.color", "layers.col.name", "layers.col.mode",
                    "layers.col.power", "layers.col.speed", "layers.col.passes",
                    "layers.col.fill_step", "layers.col.overscan", "layers.col.laser", "layers.col.tab_count",
-                   "layers.col.tab_width", "layers.col.kerf", "layers.col.active"]
+                   "layers.col.tab_width", "layers.col.kerf", "layers.col.lead",
+                   "layers.col.active"]
 
     def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
@@ -241,9 +243,30 @@ class LayerManagerWidget(QWidget):
         editors["kerf"] = chk_kerf
         editors["kerf_width"] = spin_kerf
 
+        # Arcs d'entrée et de sortie : case + rayon, propres à la découpe.
+        lead_cell = QWidget()
+        lead_layout = QHBoxLayout(lead_cell)
+        lead_layout.setContentsMargins(2, 0, 2, 0)
+        lead_layout.setSpacing(4)
+        chk_lead = QCheckBox(); chk_lead.setChecked(layer.lead)
+        chk_lead.setToolTip(tr("layers.lead_tip"))
+        chk_lead.setEnabled(layer.mode == CUT_MODE)
+        chk_lead.stateChanged.connect(lambda v, i=lid: self._set(i, "lead", bool(v)))
+        lead_layout.addWidget(chk_lead)
+        spin_lead = QDoubleSpinBox()
+        spin_lead.setRange(LEAD_RADIUS_MIN_MM, LEAD_RADIUS_MAX_MM); spin_lead.setSingleStep(0.1)
+        spin_lead.setDecimals(1); spin_lead.setValue(layer.lead_radius)
+        spin_lead.setToolTip(tr("layers.lead_tip"))
+        spin_lead.setEnabled(layer.mode == CUT_MODE and layer.lead)
+        spin_lead.valueChanged.connect(lambda v, i=lid: self._set(i, "lead_radius", v))
+        lead_layout.addWidget(spin_lead)
+        self.table.setCellWidget(row, 12, lead_cell)
+        editors["lead"] = chk_lead
+        editors["lead_radius"] = spin_lead
+
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, i=lid: self._set(i, "enabled", bool(v)))
-        self.table.setCellWidget(row, 12, self._centered(chk_enabled))
+        self.table.setCellWidget(row, 13, self._centered(chk_enabled))
         editors["enabled"] = chk_enabled
 
         self._editors[lid] = editors
@@ -288,7 +311,7 @@ class LayerManagerWidget(QWidget):
                     idx = widget.findData(value)
                     if idx >= 0 and idx != widget.currentIndex():
                         widget.setCurrentIndex(idx)
-                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf"):
+                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf", "lead"):
                     if widget.isChecked() != value:
                         widget.setChecked(value)
                 elif widget.value() != value:
@@ -306,6 +329,10 @@ class LayerManagerWidget(QWidget):
                 is_cut = layer.mode == CUT_MODE
                 editors["kerf"].setEnabled(is_cut)
                 editors["kerf_width"].setEnabled(is_cut and layer.kerf)
+            if key in ("mode", "lead") and "lead" in editors:
+                is_cut = layer.mode == CUT_MODE
+                editors["lead"].setEnabled(is_cut)
+                editors["lead_radius"].setEnabled(is_cut and layer.lead)
             if key == "line_interval_linked":
                 self._style_link_button(widget, value)
                 editors["line_interval"].setEnabled(not value)

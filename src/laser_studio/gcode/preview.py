@@ -257,6 +257,19 @@ def cut_contours(segment_lists):
     def is_closed(chain, tolerance=0.05):
         return _gap(chain[0], chain[-1]) < tolerance
 
+    def without_leads(chain):
+        """Un contour muni d'arcs d'entrée et de sortie repasse deux fois par son point de départ (à la fin
+        de l'arc d'entrée, puis au début de l'arc de sortie) : le contour fermé est ce qui les sépare."""
+        seen = {}
+        for index, (x, y) in enumerate(chain):
+            key = (round(x, 2), round(y, 2))
+            if key in seen and index - seen[key] >= 3:
+                return chain[seen[key]:index + 1]
+            seen.setdefault(key, index)
+        return chain
+
+    contours = [chain if is_closed(chain) else without_leads(chain) for chain in contours]
+
     # Rejoint les tronçons qu'un pont sépare : [contour, nombre de tronçons, départ de chaque tronçon].
     # Un tronçon qui repart d'un départ déjà vu est la passe suivante du même contour : il en commence un
     # nouveau (sinon les passes s'enchaîneraient en un seul tracé qui fait deux fois le tour).

@@ -12,6 +12,7 @@ from laser_studio.models.layer_modes import (
     MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
 from laser_studio.vector.kerf import compensate_kerf
+from laser_studio.vector.lead import add_leads
 from laser_studio.vector.order import nesting_depths, order_layers_for_cutting, order_polygons_inner_first
 from laser_studio.vector.tabs import cut_runs, effective_count, is_closed, perimeter
 
@@ -106,8 +107,20 @@ def _layer_kerf(layer):
         return 0.0
 
 
+def _layer_lead(layer):
+    """Rayon (mm) des arcs d'entrée et de sortie de ce calque ; 0.0 s'ils sont désactivés (case décochée,
+    ancien projet, valeur inutilisable)."""
+    if not layer.get("lead", False):
+        return 0.0
+    try:
+        return max(0.0, float(layer.get("lead_radius") or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _tabbed_polygons(polygons, count, width):
-    """Tracés de découpe avec leurs ponts de maintien : (nouvelle liste de tracés, nombre de ponts posés).
+    """Tracés de découpe avec leurs ponts de maintien : (nouvelle liste de tracés, nombre de ponts posés,
+    liste parallèle : True pour un tronçon issu d'un contour à ponts).
 
     Seuls les contours extérieurs fermés reçoivent des ponts : les trous (contour contenu dans un nombre
     impair d'autres contours) tombent avec leur chute, et un pont n'y retiendrait que la chute. Un contour
@@ -115,16 +128,19 @@ def _tabbed_polygons(polygons, count, width):
     couper d'un même contour restent côte à côte, dans l'ordre d'origine des tracés : l'ordre de découpe
     (intérieur avant extérieur, plus proche voisin) n'est pas modifié."""
     depths = nesting_depths(polygons)
-    result, placed = [], 0
+    result, placed, is_run = [], 0, []
     for poly, depth in zip(polygons, depths):
         if depth % 2 == 0 and is_closed(poly):
             n = effective_count(perimeter(poly), count, width)
             if n:
-                result.extend(cut_runs(poly, count, width))
+                runs = cut_runs(poly, count, width)
+                result.extend(runs)
+                is_run.extend([True] * len(runs))
                 placed += n
                 continue
         result.append(poly)
-    return result, placed
+        is_run.append(False)
+    return result, placed, is_run
 
 
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
@@ -247,12 +263,22 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             n_passes = max(1, int(layer.get("passes") or 1))
             # Ponts de maintien (calque de découpe seulement) : voir _tabbed_polygons.
             tab_count, tab_width = _layer_tabs(layer)
+            is_tab_run = [False] * len(polygons)
             if layer["mode"] == CUT_MODE and tab_count > 0:
-                cut_polygons, n_tabs = _tabbed_polygons(polygons, tab_count, tab_width)
+                cut_polygons, n_tabs, is_tab_run = _tabbed_polygons(polygons, tab_count, tab_width)
                 if n_tabs:
                     gcode.append(f"; Ponts de maintien : {n_tabs} (largeur {tab_width:g} mm)")
             else:
                 cut_polygons = polygons
+            # Arcs d'entrée et de sortie (calque de découpe seulement) : sur les contours fermés qui n'ont
+            # pas de ponts (un tronçon de pont démarre sur le pont même, la marque n'y gêne pas).
+            lead_radius = _layer_lead(layer) if layer["mode"] == CUT_MODE else 0.0
+            if lead_radius > 0:
+                cut_polygons, n_led, n_no_room = add_leads(cut_polygons, polygons, lead_radius, is_tab_run)
+                note = f"; Arcs d'entrée/sortie : rayon {lead_radius:g} mm ({n_led} contours)"
+                if n_no_room:
+                    note += f" ; ATTENTION : {n_no_room} contour(s) sans arc, faute de place"
+                gcode.append(note)
             for pass_num in range(n_passes):
                 if n_passes > 1:
                     gcode.append(f"; Passe {pass_num + 1}/{n_passes}")
