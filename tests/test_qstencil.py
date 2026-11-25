@@ -58,6 +58,50 @@ class QtDialogTests(unittest.TestCase):
         with open(exported[0], encoding="utf-8") as f:
             self.assertIn("<svg", f.read())
 
+    def test_frame_wheel_drag_rotation_preset_and_exports(self):
+        from unittest import mock
+        from PyQt6.QtCore import QPoint, QPointF, Qt
+        from PyQt6.QtGui import QMouseEvent, QWheelEvent
+        from PyQt6.QtWidgets import QFileDialog
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        dialog.resize(1400, 900)
+        dialog.show()
+        dialog.open_path(IMAGE)
+        view = dialog.source_view
+
+        def wheel(dy, modifiers=Qt.KeyboardModifier.NoModifier):
+            view.wheelEvent(QWheelEvent(QPointF(10, 10), QPointF(10, 10), QPoint(0, 0), QPoint(0, dy),
+                                        Qt.MouseButton.NoButton, modifiers, Qt.ScrollPhase.NoScrollPhase, False))
+        wheel(600)                                                     # molette : cadre plus petit
+        self.assertLess(view.frame()["w"], 1.0)
+        self.assertEqual(dialog.state["zoom"], round(view.frame()["w"], 2))
+        start, centre = view.frame()["cx"], view.rect().center()
+        for handler, point in ((view.mousePressEvent, centre), (view.mouseMoveEvent, centre + QPoint(40, 0)),
+                               (view.mouseReleaseEvent, centre + QPoint(40, 0))):
+            handler(QMouseEvent(QMouseEvent.Type.MouseMove, QPointF(point), QPointF(point), Qt.MouseButton.LeftButton,
+                                Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier))
+        self.assertGreater(view.frame()["cx"], start)                  # glissé vers la droite
+        wheel(-120, Qt.KeyboardModifier.AltModifier)                   # Alt + molette : rotation
+        self.assertEqual((dialog.state["rot"], dialog.form.value("rot")), (1.0, 1.0))
+        preset = dialog.form.widgets["preset"]
+        preset.setCurrentIndex(preset.findData("silhouette"))           # style prédéfini
+        self.assertEqual(dialog.state["preset"], "")
+        for key, value in dialog.spec.presets["silhouette"].items():
+            self.assertEqual(dialog.state[key], value, key)
+        exported = []
+        dialog.export_ready.connect(exported.append)
+        dialog.export("dxf")                                            # DXF : vers Laser Studio
+        self.wait(lambda: exported)
+        self.assertTrue(exported[0].endswith("_cut.dxf"))
+        saved = os.path.join(tempfile.mkdtemp(), "box.svg")
+        with mock.patch.object(QFileDialog, "getSaveFileName", return_value=(saved, "")):
+            dialog.export("boxsvg")                                     # caisson : enregistré sur le disque
+            self.wait(lambda: os.path.exists(saved))
+        self.assertEqual(len(exported), 1)
+        self.assertFalse(dialog.export_actions["png"].isEnabled())      # gravure PNG : mode Gravure seulement
+
     def test_menu_entry_opens_the_qt_version_next_to_the_web_one(self):
         from unittest import mock
         from PyQt6.QtWidgets import QWidget
