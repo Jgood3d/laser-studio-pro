@@ -10,13 +10,44 @@ text : champ, color : bouton couleur). Les libellés et les bulles d'aide passen
 """
 import unicodedata
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox,
-                             QLineEdit, QPushButton, QVBoxLayout, QWidget)
+from PyQt6.QtWidgets import (QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox, QFormLayout, QLineEdit,
+                             QPushButton, QSizePolicy, QToolButton, QVBoxLayout, QWidget)
 
 # Réglage de la page absent du formulaire : « output » est remplacé par les boutons des modes.
 SKIPPED = {"output"}
+
+
+class Section(QWidget):
+    """Groupe repliable, comme les <details> de la page : en-tête cliquable avec une flèche, réglages dessous."""
+
+    def __init__(self, title, opened=True, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        self.header = QToolButton()
+        self.header.setText(title)
+        self.header.setCheckable(True)
+        self.header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        self.header.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.header.setStyleSheet("QToolButton { border: none; font-weight: bold; text-align: left; padding: 4px; }")
+        self.header.toggled.connect(self.set_open)
+        self.body = QWidget()
+        layout.addWidget(self.header)
+        layout.addWidget(self.body)
+        self.set_open(opened)
+
+    def is_open(self):
+        return self.header.isChecked()
+
+    def set_open(self, opened):
+        blocked = self.header.blockSignals(True)
+        self.header.setChecked(opened)
+        self.header.blockSignals(blocked)
+        self.header.setArrowType(Qt.ArrowType.DownArrow if opened else Qt.ArrowType.RightArrow)
+        self.body.setVisible(opened)
 
 
 class SettingsForm(QWidget):
@@ -34,10 +65,11 @@ class SettingsForm(QWidget):
         self.advanced = False
         self._mode, self._state = "stencil", {}
         self._rows = {}                   # clé -> (formulaire, widget) : pour masquer une ligne
+        self._opened_before_search = None  # état des groupes avant une recherche, rendu quand elle est vidée
         layout = QVBoxLayout(self)
         for group in spec.groups:
-            box = QGroupBox(tr(group["g"]))
-            form = QFormLayout(box)
+            box = Section(tr(group["g"]), group["g"] in spec.default_open)
+            form = QFormLayout(box.body)
             for item in group["items"]:
                 if item["k"] in SKIPPED:
                     continue
@@ -117,8 +149,16 @@ class SettingsForm(QWidget):
             label = form.labelForField(widget)
             if label is not None:
                 label.setEnabled(key not in disabled)
+        if query and self._opened_before_search is None:
+            self._opened_before_search = {name: box.is_open() for name, box in self.boxes.items()}
+        elif not query and self._opened_before_search is not None:
+            for name, opened in self._opened_before_search.items():
+                self.boxes[name].set_open(opened)
+            self._opened_before_search = None
         for name, box in self.boxes.items():
             box.setVisible(name in shown and visible_in.get(name, 0) > 0)
+            if query and visible_in.get(name, 0):        # la recherche ouvre les groupes où elle trouve un réglage
+                box.set_open(True)
         if "zoom" in self.widgets:                       # au-delà de 1 : seulement en placement libre ou tourné
             free = bool(state.get("free")) or float(state.get("rot") or 0) != 0
             self.widgets["zoom"].setMaximum(10.0 if free else 1.0)
