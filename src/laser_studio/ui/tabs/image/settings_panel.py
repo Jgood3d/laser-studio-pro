@@ -94,6 +94,7 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("img.material_bg"), self._material_combo())
         layout.addRow("", self.invert_check)
         layout.addRow(tr("img.algorithm"), self._algorithm_combo())
+        layout.addRow(self.as_is_check)  # toute la largeur du panneau
         layout.addRow(tr("img.resolution"), self._resolution_box())
         layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
         self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
@@ -122,6 +123,7 @@ class ImageSettingsPanel(QWidget):
             (self.gamma_slider, "gamma"),
             (self.sharpness_slider, "sharpness"),
             (self.invert_check, "invert"),
+            (self.as_is_check, "as_is"),
         ):
             bind(widget, settings, field)
         # Liste des filtres : affiche « Effet BD » tant que l'effet est actif (projet ouvert, annuler…).
@@ -164,6 +166,7 @@ class ImageSettingsPanel(QWidget):
             "sharp": self.sharpness_slider.value(),
             "invert": self.invert_check.isChecked(),
             "algo": self.algorithm_combo.currentText(),
+            "as_is": self.as_is_check.isChecked(),
         }
 
     # -- construction
@@ -196,6 +199,18 @@ class ImageSettingsPanel(QWidget):
         self.sharpness_slider.setToolTip(tr("img.sharpness_tip"))
         self.invert_check = QCheckBox(tr("img.invert"))
         self.invert_check.stateChanged.connect(self.processing_changed)
+        # Image déjà tramée : gravée telle quelle (les réglages de tons et le tramage sont alors grisés).
+        self.as_is_check = QCheckBox(tr("img.as_is"))
+        self.as_is_check.setToolTip(tr("img.as_is_tip"))
+        self.as_is_check.stateChanged.connect(self.processing_changed)
+        self.as_is_check.toggled.connect(self._as_is_toggled)
+
+    def _as_is_toggled(self, checked):
+        """Réglages sans effet sur une image gravée telle quelle : grisés."""
+        for row in (self._brightness_row, self._contrast_row, self._gamma_row, self._sharpness_row):
+            row.setEnabled(not checked)
+        self.filter_combo.setEnabled(not checked)
+        self.algorithm_combo.setEnabled(not checked)
 
     def _filter_combo(self):
         self.filter_combo = QComboBox()

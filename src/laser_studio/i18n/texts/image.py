@@ -227,11 +227,41 @@ TEXTS = {
         "fr": "Afficher l'originale", "en": "Show Original",
         "de": "Original anzeigen", "es": "Mostrar el original",
     },
+    "img.as_is": {
+        "fr": "Image déjà tramée (graver telle quelle)",
+        "en": "Already dithered image (engrave as is)",
+        "de": "Bereits gerastertes Bild (unverändert gravieren)",
+        "es": "Imagen ya tramada (grabar tal cual)",
+    },
+    "img.as_is_tip": {
+        "fr": "Pour une image déjà tramée par Image-R ou un autre logiciel : pas de tons, de netteté ni de nouveau tramage ; l'image est mise à l'échelle au plus proche voisin puis seuillée. À l'activation, la résolution est calée sur les pixels de l'image (1 pixel = 1 ligne de gravure), d'après la taille issue des DPI du fichier.",
+        "en": "For an image already dithered by Image-R or other software: no tones, sharpness or new dithering; the image is scaled with nearest neighbour then thresholded. When enabled, the resolution is matched to the image pixels (1 pixel = 1 engraving line), from the size given by the file's DPI.",
+        "de": "Für ein bereits mit Image-R oder anderer Software gerastertes Bild: keine Tonwerte, Schärfe oder erneute Rasterung; das Bild wird per Nearest-Neighbor skaliert und dann binarisiert. Beim Aktivieren wird die Auflösung an die Bildpixel angepasst (1 Pixel = 1 Gravurlinie), ausgehend von der Größe aus den DPI der Datei.",
+        "es": "Para una imagen ya tramada con Image-R u otro programa: sin tonos, nitidez ni nuevo tramado; la imagen se escala por vecino más próximo y se umbraliza. Al activarlo, la resolución se ajusta a los píxeles de la imagen (1 píxel = 1 línea de grabado), según el tamaño dado por los DPI del archivo.",
+    },
+    "image.as_is_not_binary": {
+        "fr": "Cette image n'est pas en noir et blanc : gravée telle quelle, elle sera seuillée (gris clair → blanc, gris foncé → noir). Décochez « Image déjà tramée » pour la tramer.",
+        "en": "This image is not black and white: engraved as is, it will be thresholded (light grey → white, dark grey → black). Uncheck \"Already dithered image\" to dither it.",
+        "de": "Dieses Bild ist nicht schwarzweiß: unverändert graviert wird es binarisiert (helles Grau → Weiß, dunkles Grau → Schwarz). Deaktivieren Sie \"Bereits gerastertes Bild\", um es zu rastern.",
+        "es": "Esta imagen no es en blanco y negro: grabada tal cual se umbralizará (gris claro → blanco, gris oscuro → negro). Desmarque \"Imagen ya tramada\" para tramarla.",
+    },
     "img.preview_tones": {
         "fr": "Aperçu avec les réglages",
         "en": "Preview with adjustments",
         "de": "Vorschau mit Einstellungen",
         "es": "Vista previa con ajustes",
+    },
+    "img.preview_invert": {
+        "fr": "Inverser l'aperçu",
+        "en": "Invert preview",
+        "de": "Vorschau invertieren",
+        "es": "Invertir vista previa",
+    },
+    "img.preview_invert_tip": {
+        "fr": "Affiche l'image originale en négatif, pour la comparer au rendu. Aperçu seulement : indépendant de « Inverser Couleurs » et sans effet sur la gravure.",
+        "en": "Shows the original image as a negative, to compare it with the result. Preview only: independent of \"Invert colours\" and without effect on the engraving.",
+        "de": "Zeigt das Originalbild als Negativ, zum Vergleich mit dem Ergebnis. Nur Vorschau: unabhängig von \"Farben invertieren\" und ohne Einfluss auf die Gravur.",
+        "es": "Muestra la imagen original en negativo, para compararla con el resultado. Solo vista previa: independiente de \"Invertir colores\" y sin efecto en el grabado.",
     },
     "img.preview_tones_tip": {
         "fr": "Applique à l'image originale la luminosité, le contraste, le gamma et la netteté, pour voir l'effet des réglages avant le tramage. N'affecte pas la gravure.",
