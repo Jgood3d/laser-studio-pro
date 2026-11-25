@@ -59,6 +59,7 @@ class WindowController(QObject):
         actions.language_selected.connect(self.select_language)
         actions.theme_selected.connect(self.change_theme)
         actions.stencil_studio_requested.connect(lambda: self.stencil().open())
+        actions.stencil_studio_qt_requested.connect(lambda: self.stencil().open_qt())
         actions.main_tab_requested.connect(self.show_main_tab)
         editor, generators = w.vector_editor, w.vector_generators
         actions.vector_import_requested.connect(lambda: self.run_in_vector_editor(editor.import_dialog))

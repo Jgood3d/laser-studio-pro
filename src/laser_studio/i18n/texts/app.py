@@ -73,6 +73,8 @@ TEXTS = {
     },
     "menu.tools.stencil_studio": {"fr": "Stencil Studio", "en": "Stencil Studio",
                                   "de": "Stencil Studio", "es": "Stencil Studio"},
+    "menu.tools.stencil_studio_qt": {"fr": "Stencil Studio (Qt, expérimental)", "en": "Stencil Studio (Qt, experimental)",
+                                     "de": "Stencil Studio (Qt, experimentell)", "es": "Stencil Studio (Qt, experimental)"},
     "menu.tools.import_vector": {
         "fr": "Importer SVG / DXF…",
         "en": "Import SVG / DXF…",

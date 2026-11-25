@@ -94,7 +94,7 @@ NOWARNING=1 python main.py
 Le code suit la disposition `src/` recommandée pour les projets Python (voir `pyproject.toml`) :
 - `src/laser_studio/` — l’application Laser Studio ; les chemins ci-dessous lui sont relatifs ;
 - `src/laser_common/` — code partagé par Laser Studio et Stencil Studio, indépendant des deux (`files.py` : écriture sûre des fichiers de données) ;
-- `src/stencil_studio/` — Stencil Studio, sous-application ouverte depuis le menu Outils (ou seule, dans le navigateur : `cd src && python -m stencil_studio`). Calcul (`core/`, un module par métier…), modèles (`models/`), contrôleurs (`controllers/`), interface (`ui/` : page web, fenêtre Qt), serveur local (`server.py`) ;
+- `src/stencil_studio/` — Stencil Studio, sous-application ouverte depuis le menu Outils (ou seule, dans le navigateur : `cd src && python -m stencil_studio`). Calcul (`core/`, un module par métier…), modèles (`models/`), contrôleurs (`controllers/` : `service.py`, calcul commun aux deux interfaces), interface (`ui/` : page web et sa fenêtre, `ui/qt/` : version en widgets Qt, expérimentale, réglages lus dans la page par `spec.py`), serveur local (`server.py`) ;
 - `tests/`, `tools/`, `packaging/`, `docs/` à la racine du dépôt.
 
 On lance l’application avec `python main.py` depuis le dépôt, ou `python -m laser_studio` après `pip install -e .`.
