@@ -1,5 +1,5 @@
 """Menu Fichier : projets (enregistrer, ouvrir, récents), import et
-enregistrement du G-Code, et quitter."""
+enregistrement du G-Code, historique des gravures, paramètres et quitter."""
 
 import os
 
@@ -34,6 +34,8 @@ class FileMenu(QMenu):
             self.gcode_export_menu.setEnabled
         )
         self.addSeparator()
+        self.addAction(actions.history)                      # historique des gravures
+        self.addAction(actions.machine_params_window)       # « Paramètres… » : la fenêtre de tous les réglages
         self.addAction(actions.quit)
 
     def set_recent_projects(self, paths):

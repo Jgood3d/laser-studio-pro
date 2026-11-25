@@ -115,9 +115,13 @@ class PaletteIconTests(unittest.TestCase):
 
     def test_bundled_icon_is_drawn_in_the_text_colour(self):
         from PyQt6.QtGui import QColor, QPalette
+        from PyQt6.QtWidgets import QApplication
         from laser_studio.ui.utils import palette_icon
-        palette = QPalette()
+        app = QApplication.instance()
+        self.addCleanup(app.setPalette, app.palette())
+        palette = QPalette(app.palette())
         palette.setColor(QPalette.ColorRole.WindowText, QColor("#ff00ff"))
+        app.setPalette(palette)                         # couleur lue à l'affichage : celle du thème en cours
         image = palette_icon("list-add", palette).pixmap(22, 22).toImage()
         colours = {image.pixelColor(x, y).name() for x in range(22) for y in range(22)
                    if image.pixelColor(x, y).alpha() == 255}

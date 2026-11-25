@@ -17,7 +17,7 @@ try:
 except ImportError:
     HAS_BUILD = False
 
-from gcode_reader import burn_segments
+from gcode_reader import burn_segments, head_moves
 
 
 def rect(x0, y0, x1, y1):
@@ -124,22 +124,22 @@ class ScanOffsetTests(unittest.TestCase):
     def test_offset_with_overscan_moves_the_whole_return_pass(self):
         layers = fill_layer([[rect(10, 0, 30, 10)]], interval=1.0)
         gcode = build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000, overscan_dist=2.0, scan_offset=0.5)[0]
-        starts = [l for l in gcode if l.startswith("G0 X")]
-        self.assertIn("G0 X32.500 Y1.000", starts)       # retour : départ 30 + 2 de surbalayage, décalé de 0,5
-        self.assertIn("G0 X8.000 Y0.000", starts)        # aller : 10 - 2, inchangé
+        starts = [(x, y) for g, x, y in head_moves(gcode) if g == 0]
+        self.assertIn((32.5, 1.0), starts)               # retour : départ 30 + 2 de surbalayage, décalé de 0,5
+        self.assertIn((8.0, 0.0), starts)                # aller : 10 - 2, inchangé
 
 
 def head_moves_by_row(gcode):
     """{y arrondi: [x successifs de la tête]} (G0 et G1), pour vérifier le sens de déplacement."""
-    rows, y = {}, None
-    for line in gcode:
-        if not line.startswith(("G0 ", "G1 ")):
-            continue
-        words = dict((w[0], float(w[1:])) for w in line.split()[1:] if w[0] in "XY")
-        y = words.get("Y", y)
-        if "X" in words and y is not None:
-            rows.setdefault(round(y, 3), []).append(words["X"])
+    rows = {}
+    for _g, x, y in head_moves(gcode):
+        rows.setdefault(round(y, 3), []).append(x)
     return rows
+
+
+def travels(gcode):
+    """Nombre de déplacements rapides (G0)."""
+    return sum(1 for g, _x, _y in head_moves(gcode) if g == 0)
 
 
 @unittest.skipUnless(HAS_BUILD, "build_vector_layers_gcode non disponible ici")
@@ -157,7 +157,7 @@ class OverscanBetweenObjectsTests(unittest.TestCase):
             steps = [b - a for a, b in zip(xs, xs[1:]) if abs(b - a) > 1e-9]
             self.assertTrue(all(d > 0 for d in steps) or all(d < 0 for d in steps), (y, xs))
             self.assertEqual((min(xs), max(xs)), (-2.5, 22.5), y)       # surbalayage aux deux bouts seulement
-        self.assertEqual(sum(1 for l in gcode if l.startswith("G0 X")), 10)  # un départ par ligne (10 lignes)
+        self.assertEqual(travels(gcode), 10)                            # un départ par ligne (10 lignes)
 
     def test_engraved_segments_are_unchanged(self):
         layers = fill_layer([[rect(0, 0, 10, 10)], [rect(13, 0, 20, 10)]], interval=1.0)
@@ -167,7 +167,7 @@ class OverscanBetweenObjectsTests(unittest.TestCase):
     def test_far_objects_keep_their_own_overscan_and_jump_forward(self):
         layers = fill_layer([[rect(0, 0, 10, 10)], [rect(50, 0, 60, 10)]], interval=1.0)   # écart 40 > 5
         gcode = self.gcode(layers, overscan_dist=2.5)
-        self.assertEqual(sum(1 for l in gcode if l.startswith("G0 X")), 20)  # deux départs par ligne
+        self.assertEqual(travels(gcode), 20)                            # deux départs par ligne
         for y, xs in head_moves_by_row(gcode).items():
             steps = [b - a for a, b in zip(xs, xs[1:]) if abs(b - a) > 1e-9]
             self.assertTrue(all(d > 0 for d in steps) or all(d < 0 for d in steps), (y, xs))
@@ -175,7 +175,7 @@ class OverscanBetweenObjectsTests(unittest.TestCase):
     def test_without_overscan_nothing_changes(self):
         layers = fill_layer([[rect(0, 0, 10, 10)], [rect(13, 0, 20, 10)]], interval=1.0)
         gcode = self.gcode(layers)
-        self.assertEqual(sum(1 for l in gcode if l.startswith("G0 X")), 20)  # un G0 par segment, comme avant
+        self.assertEqual(travels(gcode), 20)                            # un G0 par segment, comme avant
 
 
 class WiringTests(unittest.TestCase):

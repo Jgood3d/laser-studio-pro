@@ -21,18 +21,16 @@ def macro_error_text(error):
 class MacroController:
     """`model` : MacrosModel ; `engraver` : EngraverController ; `connection` : MachineConnection (job en
     cours ?) ; `dialogs` : UserDialogs. `profile_name()` : profil machine affiché ; `profiles()` : noms des
-    profils (filtre des macros) ; `edit(macros, profiles, read_file, write_file)` : ouvre l'éditeur et
-    renvoie la nouvelle liste, ou None si annulé."""
+    profils (filtre des macros). L'éditeur est la page « Macros » de la fenêtre Paramètres : il est rempli par
+    editor_args() et sa liste validée passe par save()."""
 
-    def __init__(self, model, engraver, connection, dialogs, *, profile_name=lambda: None, profiles=lambda: [],
-                 edit=lambda macros, profiles, read_file, write_file: None):
+    def __init__(self, model, engraver, connection, dialogs, *, profile_name=lambda: None, profiles=lambda: []):
         self.model = model
         self.engraver = engraver
         self.connection = connection
         self.dialogs = dialogs
         self._profile_name = profile_name
         self._profiles = profiles
-        self._edit = edit
 
     def visible(self):
         """(rang, macro) des macros du profil machine affiché."""
@@ -61,16 +59,18 @@ class MacroController:
 
     # -- modifier
 
-    def manage(self):
-        """Éditeur des macros ; la liste validée remplace l'ancienne et est enregistrée."""
+    def editor_args(self):
+        """(macros, profils, read_file, write_file) pour remplir l'éditeur ; prévient d'abord si le fichier des
+        macros était illisible (il n'est remplacé qu'à l'enregistrement)."""
         if self.model.load_error is not None:
             self.dialogs.warning(tr("macros.title"), tr("macros.load_error").format(
                 path=self.model.path, error=macro_error_text(self.model.load_error)))
-        result = self._edit(list(self.model.macros), list(self._profiles()), self.read_file, self.write_file)
-        if result is None:
-            return False
+        return list(self.model.macros), list(self._profiles()), self.read_file, self.write_file
+
+    def save(self, macros):
+        """La liste validée dans l'éditeur remplace l'ancienne et est enregistrée ; False en cas d'échec."""
         try:
-            self.model.set_macros(result)
+            self.model.set_macros(macros)
         except OSError as error:
             self.dialogs.error(tr("macros.title"), tr("macros.save_error").format(path=self.model.path, error=error))
             return False

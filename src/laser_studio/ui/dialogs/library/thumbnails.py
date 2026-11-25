@@ -1,7 +1,7 @@
 """Images des modèles de la bibliothèque.
 
 - render_artwork : aperçu de la pièce telle qu'elle sortira de la machine,
-  dessiné à partir de ce qui sera importé (vector.svg_import) : la matière
+  dessiné à partir de ce qui sera importé (vector.svg_tree_import) : la matière
   (bois clair) à l'intérieur des découpes, les trous transparents, la
   gravure en brun foncé (brûlure), les textes dans leur police ;
 - render_svg : le fichier SVG lui-même (onglet « Dessin à graver »).
@@ -10,7 +10,8 @@ from PyQt6.QtCore import QByteArray, QRectF, Qt
 from PyQt6.QtGui import QColor, QImage, QPainter, QPainterPath, QPen, QTransform
 from PyQt6.QtSvg import QSvgRenderer
 
-from laser_studio.vector.svg_import import ROLE_CUT, ROLE_ENGRAVE, ROLE_MARK, SvgImportError, import_svg
+from laser_studio.vector.svg_import import ROLE_CUT, ROLE_ENGRAVE, ROLE_MARK, SvgImportError
+from laser_studio.vector.svg_tree_import import import_library_svg
 
 # Taille maxi (px) des vignettes calculées : au-delà, inutile pour la grille.
 THUMBNAIL_MAX = 480
@@ -42,15 +43,26 @@ def render_svg(svg_data, max_px):
     return image
 
 
-def render_artwork(artwork, max_px, margin_px=4):
-    """Aperçu de la pièce (ImportedArtwork) sur fond transparent, dans un
-    carré de `max_px` pixels au plus. Sans découpe, la matière est le
-    rectangle qui englobe le dessin. Image nulle si le dessin est vide."""
+def _leaves(objects):
+    for obj in objects:
+        children = getattr(obj, "children", None)
+        if children:
+            yield from _leaves(children)
+        else:
+            yield obj
+
+
+def render_artwork(objects, max_px, margin_px=4):
+    """Aperçu de la pièce sur fond transparent, dans un carré de `max_px` pixels au plus. `objects` : import
+    de import_library_svg dont le calque de chaque objet est son rôle (le reste n'est pas dessiné). Sans
+    découpe, la matière est le rectangle qui englobe le dessin. Image nulle si le dessin est vide."""
     paths = {ROLE_CUT: [], ROLE_ENGRAVE: [], ROLE_MARK: []}
     bounds = None
-    for role, obj in artwork.items:
+    for obj in _leaves(objects):
+        if obj.layer_id not in paths:
+            continue
         path = obj.world_path()
-        paths.setdefault(role, []).append(path)
+        paths[obj.layer_id].append(path)
         rect = path.boundingRect()
         bounds = rect if bounds is None else bounds.united(rect)
     if bounds is None or bounds.width() <= 0 or bounds.height() <= 0:
@@ -95,7 +107,7 @@ def item_image(item, max_px=THUMBNAIL_MAX, variants=None, texts=None):
     """Aperçu d'un modèle (LibraryItem), avec ses options et textes (ceux du
     fichier par défaut). Le SVG dessiné tel quel si l'import échoue."""
     try:
-        image = render_artwork(import_svg(item.svg_path, variants=variants, texts=texts), max_px)
+        image = render_artwork(import_library_svg(item.svg_path, lambda role: role, 0.0, variants, texts), max_px)
     except SvgImportError:
         image = QImage()
     return image if not image.isNull() else render_svg(item.svg_path, max_px)

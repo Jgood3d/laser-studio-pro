@@ -1,7 +1,8 @@
-"""Onglet « Graver une image vectorielle » : boutons des outils, canevas avec
-ses barres flottantes (créer et dessiner, édition, alignement) et, à droite,
-la liste des objets (ObjectsPanel) avec les propriétés de la sélection en
-dessous.
+"""Onglet « Graver une image vectorielle » : en haut, Importer et la grille
+magnétique ; le canevas avec sa barre flottante (sélection, créer et
+dessiner) ; à droite, la barre d'édition (générateurs compris) contre la
+liste des objets (ObjectsPanel), avec les propriétés de la sélection en
+dessous (alignement compris, pour plusieurs objets).
 
     tab = VectorEditorTab(canvas)
     tab.command.connect(lambda name: commands[name]())      # "rotate", "align_left"...
@@ -16,37 +17,34 @@ règle le canevas directement. Le panneau des propriétés
 (VectorPropertiesPanel) remplit `properties_widgets` ; la liste des objets
 (`objects_panel`) émet ses propres signaux.
 """
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout,
-                             QLabel, QPushButton, QSplitter, QStyle, QVBoxLayout, QWidget)
+                             QLabel, QSplitter, QStyle, QToolBar, QVBoxLayout,
+                             QWidget)
 
 from laser_studio.i18n import tr
-from laser_studio.ui.utils import palette_icon
+from laser_studio.ui.utils import import_button, palette_icon
+from laser_studio.ui.vector_editor.empty_hint import EmptyCanvasHint
 from laser_studio.ui.vector_editor.objects_panel import ObjectsPanel
 from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets
 from laser_studio.ui.widgets import FloatingToolBar
 
-# Largeur de la colonne de droite (liste des objets et propriétés), en px.
-SIDE_WIDTH = 380
-SIDE_MIN_WIDTH = 280
+# Largeur de la colonne de droite (barre d'édition, liste des objets et propriétés), en px.
+SIDE_WIDTH = 420
+SIDE_MIN_WIDTH = 330
 # Écart entre la poignée du séparateur et la colonne de droite, en px.
 SIDE_LEFT_MARGIN = 6
-# Rangée du haut : (commande, clé du libellé, clé de l'infobulle ou None, icône Breeze).
-TOP_BUTTONS = (
-    ("import", "ui.vector_import_svg", None, "document-import"),
-    ("box", "ui.vector_box_generator", "ui.vector_box_generator_tip", "draw-cuboid"),
-    ("puzzle", "ui.vector_puzzle_generator", "ui.vector_puzzle_generator_tip", "games-config-board"),
-    ("ornament", "ui.vector_ornament_generator", "ui.vector_ornament_generator_tip", "draw-ellipse"),
-    ("keychain", "ui.vector_keychain_generator", "ui.vector_keychain_generator_tip", "keychain"),
-    ("nesting", "ui.vector_nesting", "ui.vector_nesting_tip", "object-group"),
-)
-# Barre d'édition, en haut du canevas : (commande, clé du libellé, icône) ; None = séparateur.
+# Barre d'édition, verticale entre le canevas et la liste des objets : (commande, clé du libellé, icône) ;
+# None = séparateur. En tête, la fenêtre des générateurs (boîte, puzzle, boule de Noël, porte-clés).
 EDIT_ACTIONS = (
+    ("generators", "ui.vector_generators", "draw-cuboid"),
+    None,
     ("edit", "ui.vector_edit_selection", "document-edit"),
     ("rotate", "ui.vector_rotate_90", "object-rotate-right"),
     ("duplicate", "ui.vector_duplicate", "edit-duplicate"),
     ("serial", "ui.vector_serial_duplicate", "view-grid"),
+    ("nesting", "ui.vector_nesting", "object-group"),
     ("jig", "ui.vector_jig", "draw-rectangle"),
     ("delete", "ui.vector_delete", "edit-delete"),
     ("delete_all", "ui.vector_delete_all", "edit-clear-all"),
@@ -76,7 +74,7 @@ DRAW_TOOLS = (
     ("ellipse", "ui.vector_tool_ellipse", "draw-ellipse"),
     ("measure", "ui.vector_tool_measure", "measure"),
 )
-# Barre d'alignement, à droite du canevas : (commande, clé du libellé) ; None = séparateur.
+# Alignement, dans les propriétés quand plusieurs objets sont choisis : (commande, clé du libellé) ; None = séparateur.
 ALIGN_ACTIONS = (
     ("align_left", "ui.vector_align_left"),
     ("align_center_h", "ui.vector_align_center_h"),
@@ -90,8 +88,19 @@ ALIGN_ACTIONS = (
     ("distribute_v", "ui.vector_distribute_v"),
 )
 # Toutes les commandes émises par l'onglet.
-COMMANDS = tuple(name for name, *_ in TOP_BUTTONS) + tuple(
+COMMANDS = ("import", "box", "puzzle", "ornament", "keychain") + tuple(
     entry[0] for entry in EDIT_ACTIONS + CREATE_ACTIONS + ALIGN_ACTIONS if entry) + ("library",)
+
+
+def _toolbar(actions):
+    """Barre d'outils fixe de `actions` ; None = séparateur."""
+    bar = QToolBar()
+    for action in actions:
+        if action is None:
+            bar.addSeparator()
+        else:
+            bar.addAction(action)
+    return bar
 
 
 class VectorEditorTab(QWidget):
@@ -101,6 +110,7 @@ class VectorEditorTab(QWidget):
     draw_tool_requested = pyqtSignal(object)
     camera_background_toggled = pyqtSignal(bool)
     camera_refresh_requested = pyqtSignal()
+    vectorize_requested = pyqtSignal()        # « Vectoriser une image » : la fenêtre ouvre l'onglet Vectorisation
 
     def __init__(self, canvas, parent=None):
         super().__init__(parent)
@@ -109,14 +119,20 @@ class VectorEditorTab(QWidget):
         # Une seule rangée en haut : marges réduites pour le canevas
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(4)
+        self._toolbars()
         layout.addLayout(self._top_row())
         # Canevas à gauche ; à droite la liste des objets, et sous elle les propriétés de la sélection.
         self.objects_panel = ObjectsPanel()
         self.properties_box = self._properties_box()
         side = QWidget()
-        side_layout = QVBoxLayout(side)
-        side_layout.setContentsMargins(SIDE_LEFT_MARGIN, 0, 0, 0)
+        side.setProperty("role", "sidebar")           # panneau latéral (thèmes modernes : plus sombre, à plat)
+        side_row = QHBoxLayout(side)
+        side_row.setContentsMargins(SIDE_LEFT_MARGIN, 0, 0, 0)
+        side_row.setSpacing(4)
+        side_row.addWidget(self.edit_toolbar)      # à portée de main, contre la liste des objets
+        side_layout = QVBoxLayout()
         side_layout.setSpacing(4)
+        side_row.addLayout(side_layout, 1)
         objects_box = QGroupBox(tr("objects.box"))
         objects_layout = QVBoxLayout(objects_box)
         objects_layout.setContentsMargins(4, 4, 4, 4)
@@ -132,12 +148,19 @@ class VectorEditorTab(QWidget):
         side.setMinimumWidth(SIDE_MIN_WIDTH)
         self.splitter.setSizes([100000, SIDE_WIDTH])
         layout.addWidget(self.splitter, 1)  # stretch: occupe l'espace restant
-        self._floating_toolbars()
+        # Après le séparateur : la barre flottante est enfant du premier parent du canevas qui n'en est pas un.
+        # Sélection en tête : l'outil dont on se sert le plus.
+        select, *draw = self.draw_buttons.values()
+        self.create_toolbar = FloatingToolBar([select, None, *self._create_actions, None, *draw],
+                                              self.canvas, anchor="left")
+        self.empty_hint = EmptyCanvasHint(canvas)          # canevas vide : importer, dessiner, bibliothèque
+        self.empty_hint.command.connect(
+            lambda name: self.vectorize_requested.emit() if name == "vectorize" else self.command.emit(name))
 
     # -- construction
 
     def _action(self, text, tooltip, command=None, icon_name=None):
-        """Action des barres flottantes : `text`, infobulle `tooltip`, icône Breeze dans la couleur du thème ;
+        """Action des barres d'outils : `text`, infobulle `tooltip`, icône Breeze dans la couleur du thème ;
         émet command(`command`) si elle est donnée."""
         action = QAction(text, self)
         action.setToolTip(tooltip)
@@ -149,28 +172,25 @@ class VectorEditorTab(QWidget):
 
     @staticmethod
     def _actions(entries, make):
-        """Actions d'une barre flottante : make(*entrée) pour chaque entrée, None (séparateur) gardé tel quel."""
+        """Actions d'une barre d'outils : make(*entrée) pour chaque entrée, None (séparateur) gardé tel quel."""
         return [make(*entry) if entry else None for entry in entries]
 
     def _top_row(self):
-        """Importer et outils (boîte, puzzle, boule de Noël, porte-clés, imbrication), puis la grille
-        magnétique à droite. Le plein écran est celui de la barre d'outils principale."""
+        """Importer, puis la grille magnétique à droite. Le plein écran est celui de la barre d'outils
+        principale."""
         row = QHBoxLayout()
         row.setSpacing(4)
-        self.top_buttons = {}
-        for name, key, tip, icon in TOP_BUTTONS:
-            button = QPushButton(tr(key))
-            if tip:
-                button.setToolTip(tr(tip))
-            button.setIcon(palette_icon(icon, self.palette()))
-            # L'emoji du libellé (📥, 📦, 🧩) ferait doublon avec l'icône.
-            label = button.text()
-            if label and not label[0].isalnum():
-                button.setText(label.split(" ", 1)[-1])
-            button.clicked.connect(lambda _checked=False, n=name: self.command.emit(n))
-            row.addWidget(button)
-            self.top_buttons[name] = button
-        self.top_buttons["import"].setStyleSheet("background-color: #3a6b3a; color: white;")
+        # Même gros bouton que « Charger Image » ; un SVG / DXF déposé dessus est importé (dropEvent de la fenêtre).
+        button = import_button(tr("ui.vector_import_drop"), palette_icon("document-import", self.palette()))
+        button.setToolTip(tr("ui.vector_import_svg"))
+        button.clicked.connect(lambda: self.command.emit("import"))
+        row.addWidget(button)
+        # À côté : une image bitmap à transformer d'abord en dessin (onglet « Vectorisation d'image »).
+        vectorize = import_button(tr("ui.vector_vectorize"), palette_icon("draw-bezier-curves", self.palette()))
+        vectorize.setToolTip(tr("ui.vector_vectorize_tip"))
+        vectorize.clicked.connect(lambda: self.vectorize_requested.emit())
+        row.addWidget(vectorize)
+        self.top_buttons = {"import": button, "vectorize": vectorize}
         row.addStretch()
         self.snap_check = QCheckBox(tr("ui.vector_snap_enable"))
         self.snap_check.toggled.connect(self.canvas.set_snap_enabled)
@@ -183,10 +203,11 @@ class VectorEditorTab(QWidget):
         row.addWidget(self.snap_step_spin)
         return row
 
-    def _floating_toolbars(self):
-        # Édition de la sélection : barre d'icônes en haut du canevas, le libellé en infobulle.
+    def _toolbars(self):
+        # Édition de la sélection : barre d'icônes, le libellé en infobulle.
         edit_actions = self._actions(EDIT_ACTIONS, lambda name, key, icon: self._action(
             tr(key), tr(key).lstrip("↻↶↷ "), name, icon))
+        edit_actions[0].setToolTip(tr("ui.vector_generators_tip"))
         # Créer et dessiner : texte et forme ajoutent un objet, la bibliothèque aussi ; les outils de la souris
         # sont cochables, un seul à la fois (show_draw_tool).
         create_actions = [self._action(tr(key), tr(key).lstrip("+ "), name, icon) for name, key, icon in CREATE_ACTIONS]
@@ -204,6 +225,7 @@ class VectorEditorTab(QWidget):
                                       icon_name="view-refresh")
         camera_refresh.triggered.connect(lambda _checked=False: self.camera_refresh_requested.emit())
         create_actions += [self.camera_toggle, camera_refresh]
+        self._create_actions = create_actions
         self.draw_buttons = {}
         for tool, key, icon in DRAW_TOOLS:
             action = self._action(tr(key), f"{tr(key)} — {tr(key + '_tip')}", icon_name=icon)
@@ -215,14 +237,14 @@ class VectorEditorTab(QWidget):
         # dit l'action (« Aligner à gauche »).
         align_actions = self._actions(ALIGN_ACTIONS, lambda name, key: self._action(
             tr(key).split(" ", 1)[0], tr(f"{key}_tip"), name))
-        self.create_toolbar = FloatingToolBar([*create_actions, None, *self.draw_buttons.values()],
-                                              self.canvas, anchor="left")
-        self.edit_toolbar = FloatingToolBar(edit_actions, self.canvas, top_margin=8)
-        self.align_toolbar = FloatingToolBar(align_actions, self.canvas, anchor="right",
-                                             button_style=Qt.ToolButtonStyle.ToolButtonTextOnly)
+        # Édition : colonne d'icônes contre la liste des objets ; ce qui ne tient pas passe dans le menu ».
+        self.edit_toolbar = _toolbar(edit_actions)
+        self.edit_toolbar.setOrientation(Qt.Orientation.Vertical)
+        self.edit_toolbar.setIconSize(QSize(20, 20))
+        self.align_toolbar = _toolbar(align_actions)
+        self.align_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         # Pictogrammes plus grands que le texte courant, pour rester lisibles.
-        self.align_toolbar.setStyleSheet(self.align_toolbar.styleSheet()
-                                         + " QToolButton { font-size: 16px; min-width: 24px; }")
+        self.align_toolbar.setStyleSheet("QToolButton { font-size: 16px; padding: 2px 2px; }")
         self.align_toolbar.setToolTip(tr("ui.vector_align_box"))
 
     def _properties_box(self):
@@ -235,7 +257,7 @@ class VectorEditorTab(QWidget):
 
         label = QLabel(tr("ui.no_selection_label"))
         label.setWordWrap(True)
-        label.setStyleSheet("color: #9aa3b5; font-size: 12px;")
+        label.setStyleSheet("color: palette(placeholder-text); font-size: 12px;")
         form.addWidget(label)
 
         grid = QGridLayout()
@@ -244,10 +266,16 @@ class VectorEditorTab(QWidget):
         x, y, rotation = (self._spin(-1000.0, 1000.0, 2, 110), self._spin(-1000.0, 1000.0, 2, 110),
                           self._spin(-360.0, 360.0, 1, 110))
         layer = QComboBox()
+        layer.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToContents)   # « Gravure [Gravure Remplie] » entier
         for row, (key, widget) in enumerate((("ui.vector_x_mm", x), ("ui.vector_y_mm", y),
                                               ("ui.vector_rotation_deg", rotation), ("ui.vector_layer", layer))):
             grid.addWidget(QLabel(tr(key)), row, 0)
-            grid.addWidget(widget, row, 1)
+            # Champs alignés : leur largeur maximale (110 px) ne plafonne plus la colonne, la liste des calques
+            # y prend la largeur de son texte.
+            if widget is layer:
+                grid.addWidget(widget, row, 1)
+            else:
+                grid.addWidget(widget, row, 1, Qt.AlignmentFlag.AlignLeft)
         grid.setColumnStretch(1, 1)
         form.addLayout(grid)
 
@@ -278,12 +306,14 @@ class VectorEditorTab(QWidget):
         size.setColumnStretch(1, 1)
         size_row.setVisible(False)
         form.addWidget(size_row)
+        self.align_toolbar.setVisible(False)
+        form.addWidget(self.align_toolbar)
 
         box.setEnabled(False)
         box.setVisible(False)
         self.properties_widgets = PropertiesWidgets(
             label=label, box=box, x=x, y=y, rotation=rotation, layer=layer, size_row=size_row,
-            width=width, height=height, anchor_lock=anchor_lock, anchor=anchor)
+            width=width, height=height, anchor_lock=anchor_lock, anchor=anchor, align_row=self.align_toolbar)
         return box
 
     @staticmethod

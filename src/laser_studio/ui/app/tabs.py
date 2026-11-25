@@ -1,41 +1,26 @@
 """Onglets du centre de la fenêtre et panneau du bas.
 
     tabs = MainTabs(window.main_tabs_view, window, splitter=window.center_v_splitter,
-                    bottom_panel=window.center_bottom_widget, ...)
+                    bottom_panel=window.bottom_panel, ...)
     tabs.show(window.tab_separation)
     tabs.toggle_current_fullscreen()
 
-Rôle de MainTabs : afficher un onglet (même masqué ou en plein écran), gérer les
-onglets facultatifs du menu Affichage (croix, choix mémorisé), ouvrir l'onglet
-affiché en plein écran, et montrer le panneau machine sous les onglets
-seulement là où il sert, avec la position mémorisée des séparateurs.
+Rôle de MainTabs : afficher un onglet (même masqué ou en plein écran), ouvrir l'onglet
+affiché en plein écran, et mémoriser la position des séparateurs (onglets / panneau du
+bas, aperçu 2D / statistiques). Le panneau du bas lui-même est ui/app/bottom_panel.py.
 """
-from PyQt6.QtCore import QObject, Qt, QTimer
-from PyQt6.QtWidgets import QDialog, QPushButton, QTabBar, QVBoxLayout
+from PyQt6.QtCore import QObject, Qt
+from PyQt6.QtWidgets import QDialog, QPushButton, QVBoxLayout
 
 from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import tr
-from laser_studio.ui.widgets import FullscreenWindow, TabCloseButton
-
-# Onglets facultatifs (menu Affichage) : clé de UIConfig qui mémorise s'ils
-# sont affichés, et état au premier démarrage.
-GCODE_CONSOLE_SETTING = "show_gcode_console"
-JOB_QUEUE_SETTING = "show_job_queue"
-OPTIONAL_TAB_DEFAULTS = {GCODE_CONSOLE_SETTING: False, JOB_QUEUE_SETTING: True}
-
-
-def optional_tab_was_visible(setting):
-    """Onglet facultatif affiché à la dernière utilisation ? (au premier
-    démarrage : l'état par défaut de OPTIONAL_TAB_DEFAULTS)"""
-    return ui_preferences().get_bool(setting, OPTIONAL_TAB_DEFAULTS[setting])
-
+from laser_studio.ui.widgets import FullscreenWindow
 
 class MainTabs(QObject):
     """Onglets du centre (`view`, QTabWidget) de la fenêtre `window`.
 
     - `splitter` : séparateur onglets / panneau du bas ; `bottom_panel` : le
-      panneau (machine), montré seulement sur les onglets `panel_tabs` ou
-      pendant un job (`job_in_progress()`) ;
+      panneau (BottomPanel), dont les tailles dépliées sont mémorisées ;
     - `preview_splitter` : séparateur aperçu 2D / statistiques, dont la
       position est mémorisée avec celle de `splitter` ;
     - `vector_editor` et `png2svg` : onglets au plein écran particulier
@@ -43,23 +28,39 @@ class MainTabs(QObject):
       canevas une fois l'éditeur déplacé.
     """
 
-    def __init__(self, view, window, *, splitter, bottom_panel, panel_tabs, preview_splitter,
-                 job_in_progress, vector_editor, recenter_vector_editor, png2svg, parent=None):
+    def __init__(self, view, window, *, splitter, bottom_panel, preview_splitter,
+                 vector_editor, recenter_vector_editor, png2svg, parent=None):
         super().__init__(parent)
         self.view = view
         self.window = window
         self.splitter = splitter
         self.bottom_panel = bottom_panel
-        self.panel_tabs = tuple(panel_tabs)
         self.preview_splitter = preview_splitter
-        self._job_in_progress = job_in_progress
         self.vector_editor = vector_editor
         self._recenter_vector_editor = recenter_vector_editor
         self.png2svg = png2svg
-        # Onglet facultatif -> (clé de UIConfig, case du menu Affichage)
-        self._optional = {}
-        # Tailles du séparateur avant que le panneau du bas soit masqué, rendues à son retour.
-        self.bottom_panel_sizes = None
+        self._closable = ()
+
+    # -- onglets fermables (ouverts depuis le menu Outils)
+
+    def set_closable(self, tabs):
+        """Croix de fermeture (comme dans VS Code) sur les seuls onglets `tabs` ; fermer un onglet le masque, le
+        menu Outils le rouvre (show)."""
+        self._closable = tuple(tabs)
+        self.view.setTabsClosable(True)
+        self.view.tabCloseRequested.connect(self._close_tab)
+        self.refresh_close_buttons()
+
+    def refresh_close_buttons(self):
+        """Retire la croix des onglets qui ne se ferment pas (Qt en pose une sur chaque onglet ajouté)."""
+        bar = self.view.tabBar()
+        for index in range(self.view.count()):
+            if self.view.widget(index) not in self._closable:
+                bar.setTabButton(index, bar.ButtonPosition.RightSide, None)
+
+    def _close_tab(self, index):
+        if self.view.widget(index) in self._closable:
+            self.view.setTabVisible(index, False)
 
     # -- afficher un onglet
 
@@ -74,49 +75,6 @@ class MainTabs(QObject):
         else:
             tab.window().raise_()
             tab.window().activateWindow()
-
-    # -- onglets facultatifs (menu Affichage)
-
-    def add_optional(self, tab, setting, action):
-        """Onglet facultatif `tab` : affiché ou masqué par la case `action` du
-        menu Affichage, choix mémorisé sous la clé `setting` de UIConfig. Une
-        croix sur l'onglet le ferme en décochant la case."""
-        self._optional[tab] = (setting, action)
-        self._add_close_button(tab, action)
-
-    def restore_optional_tabs(self):
-        """Onglets facultatifs et cases du menu comme à la dernière utilisation."""
-        for tab, (setting, action) in self._optional.items():
-            visible = optional_tab_was_visible(setting)
-            action.setChecked(visible)
-            self.set_optional_visible(tab, visible)
-
-    def set_optional_visible(self, tab, visible):
-        """Affiche ou masque l'onglet facultatif `tab`, et mémorise ce choix
-        pour le prochain démarrage. Ouvert en plein écran (sorti des onglets),
-        il n'est pas touché. Le réglage n'est écrit que s'il change."""
-        setting = self._optional[tab][0]
-        index = self.view.indexOf(tab)
-        if index != -1:
-            self.view.setTabVisible(index, visible)
-        if optional_tab_was_visible(setting) != bool(visible):
-            ui_preferences().set(setting, bool(visible))
-
-    def _add_close_button(self, tab, action):
-        """Croix sur l'onglet `tab` : le ferme en décochant `action`, qui masque
-        l'onglet et mémorise le choix."""
-        index = self.view.indexOf(tab)
-        if index == -1:
-            return
-        button = TabCloseButton()
-        button.clicked.connect(lambda: action.setChecked(False))
-        self.view.tabBar().setTabButton(index, QTabBar.ButtonPosition.RightSide, button)
-
-    def _restore_close_button(self, tab):
-        """Remet la croix d'un onglet facultatif au retour du plein écran : Qt
-        la supprime quand l'onglet sort de la barre."""
-        if tab in self._optional:
-            self._add_close_button(tab, self._optional[tab][1])
 
     # -- plein écran
 
@@ -137,8 +95,7 @@ class MainTabs(QObject):
                                  tr("png2svg.tab_title"))
         else:
             title = self.view.tabText(self.view.indexOf(tab))
-            self.open_fullscreen(tab, title, tr("vector.close_fullscreen"), title,
-                                 on_restored=lambda: self._restore_close_button(tab))
+            self.open_fullscreen(tab, title, tr("vector.close_fullscreen"), title)
 
     def open_fullscreen(self, tab, window_title, close_text, tab_title, on_restored=None):
         """Sort `tab` des onglets dans une FullscreenWindow, et l'y remet à la
@@ -157,6 +114,7 @@ class MainTabs(QObject):
             self.view.update()
             self.window.update()
             self.window.repaint()
+            self.refresh_close_buttons()
             if on_restored is not None:
                 on_restored()
 
@@ -184,7 +142,7 @@ class MainTabs(QObject):
         dlg_layout.setContentsMargins(4, 4, 4, 4)
 
         btn_close_fullscreen = QPushButton(tr("vector.close_fullscreen"))
-        btn_close_fullscreen.setStyleSheet("background-color: #8f2b2b; color: white; padding: 6px; font-weight: bold;")
+        btn_close_fullscreen.setProperty("role", "primary")       # couleurs du thème (theme.py)
         btn_close_fullscreen.clicked.connect(dialog.close)
         dlg_layout.addWidget(btn_close_fullscreen)
 
@@ -197,6 +155,7 @@ class MainTabs(QObject):
             self.view.insertTab(idx, tab, tr("tab.vector_editor"))
             self.view.setCurrentWidget(tab)
             tab.setVisible(True)
+            self.refresh_close_buttons()
             self._recenter_vector_editor()
 
         dialog.finished.connect(restore)
@@ -207,27 +166,10 @@ class MainTabs(QObject):
 
     # -- panneau du bas et séparateurs
 
-    def update_bottom_panel(self, *_args):
-        """Panneau machine montré sur les onglets `panel_tabs` et pendant un
-        job, masqué ailleurs ; sa hauteur est rendue à son retour."""
-        panel = self.bottom_panel
-        current = self.view.currentWidget()
-        show = self._job_in_progress() or any(current is t for t in self.panel_tabs)
-        if show and panel.isHidden():
-            panel.setVisible(True)
-            sizes = self.bottom_panel_sizes
-            if sizes:
-                QTimer.singleShot(0, lambda s=sizes: self.splitter.setSizes(s))
-        elif not show and not panel.isHidden():
-            sizes = self.splitter.sizes()
-            if all(v > 0 for v in sizes):
-                self.bottom_panel_sizes = sizes
-            panel.setVisible(False)
-
     def save_splitter_sizes(self, *_args):
         prefs = ui_preferences()
-        if self.bottom_panel.isHidden():
-            sizes = self.bottom_panel_sizes
+        if self.bottom_panel.is_collapsed():
+            sizes = self.bottom_panel.expanded_sizes
         else:
             sizes = self.splitter.sizes()
         if sizes and all(v > 0 for v in sizes):
@@ -247,8 +189,9 @@ class MainTabs(QObject):
             try:
                 loaded_sizes = [int(s) for s in center_v_sizes]
                 if all(v > 0 for v in loaded_sizes):
-                    self.bottom_panel_sizes = loaded_sizes
-                    self.splitter.setSizes(loaded_sizes)
+                    self.bottom_panel.expanded_sizes = loaded_sizes
+                    if not self.bottom_panel.is_collapsed():
+                        self.splitter.setSizes(loaded_sizes)
             except (TypeError, ValueError):
                 pass
         # Moitié / moitié d'une version précédente : remplacé par la colonne étroite par défaut.

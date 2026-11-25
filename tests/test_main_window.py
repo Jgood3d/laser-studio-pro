@@ -94,39 +94,47 @@ class MainWindowTests(unittest.TestCase):
 
     # -- onglets
 
-    def test_optional_tabs_menu_and_close_button(self):
-        w, actions = self.win, self.win.app_actions
-        self.assertTrue(self.visible(w.tab_job_queue) and actions.job_queue.isChecked())   # affichée au départ
-        self.assertIsNotNone(self.close_button(w.tab_job_queue))
-        actions.gcode_console.setChecked(True)
-        self.assertTrue(self.visible(w.tab_console_gcode))
-        self.close_button(w.tab_console_gcode).click()
-        self.assertFalse(self.visible(w.tab_console_gcode) or actions.gcode_console.isChecked())
-        self.assertIs(self.stores[preferences.UI_CONFIG].values["show_gcode_console"], False)   # choix mémorisé
+    def test_console_and_queue_live_in_the_bottom_panel(self):
+        w, actions, panel = self.win, self.win.app_actions, self.win.bottom_panel
+        self.assertEqual(self.tabs.indexOf(w.tab_job_queue), -1)              # plus des onglets de travail
+        self.assertEqual(self.tabs.indexOf(w.tab_console_gcode), -1)
+        self.assertTrue(panel.is_collapsed())                                 # replié au premier démarrage
+        actions.job_queue.trigger()                                           # bouton de la barre d'outils
+        self.assertEqual((panel.current_key(), panel.is_collapsed()), ("queue", False))
+        self.assertTrue(actions.bottom_panel.isChecked())
+        actions.bottom_panel.trigger()                                        # Ctrl+J : replié
+        self.assertTrue(panel.is_collapsed())
+        self.assertIs(self.stores[preferences.UI_CONFIG].values["bottom_panel_collapsed"], True)   # mémorisé
+        self.assertEqual(actions.bottom_panel.shortcut().toString(), "Ctrl+J")
+        w.statusBar().machine_clicked.emit()                                  # clic sur la pastille du graveur
+        self.assertEqual((panel.current_key(), panel.is_collapsed()), ("machine", False))
 
     def test_tools_menu_opens_a_hidden_tab(self):
         self.win.app_actions.main_tab_requested.emit("tab_separation")
         self.assertTrue(self.visible(self.win.tab_separation))
         self.assertIs(self.tabs.currentWidget(), self.win.tab_separation)
 
-    def test_bottom_panel_only_on_job_tabs(self):
-        self.tabs.setCurrentWidget(self.win.tab_previews)
-        self.pump()
-        self.assertTrue(self.win.center_bottom_widget.isHidden())
-        self.tabs.setCurrentWidget(self.win.tab_vector_2d)
-        self.pump()
-        self.assertFalse(self.win.center_bottom_widget.isHidden())
+    def test_bottom_panel_opens_on_the_engraver_when_an_alarm_comes(self):
+        panel = self.win.bottom_panel
+        panel.set_collapsed(True)
+        self.win.job_display.show_machine_state("Idle", 0.0, 0.0, 0.0)
+        self.assertTrue(panel.is_collapsed())
+        self.win.job_display.show_machine_state("Alarm", 0.0, 0.0, 0.0)
+        self.assertEqual((panel.current_key(), panel.is_collapsed()), ("machine", False))
+        panel.set_collapsed(True)
+        self.win.job_display.show_machine_state("Alarm", 0.0, 0.0, 0.0)       # toujours en alarme : rien
+        self.assertTrue(panel.is_collapsed())
+        self.win.job_display.show_machine_state(None, None, None, None)
 
     def test_fullscreen_of_a_tab_and_of_the_vector_editor(self):
         w = self.win
-        self.tabs.setCurrentWidget(w.tab_job_queue)
+        self.tabs.setCurrentWidget(w.tab_vector_2d)
         w.app_actions.fullscreen.trigger()
         self.pump(0.1)
-        self.assertEqual(self.tabs.indexOf(w.tab_job_queue), -1)
-        w.tab_job_queue.window().close()
+        self.assertEqual(self.tabs.indexOf(w.tab_vector_2d), -1)
+        w.tab_vector_2d.window().close()
         self.pump(0.2)
-        self.assertNotEqual(self.tabs.indexOf(w.tab_job_queue), -1)
-        self.assertIsNotNone(self.close_button(w.tab_job_queue))       # croix remise au retour
+        self.assertNotEqual(self.tabs.indexOf(w.tab_vector_2d), -1)
         self.tabs.setCurrentWidget(w.tab_vector_editor)
         w.app_actions.fullscreen.trigger()
         self.pump(0.1)

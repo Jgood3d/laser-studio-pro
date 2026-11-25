@@ -1,5 +1,6 @@
 """Surbalayage et commande laser (M4 dynamique / M3 constante) propres à chaque calque."""
 import os
+import re
 import sys
 import unittest
 
@@ -92,7 +93,7 @@ class VectorGcodeTests(unittest.TestCase):
 
     @staticmethod
     def xs(gcode):
-        return [float(line.split("X")[1].split()[0]) for line in gcode if line.startswith(("G0 X", "G1 X"))]
+        return [float(m) for line in gcode for m in re.findall(r"X(-?[\d.]+)", line.split(";")[0])]
 
     def test_overscan_applies_by_default(self):
         self.assertEqual((min(self.xs(self.build([self.layer()]))), max(self.xs(self.build([self.layer()])))), (3.0, 17.0))
@@ -113,26 +114,28 @@ class VectorGcodeTests(unittest.TestCase):
 
     def test_layer_command_overrides_the_global_one(self):
         gcode = "\n".join(self.build([self.layer(laser_cmd="M3")], global_cmd="M4"))
-        self.assertIn("M3 S500", gcode)
+        self.assertIn("M3 S0", gcode)                     # laser en M3, puissance portée par les G1
+        self.assertIn("S500", gcode)
         self.assertNotIn("M4", gcode)
 
     def test_auto_follows_the_global_command(self):
         gcode = "\n".join(self.build([self.layer(laser_cmd="")], global_cmd="M3"))
-        self.assertIn("M3 S500", gcode)
+        self.assertIn("M3 S0", gcode)
         self.assertNotIn("M4", gcode)
 
     def test_each_layer_uses_its_own_command(self):
         gcode = self.build([self.layer(laser_cmd="M4", name="A"), self.layer(laser_cmd="M3", name="B")], global_cmd="M4")
         text = "\n".join(gcode)
         first, second = text.split("; --- CALQUE 'B'")
-        self.assertIn("M4 S500", first)
+        self.assertIn("M4 S0", first)
         self.assertNotIn("M3", first)
-        self.assertIn("M3 S500", second)
+        self.assertIn("M3 S0", second)
         self.assertNotIn("M4", second)
 
     def test_cut_layer_command(self):
         gcode = "\n".join(self.build([self.layer(mode=MODE_CUT, laser_cmd="M3", power=80.0)], global_cmd="M4"))
-        self.assertIn("M3 S800", gcode)
+        self.assertIn("M3 S0", gcode)
+        self.assertIn("S800", gcode)
         self.assertNotIn("M4", gcode)
 
 

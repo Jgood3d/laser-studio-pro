@@ -15,12 +15,19 @@ mise en page s'ouvrent depuis l'éditeur vectoriel.
 
 ### Bibliothèque de modèles
 
-**Outils › Bibliothèque…**, ou le bouton *Bibliothèque* de l'éditeur
-vectoriel. Des modèles prêts à graver, rangés par catégorie : médailles,
+**Outils › Bibliothèque…**, ou le bouton *Bibliothèque* de l'éditeur vectoriel
+(barre de gauche du canevas, ou canevas vide) : la première page de la fenêtre
+des générateurs. Des modèles prêts à graver, rangés par catégorie : médailles,
 porte-clefs, totems, boules de Noël… Un double-clic ouvre la fiche du
 modèle : choisissez ses options (forme, motif…), modifiez ses textes
 (contenu, police, taille), l'aperçu suit vos choix. **Importer** le place
 dans l'éditeur.
+
+La bibliothèque et les quatre générateurs (boîte, puzzle, boule de Noël,
+porte-clés) partagent une fenêtre : leur liste à gauche, les réglages au
+milieu et l'aperçu à droite. Le menu **Outils** l'ouvre sur le générateur choisi ;
+l'icône **Générateurs** en tête de la barre d'édition de l'éditeur vectoriel,
+sur le dernier utilisé. **Importer** ajoute la pièce (ou le modèle) affiché.
 
 ### Générateur de boîte
 
@@ -77,7 +84,7 @@ porte-clés par prénom.
 
 ### Imbrication automatique
 
-Le bouton **Imbrication auto** place les pièces au plus serré sur la
+Le bouton **Imbrication auto** (barre d'édition, à droite du canevas de l'éditeur vectoriel) place les pièces au plus serré sur la
 plaque, pour économiser la matière. Il tient compte de la forme réelle des
 pièces : une petite pièce peut se loger dans le creux d'une grande. Réglez
 la taille de la feuille, l'écart entre les pièces et les rotations
@@ -158,7 +165,7 @@ tags » (groupe Préparation, partagée avec l'assistant d'alignement) et
 
 ### Historique des gravures
 
-**Outils › Historique des gravures…** liste chaque job envoyé au graveur,
+**Fichier › Historique des gravures…** liste chaque job envoyé au graveur,
 du plus récent au plus ancien : date, issue (terminée, arrêtée, erreur
 GRBL), **durée réelle**, **durée estimée** et l'**écart** entre les deux,
 distance gravée, nombre de lignes et machine. Le bas de la fenêtre donne le
@@ -177,8 +184,9 @@ Une macro envoie quelques lignes de G-code d'un clic : décaler la tête de
 puissance… Ses boutons apparaissent sous les actions de job (cadrage, zéro,
 répéter), à côté du jog.
 
-**Outils › Macros…**, ou le bouton à droite des actions de job, ouvre
-l'éditeur :
+**Fichier › Paramètres…**, page *Macros*, ou le bouton à droite des actions de job,
+ouvre l'éditeur (**Enregistrer** applique la liste, **Annuler les modifications**
+revient à la liste enregistrée) :
 
 - **Ajouter**, **Dupliquer**, **Supprimer**, **Monter**, **Descendre** :
   la liste des macros, dans l'ordre des boutons ;

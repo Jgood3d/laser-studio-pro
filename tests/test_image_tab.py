@@ -99,7 +99,6 @@ class ImageSettingsPanelTests(_QtTest):
     def test_buttons_and_shortcuts_emit_their_signal(self):
         panel = self.make(ImageSettingsPanel)
         for key, signal in (
-            ("img.load", panel.load_requested),
             ("img.configure_focal", panel.configure_focal_requested),
         ):
             received = record(signal)

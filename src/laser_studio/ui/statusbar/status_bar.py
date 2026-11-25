@@ -1,9 +1,11 @@
-"""Barre d'état de la fenêtre principale : messages et progression."""
+"""Barre d'état de la fenêtre principale : messages, progression, durée estimée et état du graveur."""
 
-from PyQt6.QtCore import QTimer
-from PyQt6.QtWidgets import QProgressBar, QSizePolicy, QStatusBar
+from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
+from PyQt6.QtWidgets import QLabel, QProgressBar, QSizePolicy, QStatusBar
 
 from laser_studio.core.constants import STATUS_BAR_MESSAGE_DURATION
+from laser_studio.i18n import tr
+from laser_studio.ui.machine.status.state import STATE_COLORS, UNKNOWN_STATE_COLOR
 from laser_studio.ui.widgets import AutoHideLabel
 
 # Repères en tête des anciens messages de console : inutiles dans la barre d'état.
@@ -39,7 +41,12 @@ class StatusBar(QStatusBar):
         window.statusBar().show_log(">>> Connecté sur COM3")   # texte de journal : « Connecté sur COM3 »
         window.statusBar().show_progress(40, "Génération en cours… 40%")
         window.statusBar().hide_progress(delay_ms=1500)
+        window.statusBar().set_duration("Temps Estimé: 12 min 30 s")    # None : rien
+        window.statusBar().set_machine("Idle", 12.5, 30.0)                 # None : déconnecté
     """
+
+    # Clic sur la pastille du graveur : la fenêtre ouvre l'onglet « Graveur » du panneau du bas.
+    machine_clicked = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -49,6 +56,14 @@ class StatusBar(QStatusBar):
         self.addWidget(self.message_label, 1)
         self.addWidget(self.progress_label)
         self.addWidget(self.progress_bar, 1)
+        self.duration_label = QLabel()
+        self.duration_label.setVisible(False)
+        self.addPermanentWidget(self.duration_label)
+        self.machine_label = QLabel()
+        self.machine_label.setToolTip(tr("status.machine_tip"))
+        self.machine_label.installEventFilter(self)
+        self.addPermanentWidget(self.machine_label)
+        self.set_machine(None)
         self.message_timer = self._message_timer()
         self.progress_hide_timer = self._progress_hide_timer()
 
@@ -90,6 +105,26 @@ class StatusBar(QStatusBar):
         else:
             self.progress_hide_timer.stop()
             self._hide_progress_now()
+
+    def set_duration(self, text):
+        """Durée estimée du dernier G-Code généré (texte prêt à afficher) ; None la masque."""
+        self.duration_label.setText(text or "")
+        self.duration_label.setVisible(bool(text))
+
+    def set_machine(self, state, x=None, y=None):
+        """Pastille de l'état GRBL (couleurs du panneau machine) et position de la tête ; `state` None :
+        graveur déconnecté."""
+        color = STATE_COLORS.get(state, UNKNOWN_STATE_COLOR)
+        text = tr("status.disconnected") if state is None else state
+        if state is not None and x is not None and y is not None:
+            text += f"  ·  X {x:.2f}  Y {y:.2f}"
+        self.machine_label.setText(f'<span style="color:{color}">●</span>&nbsp;{text}')
+
+    def eventFilter(self, watched, event):
+        if watched is self.machine_label and event.type() == QEvent.Type.MouseButtonRelease:
+            self.machine_clicked.emit()
+            return True
+        return super().eventFilter(watched, event)
 
     def _hide_progress_now(self):
         self.progress_bar.setVisible(False)

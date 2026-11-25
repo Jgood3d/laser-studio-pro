@@ -1388,6 +1388,18 @@ TEXTS = {
         "de": "Durchschnittliche Leistung: {value} %",
         "es": "Potencia media: {value} %",
     },
+    "status.disconnected": {
+        "fr": "Graveur déconnecté",
+        "en": "Engraver disconnected",
+        "de": "Graviergerät getrennt",
+        "es": "Grabadora desconectada",
+    },
+    "status.machine_tip": {
+        "fr": "État du graveur et position de la tête (mm) ; un clic ouvre le panneau du graveur",
+        "en": "Engraver state and head position (mm); click to open the engraver panel",
+        "de": "Zustand des Graviergeräts und Kopfposition (mm); Klick öffnet das Gerätefeld",
+        "es": "Estado de la grabadora y posición del cabezal (mm); un clic abre el panel de la grabadora",
+    },
     "gen.stat_time": {
         "fr": "Temps Estimé: {value}",
         "en": "Estimated Time: {value}",

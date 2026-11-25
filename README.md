@@ -105,10 +105,10 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `models/` — modèles de données, des `QObject` qui préviennent de chaque changement par des signaux : `layers.py` (`LayersModel` : la liste des calques et leurs réglages ; chaque modification est écrite dans le journal de débogage avec l’ancienne et la nouvelle valeur), `machine.py` (`MachineConfig` : plateau, spot, limites), `grbl.py` (`GrblConfig` : commande laser, S-Max, homing, surbalayage, G-Code de début et de fin, réglages `$$`), `materials.py` (`MaterialsModel` : les matériaux et le matériau choisi, qui suit chaque changement de calque), `image_settings.py` (`ImageSettings` : réglages de tramage de « Graver une image », et `ImageSettingsHistory`, leur annulation), `settings.py` (base des réglages nommés), `layer_modes.py` (codes des modes de calque, `engrave_fill` / `cut` / `mark`, et conversion des anciens libellés français), `change_log.py` (journal : une ligne par changement, une seule à la fin d’une saisie au clavier) ; les champs des pages de réglages y sont liés par `ui/binding.py`
 
 ### Composants autonomes
-- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView` et ses outils de la souris (`tools/`), liste des objets à droite (`objects_panel.py`, `ObjectsPanel` : ordre, groupes, opérations booléennes), menu du clic droit (`context_menu.py`), boîtes de saisie (texte, médaille, forme, calque, taille du groupe) ; objets du dessin dans `models/vector_objects.py` (dont `GroupObject`, groupe qui garde ses objets ; opérations booléennes dans `vector/boolean_ops.py`)
+- `ui/vector_editor/` — éditeur vectoriel : canevas `VectorCanvasView` et ses outils de la souris (`tools/`), liste des objets à droite (`objects_panel.py`, `ObjectsPanel` : ordre, groupes, opérations booléennes), menu du clic droit (`context_menu.py`), accueil du canevas vide (`empty_hint.py`), boîtes de saisie (texte, médaille, forme, calque, taille du groupe) ; objets du dessin dans `models/vector_objects.py` (dont `GroupObject`, groupe qui garde ses objets ; opérations booléennes dans `vector/boolean_ops.py`)
 - `grbl/` — dialogue avec le graveur, sans Qt : `connection.py` (`LaserUSBController`, connexion série), `streaming.py` (envoi d'un job : tampon de GRBL, lecture des réponses), `macros.py` (macros de l'utilisateur : macros.yaml) et `simulator.py` (`SimulatedGrblSerial`, graveur simulé de `LASER_STUDIO_SIMULATION`)
 - `controllers/workers.py` — threads (QThread) : traitement de l’image (calcul dans `image/dithering.py`), envoi du G-Code, génération dans un thread
-- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone, en haut, en bas, à gauche ou à droite : actions image, comparaison des tramages et image originale, options de l’aperçu 2D, calques, édition et alignement de l’éditeur vectoriel ; annuler / refaire puis les loupes toujours au bout à droite), `TabCloseButton` (croix d’un onglet), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
+- `ui/widgets/` — petits widgets réutilisables : `ZoomableGraphicsView`, `HistoryLineEdit` (historique de commandes), `AutoHideLabel` (libellé à masquage automatique), `FloatingToolBar` (barre flottante posée sur une zone : comparaison des tramages et image originale, créer et dessiner dans l’éditeur vectoriel, séparation, vectorisation ; les barres d’édition des onglets sont des barres verticales fixes contre la colonne de droite), `FullscreenWindow` (fenêtre « Plein écran » qui accueille un onglet), `SliderWithButtons` (curseur entre deux boutons « - » / « + », avec sa valeur)
 - `ui/fonts.py` — polices embarquées (`resources/fonts/`, licences libres), enregistrées au démarrage pour être disponibles sur tous les systèmes (Dancing Script, police manuscrite, et Rubik, titres des médailles et des totems, pour les modèles de la bibliothèque)
 - `ui/utils.py` — utilitaires partagés par les éléments d’interface (icônes dessinées, images nettes en haute résolution)
 - `ui/splashscreen/` — `StartupSplash`, écran de démarrage (affichage réel sous Wayland, durée minimale)
@@ -119,14 +119,14 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
   - `vector/boolean_ops.py` — opérations booléennes des groupes de l’éditeur (union, différence, intersection, exclusion), sans widget
   - `vector/svg_tree_import.py`, `vector/svg_style.py` — import SVG du bouton « Importer », conforme à la spécification : groupes et textes gardés, calque d’après la couleur, objets blancs et cachés sur le calque « Ignoré »
   - `vector/order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
-  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` place le résultat sur le canevas
+  - `vector/nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt) ; `vector/nesting_apply.py` reporte le résultat sur les objets (sans canevas)
   - `vector/nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
   - `vector/text_follow.py` — texte posé sur le contour d’un objet, textes de médaille
   - `vector/group_transform.py` — sélection traitée comme un groupe (redimensionner, quart de tour, calque)
   - `vector/dxf.py` — lecteur DXF texte (sans Qt, sans dépendance)
   - `vector/box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
   - `vector/importers.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-  - `vector/svg_import.py` — import SVG de la bibliothèque, selon la convention des modèles : calques `Cut` (découpe, rouge), `Engrave` (gravure, noir ; le blanc est creusé) et `Mark` (marquage), le reste ignoré ; options en sous-calques ; textes modifiables et remplaçables ; unités et transformations prises en compte. Destiné à remplacer l’import SVG de `vector/svg_extract.py` une fois validé
+  - `vector/svg_import.py` — modèles de la bibliothèque : options en sous-calques, textes remplaçables (même dans un masque), aperçu de la fiche ; l’import passe par `vector/svg_tree_import.py` (`import_library_svg`), comme le bouton « Importer »
   - `vector/font.py` — `VectorFont`, police vectorielle des étiquettes texte
 - `i18n/` — système de traduction multilingue : `texts/` (les textes dans chaque langue, un module par zone : app, vector, box, ornament, generators, camera, image, machine, materials), `translations.py` (les assemble), `errors.py` (message d'une erreur de générateur), `language.py` (langue choisie, `tr()`)
 
@@ -134,10 +134,10 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/app/main_window.py` — fenêtre principale, sans mixin : assemblage (modèles, contrôleurs partagés, builder de chaque partie de l’interface, objets de `ui/app/`), fermeture, glisser-déposer, messages
 - `ui/…/builder.py` — un builder par partie de l’interface (onglets, éditeur vectoriel, panneau machine, pages de réglages) : crée la vue et sa logique et les relie, avec ses dépendances en paramètres
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
-- `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Paramètres, Affichage, Outils, Aide), `AppToolBar`
+- `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Outils, Aide ; « Paramètres… » et l’historique sont dans Fichier), `AppToolBar`
 - `controllers/window.py` — contrôleur de la fenêtre (`WindowController`), qui fait ouvrir ses fenêtres par `ui/app/window_forms.py` (`WindowForms`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
 - `ui/app/window_state.py` — ce que la fenêtre enregistre et restaure (`WindowState`) : réglages machine, champs d’un profil machine, état d’un projet, recopie automatique des calques dans le matériau choisi
-- `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs mémorisés
+- `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, croix des onglets ouverts par le menu Outils (`set_closable`), plein écran, séparateurs mémorisés
 - `ui/app/job_display.py` — affichage des résultats du job et de l’état du graveur (`JobDisplay`) : console, statistiques, aperçu 2D, position, suivi de l’envoi
 - `ui/app/image_actions.py` — « Pivoter », « Supprimer » et miroirs de la barre d’outils, sur l’image de l’onglet affiché (`ImageToolbarActions`)
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
@@ -158,8 +158,9 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
 - `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…), affiche ce que lui envoie `SeparationController` (`controllers/separation.py` : image source, tonalité envoyée à « Graver une image », calque couleur, aperçus, export, réglages du verre) ; réglages dans `models/separation.py` (`SeparationSettings`)
 - `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique de l’aperçu du G-Code (modèle `gcode/preview.py`), point de position de la tête, traits déjà gravés en rouge pendant un job, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite une colonne étroite : `JobPositionBox`, puis `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
-- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` : console du G-Code généré ou importé (les messages vont dans la barre d’état) ; affiché ou masqué par le menu Affichage ou sa croix (`TabCloseButton`), choix mémorisé
-- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (affiché ou masqué par le menu Affichage, le bouton de la barre d’outils ou sa croix, choix mémorisé) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
+- `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` du panneau du bas : console du G-Code généré ou importé (les messages vont dans la barre d’état)
+- `ui/app/bottom_panel.py` — `BottomPanel` : panneau du bas façon VS Code (onglets Graveur, Console G-Code, File d’attente), replié ou déplié (Ctrl+J, clic sur la pastille du graveur), déplié tout seul pendant une gravure ou en alarme ; état mémorisé
+- `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (onglet du panneau du bas, ouvert aussi par le bouton de la barre d’outils) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
 - `ui/tabs/layers/` — onglet « Calques » `LayersTab` : barre des profils matériaux (liste, nouveau, supprimer, exporter, importer ; pas de bouton « Enregistrer », le matériau choisi suit chaque changement de calque ; un matériau mémorise les réglages des calques, voir `controllers/materials.py`), puis la liste des calques (`LayerManagerWidget`, `ui/tabs/layers/layer_table.py`, vue abonnée au modèle `LayersModel`), dont il relaie `layers_changed`
 - `controllers/vector_editor.py` — actions de l’éditeur vectoriel (`VectorEditorController` : import SVG / DXF et placement, insertion, alignement) sur le modèle `models/vector_document.py` ; le canevas et le panneau des propriétés sont dans `ui/vector_editor/`, les fenêtres de saisie derrière `ui/vector_editor/forms.py` (`EditorForms`)
 - `gcode/stats.py`, `models/job_history.py`, `controllers/job_history.py`, `ui/dialogs/job_history/` — historique des gravures (Outils › Historique des gravures…) : chaque job envoyé, durée réelle et estimée, issue, statistiques du G-Code
@@ -167,12 +168,16 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `gcode/` — génération du G-Code sans Qt (job, image, découpe SVG, calques vectoriels, matrice de test, motif aller/retour) et modèle de l’aperçu 2D (`preview.py`) ; `controllers/job.py` (`JobController`) prépare et lance le job, exporte et importe le G-Code
 - `controllers/engraver.py` — pilotage du graveur (`EngraverController` : ports, connexion, jog, cadrage, envoi des jobs, configuration `$$`) ; commandes GRBL dans `grbl/commands.py` (sans Qt) ; le dialogue avec GRBL (port série, threads) est dans `controllers/machine_connection.py`
 - `controllers/` — contrôleurs, objets Python ordinaires qui ont remplacé les mixins : `machine_connection.py` (`MachineConnection` : port série, threads de dialogue avec GRBL, état « référencé », lecture de `$$`, envoi du job ; sans boîte de dialogue, la fenêtre s’abonne à ses signaux), `png2svg.py` (`Png2SvgController` : SVG de l’onglet PNG→SVG vers l’éditeur vectoriel), `matrix_image.py` (`MatrixImageController` : matrice de test à partir d’une image), `job_queue.py` (`JobQueueController` : file d’attente de jobs, et `Engraver`, ce que la file demande au graveur), `machine_profiles.py` (`MachineProfilesController` : profils machine, leurs actions et la mémoire continue des calques ; chaque page fournit ses champs par `profile_values()` / `apply_profile_values()`), `layer_memory.py` (mémoire des calques par machine : réglages des calques enregistrés dans chaque profil et réappliqués au modèle des calques), `materials.py` (`MaterialsController` : profils matériaux, et la liste par défaut `DEFAULT_MATERIALS_DB`), `project.py` (`ProjectController` : enregistrement et ouverture de projet, projets récents, sauvegarde automatique ; l’état du projet est lu et réappliqué par `WindowState`, `capture_project` / `restore_project` dans `ui/app/window_state.py`)
+- `ui/dialogs/generators/` — fenêtre unique des générateurs `GeneratorsDialog` (bibliothèque et générateurs : liste à gauche, fenêtre choisie à droite, boutons communs Importer / Annuler)
 - `ui/dialogs/box_generator/` — fenêtre du générateur de boîte `BoxGeneratorDialog`
 - `library/machine_catalog.py`, `resources/machines/`, `ui/dialogs/machine_catalog/` — catalogue des machines (Paramètres du graveur › Depuis le catalogue…) : graveurs GRBL du commerce avec les valeurs publiées par leur constructeur et leurs sources, un YAML par marque ; crée un profil machine
-- `library/catalog.py`, `controllers/library.py`, `ui/dialogs/library/` — bibliothèque de modèles (Outils → Bibliothèque…) : catalogue des dossiers `resources/library/<catégorie>/<modèle>/` (sans Qt), `LibraryController` (ouverture et import sur les calques de même rôle), fenêtres `LibraryDialog` (grille, catégories, recherche, taille des aperçus) et `LibraryItemDialog` (fiche : aperçu, dessin, variantes, readme). Comment ajouter un modèle : `resources/library/README.md`
-- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (passerelle, et fenêtre de réglage `NestingDialog`)
+- `library/catalog.py`, `controllers/library.py`, `ui/dialogs/library/` — bibliothèque de modèles (Outils → Bibliothèque…, bouton « Bibliothèque » de l’éditeur vectoriel) : catalogue des dossiers `resources/library/<catégorie>/<modèle>/` (sans Qt), `LibraryController` (page « Bibliothèque » de la fenêtre des générateurs, import sur les calques de même rôle), fenêtres `LibraryDialog` (grille, catégories, recherche, taille des aperçus) et `LibraryItemDialog` (fiche : aperçu, dessin, variantes, readme). Comment ajouter un modèle : `resources/library/README.md`
+- `nesting_apply.py`, `ui/dialogs/nesting/` — imbrication dans l’éditeur vectoriel (objets ⇄ algorithme, sans canevas, et fenêtre de réglage `NestingDialog`)
 - `ui/dialogs/dither_comparison/` — fenêtre de comparaison des algorithmes de tramage `DitherComparisonDialog` (vignettes calculées par `image/dithering.comparison_thumbnails`, via `ImageController.comparison`)
-- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres du graveur », « Configuration GRBL » et « Matrice de test » ouvertes depuis les menus
+- `ui/settings/window.py` — `SettingsWindow`, fenêtres « Paramètres » et « Matrice de test » ouvertes depuis les menus
+- `ui/settings/categories.py` — `SettingsCategories` : pages « Paramètres du graveur », « Configuration GRBL » et « Langue et thème » réunies dans la fenêtre « Paramètres », liste des catégories à gauche
+- `ui/settings/appearance.py` — page « Langue et thème » `AppearancePage`, reliée aux actions de langue et de thème
+- `ui/settings/macros_page.py` — page « Macros » `MacrosPage` : l'éditeur des macros posé dans la fenêtre Paramètres (Enregistrer / Annuler les modifications)
 
 ### Signaux des pages et des panneaux
 
@@ -180,7 +185,7 @@ Les pages, onglets et panneaux de `ui/` ne contiennent pas de logique : ils éme
 
 Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_project_requested` → `save_project`, `emergency_stop_requested` → `emergency_stop`) ; un signal d’état `y_changed` ou `y_selected` appelle `_on_y_changed()` ou une fonction qui dit ce qu’elle fait (`profile_selected` → `_on_machine_profile_selected`). La carte `docs/architecture/signaux.png` (`tools/signal_map.py`) montre toutes les paires.
 
-**Pages de réglages** (menu Paramètres, `ui/settings/`) :
+**Pages de réglages** (fenêtre Fichier › Paramètres…, `ui/settings/`) :
 
 | Page | Signaux émis | État reçu / lu |
 | --- | --- | --- |
@@ -193,7 +198,7 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | Onglet | Signaux émis | État reçu / lu |
 | --- | --- | --- |
 | `ImageTab` — Graver une image | `compare_requested`, `crop_requested` | `settings` (le panneau ci-dessous), `source_view`, `dither_view`, `fit_settings_width()` ; barre flottante à gauche `view_toolbar` (`compare_action`, `show_original_action`) |
-| `ImageSettingsPanel` — réglages de « Graver une image » | `load_requested`, `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
+| `ImageSettingsPanel` — réglages de « Graver une image » (`ImageTab` émet `load_requested`) | `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
 | `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
 | `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)` | `plot_widget` (la génération y dessine), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
@@ -411,7 +416,7 @@ Images produites par `tools/screenshots.py` (avec une image d’exemple chargée
 
 ![File d'attente](docs/screenshots/08-onglet-file-d-attente.png)
 
-### Pages de réglages (menu Paramètres)
+### Pages de réglages (Fichier › Paramètres…)
 
 **Paramètres du graveur :**
 

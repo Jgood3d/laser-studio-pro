@@ -113,8 +113,7 @@ class MacroControllerTests(unittest.TestCase):
         self.engraver, self.connection, self.dialogs = FakeEngraver(), FakeConnection(), FakeDialogs()
         self.edited = None
         self.ctrl = MacroController(self.model, self.engraver, self.connection, self.dialogs,
-                                    profile_name=lambda: "Atomstack A5", profiles=lambda: ["Atomstack A5"],
-                                    edit=lambda macros, profiles, read, write: self.edited)
+                                    profile_name=lambda: "Atomstack A5", profiles=lambda: ["Atomstack A5"])
 
     def test_plain_macro_is_sent_without_question(self):
         self.assertTrue(self.ctrl.run(0))
@@ -155,11 +154,10 @@ class MacroControllerTests(unittest.TestCase):
     def test_manage_saves_the_new_list(self):
         changed = []
         self.model.changed.connect(lambda: changed.append(True))
-        self.edited = [Macro("Seule", ("G0 X0 Y0",))]
-        self.assertTrue(self.ctrl.manage())
+        macros, profiles, _read, _write = self.ctrl.editor_args()          # remplit l'éditeur
+        self.assertEqual((len(macros), profiles), (3, ["Atomstack A5"]))
+        self.assertTrue(self.ctrl.save([Macro("Seule", ("G0 X0 Y0",))]))   # « Enregistrer » de la page
         self.assertEqual((changed, [m.name for m in MacrosModel(self.path).macros]), ([True], ["Seule"]))
-        self.edited = None
-        self.assertFalse(self.ctrl.manage())
 
     def test_unreadable_file_is_kept_until_new_macros_are_saved(self):
         with open(self.path, "w", encoding="utf-8") as f:

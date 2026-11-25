@@ -17,6 +17,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
+from laser_studio.ui.app.theme import theme_color
 
 # Distance (pixels écran) à laquelle un clic attrape un coin ou un bord du cadre.
 GRAB_PX = 10
@@ -44,7 +45,7 @@ class CropView(QGraphicsView):
         self.bounds = QRectF(0, 0, qimage.width(), qimage.height())
         self.setSceneRect(self.bounds)
         self.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
-        self.setBackgroundBrush(QColor("#303030"))
+        self.setBackgroundBrush(theme_color("canvas", "#303030"))
         self.setMouseTracking(True)
         self.rect = QRectF(self.bounds)
         self.keep_ratio = False

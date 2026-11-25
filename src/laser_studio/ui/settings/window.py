@@ -17,7 +17,7 @@ class SettingsWindow(QDialog):
         self.setModal(False)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(4, 4, 4, 4)
-        if isinstance(page, QScrollArea):
+        if isinstance(page, QScrollArea) or getattr(page, "scrolls_itself", False):
             self.scroll = page                      # déjà défilante : pas de double ascenseur
         else:
             self.scroll = QScrollArea()

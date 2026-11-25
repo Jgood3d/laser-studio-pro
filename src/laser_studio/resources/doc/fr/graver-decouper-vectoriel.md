@@ -152,8 +152,15 @@ Dégrouper).
 - Outils de tracé : **Ligne**, **Rectangle**, **Ellipse**, **Cercle**, au
   clic-glisser sur le canevas (Échap pour annuler).
 - **Mesure** : mesurer une distance sur le canevas.
-- **Bibliothèque** et générateurs (boîte, puzzle, boule de Noël,
-  porte-clés) : voir [Les outils](outils.md).
+- **Bibliothèque** (barre de gauche du canevas) et **Générateurs** (icône en
+  tête de la barre d'édition, à droite du canevas : boîte, puzzle, boule de
+  Noël, porte-clés) : voir [Les outils](outils.md).
+- **Vectoriser une image**, à côté d'*Importer SVG / DXF* : ouvre l'onglet
+  *Vectorisation d'image*, pour transformer une photo ou un dessin en tracé.
+- Sur un canevas vide, de gros boutons proposent de commencer :
+  **Importer un fichier**, **Dessiner une forme**, ouvrir la
+  **Bibliothèque de modèles**, **Vectoriser une image**, ou créer une pièce
+  avec l'un des quatre générateurs (boîte, puzzle, boule de Noël, porte-clés).
 
 **Modifier**
 
@@ -169,8 +176,10 @@ Dégrouper).
 
 **Organiser**
 
-- **Alignement / Distribution** : aligner les objets à gauche, au centre,
-  en haut…, ou les répartir à intervalles égaux.
+- **Alignement / Distribution** : dès que deux objets sont sélectionnés,
+  une rangée de boutons apparaît sous leurs propriétés pour les aligner à
+  gauche, au centre, en haut…, ou les répartir à intervalles égaux (trois
+  objets au moins).
 - **Accroche à la grille** pour placer les objets au millimètre.
 - **Imbrication auto**, **Dupliquer en série**, **Gabarit de placement**
   et **Texte le long d'un objet** : voir [Les outils](outils.md).
@@ -178,7 +187,7 @@ Dégrouper).
 
 ## L'ordre de découpe
 
-La case **Ordre de découpe sûr** (*Paramètres › Configuration GRBL*) fait
+La case **Ordre de découpe sûr** (*Fichier › Paramètres › Configuration GRBL*) fait
 graver avant de découper, et découpe l'intérieur d'une pièce avant son
 contour. Sinon, une pièce déjà détachée
 peut bouger ou tomber, et la suite du travail serait décalée. Laissez-la

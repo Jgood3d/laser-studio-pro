@@ -2,10 +2,11 @@
 gcode/preview.py), position de la tête et traits déjà gravés pendant un job."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import QPointF, QRectF, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
-    QCheckBox, QComboBox, QGraphicsPathItem, QLabel, QSplitter, QVBoxLayout, QWidget,
+    QCheckBox, QComboBox, QFormLayout, QGraphicsPathItem, QGroupBox, QHBoxLayout, QLabel, QSplitter, QToolBar,
+    QVBoxLayout, QWidget,
 )
 import numpy as np
 
@@ -15,9 +16,9 @@ from laser_studio.gcode.preview import (
     material_background_rect, parse_preview, raster_image,
 )
 from laser_studio.i18n import tr
+from laser_studio.ui.app.theme import theme_color
 from laser_studio.ui.tabs.preview_2d.job_stats_panel import JobStatsPanel
 from laser_studio.ui.utils import palette_icon, zoom_shortcuts
-from laser_studio.ui.widgets import FloatingToolBar
 from laser_studio.core.preferences import app_preferences
 
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
@@ -67,9 +68,25 @@ class Preview2DTab(QWidget):
         self.burn = BurnTracker()
         self.burn_overlay = None
         self.job_stats_panel = JobStatsPanel()
+        self._create_options()
         self.side_panel = self._side_panel()
+        # Comme « Graver une image » et l'éditeur vectoriel : le graphique, une barre verticale (loupes) contre
+        # la colonne de droite (options d'affichage, position du job, statistiques).
+        self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
+        self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
+        zoom_shortcuts(self, self.zoom_in, self.zoom_out)
+        self.options_toolbar = QToolBar()
+        self.options_toolbar.setOrientation(Qt.Orientation.Vertical)
+        self.options_toolbar.setIconSize(QSize(20, 20))
+        self.options_toolbar.addAction(self.zoom_in_action)
+        self.options_toolbar.addAction(self.zoom_out_action)
+        plot_area = QWidget()
+        row = QHBoxLayout(plot_area)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(self._plot(), 1)
+        row.addWidget(self.options_toolbar)
         self.splitter = QSplitter(Qt.Orientation.Horizontal)
-        self.splitter.addWidget(self._plot())
+        self.splitter.addWidget(plot_area)
         self.splitter.addWidget(self.side_panel)
         # Colonne de droite aussi étroite que possible : Qt la ramène à sa
         # largeur minimale. Elle garde sa largeur quand la fenêtre change de
@@ -78,35 +95,24 @@ class Preview2DTab(QWidget):
         self.splitter.setStretchFactor(1, 0)
         self.splitter.setSizes([100000, 1])
         layout = QVBoxLayout(self)
-        self._create_options()
         layout.addWidget(self.splitter)
-        # Options de l'aperçu : barre flottante sous le titre du graphique, les loupes au bout à droite
-        # comme dans les autres vues.
-        self.zoom_in_action = self._zoom_action("zoom-in", "ui.zoom_in_tip", self.zoom_in)
-        self.zoom_out_action = self._zoom_action("zoom-out", "ui.zoom_out_tip", self.zoom_out)
-        zoom_shortcuts(self, self.zoom_in, self.zoom_out)
-        self.options_toolbar = FloatingToolBar(
-            [
-                self.material_label,
-                self.material_combo,
-                None,
-                self.flip_check,
-                self.negative_check,
-                self.hide_rapid_check,
-                None,
-                self.optimize_path_check,
-                None,
-                self.zoom_in_action,
-                self.zoom_out_action,
-            ],
-            self.plot_widget,
-            top_margin=30,
-        )
 
     # -- zoom
 
     # Facteur d'un clic sur les loupes (ou Ctrl++ / Ctrl+-), comme dans les autres vues.
     BUTTON_ZOOM_STEP = 1.25
+
+    def changeEvent(self, event):
+        if event.type() == QEvent.Type.PaletteChange:      # thème changé à la volée
+            self.plot_widget.setBackground(theme_color("canvas", "#111111"))
+            self._label_axes()
+        super().changeEvent(event)
+
+    def _label_axes(self):
+        """Titres des axes, dans la couleur des graduations du thème (blancs sur les thèmes sans réglage)."""
+        color = theme_color("canvas_label", "#ffffff").name()
+        self.plot_widget.setLabel("bottom", tr("ui.plot_x"), color=color)
+        self.plot_widget.setLabel("left", tr("ui.plot_y"), color=color)
 
     def zoom_in(self):
         self._zoom(1.0 / self.BUTTON_ZOOM_STEP)
@@ -127,19 +133,25 @@ class Preview2DTab(QWidget):
     # -- construction
 
     def _side_panel(self):
-        """Position du job sur le plateau, puis statistiques du job."""
+        """Options d'affichage, position du job sur le plateau, puis statistiques du job."""
         panel = QWidget()
+        panel.setProperty("role", "sidebar")              # panneau latéral (thèmes modernes)
+        display = QGroupBox(tr("preview.display_box"))
+        form = QFormLayout(display)
+        form.addRow(self.material_label, self.material_combo)
+        for check in (self.flip_check, self.negative_check, self.hide_rapid_check, self.optimize_path_check):
+            form.addRow(check)
         layout = QVBoxLayout(panel)
         # Marge à gauche : les cadres ne touchent pas la poignée du séparateur.
         layout.setContentsMargins(SIDE_PANEL_LEFT_MARGIN, 0, 0, 0)
+        layout.addWidget(display)
         layout.addWidget(self.job_position_box)
         layout.addWidget(self.job_stats_panel)
         layout.addStretch()
         return panel
 
     def _create_options(self):
-        """Options de l'aperçu, affichées dans la barre flottante
-        (options_toolbar)."""
+        """Options de l'aperçu, affichées dans le cadre « Affichage » de la colonne de droite."""
         self.material_label = QLabel(tr("preview.material_label"))
         self.material_combo = QComboBox()
         self.material_combo.setToolTip(tr("preview.material_tip"))
@@ -190,11 +202,10 @@ class Preview2DTab(QWidget):
         """Zone de dessin, avec le point rouge de la tête et le texte
         affiché tant qu'aucun G-Code n'est généré."""
         self.plot_widget = pg.PlotWidget(title=tr("ui.plot_title"))
-        self.plot_widget.setBackground("#111111")
+        self.plot_widget.setBackground(theme_color("canvas", "#111111"))
         self.plot_widget.setAspectLocked(True)
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
-        self.plot_widget.setLabel("bottom", tr("ui.plot_x"), color="#ffffff")
-        self.plot_widget.setLabel("left", tr("ui.plot_y"), color="#ffffff")
+        self._label_axes()
         self.plot_widget.scene().sigMouseClicked.connect(self._on_clicked)
 
         self.position_marker = pg.ScatterPlotItem(

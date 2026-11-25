@@ -1,7 +1,6 @@
 """Compensation du kerf des calques de découpe : décalage des contours, G-Code et réglages du calque."""
 import math
 import os
-import re
 import sys
 import unittest
 
@@ -22,6 +21,8 @@ except ImportError:                       # PyQt6 non importable
 SQUARE = [(0, 0), (40, 0), (40, 40), (0, 40), (0, 0)]
 HOLE = [(10, 10), (30, 10), (30, 30), (10, 30), (10, 10)]
 L_SHAPE = [(0, 0), (20, 0), (20, 10), (10, 10), (10, 20), (0, 20), (0, 0)]
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gcode_reader import burn_paths  # noqa: E402
 
 
 def area(poly):
@@ -108,18 +109,8 @@ def _build(data, **kwargs):
 
 
 def _cut_runs_of(gcode):
-    runs, current = [], None
-    for line in gcode:
-        if line.startswith("G0 "):
-            m = re.match(r"G0 X([-\d.]+) Y([-\d.]+)", line)
-            current = [(float(m.group(1)), float(m.group(2)))]
-        elif line.startswith("G1 ") and current is not None:
-            m = re.match(r"G1 X([-\d.]+) Y([-\d.]+)", line)
-            current.append((float(m.group(1)), float(m.group(2))))
-        elif line.startswith("M5") and current is not None:
-            runs.append(current)
-            current = None
-    return runs
+    """Tracés coupés (laser allumé), d'un seul tenant."""
+    return burn_paths(gcode)
 
 
 @unittest.skipUnless(HAS_MODEL, "génération du G-Code non importable ici")

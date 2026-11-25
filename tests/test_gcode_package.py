@@ -100,23 +100,25 @@ class RasterTests(unittest.TestCase):
         arr = np.array([[0, 0, 255, 255]], dtype=np.uint8)            # 2 pixels brûlés sur 4
         result = build_job_gcode(arr, None, job_params(height_mm=1.0))
         self.assertIsInstance(result, GcodeResult)
-        self.assertIn("G1 X2.000 F1000 S350", lines(result))          # 35 % de S1000, jusqu'au bord du 2e pixel
+        self.assertIn("G1 X2 F1000 S350", lines(result))              # 35 % de S1000, jusqu'au bord du 2e pixel
         self.assertNotIn("OVERSCAN", result.gcode)
         self.assertEqual(result.avg_power, 35.0)
 
     def test_grayscale_power_follows_the_gray(self):
         arr = np.array([[0, 128, 255]], dtype=np.uint8)
         g = lines(build_job_gcode(arr, None, job_params(width_mm=3.0, height_mm=1.0, algo="Niveaux de Gris")))
-        powers = [int(m) for line in g for m in re.findall(r"S(\d+)", line) if line.startswith("G1")]
+        powers = [int(m) for line in g for m in re.findall(r"S(\d+)", line) if line.startswith(("G1", "X"))]
         self.assertEqual(powers, [350, round(350 * 127 / 255)])       # le blanc (255) n'est pas parcouru
 
-    def test_m4_is_sent_once_and_m3_on_every_line(self):
+    def test_the_laser_command_is_sent_once_and_power_rides_on_the_moves(self):
+        """GRBL vide son tampon (la tête s'arrête) à chaque M3 / M4 / M5, et à chaque S changé sans
+        mouvement : M3 ou M4 une fois, M5 une fois, et aucune ligne « S » seule."""
         arr = np.zeros((3, 4), dtype=np.uint8)
-        m4 = lines(build_job_gcode(arr, None, job_params()))
-        self.assertEqual(sum(line.startswith("M4") for line in m4), 1)
-        m3 = lines(build_job_gcode(arr, None, job_params(laser_cmd="M3", image_laser_cmd="M3")))
-        self.assertEqual(m3.count("M3 S0"), 3)
-        self.assertEqual(m3.count("M5"), 3 + 1)                       # une par ligne, plus celle de la fin
+        for cmd in ("M4", "M3"):
+            g = lines(build_job_gcode(arr, None, job_params(laser_cmd=cmd, image_laser_cmd=cmd)))
+            self.assertEqual(sum(line.startswith(cmd) for line in g), 1, cmd)
+            self.assertEqual(g.count("M5"), 1, cmd)
+            self.assertFalse([line for line in g if re.fullmatch(r"S\d+", line.split(";")[0].strip())])
 
     def test_overscan_and_return_offset(self):
         arr = np.zeros((2, 4), dtype=np.uint8)
@@ -125,8 +127,8 @@ class RasterTests(unittest.TestCase):
         starts = [line for line in g if line.endswith("OVERSCAN_START")]
         x0, _ = image_origin(params)
         self.assertEqual(x0, 2.5)                                     # marge = surbalayage : départ à X0
-        self.assertEqual(starts[0], f"G0 X{x0 - 2.5:.3f} Y{1.0:.3f} ; OVERSCAN_START")          # aller
-        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:.3f} Y{0.0:.3f} ; OVERSCAN_START")   # retour décalé
+        self.assertEqual(starts[0], "G0 X0 Y1 ; OVERSCAN_START")                     # aller
+        self.assertEqual(starts[1], f"G0 X{x0 + 0.2 + 4.0 + 2.5:g} Y0 ; OVERSCAN_START")   # retour décalé
 
     def test_overscan_off_for_the_engrave_layer(self):
         arr = np.zeros((1, 4), dtype=np.uint8)
@@ -144,9 +146,7 @@ class RasterTests(unittest.TestCase):
 class JobTests(unittest.TestCase):
     def test_empty_job(self):
         result = build_job_gcode(None, None, job_params())
-        self.assertEqual(lines(result), ["; --- G-CODE HYBRIDE GRBL PRO ---",
-                                         "M4 S0 ; Mode laser dynamique activé pour tout le job",
-                                         "M5", "G0 X0 Y0", "; FIN DU TRAVAIL"])
+        self.assertEqual(lines(result), ["; --- G-CODE HYBRIDE GRBL PRO ---", "M5", "G0 X0 Y0", "; FIN DU TRAVAIL"])
         self.assertEqual((result.line_count, result.avg_power, result.duration), (3, 0.0, 0.0))
 
     def test_homing_start_and_end_gcode(self):
@@ -165,8 +165,41 @@ class JobTests(unittest.TestCase):
         square = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
         data = {"c": {"layer": layer, "polygons": [square], "polygon_groups": [[square]]}}
         g = lines(build_job_gcode(None, None, job_params(offset_x=3.0, offset_y=4.0), data))
-        self.assertIn("G0 X3.000 Y4.000", g)
-        self.assertIn("M4 S900", g)
+        self.assertIn("G0 X3 Y4", g)
+        self.assertIn("G1 X8 F250 S900", g)
+
+
+class NoBufferStopTests(unittest.TestCase):
+    """GRBL vide son tampon de mouvements (la tête s'arrête net) à chaque M3 / M4 / M5 et à chaque puissance S
+    changée sans mouvement. Avant, les calques vectoriels en faisaient deux par segment gravé : gravure
+    saccadée, et plus longue que la durée estimée."""
+
+    def assert_continuous(self, gcode, name):
+        code = [line.split(";")[0].strip() for line in gcode.split("\n")]
+        self.assertFalse([line for line in code if re.fullmatch(r"S\d+", line)], name)
+        self.assertLessEqual(sum(bool(re.match(r"M[345]\b", line)) for line in code), 3, name)
+
+    def test_every_generator_keeps_the_head_moving(self):
+        from laser_studio.gcode.vector import build_vector_layers_gcode
+        square = [(0, 0), (20, 0), (20, 10), (0, 10), (0, 0)]
+        letters = [[[(x, 0), (x + 4, 0), (x + 4, 8), (x, 8), (x, 0)]] for x in (0, 6, 12)]
+        layers = {
+            "f": {"layer": {"name": "R", "mode": "engrave_fill", "power": 60.0, "speed": 2000, "passes": 1,
+                            "line_interval": 0.5}, "polygons": [p for g in letters for p in g],
+                  "polygon_groups": letters},
+            "c": {"layer": {"name": "D", "mode": "cut", "power": 90.0, "speed": 400, "passes": 2,
+                            "line_interval": 0.1}, "polygons": [square, [(5, 5), (6, 5), (6, 6), (5, 5)]]},
+        }
+        arr = np.where(np.random.default_rng(0).random((20, 40)) < 0.5, 0, 255).astype(np.uint8)
+        for cmd in ("M4", "M3"):
+            self.assert_continuous(build_job_gcode(arr, None, job_params(
+                laser_cmd=cmd, image_laser_cmd=cmd, enable_overscan=True, image_overscan=True)).gcode, f"image {cmd}")
+            for overscan in (0.0, 2.0):
+                self.assert_continuous("\n".join(build_vector_layers_gcode(
+                    layers, 0.0, 0.0, 50.0, cmd, 1000, overscan_dist=overscan)[0]), f"calques {cmd} {overscan}")
+        bidir = {"origin_pos": "bottom_left", "offset_x": 0.0, "offset_y": 0.0, "speed_engrave": 1000,
+                 "power_engrave": 30.0, "s_max": 1000, "laser_cmd": "M4"}
+        self.assert_continuous(bidir_test_gcode(bidir)[0], "aller-retour")
 
 
 class MatrixTests(unittest.TestCase):
@@ -198,9 +231,15 @@ class CalibrationTests(unittest.TestCase):
         gcode, count, avg, _duration = bidir_test_gcode(p)
         self.assertIn("; 3 colonnes", gcode)
         # 3 barres de 4 mm espacées de 2 mm (16 mm), surbalayage de 2,5 mm de chaque côté
-        rows = [line for line in gcode.split("\n") if re.match(r"G0 X(-2.500|18.500) ", line)]
-        self.assertEqual(len(rows), 4)                                # 3 lignes demandées -> 4 (paire)
-        self.assertEqual(sum(line.startswith("G0 X-2.500") for line in rows), 2)   # 2 aller, 2 retour
+        # Départ de chaque ligne de barres (G0 ; X inchangé n'est pas répété) : X et Y comme les suit GRBL.
+        starts, x = [], 0.0
+        for line in gcode.split("\n"):
+            m = re.search(r"X(-?[\d.]+)", line)
+            x = float(m.group(1)) if m else x
+            if line.startswith("G0") and x in (-2.5, 18.5) and "X0 Y0" not in line:
+                starts.append(x)
+        self.assertEqual(len(starts), 4)                              # 3 lignes demandées -> 4 (paire)
+        self.assertEqual(starts.count(-2.5), 2)                       # 2 aller, 2 retour
         self.assertEqual(avg, 30.0)
         self.assertEqual(count, len(gcode.split("\n")))
 

@@ -44,8 +44,8 @@ class ZoomButtonsTests(unittest.TestCase):
         box = tab.plot_widget.getViewBox()
         box.setRange(xRange=(0, 100), yRange=(0, 100), padding=0)
         width = box.viewRange()[0][1] - box.viewRange()[0][0]
-        # Loupes au bout à droite, comme dans les autres barres flottantes.
-        self.assertEqual(tab.options_toolbar.actions()[-2:], [tab.zoom_in_action, tab.zoom_out_action])
+        # Loupes dans la barre verticale contre la colonne de droite.
+        self.assertEqual(tab.options_toolbar.actions(), [tab.zoom_in_action, tab.zoom_out_action])
         tab.zoom_in_action.trigger()
         self.assertLess(box.viewRange()[0][1] - box.viewRange()[0][0], width)
         tab.zoom_out_action.trigger()
@@ -74,11 +74,11 @@ class FloatingToolbarsLookAlikeTests(unittest.TestCase):
         actions = AppActions()
         src = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src", "laser_studio", "ui",
                                 "app", "main_window.py"), encoding="utf-8").read()
-        bar = src[src.index("self.image_floating_toolbar = FloatingToolBar("):]
-        bar = bar[:bar.index("self.tab_previews.preview_area)")]
-        self.assertTrue(bar.rstrip().rstrip(",").endswith(
-            "None, a.image_undo, a.image_redo,\n             None, self.tab_previews.zoom_in_action, "
-            "self.tab_previews.zoom_out_action]"))
+        bar = src[src.index("image_bar = self.tab_previews.edit_toolbar"):]
+        bar = bar[:bar.index("image_bar.addSeparator()")]
+        # Annuler / refaire puis les loupes au bout, comme dans l'éditeur vectoriel.
+        self.assertIn("None, a.image_undo, a.image_redo,\n                       None, self.tab_previews.zoom_in_action, "
+                      "self.tab_previews.zoom_out_action)", bar)
         for action, name in ((actions.image_undo, "edit-undo"), (actions.image_redo, "edit-redo"),
                              (actions.image_delete, "edit-delete"), (actions.image_rotate_right, "object-rotate-right")):
             self.assertEqual(self._pixels(action.icon()), self._pixels(palette_icon(name, QApplication.palette())),

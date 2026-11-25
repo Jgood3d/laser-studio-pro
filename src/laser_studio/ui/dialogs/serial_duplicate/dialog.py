@@ -26,7 +26,7 @@ def _preview(text, limit=24):
 
 
 class SerialDuplicateDialog(QDialog):
-    """Lit : `params()` (paramètres pour serial_apply.run_serial_duplicate) et `settings()` (à mémoriser)."""
+    """Lit : `params()` (paramètres pour serial_apply.plan_serial_duplicate) et `settings()` (à mémoriser)."""
 
     def __init__(self, parent, texts, n_objects, set_w, set_h, bed_w_mm, bed_h_mm, initial=None):
         """texts : [(texte, indice de l'objet dans la sélection)] pour chaque texte de la sélection ;
@@ -191,7 +191,7 @@ class SerialDuplicateDialog(QDialog):
 
     # -- résultats ----------------------------------------------------------------------------------------------
     def params(self):
-        """Paramètres pour serial_apply.run_serial_duplicate."""
+        """Paramètres pour serial_apply.plan_serial_duplicate."""
         return {
             "count": self.spin_count.value(), "names": self.names(), "text_index": self.text_index(),
             "keep_center": self.check_center.isChecked(), "layout": self.combo_layout.currentData(),

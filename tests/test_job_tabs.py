@@ -76,12 +76,13 @@ class Preview2DTabTests(_TabTest):
         self.assertAlmostEqual(y, 25.0, places=3)
 
     def test_no_toolbar_above_the_preview(self):
-        # Plus de bandeau : les options flottent sur le graphique, le plein écran est dans la
+        # Plus de bandeau : une barre verticale (loupes) contre la colonne de droite, le plein écran dans la
         # barre principale ; la colonne de droite ne touche pas la poignée du séparateur.
         from PyQt6.QtWidgets import QToolBar
         from laser_studio.ui.tabs.preview_2d.tab import SIDE_PANEL_LEFT_MARGIN
         tab = self.make(Preview2DTab, QGroupBox("Position"))
-        self.assertEqual([bar.objectName() for bar in tab.findChildren(QToolBar)], ["floating_toolbar"])
+        self.assertEqual(tab.findChildren(QToolBar), [tab.options_toolbar])
+        self.assertEqual(tab.options_toolbar.orientation(), Qt.Orientation.Vertical)
         self.assertFalse(hasattr(tab, "fullscreen_requested"))
         self.assertGreater(SIDE_PANEL_LEFT_MARGIN, 0)
         self.assertEqual(tab.side_panel.layout().contentsMargins().left(), SIDE_PANEL_LEFT_MARGIN)
@@ -97,25 +98,18 @@ class ConsoleTabTests(_TabTest):
 
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
-class TabCloseButtonTests(_TabTest):
-    def test_close_button_emits_clicked(self):
-        from laser_studio.ui.widgets import TabCloseButton
-        button = self.make(TabCloseButton)
-        self.assertEqual(button.toolTip(), tr("ui.close_tab"))
-        received = record(button.clicked)
-        button.click()
-        self.assertEqual(len(received), 1)
-
-
-@unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class JobStatsPanelTests(_TabTest):
     def test_job_position_then_stats_on_the_right_of_the_2d_preview(self):
         box = QGroupBox("Position")
         tab = self.make(Preview2DTab, box)
         self.assertEqual(tab.splitter.orientation(), Qt.Orientation.Horizontal)
-        self.assertEqual([tab.splitter.widget(i) for i in range(2)], [tab.plot_widget, tab.side_panel])
+        self.assertIs(tab.splitter.widget(1), tab.side_panel)
+        self.assertTrue(tab.splitter.widget(0).isAncestorOf(tab.plot_widget))
         layout = tab.side_panel.layout()
-        self.assertEqual([layout.itemAt(i).widget() for i in range(2)], [box, tab.job_stats_panel])
+        # Options d'affichage, puis position du job et statistiques.
+        display = layout.itemAt(0).widget()
+        self.assertTrue(display.isAncestorOf(tab.flip_check) and display.isAncestorOf(tab.optimize_path_check))
+        self.assertEqual([layout.itemAt(i).widget() for i in (1, 2)], [box, tab.job_stats_panel])
 
     def test_side_panel_is_as_narrow_as_possible(self):
         tab = self.make(Preview2DTab, QGroupBox("Position"))
