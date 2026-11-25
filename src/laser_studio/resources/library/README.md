@@ -50,18 +50,20 @@ Le fichier est importé tel qu'il est dessiné, en millimètres (unités du docu
 
 ### Calques
 
+Le modèle est importé comme avec le bouton « Importer » de l'éditeur : **la couleur de chaque tracé décide de son calque**.
+
 | Calque (ou groupe) Inkscape | Contenu | Couleur | Calque de l'éditeur |
 | --- | --- | --- | --- |
 | `Cut` | Tracés de découpe (contour, trous) | rouge, contour sans remplissage | Découpe |
 | `Engrave` | Ce qui est gravé, en remplissage | noir | Gravure |
-| `Mark` (facultatif) | Contours gravés, sans remplissage | bleu | Marquage |
+| `Mark` (facultatif) | Contours gravés, sans remplissage | vert | Marquage |
 
-- Le nom doit être exactement `Cut`, `Engrave` ou `Mark` (majuscules indifférentes).
-- **Tout le reste est ignoré** : un élément hors de ces calques, un calque caché, un calque d'un autre nom (pratique pour garder des éléments de construction, « sources » par exemple, dans le fichier).
+- Ranger le dessin dans ces calques (nom exact, majuscules indifférentes) : les textes à proposer dans la fiche doivent s'y trouver, et les fichiers de la bibliothèque restent lisibles d'un modèle à l'autre.
+- **Ce qui est caché n'est pas importé** : options non choisies, calque de construction (« sources » par exemple).
 - Le calque `Cut` doit être visible dans le fichier enregistré.
-- **Traits** : dans `Engrave`, un trait (stroke) est gravé avec son épaisseur, comme Inkscape le dessine (bouts et angles compris) ; un pictogramme dessiné au trait s'utilise donc tel quel.
-- La couleur sert à l'auteur et à l'aperçu de la fiche ; c'est le nom du calque qui décide.
-- **Noir et blanc dans `Engrave`** : le noir est gravé ; le blanc (ou une couleur très claire) n'est pas gravé, il est creusé dans ce qui est gravé en dessous. Un texte blanc sur un bandeau noir reste ainsi en réserve. La gravure importée est l'union des formes foncées, moins les formes claires, dans l'ordre du dessin.
+- **Traits** : un trait (stroke) noir est gravé avec son épaisseur, comme Inkscape le dessine (bouts et angles compris) ; un pictogramme dessiné au trait s'utilise donc tel quel.
+- **Pas de blanc pour creuser** : le blanc n'est pas une couleur de laser, un objet blanc n'est pas gravé (il arriverait sur le calque « Ignoré ») et ne creuse rien. Pour évider une forme (pictogramme en réserve dans un rond noir), faire une **Différence** dans Inkscape (Chemin › Différence) : un seul chemin noir, déjà évidé. Si le pictogramme change selon l'option, chaque option porte son propre rond évidé.
+- **Texte en réserve** (texte remplaçable découpé dans un bandeau noir) : une Différence le figerait en chemin. On le met dans un **masque** du bandeau (Objet › Masque › Définir dans Inkscape, le texte en noir sur un rectangle blanc) : la fiche le propose toujours, et ce qui est saisi est découpé dans le bandeau (la médaille sportive : « Compétition de XXXX »).
 
 ### Options
 
@@ -78,9 +80,8 @@ Chaque groupe doit avoir **exactement un** sous-calque visible : si tous sont ca
 ```
 Cut                         (calque, rouge)
 Engrave                     (calque, noir)
-    Fond logo               (rond noir)
     Motif                   (groupe : libellé du choix)
-        Kayak               (sous-calque caché : une option, dessiné en blanc)
+        Kayak               (sous-calque caché : une option, rond noir évidé du kayak)
         Natation            (sous-calque caché)
         Course              (sous-calque visible : l'option par défaut)
 sources                     (calque caché : ignoré)
@@ -91,7 +92,7 @@ Un élément nommé seul (un texte, un chemin) n'est pas une option : le mettre 
 ### Textes
 
 - Chaque texte importé apparaît dans la fiche du modèle, où l'utilisateur peut changer, avant l'import, son contenu (nom de la régate, du club…), sa police et sa taille (en mm). Le nom du champ est le nom (ou l'id) du texte dans Inkscape ; la police et la taille proposées au départ sont celles du fichier.
-- Dans `Engrave`, un texte noir devient un texte modifiable de l'éditeur (police, taille, gras) ; un texte blanc est creusé dans la gravure, il devient donc un tracé.
+- Un texte noir devient un texte modifiable de l'éditeur (police, taille, gras) ; un texte dans un masque est découpé dans ce qu'il masque, il devient donc un tracé.
 - **Police** : utiliser une police fournie avec Laser Studio Pro (dossier `resources/fonts/`, chargé au démarrage, donc disponible sur tous les systèmes) : **Dancing Script** pour une écriture manuscrite, **Rubik** en gras pour des titres. **Arial** convient aussi (sous Linux, Liberation Sans la remplace avec les mêmes dimensions). Une autre police n'est pas forcément installée chez l'utilisateur : une police de remplacement, souvent plus large, est alors utilisée. L'éditeur ne distingue que normal et gras : un `font-weight` de 600 ou plus donne le gras de la police. N'ajouter une police au dossier qu'en dernier recours : elle doit avoir une licence libre compatible avec la GPL (OFL par exemple), avec son texte joint, et exister en paquet dans les distributions Linux (le paquet Fedora utilise les polices du système à la place des copies embarquées). Le test `tests/test_bundled_fonts.py` refuse un modèle qui cite une autre police. Pour un rendu exact avec une police non fournie, convertir le texte en chemin dans Inkscape (Chemin → Objet en chemin), mais il ne sera plus remplaçable.
 
 ### Le reste

@@ -1,6 +1,6 @@
-"""Bibliothèque de modèles : catalogue (library/catalog.py), import SVG complet
-(vector/svg_import.py), fenêtres (ui/dialogs/library) et import dans les
-calques (controllers/library.py)."""
+"""Bibliothèque de modèles : catalogue (library/catalog.py), fiche et import des modèles
+(vector/svg_import.py, vector/svg_tree_import.import_library_svg), fenêtres (ui/dialogs/library) et import
+dans les calques (controllers/library.py)."""
 import json
 import os
 import xml.etree.ElementTree as ET
@@ -30,10 +30,12 @@ try:
     from laser_studio.ui.dialogs.library.thumbnails import (
         BURN_COLOR, MATERIAL_COLOR, item_image, render_artwork,
     )
+    from laser_studio.models.vector_objects import IGNORED_LAYER_ID
     from laser_studio.vector.svg_import import (
-        document_size_mm, find_variant_groups, import_svg, parse_transform, role_of_label,
+        document_size_mm, find_variant_groups, parse_transform, role_of_label,
         TextChange, find_texts, svg_preview,
     )
+    from laser_studio.vector.svg_tree_import import import_library_svg as import_svg
 except ImportError:  # PyQt6 manquant
     import_svg = None
 
@@ -124,6 +126,38 @@ class CatalogTests(unittest.TestCase):
         self.assertIn("trophees/totem-sportif-modele-1", keys)
 
 
+def leaves(objects):
+    for obj in objects:
+        children = getattr(obj, "children", None)
+        if children:
+            yield from leaves(children)
+        else:
+            yield obj
+
+
+def read_model(path, variants=None, texts=None):
+    """Import d'un modèle comme le fait la bibliothèque, à plat ; le calque de chaque objet est son rôle."""
+    return list(leaves(import_svg(path, lambda role: role, 0.0, variants=variants, texts=texts)))
+
+
+def roles(objects):
+    return sorted({o.layer_id for o in objects if o.layer_id in ("cut", "engrave", "mark")})
+
+
+def box(objects, role):
+    """Rectangle englobant des objets du rôle `role` (mm, repère de l'éditeur)."""
+    rect = None
+    for obj in objects:
+        if obj.layer_id == role:
+            r = obj.world_path().boundingRect()
+            rect = r if rect is None else rect.united(r)
+    return rect
+
+
+def subpaths(objects, role):
+    return sum(len(o.world_path().toSubpathPolygons()) for o in objects if o.layer_id == role)
+
+
 @unittest.skipIf(import_svg is None, "PyQt6 non importable ici")
 class SvgImportTests(unittest.TestCase):
     @classmethod
@@ -139,32 +173,32 @@ class SvgImportTests(unittest.TestCase):
         write(path, svg(body, **kwargs))
         return path
 
-    @staticmethod
-    def boxes(artwork):
-        return {role: obj.world_path().boundingRect() for role, obj in artwork.items}
-
     def test_units_transforms_and_hidden_elements(self):
         # viewBox de 200 unités pour 100 mm : 1 unité = 0,5 mm ; calque décalé de 20 unités.
         path = self.file(
             cut('<rect x="0" y="0" width="40" height="20" fill="none" stroke="red"/>'
-                '<rect x="0" y="80" width="10" height="20" display="none"/>', 'transform="translate(20,0)"')
-            + '<g inkscape:label="Cut" style="display:none"><circle cx="5" cy="5" r="50"/></g>',
+                '<rect x="0" y="80" width="10" height="20" stroke="red" display="none"/>',
+                'transform="translate(20,0)"')
+            + '<g inkscape:label="Cut" style="display:none"><circle cx="5" cy="5" r="50" stroke="red"/></g>',
             w="100mm", h="50mm", vb="0 0 200 100")
-        art = import_svg(path, offset_x_mm=0, offset_y_mm=0)
-        self.assertEqual([role for role, _o in art.items], ["cut"])
-        box = self.boxes(art)["cut"]
-        self.assertAlmostEqual(box.width(), 20.0, places=3)
-        self.assertAlmostEqual(box.height(), 10.0, places=3)
+        objects = read_model(path)
+        self.assertEqual(roles(objects), ["cut"])
+        cut_box = box(objects, "cut")
+        self.assertAlmostEqual(cut_box.width(), 20.0, delta=0.5)                 # trait compris
+        self.assertAlmostEqual(cut_box.height(), 10.0, delta=0.5)
 
-    def test_only_cut_engrave_and_mark_layers_are_imported(self):
+    def test_the_colour_decides_the_layer_and_white_is_ignored(self):
+        """Comme le bouton « Importer » : rouge = découpe, noir = gravure, vert = marquage ; le blanc ne creuse
+        plus la gravure (il va sur le calque « Ignoré ») : les modèles font de vraies Différences."""
         path = self.file(
             cut('<rect width="10" height="10" fill="none" stroke="red"/>')
-            + engrave('<rect x="20" width="10" height="10" fill="#000"/>')
-            + '<g inkscape:label="mark"><rect x="40" width="10" height="10" fill="none" stroke="blue"/></g>'
-            + '<g inkscape:label="Découpe"><rect x="60" width="10" height="10"/></g>'     # ancien nom : ignoré
-            + '<rect inkscape:label="Trou" x="80" width="10" height="10"/>')               # hors calque : ignoré
-        roles = sorted(role for role, _o in import_svg(path).items)
-        self.assertEqual(roles, ["cut", "engrave", "mark"])
+            + engrave('<rect x="20" width="10" height="10" fill="#000"/>'
+                      '<rect x="22" y="2" width="4" height="4" fill="#fff"/>')
+            + '<g inkscape:label="Mark"><rect x="40" width="10" height="10" fill="none" stroke="#00ff00"/></g>')
+        objects = read_model(path)
+        self.assertEqual(roles(objects), ["cut", "engrave", "mark"])
+        self.assertEqual(subpaths(objects, "engrave"), 1)                           # pas de trou creusé
+        self.assertIn(IGNORED_LAYER_ID, {o.layer_id for o in objects})
         self.assertEqual((role_of_label(" CUT "), role_of_label("Engrave")), ("cut", "engrave"))
         for name in ("Découpe", "Gravure", "Trou", "Contour", "Cutting"):
             self.assertIsNone(role_of_label(name), name)
@@ -177,26 +211,27 @@ class SvgImportTests(unittest.TestCase):
         groups = find_variant_groups(path)
         self.assertEqual([(g.key, [o[0] for o in g.options], g.default) for g in groups],
                          [("Niveau", ["Petit", "Grand"], "Grand")])
-        self.assertAlmostEqual(self.boxes(import_svg(path))["engrave"].width(), 40, places=3)
-        small = import_svg(path, variants={"Niveau": "Petit"})
-        self.assertAlmostEqual(self.boxes(small)["engrave"].width(), 10, places=3)
+        self.assertAlmostEqual(box(read_model(path), "engrave").width(), 40, places=3)
+        small = read_model(path, variants={"Niveau": "Petit"})
+        self.assertAlmostEqual(box(small, "engrave").width(), 10, places=3)
         self.assertIn(b"display:none", svg_preview(path, {"Niveau": "Grand"}))
 
     def test_groups_with_the_same_name_form_one_choice(self):
         # « Forme » dans Cut et « Forme » dans Engrave : un seul choix, appliqué aux deux.
         path = self.file(
             cut('<g inkscape:label="Forme">'
-                + layer("Ronde", '<circle cx="20" cy="20" r="20" fill="none"/>')
-                + layer("Carrée", '<rect width="60" height="60" fill="none"/>', hidden=True) + '</g>')
+                + layer("Ronde", '<circle cx="20" cy="20" r="20" fill="none" stroke="red" stroke-width="0.1"/>')
+                + layer("Carrée", '<rect width="60" height="60" fill="none" stroke="red" stroke-width="0.1"/>',
+                        hidden=True) + '</g>')
             + engrave('<g inkscape:label="Forme">'
                       + layer("Ronde", '<circle cx="20" cy="20" r="5"/>')
                       + layer("Carrée", '<rect width="30" height="30"/>', hidden=True) + '</g>'))
         groups = find_variant_groups(path)
         self.assertEqual([(g.key, [o[0] for o in g.options], g.default) for g in groups],
                          [("Forme", ["Ronde", "Carrée"], "Ronde")])
-        square = self.boxes(import_svg(path, variants={"Forme": "Carrée"}))
-        self.assertAlmostEqual(square["cut"].width(), 60, places=2)
-        self.assertAlmostEqual(square["engrave"].width(), 30, places=2)
+        square = read_model(path, variants={"Forme": "Carrée"})
+        self.assertAlmostEqual(box(square, "cut").width(), 60, delta=0.2)
+        self.assertAlmostEqual(box(square, "engrave").width(), 30, places=2)
 
     def test_a_group_without_visible_option_is_not_a_choice(self):
         path = self.file(cut('<g inkscape:label="Forme">'
@@ -212,31 +247,31 @@ class SvgImportTests(unittest.TestCase):
 
     def test_an_option_can_change_cut_and_engrave(self):
         # Option à la racine : chaque forme a ses propres calques Cut et Engrave.
+        red = 'fill="none" stroke="red" stroke-width="0.1"'
         path = self.file('<g inkscape:label="Forme">'
-                         + layer("Ronde", cut('<circle cx="20" cy="20" r="20" fill="none"/>')
+                         + layer("Ronde", cut(f'<circle cx="20" cy="20" r="20" {red}/>')
                                  + engrave('<circle cx="20" cy="20" r="5"/>'))
-                         + layer("Carrée", cut('<rect width="60" height="60" fill="none"/>')
+                         + layer("Carrée", cut(f'<rect width="60" height="60" {red}/>')
                                  + engrave('<rect x="20" y="20" width="5" height="5"/>'), hidden=True)
                          + '</g>')
-        self.assertAlmostEqual(self.boxes(import_svg(path))["cut"].width(), 40, places=2)
-        square = import_svg(path, variants={"Forme": "Carrée"})
-        self.assertAlmostEqual(self.boxes(square)["cut"].width(), 60, places=2)
-        self.assertEqual(sorted(r for r, _o in square.items), ["cut", "engrave"])
+        self.assertAlmostEqual(box(read_model(path), "cut").width(), 40, delta=0.2)
+        square = read_model(path, variants={"Forme": "Carrée"})
+        self.assertAlmostEqual(box(square, "cut").width(), 60, delta=0.2)
+        self.assertEqual(roles(square), ["cut", "engrave"])
 
     def test_text_becomes_an_editable_text_object(self):
         path = self.file(engrave('<text x="50" y="30" style="font-size:10px;text-anchor:middle;font-weight:bold">'
                                  '<tspan x="50" y="30">Bonjour</tspan></text>'))
-        art = import_svg(path, offset_x_mm=0, offset_y_mm=0)
-        (role, obj), = art.items
-        self.assertEqual((role, obj.kind, obj.text, obj.bold), ("engrave", "text", "Bonjour", True))
+        (obj,) = read_model(path)
+        self.assertEqual((obj.layer_id, obj.kind, obj.text, obj.bold), ("engrave", "text", "Bonjour", True))
 
     def test_text_is_placed_where_the_svg_draws_it(self):
         # Rectangle de 100 x 50 mm, texte centré au milieu : il reste au milieu.
-        path = self.file(cut('<rect width="100" height="50" fill="none"/>')
+        path = self.file(cut('<rect width="100" height="50" fill="none" stroke="red" stroke-width="0.1"/>')
                          + engrave('<text x="50" y="30" style="font-size:10px;text-anchor:middle">Milieu</text>'))
-        art = import_svg(path, offset_x_mm=0, offset_y_mm=0)
-        text = next(o for _r, o in art.items if o.kind == "text").world_path().boundingRect()
-        self.assertAlmostEqual(text.center().x(), 50.0, delta=0.5)
+        objects = read_model(path)
+        text = next(o for o in objects if o.kind == "text").world_path().boundingRect()
+        self.assertAlmostEqual(text.center().x(), box(objects, "cut").center().x(), delta=0.5)
 
     def test_parse_transform_order(self):
         t = parse_transform("translate(10,0) scale(2)")
@@ -244,55 +279,48 @@ class SvgImportTests(unittest.TestCase):
         self.assertEqual(p, (12.0, 2.0))
 
     def test_rounded_rect_and_document_size(self):
-        path = self.file(cut('<rect width="30" height="18" ry="4" fill="none"/>'), w="30mm", h="18mm", vb="0 0 30 18")
+        path = self.file(cut('<rect width="30" height="18" ry="4" fill="none" stroke="red"/>'),
+                         w="30mm", h="18mm", vb="0 0 30 18")
         self.assertEqual(document_size_mm(path), (30.0, 18.0))
-        self.assertEqual(len(import_svg(path).items), 1)
+        self.assertEqual(len(read_model(path)), 1)
 
     def test_strokes_are_engraved_with_their_width(self):
         # Trait noir de 2 mm d'épaisseur sur une ligne de 40 mm (bouts ronds) : 42 x 2 mm gravés.
         path = self.file(engrave('<line x1="10" y1="20" x2="50" y2="20" stroke="#000" stroke-width="2" '
                                  'stroke-linecap="round" fill="none"/>'))
-        (role, obj), = import_svg(path).items
-        box = obj.world_path().boundingRect()
-        self.assertEqual(role, "engrave")
-        self.assertAlmostEqual(box.width(), 42.0, delta=0.05)
-        self.assertAlmostEqual(box.height(), 2.0, delta=0.05)
-        # Trait blanc : creusé dans la gravure.
-        knocked = self.file(engrave('<rect width="40" height="20" fill="#000"/>'
-                                    '<line x1="0" y1="10" x2="40" y2="10" stroke="#fff" stroke-width="2"/>'))
-        (_r, obj), = import_svg(knocked).items
-        self.assertEqual(len(obj.world_path().toSubpathPolygons()), 2)    # bandeau coupé en deux
+        (obj,) = read_model(path)
+        rect = obj.world_path().boundingRect()
+        self.assertEqual(obj.layer_id, "engrave")
+        self.assertAlmostEqual(rect.width(), 42.0, delta=0.05)
+        self.assertAlmostEqual(rect.height(), 2.0, delta=0.05)
 
     def test_bundled_medal_2_pictograms(self):
         groups = {g.key: g for g in find_variant_groups(MEDAL2)}
         self.assertEqual([o[0] for o in groups["Motif"].options],
                          ["Natation", "Dribble", "Handball", "Water-polo", "Escrime", "Haltérophilie", "Football"])
         for motif, _name in groups["Motif"].options:
-            art = import_svg(MEDAL2, variants={"Motif": motif})
-            self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], motif)
+            self.assertEqual(roles(read_model(MEDAL2, variants={"Motif": motif})), ["cut", "engrave"], motif)
 
-    def test_light_shapes_are_cut_out_of_the_engraving(self):
-        # Bandeau noir de 40 x 20 mm, carré blanc de 10 mm dessus : un seul objet, le carré en trou.
-        path = self.file(engrave('<rect width="40" height="20" fill="#000"/>'
-                                 '<rect x="5" y="5" width="10" height="10" fill="#ffffff"/>'))
-        (role, obj), = import_svg(path).items
-        outlines = sorted(round(p.boundingRect().width(), 2) for p in obj.world_path().toSubpathPolygons())
-        self.assertEqual((role, outlines), ("engrave", [10.0, 40.0]))
-
-    def test_light_text_is_cut_out_dark_text_stays_editable(self):
+    def test_a_text_in_a_mask_is_cut_out_and_stays_replaceable(self):
+        """Texte qui creuse un bandeau : rangé dans un <mask> du bandeau, il reste un champ de la fiche."""
         path = self.file(engrave(
-            '<rect width="100" height="50" fill="black"/>'
-            '<text id="titre" x="50" y="20" style="font-size:8px;fill:#fff;text-anchor:middle">Club</text>'
-            '<text id="num" x="50" y="40" style="font-size:8px;fill:#000;text-anchor:middle">1</text>'))
-        kinds = sorted((o.kind, getattr(o, "text", "")) for _r, o in import_svg(path).items)
-        self.assertEqual(kinds, [("svg_path", ""), ("text", "1")])
+            '<path d="M 0,0 H 100 V 50 H 0 Z" style="fill:#000" mask="url(#m)"/>'
+            '<mask id="m" maskUnits="userSpaceOnUse" x="-100" y="-100" width="300" height="300">'
+            '<rect x="-100" y="-100" width="300" height="300" style="fill:#fff"/>'
+            '<text id="titre" x="50" y="30" style="font-size:20px;fill:#000;text-anchor:middle">Club</text></mask>'
+            '<text id="num" x="50" y="45" style="font-size:8px;fill:#000;text-anchor:middle">1</text>'))
+        self.assertEqual([f.key for f in find_texts(path)], ["titre", "num"])
+        band = lambda texts: next(o for o in read_model(path, texts=texts) if o.kind == "svg_path")
+        self.assertGreater(len(band(None).world_path().toSubpathPolygons()), 1)        # lettres creusées
+        self.assertEqual(len(band({"titre": ""}).world_path().toSubpathPolygons()), 1)  # rien à creuser
+        self.assertIn("1", [getattr(o, "text", "") for o in read_model(path)])          # texte noir : modifiable
 
     def test_texts_can_be_replaced(self):
         path = self.file(engrave('<text id="titre" x="10" y="20" style="font-size:8px">Régate de XXXX</text>')
-                         + '<text id="hors" x="10" y="40" style="font-size:8px">Ignoré</text>')
+                         + '<text id="hors" x="10" y="40" style="font-size:8px">Hors calque</text>')
         self.assertEqual([(f.key, f.text) for f in find_texts(path)], [("titre", "Régate de XXXX")])
-        (_role, obj), = import_svg(path, texts={"titre": "Régate de Rennes"}).items
-        self.assertEqual(obj.text, "Régate de Rennes")
+        texts = [o.text for o in read_model(path, texts={"titre": "Régate de Rennes"}) if o.kind == "text"]
+        self.assertIn("Régate de Rennes", texts)
         self.assertIn("Régate de Rennes", svg_preview(path, texts={"titre": "Régate de Rennes"}).decode())
 
     def test_text_fields_give_font_and_size_in_mm(self):
@@ -304,11 +332,11 @@ class SvgImportTests(unittest.TestCase):
 
     def test_font_and_size_can_be_changed(self):
         path = self.file(engrave('<text id="t" x="10" y="20" style="font-size:5px">Club</text>'))
-        height = lambda art: next(o for _r, o in art.items).world_path().boundingRect().height()
-        normal = height(import_svg(path))
-        double = height(import_svg(path, texts={"t": TextChange(size_mm=10.0)}))
+        height = lambda objects: objects[0].world_path().boundingRect().height()
+        normal = height(read_model(path))
+        double = height(read_model(path, texts={"t": TextChange(size_mm=10.0)}))
         self.assertAlmostEqual(double / normal, 2.0, delta=0.05)
-        (_r, obj), = import_svg(path, texts={"t": TextChange(family="DejaVu Serif")}).items
+        (obj,) = read_model(path, texts={"t": TextChange(family="DejaVu Serif")})
         self.assertEqual((obj.text, obj.font_family), ("Club", "DejaVu Serif"))
         preview = svg_preview(path, texts={"t": TextChange(family="DejaVu Serif", size_mm=10.0)}).decode()
         self.assertIn("font-family:'DejaVu Serif'", preview)
@@ -316,17 +344,18 @@ class SvgImportTests(unittest.TestCase):
 
     def test_inkscape_line_tspans_are_placed_under_the_text(self):
         # Inkscape enregistre parfois x="0" y="0" sur une ligne : elle s'affiche quand même au x / y du texte.
-        path = self.file(cut('<rect width="100" height="50" fill="none" stroke="red"/>')
+        path = self.file(cut('<rect width="100" height="50" fill="none" stroke="red" stroke-width="0.1"/>')
                          + engrave('<text id="t" x="50" y="25" style="font-size:10px;text-anchor:middle">'
                                    '<tspan xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" '
                                    'sodipodi:role="line" x="0" y="0">8</tspan></text>'))
-        art = import_svg(path, offset_x_mm=0, offset_y_mm=0)
-        text = next(o for _r, o in art.items if o.kind == "text").world_path().boundingRect()
-        self.assertAlmostEqual(text.center().x(), 50.0, delta=1.0)
+        objects = read_model(path)
+        text = next(o for o in objects if o.kind == "text").world_path().boundingRect()
+        self.assertAlmostEqual(text.center().x(), box(objects, "cut").center().x(), delta=1.0)
         self.assertIn('x="50"', svg_preview(path).decode())
 
     def test_bundled_models_follow_the_convention(self):
-        """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques."""
+        """Chaque modèle : calques Cut (rouge) et Engrave, options en sous-calques, et aucun blanc : ce qui est
+        en réserve dans la gravure est une vraie Différence (ou un texte dans un masque)."""
         for model in (TOTEM, TOTEM2, MEDAL, MEDAL2, KEYCHAIN, KEYCHAIN2, ORNAMENT):
             root = ET.parse(model).getroot()
             layers = {next((v for k, v in g.attrib.items() if k.endswith("label")), "")
@@ -336,6 +365,14 @@ class SvgImportTests(unittest.TestCase):
             for shape in cut_layer.iter():
                 if shape.tag.split("}")[-1] in ("path", "rect", "circle"):
                     self.assertIn("stroke:#ff0000", shape.attrib.get("style", ""), model)
+            engrave_layer = next(g for g in root if g.attrib.get(f"{{{INK}}}label") == "Engrave")
+            masks = {e for m in engrave_layer.iter() if m.tag.endswith("}mask") for e in m.iter()}
+            for shape in engrave_layer.iter():
+                if shape in masks:
+                    continue
+                style = shape.attrib.get("style", "").replace(" ", "").lower()
+                for white in ("fill:#ffffff", "fill:#fff;", "stroke:#ffffff", "stroke:#fff;"):
+                    self.assertNotIn(white, style + ";", (model, shape.attrib.get("id")))
 
     def test_bundled_totems(self):
         expected = {
@@ -349,20 +386,20 @@ class SvgImportTests(unittest.TestCase):
             self.assertEqual([(f.key, f.text) for f in find_texts(model)],
                              [("Titre", "TITRE TOTEM"), ("Sous-titre", "Challenge XXX")])
             for option in options:
-                art = import_svg(model, variants={"Motif": option})
-                self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], option)
-                self.assertAlmostEqual(art.width_mm, 30.0, places=1)
-                self.assertAlmostEqual(art.height_mm, 116.4, places=1)
-                for _r, obj in art.items:                                   # textes dans la largeur
+                objects = read_model(model, variants={"Motif": option})
+                self.assertEqual(roles(objects), ["cut", "engrave"], option)
+                outline = box(objects, "cut")
+                self.assertAlmostEqual(outline.width(), 30.0, delta=0.3)
+                self.assertAlmostEqual(outline.height(), 116.4, delta=0.3)
+                for obj in objects:                                         # textes dans la largeur
                     if obj.kind == "text":
                         self.assertLess(obj.world_path().boundingRect().width(), 28.0, obj.text)
 
     def test_totem_pictogram_is_reserved_in_the_black_circle(self):
-        """Le picto est blanc : il creuse le rond noir (plus de sous-tracés que le rond seul)."""
-        polygons = lambda motif: len(next(o for r, o in import_svg(TOTEM, variants={"Motif": motif}).items
-                                          if r == "engrave" and o.kind == "svg_path").world_path().toSubpathPolygons())
+        """Le picto est une Différence du rond noir : plus de sous-tracés que le rond seul."""
         for motif in ("Kayak", "Natation"):
-            self.assertGreater(polygons(motif), 4, motif)
+            objects = read_model(TOTEM, variants={"Motif": motif})
+            self.assertGreater(subpaths([o for o in objects if o.kind == "svg_path"], "engrave"), 4, motif)
 
     def test_bundled_ornament(self):
         """Boule de Noël : prénom gravé, en police manuscrite (embarquée, ou celle du système dans le
@@ -374,11 +411,11 @@ class SvgImportTests(unittest.TestCase):
         (field,) = find_texts(ORNAMENT)
         self.assertEqual((field.key, field.text, field.family), ("Prénom", "Prénom", SCRIPT_FONT))
         for name in ("Prénom", "Léa", "Joséphine"):
-            art = import_svg(ORNAMENT, texts={"Prénom": name}, offset_x_mm=0, offset_y_mm=0)
-            cut = next(o for r, o in art.items if r == "cut").world_path().boundingRect()
-            text = next(o for r, o in art.items if o.kind == "text")
+            objects = read_model(ORNAMENT, texts={"Prénom": name})
+            text = next(o for o in objects if o.kind == "text")
             self.assertEqual((text.text, text.font_family), (name, SCRIPT_FONT))
-            self.assertAlmostEqual(text.world_path().boundingRect().center().x(), cut.center().x(), delta=0.6)
+            self.assertAlmostEqual(text.world_path().boundingRect().center().x(), box(objects, "cut").center().x(),
+                                   delta=0.6)
 
     def test_bundled_keychains(self):
         expected = {
@@ -392,11 +429,10 @@ class SvgImportTests(unittest.TestCase):
             (group,) = find_variant_groups(model)
             self.assertEqual((group.key, [o[0] for o in group.options], group.default), ("Motif", options, default))
             for option in options:
-                art = import_svg(model, variants={"Motif": option})
-                self.assertEqual(sorted({r for r, _o in art.items}), ["cut", "engrave"], option)
-                cut_obj = next(o for r, o in art.items if r == "cut")
-                self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2, option)  # contour et trou
-                self.assertAlmostEqual(art.width_mm, 50.0, places=1)
+                objects = read_model(model, variants={"Motif": option})
+                self.assertEqual(roles(objects), ["cut", "engrave"], option)
+                self.assertEqual(len([o for o in objects if o.layer_id == "cut"]), 2, option)   # contour et trou
+                self.assertAlmostEqual(box(objects, "cut").width(), 50.0, delta=0.3)
 
     def test_bundled_medal(self):
         groups = {g.key: g for g in find_variant_groups(MEDAL)}
@@ -409,26 +445,25 @@ class SvgImportTests(unittest.TestCase):
         self.assertEqual([o[0] for o in groups["Résultat"].options], ["Étoile", "1ère place", "2e place", "3e place"])
         self.assertEqual([f.key for f in find_texts(MEDAL)], ["Compétition de XXXX", "1"])
         for shape in ("Hexagonale", "Ronde"):
-            art = import_svg(MEDAL, variants={"Forme": shape, "Résultat": "Étoile"},
-                             texts={"Compétition de XXXX": "Régate de Rennes"})
-            self.assertEqual(sorted(r for r, _o in art.items), ["cut", "engrave"], shape)  # nom en réserve : tracé
-            cut_obj = next(o for r, o in art.items if r == "cut")
-            self.assertEqual(len(cut_obj.world_path().toSubpathPolygons()), 2, shape)    # contour et trou du ruban
+            objects = read_model(MEDAL, variants={"Forme": shape, "Résultat": "Étoile"},
+                                 texts={"Compétition de XXXX": "Régate de Rennes"})
+            self.assertEqual(roles(objects), ["cut", "engrave"], shape)
+            self.assertEqual(subpaths(objects, "cut"), 2, shape)                  # contour et trou du ruban
         # Motif basket : tient dans la zone du skiffeur, en largeur et en hauteur.
         import xml.etree.ElementTree as ElementTree
         import laser_studio.vector.svg_import as si
         root = ElementTree.parse(MEDAL).getroot()
 
         def motif_box(motif):
-            box = None
+            found = None
             for elem, _d, _role, ctm in si._visible_elements(root, {"Motif": motif}):
                 inside = any(e is elem for g in root.iter() if g.attrib.get("id") == f"motif_{motif[:6].lower()}"
                              for e in g.iter())
                 geometry = si._shape_path(elem, si._local(elem.tag))
                 if inside and geometry is not None:
                     r = (si.parse_transform(elem.attrib.get("transform")) * ctm).map(geometry).boundingRect()
-                    box = r if box is None else box.united(r)
-            return box
+                    found = r if found is None else found.united(r)
+            return found
         rower, players = motif_box("Aviron"), motif_box("Basket-ball (1 contre 1)")
         self.assertTrue(rower.contains(players), (rower, players))
 
@@ -439,31 +474,29 @@ class SvgImportTests(unittest.TestCase):
         for model in (MEDAL, MEDAL2):
             root = ElementTree.parse(model).getroot()
             motif_group = next(e for e in root.iter() if e.attrib.get("id") == "layer6")
-            for layer in motif_group:
-                name = layer.attrib[f"{{{INK}}}label"]
-                art = import_svg(model, variants={"Motif": name}, offset_x_mm=0, offset_y_mm=0)
-                inside = {id(e) for e in layer.iter()}
-                box = None
+            for option in motif_group:
+                name = option.attrib[f"{{{INK}}}label"]
+                inside = {id(e) for e in option.iter()}
+                found = None
                 for elem, _d, _role, ctm in si._visible_elements(root, {"Motif": name}):
                     geometry = si._shape_path(elem, si._local(elem.tag))
                     if id(elem) in inside and geometry is not None:
                         r = (si.parse_transform(elem.attrib.get("transform")) * ctm).map(geometry).boundingRect()
-                        box = r if box is None else box.united(r)
-                self.assertIsNotNone(box, name)
+                        found = r if found is None else found.united(r)
+                self.assertIsNotNone(found, name)
                 # Zone du skiffeur : x 2,98..75,75, y 25,63..44,66 (marge pour les traits épaissis).
-                self.assertGreaterEqual(box.left(), 2.5, name)
-                self.assertLessEqual(box.right(), 76.3, name)
-                self.assertGreaterEqual(box.top(), 25.1, name)
-                self.assertLessEqual(box.bottom(), 45.2, name)
-                self.assertTrue(art.items, name)
+                self.assertGreaterEqual(found.left(), 2.5, name)
+                self.assertLessEqual(found.right(), 76.3, name)
+                self.assertGreaterEqual(found.top(), 25.1, name)
+                self.assertLessEqual(found.bottom(), 45.2, name)
+                self.assertTrue(read_model(model, variants={"Motif": name}), name)
 
     def test_round_medal_is_concentric(self):
         """Découpe ronde concentrique à la gravure ronde (même centre)."""
-        # Motif basket : il reste dans la gravure (les avirons du skiffeur en dépassent).
-        art = import_svg(MEDAL, variants={"Forme": "Ronde", "Motif": "Basket-ball (1 contre 1)"})
-        cut_box = next(o for r, o in art.items if r == "cut").world_path().boundingRect()
-        engrave_shapes = next(o for r, o in art.items if r == "engrave" and o.kind == "svg_path")
-        engrave_box = engrave_shapes.world_path().boundingRect()
+        objects = read_model(MEDAL, variants={"Forme": "Ronde", "Motif": "Basket-ball (1 contre 1)"})
+        cut_box = box(objects, "cut")
+        engrave_box = max((o.world_path().boundingRect() for o in objects
+                           if o.layer_id == "engrave" and o.kind == "svg_path"), key=lambda r: r.width())
         self.assertAlmostEqual(cut_box.width(), cut_box.height(), places=1)           # un cercle
         self.assertAlmostEqual(cut_box.center().x(), engrave_box.center().x(), places=1)
 
@@ -480,10 +513,10 @@ class PreviewTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "m.svg")
             # Plaque de 100 x 50 mm, trou de 10 mm à gauche, carré gravé de 10 mm à droite.
-            write(path, svg(cut('<rect width="100" height="50" fill="none"/>'
-                                '<circle cx="20" cy="25" r="5" fill="none"/>')
+            write(path, svg(cut('<rect width="100" height="50" fill="none" stroke="red" stroke-width="0.01"/>'
+                                '<circle cx="20" cy="25" r="5" fill="none" stroke="red" stroke-width="0.01"/>')
                             + engrave('<rect x="70" y="20" width="10" height="10"/>')))
-            image = render_artwork(import_svg(path), 104, margin_px=2)     # 1 px par mm
+            image = render_artwork(import_svg(path, lambda role: role, 0.0), 104, margin_px=2)     # 1 px par mm
         pixel = lambda x, y: image.pixelColor(x + 2, y + 2)
         self.assertEqual(pixel(20, 25).alpha(), 0)                        # trou : transparent
         self.assertEqual(pixel(45, 10).rgb(), MATERIAL_COLOR.rgb())       # matière
@@ -610,7 +643,7 @@ class LibraryControllerTests(unittest.TestCase):
         objects = controller.import_item(item)
         self.assertEqual(objects, added)
         by_role = {layer.role: layer.id for layer in layers.layers if getattr(layer, "role", None)}
-        layer_ids = {o.layer_id for o in objects}
+        layer_ids = {o.layer_id for o in leaves(objects)}
         self.assertEqual(layer_ids, {by_role["cut"], by_role["engrave"]})
 
     def test_open_with_an_empty_library_says_so(self):

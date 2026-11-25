@@ -1,45 +1,28 @@
-"""Import SVG des modèles de la bibliothèque, selon leur convention (calques Cut / Engrave / Mark).
-Le bouton « Importer » de l'éditeur utilise vector/svg_tree_import.py.
+"""Modèles de la bibliothèque : ce que leur fiche propose avant l'import, et les briques de lecture SVG
+partagées avec vector/svg_tree_import.py (qui fait l'import lui-même, voir import_library_svg).
 
-Convention (voir resources/library/README.md) :
-- calque (ou groupe) « Cut » : découpe, dessinée en rouge ;
-- calque (ou groupe) « Engrave » : gravure remplie ; le noir est gravé, le
-  blanc (ou une couleur très claire) est creusé dans ce qui est gravé en
-  dessous (gravure = union des formes foncées, moins les formes claires,
-  dans l'ordre du dessin) ; un texte clair devient donc un tracé. Les
-  traits (stroke) sont gravés avec leur épaisseur, comme Inkscape les
-  dessine (pictogrammes dessinés au trait) ;
-- calque (ou groupe) « Mark », facultatif : marquage (contour gravé), en bleu ;
-- tout le reste (élément hors de ces calques, calque caché) est ignoré ;
-- options : un groupe dont les sous-calques sont tous cachés sauf un (celui
-  par défaut) ; le nom du groupe est le libellé du choix, le nom de chaque
-  sous-calque celui d'une option. Des groupes du même nom forment un seul
-  choix (un groupe « Forme » dans Cut et un autre dans Engrave). Une option
-  peut aussi contenir ses propres calques Cut / Engrave / Mark.
+Convention des modèles (voir resources/library/README.md) :
+- calques « Cut » (découpe), « Engrave » (gravure) et, facultatif, « Mark » (marquage) ; la couleur de
+  chaque tracé décide de son calque à l'import (rouge, noir, vert), comme pour le bouton « Importer » ;
+- options : un groupe dont les sous-calques sont tous cachés sauf un (celui par défaut) ; le nom du groupe
+  est le libellé du choix, le nom de chaque sous-calque celui d'une option. Des groupes du même nom forment
+  un seul choix (un groupe « Forme » dans Cut et un autre dans Engrave) : find_variant_groups ;
+- textes remplaçables (contenu, police, taille) : find_texts. Un texte qui creuse la gravure est rangé dans
+  un <mask> et reste remplaçable ;
+- svg_preview applique les options et les textes choisis au fichier (aperçu de la fiche, puis import).
 
-Pris en compte aussi : les unités du document (width / height / viewBox),
-les transformations cumulées, les textes (<text>, <tspan>, lignes Inkscape),
-dont le contenu peut être remplacé à l'import (paramètre `texts`, voir
-find_texts) et qui deviennent des objets texte modifiables de l'éditeur.
-
-    artwork = import_svg("totem.svg", variants={"Niveau du brevet": "Bronze"})
-    for role, obj in artwork.items:      # role : "cut", "engrave", "mark"
-        obj.layer_id = layer_for(role)
-
-Repère : SVG en Y vers le bas ; éditeur en Y vers le haut (origine en bas à
-gauche), le dessin ancré par son coin inférieur gauche à (offset_x, offset_y).
+Repère : SVG en Y vers le bas ; éditeur en Y vers le haut (origine en bas à gauche).
 """
 import math
 import re
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from PyQt6.QtCore import QPointF, Qt
 from PyQt6.QtGui import QFont, QPainterPath, QPainterPathStroker, QPolygonF, QTransform
 
-from laser_studio.models.vector_objects import SvgPathObject, TextObject
-from laser_studio.vector.svg_extract import _merge_path_objects, _svg_path_element_to_single
-from laser_studio.vector.svg_style import parse_color
+from laser_studio.models.vector_objects import TextObject
+from laser_studio.vector.svg_extract import _svg_path_element_to_single
 
 ROLE_CUT = "cut"
 ROLE_ENGRAVE = "engrave"
@@ -109,19 +92,6 @@ def _text_change(value):
 def _vertical_scale(transform):
     """Échelle verticale d'une transformation (taille d'une unité en hauteur)."""
     return math.hypot(transform.m21(), transform.m22()) or 1.0
-
-
-@dataclass
-class ImportedArtwork:
-    """Résultat de import_svg : [(rôle, objet de l'éditeur)], et la taille du
-    dessin en mm."""
-    items: list = field(default_factory=list)
-    width_mm: float = 0.0
-    height_mm: float = 0.0
-
-    @property
-    def objects(self):
-        return [obj for _role, obj in self.items]
 
 
 # -- lecture des attributs
@@ -305,12 +275,13 @@ def _visible_elements(root, variants):
     du document : [(élément, profondeur, rôle, ctm)] ; rôle : celui du calque
     Cut / Engrave / Mark qui le contient, ou None ; ctm : transformation du
     repère de son parent vers les mm du document. Les enfants d'un <text> ne
-    sont pas parcourus."""
+    sont pas parcourus. Le contenu d'un <mask> l'est : un texte qui creuse la
+    gravure y est rangé, et reste remplaçable."""
     result = []
 
     def walk(elem, depth, role, ctm, forced=False):
         tag = _local(elem.tag)
-        if tag in NON_RENDERED or (depth > 0 and _is_hidden(elem) and not forced):
+        if (tag in NON_RENDERED and tag != "mask") or (depth > 0 and _is_hidden(elem) and not forced):
             return
         if tag == "g":
             role = role_of_label(_label(elem)) or role
@@ -390,137 +361,11 @@ def find_texts(path, variants=None):
     return fields
 
 
-# -- couleurs
-
-# Au-dessus de cette luminance (0 à 1), une couleur est « claire » : non gravée.
-LIGHT_LUMINANCE = 0.8
-
-
-def _rgb(color):
-    """(r, g, b) d'une couleur CSS / SVG (voir svg_style.parse_color), ou None (« none », transparent…)."""
-    parsed = parse_color(color)
-    if parsed is None or parsed[3] <= 0:
-        return None
-    return parsed[:3]
-
-
-def is_light(color):
-    """Vrai pour le blanc et les couleurs très claires (non gravées)."""
-    rgb = _rgb(color)
-    if rgb is None:
-        return False
-    r, g, b = (v / 255 for v in rgb)
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b >= LIGHT_LUMINANCE
-
-
 # -- import
 
 # Les opérations sur les tracés (union, différence) sont faites à cette échelle :
 # Qt aplatit les courbes avec une tolérance d'environ 1 unité, trop grossière en mm.
 BOOLEAN_SCALE = 100.0
-
-
-class _EngraveRegion:
-    """Zone gravée : union des formes foncées moins les formes claires, dans
-    l'ordre du dessin (tracés en mm × BOOLEAN_SCALE)."""
-
-    def __init__(self):
-        self.path = None
-        self._up = QTransform.fromScale(BOOLEAN_SCALE, BOOLEAN_SCALE)
-
-    def add(self, path, light):
-        scaled = self._up.map(path)
-        scaled.setFillRule(path.fillRule())
-        if self.path is None:
-            if not light:
-                self.path = scaled
-            return
-        self.path = self.path.subtracted(scaled) if light else self.path.united(scaled)
-
-    def result(self):
-        if self.path is None or self.path.isEmpty():
-            return None
-        down = QTransform.fromScale(1 / BOOLEAN_SCALE, 1 / BOOLEAN_SCALE)
-        return down.map(self.path.simplified())
-
-
-def import_svg(path, variants=None, offset_x_mm=10.0, offset_y_mm=10.0, bed_h_mm=0.0,
-               texts=None):
-    """Lit le SVG `path` et renvoie un ImportedArtwork : les tracés de chaque
-    rôle groupés en un objet, chaque texte foncé en objet texte. `variants` :
-    {clé du groupe: clé de l'option} (voir find_variant_groups ; option
-    visible dans le fichier si absente). `texts` : {clé du texte: TextChange
-    (contenu, police, taille en mm) ou nouveau contenu} (voir find_texts). Seul le contenu des calques Cut, Engrave et
-    Mark est importé."""
-    root = _parse(path)
-    variants = variants or {}
-    texts = texts or {}
-    outlines = {}               # rôle (découpe, marquage) -> [QPainterPath en mm, Y vers le bas]
-    engrave = _EngraveRegion()  # gravure remplie : formes foncées moins formes claires
-    text_items = []             # (rôle, TextObject, boîte cible en mm Y vers le bas)
-
-    def add_shape(path_mm, role, style, stroke_mm=None):
-        """Forme en mm. Sur la gravure : son remplissage, puis son trait
-        (`stroke_mm` : le trait déjà épaissi, voir _stroke_outline), chacun
-        gravé (foncé) ou creusé (clair) selon sa couleur."""
-        if role == ROLE_ENGRAVE:
-            fill = style.get("fill", "black")
-            if fill not in ("none", "transparent"):
-                engrave.add(path_mm, is_light(fill))
-            if stroke_mm is not None:
-                engrave.add(stroke_mm, is_light(style.get("stroke")))
-            elif fill in ("none", "transparent"):
-                outlines.setdefault(role, []).append(path_mm)    # contour seul, sans trait ni remplissage
-        else:
-            outlines.setdefault(role, []).append(path_mm)
-
-    def walk(elem, ctm, role, style, depth, forced=False):
-        tag = _local(elem.tag)
-        if tag in NON_RENDERED:
-            return
-        if depth > 0 and _is_hidden(elem) and not forced:
-            return
-        if tag == "text":
-            # Le texte applique lui-même sa transformation et son style.
-            text_style = {**style, **_inherited(_style(elem))}
-            if role is None:
-                return                    # hors des calques Cut / Engrave / Mark : ignoré
-            text_role = role
-            light = is_light(text_style.get("fill", "black"))
-            for run in _text_glyphs(elem, ctm, style, texts):
-                if text_role == ROLE_ENGRAVE and not light:
-                    text_items.append((text_role, _text_object(run), run.box))
-                else:
-                    add_shape(run.path, text_role, text_style)    # texte clair : creusé
-            return
-        style = {**style, **_inherited(_style(elem))}
-        ctm = parse_transform(elem.attrib.get("transform")) * ctm
-        if tag in ("g", "svg", "a", "switch"):
-            role = role_of_label(_label(elem)) or role
-            options = _variant_options(elem) if depth > 0 and tag == "g" else None
-            if options:
-                chosen = _chosen_option(elem, options, variants)
-                for child in elem:
-                    if _label(child) == chosen:
-                        walk(child, ctm, role, style, depth + 1, forced=True)
-                return
-            for child in elem:
-                walk(child, ctm, role, style, depth + 1)
-            return
-        if role is None:
-            return                        # hors des calques Cut / Engrave / Mark : ignoré
-        geometry = _shape_path(elem, tag)
-        if geometry is not None and not geometry.isEmpty():
-            mapped = ctm.map(geometry)
-            mapped.setFillRule(geometry.fillRule())
-            stroke = _stroke_outline(geometry, style) if role == ROLE_ENGRAVE else None
-            add_shape(mapped, role, style, ctm.map(stroke) if stroke is not None else None)
-
-    walk(root, _document_transform(root), None, {}, 0)
-    region = engrave.result()
-    if region is not None:
-        outlines.setdefault(ROLE_ENGRAVE, []).insert(0, region)
-    return _to_artwork(outlines, text_items, offset_x_mm, offset_y_mm, bed_h_mm)
 
 
 def _stroke_outline(geometry, style, width=None, dashes=None):
@@ -750,41 +595,6 @@ def _fit_text(obj, box, bed_h_mm):
     obj.y_mm += target_cy - current.center().y()
 
 
-def _to_artwork(shapes, texts, offset_x_mm, offset_y_mm, bed_h_mm):
-    """Objets de l'éditeur, ancrés par le coin inférieur gauche du dessin."""
-    flip = QTransform(1, 0, 0, -1, 0, bed_h_mm)      # mm Y vers le bas -> repère éditeur
-    items = []
-    for role, paths in shapes.items():
-        parts = []
-        for path in paths:
-            world = flip.map(path)
-            bbox = world.boundingRect()
-            if bbox.width() <= 0 and bbox.height() <= 0:
-                continue
-            to_local = QTransform(1, 0, 0, -1, -bbox.left(), bbox.top())
-            parts.append(SvgPathObject(local_path_data=to_local.map(world), source_tag=f"svg:{role}",
-                                       x_mm=bbox.left(), y_mm=bbox.top()))
-        merged = _merge_path_objects(parts, source_tag=f"svg:{role}")
-        if merged is not None:
-            items.append((role, merged))
-    for role, obj, box in texts:
-        _fit_text(obj, box, bed_h_mm)
-        items.append((role, obj))
-    artwork = ImportedArtwork(items)
-    if not items:
-        return artwork
-    bounds = None
-    for _role, obj in items:
-        rect = obj.world_path().boundingRect()
-        bounds = rect if bounds is None else bounds.united(rect)
-    dx, dy = offset_x_mm - bounds.left(), offset_y_mm - bounds.top()
-    for _role, obj in items:
-        obj.x_mm += dx
-        obj.y_mm += dy
-    artwork.width_mm, artwork.height_mm = bounds.width(), bounds.height()
-    return artwork
-
-
 # -- fiche détail de la bibliothèque
 
 def document_size_mm(path):
@@ -820,13 +630,14 @@ def _set_visible(elem, visible):
     elem.attrib.pop("display", None)
 
 
-def svg_preview(path, variants=None, texts=None):
+def svg_preview(path, variants=None, texts=None, drop_hidden=False):
     """Contenu SVG (octets) tel qu'il sera importé, pour l'aperçu de la
     fiche : seule l'option choisie de chaque groupe de variantes est visible,
     les textes sont remplacés (`texts`), et les lignes de texte Inkscape
     (sodipodi:role="line") reçoivent leur position réelle (un afficheur SVG
     qui ne connaît pas Inkscape les placerait en 0, 0). `texts` : comme pour
-    import_svg (contenu, police, taille)."""
+    find_texts (contenu, police, taille). `drop_hidden` : ce qui reste caché (options non choisies, calque de
+    construction) est retiré du fichier, pour l'import : rien n'en arrive dans l'éditeur."""
     ET.register_namespace("", "http://www.w3.org/2000/svg")
     ET.register_namespace("inkscape", INKSCAPE_NS)
     ET.register_namespace("sodipodi", "http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd")
@@ -879,4 +690,9 @@ def svg_preview(path, variants=None, texts=None):
                 props["font-size"] = f"{change.size_mm / scale:.4f}px"
             for node in {target, elem}:
                 _set_style(node, props)
+    if drop_hidden:
+        parents = {child: parent for parent in root.iter() for child in parent}
+        for elem in [e for e in root.iter() if e is not root and _is_hidden(e)]:
+            if elem in parents and elem in list(parents[elem]):
+                parents[elem].remove(elem)
     return ET.tostring(root, encoding="utf-8")

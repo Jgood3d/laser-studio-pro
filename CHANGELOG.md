@@ -65,6 +65,8 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Bibliothèque de modèles : les modèles sont importés comme avec le bouton « Importer » (calque d'après la couleur, groupes et textes gardés). Le blanc ne creuse plus la gravure : les pictogrammes en réserve des médailles, totems et porte-clés sont devenus de vraies Différences, et le texte « Compétition de XXXX » des médailles est un masque du bandeau, toujours remplaçable dans la fiche. Les options non choisies n'arrivent plus dans l'éditeur. Le marquage d'un modèle se dessine en vert.
+
 Éditeur vectoriel : « Pivoter 90° » de la barre d'édition fait tourner tous les objets sélectionnés (avant : seulement le premier), comme le clic droit. « Texte le long d'un objet » du clic droit ouvre ensuite les réglages du texte, comme le bouton.
 
 Import SVG : les arcs des tracés sont convertis en courbes exactes ; dans un fichier à petite unité (viewBox de 0 à 1), un cercle devenait un polygone grossier.

@@ -30,6 +30,7 @@ Repère : SVG en Y vers le bas ; éditeur en Y vers le haut (origine en bas à g
 ensuite le dessin (VectorEditorController.import_objects).
 """
 import colorsys
+import io
 import re
 import xml.etree.ElementTree as ET
 
@@ -40,7 +41,7 @@ from laser_studio.models.vector_objects import GroupObject, SvgPathObject, TextO
 from laser_studio.vector.boolean_ops import paint_region
 from laser_studio.vector.svg_import import (
     NON_RENDERED, ROLE_CUT, ROLE_ENGRAVE, ROLE_MARK, _attr, _document_transform, _fit_text, _length_mm, _local,
-    _numbers, _parse, _shape_path, _stroke_outline, _text_glyphs, _text_object, parse_transform,
+    _numbers, _parse, _shape_path, _stroke_outline, _text_glyphs, _text_object, parse_transform, svg_preview,
     viewbox_transform,
 )
 from laser_studio.vector.svg_geometry import (
@@ -534,11 +535,13 @@ def document_px_mm(path, root):
     match = re.match(r"\s*(\d+)\.(\d+)", inkscape or "")
     if match and (int(match.group(1)), int(match.group(2))) < (0, 92):
         return 25.4 / LEGACY_PX
-    try:
-        with open(path, encoding="utf-8", errors="ignore") as f:
-            head = f.read(2048)
-    except OSError:
-        head = ""
+    head = ""
+    if isinstance(path, str):                       # pas pour un fichier déjà ouvert (octets de svg_preview)
+        try:
+            with open(path, encoding="utf-8", errors="ignore") as f:
+                head = f.read(2048)
+        except OSError:
+            pass
     if "Adobe Illustrator" in head:
         return 25.4 / ILLUSTRATOR_PX
     return 25.4 / 96.0
@@ -583,3 +586,11 @@ def svg_tree_counts(objects, layers):
             names.append(layer.name)
     return {"count": len(leaves), "hidden": sum(1 for o in leaves if o.is_ignored()),
             "layers": ", ".join(names) or "—"}
+
+
+def import_library_svg(path, layer_for, bed_h_mm, variants=None, texts=None):
+    """Modèle de la bibliothèque : les options choisies (`variants`) et les textes saisis (`texts`) sont
+    appliqués au fichier (svg_import.svg_preview), qui est ensuite lu comme un SVG ordinaire. Ce qui est caché
+    (options non choisies) en est retiré avant : rien n'arrive sur le calque « Ignoré »."""
+    data = svg_preview(path, variants, texts, drop_hidden=True)
+    return import_svg_tree(io.BytesIO(data), layer_for, bed_h_mm)
