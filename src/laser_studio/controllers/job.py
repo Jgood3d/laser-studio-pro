@@ -13,11 +13,9 @@ par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
     job.generate()
 """
 import traceback
-import xml.etree.ElementTree as ET
 
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
-from svg.path import parse_path
 
 from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
@@ -66,7 +64,6 @@ class JobController(QObject):
     État de l'interface, lu à chaque usage :
     - geometry() : dict width_mm, height_mm, origin_pos, offset_x, offset_y ;
     - image() : image tramée à graver (tableau numpy) ou None ;
-    - svg_path() : SVG de l'ancien mode découpe, ou None ;
     - vector_objects() : objets de l'éditeur vectoriel ;
     - optimize_path() : True pour réordonner les tracés (moins de G0) ;
     - lines_mm() : résolution de gravure (lignes/mm) ;
@@ -92,7 +89,7 @@ class JobController(QObject):
     status = pyqtSignal(str)
 
     def __init__(self, layers, grbl, machine, image_settings, dialogs, *, geometry, image,
-                 svg_path=lambda: None, vector_objects=lambda: [], optimize_path=lambda: True,
+                 vector_objects=lambda: [], optimize_path=lambda: True,
                  lines_mm=lambda: 10.0, material_summary=lambda: "", parent=None):
         super().__init__(parent)
         self.layers = layers
@@ -102,15 +99,12 @@ class JobController(QObject):
         self.dialogs = dialogs
         self._geometry = geometry
         self._image = image
-        self._svg_path = svg_path
         self._vector_objects = vector_objects
         self._optimize_path = optimize_path
         self._lines_mm = lines_mm
         self._material_summary = material_summary
-        # Ancien mode SVG : découpe d'un SVG entier (svg_path), avec un seul
-        # réglage. Plus accessible depuis l'interface, mais encore lu dans les
-        # anciens projets et les profils matériaux (voir set_cut_settings).
-        self.cut_enabled = False
+        # Réglages de découpe de l'ancien mode SVG (supprimé) : encore lus et écrits dans les projets et les
+        # profils matériaux (sp_c / pw_c / pass_c), et par un clic sur une matrice de découpe.
         self.cut_speed = 300
         self.cut_power = 90
         self.cut_passes = 2
@@ -155,12 +149,6 @@ class JobController(QObject):
         """Commande laser ("M4" ou "M3") de la gravure d'une image : celle du
         calque de gravure, sinon celle de Configuration GRBL."""
         return layer_laser_cmd(self.layers.engrave_layer(), self.grbl.laser_cmd)
-
-    @property
-    def cut_laser_cmd(self):
-        """Commande laser de la découpe SVG autour de l'image : celle du calque de découpe (premier
-        calque en mode Découpe), sinon celle de Configuration GRBL, comme les calques vectoriels."""
-        return layer_laser_cmd(self.layers.default_svg_layer(), self.grbl.laser_cmd)
 
     def set_engrave_settings(self, speed, power):
         """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
@@ -237,12 +225,7 @@ class JobController(QObject):
         params.update({
             'speed_engrave': self.engrave_speed,
             'power_engrave': self.engrave_power,
-            'enable_cut': self.cut_enabled,
-            'speed_cut': self.cut_speed,
-            'power_cut': self.cut_power,
-            'passes_cut': self.cut_passes,
             'laser_cmd': self.grbl.laser_cmd,
-            'cut_laser_cmd': self.cut_laser_cmd,
             # Gravure d'image : commande et surbalayage de son calque de gravure.
             'image_laser_cmd': self.image_laser_cmd,
             'image_overscan': self.image_overscan_enabled,
@@ -298,8 +281,6 @@ class JobController(QObject):
 
         max_speed_limit = self.machine.max_speed
         speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
-        if self.cut_enabled:
-            speeds_to_check.append((tr("gen.speed_row_cut_old"), self.cut_speed))
         for layer in self.layers.layers:
             if layer.enabled:
                 speeds_to_check.append((tr("gen.speed_row_layer").format(name=layer.name), layer.speed))
@@ -382,7 +363,7 @@ class JobController(QObject):
                     )):
                 return False
 
-        self.worker = AdvancedGCodeWorker(processed_array, self._svg_path(), params, vector_layers_data)
+        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data)
         self.worker.finished.connect(self.generated)
         self.worker.progress.connect(self.progress)
         self.worker.error.connect(self.failed)
@@ -426,24 +407,6 @@ class JobController(QObject):
             t = straight_lines_seconds(lengths, speed, self.machine_limits()["accel_x"])
             total_seconds += t
             details.append(tr("gcode.image_details").format(duration=estimate_duration_text(t)))
-
-        svg_path = self._svg_path()
-        if svg_path:
-            try:
-                tree = ET.parse(svg_path)
-                total_len_svg = 0.0
-                for elem in tree.iter():
-                    d = elem.attrib.get('d')
-                    if d:
-                        try:
-                            total_len_svg += parse_path(d).length(error=1e-3)
-                        except Exception:       # tracé illisible : ignoré dans l'estimation
-                            log.debug("Estimation : tracé SVG illisible ignoré", exc_info=True)
-                t = (total_len_svg / max(self.cut_speed, 1)) * 60.0 * self.cut_passes
-                total_seconds += t
-                details.append(tr("gcode.svg_details").format(duration=estimate_duration_text(t)))
-            except Exception:
-                log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
 
         # Ce qui sera gravé, calque par calque : chaque objet d'un simple groupe sur son calque, rien pour un
         # objet du calque « Ignoré ».
@@ -564,8 +527,8 @@ class JobController(QObject):
                 tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h))
             return False
         params = self.build_params()
-        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg", enable_cut=False)
-        self.gain_test_worker = AdvancedGCodeWorker(arr, None, params, None)
+        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg")
+        self.gain_test_worker = AdvancedGCodeWorker(arr, params, None)
         self.gain_test_worker.finished.connect(self._on_gain_test_ready)
         self.gain_test_worker.error.connect(self.failed)
         self.gain_test_worker.start()

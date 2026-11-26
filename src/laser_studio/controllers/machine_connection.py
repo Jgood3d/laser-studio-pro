@@ -17,7 +17,9 @@ du graveur ; le sondage périodique est alors mis en pause par l'appelant
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import get_logger
-from laser_studio.grbl.commands import HOME, UNLOCK, READ_SETTINGS, jog_command, parse_grbl_settings  # noqa: F401
+from laser_studio.grbl.commands import (  # noqa: F401
+    HOME, UNLOCK, READ_SETTINGS, homing_succeeded, jog_command, parse_grbl_settings,
+)
 from laser_studio.grbl.connection import LaserUSBController
 from laser_studio.controllers.workers import (
     CommandThread, GCodeStreamerThread, ReconnectThread, StatusPollThread,
@@ -69,6 +71,7 @@ class MachineConnection(QObject):
         self.streamer = None
         self._status_poll = None
         self._cmd_thread = None
+        self._home_thread = None
         self._reconnect_thread = None
 
     # -- état
@@ -100,6 +103,13 @@ class MachineConnection(QObject):
             return bool(self.streamer is not None and self.streamer.isRunning())
         except RuntimeError:          # thread Qt déjà détruit
             return False
+
+    def is_busy(self):
+        """Vrai pendant un job ou un envoi de commandes (homing, cadrage…) : un job ne peut pas partir."""
+        return self.is_streaming() or self._commands_running()
+
+    def _commands_running(self):
+        return self._cmd_thread is not None and self._cmd_thread.isRunning()
 
     def _forget_homing(self):
         if self.homed:
@@ -141,8 +151,11 @@ class MachineConnection(QObject):
     def run_commands(self, commands):
         """Envoie une commande ou une liste de commandes en arrière-plan,
         réponses dans le signal log. Faux (rien n'est envoyé) si un envoi de
-        commandes est déjà en cours."""
-        if self._cmd_thread is not None and self._cmd_thread.isRunning():
+        commandes ou un job est déjà en cours : une commande glissée au milieu
+        d'un job fausserait le compte du tampon de GRBL, et son « ok » ou son
+        « error » serait pris pour celui d'une ligne du job."""
+        if self.is_streaming() or self._commands_running():
+            log.warning("Connexion : commande %r refusée, graveur occupé", commands)
             return False
         self._cmd_thread = CommandThread(self.usb, commands)
         self._cmd_thread.log_signal.connect(self.log)
@@ -150,9 +163,18 @@ class MachineConnection(QObject):
         return True
 
     def home(self):
-        """Cycle de homing ($H) : la position devient référencée."""
-        self.run_commands(HOME)
-        self.homed = True
+        """Cycle de homing ($H). La position n'est référencée qu'une fois le « ok » de GRBL reçu : un homing
+        refusé, en alarme (fin de course non atteinte) ou pas envoyé (graveur occupé) la laisse inconnue."""
+        self.homed = False
+        if not self.run_commands(HOME):
+            return False
+        self._home_thread = self._cmd_thread
+        self._home_thread.finished_signal.connect(self._home_finished)
+        return True
+
+    def _home_finished(self):
+        responses = getattr(self._home_thread, "responses", None) or [""]
+        self.homed = homing_succeeded(responses[-1])
 
     def jog(self, dx_mm, dy_mm, speed):
         """Déplacement relatif de `dx_mm`, `dy_mm`, à `speed` mm/min."""
@@ -220,7 +242,12 @@ class MachineConnection(QObject):
     def start_stream(self, gcode_text, on_finished):
         """Lance l'envoi de `gcode_text` (GCodeStreamerThread).
         `on_finished(fin_propre)` est appelée à la fin. Avancement, état et
-        messages passent par les signaux stream_*, status_updated et log."""
+        messages passent par les signaux stream_*, status_updated et log.
+        None (rien n'est envoyé) si un job ou des commandes sont déjà en cours : deux envois
+        mélangeraient leurs lignes dans GRBL."""
+        if self.is_streaming() or self._commands_running():
+            log.warning("Connexion : job refusé, graveur occupé")
+            return None
         self.last_sent_gcode = gcode_text
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
         self.streamer.lines_sent.connect(self.stream_lines_sent)

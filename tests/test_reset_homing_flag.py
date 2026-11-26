@@ -3,6 +3,7 @@
 import os
 import sys
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
@@ -135,12 +136,32 @@ class ConnectionTests(unittest.TestCase):
     def test_home_and_jog_commands(self):
         c = self.make()
         sent = []
-        c.run_commands = sent.append
-        c.home()
+        c.run_commands = lambda cmd: sent.append(cmd) or False      # rien d'envoyé : pas de homing
+        c.homed = True
+        self.assertFalse(c.home())
         c.jog(1.0, -0.5, 3000)
         c.unlock()
         self.assertEqual(sent, ["$H", "$J=G91 G21 X1.000 Y-0.500 F3000", "$X"])
-        self.assertTrue(c.homed)
+        self.assertFalse(c.homed)
+
+    def test_homed_only_after_grbl_answers_ok(self):
+        """Le homing n'est noté qu'au « ok » de GRBL : une alarme (fin de course non atteinte) ou un refus
+        laissent la position inconnue, et l'avertissement réapparaît avant le job."""
+        for response, homed in (("ok", True), ("[MSG:Homing]\nok", True), ("ALARM:9", False),
+                                ("error:5", False), ("Pas de réponse", False), ("", False)):
+            c = self.make()
+            c._home_thread = mock.Mock(responses=[response])
+            c._home_finished()
+            self.assertEqual(c.homed, homed, response)
+
+    def test_no_command_and_no_second_job_while_a_job_runs(self):
+        """Pendant un job, une commande ou un second job mélangeraient leurs lignes avec les siennes."""
+        c = self.make()
+        c.streamer = _Streamer(True)
+        self.assertTrue(c.is_busy())
+        self.assertFalse(c.run_commands("$J=G91 X10 F3000"))
+        self.assertIsNone(c.start_stream("G1 X1\n", lambda clean: None))
+        self.assertIsNone(c._cmd_thread)
 
     def test_reconnection_after_a_cut_forgets_homing(self):
         c = self.make()

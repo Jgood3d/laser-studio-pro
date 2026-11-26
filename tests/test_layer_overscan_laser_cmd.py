@@ -152,7 +152,7 @@ class ImageGcodeTests(unittest.TestCase):
         array = np.full((2, 20), 255, dtype=np.uint8)
         array[:, 5:15] = 0                                   # 10 mm gravés au milieu de chaque ligne
         out = []
-        worker = AdvancedGCodeWorker(array, None, params)
+        worker = AdvancedGCodeWorker(array, params)
         worker.finished.connect(lambda gcode, *_: out.append(gcode))
         worker.error.connect(lambda message: self.fail(message))
         worker.run()

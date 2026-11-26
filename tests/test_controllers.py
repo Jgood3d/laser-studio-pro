@@ -222,8 +222,8 @@ class FakeQueueTab:
 class FakeEngraver:
     """Envoi instantané : chaque job finit proprement, sauf ceux listés."""
 
-    def __init__(self, connected=True, failing=()):
-        self.calls, self.connected, self.failing = [], connected, failing
+    def __init__(self, connected=True, failing=(), busy=False):
+        self.calls, self.connected, self.failing, self.busy = [], connected, failing, busy
 
     def engraver(self):
         def record(name, result=None):
@@ -238,11 +238,13 @@ class FakeEngraver:
             pause_status_poll=record("pause"),
             resume_status_poll=record("resume"),
             jobs_finished=record("jobs_finished"),
+            is_busy=lambda: self.busy,
         )
 
     def start_stream(self, gcode, on_finished):
         self.calls.append(("start", gcode))
         on_finished(gcode not in self.failing)
+        return True                                   # envoi accepté (None : graveur occupé)
 
 
 @unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")
@@ -305,6 +307,14 @@ class JobQueueControllerTests(_QtTest):
         self.assertEqual(
             [job["gcode"] for job in restored.jobs], ["G1 X1", "G1 X2"]
         )
+
+    def test_queue_does_not_start_while_the_engraver_is_busy(self):
+        """Un job direct (ou un homing) en cours : la file ne démarre pas, sinon deux envois se mélangent."""
+        queue, tab, fake = self.make(["G1 X1"], busy=True)
+        queue.run()
+        self.assertEqual([c for c in fake.calls if c[0] == "start"], [])
+        self.assertEqual(self.messages, ["warning"])
+        self.assertEqual(len(queue.jobs), 1)
 
     def test_jobs_are_sent_one_after_the_other(self):
         queue, tab, fake = self.make(["G1 X1", "G1 X2"])

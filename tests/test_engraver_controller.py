@@ -64,6 +64,7 @@ class CommandsTests(unittest.TestCase):
 def make_engraver(connected=True, homed=True, dialogs=None, gcode="G0 X1\n", **kw):
     connection = mock.Mock()
     connection.is_connected.return_value = connected
+    connection.is_streaming.return_value = connection.is_busy.return_value = False
     connection.homed = homed
     connection.last_state = "Idle"
     connection.port = "/dev/ttyUSB0"
@@ -162,6 +163,21 @@ class ControlTests(unittest.TestCase):
         self.assertEqual(dialogs.kinds(), ["warning"] * 4)
         connection.run_commands.assert_not_called()
         connection.jog.assert_not_called()
+
+    def test_nothing_is_sent_while_a_job_runs(self):
+        """Pendant un job : déplacement, console, cadrage, homing, $$ et second job refusés, avec un message."""
+        engraver, connection, dialogs, _ = make_engraver()
+        connection.is_streaming.return_value = connection.is_busy.return_value = True
+        engraver.jog(1.0, 0.0, 3000)
+        engraver.send_console_command("G0 X0 Y0")
+        engraver.frame()
+        engraver.home()
+        engraver.read_settings()
+        self.assertFalse(engraver.send_job())
+        self.assertEqual(dialogs.kinds(), ["warning"] * 6)
+        connection.run_commands.assert_not_called()
+        connection.start_stream.assert_not_called()
+        connection.send_command.assert_not_called()
 
     def test_frame_follows_the_image_position(self):
         geometry = {'width_mm': 40.0, 'height_mm': 30.0, 'origin_pos': ORIGIN_CENTER,

@@ -93,11 +93,15 @@ class EngraverController(QObject):
     # -- port et connexion
 
     def require_connection(self, message_key="laser.connect_first"):
-        """Vrai si le graveur est connecté ; sinon, le dit et renvoie Faux."""
-        if self.connection.is_connected():
-            return True
-        self.dialogs.warning(tr("laser.usb_not_connected_title"), tr(message_key))
-        return False
+        """Vrai si le graveur est connecté et qu'aucun job n'est en cours ; sinon, le dit et renvoie Faux.
+        Pendant un job, une commande (déplacement, console, cadrage…) se glisserait entre ses lignes."""
+        if not self.connection.is_connected():
+            self.dialogs.warning(tr("laser.usb_not_connected_title"), tr(message_key))
+            return False
+        if self.connection.is_streaming():
+            self.dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
+            return False
+        return True
 
     def refresh_ports(self):
         """Liste les ports utilisables (sans les ports « n/a » sans matériel),
@@ -291,6 +295,9 @@ class EngraverController(QObject):
         if not self.connection.is_connected():
             self.dialogs.warning(tr("laser.usb_error_title"), tr("laser.connect_via_usb"))
             return False
+        if self.connection.is_busy():               # job (file, « Répéter ») ou commandes en cours
+            self.dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
+            return False
         if not self.confirm_homed():
             return False
         if not self.dialogs.confirm_default_no(tr("laser.confirm_title"), launch_confirmation_text()):
@@ -342,8 +349,7 @@ class EngraverController(QObject):
         """Lit toute la configuration GRBL ($$) du graveur connecté et la met
         dans GrblConfig (affichée dans Configuration GRBL) : steps/mm,
         limites logicielles, accélérations…"""
-        if not self.connection.is_connected():
-            self.dialogs.warning(tr("laser.usb_not_connected_title"), tr("laser.connect_first"))
+        if not self.require_connection():
             return
         try:
             response = self.connection.send_command(commands.READ_SETTINGS)
@@ -360,8 +366,7 @@ class EngraverController(QObject):
     def send_settings(self):
         """Envoie chaque ligne $N=valeur affichée : modifie la configuration
         EEPROM persistante du graveur, donc toujours après confirmation."""
-        if not self.connection.is_connected():
-            self.dialogs.warning(tr("laser.usb_not_connected_title"), tr("laser.connect_first"))
+        if not self.require_connection():
             return
         lines = commands.setting_lines(self.grbl.grbl_settings)
         if not lines:

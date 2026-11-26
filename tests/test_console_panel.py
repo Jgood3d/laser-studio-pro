@@ -71,7 +71,7 @@ class SendManualCommandTests(unittest.TestCase):
     """La logique reçoit la commande et l'envoie, sans lire de widget."""
 
     def make(self, connected=True):
-        connection = mock.Mock(is_connected=lambda: connected)
+        connection = mock.Mock(is_connected=lambda: connected, is_streaming=lambda: False)
         engraver = EngraverController(connection, GrblConfig(), mock.Mock())
         engraver.sent = []
         connection.run_commands = engraver.sent.append

@@ -94,6 +94,7 @@ class LaserMoves:
     def forget(self):
         """État de GRBL inconnu (lignes ajoutées sans passer par ici) : tout sera réécrit."""
         self.motion = self.feed = self.power = self.x = self.y = None
+        self._x_text = self._y_text = None    # dernier X / Y écrits, déjà mis en forme (num)
 
     def extend(self, lines):
         """Ajoute des lignes écrites ailleurs (étiquette de la matrice…), qui se terminent laser éteint."""
@@ -141,13 +142,18 @@ class LaserMoves:
         self.lines.append(" ".join(words) + (f" ; {comment}" if comment else ""))
 
     def _axes(self, x, y):
+        # Chaque coordonnée n'est mise en forme qu'une fois : c'était le plus long d'une image à graver.
         words = []
-        if x is not None and (self.x is None or num(x) != num(self.x)):
-            words.append(f"X{num(x)}")
-            self.x = x
-        if y is not None and (self.y is None or num(y) != num(self.y)):
-            words.append(f"Y{num(y)}")
-            self.y = y
+        if x is not None:
+            text = num(x)
+            if text != self._x_text:
+                words.append("X" + text)
+                self.x, self._x_text = x, text
+        if y is not None:
+            text = num(y)
+            if text != self._y_text:
+                words.append("Y" + text)
+                self.y, self._y_text = y, text
         return words
 
 

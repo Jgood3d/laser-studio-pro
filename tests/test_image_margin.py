@@ -63,7 +63,7 @@ class ImageMarginTests(unittest.TestCase):
                          (40.0, 35.0))
 
     def test_overscan_stays_positive_with_a_zero_offset(self):
-        worker = workers.AdvancedGCodeWorker(np.zeros((10, 20), dtype=np.uint8), None, _params(), {})
+        worker = workers.AdvancedGCodeWorker(np.zeros((10, 20), dtype=np.uint8), _params(), {})
         out = {}
         worker.finished.connect(lambda gcode, *_: out.update(gcode=gcode))
         worker.error.connect(lambda msg: out.update(error=msg))

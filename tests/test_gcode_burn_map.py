@@ -48,7 +48,7 @@ def generate_gcode(arr, overscan=0.0, algo="Seuil Simple (Binaire)"):
         enable_overscan=overscan > 0, overscan_mode="mm", overscan_dist=overscan,
         laser_cmd="M4", s_max=S_MAX, algo=algo, enable_cut=False,
     )
-    worker = workers.AdvancedGCodeWorker(arr, None, params, {})
+    worker = workers.AdvancedGCodeWorker(arr, params, {})
     out = {}
     worker.finished.connect(lambda gcode, *_: out.update(gcode=gcode))
     worker.error.connect(lambda msg: out.update(error=msg))

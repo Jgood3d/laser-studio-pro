@@ -69,6 +69,10 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Génération du G-Code d'une image plus rapide : environ deux fois moins de temps pour une image en noir et blanc très détaillée (30 % de moins en niveaux de gris). Le G-Code produit ne change pas.
+
+L'ancienne « découpe SVG » autour de l'image, qui n'était plus proposée mais revenait avec un ancien projet qui l'avait cochée, est supprimée : elle traçait au laser un trait entre deux contours d'un même chemin (un « O », une forme avec un trou). Les calques de découpe font ce travail.
+
 Barre d'outils du haut allégée : les outils de l'éditeur vectoriel (bibliothèque, import, générateurs) restent dans l'éditeur et le menu Outils. « Visualisation 2D G-Code » suit la disposition des autres onglets : ses options d'affichage (matière, miroir, négatif, déplacements rapides, optimisation du chemin) passent dans un cadre « Affichage » de la colonne de droite, les loupes dans une barre verticale ; dans « Calques », la barre des actions devient verticale, à droite du tableau. Les aperçus des générateurs, le recadrage de l'image et le bouton de sortie du plein écran prennent les couleurs du thème.
 
 Éditeur vectoriel : un bouton « Vectoriser une image » à côté d'« Importer SVG / DXF » ouvre l'onglet Vectorisation. Après un import, la vue se cadre sur le dessin importé sans trop zoomer sur un petit dessin ; dans « Graver une image », chaque nouvelle image remplit l'aperçu (rendu tramé comme originale), qui suit la taille de la fenêtre tant qu'on ne zoome pas soi-même.
@@ -158,6 +162,10 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Pendant une gravure, plus rien ne peut s'intercaler dans l'envoi : « Envoyer au laser » pendant la file d'attente, « Répéter », les flèches de déplacement, la console, le cadrage, le homing ou la lecture des réglages $$ sont refusés avec le message « Graveur occupé ». Avant, une commande glissée au milieu d'un job pouvait l'arrêter net (position perdue), et un second envoi mélangeait ses lignes avec celles du premier.
+
+Le homing n'est compté comme fait qu'une fois réussi : s'il finit en alarme (fin de course non atteinte), s'il est refusé ou s'il n'a pas pu partir, l'avertissement « machine non référencée » réapparaît avant la gravure.
+
 Éditeur vectoriel : la liste « Calque » des propriétés n'est plus coupée ; le bouton « Connecter GRBL » non plus.
 
 Thème New Dusk : le texte de la barre d'avancement de la gravure (« Gravure : 42 % ») n'est plus rogné.
