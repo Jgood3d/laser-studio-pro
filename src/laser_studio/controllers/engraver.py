@@ -247,7 +247,7 @@ class EngraverController(QObject):
             return
         geometry = self._job_geometry()
         x, y = image_origin(geometry)
-        self.connection.run_commands(commands.frame_commands(x, y, geometry['width_mm'], geometry['height_mm']))
+        self.connection.run_commands(commands.frame_commands(x, y, geometry.width_mm, geometry.height_mm))
 
     def unlock(self):
         """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de

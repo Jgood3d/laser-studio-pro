@@ -201,22 +201,19 @@ class WindowState(QObject):
         et l'image source (PIL), encodée par le contrôleur."""
         w = self.window
         (width, height), (offset_x, offset_y) = w.tab_previews.settings.size_mm(), w.tab_previews.settings.offset_mm()
+        # Chaque modèle donne sa partie (to_project) ; la taille, la position et la résolution vivent dans
+        # les champs de la fenêtre.
         data = {
             "w_mm": width,
             "h_mm": height,
-            "machine_bed_w_mm": w.machine.bed_w,
-            "machine_bed_h_mm": w.machine.bed_h,
             "origin_pos": w.job_position_box.origin(),
             "offset_x": offset_x,
             "offset_y": offset_y,
-            **w.image_settings.to_project(),
-            "safe_cut_order": w.grbl.safe_cut_order,
             "lmm": w.resolution_box.lines_per_mm(),
-            "speed_engrave": w.job.engrave_speed,
-            "power_engrave": w.job.engrave_power,
-            "speed_cut": w.job.cut_speed,
-            "power_cut": w.job.cut_power,
-            "passes_cut": w.job.cut_passes,
+            **w.machine.to_project(),
+            **w.image_settings.to_project(),
+            **w.grbl.to_project(),
+            **w.job.to_project(),
             "materials_db": w.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
             "layers": w.layer_manager.to_list(),
@@ -241,22 +238,16 @@ class WindowState(QObject):
 
         panel = w.tab_previews.settings
         panel.set_size(data.get("w_mm", 100.0), data.get("h_mm", 100.0))
-        w.machine.update(bed_w=data.get("machine_bed_w_mm", w.machine.bed_w))
-        w.machine.update(bed_h=data.get("machine_bed_h_mm", w.machine.bed_h))
         w.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
         panel.set_offset(data.get("offset_x", 0.0), data.get("offset_y", 0.0))
-
-        # Réglages de tramage (anciens projets sans "material_bg" : déduite du négatif).
-        w.image_settings.load_project(data)
-        w.grbl.update(safe_cut_order=data.get("safe_cut_order", True))
         w.resolution_box.set_lines_per_mm(data.get("lmm", 10.0))
 
-        # Ancien projet sans calques : sa vitesse / puissance de gravure image vont dans le calque
-        # de gravure. Avec des calques, ce sont eux qui font foi (rechargés plus bas).
-        if "layers" not in data:
-            w.job.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
-        w.job.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
-                               data.get("passes_cut", 2))
+        # Chaque modèle relit sa partie (load_project) ; une clé absente (ancien projet) garde sa valeur
+        # par défaut. Les calques sont rechargés plus bas : ils font foi sur la gravure d'image.
+        w.machine.load_project(data)
+        w.image_settings.load_project(data)
+        w.grbl.load_project(data)
+        w.job.load_project(data)
 
         if "materials_db" in data:
             w.materials.set_materials(data["materials_db"])

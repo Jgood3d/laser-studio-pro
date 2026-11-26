@@ -19,6 +19,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from laser_studio.controllers.engraver import EngraverController
     from laser_studio.core.constants import ORIGIN_CENTER
+    from laser_studio.gcode.params import JobParams
     from laser_studio.i18n import tr
     from laser_studio.models import machine_state as ms
     from laser_studio.models.grbl import GrblConfig
@@ -182,8 +183,8 @@ class ControlTests(unittest.TestCase):
         connection.send_command.assert_not_called()
 
     def test_frame_follows_the_image_position(self):
-        geometry = {'width_mm': 40.0, 'height_mm': 30.0, 'origin_pos': ORIGIN_CENTER,
-                    'offset_x': 100.0, 'offset_y': 80.0}
+        geometry = JobParams(width_mm=40.0, height_mm=30.0, origin_pos=ORIGIN_CENTER, offset_x=100.0,
+                             offset_y=80.0, speed_engrave=1000, power_engrave=30.0, laser_cmd="M4", s_max=1000)
         engraver, connection, _, _ = make_engraver(job_geometry=lambda: geometry)
         engraver.frame()
         connection.run_commands.assert_called_once_with(commands.frame_commands(80.0, 65.0, 40.0, 30.0))

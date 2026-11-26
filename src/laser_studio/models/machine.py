@@ -26,6 +26,17 @@ class MachineConfig(SettingsModel):
     PROFILE_KEYS = {"bed_w": "w", "bed_h": "h", "focal": "focal",
                     "max_speed": "max_speed", "accel": "accel"}
 
+    # Réglage -> clé dans un projet enregistré (le plateau seulement : le reste suit le profil machine).
+    PROJECT_KEYS = {"bed_w": "machine_bed_w_mm", "bed_h": "machine_bed_h_mm"}
+
+    def to_project(self):
+        """Réglages au format d'un projet enregistré."""
+        return {key: self._values[name] for name, key in self.PROJECT_KEYS.items()}
+
+    def load_project(self, data):
+        """Réapplique le plateau d'un projet ; absent (ancien projet) : taille actuelle gardée."""
+        return self.update(**{name: data[key] for name, key in self.PROJECT_KEYS.items() if key in data})
+
     def to_profile(self):
         """Réglages au format d'un profil machine enregistré."""
         return {key: self._values[name] for name, key in self.PROFILE_KEYS.items()}

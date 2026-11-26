@@ -278,11 +278,19 @@ class MainWindowTests(unittest.TestCase):
         self.load_image()
         width = w.tab_previews.settings.width_spin
         width.setValue(42.0)
+        w.machine.update(bed_w=410.0)
+        w.grbl.update(safe_cut_order=False)
+        w.job.set_cut_settings(260, 80, 4)
         data, image = w.state.capture_project()
         width.setValue(77.0)
+        w.machine.update(bed_w=300.0)
+        w.grbl.update(safe_cut_order=True)
+        w.job.set_cut_settings(300, 90, 2)
         w.state.restore_project(data, image)
         self.pump(0.3)
         self.assertAlmostEqual(w.tab_previews.settings.size_mm()[0], 42.0)
+        self.assertEqual((w.machine.bed_w, w.grbl.safe_cut_order), (410.0, False))     # chaque modèle sa partie
+        self.assertEqual((w.job.cut_speed, w.job.cut_power, w.job.cut_passes), (260, 80, 4))
         self.assertTrue(w.image.has_image())
         self.assertEqual(w.state._material_autosave_pause, 0)
 

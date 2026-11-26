@@ -12,6 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 try:
     from laser_studio import gcode
     from laser_studio.gcode.common import OVERSCAN_PERCENT
+    from laser_studio.gcode.params import JobParams
     from laser_studio.controllers import workers
 except ImportError:  # dépendance manquante (PyQt6, svg.path...)
     gcode = workers = None
@@ -20,17 +21,12 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
-class _Params(dict):
-    def __missing__(self, key):
-        return ""
-
-
 def _params(**kw):
-    p = _Params(width_mm=20.0, height_mm=10.0, origin_pos="bottom_left", offset_x=0.0, offset_y=0.0,
-                power_engrave=100.0, speed_engrave=1000, enable_overscan=True, overscan_mode="mm",
-                overscan_dist=2.5, laser_cmd="M4", s_max=1000, algo="Seuil Simple (Binaire)", enable_cut=False)
+    p = dict(width_mm=20.0, height_mm=10.0, origin_pos="bottom_left", offset_x=0.0, offset_y=0.0,
+             power_engrave=100.0, speed_engrave=1000, enable_overscan=True, overscan_mode="mm",
+             overscan_dist=2.5, laser_cmd="M4", s_max=1000, algo="Seuil Simple (Binaire)")
     p.update(kw)
-    return p
+    return JobParams(**p)
 
 
 def _engraving_moves(gcode):
@@ -55,9 +51,6 @@ class ImageMarginTests(unittest.TestCase):
         self.assertEqual(gcode.image_origin(_params(image_overscan=False)), (0.0, 0.0))
         # En pourcentage : de la largeur de l'image (20 mm).
         self.assertEqual(gcode.image_origin(_params(overscan_mode=OVERSCAN_PERCENT, overscan_pct=10.0)), (2.0, 0.0))
-        # Taille et position seules (sans réglage du surbalayage) : aucune marge.
-        self.assertEqual(gcode.image_origin({"origin_pos": "bottom_left", "offset_x": 1.0, "offset_y": 2.0,
-                                             "width_mm": 20.0, "height_mm": 10.0}), (1.0, 2.0))
         # Origine « Centre » : le décalage désigne le centre de l'image, sans marge.
         self.assertEqual(gcode.image_origin(_params(origin_pos="center", offset_x=50.0, offset_y=40.0)),
                          (40.0, 35.0))
@@ -79,14 +72,15 @@ class ImageMarginTests(unittest.TestCase):
             with open(os.path.join(ROOT, name), encoding="utf-8") as f:
                 return f.read()
         gen = source(os.path.join("controllers", "job.py"))
-        check = gen[gen.index("if params['image_overscan'] and processed_array is not None"):]
+        check = gen[gen.index("if params.image_overscan_enabled and processed_array is not None"):]
         self.assertIn("image_origin(params)", check[:check.index("self.dialogs.error")])    # contrôle
         frame = source(os.path.join("controllers", "engraver.py"))
         frame = frame[frame.index("    def frame(self):"):]
         self.assertIn("image_origin(", frame[:frame.index("commands.frame_commands(")])  # cadrage
         work = source(os.path.join("gcode", "job.py"))
         # Calques vectoriels : décalage du job seul (leurs objets ont déjà leur marge à l'import).
-        self.assertIn("vector_layers_data, base_offset_x, base_offset_y, h_mm", work)
+        self.assertIn("base_offset_x, base_offset_y = params.vector_origin()", work)
+        self.assertIn("vector_layers_data, base_offset_x, base_offset_y, params.height_mm", work)
 
 
 if __name__ == "__main__":

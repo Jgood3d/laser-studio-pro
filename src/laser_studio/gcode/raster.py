@@ -3,40 +3,38 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import LaserMoves, overscan_distance, scan_offset_mm
+from laser_studio.gcode.common import LaserMoves
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
-# proportionnelle à son gris (params['algo']).
+# proportionnelle à son gris (JobParams.algo).
 GRAYSCALE_ALGO = "Niveaux de Gris"
 
 def image_origin(params):
-    """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
+    """Coin inférieur gauche de l'image à graver sur le plateau (mm), d'après `params` (JobParams). Origine « Centre » : le
     décalage du job désigne le centre de l'image, sans marge. Sinon, décalage plus, en X seulement, la
     distance de surbalayage quand il est actif (image_overscan_distance) : sans cette marge, le
     surbalayage de la première colonne ferait partir la tête en X négatif dès que le décalage vaut 0.
     Les objets vectoriels reçoivent la même marge à leur import (vector/placement.py)."""
-    if params['origin_pos'] == ORIGIN_CENTER:
-        return (params['offset_x'] - params['width_mm'] / 2.0,
-                params['offset_y'] - params['height_mm'] / 2.0)
-    return params['offset_x'] + image_overscan_distance(params), params['offset_y']
+    if params.origin_pos == ORIGIN_CENTER:
+        return params.vector_origin()
+    return params.offset_x + image_overscan_distance(params), params.offset_y
 
 
 def image_overscan_distance(params):
-    """Surbalayage (mm) de la gravure d'image : réglage global ET calque de
-    gravure (params['image_overscan'], voir layer_overscan_enabled). 0 si les
-    paramètres ne disent rien du surbalayage (taille et position seules)."""
-    if params.get('image_overscan', params.get('enable_overscan', False)):
-        return overscan_distance(params, params['width_mm'], default_dist=params.get('overscan_dist', 2.5))
+    """Surbalayage (mm) de la gravure d'image : réglage global et calque de gravure
+    (JobParams.image_overscan_enabled) ; 0 s'il est désactivé."""
+    if params.image_overscan_enabled:
+        return params.overscan_for(params.width_mm)
     return 0.0
 
 
-def raster_image_gcode(arr, params, image_cmd, progress=None):
+def raster_image_gcode(arr, params, progress=None):
     """G-Code de la gravure de l'image tramée `arr` (0 = brûlé, 255 = intact ;
-    gris en mode « Niveaux de Gris »), à la taille params['width_mm'] x
-    params['height_mm'], coin bas-gauche en image_origin(params).
+    gris en mode « Niveaux de Gris »), à la taille params.width_mm x params.height_mm (JobParams),
+    coin bas-gauche en image_origin(params).
 
-    image_cmd : "M3" ou "M4", écrit une fois au début ; ensuite, seule la puissance S de chaque
-    mouvement est pilotée (voir LaserMoves), et M5 à la fin.
+    Commande laser : params.image_cmd ("M3" ou "M4", celle du calque de gravure), écrite une fois au
+    début ; ensuite, seule la puissance S de chaque mouvement est pilotée (voir LaserMoves), et M5 à la fin.
     progress : fonction appelée avec l'avancement (0 à 70 %), facultative.
 
     Renvoie (lignes, durée en secondes, puissances % des tracés gravés)."""
@@ -44,18 +42,18 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     total_time_seconds = 0.0
     total_power_samples = []
 
-    s_max = params['s_max']
-    w_mm, h_mm = params['width_mm'], params['height_mm']
+    s_max = params.s_max
+    w_mm, h_mm = params.width_mm, params.height_mm
     image_x, image_y = image_origin(params)
 
-    speed_engrave = params['speed_engrave']
+    speed_engrave = params.speed_engrave
     moves = LaserMoves(gcode)
-    moves.laser(image_cmd)
+    moves.laser(params.image_cmd)
 
     h, w = arr.shape
     step_x, step_y = w_mm / w, h_mm / h
-    power_engrave = params['power_engrave']
-    algo = params.get('algo', '')
+    power_engrave = params.power_engrave
+    algo = params.algo
     overscan_dist = image_overscan_distance(params)
 
     # Décalage aller/retour (mm) : la mécanique et le délai d'allumage du
@@ -65,7 +63,7 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     # droite) pour que les contours verticaux se superposent.
     # Réglage propre à la machine ; se calibre avec le motif de test
     # « aller/retour » (voir gcode.calibration.bidir_test_gcode).
-    scan_offset = scan_offset_mm(params)
+    scan_offset = params.scan_offset_mm
 
     scanned_rows = 0    # lignes réellement balayées (sens aller/retour, voir is_ltr)
     for y in range(h):

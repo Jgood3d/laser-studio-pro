@@ -60,7 +60,8 @@ def build_test_matrix_gcode(params):
 
     enable_overscan = params.get('enable_overscan', False)
     if enable_overscan and mode == MATRIX_ENGRAVE:
-        overscan_dist = overscan_distance(params, cell_w)
+        overscan_dist = overscan_distance(params.get('overscan_mode'), params.get('overscan_pct', 5.0),
+                                          params.get('overscan_dist', 2.5), cell_w)
     else:
         overscan_dist = 0.0
 
@@ -139,7 +140,7 @@ def build_test_matrix_gcode(params):
                     tile_lines, tile_sec, _tile_samples = tile_raster_gcode(
                         tile['arr'], x0, y0, cell_w, cell_h, s, p, s_max, laser_cmd,
                         overscan_dist=overscan_dist, grayscale=bool(tile.get('grayscale')),
-                        scan_offset=scan_offset_mm(params))
+                        scan_offset=scan_offset_mm(params.get('scan_offset_mm')))
                     moves.extend(tile_lines)
                     total_time_sec += tile_sec
                     continue
@@ -230,7 +231,7 @@ def build_test_matrix_gcode(params):
 
     avg_p = float(np.mean(power_samples)) if power_samples else 0.0
     text = "\n".join(gcode)
-    return GcodeResult(text, len(gcode), avg_p, job_duration(text, params, total_time_sec))
+    return GcodeResult(text, len(gcode), avg_p, job_duration(text, params.get('machine_limits'), total_time_sec))
 
 
 def matrix_cell_at(params, x_mm, y_mm):
