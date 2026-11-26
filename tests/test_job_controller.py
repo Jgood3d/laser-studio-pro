@@ -56,7 +56,7 @@ class GenerateTests(unittest.TestCase):
         self.assertTrue(started)
         self.assertEqual(events, ["started", "worker.start"])          # l'aperçu est montré avant
         self.assertEqual(dialogs.kinds(), ["confirm"])                 # rappel puissance / vitesse
-        arr, svg, params, vector_data = self.worker_class.call_args[0]
+        arr, params, vector_data = self.worker_class.call_args[0]
         self.assertIs(arr, job.holder["image"])
         self.assertEqual((params['offset_x'], params['speed_engrave']), (5.0, job.engrave_speed))
         self.assertTrue(all(not d["polygons"] for d in vector_data.values()))   # aucun objet vectoriel
@@ -116,12 +116,11 @@ class ParamsTests(unittest.TestCase):
         job, _ = make_job(geometry_kw={'width_mm': 12.0})
         job.grbl.update(laser_cmd="M3", overscan_enabled=True, overscan_mode=1, overscan_pct=7.0,
                         scan_offset_mm=0.2, safe_cut_order=False)
-        job.set_cut_settings(250, 95, 3)
         p = job.build_params()
         self.assertEqual(p['width_mm'], 12.0)
         self.assertEqual((p['laser_cmd'], p['image_laser_cmd']), ("M3", "M3"))
         self.assertEqual((p['overscan_mode'], p['overscan_pct'], p['scan_offset_mm']), ("Pourcentage (%)", 7.0, 0.2))
-        self.assertEqual((p['speed_cut'], p['power_cut'], p['passes_cut']), (250, 95, 3))
+        self.assertNotIn('enable_cut', p)                 # ancienne découpe SVG supprimée
         self.assertFalse(p['safe_cut_order'])
         self.assertTrue(p['image_overscan'])
 
@@ -193,8 +192,8 @@ class TestPatternTests(unittest.TestCase):
         worker = mock.Mock()
         with mock.patch.object(job_module, "AdvancedGCodeWorker", return_value=worker) as cls:
             self.assertTrue(job.generate_gain_test())
-        arr, svg, params, vectors = cls.call_args[0]
-        self.assertEqual((svg, vectors, params["algo"], params["enable_cut"]), (None, None, "Floyd-Steinberg", False))
+        arr, params, vectors = cls.call_args[0]
+        self.assertEqual((vectors, params["algo"]), (None, "Floyd-Steinberg"))
         self.assertEqual(arr.shape[1], round(params["width_mm"] * 10.0))      # 10 lignes/mm (make_job)
         worker.start.assert_called_once()
         got = []

@@ -1,5 +1,6 @@
-"""G-Code d'un job complet : en-tête, gravure de l'image (phase 1), découpe
-du contour SVG (phase 2), calques vectoriels (phase 3), fin de job."""
+"""G-Code d'un job complet : en-tête, gravure de l'image (phase 1), calques
+vectoriels (phase 3), fin de job. La phase 2 (découpe d'un SVG entier, ancien mode) n'existe plus : elle
+traçait au laser un trait entre les contours d'un même chemin ; les calques de découpe la remplacent."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
@@ -7,17 +8,14 @@ from laser_studio.gcode.common import (
     GcodeResult, overscan_distance, scan_offset_mm, start_lines,
 )
 from laser_studio.gcode.timing import job_duration
-from laser_studio.gcode.raster import image_origin, raster_image_gcode
-from laser_studio.gcode.svg_cut import svg_cut_gcode
+from laser_studio.gcode.raster import raster_image_gcode
 from laser_studio.gcode.vector import build_vector_layers_gcode
 
 
-def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, progress=None):
+def build_job_gcode(processed_array, params, vector_layers_data=None, progress=None):
     """G-Code du job.
 
     processed_array : image tramée à graver (tableau numpy), ou None.
-    svg_path : SVG dont les tracés sont découpés autour de l'image si
-    params['enable_cut'] (ou None).
     vector_layers_data : calques vectoriels (voir
     vector.layer_data.extract_vector_layer_data), ou None.
     params : réglages du job (voir JobController.build_params).
@@ -55,15 +53,6 @@ def build_job_gcode(processed_array, svg_path, params, vector_layers_data=None, 
         total_power_samples.extend(samples)
 
     report(70)
-
-    if params['enable_cut'] and svg_path:
-        gcode.append("; --- PHASE 2 : DÉCOUPE VECTORIELLE SVG ---")
-        # Découpe du contour de l'image : avec la marge de l'image (voir image_origin).
-        image_x, image_y = image_origin(params)
-        lines, seconds, samples = svg_cut_gcode(svg_path, params, image_x, image_y)
-        gcode.extend(lines)
-        total_time_seconds += seconds
-        total_power_samples.extend(samples)
 
     report(85)
 

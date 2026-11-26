@@ -32,7 +32,7 @@ class Engraver:
     last_state: Callable[[], str]
     # Pas de homing depuis la connexion : avertit ; False si annulé.
     confirm_homed: Callable[[], bool]
-    # Lance l'envoi d'un G-Code ; la fonction reçoit fin_propre à la fin.
+    # Lance l'envoi d'un G-Code ; la fonction reçoit fin_propre à la fin. None : refusé (graveur occupé).
     start_stream: Callable[[str, Callable[[bool], None]], None]
     # Fin d'un envoi : repère dans le suivi, position, aperçu 2D.
     stream_ended: Callable[[bool], None]
@@ -41,6 +41,8 @@ class Engraver:
     resume_status_poll: Callable[[], None]
     # Plus aucun job en cours (notification, état des boutons...).
     jobs_finished: Callable[[], None]
+    # Job ou commandes déjà en cours sur le graveur : la file ne démarre pas.
+    is_busy: Callable[[], bool] = lambda: False
 
 
 class JobQueueController:
@@ -200,6 +202,10 @@ class JobQueueController:
             log.warning("File : graveur non connecté, abandon")
             self._dialogs.warning(tr("queue.usb_error"), tr("queue.usb_connect"))
             return
+        if engraver.is_busy():
+            log.warning("File : graveur occupé, abandon")
+            self._dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
+            return
         if not engraver.confirm_homed():
             log.info("File : annulée à l'avertissement « pas de homing »")
             return
@@ -251,7 +257,8 @@ class JobQueueController:
                 )
             ]
         )
-        self._engraver.start_stream(job["gcode"], self._on_job_finished)
+        if self._engraver.start_stream(job["gcode"], self._on_job_finished) is None:
+            self._on_job_finished(False)            # graveur occupé : la file s'arrête
 
     def _on_job_finished(self, clean_finish):
         log.info(

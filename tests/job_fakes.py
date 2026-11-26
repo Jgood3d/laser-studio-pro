@@ -83,7 +83,7 @@ def geometry(**kw):
     return g
 
 
-def make_job(image=None, objects=(), dialogs=None, geometry_kw=None, svg_path=None):
+def make_job(image=None, objects=(), dialogs=None, geometry_kw=None):
     """(JobController, FakeDialogs) avec des modèles neufs."""
     dialogs = dialogs or FakeDialogs()
     holder = {"image": image, "objects": list(objects)}
@@ -91,7 +91,6 @@ def make_job(image=None, objects=(), dialogs=None, geometry_kw=None, svg_path=No
         LayersModel(), GrblConfig(), MachineConfig(), ImageSettings(), dialogs,
         geometry=lambda: geometry(**(geometry_kw or {})),
         image=lambda: holder["image"],
-        svg_path=lambda: svg_path,
         vector_objects=lambda: holder["objects"],
         lines_mm=lambda: 10.0,
         material_summary=lambda: "Matière : fond clair",

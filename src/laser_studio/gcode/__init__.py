@@ -3,7 +3,6 @@ machine. Les threads de controllers/workers.py ne font que les appeler.
 
 - job.build_job_gcode : un job complet (image, découpe SVG, calques vectoriels) ;
 - raster : gravure d'une image tramée ;
-- svg_cut : découpe des tracés d'un SVG autour de l'image ;
 - vector : calques vectoriels (gravure remplie, découpe, marquage) ;
 - test_matrix.build_test_matrix_gcode : matrice de test vitesse x puissance / passes ;
 - calibration.bidir_test_gcode : motif de calibrage du décalage aller/retour.

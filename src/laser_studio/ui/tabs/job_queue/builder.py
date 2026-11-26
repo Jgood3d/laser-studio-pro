@@ -21,6 +21,7 @@ def build_job_queue_tab(connection, engraver, dialogs, parent, *, current_gcode,
         pause_status_poll=connection.pause_status_poll,
         resume_status_poll=connection.resume_status_poll,
         jobs_finished=engraver.notify_job_done,
+        is_busy=connection.is_busy,
     )
     job_queue = JobQueueController(tab, parent, machine, current_gcode=current_gcode, log_to_console=log,
                                    sent_log=sent_log, dialogs=dialogs)

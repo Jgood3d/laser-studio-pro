@@ -354,6 +354,18 @@ TEXTS = {
         "de": "Die USB-Verbindung konnte nach mehreren Versuchen nicht wiederhergestellt werden.\n\nKabel und Port prüfen und manuell erneut verbinden.",
         "es": "No se pudo restablecer la conexión USB tras varios intentos.\n\nRevisa el cable, el puerto, y reconéctate manualmente.",
     },
+    "laser.busy_title": {
+        "fr": "Graveur occupé",
+        "en": "Engraver busy",
+        "de": "Graviergerät beschäftigt",
+        "es": "Grabador ocupado",
+    },
+    "laser.busy": {
+        "fr": "Un job ou une commande est en cours d'envoi. Attends la fin (ou arrête-le) avant d'envoyer autre chose.",
+        "en": "A job or a command is being sent. Wait until it ends (or stop it) before sending anything else.",
+        "de": "Ein Auftrag oder Befehl wird gerade gesendet. Warte das Ende ab (oder stoppe ihn), bevor du etwas anderes sendest.",
+        "es": "Se está enviando un trabajo o un comando. Espera a que termine (o deténlo) antes de enviar otra cosa.",
+    },
     "laser.connect_first": {
         "fr": "Connecte d'abord le laser.",
         "en": "Connect the laser first.",
@@ -878,12 +890,6 @@ TEXTS = {
         "de": "Bildgravur: {duration}",
         "es": "Grabado de imagen: {duration}",
     },
-    "gcode.svg_details": {
-        "fr": "Découpe SVG importée : {duration}",
-        "en": "Imported SVG cutting: {duration}",
-        "de": "Importierter SVG-Schnitt: {duration}",
-        "es": "Corte SVG importado: {duration}",
-    },
     "gcode.layer_details": {
         "fr": "Calque « {name} » : {duration}",
         "en": "Layer “{name}”: {duration}",
@@ -1261,12 +1267,6 @@ TEXTS = {
         "en": "Engraving speed",
         "de": "Gravurgeschwindigkeit",
         "es": "Velocidad de grabado",
-    },
-    "gen.speed_row_cut_old": {
-        "fr": "Vitesse Découpe (ancien mode)",
-        "en": "Cutting speed (legacy mode)",
-        "de": "Schneidgeschwindigkeit (alter Modus)",
-        "es": "Velocidad de corte (modo antiguo)",
     },
     "gen.speed_row_layer": {
         "fr": "Calque « {name} »",

@@ -78,7 +78,6 @@ class FullLaserStudio(QMainWindow):
         # centrées sur la fenêtre : les contrôleurs n'ouvrent pas de QMessageBox
         # eux-mêmes, ce qui permet de les tester sans fenêtre.
         self.dialogs = UserDialogs(self)
-        self.loaded_svg_path = None
         # Modèle des calques (models/layers.py) : seule source des réglages des calques.
         self.layer_manager = LayersModel(self)
         # Document de l'éditeur vectoriel (objets, annuler / refaire, presse-papiers) ;
@@ -101,7 +100,6 @@ class FullLaserStudio(QMainWindow):
             self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
             geometry=self._job_geometry,
             image=lambda: self.image.processed_array,
-            svg_path=lambda: self.loaded_svg_path,
             vector_objects=lambda: self.vector_document.objects,
             optimize_path=lambda: self.tab_vector_2d.optimize_path_check.isChecked(),
             lines_mm=lambda: self.resolution_box.lines_per_mm(),

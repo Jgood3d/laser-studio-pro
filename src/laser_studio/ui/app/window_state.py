@@ -214,13 +214,11 @@ class WindowState(QObject):
             "lmm": w.resolution_box.lines_per_mm(),
             "speed_engrave": w.job.engrave_speed,
             "power_engrave": w.job.engrave_power,
-            "enable_cut": w.job.cut_enabled,
             "speed_cut": w.job.cut_speed,
             "power_cut": w.job.cut_power,
             "passes_cut": w.job.cut_passes,
             "materials_db": w.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
-            "svg_path": w.loaded_svg_path,
             "layers": w.layer_manager.to_list(),
             "vector_objects": w.vector_canvas.serialize_objects(),
         }
@@ -257,7 +255,6 @@ class WindowState(QObject):
         # de gravure. Avec des calques, ce sont eux qui font foi (rechargés plus bas).
         if "layers" not in data:
             w.job.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
-        w.job.cut_enabled = bool(data.get("enable_cut", False))
         w.job.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90),
                                data.get("passes_cut", 2))
 
@@ -266,8 +263,6 @@ class WindowState(QObject):
 
         if image is not None:
             w.image.restore_image(image)
-
-        w.loaded_svg_path = data.get("svg_path")
 
         if "layers" in data:
             w.layer_manager.load_list(data["layers"])

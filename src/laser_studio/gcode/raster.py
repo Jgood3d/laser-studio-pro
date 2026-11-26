@@ -3,7 +3,7 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import LaserMoves, overscan_distance, power_value, scan_offset_mm
+from laser_studio.gcode.common import LaserMoves, overscan_distance, scan_offset_mm
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
 # proportionnelle à son gris (params['algo']).
@@ -67,11 +67,6 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     # « aller/retour » (voir gcode.calibration.bidir_test_gcode).
     scan_offset = scan_offset_mm(params)
 
-    def pixel_power_percent(val):
-        if algo == GRAYSCALE_ALGO:
-            return power_engrave * (255.0 - float(val)) / 255.0
-        return power_engrave if val == 0 else 0.0
-
     scanned_rows = 0    # lignes réellement balayées (sens aller/retour, voir is_ltr)
     for y in range(h):
         if progress is not None and h > 0 and y % max(1, h // 50) == 0:
@@ -79,15 +74,16 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             # la phase la plus longue (une ligne de gcode par transition de
             # puissance, sur potentiellement des centaines de milliers de pixels).
             progress(int((y / h) * 70))
-        # Pixels à graver de la ligne (même calcul de puissance que la boucle plus bas, en
-        # une fois) : une ligne vide n'est pas parcourue, et une ligne n'est balayée (avec
-        # son surbalayage) que de son premier à son dernier pixel gravé.
+        # Puissance de chaque pixel de la ligne, en une fois (même arrondi que power_value) : une
+        # ligne vide n'est pas parcourue, et une ligne n'est balayée (avec son surbalayage) que de
+        # son premier à son dernier pixel gravé.
         row_vals = arr[y, :].astype(np.float64)
         if algo == GRAYSCALE_ALGO:
             row_pct = power_engrave * (255.0 - row_vals) / 255.0
         else:
             row_pct = np.where(row_vals == 0, power_engrave, 0.0)
-        burned = np.flatnonzero(np.rint((row_pct / 100.0) * s_max) > 0)
+        row_s = np.maximum(0, np.rint((row_pct / 100.0) * s_max)).astype(np.int64)
+        burned = np.flatnonzero(row_s > 0)
         if burned.size == 0:
             continue
         first_px, last_px = int(burned[0]), int(burned[-1])
@@ -116,16 +112,19 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             moves.move(image_start_x, power=0, feed=speed_engrave)
             total_time_seconds += (abs(image_start_x - margin_start_x) / max(speed_engrave, 1)) * 60.0
 
-        pixels = range(first_px, last_px + 1) if is_ltr else range(last_px, first_px - 1, -1)
+        pixels = np.arange(first_px, last_px + 1) if is_ltr else np.arange(last_px, first_px - 1, -1)
+        powers = row_s[pixels]
+        # Seuls les pixels où la puissance change produisent une ligne de G-Code : la boucle ne passe que
+        # par eux (une image de 2000 px de côté se génère plusieurs fois plus vite qu'en visitant chaque pixel).
+        changes = np.flatnonzero(powers != np.concatenate(([0], powers[:-1])))
 
         cx = image_start_x
         last_p_val = 0
 
-        for x_pixel in pixels:
-            val = arr[y, x_pixel]
-
-            p_percent = pixel_power_percent(val)
-            p_val = power_value(p_percent, s_max)
+        for k in changes:
+            x_pixel = int(pixels[k])
+            p_val = int(powers[k])
+            p_percent = float(row_pct[x_pixel])
 
             if p_val != last_p_val:
                 # Frontière entre le pixel précédent et celui-ci, dans le sens du balayage : bord gauche du

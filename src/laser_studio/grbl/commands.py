@@ -40,6 +40,13 @@ def frame_commands(x, y, width, height):
     ]
 
 
+def homing_succeeded(response):
+    """Vrai si la réponse de GRBL à « $H » se termine par « ok ». « ALARM:9 » (fin de course non atteinte),
+    « error:5 » (homing désactivé), « Pas de réponse » ou une réponse coupée : position toujours inconnue."""
+    lines = [line.strip() for line in (response or "").splitlines() if line.strip()]
+    return bool(lines) and lines[-1] == "ok"
+
+
 def parse_grbl_settings(response):
     """Réponse de « $$ » -> {"$32": "1", "$22": "0", ...} (commentaires
     « (...) » ignorés)."""
