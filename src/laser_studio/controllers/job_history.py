@@ -13,6 +13,7 @@ Actions de la fenêtre « Historique des gravures » (elle émet, ces fonctions 
     dialog.clear_requested.connect(lambda: clear_history(history, dialogs))
 """
 import hashlib
+import statistics
 import threading
 import time
 
@@ -24,6 +25,26 @@ DONE = "done"            # tout envoyé, machine revenue à l'arrêt
 STOPPED = "stopped"      # arrêtée par l'utilisateur (Reset, arrêt d'urgence)
 ERROR = "error"          # GRBL a refusé une ligne : machine arrêtée
 INTERRUPTED = "interrupted"   # autre fin non propre (liaison perdue…)
+
+# Estimation recalée sur l'historique (duration_factor) : au moins FACTOR_MIN_JOBS gravures terminées du profil
+# machine, les FACTOR_RECENT_JOBS dernières ; un job plus court que FACTOR_MIN_SECONDS mesure surtout le
+# démarrage de la machine.
+FACTOR_MIN_JOBS = 3
+FACTOR_RECENT_JOBS = 20
+FACTOR_MIN_SECONDS = 30.0
+
+
+def duration_factor(entries, profile):
+    """(facteur, nombre de gravures) : médiane de durée réelle / durée estimée sur les dernières gravures
+    terminées du profil machine `profile` (entrées de JobHistory, des plus anciennes aux plus récentes) ; None
+    tant qu'il y en a moins de FACTOR_MIN_JOBS. Les simulations ne comptent pas."""
+    ratios = [entry["duration_s"] / entry["estimated_s"] for entry in entries
+              if entry.get("result") == DONE and entry.get("profile") == profile and not entry.get("simulation")
+              and (entry.get("estimated_s") or 0) >= FACTOR_MIN_SECONDS and entry.get("duration_s")]
+    ratios = ratios[-FACTOR_RECENT_JOBS:]
+    if len(ratios) < FACTOR_MIN_JOBS:
+        return None
+    return statistics.median(ratios), len(ratios)
 
 
 def _key(gcode_text):

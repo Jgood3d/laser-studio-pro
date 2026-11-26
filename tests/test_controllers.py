@@ -394,6 +394,16 @@ class ProjectControllerTests(_QtTest):
         self.assertEqual(self.recent[-1], [path])  # projets récents
         self.assertEqual(self.messages, ["information"])
 
+    def test_a_giant_image_in_a_project_is_refused_before_decoding(self):
+        # Projet reçu d'un tiers : 10 000 x 9 000 pixels tiennent dans quelques Ko de PNG, mais pas en mémoire.
+        import base64
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new("1", (10_000, 9_000)).save(buffer, format="PNG")
+        with self.assertRaises(ValueError):
+            ProjectController.decode_image(base64.b64encode(buffer.getvalue()).decode())
+
     def test_cancelled_or_failed_save(self):
         self.assertFalse(self.save_to(""))
         self.assertFalse(self.save_to("/nexiste/pas/p.lsp"))

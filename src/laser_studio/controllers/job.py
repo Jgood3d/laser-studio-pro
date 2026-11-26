@@ -4,11 +4,11 @@ de test et motif aller/retour.
 
 Le G-Code lui-même est calculé par le paquet gcode/ (sans Qt), dans les
 threads de controllers/workers.py. Ce contrôleur ne touche pas aux widgets : il lit
-l'état de l'interface par des fonctions qu'on lui donne, pose ses questions
-par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
+les modèles qu'on lui donne, pose ses questions par UserDialogs et publie ses
+résultats par signaux, que la fenêtre affiche.
 
-    job = JobController(layers, grbl, machine, image_settings, UserDialogs(window),
-                        geometry=window._job_geometry, image=lambda: window.processed_array, ...)
+    job = JobController(layers, grbl, machine, image_settings, placement, document, UserDialogs(window),
+                        image=lambda: window.image)
     job.generated.connect(job_display.show_generated)
     job.generate()
 """
@@ -60,15 +60,13 @@ class JobController(QObject):
     """Préparation et génération du job.
 
     Modèles : `layers` (LayersModel), `grbl` (GrblConfig), `machine`
-    (MachineConfig), `image_settings` (ImageSettings). `dialogs` : UserDialogs.
+    (MachineConfig), `image_settings` (ImageSettings), `placement` (JobPlacement :
+    taille, position, lignes/mm, optimisation du chemin), `document`
+    (VectorDocument : objets de l'éditeur vectoriel). `dialogs` : UserDialogs.
 
-    État de l'interface, lu à chaque usage :
-    - geometry() : dict width_mm, height_mm, origin_pos, offset_x, offset_y ;
-    - image() : image tramée à graver (tableau numpy) ou None ;
-    - vector_objects() : objets de l'éditeur vectoriel ;
-    - optimize_path() : True pour réordonner les tracés (moins de G0) ;
-    - lines_mm() : résolution de gravure (lignes/mm) ;
-    - material_summary() : rappel de la matière, pour la confirmation.
+    `image()` rend le contrôleur de « Graver une image » (ImageController, construit
+    après ce contrôleur) : image tramée à graver (`processed_array`, ou None) et
+    rappel de la matière pour la confirmation (`material_summary()`).
 
     Signaux :
     - started() : génération lancée (le thread démarre) ;
@@ -89,21 +87,17 @@ class JobController(QObject):
     log = pyqtSignal(str)
     status = pyqtSignal(str)
 
-    def __init__(self, layers, grbl, machine, image_settings, dialogs, *, geometry, image,
-                 vector_objects=lambda: [], optimize_path=lambda: True,
-                 lines_mm=lambda: 10.0, material_summary=lambda: "", parent=None):
+    def __init__(self, layers, grbl, machine, image_settings, placement, document, dialogs, *, image,
+                 parent=None):
         super().__init__(parent)
         self.layers = layers
         self.grbl = grbl
         self.machine = machine
         self.image_settings = image_settings
+        self.placement = placement
+        self.document = document
         self.dialogs = dialogs
-        self._geometry = geometry
         self._image = image
-        self._vector_objects = vector_objects
-        self._optimize_path = optimize_path
-        self._lines_mm = lines_mm
-        self._material_summary = material_summary
         # Réglages de découpe de l'ancien mode SVG (supprimé) : encore lus et écrits dans les projets et les
         # profils matériaux (sp_c / pw_c / pass_c), et par un clic sur une matrice de découpe.
         self.cut_speed = 300
@@ -236,7 +230,7 @@ class JobController(QObject):
     def build_params(self):
         """Paramètres de génération du G-Code (gcode.params.JobParams, voir gcode.job.build_job_gcode)."""
         return JobParams(
-            **self._geometry(),
+            **self.placement.geometry(),
             speed_engrave=self.engrave_speed,
             power_engrave=self.engrave_power,
             laser_cmd=self.grbl.laser_cmd,
@@ -244,6 +238,7 @@ class JobController(QObject):
             # Gravure d'image : commande et surbalayage de son calque de gravure.
             image_laser_cmd=self.image_laser_cmd,
             image_overscan=self.image_overscan_enabled,
+            image_air=bool(getattr(self.layers.engrave_layer(), "air", False)),
             algo=self.image_settings.algorithm,
             homing=self.grbl.homing_enabled,
             start_gcode=self.grbl.start_gcode,
@@ -269,12 +264,12 @@ class JobController(QObject):
             return False
 
     def _generate(self):
-        processed_array = self._image()
+        processed_array = self._image().processed_array
         # Image (tramage / séparation couleur) : toujours en mode gravure par
         # défaut, avant la lecture des vitesses/puissances ci-dessous.
         if processed_array is not None:
             self.check_engrave_layer()
-        geometry = self._geometry()
+        geometry = self.placement.geometry()
         job_w, job_h = geometry['width_mm'], geometry['height_mm']
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if job_w > bed_w or job_h > bed_h:
@@ -303,7 +298,7 @@ class JobController(QObject):
                 return False
 
         # Les objets du calque « Ignoré » ne sont ni gravés ni découpés : pas comptés.
-        objects = [o for o in self._vector_objects() if not o.is_ignored()]
+        objects = [o for o in self.document.objects if not o.is_ignored()]
         if processed_array is not None and objects:
             layer_names = sorted(set(
                 self.layers.get(o.layer_id).name for o in objects if self.layers.get(o.layer_id)
@@ -337,7 +332,7 @@ class JobController(QObject):
         # Extraction géométrique des calques vectoriels (texte/formes) : se fait
         # ici dans le thread principal (Qt requis), le résultat est du texte/nombres
         # purs, sans risque pour le thread qui va s'en servir.
-        vector_layers_data = extract_vector_layer_data(objects, self.layers, optimize_path=self._optimize_path())
+        vector_layers_data = extract_vector_layer_data(objects, self.layers, optimize_path=self.placement.optimize_path)
 
         if params.enable_overscan:
             vec_overscan_check = params.overscan_for(params.width_mm)
@@ -366,7 +361,7 @@ class JobController(QObject):
                         layer=self.engrave_layer_label() or "—",
                         power=params.power_engrave, speed=params.speed_engrave,
                         width=params.width_mm, height=params.height_mm,
-                        material=self._material_summary(),
+                        material=self._image().material_summary(),
                     )):
                 return False
 
@@ -390,9 +385,9 @@ class JobController(QObject):
         total_seconds = 0.0
         details = []
 
-        processed_array = self._image()
+        processed_array = self._image().processed_array
         if processed_array is not None:
-            w_mm = self._geometry()['width_mm']
+            w_mm = self.placement.geometry()['width_mm']
             speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
@@ -418,7 +413,7 @@ class JobController(QObject):
 
         # Ce qui sera gravé, calque par calque : chaque objet d'un simple groupe sur son calque, rien pour un
         # objet du calque « Ignoré ».
-        parts = [part for o in self._vector_objects() for part in o.engraving_parts()]
+        parts = [part for o in self.document.objects for part in o.engraving_parts()]
         for layer in self.layers.layers:
             if not layer.enabled:
                 continue
@@ -497,7 +492,7 @@ class JobController(QObject):
             overscan = self.grbl.overscan_dist_mm if self.grbl.overscan_mode == 0 else 2.5
         else:
             overscan = 0.0
-        geometry = self._geometry()
+        geometry = self.placement.geometry()
         params = {
             'origin_pos': geometry['origin_pos'],
             'offset_x': geometry['offset_x'],
@@ -510,7 +505,7 @@ class JobController(QObject):
             'start_gcode': self.grbl.start_gcode,
             'end_gcode': self.grbl.end_gcode,
             'overscan_dist': overscan,
-            'line_pitch_mm': 1.0 / max(self._lines_mm(), 0.1),
+            'line_pitch_mm': 1.0 / max(self.placement.lines_mm, 0.1),
             'machine_limits': self.machine_limits(),
         }
         result = bidir_test_gcode(params)
@@ -527,7 +522,7 @@ class JobController(QObject):
         ligne dont les cases passent régulièrement du noir au clair, et on
         règle le curseur sur la valeur écrite à gauche. Renvoie True si la
         génération a démarré (False : grille plus grande que le plateau)."""
-        arr, w_mm, h_mm = build_gain_test_array(self._lines_mm(), mirror=self.image_settings.mirror_h)
+        arr, w_mm, h_mm = build_gain_test_array(self.placement.lines_mm, mirror=self.image_settings.mirror_h)
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if w_mm > bed_w or h_mm > bed_h:
             self.dialogs.warning(

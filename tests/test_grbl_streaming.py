@@ -62,5 +62,40 @@ class CharacterCountingTests(unittest.TestCase):
         self.assertEqual((stream.acked, stream.next_to_send(), stream.first_pending), (0, None, None))
 
 
+
+class ResumeTests(unittest.TestCase):
+    """Reprise d'un job arrêté (resume_gcode) : état du G-Code au point de reprise, puis la suite."""
+
+    JOB = "G21\nG90\nM4 S0\nF1500\nG0 X10 Y5\nG1 X20 S300\nG1 X25 S500\n; commentaire\nG1 Y8\nM5\nG0 X0 Y0\n"
+
+    def test_resumes_with_the_state_of_the_stopped_line(self):
+        from laser_studio.grbl.streaming import resume_gcode
+        text, line, total = resume_gcode(self.JOB, 6, planner_blocks=0)
+        self.assertEqual((line, total), (7, 10))                  # commentaire écarté, comme à l'envoi
+        self.assertEqual(text.split("\n"), ["G21", "M5", "G90", "G0 X20.000 Y5.000", "M4 S300", "G1 F1500",
+                                            "G1 X25 S500", "G1 Y8", "M5", "G0 X0 Y0"])
+
+    def test_restarts_before_the_blocks_grbl_had_planned(self):
+        # Les blocs acquittés mais encore dans le planificateur de GRBL sont perdus à l'arrêt.
+        from laser_studio.grbl.streaming import resume_gcode
+        self.assertEqual(resume_gcode(self.JOB, 9, planner_blocks=2)[1], 8)
+        self.assertEqual(resume_gcode(self.JOB, 3)[1], 1)          # tout au début : le job entier
+        self.assertIsNone(resume_gcode(self.JOB, 99, planner_blocks=0))
+
+    def test_known_stop_position_resumes_on_the_stroke_in_progress(self):
+        from laser_studio.grbl.streaming import resume_gcode
+        job = "".join(f"G1 X{i} Y0 S100 F1000\n" for i in range(40))
+        text, line, _total = resume_gcode(job, 30, head=(27.4, 0.0))
+        self.assertEqual(line, 29)                                  # le trait X27 -> X28, en cours à l'arrêt
+        self.assertEqual(text.split("\n")[3:6], ["G0 X27.400 Y0.000", "G1 F1000", "G1 X28 Y0 S100 F1000"])
+        self.assertEqual(resume_gcode(job, 30, head=(27.4, 3.0))[1], 16)      # sur aucun trait : 15 lignes avant
+        relative = "G91\n" + "G1 X1 S100 F1000\n" * 40
+        self.assertEqual(resume_gcode(relative, 30, head=(27.4, 0.0))[1], 16)  # relatif : repli sûr
+
+    def test_relative_moves_and_laser_off(self):
+        from laser_studio.grbl.streaming import resume_gcode
+        text = resume_gcode("G91\nG0 X5 Y5\nG1 X2 F800\nM5\nG1 X1\n", 4, planner_blocks=0)[0]
+        self.assertEqual(text.split("\n"), ["G21", "M5", "G90", "G0 X7.000 Y5.000", "G91", "G1 F800", "G1 X1"])
+
 if __name__ == "__main__":
     unittest.main()

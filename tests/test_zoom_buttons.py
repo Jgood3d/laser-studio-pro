@@ -44,8 +44,11 @@ class ZoomButtonsTests(unittest.TestCase):
         box = tab.plot_widget.getViewBox()
         box.setRange(xRange=(0, 100), yRange=(0, 100), padding=0)
         width = box.viewRange()[0][1] - box.viewRange()[0][0]
-        # Loupes dans la barre verticale contre la colonne de droite.
-        self.assertEqual(tab.options_toolbar.actions(), [tab.zoom_in_action, tab.zoom_out_action])
+        # Loupes dans la barre verticale contre la colonne de droite, puis « Simuler » après un séparateur.
+        actions = tab.options_toolbar.actions()
+        self.assertEqual(actions[:2], [tab.zoom_in_action, tab.zoom_out_action])
+        self.assertTrue(actions[2].isSeparator())
+        self.assertIs(actions[3], tab.simulate_action)
         tab.zoom_in_action.trigger()
         self.assertLess(box.viewRange()[0][1] - box.viewRange()[0][0], width)
         tab.zoom_out_action.trigger()

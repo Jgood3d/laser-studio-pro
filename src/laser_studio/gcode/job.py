@@ -32,8 +32,12 @@ def build_job_gcode(processed_array, params, vector_layers_data=None, progress=N
 
     if processed_array is not None:
         gcode.append("; --- PHASE 1 : GRAVURE IMAGE (SURBALAYAGE ACTIF) ---")
+        if params.image_air:
+            gcode.append("M8 ; air assist")
         lines, seconds, samples = raster_image_gcode(processed_array, params, progress=report)
         gcode.extend(lines)
+        if params.image_air:
+            gcode.append("M9")
         total_time_seconds += seconds
         total_power_samples.extend(samples)
 

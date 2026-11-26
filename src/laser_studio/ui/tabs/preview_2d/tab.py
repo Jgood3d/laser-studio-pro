@@ -2,7 +2,7 @@
 gcode/preview.py), position de la tête et traits déjà gravés pendant un job."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFormLayout, QGraphicsPathItem, QGroupBox, QHBoxLayout, QLabel, QSplitter, QToolBar,
@@ -24,6 +24,10 @@ from laser_studio.core.preferences import app_preferences
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
 SIDE_PANEL_LEFT_MARGIN = 6
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job
+# Simulation (bouton « Simuler ») : le parcours rejoué en SIMULATION_SECONDS, une image toutes les
+# SIMULATION_TICK_MS, quelle que soit la taille du job.
+SIMULATION_SECONDS = 15
+SIMULATION_TICK_MS = 30
 RAPID_PEN_COLOR = "#555555"
 
 
@@ -86,6 +90,17 @@ class Preview2DTab(QWidget):
         self.options_toolbar.setIconSize(QSize(20, 20))
         self.options_toolbar.addAction(self.zoom_in_action)
         self.options_toolbar.addAction(self.zoom_out_action)
+        # Simulation : rejoue le parcours du laser (traits gravés dans l'ordre du G-Code) avant de lancer.
+        play_icon = palette_icon("media-playback-start", self.palette())
+        self.simulate_action = QAction(play_icon, tr("preview.simulate_tip"), self)
+        self.simulate_action.setCheckable(True)
+        self.simulate_action.toggled.connect(self._simulate)
+        self.options_toolbar.addSeparator()
+        self.options_toolbar.addAction(self.simulate_action)
+        self._simulation_step = 1
+        self._simulation_timer = QTimer(self)
+        self._simulation_timer.setInterval(SIMULATION_TICK_MS)
+        self._simulation_timer.timeout.connect(self._simulation_tick)
         plot_area = QWidget()
         row = QHBoxLayout(plot_area)
         row.setContentsMargins(0, 0, 0, 0)
@@ -283,7 +298,9 @@ class Preview2DTab(QWidget):
     def set_head_position(self, x, y):
         """Place le point rouge de la tête (position renvoyée par GRBL, MPos
         ou WPos selon $10, sans compensation d'un décalage G92/G54 : repère
-        visuel de suivi, pas une mesure de précision)."""
+        visuel de suivi, pas une mesure de précision). Ignorée pendant une simulation, qui déplace le point."""
+        if self._simulation_timer.isActive():
+            return
         self.position_marker.setData([x], [y])
 
     def clear_head_position(self):
@@ -292,8 +309,36 @@ class Preview2DTab(QWidget):
 
     # -- suivi de la gravure en direct
 
+    def _simulate(self, running):
+        """Bouton « Simuler » : rejoue les traits gravés dans l'ordre du G-Code, en SIMULATION_SECONDS, sur
+        le tracé rouge du suivi de gravure, la tête suivant le trait en cours. Décoché : arrêt."""
+        if not running:
+            self._simulation_timer.stop()
+            return
+        count = len(self.burn.segments)
+        if self.burn_overlay is None or not count:
+            self.simulate_action.setChecked(False)
+            return
+        self.burn.reset()
+        self._simulation_step = max(1, count * SIMULATION_TICK_MS // (SIMULATION_SECONDS * 1000))
+        self._simulation_timer.start()
+
+    def _simulation_tick(self):
+        burn = self.burn
+        burn.done = min(len(burn.segments), burn.done + self._simulation_step)
+        x, y = burn.segments[burn.done - 1, 2:4]
+        self.position_marker.setData([x], [y])
+        self._draw_burn()
+        if burn.done >= len(burn.segments):
+            self.simulate_action.setChecked(False)
+
+    def stop_simulation(self):
+        """Arrête la simulation (nouveau G-Code, gravure réelle qui commence)."""
+        self.simulate_action.setChecked(False)
+
     def reset_burn(self):
         """Nouveau job sur le G-Code affiché : plus rien n'est gravé."""
+        self.stop_simulation()
         if self.burn_overlay is None:
             return
         self.burn.reset()
@@ -324,6 +369,7 @@ class Preview2DTab(QWidget):
         """Dessine le G-Code. `layer_colors` : couleur de chaque calque, par
         nom ; `matrix_engrave` : une matrice de test est en mode gravure
         (affichée en image, sinon en traits)."""
+        self.stop_simulation()
         plot = self.plot_widget
         plot.clear()
         self._bed_item = None                          # retiré par clear() : redessiné ci-dessous

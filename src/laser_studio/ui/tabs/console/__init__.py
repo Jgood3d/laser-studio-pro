@@ -1,11 +1,11 @@
-"""Onglet « Console / G-Code » : G-Code généré et messages.
+"""Onglet « Console / G-Code » : G-Code généré ou importé.
 
 Utilisation :
 
     from laser_studio.ui.tabs.console import ConsoleTab
 
     tab = ConsoleTab()
-    tab.console_edit.append(">>> Connecté")
+    tab.set_gcode(gcode)
 """
 
 from laser_studio.ui.tabs.console.tab import ConsoleTab

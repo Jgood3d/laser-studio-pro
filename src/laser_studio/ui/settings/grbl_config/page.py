@@ -59,6 +59,7 @@ class GrblConfigPage(QWidget):
         self._build_fields()
         layout.addRow(tr("ui.gcode_laser_cmd"), self.laser_cmd_combo)
         layout.addRow(tr("ui.gcode_smax"), self.smax_spin)
+        layout.addRow(tr("ui.frame_power_label"), self._frame_power_spin())
         layout.addRow("", self.homing_check)
         layout.addRow("", self.overscan_check)
         layout.addRow("", self._safe_cut_order_check())
@@ -135,6 +136,17 @@ class GrblConfigPage(QWidget):
         self.safe_cut_order_check.setToolTip(tr("ui.safe_cut_order_tip"))
         return self.safe_cut_order_check
 
+    def _frame_power_spin(self):
+        """Puissance du laser pendant le cadrage (% du S-Max), propre à la machine (mémorisée dans son
+        profil) : une diode qui ne s'allume pas à 0,5 % se règle plus haut."""
+        self.frame_power_spin = QDoubleSpinBox()
+        self.frame_power_spin.setRange(0.0, 5.0)
+        self.frame_power_spin.setSingleStep(0.1)
+        self.frame_power_spin.setDecimals(1)
+        self.frame_power_spin.setSuffix(" %")
+        self.frame_power_spin.setToolTip(tr("ui.frame_power_tip"))
+        return self.frame_power_spin
+
     def _scan_offset_spin(self):
         """Décalage aller/retour : compense le jeu mécanique et le délai
         d'allumage du laser entre les lignes gravées dans un sens et dans
@@ -186,6 +198,7 @@ class GrblConfigPage(QWidget):
                               (self.overscan_dist_spin, "overscan_dist_mm"),
                               (self.overscan_pct_spin, "overscan_pct"),
                               (self.scan_offset_spin, "scan_offset_mm"),
+                              (self.frame_power_spin, "frame_power_pct"),
                               (self.start_gcode_edit, "start_gcode"),
                               (self.end_gcode_edit, "end_gcode"),
                               (self.grbl_settings_edit, "grbl_settings")):

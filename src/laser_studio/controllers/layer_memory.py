@@ -28,6 +28,7 @@ LAYER_SETTING_CASTS = (
     ("perf_gap", float),
     ("ramp", bool),
     ("ramp_power", float),
+    ("air", bool),
 )
 
 

@@ -30,6 +30,7 @@ class JobParams:
     s_max: int                      # S-Max de GRBL ($30)
     image_laser_cmd: Optional[str] = None     # commande du calque de gravure ; None : laser_cmd
     image_overscan: Optional[bool] = None     # surbalayage du calque de gravure ; None : enable_overscan
+    image_air: bool = False                   # air assist (M8) du calque de gravure pendant l'image
     algo: str = ""                  # algorithme de tramage (raster.GRAYSCALE_ALGO : puissance selon le gris)
     # En-tête et fin du job.
     homing: bool = False

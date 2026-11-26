@@ -27,11 +27,15 @@ Vous pouvez ajouter vos propres calques avec **+ Calque**, par exemple :
 Les boutons **Monter** et **Descendre** changent l'ordre des calques : ils
 sont exécutés de haut en bas.
 
+La colonne **Air** allume le soufflage (air assist, commande M8) pendant le
+calque et l'éteint (M9) ensuite : utile en découpe, pour moins de flammes et
+une coupe plus nette.
+
 Un calque a deux sortes de réglages :
 
 - **les mêmes pour tous les matériaux** : nom, couleur, mode (gravure
   remplie, découpe, marquage), surbalayage, commande laser (M3 / M4),
-  actif ;
+  air assist, actif ;
 - **propres à chaque matériau** : puissance, vitesse, nombre de passes, pas
   de remplissage.
 

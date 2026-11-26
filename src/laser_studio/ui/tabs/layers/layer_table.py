@@ -30,7 +30,7 @@ class LayerManagerWidget(QWidget):
                    "layers.col.power", "layers.col.speed", "layers.col.passes",
                    "layers.col.fill_step", "layers.col.overscan", "layers.col.laser", "layers.col.tab_count",
                    "layers.col.tab_width", "layers.col.kerf", "layers.col.lead",
-                   "layers.col.perforation", "layers.col.ramp", "layers.col.active"]
+                   "layers.col.perforation", "layers.col.ramp", "layers.col.air", "layers.col.active"]
 
     def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
@@ -302,9 +302,16 @@ class LayerManagerWidget(QWidget):
         editors["ramp"] = chk_ramp
         editors["ramp_power"] = spin_ramp
 
+        # Air assist : soufflage pendant ce calque (M8 / M9), quel que soit le mode.
+        chk_air = QCheckBox(); chk_air.setChecked(layer.air)
+        chk_air.setToolTip(tr("layers.air_tip"))
+        chk_air.stateChanged.connect(lambda v, i=lid: self._set(i, "air", bool(v)))
+        self.table.setCellWidget(row, 15, self._centered(chk_air))
+        editors["air"] = chk_air
+
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, i=lid: self._set(i, "enabled", bool(v)))
-        self.table.setCellWidget(row, 15, self._centered(chk_enabled))
+        self.table.setCellWidget(row, 16, self._centered(chk_enabled))
         editors["enabled"] = chk_enabled
 
         self._editors[lid] = editors
@@ -349,7 +356,7 @@ class LayerManagerWidget(QWidget):
                     idx = widget.findData(value)
                     if idx >= 0 and idx != widget.currentIndex():
                         widget.setCurrentIndex(idx)
-                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf", "lead", "ramp"):
+                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf", "lead", "ramp", "air"):
                     if widget.isChecked() != value:
                         widget.setChecked(value)
                 elif widget.value() != value:
