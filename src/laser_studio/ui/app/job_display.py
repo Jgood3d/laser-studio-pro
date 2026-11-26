@@ -53,7 +53,8 @@ class JobDisplay(QObject):
     """
 
     def __init__(self, status_bar, console, preview, machine_panel, actions, dialogs, *,
-                 layers, test_matrix, show_preview, log, show_machine_panel, parent=None):
+                 layers, test_matrix, show_preview, log, show_machine_panel, duration_factor=lambda: None,
+                 parent=None):
         super().__init__(parent)
         self.status_bar = status_bar
         self.console = console
@@ -66,6 +67,8 @@ class JobDisplay(QObject):
         self._show_preview = show_preview
         self._log = log
         self._show_machine_panel = show_machine_panel
+        # (facteur, nombre de gravures) qui recale l'estimation sur les durées réelles, ou None (job_history).
+        self._duration_factor = duration_factor
         self._last_state = None                  # état GRBL précédent (alarme qui survient)
         self.connection = None
         # G-Code dessiné dans l'aperçu 2D (généré, importé ou envoyé).
@@ -92,7 +95,12 @@ class JobDisplay(QObject):
         self.status_bar.show_progress(100, tr("gen.done"))
         self.status_bar.hide_progress(delay_ms=1500)
         self.console.set_gcode(gcode_str)
-        duration = tr("gen.stat_time").format(value=duration_text(seconds))
+        correction = self._duration_factor()
+        if correction is None:
+            duration = tr("gen.stat_time").format(value=duration_text(seconds))
+        else:
+            factor, jobs = correction
+            duration = tr("gen.stat_time_corrected").format(value=duration_text(seconds * factor), n=jobs)
         self.status_bar.set_duration(duration)
         self.preview.job_stats_panel.set_stats(tr("gen.stat_lines").format(n=num_lines),
                                                tr("gen.stat_power").format(value=f"{avg_power:.1f}"),

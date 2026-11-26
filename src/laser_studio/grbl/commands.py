@@ -6,7 +6,7 @@ des intentions, le contrôleur du graveur les traduit avec ce module. Les
 futurs boutons « macros » s'appuieront dessus.
 
     jog_command(10.0, 0.0, 3000)        # "$J=G91 G21 X10.000 Y0.000 F3000"
-    frame_commands(10, 10, 40, 30)      # tour du cadre, en G0
+    frame_commands([[(10, 10), (50, 10), (50, 40), (10, 40), (10, 10)]], 5)   # tour du cadre, laser à S5
     parse_grbl_settings(reponse_a_dollar_dollar)   # {"$22": "1", "$32": "1", ...}
 """
 
@@ -28,16 +28,50 @@ def jog_command(dx_mm, dy_mm, speed):
     return f"$J=G91 G21 X{dx_mm:.3f} Y{dy_mm:.3f} F{speed}"
 
 
-def frame_commands(x, y, width, height):
-    """Tour du rectangle (coin bas-gauche en x, y), laser éteint (G0), en
-    revenant au point de départ."""
-    return [
-        f"G0 X{x:.3f} Y{y:.3f}",
-        f"G0 X{x + width:.3f} Y{y:.3f}",
-        f"G0 X{x + width:.3f} Y{y + height:.3f}",
-        f"G0 X{x:.3f} Y{y + height:.3f}",
-        f"G0 X{x:.3f} Y{y:.3f}",
-    ]
+# Cadrage : vitesse (la puissance est un réglage de la machine, GrblConfig.frame_power_pct).
+FRAME_SPEED = 3000                  # mm/min
+
+
+def frame_commands(paths, s_value, speed=FRAME_SPEED):
+    """Tour des tracés fermés `paths` ([(x, y)…] en mm, voir gcode.framing) avec le laser allumé à
+    `s_value` (M3, puissance constante) pour voir le parcours, en G1 à `speed` mm/min. Rejoint chaque départ
+    laser éteint (G0) et éteint le laser (M5) à la fin de chaque tracé."""
+    lines = ["G90"]
+    for path in paths:
+        (x, y), rest = path[0], path[1:]
+        lines += [f"G0 X{x:.3f} Y{y:.3f}", f"M3 S{s_value:g}"]
+        lines += [f"G1 X{px:.3f} Y{py:.3f}" + (f" F{speed}" if i == 0 else "") for i, (px, py) in enumerate(rest)]
+        lines.append("M5")
+    return lines
+
+
+# Lignes qui modifient la carte GRBL au lieu de graver : réglage « $N=… », effacement « $RST=… », ligne de
+# démarrage « $N0=… », veille « $SLP ».
+_BOARD_CHANGE_RE = re.compile(r"\$(?:\d+\s*=|RST|N|SLP)", re.IGNORECASE)
+_POWER_RE = re.compile(r"S\s*(\d+(?:\.\d*)?)", re.IGNORECASE)
+
+
+def risky_lines(gcode_text, s_max, limit=10):
+    """Lignes d'un G-Code (fichier venu d'un autre outil, console retouchée) qui modifient la configuration de
+    GRBL ou demandent une puissance au-delà de `s_max` : à faire confirmer avant l'envoi. Au plus `limit`
+    lignes, dans l'ordre du fichier ; commentaires « ; » et « (…) » ignorés."""
+    # Cas courant (G-Code généré ici) en un seul passage sur le texte : ni « $ » ni puissance au-delà du S-Max.
+    if "$" not in gcode_text and all(float(v) <= s_max for v in _POWER_RE.findall(gcode_text)):
+        return []
+    found = []
+    for raw in gcode_text.split("\n"):
+        line = re.sub(r"\(.*?\)", "", raw.split(";", 1)[0]).strip()
+        if not line:
+            continue
+        if line.startswith("$"):
+            risky = _BOARD_CHANGE_RE.match(line) is not None
+        else:
+            risky = any(float(value) > s_max for value in _POWER_RE.findall(line))
+        if risky:
+            found.append(raw.strip())
+            if len(found) >= limit:
+                break
+    return found
 
 
 def homing_succeeded(response):

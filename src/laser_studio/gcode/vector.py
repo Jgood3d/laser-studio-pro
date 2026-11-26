@@ -200,6 +200,7 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
     items = list(layers_data.items())
     if safe_cut_order:
         items = order_layers_for_cutting(items)
+    air_on = False                      # air assist (M8) allumé par un calque précédent
     for layer_id, data in items:
         layer = data["layer"]
         polygons = data["polygons"]
@@ -218,6 +219,9 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             polygons = order_polygons_inner_first(polygons)
 
         gcode.append(f"; --- CALQUE '{layer['name']}' [{layer['mode']}] ---")
+        if bool(layer.get("air", False)) != air_on:
+            air_on = not air_on
+            gcode.append("M8 ; air assist" if air_on else "M9")
         if kerf_note:
             gcode.append(kerf_note)
         if safe_cut_order and layer["mode"] == CUT_MODE:
@@ -339,4 +343,6 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         cx, cy = nx, ny
 
     moves.off()
+    if air_on:
+        gcode.append("M9")
     return gcode, total_time_seconds, power_samples

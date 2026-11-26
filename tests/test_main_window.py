@@ -98,13 +98,13 @@ class MainWindowTests(unittest.TestCase):
         w, actions, panel = self.win, self.win.app_actions, self.win.bottom_panel
         self.assertEqual(self.tabs.indexOf(w.tab_job_queue), -1)              # plus des onglets de travail
         self.assertEqual(self.tabs.indexOf(w.tab_console_gcode), -1)
-        self.assertTrue(panel.is_collapsed())                                 # replié au premier démarrage
+        self.assertTrue(panel.is_collapsed())                     # replié au démarrage : graveur pas encore connecté
         actions.job_queue.trigger()                                           # bouton de la barre d'outils
         self.assertEqual((panel.current_key(), panel.is_collapsed()), ("queue", False))
         self.assertTrue(actions.bottom_panel.isChecked())
         actions.bottom_panel.trigger()                                        # Ctrl+J : replié
         self.assertTrue(panel.is_collapsed())
-        self.assertIs(self.stores[preferences.UI_CONFIG].values["bottom_panel_collapsed"], True)   # mémorisé
+        self.assertNotIn("bottom_panel_collapsed", self.stores[preferences.UI_CONFIG].values)   # plus mémorisé
         self.assertEqual(actions.bottom_panel.shortcut().toString(), "Ctrl+J")
         w.statusBar().machine_clicked.emit()                                  # clic sur la pastille du graveur
         self.assertEqual((panel.current_key(), panel.is_collapsed()), ("machine", False))
@@ -272,6 +272,15 @@ class MainWindowTests(unittest.TestCase):
         self.assertTrue(w.isVisible())
         self.assertIn("preview_2d_side_sizes", self.stores[preferences.UI_CONFIG].values)
         self.assertEqual(self.stores[preferences.MACHINE_CONFIG].values["machine_bed_w_mm"], w.machine.bed_w)
+
+    def test_job_menu_shortcuts(self):
+        # Ctrl+G reste à « Grouper » de l'éditeur vectoriel : touches de fonction pour le job.
+        w = self.win
+        shortcuts = {a.objectName(): a.shortcut().toString() for a in w.app_actions.job_actions}
+        self.assertEqual(shortcuts, {"job_generate": "F5", "job_frame": "F6", "job_frame_contour": "Shift+F6",
+                                     "job_send": "Ctrl+Return",
+                                     "job_pause": "F7", "job_resume": "F8"})
+        self.assertEqual(w.app_menu_bar.job_menu.actions()[0], w.app_actions.job_actions[0])
 
     def test_project_round_trip(self):
         w = self.win

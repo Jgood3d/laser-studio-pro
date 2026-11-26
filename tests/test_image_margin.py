@@ -75,8 +75,8 @@ class ImageMarginTests(unittest.TestCase):
         check = gen[gen.index("if params.image_overscan_enabled and processed_array is not None"):]
         self.assertIn("image_origin(params)", check[:check.index("self.dialogs.error")])    # contrôle
         frame = source(os.path.join("controllers", "engraver.py"))
-        frame = frame[frame.index("    def frame(self):"):]
-        self.assertIn("image_origin(", frame[:frame.index("commands.frame_commands(")])  # cadrage
+        frame = frame[frame.index("    def frame(self, contour=False):"):]
+        self.assertIn("image_origin(", frame[:frame.index("commands.frame_commands(")])  # cadrage sans G-Code
         work = source(os.path.join("gcode", "job.py"))
         # Calques vectoriels : décalage du job seul (leurs objets ont déjà leur marge à l'import).
         self.assertIn("base_offset_x, base_offset_y = params.vector_origin()", work)

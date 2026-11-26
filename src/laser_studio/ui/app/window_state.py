@@ -131,9 +131,7 @@ class WindowState(QObject):
         modifier ceux d'un profil n'affecte pas les autres) et calques."""
         w = self.window
         return {
-            **w.machine.to_profile(),
-            **w.placement.to_profile(),
-            **w.grbl.profile_values(),
+            **{key: value for model in self._profile_models() for key, value in model.to_profile().items()},
             "materials_db": dict(w.materials.materials),
             "material": w.materials.model.current or "",
             "layers": w.layer_manager.to_list(),
@@ -143,9 +141,8 @@ class WindowState(QObject):
         """Réapplique les champs d'un profil (les calques à part)."""
         w = self.window
         with self.material_autosave_paused():
-            w.machine.apply_profile(profile)
-            w.placement.apply_profile(profile)
-            w.grbl.apply_profile(profile)
+            for model in self._profile_models():
+                model.apply_profile(profile)
             # Matériaux propres à cette machine (repli sur la base par défaut pour un profil
             # enregistré avant cette liaison), et matériau choisi à sa dernière utilisation
             # (sélectionné sans être appliqué).
@@ -156,6 +153,12 @@ class WindowState(QObject):
             material = w.materials.model.current_material()
             if material is not None:
                 self.apply_job_settings(material, layers=False)
+
+    def _profile_models(self):
+        """Modèles enregistrés dans un profil machine, chacun par to_profile / apply_profile : graveur,
+        origine du job, configuration GRBL."""
+        w = self.window
+        return (w.machine, w.placement, w.grbl)
 
     def machine_memory(self):
         """Mémorisé en continu dans le profil actif : calques, matériaux (avec les réglages de leurs

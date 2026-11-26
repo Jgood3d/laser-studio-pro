@@ -36,6 +36,9 @@ class GrblConfig(SettingsModel):
         "overscan_dist_mm": (float, 2.5),
         "overscan_pct": (float, 5.0),
         "scan_offset_mm": (float, 0.0),
+        # Puissance du laser pendant le cadrage, en % du S-Max : assez pour voir le point sans marquer. Certaines
+        # diodes ne s'allument qu'à partir de 1 ou 2 % ; 0 : cadrage laser éteint.
+        "frame_power_pct": (float, 0.5),
         "safe_cut_order": (bool, True),
         "start_gcode": (str, DEFAULT_START_GCODE),
         "end_gcode": (str, DEFAULT_END_GCODE),
@@ -52,7 +55,7 @@ class GrblConfig(SettingsModel):
     # du surbalayage est enregistré par son code (0 = distance fixe,
     # 1 = pourcentage).
     MECHANICAL_FIELDS = ("homing_enabled", "scan_offset_mm", "overscan_enabled",
-                         "overscan_mode", "overscan_dist_mm", "overscan_pct")
+                         "overscan_mode", "overscan_dist_mm", "overscan_pct", "frame_power_pct")
     # Enregistrés quand le profil est mis à jour (« Mettre à jour »).
     PROFILE_FIELDS = ("start_gcode", "end_gcode", "grbl_settings") + MECHANICAL_FIELDS
 
@@ -68,7 +71,7 @@ class GrblConfig(SettingsModel):
         """Réglages mécaniques, au format d'un profil machine."""
         return {name: self._values[name] for name in self.MECHANICAL_FIELDS}
 
-    def profile_values(self):
+    def to_profile(self):
         """Réglages enregistrés dans un profil machine : G-Code de début et de
         fin, réglages GRBL complets ($$) et réglages mécaniques."""
         return {name: self._values[name] for name in self.PROFILE_FIELDS}

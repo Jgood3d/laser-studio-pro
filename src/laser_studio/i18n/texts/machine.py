@@ -300,6 +300,25 @@ TEXTS = {
         "de": "USB nicht verbunden",
         "es": "USB no conectado",
     },
+    "laser.risky_gcode_title": {
+        "fr": "G-Code à vérifier", "en": "G-Code to check",
+        "de": "G-Code prüfen", "es": "G-Code a revisar",
+    },
+    "laser.risky_gcode_body": {
+        "fr": "Ce G-Code contient des lignes qui modifient la configuration du graveur ($…=) ou demandent une puissance au-delà du S-Max ({smax}) :\n\n{lines}\n\nUn fichier venu d'un autre logiciel peut ainsi changer la taille du plateau, le homing ou effacer les réglages.\n\nEnvoyer quand même ?",
+        "en": "This G-Code contains lines that change the engraver configuration ($…=) or ask for more power than S-Max ({smax}):\n\n{lines}\n\nA file from another program can change the bed size or homing, or erase the settings this way.\n\nSend anyway?",
+        "de": "Dieser G-Code enthält Zeilen, die die Konfiguration des Gravierers ändern ($…=) oder mehr Leistung als S-Max ({smax}) verlangen:\n\n{lines}\n\nEine Datei aus einem anderen Programm kann so die Arbeitsfläche, das Homing ändern oder die Einstellungen löschen.\n\nTrotzdem senden?",
+        "es": "Este G-Code contiene líneas que modifican la configuración del grabador ($…=) o piden más potencia que S-Max ({smax}):\n\n{lines}\n\nUn archivo de otro programa puede así cambiar el tamaño de la mesa, el homing o borrar los ajustes.\n\n¿Enviar de todos modos?",
+    },
+    "laser.resume_title": {
+        "fr": "Reprendre le job", "en": "Resume the job", "de": "Job fortsetzen", "es": "Reanudar el trabajo",
+    },
+    "laser.resume_body": {
+        "fr": "Le job s'est arrêté avant la fin. Il reprend à la ligne {line} sur {total} : le laser revient éteint là où il s'est arrêté, puis continue. Si la position d'arrêt n'a pas pu être lue (coupure), les derniers traits avant l'arrêt sont regravés.\n\nVérifiez que la pièce n'a pas bougé. Après une alarme ou une coupure, faites d'abord un homing : sans lui, la reprise peut être décalée.\n\nReprendre maintenant ?",
+        "en": "The job stopped before the end. It resumes at line {line} of {total}: the laser goes back, off, to where it stopped, then continues. If the stop position could not be read (power cut), the last strokes before the stop are engraved again.\n\nCheck that the piece has not moved. After an alarm or a power cut, home first: without it, the resumed job may be offset.\n\nResume now?",
+        "de": "Der Job wurde vor dem Ende angehalten. Er wird bei Zeile {line} von {total} fortgesetzt: Der Laser fährt ausgeschaltet dorthin zurück, wo er angehalten hat, und macht weiter. Konnte die Halteposition nicht gelesen werden (Stromausfall), werden die letzten Striche vor dem Halt erneut graviert.\n\nPrüfen Sie, dass sich das Werkstück nicht bewegt hat. Nach einem Alarm oder Stromausfall zuerst ein Homing durchführen: ohne es kann die Fortsetzung versetzt sein.\n\nJetzt fortsetzen?",
+        "es": "El trabajo se detuvo antes del final. Se reanuda en la línea {line} de {total}: el láser vuelve apagado a donde se detuvo y continúa. Si no se pudo leer la posición de parada (corte de corriente), los últimos trazos antes de la parada se graban de nuevo.\n\nCompruebe que la pieza no se ha movido. Tras una alarma o un corte de corriente, haga primero un homing: sin él, la reanudación puede quedar desplazada.\n\n¿Reanudar ahora?",
+    },
     "laser.no_homing_title": {
         "fr": "Machine non référencée", "en": "Machine not homed",
         "de": "Maschine nicht referenziert", "es": "Máquina no referenciada",
@@ -1086,6 +1105,16 @@ TEXTS = {
         "de": "Laserbefehl:",
         "es": "Comando láser:",
     },
+    "ui.frame_power_label": {
+        "fr": "Puissance du cadrage :", "en": "Framing power:", "de": "Leistung beim Umriss:",
+        "es": "Potencia del encuadre:",
+    },
+    "ui.frame_power_tip": {
+        "fr": "Puissance du laser pendant le cadrage, en % du S-Max : assez pour voir le point sans marquer la matière. Si le point ne s'allume pas à 0,5 %, essayez 1 ou 2 %. 0 : cadrage laser éteint.",
+        "en": "Laser power while framing, in % of S-Max: enough to see the dot without marking the material. If the dot does not light up at 0.5%, try 1 or 2%. 0: framing with the laser off.",
+        "de": "Laserleistung beim Abfahren des Umrisses, in % von S-Max: genug, um den Punkt zu sehen, ohne das Material zu markieren. Leuchtet der Punkt bei 0,5 % nicht, 1 oder 2 % versuchen. 0: Umriss mit ausgeschaltetem Laser.",
+        "es": "Potencia del láser durante el encuadre, en % de S-Max: suficiente para ver el punto sin marcar el material. Si el punto no se enciende al 0,5 %, pruebe con 1 o 2 %. 0: encuadre con el láser apagado.",
+    },
     "ui.gcode_smax": {
         "fr": "S-Max Value ($30):",
         "en": "S-Max Value ($30):",
@@ -1399,6 +1428,12 @@ TEXTS = {
         "en": "Engraver state and head position (mm); click to open the engraver panel",
         "de": "Zustand des Graviergeräts und Kopfposition (mm); Klick öffnet das Gerätefeld",
         "es": "Estado de la grabadora y posición del cabezal (mm); un clic abre el panel de la grabadora",
+    },
+    "gen.stat_time_corrected": {
+        "fr": "Temps Estimé: {value} (recalé sur {n} gravures)",
+        "en": "Estimated Time: {value} (adjusted on {n} jobs)",
+        "de": "Geschätzte Zeit: {value} (an {n} Gravuren angepasst)",
+        "es": "Tiempo estimado: {value} (ajustado con {n} grabados)",
     },
     "gen.stat_time": {
         "fr": "Temps Estimé: {value}",

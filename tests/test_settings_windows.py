@@ -57,9 +57,10 @@ class AppMenusTests(unittest.TestCase):
             last.click()
         self.assertEqual(open_url.call_args[0][0].toString(), button_module.KOFI_URL)
 
-    def test_menu_bar_order_is_file_tools_help(self):
+    def test_menu_bar_order_is_file_job_tools_help(self):
         tr = self.tr
-        self.assertEqual(self.texts(self.menu_bar), [tr("menu.file"), tr("menu.tools"), tr("menu.help")])
+        self.assertEqual(self.texts(self.menu_bar),
+                         [tr("menu.file"), tr("menu.job"), tr("menu.tools"), tr("menu.help")])
 
     def test_bottom_panel_action_has_ctrl_j(self):
         # Plus de menu Affichage : Ctrl+J est une action de la fenêtre.
@@ -271,7 +272,8 @@ class MenuStructureTests(unittest.TestCase):
         # Les options d'affichage sont lues par l'onglet lui-même ; « Optimiser le chemin » est lié au placement,
         # lu par le job.
         self.assertIn('bind(self.tab_vector_2d.optimize_path_check, self.placement, "optimize_path")', src)
-        self.assertIn("optimize_path=lambda: self.placement.optimize_path", src)
+        self.assertIn("optimize_path=self.placement.optimize_path",
+                      read(os.path.join("controllers", "job.py")))
         self.assertNotIn("left_bottom_layout.addWidget(self.chk_", src)
 
     def test_generate_shows_the_2d_tab_as_soon_as_it_starts(self):

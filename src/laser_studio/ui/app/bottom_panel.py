@@ -1,6 +1,7 @@
 """Panneau du bas de la fenêtre, comme celui de VS Code : ses onglets (Graveur, G-code, File d'attente) sur
 une barre toujours visible, sous les onglets de travail. Replié, il ne garde que cette barre ; il se déplie au
-clic sur un onglet, avec Ctrl+J (menu Affichage), ou tout seul pendant une gravure et en cas d'alarme.
+clic sur un onglet, avec Ctrl+J (menu Affichage), ou tout seul pendant une gravure et en cas d'alarme. Il
+démarre replié : au lancement, le graveur n'est pas encore connecté, la place va aux onglets de travail.
 
     panel = BottomPanel([("machine", "Graveur", machine_scroll), ("gcode", "G-code", console)], splitter)
     panel.show_page("machine")
@@ -9,12 +10,9 @@ clic sur un onglet, avec Ctrl+J (menu Affichage), ou tout seul pendant une gravu
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QHBoxLayout, QScrollArea, QStackedWidget, QTabBar, QToolButton, QVBoxLayout, QWidget
 
-from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import palette_icon
 
-# Clé de UIConfig : panneau replié à la dernière utilisation (replié au premier démarrage).
-PANEL_COLLAPSED_SETTING = "bottom_panel_collapsed"
 UNLIMITED_HEIGHT = 16777215              # QWIDGETSIZE_MAX
 
 
@@ -28,6 +26,9 @@ class BottomPanel(QWidget):
         super().__init__(parent)
         self.setProperty("role", "bottom_panel")             # cadres à plat (thèmes modernes, theme.py)
         self.splitter = splitter
+        # Les onglets de travail ne se replient jamais : un QSplitter garde repliée une zone mise à 0, même
+        # quand la fenêtre grandit ensuite (bug : fenêtre vide au démarrage, panneau replié avant l'affichage).
+        splitter.setCollapsible(0, False)
         self.keys = [key for key, _title, _widget in pages]
         self.expanded_sizes = None
         self._collapsed = None
@@ -57,7 +58,7 @@ class BottomPanel(QWidget):
         self.bar.currentChanged.connect(self.stack.setCurrentIndex)
         self.bar.tabBarClicked.connect(lambda _index: self.set_collapsed(False))
         self.toggle_button.clicked.connect(self.toggle)
-        self.set_collapsed(ui_preferences().get_bool(PANEL_COLLAPSED_SETTING, True))
+        self.set_collapsed(True)
 
     def is_collapsed(self):
         return bool(self._collapsed)
@@ -75,8 +76,10 @@ class BottomPanel(QWidget):
 
     def _shrink(self):
         sizes = self.splitter.sizes()
-        if len(sizes) == 2 and self._collapsed:
-            height = self.header.sizeHint().height()
+        height = self.header.sizeHint().height()
+        # Pas encore de taille (fenêtre pas encore affichée) : la hauteur maximale du panneau suffit, la mise en
+        # page donnera le reste aux onglets.
+        if len(sizes) == 2 and self._collapsed and sum(sizes) > height:
             self.splitter.setSizes([sum(sizes) - height, height])
 
     def _fit_to_content(self):
@@ -107,9 +110,6 @@ class BottomPanel(QWidget):
                 QTimer.singleShot(0, lambda sizes=self.expanded_sizes: self.splitter.setSizes(sizes))
             else:
                 QTimer.singleShot(0, self._fit_to_content)       # premier dépliage : la hauteur du contenu
-        first = self._collapsed is None
         self._collapsed = collapsed
         self.toggle_button.setIcon(palette_icon("go-up" if collapsed else "go-down", self.palette()))
-        if not first:
-            ui_preferences().set(PANEL_COLLAPSED_SETTING, collapsed)
         self.collapsed_changed.emit(collapsed)

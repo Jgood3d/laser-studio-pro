@@ -299,6 +299,12 @@ TEXTS = {
               "Hacer clic en una miniatura selecciona ese algoritmo.",
     },
     "preview.display_box": {"fr": "Affichage", "en": "Display", "de": "Anzeige", "es": "Visualización"},
+    "preview.simulate_tip": {
+        "fr": "Simuler : rejoue le parcours du laser dans l'ordre du G-Code, avant de lancer la gravure",
+        "en": "Simulate: replays the laser path in G-Code order, before starting the job",
+        "de": "Simulieren: spielt den Laserweg in der Reihenfolge des G-Codes ab, vor dem Start",
+        "es": "Simular: reproduce el recorrido del láser en el orden del G-Code, antes de lanzar el trabajo",
+    },
     "preview.generation_box": {"fr": "Génération", "en": "Generation", "de": "Erzeugung", "es": "Generación"},
     "preview.material_label": {
         "fr": "Matière :",

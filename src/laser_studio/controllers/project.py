@@ -18,6 +18,8 @@ log = get_logger()
 
 AUTOSAVE_FILENAME = "laser_studio_pro_autosave.json"
 # Projets récents gardés dans le menu Fichier.
+# Image d'un projet : 89 Mpx (Image.MAX_IMAGE_PIXELS de PIL), soit 400 x 400 mm à 23 lignes/mm.
+MAX_PROJECT_IMAGE_PIXELS = 89_478_485
 MAX_RECENT_PROJECTS = 10
 
 
@@ -75,8 +77,13 @@ class ProjectController:
 
     @staticmethod
     def decode_image(text):
-        """Image en niveaux de gris, depuis son PNG en base64."""
-        return Image.open(BytesIO(base64.b64decode(text))).convert("L")
+        """Image en niveaux de gris, depuis son PNG en base64. Sa taille est lue dans l'en-tête avant tout
+        décodage : un projet reçu d'un tiers ne peut pas saturer la mémoire avec une image géante (PIL ne
+        refuse qu'au-delà du double de Image.MAX_IMAGE_PIXELS)."""
+        image = Image.open(BytesIO(base64.b64decode(text)))
+        if image.width * image.height > MAX_PROJECT_IMAGE_PIXELS:
+            raise ValueError(tr("project.image_too_large").format(width=image.width, height=image.height))
+        return image.convert("L")
 
     # -- enregistrer, ouvrir
 

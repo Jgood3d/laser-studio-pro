@@ -133,5 +133,24 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(dialog.table.rowCount(), 3)                    # suit le modèle
 
 
+
+@unittest.skipIf(JobHistory is None, "PyQt6 non importable ici")
+class DurationFactorTests(unittest.TestCase):
+    """Estimation recalée sur les durées réelles des gravures terminées de la même machine."""
+
+    @staticmethod
+    def entry(real, estimate, result="done", profile="Phecda", **extra):
+        return {"result": result, "duration_s": real, "estimated_s": estimate, "profile": profile, **extra}
+
+    def test_median_ratio_of_finished_jobs_of_this_machine(self):
+        from laser_studio.controllers.job_history import duration_factor
+        entries = [self.entry(120, 100), self.entry(150, 100), self.entry(130, 100),
+                   self.entry(999, 100, result="stopped"),                  # arrêtée : ne compte pas
+                   self.entry(999, 100, profile="Atomstack"),               # autre machine
+                   self.entry(999, 100, simulation=50),                     # simulation
+                   self.entry(20, 10)]                                      # trop court
+        self.assertEqual(duration_factor(entries, "Phecda"), (1.3, 3))
+        self.assertIsNone(duration_factor(entries[:2], "Phecda"))            # pas encore assez de gravures
+
 if __name__ == "__main__":
     unittest.main()

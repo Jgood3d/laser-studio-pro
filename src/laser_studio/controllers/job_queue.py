@@ -43,6 +43,8 @@ class Engraver:
     jobs_finished: Callable[[], None]
     # Un job peut-il partir (connecté, ni job, ni homing, ni alarme) ? Sinon, le dit à l'utilisateur.
     may_send: Callable[[], bool] = lambda: True
+    # G-Code qui réécrit la configuration de GRBL ou dépasse le S-Max : confirmé ? (voir confirm_safe_gcode)
+    confirm_gcode: Callable[[str], bool] = lambda _gcode: True
 
 
 class JobQueueController:
@@ -86,6 +88,8 @@ class JobQueueController:
         gcode = self._current_gcode()
         if not gcode.strip():
             self._dialogs.warning(tr("queue.empty_title"), tr("queue.no_gcode"))
+            return
+        if not self._engraver.confirm_gcode(gcode):
             return
         time = datetime.datetime.now().strftime("%H:%M:%S")
         name = self._unique_name(f"Job {len(self.jobs) + 1} — {time}")

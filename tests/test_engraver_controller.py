@@ -38,10 +38,12 @@ class CommandsTests(unittest.TestCase):
     def test_jog(self):
         self.assertEqual(commands.jog_command(10.0, -0.1, 3000), "$J=G91 G21 X10.000 Y-0.100 F3000")
 
-    def test_frame_goes_round_and_back(self):
-        self.assertEqual(commands.frame_commands(10.0, 5.0, 40.0, 30.0), [
-            "G0 X10.000 Y5.000", "G0 X50.000 Y5.000", "G0 X50.000 Y35.000", "G0 X10.000 Y35.000",
-            "G0 X10.000 Y5.000",
+    def test_frame_goes_round_with_the_laser_barely_on(self):
+        square = [(10.0, 5.0), (50.0, 5.0), (50.0, 35.0), (10.0, 35.0), (10.0, 5.0)]
+        self.assertEqual(commands.frame_commands([square, [(0, 0), (1, 0), (0, 0)]], 5), [
+            "G90", "G0 X10.000 Y5.000", "M3 S5", "G1 X50.000 Y5.000 F3000", "G1 X50.000 Y35.000",
+            "G1 X10.000 Y35.000", "G1 X10.000 Y5.000", "M5",
+            "G0 X0.000 Y0.000", "M3 S5", "G1 X1.000 Y0.000 F3000", "G1 X0.000 Y0.000", "M5",   # laser éteint entre deux
         ])
 
     def test_setting_lines(self):
@@ -131,6 +133,67 @@ class SendJobTests(unittest.TestCase):
         on_finished(False)                                              # job interrompu
         self.assertEqual(dialogs.kinds()[-1], "warning")
 
+    def test_gcode_that_rewrites_the_board_is_confirmed_first(self):
+        # Fichier d'un autre outil : « $130=… » change la taille du plateau, S au-delà du S-Max (1000).
+        risky = "G21\n$130=500\nG1 X5 S1500\n"
+        engraver, connection, dialogs, events = make_engraver(gcode=risky, dialogs=FakeDialogs(answer=False))
+        self.assertFalse(engraver.send_job())
+        self.assertEqual(dialogs.kinds(), ["confirm_default_no"])
+        self.assertIn("$130=500", dialogs.calls[0][2])
+        self.assertIn("G1 X5 S1500", dialogs.calls[0][2])
+        connection.start_stream.assert_not_called()
+        engraver, connection, dialogs, events = make_engraver(gcode=risky)
+        self.assertTrue(engraver.send_job())                       # confirmé, puis lancement confirmé
+        self.assertEqual(dialogs.kinds(), ["confirm_default_no", "confirm_default_no"])
+
+    def test_risky_lines_ignore_comments_and_harmless_dollar_commands(self):
+        from laser_studio.grbl.commands import risky_lines
+        text = "; S5000\n(S9999) G1 X2 S10\n$H\n$$\n$X\n$J=G91 X1 F100\n$RST=*\n$N0=M3 S1000\n$SLP\n"
+        self.assertEqual(risky_lines(text, 1000), ["$RST=*", "$N0=M3 S1000", "$SLP"])
+        self.assertEqual(risky_lines("G1 X1 S1000\nG1 X2 S999.5\n", 1000), [])    # au S-Max : normal
+        self.assertEqual(len(risky_lines("G1 S2000\n" * 50, 1000)), 10)           # liste bornée
+
+    def test_a_stopped_job_can_be_resumed_where_it_stopped(self):
+        job = "".join(f"G1 X{i} S100\n" for i in range(40))
+        engraver, connection, dialogs, events = make_engraver(gcode=job)
+        available = []
+        engraver.resume_available.connect(available.append)
+        engraver.start_stream(job, lambda clean: None)
+        engraver._lines_acked(30)
+        engraver.end_stream(False)                                 # alarme, arrêt, coupure
+        self.assertEqual(available[-1], True)
+        self.assertTrue(engraver.resume_job())
+        sent = connection.start_stream.call_args_list[-1][0][0].split("\n")
+        self.assertEqual(sent[:6], ["G21", "M5", "G90", "G0 X14.000 Y0.000", "G1", "G1 X15 S100"])   # 30 - 15
+        self.assertIn("16", dialogs.calls[-1][2])                     # ligne de reprise annoncée
+        engraver.end_stream(True)                                  # fin propre : plus rien à reprendre
+        self.assertEqual((available[-1], engraver.resume_point), (False, None))
+
+    def test_resume_starts_at_the_exact_stop_position(self):
+        # La première position rapportée machine arrêtée est exacte : seul le reste du trait est regravé ; le
+        # homing fait ensuite (tête à l'origine) ne la change plus.
+        job = "".join(f"G1 X{i} Y0 S100 F1000\n" for i in range(40))
+        engraver, connection, dialogs, events = make_engraver(gcode=job)
+        engraver.start_stream(job, lambda clean: None)
+        engraver._status_updated("Run", 25.0, 0.0, 0.0)
+        engraver._lines_acked(30)
+        engraver.end_stream(False)
+        engraver._status_updated("Alarm", 27.4, 0.0, 0.0)            # position exacte à l'arrêt
+        engraver._status_updated("Idle", 0.0, 0.0, 0.0)              # après le homing
+        self.assertTrue(engraver.resume_job())
+        sent = connection.start_stream.call_args_list[-1][0][0].split("\n")
+        self.assertEqual(sent[3:6], ["G0 X27.400 Y0.000", "G1 F1000", "G1 X28 Y0 S100 F1000"])
+
+    def test_pause_and_resume_keys_do_nothing_when_disconnected(self):
+        engraver, connection, dialogs, events = make_engraver(connected=False)
+        engraver.pause()
+        engraver.resume()
+        connection.pause.assert_not_called()
+        connection.resume.assert_not_called()
+        engraver, connection, dialogs, events = make_engraver(state=ms.STREAMING)
+        engraver.pause()
+        connection.pause.assert_called_once()
+
     def test_repeat_sends_the_last_gcode_again(self):
         engraver, connection, dialogs, events = make_engraver(gcode="G0 X9\n")
         connection.last_sent_gcode = "G0 X1\n"
@@ -185,9 +248,30 @@ class ControlTests(unittest.TestCase):
     def test_frame_follows_the_image_position(self):
         geometry = JobParams(width_mm=40.0, height_mm=30.0, origin_pos=ORIGIN_CENTER, offset_x=100.0,
                              offset_y=80.0, speed_engrave=1000, power_engrave=30.0, laser_cmd="M4", s_max=1000)
-        engraver, connection, _, _ = make_engraver(job_geometry=lambda: geometry)
+        engraver, connection, _, _ = make_engraver(job_geometry=lambda: geometry, gcode="")
+        engraver.frame()                                           # pas encore de G-Code : le cadre de l'image
+        square = [(80.0, 65.0), (120.0, 65.0), (120.0, 95.0), (80.0, 95.0), (80.0, 65.0)]
+        connection.run_commands.assert_called_once_with(commands.frame_commands([square], 5.0))   # 0,5 % de S1000
+
+    def test_frame_follows_what_will_be_engraved(self):
+        # G-Code d'une pièce en L : le rectangle l'englobe, le contour suit son creux.
+        job = "G90\nM4 S0\nG0 X0 Y0\nG1 X20 Y0 S500 F1000\nG1 X20 Y6\nG1 X6 Y6\nG1 X6 Y20\nG1 X0 Y20\nG1 X0 Y0\nM5\n"
+        engraver, connection, dialogs, _ = make_engraver(gcode=job)
         engraver.frame()
-        connection.run_commands.assert_called_once_with(commands.frame_commands(80.0, 65.0, 40.0, 30.0))
+        sent = connection.run_commands.call_args[0][0]
+        self.assertEqual(sent[1:4], ["G0 X0.000 Y0.000", "M3 S5", "G1 X20.000 Y0.000 F3000"])
+        self.assertIn("G1 X20.000 Y20.000", sent)                       # coin du rectangle, hors de la pièce
+        engraver.frame(contour=True)
+        sent = connection.run_commands.call_args[0][0]
+        self.assertNotIn("G1 X20.000 Y20.000", sent)                    # le contour rentre dans le creux
+        self.assertEqual((sent[-1], sent.count("M3 S5")), ("M5", 1))
+        engraver.grbl.update(frame_power_pct=2.0)                       # diode qui ne s'allume qu'à 2 %
+        engraver.frame()
+        self.assertIn("M3 S20", connection.run_commands.call_args[0][0])
+        engraver, connection, dialogs, _ = make_engraver(gcode="")
+        engraver.frame(contour=True)                                    # contour sans G-Code : le dire
+        self.assertEqual(dialogs.kinds(), ["warning"])
+        connection.run_commands.assert_not_called()
 
     def test_realtime_commands_are_logged(self):
         engraver, connection, _, events = make_engraver()

@@ -14,6 +14,7 @@ ce module lui dit quoi envoyer et comment lire les réponses. Testable sans mach
     if classify(port.readline()) == OK:
         stream.acknowledge()
 """
+import math
 import re
 from collections import deque
 
@@ -131,3 +132,105 @@ class CharacterCountingStream:
         self._occupancy -= size
         self.acked += 1
         return True
+
+
+# Blocs que GRBL garde dans son planificateur après les avoir acquittés (15 sur un ATmega328p, l'Arduino des
+# graveurs courants) : ils sont perdus à l'arrêt, la reprise repart donc autant de lignes avant la dernière
+# acquittée. Quelques traits sont regravés plutôt qu'un trou laissé dans la gravure.
+PLANNER_BLOCKS = 15
+_WORD_RE = re.compile(r"([A-Z])\s*([-+]?\d*\.?\d+)", re.IGNORECASE)
+
+
+# Distance (mm) en dessous de laquelle la position d'arrêt de la tête est « sur » un trait (resume_gcode).
+ON_SEGMENT_MM = 0.05
+
+
+class _GcodeState:
+    """État du G-Code au fil des lignes : unités, mode absolu, déplacement, laser, vitesse, puissance, position."""
+
+    def __init__(self):
+        self.units, self.absolute, self.motion, self.laser = "G21", True, 0, "M5"
+        self.x = self.y = 0.0
+        self.feed = self.power = None
+
+    def copy(self):
+        state = _GcodeState()
+        state.__dict__.update(self.__dict__)
+        return state
+
+    def apply(self, line):
+        """Avance l'état d'une ligne envoyée ; True si elle déplace la tête en X ou Y."""
+        if line.startswith("$"):
+            return False
+        words = [(letter.upper(), float(value)) for letter, value in _WORD_RE.findall(re.sub(r"\(.*?\)", "", line))]
+        moved = False
+        for letter, value in words:
+            if letter == "G" and value in (0, 1, 2, 3):
+                self.motion = int(value)
+            elif letter == "G" and value in (20, 21):
+                self.units = f"G{int(value)}"
+            elif letter == "G" and value in (90, 91):
+                self.absolute = value == 90
+            elif letter == "M" and value in (3, 4, 5):
+                self.laser = f"M{int(value)}"
+            elif letter == "F":
+                self.feed = value
+            elif letter == "S":
+                self.power = value
+        for letter, value in words:
+            if letter == "X":
+                self.x, moved = (value if self.absolute else self.x + value), True
+            elif letter == "Y":
+                self.y, moved = (value if self.absolute else self.y + value), True
+        return moved
+
+
+def _on_segment(point, a, b, tolerance=ON_SEGMENT_MM):
+    (px, py), (ax, ay), (bx, by) = point, a, b
+    dx, dy = bx - ax, by - ay
+    length2 = dx * dx + dy * dy
+    t = 0.0 if length2 == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / length2))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy)) <= tolerance
+
+
+def resume_gcode(gcode_text, acked, planner_blocks=PLANNER_BLOCKS, head=None):
+    """Reprise d'un job arrêté (alarme, arrêt, coupure) après `acked` lignes acquittées : (texte à envoyer,
+    numéro de la ligne de reprise à partir de 1, nombre de lignes du job), ou None s'il ne reste rien.
+
+    `head` : position (x, y) de la tête à l'arrêt, telle que GRBL l'a rapportée. Parmi les lignes que GRBL
+    pouvait avoir en mémoire, la reprise part de celle dont le trait passe par ce point (la première, s'il y
+    en a plusieurs) et la tête y revient : seul le reste du trait est gravé. Sans position, ou si elle n'est
+    sur aucun de ces traits (décalage d'origine G92, mode relatif), la reprise repart `planner_blocks` lignes
+    avant la dernière acquittée : quelques traits sont regravés plutôt qu'un trou laissé.
+
+    Le texte commence par l'état du G-Code au point de reprise : unités, mode absolu ou relatif, laser éteint
+    pendant le retour en G0, puis commande laser, puissance, mode de déplacement et vitesse ; suivent les
+    lignes restantes.
+
+    shortcut: G92 (décalage d'origine) et arcs G2 / G3 modaux (sans mot G sur la ligne reprise) ne sont pas
+    restitués ; le G-Code généré ici n'en contient pas, à traiter si un fichier importé en a besoin."""
+    lines = gcode_lines(gcode_text)
+    start = max(0, acked - planner_blocks)
+    if start >= len(lines):
+        return None
+    state = _GcodeState()
+    for line in lines[:start]:
+        state.apply(line)
+    x, y = state.x, state.y
+    if head is not None:
+        probe = state.copy()
+        for index in range(start, min(acked, len(lines))):
+            before, (ax, ay) = probe.copy(), (probe.x, probe.y)
+            if probe.apply(lines[index]) and before.absolute and _on_segment(head, (ax, ay), (probe.x, probe.y)):
+                start, state, (x, y) = index, before, head
+                break
+    prologue = [state.units, "M5", "G90", f"G0 X{x:.3f} Y{y:.3f}"]
+    if not state.absolute:
+        prologue.append("G91")
+    if state.laser != "M5":
+        prologue.append(f"{state.laser} S{state.power:g}" if state.power is not None else state.laser)
+    if state.motion in (0, 1):
+        prologue.append(f"G{state.motion} F{state.feed:g}" if state.feed is not None else f"G{state.motion}")
+    elif state.feed is not None:
+        prologue.append(f"F{state.feed:g}")
+    return "\n".join(prologue + lines[start:]), start + 1, len(lines)

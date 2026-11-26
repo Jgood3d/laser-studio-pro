@@ -138,8 +138,8 @@ image devient un dessin vectoriel), *Séparation Couleur / Verre* et
 **Graveur** (connexion, déplacements de la tête, lancement et suivi du
 travail), **Console G-Code** et **File d'attente**. Replié, il ne montre
 que ses onglets ; un clic sur l'un d'eux, **Ctrl+J** ou
-un clic sur la pastille du graveur, en bas à droite, le déplie. Il se
-déplie tout seul quand une gravure démarre et en cas d'alarme.
+un clic sur la pastille du graveur, en bas à droite, le déplie. Il démarre
+replié, et se déplie tout seul quand une gravure démarre et en cas d'alarme.
 
 ## Le G-code
 
@@ -148,6 +148,34 @@ transforme l'image et les éléments vectoriels en commandes GRBL, la langue
 que comprend votre graveur laser (déplacements, vitesse, puissance). Avant
 de lancer le travail, vérifiez le tracé dans l'onglet *Visualisation 2D
 G-Code* : vous y voyez le chemin du laser et la durée estimée.
+
+Le bouton **Simuler** (▶, à droite de l'aperçu) rejoue le parcours du laser
+en une quinzaine de secondes, dans l'ordre où il sera gravé.
+
+**Cadrer** fait faire à la tête le tour du travail, laser allumé à 0,5 %
+pour voir le parcours sans marquer la matière : le rectangle qui contient
+tout le travail (**F6**), ou le tour au plus près de ce qui sera gravé ou
+découpé, creux compris (**Maj+F6**, après avoir généré le G-code). Si le point
+ne s'allume pas, augmentez la **Puissance du cadrage** dans *Configuration
+GRBL* (1 ou 2 %).
+
+Le menu **Job** regroupe les raccourcis : **F5** générer, **F6** et
+**Maj+F6** cadrer, **Ctrl+Entrée** envoyer au laser, **F7** pause, **F8**
+reprise.
+
+Si un travail s'arrête avant la fin (alarme, arrêt, coupure de courant), le
+bouton **Reprendre** (⏩, panneau du graveur) le relance là où il s'était
+arrêté : la tête revient laser éteint au point exact de l'arrêt, puis
+continue. Après une coupure de courant, ce point n'a pas pu être relu : les
+derniers traits avant l'arrêt sont alors regravés. Faites d'abord un homing
+après une alarme ou une coupure.
+
+Un G-code venu d'un autre logiciel qui modifierait la configuration du
+graveur (`$130=…`, `$RST=*`) ou dépasserait la puissance maximale n'est
+envoyé qu'après votre confirmation, lignes en cause affichées.
+
+Après quelques gravures sur la même machine, la durée estimée est recalée
+sur les durées réelles (« recalé sur N gravures »).
 
 Dans le G-code, la puissance et la vitesse d'un calque s'écrivent par
 exemple `S1000 F3000` : `S` est la puissance du laser, `F` la vitesse de

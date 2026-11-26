@@ -37,7 +37,7 @@ from laser_studio.ui.app.window_state import WindowState
 from laser_studio.ui.binding import bind
 from laser_studio.ui.machine.builder import build_machine_panel
 from laser_studio.ui.machine.macros_builder import build_macros
-from laser_studio.controllers.job_history import JobHistoryRecorder
+from laser_studio.controllers.job_history import JobHistoryRecorder, duration_factor
 from laser_studio.models.job_history import JobHistory
 from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.dialogs.macros import MacroEditorDialog
@@ -101,14 +101,8 @@ class FullLaserStudio(QMainWindow):
         # de l'interface par les fonctions ci-dessous ; JobDisplay (créé par
         # init_ui) affiche ses résultats : console, aperçu 2D.
         self.job = JobController(
-            self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
-            geometry=self.placement.geometry,
-            image=lambda: self.image.processed_array,
-            vector_objects=lambda: self.vector_document.objects,
-            optimize_path=lambda: self.placement.optimize_path,
-            lines_mm=lambda: self.placement.lines_mm,
-            material_summary=lambda: self.image.material_summary(),
-            parent=self,
+            self.layer_manager, self.grbl, self.machine, self.image_settings, self.placement, self.vector_document,
+            self.dialogs, image=lambda: self.image, parent=self,
         )
         self.job.log.connect(self.log_message)
         self.job.status.connect(self.show_status_message)
@@ -318,6 +312,11 @@ class FullLaserStudio(QMainWindow):
         # G-code
         actions.estimate_requested.connect(self.job.estimate)
         actions.generate_requested.connect(self.job.generate)
+        actions.send_job_requested.connect(lambda: self.engraver.send_job())
+        actions.frame_requested.connect(self.engraver.frame)
+        actions.frame_contour_requested.connect(lambda: self.engraver.frame(contour=True))
+        actions.pause_requested.connect(self.engraver.pause)
+        actions.resume_requested.connect(self.engraver.resume)
         actions.gcode_import_requested.connect(self.job.import_gcode)
 
     def _build_app_menus(self):
@@ -342,6 +341,7 @@ class FullLaserStudio(QMainWindow):
             show_preview=lambda: self.main_tabs_view.setCurrentWidget(self.tab_vector_2d),
             log=self.log_message,
             show_machine_panel=lambda: self.bottom_panel.show_page("machine"),
+            duration_factor=lambda: duration_factor(self.job_history.entries(), self.machines.current_name()),
             parent=self,
         )
         display = self.job_display
