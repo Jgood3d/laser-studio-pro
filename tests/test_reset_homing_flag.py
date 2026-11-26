@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio.controllers.machine_connection import MachineConnection
+    from laser_studio.models import machine_state as ms
 except ImportError:  # PyQt6, pyserial... manquants
     MachineConnection = None
 
@@ -17,6 +18,9 @@ class _USB:
     def __init__(self, state):
         self.last_state = state
         self.sent = []
+
+    def is_connected(self):
+        return True
 
     def send_raw_byte(self, b):
         self.sent.append(b)
@@ -39,6 +43,8 @@ class SoftResetTests(unittest.TestCase):
     def make(self, state, streaming=False, homed=True):
         c = MachineConnection(usb=_USB(state))
         c.streamer = _Streamer(streaming) if streaming is not None else None
+        if streaming:
+            c._activity = ms.ACTIVITY_STREAMING
         c.homed = homed
         self.lost = []
         c.position_lost.connect(lambda: self.lost.append(True))
@@ -136,7 +142,7 @@ class ConnectionTests(unittest.TestCase):
     def test_home_and_jog_commands(self):
         c = self.make()
         sent = []
-        c.run_commands = lambda cmd: sent.append(cmd) or False      # rien d'envoyé : pas de homing
+        c.run_commands = lambda cmd, activity=None: sent.append(cmd) or False   # rien d'envoyé : pas de homing
         c.homed = True
         self.assertFalse(c.home())
         c.jog(1.0, -0.5, 3000)
@@ -150,14 +156,14 @@ class ConnectionTests(unittest.TestCase):
         for response, homed in (("ok", True), ("[MSG:Homing]\nok", True), ("ALARM:9", False),
                                 ("error:5", False), ("Pas de réponse", False), ("", False)):
             c = self.make()
-            c._home_thread = mock.Mock(responses=[response])
-            c._home_finished()
-            self.assertEqual(c.homed, homed, response)
+            c._activity, c._cmd_thread = ms.ACTIVITY_HOMING, mock.Mock(responses=[response])
+            c._commands_finished()
+            self.assertEqual((c.homed, c.is_busy()), (homed, False), response)
 
     def test_no_command_and_no_second_job_while_a_job_runs(self):
         """Pendant un job, une commande ou un second job mélangeraient leurs lignes avec les siennes."""
         c = self.make()
-        c.streamer = _Streamer(True)
+        c.streamer, c._activity = _Streamer(True), ms.ACTIVITY_STREAMING
         self.assertTrue(c.is_busy())
         self.assertFalse(c.run_commands("$J=G91 X10 F3000"))
         self.assertIsNone(c.start_stream("G1 X1\n", lambda clean: None))

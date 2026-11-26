@@ -56,6 +56,14 @@ class GrblConfig(SettingsModel):
     # Enregistrés quand le profil est mis à jour (« Mettre à jour »).
     PROFILE_FIELDS = ("start_gcode", "end_gcode", "grbl_settings") + MECHANICAL_FIELDS
 
+    def to_project(self):
+        """Réglages enregistrés dans un projet : l'ordre de découpe sûr (le reste suit le profil machine)."""
+        return {"safe_cut_order": self.safe_cut_order}
+
+    def load_project(self, data):
+        """Réapplique les réglages d'un projet ; absent (ancien projet) : ordre sûr, la valeur par défaut."""
+        return self.update(safe_cut_order=data.get("safe_cut_order", True))
+
     def mechanical_values(self):
         """Réglages mécaniques, au format d'un profil machine."""
         return {name: self._values[name] for name in self.MECHANICAL_FIELDS}

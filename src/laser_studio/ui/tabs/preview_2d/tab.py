@@ -13,7 +13,7 @@ import numpy as np
 from laser_studio.gcode.preview import (
     DEFAULT_PREVIEW_MATERIAL, KIND_LAYER, KIND_MATRIX, KIND_RASTER, KIND_SVG_CUT, PREVIEW_MATERIALS,
     PREVIEW_MATERIAL_ORDER, BurnTracker, cut_contours, is_cut_group, is_raster_group,
-    material_background_rect, parse_preview, raster_image,
+    material_background_rect, parse_preview_cached, raster_image,
 )
 from laser_studio.i18n import tr
 from laser_studio.ui.app.theme import theme_color
@@ -45,8 +45,9 @@ class Preview2DTab(QWidget):
         tab.plot_clicked.connect(job.apply_matrix_cell)
 
     Les cases restent lisibles directement (flip_check, negative_check,
-    hide_rapid_check, optimize_path_check). « Optimiser le chemin »
-    s'applique à la prochaine génération, pas à l'aperçu affiché.
+    hide_rapid_check, optimize_path_check). « Optimiser le chemin », dans
+    son propre cadre « Génération », est lié au modèle JobPlacement par la
+    fenêtre et s'applique à la prochaine génération, pas à l'aperçu affiché.
 
     `job_position_box` : cadre « Position du job sur le plateau »
     (JobPositionBox), construit avec l'onglet image, placé en haut de la
@@ -67,6 +68,11 @@ class Preview2DTab(QWidget):
         # Suivi de la gravure du G-Code affiché, et son tracé rouge.
         self.burn = BurnTracker()
         self.burn_overlay = None
+        # Plateau de la machine (largeur, profondeur en mm), dessiné sous le job (set_bed) ; la vue est cadrée
+        # dessus tant qu'aucun G-Code n'est affiché.
+        self._bed = None
+        self._bed_item = None
+        self._showing_gcode = False
         self.job_stats_panel = JobStatsPanel()
         self._create_options()
         self.side_panel = self._side_panel()
@@ -133,19 +139,23 @@ class Preview2DTab(QWidget):
     # -- construction
 
     def _side_panel(self):
-        """Options d'affichage, position du job sur le plateau, puis statistiques du job."""
+        """Options d'affichage, position du job sur le plateau, génération, puis statistiques du job."""
         panel = QWidget()
         panel.setProperty("role", "sidebar")              # panneau latéral (thèmes modernes)
         display = QGroupBox(tr("preview.display_box"))
         form = QFormLayout(display)
         form.addRow(self.material_label, self.material_combo)
-        for check in (self.flip_check, self.negative_check, self.hide_rapid_check, self.optimize_path_check):
+        for check in (self.flip_check, self.negative_check, self.hide_rapid_check):
             form.addRow(check)
+        # « Optimiser le chemin » change le G-Code généré, pas l'affichage : cadre à part.
+        generation = QGroupBox(tr("preview.generation_box"))
+        QFormLayout(generation).addRow(self.optimize_path_check)
         layout = QVBoxLayout(panel)
         # Marge à gauche : les cadres ne touchent pas la poignée du séparateur.
         layout.setContentsMargins(SIDE_PANEL_LEFT_MARGIN, 0, 0, 0)
         layout.addWidget(display)
         layout.addWidget(self.job_position_box)
+        layout.addWidget(generation)
         layout.addWidget(self.job_stats_panel)
         layout.addStretch()
         return panel
@@ -228,6 +238,27 @@ class Preview2DTab(QWidget):
         self.plot_widget.addItem(self.info_text_item)
         return self.plot_widget
 
+    def set_bed(self, width, height):
+        """Plateau de la machine (mm) : contour en pointillés, et vue cadrée dessus tant qu'aucun G-Code n'est
+        affiché (sinon des axes de -1 à 1 sans repère)."""
+        self._bed = (width, height)
+        self._draw_bed()
+        if not self._showing_gcode:
+            self.plot_widget.setRange(QRectF(0.0, 0.0, width, height), padding=0.05)
+
+    def _draw_bed(self):
+        """(Re)dessine le contour du plateau, sans qu'il compte dans le cadrage automatique sur le job."""
+        if self._bed_item is not None:
+            self.plot_widget.removeItem(self._bed_item)
+            self._bed_item = None
+        if self._bed is None:
+            return
+        width, height = self._bed
+        pen = pg.mkPen(color=theme_color("canvas_edge", "#555555"), width=1, style=Qt.PenStyle.DashLine)
+        self._bed_item = pg.PlotDataItem([0, width, width, 0, 0], [0, 0, height, height, 0], pen=pen)
+        self._bed_item.setZValue(-10)
+        self.plot_widget.addItem(self._bed_item, ignoreBounds=True)
+
     # -- événements
 
     def _on_clicked(self, event):
@@ -295,7 +326,10 @@ class Preview2DTab(QWidget):
         (affichée en image, sinon en traits)."""
         plot = self.plot_widget
         plot.clear()
-        preview = parse_preview(gcode_text, layer_colors)
+        self._bed_item = None                          # retiré par clear() : redessiné ci-dessous
+        self._showing_gcode = True
+        self._draw_bed()
+        preview = parse_preview_cached(gcode_text, layer_colors)
         raster_keys = {g.key for g in preview.groups if is_raster_group(g, matrix_engrave)}
         raster_groups = [g for g in preview.groups if g.key in raster_keys]
 

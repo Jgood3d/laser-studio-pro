@@ -186,7 +186,7 @@ class WiringTests(unittest.TestCase):
     def test_groups_and_offset_are_wired_end_to_end(self):
         self.assertIn('"polygon_groups": []', self.src(os.path.join("vector", "layer_data.py")))
         self.assertIn("_scanline_fill_union(groups, y)", self.src(os.path.join("gcode", "vector.py")))
-        self.assertIn("scan_offset=scan_offset_mm(params)", self.src(os.path.join("gcode", "job.py")))
+        self.assertIn("scan_offset=params.scan_offset_mm", self.src(os.path.join("gcode", "job.py")))
 
 
 if __name__ == "__main__":

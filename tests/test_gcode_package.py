@@ -4,6 +4,7 @@ Vérifie que le paquet n'importe pas PyQt6, que les threads de controllers/worke
 produisent exactement le G-Code des fonctions pures, et le contenu du G-Code
 (puissance S, commande laser, surbalayage, décalage retour, en-tête et fin).
 """
+import dataclasses
 import os
 import re
 import subprocess
@@ -18,7 +19,7 @@ sys.path.insert(0, SRC)
 
 from laser_studio.core.constants import ORIGIN_CENTER  # noqa: E402
 from laser_studio.gcode import (  # noqa: E402
-    GcodeResult, MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, build_job_gcode, build_test_matrix_gcode,
+    GcodeResult, JobParams, MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, build_job_gcode, build_test_matrix_gcode,
     image_origin,
 )
 from laser_studio.gcode.common import (  # noqa: E402
@@ -27,7 +28,7 @@ from laser_studio.gcode.common import (  # noqa: E402
 )
 
 MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcode.raster",
-           "laser_studio.gcode.vector", "laser_studio.gcode.job",
+           "laser_studio.gcode.vector", "laser_studio.gcode.job", "laser_studio.gcode.params",
            "laser_studio.gcode.test_matrix", "laser_studio.gcode.calibration", "laser_studio.gcode.preview",
            "laser_studio.models.layer_modes")
 
@@ -35,8 +36,7 @@ MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcod
 def job_params(**kw):
     p = {
         'width_mm': 4.0, 'height_mm': 2.0, 'origin_pos': "bottom_left", 'offset_x': 0.0, 'offset_y': 0.0,
-        'speed_engrave': 1000, 'power_engrave': 35.0, 'enable_cut': False, 'speed_cut': 300,
-        'power_cut': 90.0, 'passes_cut': 1, 'laser_cmd': "M4", 'image_laser_cmd': "M4",
+        'speed_engrave': 1000, 'power_engrave': 35.0, 'laser_cmd': "M4", 'image_laser_cmd': "M4",
         # Dans l'application : surbalayage global ET calque de gravure (layer_overscan_enabled).
         'image_overscan': False, 'algo': "Floyd-Steinberg", 's_max': 1000, 'homing': False,
         'enable_overscan': False, 'overscan_mode': "Distance Fixe (mm)", 'overscan_dist': 2.5,
@@ -44,7 +44,7 @@ def job_params(**kw):
         'safe_cut_order': True,
     }
     p.update(kw)
-    return p
+    return JobParams(**p)
 
 
 def lines(result):
@@ -62,15 +62,13 @@ class NoQtTests(unittest.TestCase):
 
 class CommonTests(unittest.TestCase):
     def test_overscan_distance(self):
-        self.assertEqual(overscan_distance({'overscan_dist': 3.0}, 40.0), 3.0)
-        self.assertEqual(overscan_distance({}, 40.0), 2.5)
-        self.assertEqual(overscan_distance({'overscan_mode': OVERSCAN_PERCENT, 'overscan_pct': 10.0}, 40.0), 4.0)
+        self.assertEqual(overscan_distance("Distance Fixe (mm)", 5.0, 3.0, 40.0), 3.0)
+        self.assertEqual(overscan_distance(OVERSCAN_PERCENT, 10.0, 3.0, 40.0), 4.0)
 
     def test_scan_offset_reads_unusable_values_as_zero(self):
-        self.assertEqual(scan_offset_mm({'scan_offset_mm': 0.15}), 0.15)
+        self.assertEqual(scan_offset_mm(0.15), 0.15)
         for value in (None, "", "abc"):
-            self.assertEqual(scan_offset_mm({'scan_offset_mm': value}), 0.0)
-        self.assertEqual(scan_offset_mm({}), 0.0)
+            self.assertEqual(scan_offset_mm(value), 0.0)
 
     def test_durations(self):
         self.assertEqual(TIME_MARGIN, 1.15)
@@ -95,15 +93,23 @@ class CommonTests(unittest.TestCase):
         self.assertNotIn(25, values)
 
 
-class LegacySvgCutTests(unittest.TestCase):
-    def test_an_old_project_with_the_svg_cut_no_longer_cuts(self):
-        """L'ancien mode « découpe SVG » traçait au laser un trait entre deux contours d'un même chemin :
-        un ancien projet qui l'avait coché ne découpe plus rien en dehors de ses calques."""
-        arr = np.array([[0, 255]], dtype=np.uint8)
-        g = build_job_gcode(arr, job_params(height_mm=1.0, enable_cut=True, speed_cut=300, power_cut=90.0,
-                                            passes_cut=2)).gcode
-        self.assertNotIn("PHASE 2", g)
-        self.assertNotIn("S900", g)                    # puissance de l'ancienne découpe (90 % de 1000)
+class JobParamsTests(unittest.TestCase):
+    def test_an_unknown_or_removed_setting_is_refused(self):
+        """Un réglage mal écrit ou disparu (l'ancienne « découpe SVG ») était ignoré en silence dans un
+        dictionnaire ; JobParams le refuse, et ses champs ne se modifient pas par mégarde."""
+        with self.assertRaises(TypeError):
+            job_params(enable_cut=True)
+        with self.assertRaises(TypeError):
+            job_params(widht_mm=10.0)
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            job_params().width_mm = 10.0
+
+    def test_defaults_follow_the_global_settings(self):
+        p = job_params(image_laser_cmd=None, image_overscan=None, enable_overscan=True,
+                       overscan_mode=OVERSCAN_PERCENT, overscan_pct=10.0, laser_cmd="M3")
+        self.assertEqual((p.image_cmd, p.image_overscan_enabled, p.overscan_for(40.0)), ("M3", True, 4.0))
+        self.assertEqual(job_params(origin_pos=ORIGIN_CENTER, offset_x=50.0, offset_y=40.0).vector_origin(),
+                         (48.0, 39.0))
 
 
 class RasterTests(unittest.TestCase):

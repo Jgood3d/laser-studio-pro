@@ -12,14 +12,15 @@ par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
     job.generated.connect(job_display.show_generated)
     job.generate()
 """
+import dataclasses
 import traceback
 
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
 
-from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
+from laser_studio.gcode.params import JobParams
 from laser_studio.gcode.timing import MachineLimits, straight_lines_seconds
 from laser_studio.grbl.commands import parse_grbl_settings
 from laser_studio.gcode.test_matrix import matrix_cell_at
@@ -168,6 +169,19 @@ class JobController(QObject):
         self.cut_power = _clamp(power, CUT_POWER_RANGE)
         self.cut_passes = _clamp(passes, CUT_PASSES_RANGE)
 
+    def to_project(self):
+        """Réglages de gravure et de découpe au format d'un projet enregistré. La gravure d'image suit son
+        calque (enregistré avec les calques) ; ses valeurs restent écrites pour les anciennes versions."""
+        return {"speed_engrave": self.engrave_speed, "power_engrave": self.engrave_power,
+                "speed_cut": self.cut_speed, "power_cut": self.cut_power, "passes_cut": self.cut_passes}
+
+    def load_project(self, data):
+        """Réapplique les réglages d'un projet. Ancien projet sans calques : sa vitesse et sa puissance de
+        gravure d'image vont dans le calque de gravure ; avec des calques, ce sont eux qui font foi."""
+        if "layers" not in data:
+            self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
+        self.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90), data.get("passes_cut", 2))
+
     def engrave_layer_label(self):
         """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
         layer = self.layers.engrave_layer()
@@ -194,7 +208,7 @@ class JobController(QObject):
         comprise (gcode.image_origin) : sert à caler le puzzle sur l'image."""
         params = self.build_params()
         x, y = image_origin(params)
-        return float(x), float(y), float(params['width_mm']), float(params['height_mm'])
+        return float(x), float(y), float(params.width_mm), float(params.height_mm)
 
     def machine_limits(self):
         """Limites de la machine pour estimer les durées (gcode.timing.MachineLimits, en dictionnaire) :
@@ -220,32 +234,26 @@ class JobController(QObject):
         }
 
     def build_params(self):
-        """Paramètres de génération du G-Code (voir gcode.job.build_job_gcode)."""
-        params = dict(self._geometry())
-        params.update({
-            'speed_engrave': self.engrave_speed,
-            'power_engrave': self.engrave_power,
-            'laser_cmd': self.grbl.laser_cmd,
+        """Paramètres de génération du G-Code (gcode.params.JobParams, voir gcode.job.build_job_gcode)."""
+        return JobParams(
+            **self._geometry(),
+            speed_engrave=self.engrave_speed,
+            power_engrave=self.engrave_power,
+            laser_cmd=self.grbl.laser_cmd,
+            s_max=self.grbl.smax,
             # Gravure d'image : commande et surbalayage de son calque de gravure.
-            'image_laser_cmd': self.image_laser_cmd,
-            'image_overscan': self.image_overscan_enabled,
-            'algo': self.image_settings.algorithm,
-            's_max': self.grbl.smax,
-            'homing': self.grbl.homing_enabled,
-            'start_gcode': self.grbl.start_gcode,
-            'end_gcode': self.grbl.end_gcode,
+            image_laser_cmd=self.image_laser_cmd,
+            image_overscan=self.image_overscan_enabled,
+            algo=self.image_settings.algorithm,
+            homing=self.grbl.homing_enabled,
+            start_gcode=self.grbl.start_gcode,
+            end_gcode=self.grbl.end_gcode,
             # Graver avant de découper ; intérieurs avant extérieurs (voir vector/order.py).
-            'safe_cut_order': self.grbl.safe_cut_order,
+            safe_cut_order=self.grbl.safe_cut_order,
             # Durée estimée comme GRBL planifie ses déplacements (gcode.timing).
-            'machine_limits': self.machine_limits(),
-        })
-        params.update(self._overscan_values())
-        return params
-
-    def _overscan_check_distance(self, params):
-        if params['overscan_mode'] == OVERSCAN_PERCENT:
-            return params['width_mm'] * (params['overscan_pct'] / 100.0)
-        return params['overscan_dist']
+            machine_limits=self.machine_limits(),
+            **self._overscan_values(),
+        )
 
     # -- génération du job
 
@@ -312,14 +320,14 @@ class JobController(QObject):
 
         params = self.build_params()
 
-        if params['image_overscan'] and processed_array is not None:
-            overscan_check = self._overscan_check_distance(params)
+        if params.image_overscan_enabled and processed_array is not None:
+            overscan_check = params.overscan_for(params.width_mm)
             base_x_check = image_origin(params)[0]
             if base_x_check - overscan_check < 0:
                 self.dialogs.error(
                     tr("gen.overscan_title"),
                     tr("gen.overscan_body").format(
-                        overscan=overscan_check, offset=params['offset_x'],
+                        overscan=overscan_check, offset=params.offset_x,
                         start=base_x_check - overscan_check,
                         tab_dims=tr("ui.tab_image_tracing"), tab_grbl=tr("tab.grbl_config"),
                     ),
@@ -331,10 +339,9 @@ class JobController(QObject):
         # purs, sans risque pour le thread qui va s'en servir.
         vector_layers_data = extract_vector_layer_data(objects, self.layers, optimize_path=self._optimize_path())
 
-        if params['enable_overscan']:
-            vec_overscan_check = self._overscan_check_distance(params)
-            base_x = (params['offset_x'] - (params['width_mm'] / 2.0)
-                      if params['origin_pos'] == ORIGIN_CENTER else params['offset_x'])
+        if params.enable_overscan:
+            vec_overscan_check = params.overscan_for(params.width_mm)
+            base_x = params.vector_origin()[0]
             for data in vector_layers_data.values():
                 layer = data["layer"]
                 if layer["mode"] != MODE_FILL or not data["polygons"] or not layer_overscan_enabled(layer, True):
@@ -357,13 +364,14 @@ class JobController(QObject):
                     tr("gen.engrave_confirm_title"),
                     tr("gen.engrave_confirm_body").format(
                         layer=self.engrave_layer_label() or "—",
-                        power=params['power_engrave'], speed=params['speed_engrave'],
-                        width=params['width_mm'], height=params['height_mm'],
+                        power=params.power_engrave, speed=params.speed_engrave,
+                        width=params.width_mm, height=params.height_mm,
                         material=self._material_summary(),
                     )):
                 return False
 
-        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data)
+        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data,
+                                          layer_colors=self.layers.colors_by_name())
         self.worker.finished.connect(self.generated)
         self.worker.progress.connect(self.progress)
         self.worker.error.connect(self.failed)
@@ -526,8 +534,7 @@ class JobController(QObject):
                 tr("sep.gain_test_title"),
                 tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h))
             return False
-        params = self.build_params()
-        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg")
+        params = dataclasses.replace(self.build_params(), width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg")
         self.gain_test_worker = AdvancedGCodeWorker(arr, params, None)
         self.gain_test_worker.finished.connect(self._on_gain_test_ready)
         self.gain_test_worker.error.connect(self.failed)

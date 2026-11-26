@@ -1,5 +1,5 @@
-"""Thèmes de Laser Studio Pro (palette + feuille de style) : clair, sombre, Dusk, New Dusk, New Dawn, Warm dim, Neon,
-Retro 80, Jarvis."""
+"""Thèmes de Laser Studio Pro (palette + feuille de style) : clair, sombre, Dusk, New Dusk, New Dusk Blue Petrol,
+New Dawn, Warm dim, Neon, Retro 80, Jarvis."""
 import re
 import shutil
 import tempfile
@@ -96,11 +96,51 @@ THEMES = {
         "scroll": "#4f5666",
         "disabled": "#6a7385",
     },
-    # New Dusk : Dusk modernisé, sur les couleurs du thème Solarized Dark de VS Code (bleu pétrole profond,
-    # panneaux plus sombres que la zone de travail, accent bleu, boutons sarcelle). Style « modern » : à plat,
-    # coins arrondis, onglets soulignés, barres de défilement fines (voir _modern_stylesheet).
+    # New Dusk : Dusk modernisé, sur les couleurs gris-bleu doux de Dusk (type Nord). Style « modern » : à plat,
+    # coins arrondis, onglets soulignés, barres de défilement fines, icônes d'une couleur (voir _modern_stylesheet).
     "new_dusk": {
         "label_key": "theme.new_dusk",
+        "mono_icons": True,             # icônes d'une seule couleur, comme VS Code (voir monochrome_svg)
+        "modern": True,
+        "window": "#2b303b",
+        "base": "#232831",
+        "alt": "#353b4a",
+        "button": "#3b4252",
+        "button_hover": "#434c5e",
+        "border": "#4c566a",
+        "text": "#d8dee9",
+        "muted": "#9aa3b5",
+        "accent": "#88c0d0",
+        "accent_hover": "#9fcfdc",
+        "on_accent": "#2b303b",
+        "tooltip_bg": "#353b4a",
+        "tooltip_fg": "#d8dee9",
+        "link": "#88c0d0",
+        "group_bg": "#2f3542",
+        "input_bg": "#323846",
+        "toolbar_bg": "#232831",
+        "tab_bg": "#353b4a",
+        "tab_separator": "#2f3542",
+        "sidebar": "#232831",
+        "panel_border": "#1e222a",
+        "tab_selected": "#2b303b",
+        "menu_bg": "#353b4a",
+        "menu_sel": "#434c5e",
+        "scroll": "#4c566a",
+        "disabled": "#6a7385",
+        "primary": "#5e81ac",
+        "primary_hover": "#6d8fba",
+        # Zones de dessin (canevas vectoriel, aperçus) : voir theme_color.
+        "canvas": "#232831",
+        "canvas_minor": "#2a303b",
+        "canvas_grid": "#363d4c",
+        "canvas_edge": "#6b7a94",
+        "canvas_label": "#8a93a6",
+    },
+    # New Dusk Blue Petrol : la première version de New Dusk, sur les couleurs du thème Solarized Dark de VS Code
+    # (bleu pétrole profond, panneaux plus sombres que la zone de travail, accent bleu, boutons sarcelle).
+    "new_dusk_petrol": {
+        "label_key": "theme.new_dusk_petrol",
         "mono_icons": True,             # icônes d'une seule couleur, comme VS Code (voir monochrome_svg)
         "modern": True,
         "window": "#002b36",
@@ -138,45 +178,45 @@ THEMES = {
         "canvas_edge": "#2f7a8a",
         "canvas_label": "#6a949b",
     },
-    # Version claire de New Dusk, d'après le thème « Light Modern » de VS Code : blanc, gris neutres, bleu.
+    # Version claire de New Dusk, sur les couleurs du thème Clair (gris doux plutôt que blanc pur).
     "new_dawn": {
         "label_key": "theme.new_dawn",
         "mono_icons": True,
         "modern": True,
-        "window": "#ffffff",
+        "window": "#f3f3f3",
         "base": "#ffffff",
-        "alt": "#f3f3f3",
-        "button": "#ededed",
-        "button_hover": "#e1e1e1",
-        "border": "#d4d4d4",
-        "text": "#3b3b3b",
-        "muted": "#6e6e6e",
-        "accent": "#005fb8",
-        "accent_hover": "#0258a8",
+        "alt": "#f5f5f5",
+        "button": "#ffffff",
+        "button_hover": "#e5f1fb",
+        "border": "#adadad",
+        "text": "#1a1a1a",
+        "muted": "#666666",
+        "accent": "#0078d4",
+        "accent_hover": "#4aa3e8",
         "on_accent": "#ffffff",
-        "tooltip_bg": "#f8f8f8",
-        "tooltip_fg": "#3b3b3b",
-        "link": "#005fb8",
-        "group_bg": "#fbfbfb",
+        "tooltip_bg": "#ffffff",
+        "tooltip_fg": "#1a1a1a",
+        "link": "#0066cc",
+        "group_bg": "#f9f9f9",
         "input_bg": "#ffffff",
-        "toolbar_bg": "#f8f8f8",
-        "tab_bg": "#f8f8f8",
-        "tab_separator": "#e5e5e5",
-        "sidebar": "#f8f8f8",
-        "panel_border": "#e5e5e5",
-        "tab_selected": "#ffffff",
+        "toolbar_bg": "#ebebeb",
+        "tab_bg": "#ebebeb",
+        "tab_separator": "#dcdcdc",
+        "sidebar": "#ebebeb",
+        "panel_border": "#d6d6d6",
+        "tab_selected": "#f3f3f3",
         "menu_bg": "#ffffff",
-        "menu_sel": "#dbe8f5",
-        "scroll": "#c4c4c4",
-        "disabled": "#a6a6a6",
-        "primary": "#0f7b6c",
-        "primary_hover": "#0b6559",
-        "canvas": "#ffffff",
-        "canvas_minor": "#f2f2f2",
-        "canvas_grid": "#e2e2e2",
-        "canvas_edge": "#9a9a9a",
-        "canvas_label": "#767676",
-        "canvas_selection": "#3b3b3b",   # contour de sélection (blanc, invisible sur fond clair)
+        "menu_sel": "#e5f1fb",
+        "scroll": "#c0c0c0",
+        "disabled": "#a0a0a0",
+        "primary": "#0067b8",
+        "primary_hover": "#005a9e",
+        "canvas": "#f3f3f3",
+        "canvas_minor": "#e6e6e6",
+        "canvas_grid": "#d4d4d4",
+        "canvas_edge": "#8a8a8a",
+        "canvas_label": "#666666",
+        "canvas_selection": "#1a1a1a",   # contour de sélection (blanc, invisible sur fond clair)
     },
     # Gris chaud ambré — ambiance atelier / bois
     "warm": {
@@ -1119,6 +1159,8 @@ def normalize_theme_name(theme_name) -> str:
         "new_dusk": "new_dusk",
         "new-dusk": "new_dusk",
         "new dusk": "new_dusk",
+        "new_dusk_petrol": "new_dusk_petrol",
+        "new dusk blue petrol": "new_dusk_petrol",
         "new_dawn": "new_dawn",
         "new-dawn": "new_dawn",
         "new dawn": "new_dawn",
@@ -1181,7 +1223,7 @@ def apply_app_theme(app: QApplication, theme_name: str):
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("dark", "light", "dusk", "new_dusk", "new_dawn", "warm", "neon", "retro80", "jarvis")
+    order = ("dark", "light", "dusk", "new_dusk", "new_dusk_petrol", "new_dawn", "warm", "neon", "retro80", "jarvis")
     return [(code, THEMES[code]["label_key"]) for code in order]
 
 

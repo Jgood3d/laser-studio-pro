@@ -31,7 +31,12 @@ l'onglet *Graver une image vectorielle* (voir
 |-------------------|------|
 | Largeur, Hauteur  | Taille de la gravure, en mm |
 | Conserver le ratio | Modifier la largeur ajuste la hauteur, pour ne pas déformer l'image |
-| Offset X, Offset Y | Position de l'image sur le plateau, depuis l'origine de la machine |
+
+La **position du job sur le plateau** (ancrage de l'origine, Offset X et
+Offset Y) se règle dans l'onglet *Visualisation 2D G-Code*, là où l'on voit
+le job sur le plateau dessiné en pointillés. La case **Optimiser le chemin**
+est à côté, dans le cadre **Génération** : elle change l'ordre des tracés du
+G-Code généré, pas l'affichage.
 
 À l'ouverture, l'image est insérée à sa taille d'origine, ou réduite si
 elle dépasse la zone de travail. La barre d'outils permet aussi de la
@@ -62,7 +67,7 @@ Couleurs (Négatif)**, que vous pouvez aussi régler à la main.
 
 L'image est gravée avec la **puissance** et la **vitesse** d'un calque en
 mode *Gravure remplie*. Choisissez-le dans la liste *Calque de gravure* ;
-ses réglages se modifient dans l'onglet *Calques (Layers)*. Voir
+ses réglages se modifient dans l'onglet *Calques*. Voir
 [Comprendre les calques et les matériaux](calques-et-materiaux.md).
 
 ## Les réglages de l'image

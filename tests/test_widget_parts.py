@@ -86,8 +86,9 @@ class WidgetPartsTests(unittest.TestCase):
         for button in commands.findChildren(QToolButton):
             button.click()
         self.assertEqual(received, [[()]] * 5)
-        commands.set_send_enabled(False)
+        commands.set_allowed(lambda action: action == "realtime")           # pendant un job
         self.assertFalse(commands.send_button.isEnabled())
+        self.assertTrue(all(b.isEnabled() for b in commands.realtime_buttons))
 
     def test_machine_params_profile_round_trip(self):
         """Profil machine : porté par le modèle MachineConfig, auquel la page est liée."""
@@ -103,27 +104,45 @@ class WidgetPartsTests(unittest.TestCase):
             (420.0, 6000.0, 500.0),
         )
 
+    def test_machine_preferences_round_trip(self):
+        from laser_studio.models.machine import MachineConfig
+        machine = MachineConfig()
+        machine.update(bed_w=420.0, focal=0.08)
+        prefs = machine.to_preferences()
+        self.assertEqual(prefs, {"machine_bed_w_mm": 420.0, "machine_bed_h_mm": 200.0, "machine_focal_mm": 0.08})
+        other = MachineConfig()
+        other.load_preferences({**prefs, "machine_bed_h_mm": None, "machine_focal_mm": "abc"}.get)
+        self.assertEqual((other.bed_w, other.bed_h, other.focal), (420.0, 200.0, 0.10))   # absente / illisible
+
     def test_job_position_profile_round_trip(self):
-        box = self.make(JobPositionBox)
-        box.apply_profile_values({"origin": "center"})
-        self.assertEqual(box.profile_values(), {"origin": "center"})
-        box.apply_profile_values({"origin": "Inconnue"})  # gardée
-        self.assertEqual(box.profile_values(), {"origin": "center"})
+        from laser_studio.models.job_placement import JobPlacement
+        placement = JobPlacement()
+        placement.apply_profile({"origin": "center"})
+        self.assertEqual(placement.to_profile(), {"origin": "center"})
+        placement.apply_profile({"origin": "Inconnue"})  # gardée
+        self.assertEqual(placement.to_profile(), {"origin": "center"})
 
     def test_origin_is_a_code_whatever_the_language(self):
         # Bug : la génération comparait le libellé affiché à « Centre » : en
         # anglais, allemand ou espagnol, l'origine au centre restait sans effet.
+        from laser_studio.models.job_placement import JobPlacement
+        placement = JobPlacement()
         box = self.make(JobPositionBox)
-        self.assertEqual(box.origin(), "bottom_left")
+        box.bind_placement(placement)
+        self.assertEqual(placement.origin, "bottom_left")
         box.origin_combo.setCurrentIndex(1)
-        self.assertEqual(box.origin(), "center")
+        self.assertEqual(placement.origin, "center")
+        box.offset_x_spin.setValue(12.5)
+        self.assertEqual(placement.geometry()["offset_x"], 12.5)
+        placement.update(origin="bottom_left", offset_y=-3.0)          # projet, profil : les champs suivent
+        self.assertEqual((box.origin_combo.currentIndex(), box.offset_y_spin.value()), (0, -3.0))
         # Anciens profils / projets : libellé enregistré dans n'importe quelle langue.
         for old_label in ("Bas-Gauche (0,0)", "Bottom-Left (0,0)", "Unten links (0,0)"):
-            box.set_origin(old_label)
-            self.assertEqual(box.origin(), "bottom_left", old_label)
-            box.set_origin("Centre" if old_label.startswith("Bas") else "Center" if old_label.startswith("Bot")
-                           else "Mitte")
-            self.assertEqual(box.origin(), "center", old_label)
+            placement.load_project({"origin_pos": old_label})
+            self.assertEqual(placement.origin, "bottom_left", old_label)
+            placement.apply_profile({"origin": "Centre" if old_label.startswith("Bas")
+                                     else "Center" if old_label.startswith("Bot") else "Mitte"})
+            self.assertEqual(placement.origin, "center", old_label)
 
 
 if __name__ == "__main__":

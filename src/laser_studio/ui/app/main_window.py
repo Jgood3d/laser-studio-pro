@@ -22,6 +22,7 @@ from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
 from laser_studio.models.grbl import GrblConfig
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
+from laser_studio.models.job_placement import JobPlacement
 from laser_studio.models.layers import LayersModel
 from laser_studio.models.machine import MachineConfig
 from laser_studio.models.vector_document import VectorDocument
@@ -91,6 +92,9 @@ class FullLaserStudio(QMainWindow):
         # champs de l'onglet y sont liés (ImageSettingsPanel.bind_settings), la logique les lit ici.
         self.image_settings = ImageSettings(self)
         self.image_history = ImageSettingsHistory(self.image_settings)
+        # Placement du job (taille, décalage, origine, lignes/mm, optimisation du chemin) : les champs de
+        # « Graver une image » et du cadre « Position du job » y sont liés, la logique le lit ici.
+        self.placement = JobPlacement(self)
 
         # Job : paramètres, contrôles avant génération, génération du G-Code
         # (thread), estimation, export / import, matrice de test. Il lit l'état
@@ -98,11 +102,11 @@ class FullLaserStudio(QMainWindow):
         # init_ui) affiche ses résultats : console, aperçu 2D.
         self.job = JobController(
             self.layer_manager, self.grbl, self.machine, self.image_settings, self.dialogs,
-            geometry=self._job_geometry,
+            geometry=self.placement.geometry,
             image=lambda: self.image.processed_array,
             vector_objects=lambda: self.vector_document.objects,
-            optimize_path=lambda: self.tab_vector_2d.optimize_path_check.isChecked(),
-            lines_mm=lambda: self.resolution_box.lines_per_mm(),
+            optimize_path=lambda: self.placement.optimize_path,
+            lines_mm=lambda: self.placement.lines_mm,
             material_summary=lambda: self.image.material_summary(),
             parent=self,
         )
@@ -240,7 +244,7 @@ class FullLaserStudio(QMainWindow):
         self.job.generated.connect(self.job_history_recorder.remember_estimate)
         # Macros de l'utilisateur : boutons du panneau des actions de job, filtrés par profil machine.
         # « Gérer les macros » : la page « Macros » de la fenêtre Paramètres.
-        self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver, self.connection,
+        self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver,
                                    self.machines, self.dialogs, parent=self,
                                    manage=lambda: self.window_controller.show_settings_window("macros"))
         # Actions qui touchent plusieurs parties de la fenêtre (thème, langue, réglages, caméra, matrice,
@@ -248,6 +252,7 @@ class FullLaserStudio(QMainWindow):
         self.window_controller = WindowController(
             self, forms=WindowForms(self), dialogs=self.dialogs, actions=self.app_actions, tabs=self.tabs,
             machine=self.machine, job=self.job, image=self.image, job_history=self.job_history,
+            placement=self.placement,
             vector=SimpleNamespace(controller=self.vector_editor, canvas=self.vector_canvas, tab=self.tab_vector_editor),
             pages={"machine_params": self.tab_machine_params, "test_matrix": self.tab_matrix,
                    "matrix_image": self.matrix_image, "resolution": self.resolution_box, "layers": self.layers_tab,
@@ -406,37 +411,33 @@ class FullLaserStudio(QMainWindow):
             link_layers_to_focal=lambda: self.layers_tab.link_all_to_focal(),
             focal_changed=lambda focal: self.window_controller.machine_focal_changed(focal))
         self.tab_matrix, self.matrix_image = build_test_matrix_page(
-            self.resolution_box.lines_per_mm(), generate=lambda: self.window_controller.generate_test_matrix_and_show(),
+            self.placement.lines_mm, generate=lambda: self.window_controller.generate_test_matrix_and_show(),
             loaded_image=self._loaded_image_and_width,
-            image_settings=self.tab_previews.settings.processing_settings)
+            image_settings=self.image_settings.processing_params)
         self.tab_grbl_config = build_grbl_config_page(self.grbl, self.job, self.engraver, self.machines)
         # Résolution de « Graver une image » reprise par la matrice de test (même densité de lignes).
-        self.tab_previews.settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)
+        self.placement.changed.connect(
+            lambda changes: self.tab_matrix.set_lines_mm(changes["lines_mm"]) if "lines_mm" in changes else None)
 
     def _build_image_tab(self):
         """Onglet « Graver une image » (build_image_tab) et cadre « Position du job ». Construit tôt :
         la matrice de test lit ses lignes/mm, l'aperçu 2D reçoit le cadre « Position du job ».
         L'onglet est placé dans les onglets par init_ui."""
         self.tab_previews, self.image = build_image_tab(
-            self.image_settings, self.image_history, self.machine, self.layer_manager, self.dialogs,
+            self.image_settings, self.image_history, self.placement, self.machine, self.layer_manager, self.dialogs,
             self.image_actions, configure_focal=lambda: self.window_controller.goto_focal_settings(),
             compare=lambda: self.window_controller.show_dither_comparison(),
             status=self.show_status_message, parent=self)
         self.resolution_box = self.tab_previews.settings.resolution_box
-        # Origine lue par code (job_position_box.origin()) : génération, projets, profils.
+        # Origine et décalage du job, liés au placement (affichés dans l'onglet Visualisation 2D).
         self.job_position_box = JobPositionBox()
-
-    def _job_geometry(self):
-        """Taille et position du job, lues dans l'interface (voir JobController)."""
-        (width, height), (offset_x, offset_y) = self.tab_previews.settings.size_mm(), self.tab_previews.settings.offset_mm()
-        return {'width_mm': width, 'height_mm': height, 'origin_pos': self.job_position_box.origin(),
-                'offset_x': offset_x, 'offset_y': offset_y}
+        self.job_position_box.bind_placement(self.placement)
 
     def _loaded_image_and_width(self):
         """(image, largeur en mm) de « Graver une image », ou None."""
         if not self.image.has_image():
             return None
-        return self.image.raw_image, self.tab_previews.settings.size_mm()[0]
+        return self.image.raw_image, self.placement.width_mm
 
     def _build_center_tabs(self):
         """Onglets du centre, dans l'ordre : Graver une image, Vectorisation, Séparation, éditeur
@@ -450,7 +451,7 @@ class FullLaserStudio(QMainWindow):
         tabs.addTab(self.tab_png2svg, tr("png2svg.tab_title"))
         self.tab_separation, self.separation = build_separation_tab(
             self.image_settings, self.image, self.job, self.dialogs, self.image_actions, self,
-            lines_mm=self.resolution_box.lines_per_mm)
+            lines_mm=lambda: self.placement.lines_mm)
         tabs.addTab(self.tab_separation, tr("sep.tab_title"))
         # Résolution de « Graver une image » reprise par la Séparation (affichage, tonalité renvoyée).
         self.tab_previews.settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())
@@ -471,6 +472,11 @@ class FullLaserStudio(QMainWindow):
         # Visualisation 2D : G-Code généré ou importé (JobDisplay.plot), position de la tête et traits
         # déjà gravés pendant un job ; un clic sur une case de la matrice de test l'applique.
         self.tab_vector_2d = Preview2DTab(self.job_position_box)
+        bind(self.tab_vector_2d.optimize_path_check, self.placement, "optimize_path")
+        # Plateau de la machine dans l'aperçu 2D : repère tant qu'aucun job n'est généré.
+        self.tab_vector_2d.set_bed(self.machine.bed_w, self.machine.bed_h)
+        self.machine.changed.connect(lambda changes: self.tab_vector_2d.set_bed(self.machine.bed_w, self.machine.bed_h)
+                                     if {"bed_w", "bed_h"} & set(changes) else None)
         self.tab_vector_2d.plot_clicked.connect(self.job.apply_matrix_cell)
         self.tab_vector_2d.log.connect(self.log_message)
         tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))

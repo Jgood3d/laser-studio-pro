@@ -79,22 +79,16 @@ class MacroFileTests(unittest.TestCase):
 
 class FakeEngraver:
     def __init__(self, connected=True):
-        self.connected = connected
-        self.sent = []
+        self.connected, self.streaming = connected, False
+        self.sent, self.asked = [], []
 
-    def require_connection(self, _key=None):
-        return self.connected
+    def allowed(self, action, _key=None):
+        """Comme EngraverController.allowed (le message de refus est testé avec lui)."""
+        self.asked.append(action)
+        return self.connected and not self.streaming
 
     def send_direct(self, commands):
         self.sent.append(commands)
-
-
-class FakeConnection:
-    def __init__(self, streaming=False):
-        self.streaming = streaming
-
-    def is_streaming(self):
-        return self.streaming
 
 
 @unittest.skipIf(MacroController is None or load_macros is None, "PyQt6 ou PyYAML non importable ici")
@@ -110,9 +104,9 @@ class MacroControllerTests(unittest.TestCase):
         with open(self.path, "w", encoding="utf-8") as f:
             f.write(EXAMPLE + "  - name: Laser sans case\n    gcode: M4 S50\n")
         self.model = MacrosModel(self.path)
-        self.engraver, self.connection, self.dialogs = FakeEngraver(), FakeConnection(), FakeDialogs()
+        self.engraver, self.dialogs = FakeEngraver(), FakeDialogs()
         self.edited = None
-        self.ctrl = MacroController(self.model, self.engraver, self.connection, self.dialogs,
+        self.ctrl = MacroController(self.model, self.engraver, self.dialogs,
                                     profile_name=lambda: "Atomstack A5", profiles=lambda: ["Atomstack A5"])
 
     def test_plain_macro_is_sent_without_question(self):
@@ -137,10 +131,10 @@ class MacroControllerTests(unittest.TestCase):
         self.assertEqual(self.dialogs.kinds(), ["confirm"])
 
     def test_never_during_a_job_nor_disconnected(self):
-        self.connection.streaming = True
+        self.engraver.streaming = True
         self.assertFalse(self.ctrl.run(0))
-        self.assertEqual(self.dialogs.kinds(), ["warning"])
-        self.connection.streaming = False
+        self.assertEqual(self.engraver.asked, ["macro"])               # la table de l'état du graveur décide
+        self.engraver.streaming = False
         self.engraver.connected = False
         self.assertFalse(self.ctrl.run(0))
         self.assertFalse(self.ctrl.run(99))

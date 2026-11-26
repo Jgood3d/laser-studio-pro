@@ -21,6 +21,7 @@ from laser_studio.grbl import commands
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, preferred_index, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
 from laser_studio.i18n import tr
+from laser_studio.models import machine_state as ms
 
 log = get_logger()
 
@@ -92,16 +93,20 @@ class EngraverController(QObject):
 
     # -- port et connexion
 
-    def require_connection(self, message_key="laser.connect_first"):
-        """Vrai si le graveur est connecté et qu'aucun job n'est en cours ; sinon, le dit et renvoie Faux.
-        Pendant un job, une commande (déplacement, console, cadrage…) se glisserait entre ses lignes."""
-        if not self.connection.is_connected():
+    def allowed(self, action, message_key="laser.connect_first"):
+        """Vrai si `action` (models/machine_state.py : ms.JOG, ms.SEND_JOB…) est permise dans l'état du
+        graveur ; sinon, dit pourquoi (pas connecté : `message_key`, occupé, en alarme) et renvoie Faux. Les
+        boutons sont déjà grisés d'après la même table : ce message couvre les raccourcis et la file."""
+        if self.connection.can(action):
+            return True
+        state = self.connection.state
+        if state == ms.DISCONNECTED:
             self.dialogs.warning(tr("laser.usb_not_connected_title"), tr(message_key))
-            return False
-        if self.connection.is_streaming():
+        elif state == ms.ALARM:
+            self.dialogs.warning(tr("laser.alarm_title"), tr("laser.alarm_blocked"))
+        else:
             self.dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
-            return False
-        return True
+        return False
 
     def refresh_ports(self):
         """Liste les ports utilisables (sans les ports « n/a » sans matériel),
@@ -209,18 +214,18 @@ class EngraverController(QObject):
     def home(self):
         """Lance le homing ($H) ; la position devient référencée (voir
         confirm_homed)."""
-        if self.require_connection():
+        if self.allowed(ms.HOME):
             self.connection.home()
 
     def jog(self, dx_mm, dy_mm, speed):
         """Déplacement relatif de `dx_mm`, `dy_mm`, à `speed` mm/min
         (JogControlPanel.jog_requested)."""
-        if self.require_connection():
+        if self.allowed(ms.JOG):
             self.connection.jog(dx_mm, dy_mm, speed)
 
     def send_direct(self, cmd):
-        """Envoie une commande ou une liste de commandes, si connecté."""
-        if self.require_connection("laser.connect_via_usb"):
+        """Envoie un déplacement (zéro, retour au zéro…) ou une liste de commandes, si permis."""
+        if self.allowed(ms.JOG, "laser.connect_via_usb"):
             self.connection.run_commands(cmd)
 
     def set_work_zero(self):
@@ -233,22 +238,22 @@ class EngraverController(QObject):
 
     def send_console_command(self, cmd):
         """Commande GRBL tapée dans la console directe."""
-        if cmd and self.require_connection():
+        if cmd and self.allowed(ms.CONSOLE):
             self.connection.run_commands(cmd)
 
     def frame(self):
         """Fait le tour de la zone du job, laser éteint (cadrage)."""
-        if not self.require_connection():
+        if not self.allowed(ms.JOG):
             return
         geometry = self._job_geometry()
         x, y = image_origin(geometry)
-        self.connection.run_commands(commands.frame_commands(x, y, geometry['width_mm'], geometry['height_mm']))
+        self.connection.run_commands(commands.frame_commands(x, y, geometry.width_mm, geometry.height_mm))
 
     def unlock(self):
         """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de
         course déclenchée). Toujours une action volontaire de
         l'utilisateur, l'alarme pouvant signaler un vrai problème mécanique."""
-        if not self.connection.is_connected():
+        if not self.connection.can(ms.UNLOCK):
             return
         self.connection.unlock()
         self.log.emit(tr("laser.unlock_log"))
@@ -292,11 +297,7 @@ class EngraverController(QObject):
         if not gcode_text.strip():
             self.dialogs.warning(tr("laser.no_port_title"), tr("laser.no_gcode"))
             return False
-        if not self.connection.is_connected():
-            self.dialogs.warning(tr("laser.usb_error_title"), tr("laser.connect_via_usb"))
-            return False
-        if self.connection.is_busy():               # job (file, « Répéter ») ou commandes en cours
-            self.dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
+        if not self.allowed(ms.SEND_JOB, "laser.connect_via_usb"):     # aussi : job, homing en cours
             return False
         if not self.confirm_homed():
             return False
@@ -349,7 +350,7 @@ class EngraverController(QObject):
         """Lit toute la configuration GRBL ($$) du graveur connecté et la met
         dans GrblConfig (affichée dans Configuration GRBL) : steps/mm,
         limites logicielles, accélérations…"""
-        if not self.require_connection():
+        if not self.allowed(ms.SETTINGS):
             return
         try:
             response = self.connection.send_command(commands.READ_SETTINGS)
@@ -366,7 +367,7 @@ class EngraverController(QObject):
     def send_settings(self):
         """Envoie chaque ligne $N=valeur affichée : modifie la configuration
         EEPROM persistante du graveur, donc toujours après confirmation."""
-        if not self.require_connection():
+        if not self.allowed(ms.SETTINGS):
             return
         lines = commands.setting_lines(self.grbl.grbl_settings)
         if not lines:

@@ -176,11 +176,10 @@ def estimate_seconds(gcode_text, limits=None):
     return total
 
 
-def job_duration(gcode_text, params, simple_seconds):
-    """Durée affichée d'un G-Code généré : estimate_seconds avec les limites de la machine
-    (params['machine_limits'], dictionnaire de MachineLimits) ; sans elles, l'ancienne somme
-    « distance ÷ vitesse » `simple_seconds` plus la marge des accélérations (common.with_time_margin)."""
-    limits = params.get("machine_limits") if isinstance(params, dict) else None
+def job_duration(gcode_text, limits, simple_seconds):
+    """Durée affichée d'un G-Code généré : estimate_seconds avec les limites de la machine `limits`
+    (dictionnaire de MachineLimits) ; sans elles, l'ancienne somme « distance ÷ vitesse » `simple_seconds`
+    plus la marge des accélérations (common.with_time_margin)."""
     if not limits:
         from laser_studio.gcode.common import with_time_margin    # import local : common ne dépend pas d'ici
         return with_time_margin(simple_seconds)

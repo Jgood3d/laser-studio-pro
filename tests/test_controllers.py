@@ -224,6 +224,7 @@ class FakeEngraver:
 
     def __init__(self, connected=True, failing=(), busy=False):
         self.calls, self.connected, self.failing, self.busy = [], connected, failing, busy
+        self.refused = 0
 
     def engraver(self):
         def record(name, result=None):
@@ -238,8 +239,15 @@ class FakeEngraver:
             pause_status_poll=record("pause"),
             resume_status_poll=record("resume"),
             jobs_finished=record("jobs_finished"),
-            is_busy=lambda: self.busy,
+            may_send=self.may_send,
         )
+
+    def may_send(self):
+        """Comme EngraverController.allowed : refuse et le dit (ici, un appel noté)."""
+        ok = self.connected and not self.busy
+        if not ok:
+            self.refused += 1
+        return ok
 
     def start_stream(self, gcode, on_finished):
         self.calls.append(("start", gcode))
@@ -313,7 +321,7 @@ class JobQueueControllerTests(_QtTest):
         queue, tab, fake = self.make(["G1 X1"], busy=True)
         queue.run()
         self.assertEqual([c for c in fake.calls if c[0] == "start"], [])
-        self.assertEqual(self.messages, ["warning"])
+        self.assertEqual(fake.refused, 1)
         self.assertEqual(len(queue.jobs), 1)
 
     def test_jobs_are_sent_one_after_the_other(self):
@@ -339,7 +347,7 @@ class JobQueueControllerTests(_QtTest):
     def test_nothing_is_sent_when_disconnected(self):
         queue, _, fake = self.make(["G1 X1"], connected=False)
         queue.run()
-        self.assertEqual((fake.calls, self.messages), ([], ["warning"]))
+        self.assertEqual((fake.calls, fake.refused), ([], 1))
 
 
 @unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")

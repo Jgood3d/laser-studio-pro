@@ -358,6 +358,13 @@ class LayersModel(QObject):
     def to_list(self):
         return [l.to_dict() for l in self.layers]
 
+    def colors_by_name(self):
+        """Couleur de chaque calque, par nom (le premier calque d'un nom donné) : couleurs de l'aperçu 2D."""
+        colors = {}
+        for layer in self.layers:
+            colors.setdefault(layer.name, layer.color)
+        return colors
+
     # -- modification ------------------------------------------------------
 
     def update(self, layer_id, **fields):

@@ -65,9 +65,6 @@ class ImageSettingsPanel(QWidget):
         layout.addRow(tr("dim.width"), self.width_spin)
         layout.addRow(tr("dim.height"), self.height_spin)
         layout.addRow(self.keep_ratio_check)  # toute la largeur du panneau
-        # Décalage X / Y du job sur le plateau.
-        layout.addRow(tr("dim.offset_x"), self.offset_x_spin)
-        layout.addRow(tr("dim.offset_y"), self.offset_y_spin)
         self._build_photo_fields()
         layout.addRow(tr("img.brightness"), self._brightness_row)
         layout.addRow(tr("img.contrast"), self._contrast_row)
@@ -87,6 +84,7 @@ class ImageSettingsPanel(QWidget):
         """Lie les champs du tramage (curseurs, négatif, matière, algorithme)
         au modèle `settings` (ImageSettings). Les miroirs, dans la barre
         d'outils de la fenêtre, sont liés par elle."""
+        self.model = settings
         for widget, field in (
             (self.brightness_slider, "brightness"),
             (self.contrast_slider, "contrast"),
@@ -109,38 +107,6 @@ class ImageSettingsPanel(QWidget):
              to_widget=lambda name: algo.findText(name),
              from_widget=lambda index: algo.itemText(index))
 
-    def set_size(self, w_mm, h_mm):
-        """Largeur et hauteur de l'image (mm). Les signaux des champs partent
-        normalement : ceux qui suivent la taille (cadre du job, éditeur) la voient."""
-        self.width_spin.setValue(w_mm)
-        self.height_spin.setValue(h_mm)
-
-    def size_mm(self):
-        return self.width_spin.value(), self.height_spin.value()
-
-    def set_offset(self, x_mm, y_mm):
-        """Décalage de l'image (mm) par rapport à l'origine du job."""
-        self.offset_x_spin.setValue(x_mm)
-        self.offset_y_spin.setValue(y_mm)
-
-    def offset_mm(self):
-        return self.offset_x_spin.value(), self.offset_y_spin.value()
-
-    def processing_settings(self):
-        """Réglages du tramage, en valeurs : luminosité, contraste, gamma
-        (× 100), netteté, négatif et algorithme."""
-        return {
-            "bright": self.brightness_slider.value(),
-            "contrast": self.contrast_slider.value(),
-            "gamma": self.gamma_slider.value(),
-            "sharp": self.sharpness_slider.value(),
-            "invert": self.invert_check.isChecked(),
-            "algo": self.algorithm_combo.currentText(),
-            "as_is": self.as_is_check.isChecked(),
-        }
-
-    # -- construction
-
     def _build_size_fields(self):
         self.width_spin = self._spin(0.1, 2000.0, 100.0)
         self.width_spin.valueChanged.connect(
@@ -152,8 +118,6 @@ class ImageSettingsPanel(QWidget):
         )
         self.keep_ratio_check = QCheckBox(tr("dim.keep_ratio"))
         self.keep_ratio_check.setChecked(True)
-        self.offset_x_spin = self._spin(-1000.0, 1000.0, 0.0)
-        self.offset_y_spin = self._spin(-1000.0, 1000.0, 0.0)
 
     def _build_photo_fields(self):
         self._brightness_row = self._slider_row(-100, 100, 0)

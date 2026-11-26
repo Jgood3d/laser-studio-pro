@@ -36,7 +36,8 @@ class WindowController(QObject):
     `main_tabs` : {nom: onglet} que le menu Outils peut demander."""
 
     def __init__(self, parent=None, *, forms, dialogs, actions=None, tabs=None, machine=None, job=None,
-                 image=None, job_history=None, vector=None, pages=None, settings_pages=None, main_tabs=None):
+                 image=None, job_history=None, vector=None, pages=None, settings_pages=None, main_tabs=None,
+                 placement=None):
         super().__init__(parent)
         self.window = parent
         self.forms = forms
@@ -47,6 +48,7 @@ class WindowController(QObject):
         self.job = job
         self.image = image
         self.job_history = job_history
+        self.placement = placement
         self.vector = vector
         self.pages = SimpleNamespace(**(pages or {}))
         self._settings_pages = dict(settings_pages or {})
@@ -201,7 +203,7 @@ class WindowController(QObject):
         """Lignes/mm de « Graver une image » reportées dans la matrice de test
         gravure : le test est fait avec la même densité de lignes que la
         gravure réelle."""
-        self.pages.test_matrix.set_lines_mm(self.pages.resolution.lines_per_mm())
+        self.pages.test_matrix.set_lines_mm(self.placement.lines_mm)
 
     # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
 

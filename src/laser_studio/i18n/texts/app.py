@@ -119,10 +119,16 @@ TEXTS = {
         "es": "Dusk (gris azulado suave)",
     },
     "theme.new_dusk": {
-        "fr": "New Dusk (bleu pétrole moderne)",
-        "en": "New Dusk (modern petrol blue)",
-        "de": "New Dusk (modernes Petrolblau)",
-        "es": "New Dusk (azul petróleo moderno)",
+        "fr": "New Dusk (gris-bleu moderne)",
+        "en": "New Dusk (modern blue-gray)",
+        "de": "New Dusk (modernes Blaugrau)",
+        "es": "New Dusk (gris azulado moderno)",
+    },
+    "theme.new_dusk_petrol": {
+        "fr": "New Dusk Blue Petrol (bleu pétrole moderne)",
+        "en": "New Dusk Blue Petrol (modern petrol blue)",
+        "de": "New Dusk Blue Petrol (modernes Petrolblau)",
+        "es": "New Dusk Blue Petrol (azul petróleo moderno)",
     },
     "theme.new_dawn": {
         "fr": "New Dawn (clair moderne)",
@@ -219,7 +225,7 @@ TEXTS = {
         "de": "GRBL-Konfiguration", "es": "Configuración GRBL",
     },
     "tab.layers": {
-        "fr": "Calques (Layers)", "en": "Layers",
+        "fr": "Calques", "en": "Layers",
         "de": "Ebenen (Layers)", "es": "Capas (Layers)",
     },
     "project.autosave_failed": {

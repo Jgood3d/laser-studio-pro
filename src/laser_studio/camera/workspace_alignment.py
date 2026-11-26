@@ -159,39 +159,6 @@ def apriltag_engrave_polygons(target: AlignmentTarget) -> List[List[Tuple[float,
     return polygons
 
 
-def targets_to_engrave_paths(
-    targets: Sequence[AlignmentTarget],
-    kerf_mm: float = 0.0,
-) -> List[List[Tuple[float, float]]]:
-    """Contours carrés (mm) à graver/découper pour chaque tag.
-
-    Pour une V1 simple on grave le contour extérieur + une croix centrale.
-    (Le motif complet du tag peut être ajouté plus tard via bitmap fill.)
-    """
-    paths: List[List[Tuple[float, float]]] = []
-    for t in targets:
-        half = t.size_mm / 2.0
-        # Carré extérieur (CCW)
-        paths.append([
-            (t.cx_mm - half, t.cy_mm - half),
-            (t.cx_mm + half, t.cy_mm - half),
-            (t.cx_mm + half, t.cy_mm + half),
-            (t.cx_mm - half, t.cy_mm + half),
-            (t.cx_mm - half, t.cy_mm - half),
-        ])
-        # Croix centrale (aide visuelle + détection manuelle de secours)
-        arm = half * 0.35
-        paths.append([
-            (t.cx_mm - arm, t.cy_mm),
-            (t.cx_mm + arm, t.cy_mm),
-        ])
-        paths.append([
-            (t.cx_mm, t.cy_mm - arm),
-            (t.cx_mm, t.cy_mm + arm),
-        ])
-    return paths
-
-
 def tag_quiet_mm(size_mm: float) -> float:
     """Zone claire à garder autour du tag (au moins une case) : la matière du plateau, ou le blanc du papier."""
     return max(6.0, size_mm * 0.15)

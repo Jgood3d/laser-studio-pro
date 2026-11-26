@@ -106,10 +106,12 @@ class JobStatsPanelTests(_TabTest):
         self.assertIs(tab.splitter.widget(1), tab.side_panel)
         self.assertTrue(tab.splitter.widget(0).isAncestorOf(tab.plot_widget))
         layout = tab.side_panel.layout()
-        # Options d'affichage, puis position du job et statistiques.
-        display = layout.itemAt(0).widget()
-        self.assertTrue(display.isAncestorOf(tab.flip_check) and display.isAncestorOf(tab.optimize_path_check))
-        self.assertEqual([layout.itemAt(i).widget() for i in (1, 2)], [box, tab.job_stats_panel])
+        # Options d'affichage, puis position du job, génération (« Optimiser le chemin » change le G-Code, pas
+        # l'affichage) et statistiques.
+        display, generation = layout.itemAt(0).widget(), layout.itemAt(2).widget()
+        self.assertTrue(display.isAncestorOf(tab.flip_check) and not display.isAncestorOf(tab.optimize_path_check))
+        self.assertTrue(generation.isAncestorOf(tab.optimize_path_check))
+        self.assertEqual([layout.itemAt(i).widget() for i in (1, 3)], [box, tab.job_stats_panel])
 
     def test_side_panel_is_as_narrow_as_possible(self):
         tab = self.make(Preview2DTab, QGroupBox("Position"))

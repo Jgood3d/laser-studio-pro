@@ -535,8 +535,6 @@ class VectorCanvasView(QGraphicsView):
     # Exploser en segments + édition de nœuds
     # ------------------------------------------------------------------
 
-    # Fonctions de tracé (vector/path_ops.py), gardées sous leurs anciens noms.
-    _world_path_to_svg_object = staticmethod(path_ops.world_path_to_svg_object)
 
 
     def _ensure_svg_path_object(self, item):

@@ -396,7 +396,7 @@ TEXTS = {
         "es": "Ninguna capa",
     },
     "vector.no_layer_body": {
-        "fr": "Crée d'abord un calque dans l'onglet 'Calques (Layers)'.",
+        "fr": "Crée d'abord un calque dans l'onglet 'Calques'.",
         "en": "Create a layer first in the 'Layers' tab.",
         "de": "Erstelle zuerst eine Ebene im Reiter „Ebenen“.",
         "es": "Crea primero una capa en la pestaña «Capas».",

@@ -43,6 +43,13 @@ class _QtTest(unittest.TestCase):
         self.addCleanup(widget.deleteLater)
         return widget
 
+    def bound_tab(self):
+        """Onglet dont les réglages sont liés à un modèle ImageSettings, comme dans la fenêtre."""
+        from laser_studio.models.image_settings import ImageSettings
+        tab = self.make(ImageTab)
+        tab.settings.bind_settings(ImageSettings(tab))
+        return tab
+
 
 @unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
 class ImageSettingsPanelTests(_QtTest):
@@ -83,9 +90,6 @@ class ImageSettingsPanelTests(_QtTest):
         self.assertEqual(size, [("w", 80.0), ("h", 40.0)])
         self.assertEqual(material, [("dark",)])
         self.assertEqual(resolution, [(12.0,), (11.81,)])
-        self.assertEqual(panel.size_mm(), (80.0, 40.0))
-        panel.set_size(30.0, 20.0)
-        self.assertEqual(size[-2:], [("w", 30.0), ("h", 20.0)])   # les champs préviennent normalement
 
     def test_resolution_starts_on_the_laser_focal(self):
         panel = self.make(ImageSettingsPanel)
@@ -131,13 +135,13 @@ class ImageTabTests(_QtTest):
         for widget in (panel.brightness_slider, panel.contrast_slider, panel.gamma_slider, panel.sharpness_slider,
                        panel.algorithm_combo, panel.filter_combo):
             self.assertFalse(widget.isEnabled())
-        self.assertTrue(panel.processing_settings()["as_is"])
+        self.assertTrue(panel.as_is_check.isChecked())
         panel.as_is_check.setChecked(False)
         self.assertTrue(panel.algorithm_combo.isEnabled())
 
     def test_original_can_preview_the_tone_settings(self):
         from PIL import Image
-        tab = self.make(ImageTab)
+        tab = self.bound_tab()
         image = Image.new("L", (40, 20), 100)
         tab.show_source(image)
 
@@ -157,7 +161,7 @@ class ImageTabTests(_QtTest):
 
     def test_original_preview_can_be_inverted(self):
         from PIL import Image
-        tab = self.make(ImageTab)
+        tab = self.bound_tab()
         tab.show_source(Image.new("L", (40, 20), 100))
 
         def shown():

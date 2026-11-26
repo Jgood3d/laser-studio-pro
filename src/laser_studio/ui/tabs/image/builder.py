@@ -1,9 +1,10 @@
 """Onglet « Graver une image » (vue ImageTab) et sa logique (ImageController), reliés.
 
-    tab, image = build_image_tab(image_settings, image_history, machine, layers, dialogs, image_actions,
+    tab, image = build_image_tab(image_settings, image_history, placement, machine, layers, dialogs, image_actions,
                                  configure_focal=..., compare=..., status=...)
 """
 from laser_studio.controllers.image import ImageController
+from laser_studio.ui.binding import bind
 from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
 from laser_studio.ui.tabs.image.crop_dialog import CropDialog
 from laser_studio.ui.tabs.image.resolution_box import RESOLUTION_LMM
@@ -11,9 +12,10 @@ from laser_studio.ui.tabs.image.settings_panel import FILTER_CARTOON
 from laser_studio.ui.tabs.image.tab import ImageTab
 
 
-def build_image_tab(image_settings, image_history, machine, layers, dialogs, image_actions, *,
+def build_image_tab(image_settings, image_history, placement, machine, layers, dialogs, image_actions, *,
                     configure_focal, compare, status, parent=None):
-    """Champs liés à `image_settings` (annuler / refaire : `image_history`) ; taille réduite au plateau
+    """Champs liés à `image_settings` (annuler / refaire : `image_history`), taille et résolution liées à
+    `placement` (JobPlacement) ; taille réduite au plateau
     de `machine` ; liste « Calque de gravure » d'après `layers` ; actions de la barre d'outils
     inscrites dans `image_actions`. Rappels : `configure_focal()` (bouton de la focale), `compare()` (comparaison des algorithmes),
     `status(texte, infobulle)`. Renvoie (ImageTab, ImageController)."""
@@ -21,12 +23,21 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     settings = tab.settings
     settings.bind_settings(image_settings)
     resolution = settings.resolution_box
+    bind(settings.width_spin, placement, "width_mm")
+    bind(settings.height_spin, placement, "height_mm")
+    # Résolution : la boîte calcule les lignes/mm (saisie, DPI, focale) et les pose dans le modèle ; une valeur
+    # venue du modèle (projet ouvert) est reprise comme une saisie.
+    resolution.resolution_changed.connect(lambda lmm: placement.update(lines_mm=lmm))
+    placement.changed.connect(lambda changes: resolution.set_lines_per_mm(changes["lines_mm"])
+                              if "lines_mm" in changes and changes["lines_mm"] != resolution.lines_per_mm()
+                              else None)
+    placement.update(lines_mm=resolution.lines_per_mm())
     image = ImageController(
         image_settings, machine, dialogs,
-        size_mm=settings.size_mm,
-        set_size=settings.set_size,
+        size_mm=lambda: (placement.width_mm, placement.height_mm),
+        set_size=lambda w_mm, h_mm: placement.update(width_mm=w_mm, height_mm=h_mm),
         keep_ratio=settings.keep_ratio_check.isChecked,
-        lines_mm=resolution.lines_per_mm,
+        lines_mm=lambda: placement.lines_mm,
         parent=parent,
     )
     tab.load_requested.connect(image.open_image)
@@ -48,7 +59,7 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
     def match_pixels():
         if not image_settings.as_is or image.raw_image is None:
             return
-        width_mm = settings.size_mm()[0]
+        width_mm = placement.width_mm
         if width_mm > 0:
             resolution.mode_combo.setCurrentIndex(RESOLUTION_LMM)
             resolution.set_lines_per_mm(image.raw_image.width / width_mm)
@@ -99,7 +110,7 @@ def build_image_tab(image_settings, image_history, machine, layers, dialogs, ima
             open_crop_dialog[0].raise_()
             open_crop_dialog[0].activateWindow()
             return
-        mm_per_px = settings.size_mm()[0] / max(image.raw_image.width, 1)
+        mm_per_px = placement.width_mm / max(image.raw_image.width, 1)
         dialog = CropDialog(image.source_image, image.crop_box, mm_per_px, parent or tab)
         dialog.accepted.connect(lambda: image.crop(dialog.box()))
         dialog.finished.connect(lambda _result: open_crop_dialog.clear())

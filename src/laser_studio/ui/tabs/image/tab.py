@@ -22,6 +22,7 @@ from laser_studio.image.dithering import tone_preview
 from laser_studio.ui.tabs.image.settings_panel import ImageSettingsPanel
 from laser_studio.ui.utils import import_button, painted_icon, palette_icon, zoom_shortcuts
 from laser_studio.ui.widgets import FloatingToolBar, ZoomableGraphicsView
+from laser_studio.ui.widgets.start_hint import StartHint
 
 
 class ImageTab(QWidget):
@@ -68,6 +69,11 @@ class ImageTab(QWidget):
         layout.addLayout(top)
         row = QHBoxLayout()
         row.addWidget(self._previews(), 1)
+        # Aucune image : carte d'accueil au centre du rendu tramé, comme le canevas vide de l'éditeur vectoriel.
+        self.start_hint = StartHint(self.dither_view, tr("img.empty_title"),
+                                    [(None, [("open", tr("img.empty_open"), "document-open")], 40)],
+                                    is_empty=lambda: self._source_image is None)
+        self.start_hint.command.connect(lambda _name: self.load_requested.emit())
         # À droite, comme dans l'éditeur vectoriel : barre d'édition, puis les propriétés de l'image.
         side = QWidget()
         side.setProperty("role", "sidebar")              # panneau latéral (thèmes modernes : plus sombre, à plat)
@@ -258,6 +264,7 @@ class ImageTab(QWidget):
         """Image chargée (PIL, niveaux de gris), ou None : les deux aperçus sont vidés."""
         self._source_image = image
         self._settings_scroll.setVisible(image is not None)
+        self.start_hint.refresh()
         # Nouvelle image (chargée, recadrée, pivotée) : aperçus vidés, donc cadrés sur elle à son affichage.
         self.source_view.clear_image()
         self.dither_view.clear_image()
@@ -290,7 +297,7 @@ class ImageTab(QWidget):
         small = image.copy()
         small.thumbnail((self.TONES_PREVIEW_MAX_PX, self.TONES_PREVIEW_MAX_PX))
         if tones:
-            values = self.settings.processing_settings()
+            values = self.settings.model.processing_params()
             small = tone_preview(small, values["bright"], values["contrast"], values["gamma"], values["sharp"])
         if invert:
             small = ImageOps.invert(small.convert("L"))
