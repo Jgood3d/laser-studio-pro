@@ -10,12 +10,14 @@ from laser_studio.i18n import tr
 from laser_studio.models.layer_modes import CONTOUR_MODES
 from laser_studio.models.layers import (
     CUT_MODE, ENGRAVE_MODE, LAYER_MODE_TR_KEYS, LAYER_MODES, KERF_WIDTH_MAX_MM, KERF_WIDTH_MIN_MM,
-    TAB_COUNT_MAX, TAB_WIDTH_MAX_MM, TAB_WIDTH_MIN_MM, LaserLayer, LayersModel,
+    LEAD_RADIUS_MAX_MM, LEAD_RADIUS_MIN_MM, TAB_COUNT_MAX, TAB_WIDTH_MAX_MM, TAB_WIDTH_MIN_MM, LaserLayer,
+    LayersModel, PERF_LENGTH_MAX_MM, PERF_LENGTH_MIN_MM, PERF_MODE, RAMP_POWER_MAX_PCT,
+    RAMP_POWER_MIN_PCT,
 )
 
 
 class LayerManagerWidget(QWidget):
-    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Pas | Surbalayage | Laser | Ponts (case + nombre) | Larg. pont | Kerf | Actif
+    """Table façon LightBurn : Couleur | Nom | Mode | Puissance | Vitesse | Passes | Pas | Surbalayage | Laser | Ponts (case + nombre) | Larg. pont | Kerf | Arc | Perforation | Rampe | Actif
 
     Vue du modèle des calques (LayersModel) : chaque saisie appelle
     `mgr.update(...)`, et la table se met à jour à partir des signaux du
@@ -27,7 +29,8 @@ class LayerManagerWidget(QWidget):
     COLUMN_KEYS = ["layers.col.color", "layers.col.name", "layers.col.mode",
                    "layers.col.power", "layers.col.speed", "layers.col.passes",
                    "layers.col.fill_step", "layers.col.overscan", "layers.col.laser", "layers.col.tab_count",
-                   "layers.col.tab_width", "layers.col.kerf", "layers.col.active"]
+                   "layers.col.tab_width", "layers.col.kerf", "layers.col.lead",
+                   "layers.col.perforation", "layers.col.ramp", "layers.col.active"]
 
     def __init__(self, layer_manager: LayersModel, parent=None, focal_getter=None):
         super().__init__(parent)
@@ -241,9 +244,67 @@ class LayerManagerWidget(QWidget):
         editors["kerf"] = chk_kerf
         editors["kerf_width"] = spin_kerf
 
+        # Arcs d'entrée et de sortie : case + rayon, propres à la découpe.
+        lead_cell = QWidget()
+        lead_layout = QHBoxLayout(lead_cell)
+        lead_layout.setContentsMargins(2, 0, 2, 0)
+        lead_layout.setSpacing(4)
+        chk_lead = QCheckBox(); chk_lead.setChecked(layer.lead)
+        chk_lead.setToolTip(tr("layers.lead_tip"))
+        chk_lead.setEnabled(layer.mode == CUT_MODE)
+        chk_lead.stateChanged.connect(lambda v, i=lid: self._set(i, "lead", bool(v)))
+        lead_layout.addWidget(chk_lead)
+        spin_lead = QDoubleSpinBox()
+        spin_lead.setRange(LEAD_RADIUS_MIN_MM, LEAD_RADIUS_MAX_MM); spin_lead.setSingleStep(0.1)
+        spin_lead.setDecimals(1); spin_lead.setValue(layer.lead_radius)
+        spin_lead.setToolTip(tr("layers.lead_tip"))
+        spin_lead.setEnabled(layer.mode == CUT_MODE and layer.lead)
+        spin_lead.valueChanged.connect(lambda v, i=lid: self._set(i, "lead_radius", v))
+        lead_layout.addWidget(spin_lead)
+        self.table.setCellWidget(row, 12, lead_cell)
+        editors["lead"] = chk_lead
+        editors["lead_radius"] = spin_lead
+
+        # Perforation (mode Perforation seulement) : longueur d'un trait | longueur d'un vide, en mm.
+        perf_cell = QWidget()
+        perf_layout = QHBoxLayout(perf_cell)
+        perf_layout.setContentsMargins(2, 0, 2, 0)
+        perf_layout.setSpacing(4)
+        for field, editor_key in (("perf_dash", "perf_dash"), ("perf_gap", "perf_gap")):
+            spin_perf = QDoubleSpinBox()
+            spin_perf.setRange(PERF_LENGTH_MIN_MM, PERF_LENGTH_MAX_MM); spin_perf.setSingleStep(0.1)
+            spin_perf.setDecimals(1); spin_perf.setValue(getattr(layer, field))
+            spin_perf.setToolTip(tr("layers.perf_tip"))
+            spin_perf.setEnabled(layer.mode == PERF_MODE)
+            spin_perf.valueChanged.connect(lambda v, i=lid, f=field: self._set(i, f, v))
+            perf_layout.addWidget(spin_perf)
+            editors[editor_key] = spin_perf
+        self.table.setCellWidget(row, 13, perf_cell)
+
+        # Rampe de puissance : case + puissance de la dernière passe (%), pour les modes de contour.
+        ramp_cell = QWidget()
+        ramp_layout = QHBoxLayout(ramp_cell)
+        ramp_layout.setContentsMargins(2, 0, 2, 0)
+        ramp_layout.setSpacing(4)
+        chk_ramp = QCheckBox(); chk_ramp.setChecked(layer.ramp)
+        chk_ramp.setToolTip(tr("layers.ramp_tip"))
+        chk_ramp.setEnabled(layer.mode in CONTOUR_MODES)
+        chk_ramp.stateChanged.connect(lambda v, i=lid: self._set(i, "ramp", bool(v)))
+        ramp_layout.addWidget(chk_ramp)
+        spin_ramp = QDoubleSpinBox()
+        spin_ramp.setRange(RAMP_POWER_MIN_PCT, RAMP_POWER_MAX_PCT); spin_ramp.setSingleStep(5.0)
+        spin_ramp.setDecimals(0); spin_ramp.setValue(layer.ramp_power)
+        spin_ramp.setToolTip(tr("layers.ramp_tip"))
+        spin_ramp.setEnabled(layer.mode in CONTOUR_MODES and layer.ramp)
+        spin_ramp.valueChanged.connect(lambda v, i=lid: self._set(i, "ramp_power", v))
+        ramp_layout.addWidget(spin_ramp)
+        self.table.setCellWidget(row, 14, ramp_cell)
+        editors["ramp"] = chk_ramp
+        editors["ramp_power"] = spin_ramp
+
         chk_enabled = QCheckBox(); chk_enabled.setChecked(layer.enabled)
         chk_enabled.stateChanged.connect(lambda v, i=lid: self._set(i, "enabled", bool(v)))
-        self.table.setCellWidget(row, 12, self._centered(chk_enabled))
+        self.table.setCellWidget(row, 15, self._centered(chk_enabled))
         editors["enabled"] = chk_enabled
 
         self._editors[lid] = editors
@@ -288,7 +349,7 @@ class LayerManagerWidget(QWidget):
                     idx = widget.findData(value)
                     if idx >= 0 and idx != widget.currentIndex():
                         widget.setCurrentIndex(idx)
-                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf"):
+                elif key in ("line_interval_linked", "enabled", "overscan", "tabs", "kerf", "lead", "ramp"):
                     if widget.isChecked() != value:
                         widget.setChecked(value)
                 elif widget.value() != value:
@@ -306,6 +367,17 @@ class LayerManagerWidget(QWidget):
                 is_cut = layer.mode == CUT_MODE
                 editors["kerf"].setEnabled(is_cut)
                 editors["kerf_width"].setEnabled(is_cut and layer.kerf)
+            if key in ("mode", "lead") and "lead" in editors:
+                is_cut = layer.mode == CUT_MODE
+                editors["lead"].setEnabled(is_cut)
+                editors["lead_radius"].setEnabled(is_cut and layer.lead)
+            if key == "mode" and "perf_dash" in editors:
+                editors["perf_dash"].setEnabled(layer.mode == PERF_MODE)
+                editors["perf_gap"].setEnabled(layer.mode == PERF_MODE)
+            if key in ("mode", "ramp") and "ramp" in editors:
+                in_contour = layer.mode in CONTOUR_MODES
+                editors["ramp"].setEnabled(in_contour)
+                editors["ramp_power"].setEnabled(in_contour and layer.ramp)
             if key == "line_interval_linked":
                 self._style_link_button(widget, value)
                 editors["line_interval"].setEnabled(not value)
