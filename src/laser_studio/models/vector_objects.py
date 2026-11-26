@@ -155,7 +155,7 @@ class TextObject(VectorObject):
         # vector.text_on_path.anchor_offset_mm.
         self.text_anchor = text_anchor
         # Identifiant de l'objet dont le contour a été copié : permet de resynchroniser le texte si cet objet
-        # change (VectorCanvasView.resync_text_guide).
+        # change (TextFollowActions.resync).
         self.follow_guide_id = follow_guide_id
 
     def _font(self):

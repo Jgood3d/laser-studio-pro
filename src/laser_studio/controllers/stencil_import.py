@@ -11,7 +11,7 @@ Routage (nom du calque DXF ou du groupe SVG, dans `obj.source_tag`) :
   LAYER_n  -> calque LSP dédié à la plaque n (créé si besoin), mode Découpe
 
 L'import lui-même (lecture du fichier, ajout dans l'éditeur, repli) est
-fait par VectorEditorController.import_stencil_export.
+fait par VectorImporter.import_stencil_export.
 """
 import os
 import re

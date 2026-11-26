@@ -14,7 +14,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from laser_studio.i18n import TRANSLATIONS
     from laser_studio.models.layers import LayersModel
-    from laser_studio.ui.vector_editor import canvas as canvas_mod
+    from laser_studio.ui.vector_editor import navigation as canvas_mod
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView
 except ImportError:  # PyQt6 manquant
     VectorCanvasView = None
@@ -48,10 +48,10 @@ class ZoomTests(unittest.TestCase):
 
     def test_buttons_zoom_in_and_out_around_the_middle(self):
         before = self.center()
-        self.canvas.zoom_in()
+        self.canvas.navigation.zoom_in()
         self.assertAlmostEqual(self.scale(), canvas_mod.BUTTON_ZOOM_STEP)
         self.assertLess((self.center() - before).manhattanLength(), 2.0)
-        self.canvas.zoom_out()
+        self.canvas.navigation.zoom_out()
         self.assertAlmostEqual(self.scale(), 1.0)
 
     def test_ctrl_plus_and_ctrl_minus(self):
@@ -77,7 +77,8 @@ class ZoomTests(unittest.TestCase):
         self.assertIn(("zoom_out", "ui.vector_zoom_out", "zoom-out"), EDIT_ACTIONS)
         with open(os.path.join(ROOT, "controllers", "vector_editor.py"), encoding="utf-8") as f:
             src = f.read()
-        self.assertIn('"zoom_in": canvas.zoom_in, "zoom_out": canvas.zoom_out', src)
+        self.assertIn('"zoom_in": canvas.navigation.zoom_in,', src)
+        self.assertIn('"zoom_out": canvas.navigation.zoom_out,', src)
         for name in ("zoom-in", "zoom-out"):
             self.assertTrue(os.path.exists(os.path.join(
                 ROOT, "resources", "icons", "breeze", "22x22", "actions", f"{name}.svg")), name)

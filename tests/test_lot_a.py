@@ -234,11 +234,12 @@ class NudgeTests(unittest.TestCase):
         self.assertAlmostEqual(canvas.objects[0].x_mm, 21.0)
 
     def test_key_handler_asks_for_the_four_arrows(self):
-        src = read(os.path.join("ui", "vector_editor", "canvas.py"))
-        body = src[src.index("def keyPressEvent", src.index("class VectorCanvasView")):src.index("def _key_command")]
-        for key in ("Key_Left", "Key_Right", "Key_Up", "Key_Down"):
-            self.assertIn(f"Qt.Key.{key}", body)
-        self.assertIn("self.nudge_requested.emit(", body)
+        # Les quatre flèches, dans le repère machine (Y vers le haut) ; leur traduction est testée avec de vrais
+        # événements dans test_canvas_parts.
+        from PyQt6.QtCore import Qt
+        from laser_studio.ui.vector_editor.shortcuts import ARROWS
+        self.assertEqual(ARROWS, {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0), Qt.Key.Key_Up: (0, 1),
+                                  Qt.Key.Key_Down: (0, -1)})
 
 
 if __name__ == "__main__":

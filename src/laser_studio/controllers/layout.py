@@ -54,7 +54,7 @@ class LayoutController:
         canvas = self.canvas
         enabled_ids = {layer.id for layer in self.layers.layers if layer.enabled}
         candidates = [o for o in canvas.objects if o.layer_id in enabled_ids]
-        selected = [item.obj for item in canvas.scene_obj.selectedItems() if hasattr(item, "obj") and item.obj in candidates]
+        selected = [item.obj for item in canvas.selected_items_vector() if item.obj in candidates]
         if not candidates:
             self.dialogs.info(tr("nest.title"), tr("nest.no_objects"))
             return
@@ -78,10 +78,9 @@ class LayoutController:
         canvas.push_undo_snapshot()
         moved = apply_result(members, result)
         self._show_positions(moved)
-        moved_ids = {id(o) for o in moved}
-        items = [item for item in canvas.scene_obj.items() if hasattr(item, "obj") and id(item.obj) in moved_ids]
+        items = [item for item in map(canvas.item_for, moved) if item is not None]
         if items:
-            canvas.request_recenter(items)
+            canvas.navigation.request_recenter(items)
         message = tr("nest.done").format(
             placed=len(result.placements), sheet_w=options["sheet_w"], sheet_h=options["sheet_h"],
             percent=result.utilization * 100.0, ext_w=result.extent[0], ext_h=result.extent[1])
@@ -141,14 +140,10 @@ class LayoutController:
                     canvas.add_object(obj)
             self._show_positions(result.copies[0])                       # texte et position modifiés en place
         except Exception:
-            canvas.undo()
+            canvas.document.undo()
             raise
-        ids = {id(obj) for copy in result.copies for obj in copy}
-        canvas.scene_obj.clearSelection()
-        selected = [it for it in canvas.scene_obj.items() if hasattr(it, "obj") and id(it.obj) in ids]
-        for it in selected:
-            it.setSelected(True)
-        canvas.request_recenter(selected)
+        canvas.select_objects([obj for copy in result.copies for obj in copy])
+        canvas.navigation.request_recenter(canvas.selected_items_vector())
         return result
 
     def _existing_polygons(self, template):
@@ -160,6 +155,5 @@ class LayoutController:
                 for poly in object_polygons(obj)]
 
     def _show_positions(self, objects):
-        """Met la vue à jour après un placement écrit directement dans les objets."""
-        for obj in objects:
-            self.canvas.set_object_position(obj, obj.x_mm, obj.y_mm, obj.rotation_deg)
+        """Placement écrit directement dans les objets : le document prévient les vues."""
+        self.canvas.document.notify_changed(objects)

@@ -11,8 +11,6 @@ from laser_studio.ui.app.theme import theme_color
 if TYPE_CHECKING:  # annotation seulement : canvas importe ce module
     from laser_studio.ui.vector_editor.canvas import VectorCanvasView  # noqa: F401
 
-# Ancien nom du modèle des calques (models/layers.py).
-
 
 class VectorGraphicsItem(QGraphicsPathItem):
     """QGraphicsItem qui représente un VectorObject sur le canevas (échelle px/mm).
@@ -25,25 +23,28 @@ class VectorGraphicsItem(QGraphicsPathItem):
     objet par objet, directement dans la matrice de chaque item.
     """
 
-    def __init__(self, obj: VectorObject, layer_manager: LayersModel, canvas: "VectorCanvasView"):
+    def __init__(self, obj: VectorObject, layer_manager: LayersModel, canvas: "VectorCanvasView",
+                 on_double_click=None):
+        """`canvas` : ce qui donne l'échelle et la hauteur du plateau (px_per_mm, work_h_mm), lues à chaque
+        refresh() ; `on_double_click()` : appelée au double-clic (modifier l'objet)."""
         super().__init__()
         self.obj = obj
         self.layer_manager = layer_manager
         self.canvas = canvas
+        self._on_double_click = on_double_click
         self.setFlags(
             QGraphicsItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsItem.GraphicsItemFlag.ItemIsSelectable |
             QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
-        self.double_click_callback = None  # défini par VectorCanvasView.add_object
         self._parts = []
         self._ghost = None
         self.inactive = False
         self.refresh()
 
     def mouseDoubleClickEvent(self, event):
-        if self.double_click_callback:
-            self.double_click_callback()
+        if self._on_double_click is not None:
+            self._on_double_click()
         super().mouseDoubleClickEvent(event)
 
     def refresh(self):
@@ -130,7 +131,3 @@ class VectorGraphicsItem(QGraphicsPathItem):
             painter.setPen(selection)
             painter.drawRect(self.boundingRect())
 
-    def itemChange(self, change, value):
-        if change == QGraphicsItem.GraphicsItemChange.ItemTransformHasChanged:
-            pass
-        return super().itemChange(change, value)

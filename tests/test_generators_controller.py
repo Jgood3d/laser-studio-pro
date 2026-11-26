@@ -148,7 +148,7 @@ class LayoutTests(GeneratorsTests.__base__):
         self.assertEqual(len(self.document.objects), 3)
         self.assertEqual(len({o.x_mm for o in self.document.objects}), 3)        # rangés côte à côte
         self.assertEqual(len(self.canvas.selected_items_vector()), 3)
-        self.canvas.undo()                                              # l'annulation recrée les objets
+        self.canvas.document.undo()                                              # l'annulation recrée les objets
         self.assertEqual([o.id for o in self.document.objects], [part.id])
 
     def test_failed_serial_duplicate_leaves_the_canvas_unchanged(self):
@@ -174,7 +174,7 @@ class LayoutTests(GeneratorsTests.__base__):
             self.assertLess(part.x_mm, 100)
             self.assertLess(part.y_mm, 100)
             self.assertEqual(self.canvas.item_for(part).obj, part)
-        self.canvas.undo()
+        self.canvas.document.undo()
         self.assertEqual(sorted(o.x_mm for o in self.document.objects), [500, 530, 560])
 
     def test_sheet_size_is_shared_with_the_ornaments(self):

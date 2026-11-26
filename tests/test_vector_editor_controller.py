@@ -170,7 +170,7 @@ class EditorTests(unittest.TestCase):
     def test_no_layer_blocks_insertion_and_import(self):
         self.layers.layers.clear()
         self.editor.insert_shape()
-        self.editor.import_file("dessin.svg")
+        self.editor.importer.import_file("dessin.svg")
         self.assertEqual(self.dialogs.kinds(), ["warning", "warning"])
         self.assertEqual(self.document.objects, [])
 
@@ -183,7 +183,7 @@ class EditorTests(unittest.TestCase):
         with open(path, "w") as f:
             f.write('<svg xmlns="http://www.w3.org/2000/svg" width="60mm" height="40mm" viewBox="0 0 60 40">'
                     '<path d="M 5 5 L 55 5 L 55 35 Z"/></svg>')
-        self.editor.import_file(path)
+        self.editor.importer.import_file(path)
         self.assertEqual(len(self.document.objects), 1)
         self.assertEqual((shown, self.dialogs.kinds()), ([True], ["info"]))
         self.document.undo()
@@ -193,7 +193,7 @@ class EditorTests(unittest.TestCase):
         path = os.path.join(tempfile.mkdtemp(), "casse.dxf")
         with open(path, "wb") as f:
             f.write(b"\x00\x01binaire")
-        self.editor.import_file(path)
+        self.editor.importer.import_file(path)
         self.assertEqual((self.dialogs.kinds(), self.document.objects), (["error"], []))
 
 
@@ -253,7 +253,7 @@ class SelectionCommandsTests(unittest.TestCase):
     def test_explode_and_basic_shape(self):
         a, = self.add(rect(0, 0))
         self.canvas.select_objects([a])
-        self.assertEqual(len(self.editor.explode_selected()), 4)               # un rectangle : 4 segments
+        self.assertEqual(len(self.editor.grouping.explode_selection()), 4)               # un rectangle : 4 segments
         shape = self.editor.add_basic_shape("Cercle", 50.0, 50.0, size_mm=10.0)
         self.assertEqual((shape.shape_type, shape.x_mm, shape.y_mm), ("Ellipse", 45.0, 45.0))
         self.assertEqual(self.editor.selected_objects(), [shape])
@@ -273,14 +273,14 @@ class SelectionCommandsTests(unittest.TestCase):
         ring = ShapeObject("Ellipse", 40, 40, layer_id="L1", x_mm=0, y_mm=0)
         self.add(text, ring)
         self.canvas.select_objects([text, ring])
-        self.assertIs(self.editor.make_text_follow(), text)
+        self.assertIs(self.editor.text_follow.follow(), text)
         self.assertEqual(text.follow_guide_id, ring.id)
         ring.x_mm += 10
-        self.assertEqual(self.editor.resync_linked_texts([ring]), 1)            # le texte suit le contour
+        self.assertEqual(self.editor.text_follow.resync_linked([ring]), 1)            # le texte suit le contour
         self.canvas.select_objects([ring])
         self.editor.forms.medal_values = dict(top_text="HAUT", bottom_text="BAS", font_family="DejaVu Sans",
                                               size_mm=4, margin_mm=1, layer_id="L1")
-        self.editor.open_medal_text()
+        self.editor.text_follow.medal()
         self.assertEqual(sorted(o.text for o in self.editor.selected_objects()), ["BAS", "HAUT"])
 
 

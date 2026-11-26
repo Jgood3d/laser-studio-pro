@@ -194,6 +194,8 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Éditeur vectoriel : changer la taille du plateau (autre profil machine, Paramètres du graveur) laissait les objets dessinés au mauvais endroit, décalés en hauteur, jusqu'au prochain redessin ; ils restent maintenant à leur place sur le plateau.
+
 Sécurité : un G-Code (fichier d'un autre logiciel, console retouchée) qui modifierait la configuration du graveur ($130=…, $RST=*, $N0=…) ou demanderait une puissance au-delà du S-Max n'est envoyé ou ajouté à la file qu'après confirmation, lignes en cause affichées. Un projet dont l'image dépasse 89 millions de pixels est refusé avant d'être décodé, au lieu de saturer la mémoire. F7 et F8 (pause, reprise) sont sans effet graveur déconnecté.
 
 Éditeur vectoriel : le bouton « Fond caméra » a de nouveau son icône (elle manquait dans les icônes livrées avec l'application, comme celle du menu Caméra).
