@@ -174,6 +174,8 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+Éditeur vectoriel : le bouton « Fond caméra » a de nouveau son icône (elle manquait dans les icônes livrées avec l'application, comme celle du menu Caméra).
+
 Pendant une gravure, plus rien ne peut s'intercaler dans l'envoi : « Envoyer au laser » pendant la file d'attente, « Répéter », les flèches de déplacement, la console, le cadrage, le homing ou la lecture des réglages $$ sont refusés avec le message « Graveur occupé ». Avant, une commande glissée au milieu d'un job pouvait l'arrêter net (position perdue), et un second envoi mélangeait ses lignes avec celles du premier.
 
 Le homing n'est compté comme fait qu'une fois réussi : s'il finit en alarme (fin de course non atteinte), s'il est refusé ou s'il n'a pas pu partir, l'avertissement « machine non référencée » réapparaît avant la gravure.
