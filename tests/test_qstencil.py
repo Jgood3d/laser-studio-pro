@@ -356,5 +356,77 @@ class QtDialogTests(unittest.TestCase):
         self.assertIsNone(controller.dialog)                       # la page web n'a pas été ouverte
 
 
+
+    def test_qr_button_on_the_empty_window_starts_a_qr_code(self):
+        from stencil_studio.ui.qt import QStencilDialog
+        dialog = QStencilDialog(language="fr")
+        self.addCleanup(dialog.deleteLater)
+        dialog.show()
+        self.assertTrue(dialog.qr_button.isVisible())
+        self.assertEqual(dialog.qr_button.text(), "Ou créer un code QR")
+        dialog.qr_button.click()
+        self.assertEqual(dialog.state["output"], "qr")
+        self.assertTrue(dialog.service.session.has_image())                # page blanche
+        self.assertFalse(dialog.qr_button.isVisible())
+
+@unittest.skipIf(StudioService is None, "OpenCV ou PyQt6 non importables ici")
+class LayerColorsPanelTests(unittest.TestCase):
+    """Plaques du relief en couches : pastilles avec leurs flèches dessous, sur des rangées qui passent à la
+    ligne, comme la page (une rangée unique élargissait le volet et cachait les champs de valeur à droite)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self):
+        from stencil_studio.ui.qt.layer_colors import LayerColorsPanel
+        panel = LayerColorsPanel(lambda text, **kw: text.format(**kw) if kw else text)
+        self.addCleanup(panel.deleteLater)
+        palette = ["#000000", "#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff", "#ff00ff"]
+        panel.show_colors(["#123456"] * 8, 7, palette, list(range(7)))
+        return panel
+
+    def test_seven_plates_fit_in_the_settings_pane(self):
+        self.assertLess(self.make().minimumSizeHint().width(), 300)       # volet de 330 px
+
+    def test_an_arrow_moves_its_own_plate_once_per_preview(self):
+        panel = self.make()
+        orders = []
+        panel.order_changed.connect(orders.append)
+        right_of_first = panel.arrows[1]                                   # ▶ sous la plaque 1
+        right_of_first.click()
+        self.assertEqual(orders, ["1,0,2,3,4,5,6"])
+        self.assertFalse(any(arrow.isEnabled() for arrow in panel.arrows))  # jusqu'à la palette suivante
+
+
+@unittest.skipIf(StudioService is None, "OpenCV ou PyQt6 non importables ici")
+class ResetButtonTests(unittest.TestCase):
+    """↺ d'un réglage modifié et « • » de son groupe, comme la page (markModified)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def test_modified_setting_shows_reset_and_goes_back_to_default(self):
+        from stencil_studio import spec as spec_module
+        from stencil_studio.ui.qt.controls import SettingsForm
+        spec = spec_module.load()
+        form = SettingsForm(spec, lambda text, **kw: text)
+        self.addCleanup(form.deleteLater)
+        state = spec.defaults()
+        changes = []
+        form.changed.connect(lambda key, value: (changes.append((key, value)), state.__setitem__(key, value),
+                                                 form.show_mode("stencil", state)))
+        form.show_mode("stencil", state)
+        self.assertFalse(form._resets["rot"].isVisibleTo(form))
+        group = next(name for name, box in form.boxes.items() if box.isAncestorOf(form.widgets["rot"]))
+        form.widgets["rot"].setValue(15)
+        self.assertTrue(form._resets["rot"].isVisibleTo(form))
+        self.assertTrue(form.boxes[group].header.text().endswith("•"))
+        form._resets["rot"].click()
+        self.assertEqual((form.value("rot"), changes[-1]), (0, ("rot", 0)))
+        self.assertFalse(form._resets["rot"].isVisibleTo(form))
+        self.assertNotIn("img_mm", form._resets)                   # NO_RESET, comme la page
+
 if __name__ == "__main__":
     unittest.main()

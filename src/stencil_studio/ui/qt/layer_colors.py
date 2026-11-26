@@ -11,10 +11,13 @@ import re
 
 import numpy as np
 from PyQt6.QtCore import pyqtSignal
-from PyQt6.QtWidgets import QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
+from PyQt6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QToolButton, QVBoxLayout, QWidget
 
 HEX = re.compile(r"#[0-9a-fA-F]{6}")
 MAX_PICKS = 8
+# Pastilles par rangée, comme la page (flex-wrap) : la rangée passe à la ligne au lieu d'élargir le volet des
+# réglages (sinon les champs de valeur, à droite des titres, sortaient de l'écran).
+SWATCH_COLUMNS = 4
 
 
 def picks_list(text):
@@ -59,6 +62,7 @@ class LayerColorsPanel(QWidget):
         self.tr = tr
         self.picking, self.target = False, None
         self.picks = []
+        self.arrows = []                  # flèches des plaques, grisées entre un clic et le calcul suivant
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
 
@@ -100,29 +104,31 @@ class LayerColorsPanel(QWidget):
         label.setWordWrap(True)
         label.setEnabled(False)                        # texte d'aide, en gris
         self._layout.addWidget(label)
-        row = QHBoxLayout()
+        picked = []
         for i, color in enumerate(picks):
-            row.addWidget(self._swatch(color, i, lambda i=i: self.request_picker(True, i)))
             remove = QToolButton()
             remove.setText("×")
             remove.clicked.connect(lambda _c=False, i=i: self.picks_changed.emit([c for j, c in enumerate(picks)
                                                                                     if j != i]))
-            row.addWidget(remove)
-        row.addStretch()
-        self._layout.addLayout(row)
+            picked.append((self._swatch(color, i, lambda i=i: self.request_picker(True, i)), [remove]))
+        self._layout.addLayout(self._grid(picked))
+        self.arrows = []
         if palette:
-            self._layout.addWidget(QLabel(self.tr("Plates from back to front (use the arrows to reorder)")))
-            plates_row = QHBoxLayout()
+            caption = QLabel(self.tr("Plates from back to front (use the arrows to reorder)"))
+            caption.setWordWrap(True)
+            self._layout.addWidget(caption)
+            plates = []
             for i, color in enumerate(palette):
-                plates_row.addWidget(self._swatch(color, i, lambda i=i: self.request_picker(True, i, palette)))
+                arrows = []
                 for text, step in (("◀", -1), ("▶", 1)):
                     arrow = QToolButton()
                     arrow.setText(text)
                     arrow.setEnabled(0 <= i + step < len(order_ids))
                     arrow.clicked.connect(lambda _c=False, i=i, step=step: self._move(order_ids, i, step))
-                    plates_row.addWidget(arrow)
-            plates_row.addStretch()
-            self._layout.addLayout(plates_row)
+                    arrows.append(arrow)
+                self.arrows += arrows
+                plates.append((self._swatch(color, i, lambda i=i: self.request_picker(True, i, palette)), arrows))
+            self._layout.addLayout(self._grid(plates))
 
     def request_picker(self, active, target, palette=None):
         """Pipette en marche (ajout, ou plaque `target` à affiner) ; avec moins de 2 couleurs piquées, on part de
@@ -132,7 +138,29 @@ class LayerColorsPanel(QWidget):
         if palette and self.picking and len(self.picks) < 2:
             self.picks_changed.emit(list(palette))
 
+    @staticmethod
+    def _grid(cells):
+        """Pastilles avec leurs boutons dessous (flèches ou ×), SWATCH_COLUMNS par rangée, comme la page."""
+        grid = QGridLayout()
+        grid.setHorizontalSpacing(6)
+        grid.setVerticalSpacing(4)
+        for index, (swatch, buttons) in enumerate(cells):
+            cell = QVBoxLayout()
+            cell.setSpacing(2)
+            cell.addWidget(swatch)
+            line = QHBoxLayout()
+            line.setSpacing(2)
+            for button in buttons:
+                line.addWidget(button)
+            cell.addLayout(line)
+            grid.addLayout(cell, index // SWATCH_COLUMNS, index % SWATCH_COLUMNS)
+        grid.setColumnStretch(SWATCH_COLUMNS, 1)
+        return grid
+
     def _move(self, order_ids, i, step):
+        # Un seul échange par calcul : les flèches restent grisées jusqu'à la nouvelle palette (show_colors).
+        for arrow in self.arrows:
+            arrow.setEnabled(False)
         ids = list(order_ids)
         ids[i], ids[i + step] = ids[i + step], ids[i]
         self.order_changed.emit(",".join(str(v) for v in ids))
@@ -147,9 +175,11 @@ class LayerColorsPanel(QWidget):
         button.clicked.connect(on_click)
         return button
 
-    @staticmethod
-    def _clear(layout):
+    @classmethod
+    def _clear(cls, layout):
         while layout.count():
             item = layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+            elif item.layout():
+                cls._clear(item.layout())

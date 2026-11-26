@@ -25,7 +25,7 @@ import threading
 
 import numpy as np
 from PIL import Image
-from PyQt6.QtCore import QByteArray, QObject, QSize, Qt, QTimer, pyqtSignal
+from PyQt6.QtCore import QByteArray, QEvent, QObject, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QIcon, QImage, QKeySequence, QPainter, QPalette, QPixmap, QShortcut
 from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import (QApplication, QButtonGroup, QCheckBox, QComboBox, QDialog, QDialogButtonBox,
@@ -154,6 +154,11 @@ class QStencilDialog(QDialog):
         self.form.insert_after("ml_sep", self.colors_panel)
         settings = self._settings_panel()
         self.source_view = SourceView(self.state, self.tr_("Open an image to start (or drop it on this window)."))
+        # Sous le message d'accueil, comme la page (btnQR) : le QR code part d'une page blanche.
+        self.qr_button = QPushButton(self.tr_("Or create a QR code"), self.source_view)
+        self.qr_button.adjustSize()
+        self.qr_button.clicked.connect(lambda: self._changed("output", "qr", from_view=True))
+        self.source_view.installEventFilter(self)
         self.source_view.frame_changed.connect(self._frame_moved)
         self.source_view.rotation_changed.connect(lambda angle: self._changed("rot", angle, from_view=True))
         self.source_view.subject_box_drawn.connect(self._subject_box_drawn)
@@ -518,6 +523,7 @@ class QStencilDialog(QDialog):
             self.status.setText(self.tr_("Error: {msg}", msg=str(error)))
             return
         self.source_view.set_image(to_qimage(self.service.session.disp_rgb))
+        self.qr_button.hide()
         self.result_view.clear()
         self._overlay_buttons()
         self._sync_zoom()
@@ -530,6 +536,12 @@ class QStencilDialog(QDialog):
         buf = io.BytesIO()
         Image.new("RGB", (1000, 1000), "white").save(buf, "PNG")
         self.load_image(buf.getvalue(), "qr.png")
+
+    def eventFilter(self, watched, event):
+        if watched is self.source_view and event.type() == QEvent.Type.Resize:   # bouton QR sous le message
+            button = self.qr_button
+            button.move((watched.width() - button.width()) // 2, watched.height() // 2 + 24)
+        return super().eventFilter(watched, event)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():

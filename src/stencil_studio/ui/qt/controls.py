@@ -8,6 +8,9 @@ text : champ, color : bouton couleur). Les libellés et les bulles d'aide passen
     form.show_mode("halftone", state)   # groupes et lignes de ce mode, réglages grisés / masqués selon `state`
     form.set_value("rot", 15)           # sans émettre changed
     form.set_filter("pont", advanced=False)   # recherche, réglages avancés masqués (applyFilter)
+
+Un réglage modifié montre ↺ à droite de son titre (le remet à sa valeur de départ) et son groupe un « • »,
+comme la page (markModified).
 """
 import unicodedata
 
@@ -88,10 +91,12 @@ class SliderField(QWidget):
 
 
 class Section(QWidget):
-    """Groupe repliable, comme les <details> de la page : en-tête cliquable avec une flèche, réglages dessous."""
+    """Groupe repliable, comme les <details> de la page : en-tête cliquable avec une flèche, réglages dessous ;
+    « • » après le titre quand un de ses réglages est modifié (set_modified)."""
 
     def __init__(self, title, opened=True, parent=None):
         super().__init__(parent)
+        self.title = title
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -109,6 +114,9 @@ class Section(QWidget):
 
     def is_open(self):
         return self.header.isChecked()
+
+    def set_modified(self, modified):
+        self.header.setText(f"{self.title}  •" if modified else self.title)
 
     def set_open(self, opened):
         blocked = self.header.blockSignals(True)
@@ -133,6 +141,7 @@ class SettingsForm(QWidget):
         self.advanced = False
         self._mode, self._state = "stencil", {}
         self._rows = {}                   # clé -> (ligne, titre ou None) : pour masquer ou griser une ligne
+        self._resets = {}                 # clé -> bouton ↺ (réglage modifié : remis à sa valeur de départ)
         self._opened_before_search = None  # état des groupes avant une recherche, rendu quand elle est vidée
         layout = QVBoxLayout(self)
         for group in spec.groups:
@@ -200,7 +209,7 @@ class SettingsForm(QWidget):
         shown = {g["g"] for g in self.spec.groups_for(mode)}
         disabled, hidden = self.spec.row_states(state)
         query = normalize(self.query.strip())
-        visible_in = {}
+        visible_in, modified_in = {}, {}
         for group in self.spec.groups:
             for item in group["items"]:
                 key = item["k"]
@@ -219,6 +228,11 @@ class SettingsForm(QWidget):
                 widget.setEnabled(key not in disabled)
                 if label is not None:
                     label.setEnabled(key not in disabled)
+                reset = self._resets.get(key)
+                if reset is not None:
+                    modified = self.spec.is_modified(key, state.get(key, item.get("def")))
+                    reset.setVisible(modified)
+                    modified_in[group["g"]] = modified_in.get(group["g"], False) or modified
         if query and self._opened_before_search is None:
             self._opened_before_search = {name: box.is_open() for name, box in self.boxes.items()}
         elif not query and self._opened_before_search is not None:
@@ -226,6 +240,7 @@ class SettingsForm(QWidget):
                 self.boxes[name].set_open(opened)
             self._opened_before_search = None
         for name, box in self.boxes.items():
+            box.set_modified(modified_in.get(name, False))
             box.setVisible(name in shown and visible_in.get(name, 0) > 0)
             if query and visible_in.get(name, 0):        # la recherche ouvre les groupes où elle trouve un réglage
                 box.set_open(True)
@@ -268,12 +283,15 @@ class SettingsForm(QWidget):
         text = self.tr(item.get("label", item["k"]))
         label = QLabel(text)
         label.setWordWrap(True)                     # volet étroit : les longs libellés passent à la ligne
+        reset = self._reset_button(item)
         row = QWidget()
         if item["t"] == "check":                    # case et son texte (cliquable), sur une ligne
             line = QHBoxLayout(row)
             line.setContentsMargins(0, 2, 0, 2)
             line.addWidget(widget)
             line.addWidget(label, 1)
+            if reset is not None:
+                line.addWidget(reset)
             label.mousePressEvent = lambda _e: widget.isEnabled() and widget.toggle()
             return row, label
         layout = QVBoxLayout(row)
@@ -281,11 +299,36 @@ class SettingsForm(QWidget):
         layout.setSpacing(2)
         top = QHBoxLayout()
         top.addWidget(label, 1)
+        if reset is not None:
+            top.addWidget(reset)
         if isinstance(widget, SliderField):
             top.addWidget(widget.spin)
         layout.addLayout(top)
         layout.addWidget(widget)
         return row, label
+
+    def _reset_button(self, item):
+        """↺ du réglage (sauf NO_RESET) : visible seulement s'il est modifié, le remet à sa valeur de départ."""
+        key = item["k"]
+        if key in self.spec.no_reset:
+            return None
+        button = QToolButton()
+        button.setText("\u21BA")
+        button.setAutoRaise(True)
+        button.setToolTip(self.tr("Reset this setting"))
+        button.setStyleSheet("QToolButton { color: palette(highlight); border: none; padding: 0 2px; }")
+        policy = button.sizePolicy()
+        policy.setRetainSizeWhenHidden(True)        # la ligne ne bouge pas quand ↺ apparaît
+        button.setSizePolicy(policy)
+        button.setVisible(False)
+        button.clicked.connect(lambda _c=False, k=key: self._reset(k))
+        self._resets[key] = button
+        return button
+
+    def _reset(self, key):
+        default = self.spec.item(key).get("def")
+        self.set_value(key, default)
+        self.changed.emit(key, self.value(key))
 
     def _widget(self, item):
         kind, key = item["t"], item["k"]
