@@ -201,6 +201,23 @@ class SendJobTests(unittest.TestCase):
         connection.start_stream.assert_called_once()                # seulement l'envoi d'origine
         self.assertIsNotNone(engraver.resume_point)                 # le point de reprise est gardé
 
+    def test_green_resume_button_resumes_the_interrupted_job(self):
+        # Le cas vécu : après l'arrêt d'urgence et le déverrouillage, on clique sur le bouton vert « Reprise »
+        # (F8) ; ~ n'y ferait rien, c'est le job interrompu qui repart. Pendant un envoi, il reste la reprise ~.
+        job = "".join(f"G1 X{i} S100\n" for i in range(40))
+        engraver, connection, dialogs, _events = make_engraver(gcode=job)
+        connection.is_streaming.return_value = False
+        engraver.start_stream(job, lambda clean: None)
+        engraver._lines_acked(30)
+        engraver.end_stream(False)
+        engraver.resume()
+        connection.resume.assert_not_called()
+        self.assertEqual(connection.start_stream.call_count, 2)       # le job repris
+        self.assertEqual(dialogs.kinds(), ["confirm_default_no"])
+        connection.is_streaming.return_value = True                  # en pause pendant l'envoi repris
+        engraver.resume()
+        connection.resume.assert_called_once()
+
     def test_pause_and_resume_keys_do_nothing_when_disconnected(self):
         engraver, connection, dialogs, events = make_engraver(connected=False)
         engraver.pause()
@@ -515,7 +532,7 @@ class SimulatedWindowTests(unittest.TestCase):
             self.assertFalse(win.connection.is_streaming())
             win.engraver.unlock()
             self.assertTrue(self.wait(lambda: win.connection.state == ms.READY and resume.isEnabled()))
-            resume.click()
+            panel.jog_panel.resume_requested.emit()                          # bouton vert « Reprise » (F8)
             self.assertTrue(self.wait(lambda: win.connection.is_streaming()), "la reprise n'est pas partie")
             first_lines = win.connection.last_sent_gcode.split("\n")[:4]
             self.assertEqual(first_lines[:3], ["G21", "M5", "G90"])

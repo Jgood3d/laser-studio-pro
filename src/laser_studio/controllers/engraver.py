@@ -299,7 +299,12 @@ class EngraverController(QObject):
         self.log.emit(tr("laser.pause_log"))
 
     def resume(self):
-        """Reprise après une pause (bouton, F8) ; sans effet si le graveur ne peut pas la recevoir."""
+        """Reprise (bouton vert, F8) : après une pause pendant un envoi, la reprise temps réel (~) ; sans envoi en
+        cours et avec un job interrompu, la reprise de ce job (resume_job) : c'est ce bouton qu'on cherche après
+        un arrêt d'urgence, et ~ n'y ferait rien. Sans effet si le graveur ne peut pas la recevoir."""
+        if self.resume_point is not None and not self.connection.is_streaming():
+            self.resume_job()
+            return
         if not self.connection.can(ms.REALTIME):
             return
         self.connection.resume()
