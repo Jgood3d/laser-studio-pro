@@ -22,7 +22,7 @@ from laser_studio.gcode.raster import image_origin
 from laser_studio.grbl import commands
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, preferred_index, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
-from laser_studio.grbl.streaming import resume_gcode
+from laser_studio.grbl.streaming import gcode_lines, resume_gcode
 from laser_studio.i18n import tr
 from laser_studio.models import machine_state as ms
 
@@ -69,7 +69,10 @@ class EngraverController(QObject):
     - gcode_restored(gcode) : « Répéter le dernier job » remet le G-Code
       envoyé dans la console ;
     - job_done() : fin d'un job ou de la file (signal sonore) ;
-    - resume_available(bool) : un job s'est arrêté avant la fin et peut être repris (resume_job).
+    - resume_available(bool) : un job s'est arrêté avant la fin et peut être repris (resume_job) ;
+    - resume_starting(gcode, décalage) : juste avant le stream_starting d'une reprise : `gcode` est le job
+      entier, et la ligne envoyée n de la reprise est sa ligne n + décalage (l'aperçu 2D garde le job entier
+      et continue le tracé déjà gravé).
     """
 
     ports_changed = pyqtSignal(list, int)
@@ -82,6 +85,7 @@ class EngraverController(QObject):
     gcode_restored = pyqtSignal(str)
     job_done = pyqtSignal()
     resume_available = pyqtSignal(bool)
+    resume_starting = pyqtSignal(str, int)
 
     def __init__(self, connection, grbl, dialogs, *, selected_port=lambda: "", current_gcode=lambda: "",
                  job_geometry=None, set_homing_available=lambda available, tip: False,
@@ -406,6 +410,9 @@ class EngraverController(QObject):
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
+        start = line - 1                                       # 1re ligne du job reprise (lignes envoyées)
+        prologue = len(gcode_lines(text)) - (total - start)    # retour au point d'arrêt, état du G-Code
+        self.resume_starting.emit(gcode_text, start - prologue)
         self.start_stream(text, self._on_direct_job_finished)
         return True
 

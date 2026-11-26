@@ -532,11 +532,17 @@ class SimulatedWindowTests(unittest.TestCase):
             self.assertFalse(win.connection.is_streaming())
             win.engraver.unlock()
             self.assertTrue(self.wait(lambda: win.connection.state == ms.READY and resume.isEnabled()))
+            burn = win.tab_vector_2d.burn
+            burned = burn.done
             panel.jog_panel.resume_requested.emit()                          # bouton vert « Reprise » (F8)
             self.assertTrue(self.wait(lambda: win.connection.is_streaming()), "la reprise n'est pas partie")
             first_lines = win.connection.last_sent_gcode.split("\n")[:4]
             self.assertEqual(first_lines[:3], ["G21", "M5", "G90"])
             self.assertTrue(first_lines[3].startswith("G0 X"))                # retour, laser éteint, au point d'arrêt
+            # L'aperçu garde le job entier et le tracé déjà gravé, qui continue d'avancer (pas le reste seul).
+            self.assertEqual(win.job_display.last_gcode_text, job)
+            self.assertGreaterEqual(burn.done, burned)
+            self.assertTrue(self.wait(lambda: burn.done > burned))
             win.engraver.emergency_stop()
             self.wait(lambda: not win.connection.is_streaming())
         panel.connection_panel.connect_requested.emit()
