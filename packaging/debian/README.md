@@ -9,7 +9,7 @@ Ubuntu 24.04 n'a que PyQt6 6.6 alors que l'application demande la 6.7 : apt refu
 (dépendance non satisfaite) ; utiliser l'AppImage.
 
 ```bash
-sudo apt install ./laser-studio-pro_2.5.0_all.deb
+sudo apt install ./laser-studio-pro_3.0.0_all.deb
 ```
 
 ## Construire

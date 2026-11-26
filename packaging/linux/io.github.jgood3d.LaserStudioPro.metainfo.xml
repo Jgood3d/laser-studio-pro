@@ -90,6 +90,11 @@
   <content_rating type="oars-1.1"/>
 
   <releases>
+    <release version="3.0.0" date="2026-11-26">
+      <description>
+        <p>Major release: redesigned interface and style, code reorganized around the model-view-controller pattern, new generators and tools (keychain, Christmas ornament, box, puzzle, model library, macros, engraving history, camera alignment), always-visible emergency stop, framing, resuming an interrupted job.</p>
+      </description>
+    </release>
     <release version="2.5.0" date="2026-11-01">
       <description>
         <p>Stencil Studio: dot and line screens, low poly effect, and complete boxes with lighting, opened from the main menu.</p>

@@ -6,6 +6,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
 ## [Non publié]
 
+## [3.0.0] — 2026-11-26
+
 ### Ajouté
 Arrêt d'urgence toujours accessible : pendant une gravure, un homing ou un cadrage, un gros bouton rouge « Arrêt d'urgence » s'affiche dans la barre d'outils, même panneau du graveur replié ; la touche F9 (menu Job) fait de même. Le laser s'éteint et le travail est abandonné.
 
