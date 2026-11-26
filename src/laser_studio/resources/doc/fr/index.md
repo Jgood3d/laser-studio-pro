@@ -173,6 +173,9 @@ vous le rappelle avant de partir avec l'ancien G-code.
 Dans les panneaux de réglages, la molette fait défiler le panneau : elle ne
 modifie un champ qu'après un clic dedans.
 
+Au clavier, **Tab** passe d'un champ ou d'un bouton au suivant : celui qui a
+le focus est entouré (ou souligné pour un onglet), et **Espace** l'active.
+
 Si un travail s'arrête avant la fin (alarme, arrêt, coupure de courant), le
 bouton vert de reprise (**F8**) ou **Reprendre le job** (cadre Jobs du
 panneau du graveur) le relance là où il s'était arrêté : la tête revient laser éteint au point exact de l'arrêt, puis

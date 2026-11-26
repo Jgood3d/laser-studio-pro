@@ -105,6 +105,8 @@ Les réussites ne bloquent plus l'écran : projet enregistré ou ouvert, G-Code 
 
 Libellés harmonisés en français, anglais, allemand et espagnol : majuscule au premier mot seulement (« Temps estimé »), espace avant les deux-points en français (« Largeur (mm) : »), plus de mots anglais dans l'interface française (« Décalage X » au lieu de « Offset X », « Valeur S maximale » au lieu de « S-Max Value »). La fenêtre du générateur de puzzle, le menu de l'aperçu d'image et la commande laser de la matrice de test sont maintenant traduits.
 
+Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
+
 La molette ne change plus une valeur par accident : sur un champ numérique, une liste ou un curseur qu'on n'a pas cliqué, elle fait défiler le panneau au lieu de modifier la puissance ou la vitesse au passage de la souris. Après un clic dans le champ, la molette le règle comme avant.
 
 Visualisation 2D environ cinq fois plus rapide à dessiner sur une grosse image (1,2 s -> 0,23 s pour 500 000 lignes), image identique. La console se remplit d'un gros G-Code en tâche de fond, sans figer l'interface (lecture seule le temps du remplissage). Le panneau du bas démarre toujours replié : au lancement, le graveur n'est pas encore connecté.
