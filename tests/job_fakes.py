@@ -25,6 +25,9 @@ class FakeDialogs:
     def info(self, title, text):
         self._record("info", title, text)
 
+    def notify(self, text):
+        self._record("notify", None, text)
+
     def warning(self, title, text):
         self._record("warning", title, text)
 
@@ -86,6 +89,14 @@ def geometry(**kw):
     return g
 
 
+def _document(objects):
+    """Document du dessin dont la liste d'objets est `objects` (partagée avec le test)."""
+    from laser_studio.models.vector_document import VectorDocument
+    document = VectorDocument()
+    document.objects = objects
+    return document
+
+
 def make_job(image=None, objects=(), dialogs=None, geometry_kw=None):
     """(JobController, FakeDialogs) avec des modèles neufs."""
     dialogs = dialogs or FakeDialogs()
@@ -95,8 +106,7 @@ def make_job(image=None, objects=(), dialogs=None, geometry_kw=None):
     placement.update(width_mm=g["width_mm"], height_mm=g["height_mm"], origin=g["origin_pos"],
                      offset_x=g["offset_x"], offset_y=g["offset_y"])
     job = JobController(
-        LayersModel(), GrblConfig(), MachineConfig(), ImageSettings(), placement,
-        SimpleNamespace(objects=holder["objects"]), dialogs,
+        LayersModel(), GrblConfig(), MachineConfig(), ImageSettings(), placement, _document(holder["objects"]), dialogs,
         image=lambda: SimpleNamespace(processed_array=holder["image"],
                                       material_summary=lambda: "Matière : fond clair"),
     )

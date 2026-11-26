@@ -15,6 +15,11 @@ from PyQt6.QtWidgets import QApplication
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import tr
 from laser_studio.i18n.durations import duration_text
+from laser_studio.models import machine_state as ms
+
+
+# États où le graveur bouge ou travaille : l'arrêt d'urgence s'affiche dans la barre d'outils.
+RUNNING_STATES = (ms.STREAMING, ms.HOMING, ms.COMMANDS)
 
 
 def set_homing_available(checkboxes, available, tip):
@@ -178,7 +183,9 @@ class JobDisplay(QObject):
         du graveur (MachinePanel.set_machine_state, table de models/machine_state.py) : tout grisé
         déconnecté, seules les commandes temps réel pendant un job ou un homing. La position du job reste
         modifiable : elle sert aussi à générer le G-Code hors connexion."""
-        self.machine_panel.set_machine_state(self.connection.is_connected(), self.connection.can)
+        connection = self.connection
+        self.machine_panel.set_machine_state(connection.is_connected(), connection.can)
+        self.actions.set_machine_state(connection.can(ms.REALTIME), connection.state in RUNNING_STATES)
 
     def status_updated(self, state, x, y, z):
         """État et position du graveur (sondage hors job, thread d'envoi

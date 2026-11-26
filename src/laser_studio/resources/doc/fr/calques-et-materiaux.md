@@ -98,7 +98,7 @@ catalogue n'envoie rien au graveur.
 
 ## Trouver les bons réglages
 
-**Outils › Matrice de Test** grave une grille de carrés, chacun avec une
+**Outils › Matrice de test** grave une grille de carrés, chacun avec une
 puissance et une vitesse différentes. Gravez-la sur une chute de votre
 matériau, repérez le carré le plus réussi, et reportez ses valeurs dans le
 calque correspondant.

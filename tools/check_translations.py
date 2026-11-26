@@ -57,10 +57,17 @@ MSGBOX = {"warning", "critical", "information", "question", "about"}
 
 
 def _texty(s):
-    s = s.strip()
+    s = re.sub(r"<[^>]*>?|&\w+;", "", s).strip()      # balises HTML : pas du texte à traduire
     if not re.search(r"[A-Za-zÀ-ÿ]{3,}", s):
         return False
+    if re.fullmatch(r"[a-z_]+(\.[a-z_{}]*)+|[a-z]+(-[a-z]+)+|[A-Z]{2,4}", s):   # clé, nom d'icône, unité (DPI)
+        return False
     return not s.startswith(("#", "background", "color", "font", "border", "QWidget"))
+
+
+def _is_log_call(func):
+    """log.warning(...), logger.warning(...) : journal pour le développeur, pas un texte d'interface."""
+    return isinstance(func, ast.Attribute) and "log" in ast.unparse(func.value).lower()
 
 
 def section_b():
@@ -81,12 +88,13 @@ def section_b():
                 continue
             name = n.func.id if isinstance(n.func, ast.Name) else getattr(n.func, "attr", None)
             args = None
-            if name in UI_CTORS or name in UI_METHODS or (name in MSGBOX and isinstance(n.func, ast.Attribute)):
+            if name in UI_CTORS or name in UI_METHODS or (name in MSGBOX and isinstance(n.func, ast.Attribute)
+                                                                 and not _is_log_call(n.func)):
                 args = n.args
             elif name == "append" and isinstance(n.func, ast.Attribute) and "console" in ast.unparse(n.func.value):
                 args = n.args
-            elif name == "addRow":
-                args = n.args[:1]
+            if name in ("addRow", "addItem"):
+                args = n.args[:1]                       # addItem(texte, donnée) : la donnée n'est pas affichée
             for a in args or []:
                 for c in ast.walk(a):
                     if (isinstance(c, ast.Constant) and isinstance(c.value, str) and _texty(c.value)

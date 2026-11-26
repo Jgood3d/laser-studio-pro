@@ -183,7 +183,7 @@ class GeneratorsController:
         # l'utilisateur le place à côté des objets présents.
         if not self.editor.import_objects(objects, keep_position=True):
             return
-        self.dialogs.info(tr("puzzle.title"), tr("puzzle.done").format(
+        self.dialogs.notify(tr("puzzle.done").format(
             nx=params.nx, ny=params.ny, w=params.width, h=params.height, count=len(result.pieces)))
 
     def _make_ornament(self, choice):
@@ -237,7 +237,7 @@ class GeneratorsController:
             return
         if ball_count == 1:
             geometry, contours = built[0][1].geometry, built[0][1].cut
-            self.dialogs.info(tr("ornament.title"), tr("ornament.done").format(
+            self.dialogs.notify(tr("ornament.done").format(
                 w=geometry.width, h=geometry.height, count=len(contours)))
             return
         message = tr("ornament.done_batch").format(n=ball_count, w=extent[0], h=extent[1])
@@ -276,4 +276,4 @@ class GeneratorsController:
         if not objects or not self.editor.import_objects(objects):
             return
         done_key = "keychain.done_two_layers" if getattr(result, "two_layers", False) else "keychain.done"
-        self.dialogs.info(tr("keychain.title"), tr(done_key).format(w=result.width, h=result.height))
+        self.dialogs.notify(tr(done_key).format(w=result.width, h=result.height))

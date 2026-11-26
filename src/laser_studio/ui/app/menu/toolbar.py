@@ -45,6 +45,12 @@ class AppToolBar(QToolBar):
         # ui/app/main_window._add_image_floating_toolbars).
         self.addAction(actions.estimate)
         self.addWidget(self._generate_button(actions))
+        # Arrêt d'urgence : toujours à l'écran pendant une gravure, un homing ou des commandes, même panneau du
+        # graveur replié.
+        self.stop_button = self._stop_button(actions)
+        self.stop_button_action = self.addWidget(self.stop_button)
+        self.stop_button_action.setVisible(False)
+        actions.machine_running_changed.connect(self.stop_button_action.setVisible)
         self.addSeparator()
         # File d'attente : son onglet du panneau du bas.
         self.addAction(actions.job_queue)
@@ -62,6 +68,15 @@ class AppToolBar(QToolBar):
             QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
         )
         return spacer
+
+    @staticmethod
+    def _stop_button(actions):
+        """Gros bouton rouge « Arrêt d'urgence » (F9) : reset immédiat du graveur."""
+        button = QPushButton(tr("menu.job.emergency_stop_button"))
+        button.setToolTip(tr("menu.job.emergency_stop_tip"))
+        button.setProperty("role", "danger")     # rouge dans tous les thèmes (theme.py)
+        button.clicked.connect(actions.emergency_stop.trigger)
+        return button
 
     @staticmethod
     def _generate_button(actions):

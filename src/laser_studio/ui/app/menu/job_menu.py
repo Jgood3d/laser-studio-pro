@@ -8,7 +8,7 @@ from laser_studio.i18n import tr
 
 class JobMenu(QMenu):
     """Actions de AppActions.job_actions (F5 générer, F6 cadrer, Maj+F6 cadrer au plus près, Ctrl+Entrée
-    envoyer, F7 pause, F8 reprise)."""
+    envoyer, F7 pause, F8 reprise), puis l'arrêt d'urgence (F9)."""
 
     def __init__(self, actions, parent=None):
         super().__init__(tr("menu.job"), parent)
@@ -20,3 +20,5 @@ class JobMenu(QMenu):
         self.addSeparator()
         for action in (pause, resume):
             self.addAction(action)
+        self.addSeparator()
+        self.addAction(actions.emergency_stop)

@@ -76,7 +76,9 @@ class JobController(QObject):
     - failed(texte) : la génération a échoué dans le thread ;
     - imported(gcode, chemin) : fichier G-Code importé ;
     - log(texte) : ligne pour la console ;
-    - status(texte) : message pour la barre d'état.
+    - status(texte) : message pour la barre d'état ;
+    - gcode_stale_changed(périmé) : le G-Code généré ne correspond plus aux réglages (un calque, la
+      configuration GRBL, le placement, l'image ou un objet du dessin a changé depuis) : à régénérer.
     """
 
     started = pyqtSignal()
@@ -86,6 +88,10 @@ class JobController(QObject):
     imported = pyqtSignal(str, str)
     log = pyqtSignal(str)
     status = pyqtSignal(str)
+    gcode_stale_changed = pyqtSignal(bool)
+
+    # Réglages GRBL sans effet sur le G-Code généré : leur changement ne le rend pas périmé.
+    GCODE_NEUTRAL_GRBL = {"frame_power_pct", "grbl_settings"}
 
     def __init__(self, layers, grbl, machine, image_settings, placement, document, dialogs, *, image,
                  parent=None):
@@ -109,6 +115,35 @@ class JobController(QObject):
         self.worker = None
         self.matrix_worker = None
         self.gain_test_worker = None
+        # G-Code du dernier job généré, et s'il ne correspond plus aux réglages (is_stale). Une matrice, un motif
+        # de test ou un fichier importé ne dépendent pas des réglages suivis : jamais marqués.
+        self._job_gcode = None
+        self._stale = False
+        self.generated.connect(lambda *_result: self._set_job_gcode(None))
+        self.imported.connect(lambda *_args: self._set_job_gcode(None))
+        for signal in (layers.changed, placement.changed, image_settings.changed, document.object_added,
+                       document.object_removed, document.objects_changed, document.objects_reset,
+                       document.order_changed):
+            signal.connect(self.mark_stale)
+        grbl.changed.connect(lambda changes: self.mark_stale() if set(changes) - self.GCODE_NEUTRAL_GRBL else None)
+
+    # -- G-Code périmé
+
+    def mark_stale(self, *_args):
+        """Un réglage du job a changé : le G-Code généré (s'il y en a un) est à régénérer."""
+        if self._job_gcode is not None and not self._stale:
+            self._stale = True
+            self.gcode_stale_changed.emit(True)
+
+    def is_stale(self, gcode_text):
+        """Vrai si `gcode_text` est le dernier job généré et que les réglages ont changé depuis."""
+        return self._stale and gcode_text == self._job_gcode
+
+    def _set_job_gcode(self, gcode_text):
+        self._job_gcode = gcode_text
+        if self._stale:
+            self._stale = False
+            self.gcode_stale_changed.emit(False)
 
     # -- réglages de la gravure d'une image et de l'ancienne découpe SVG
 
@@ -368,6 +403,8 @@ class JobController(QObject):
         self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data,
                                           layer_colors=self.layers.colors_by_name())
         self.worker.finished.connect(self.generated)
+        # Après generated (qui oublie le G-Code suivi) : ce job-ci est suivi, à jour.
+        self.worker.finished.connect(lambda gcode, *_rest: self._set_job_gcode(gcode))
         self.worker.progress.connect(self.progress)
         self.worker.error.connect(self.failed)
         # La fenêtre affiche l'aperçu dès le lancement (il se remplit à la fin).
@@ -463,7 +500,7 @@ class JobController(QObject):
         except Exception as e:
             self.dialogs.error(tr("gcode.export_error_title"), tr("gcode.export_error").format(error=e))
             return ""
-        self.dialogs.info(tr("gcode.export_success_title"), tr("gcode.export_success").format(path=path))
+        self.dialogs.notify(tr("gcode.export_success").format(path=path))
         return path
 
     def import_gcode(self):

@@ -118,8 +118,12 @@ class LaunchConfirmationTests(unittest.TestCase):
         text = launch_confirmation_text()
         self.assertTrue(text.startswith(tr("startup.safety.body") + "\n" + tr("startup.safety.detail")))
         self.assertTrue(text.endswith(tr("laser.confirm_body")))    # vérifications et question à la fin
+        # Les points à vérifier s'insèrent entre l'avertissement et la question, dans la même fenêtre.
+        text = launch_confirmation_text(["pas de homing"])
+        self.assertIn(tr("laser.check_title") + "\n• pas de homing", text)
+        self.assertTrue(text.endswith(tr("laser.confirm_body")))
         with open(os.path.join(REPO, "src", "laser_studio", "controllers", "engraver.py"), encoding="utf-8") as f:
-            self.assertIn('self.dialogs.confirm_default_no(tr("laser.confirm_title"), launch_confirmation_text())', f.read())
+            self.assertIn("launch_confirmation_text(self.launch_warnings(gcode_text))", f.read())
 
 
 if __name__ == "__main__":

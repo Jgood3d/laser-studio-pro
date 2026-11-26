@@ -77,9 +77,7 @@ class GrblConfigPage(QWidget):
         """Champs de la commande laser, du surbalayage et du G-Code de
         début et de fin."""
         self.laser_cmd_combo = QComboBox()
-        self.laser_cmd_combo.addItems(
-            ["M4 (Dynamic Power)", "M3 (Constant Power)"]
-        )
+        self.laser_cmd_combo.addItems([tr("layers.laser_m4"), tr("layers.laser_m3")])   # le texte commence par M4 / M3
         self.smax_spin = QSpinBox()
         self.smax_spin.setRange(1, 10000)
         self.smax_spin.setValue(1000)

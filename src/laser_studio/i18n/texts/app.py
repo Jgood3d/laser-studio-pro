@@ -88,8 +88,8 @@ TEXTS = {
         "es": "Generador de cajas…",
     },
     "menu.tools.puzzle": {
-        "fr": "Générateur de Puzzle…",
-        "en": "Puzzle Generator…",
+        "fr": "Générateur de puzzle…",
+        "en": "Puzzle generator…",
         "de": "Puzzle-Generator…",
         "es": "Generador de puzzle…",
     },
@@ -202,6 +202,24 @@ TEXTS = {
     "menu.job.pause": {"fr": "Pause", "en": "Pause", "de": "Pause", "es": "Pausa"},
     "menu.job.resume": {"fr": "Reprise après pause", "en": "Resume after pause", "de": "Nach Pause fortsetzen",
                         "es": "Reanudar tras la pausa"},
+    "menu.job.emergency_stop": {"fr": "Arrêt d'urgence", "en": "Emergency stop", "de": "Not-Halt",
+                                "es": "Parada de emergencia"},
+    "menu.job.emergency_stop_button": {"fr": "⛔ ARRÊT D'URGENCE", "en": "⛔ EMERGENCY STOP", "de": "⛔ NOT-HALT",
+                                       "es": "⛔ PARADA DE EMERGENCIA"},
+    "menu.job.emergency_stop_tip": {
+        "fr": "Arrête tout de suite le graveur (F9) : le laser s'éteint et le travail est abandonné.",
+        "en": "Stops the engraver immediately (F9): the laser turns off and the job is abandoned.",
+        "de": "Hält den Gravierer sofort an (F9): Der Laser schaltet ab und der Auftrag wird abgebrochen.",
+        "es": "Detiene el grabador de inmediato (F9): el láser se apaga y el trabajo se abandona.",
+    },
+    "status.gcode_stale": {"fr": "G-Code à régénérer", "en": "G-Code out of date", "de": "G-Code veraltet",
+                           "es": "G-Code desactualizado"},
+    "status.gcode_stale_tip": {
+        "fr": "Des réglages ont changé depuis la génération : cliquez (ou F5) pour régénérer le G-Code.",
+        "en": "Settings have changed since generation: click (or F5) to generate the G-Code again.",
+        "de": "Seit der Erzeugung haben sich Einstellungen geändert: klicken (oder F5), um den G-Code neu zu erzeugen.",
+        "es": "Los ajustes han cambiado desde la generación: haga clic (o F5) para volver a generar el G-Code.",
+    },
     "menu.help": {"fr": "Aide", "en": "Help", "de": "Hilfe", "es": "Ayuda"},
     "menu.help.version": {"fr": "Version", "en": "Version", "de": "Version", "es": "Versión"},
     "menu.help.documentation": {"fr": "Documentation", "en": "Documentation",
@@ -228,7 +246,7 @@ TEXTS = {
         "de": "Gravierer-Einstellungen", "es": "Ajustes del grabador",
     },
     "tab.test_matrix": {
-        "fr": "Matrice de Test", "en": "Test Matrix",
+        "fr": "Matrice de test", "en": "Test matrix",
         "de": "Testmatrix", "es": "Matriz de prueba",
     },
     "tab.grbl_config": {
@@ -270,14 +288,14 @@ TEXTS = {
     },
     # --- Projets ---
     "project.save_title": {
-        "fr": "Sauvegarder Projet Laser",
-        "en": "Save Laser Project",
+        "fr": "Enregistrer le projet laser",
+        "en": "Save laser project",
         "de": "Laserprojekt speichern",
         "es": "Guardar proyecto láser",
     },
     "project.file_filter": {
-        "fr": "Projet Laser (*.json)",
-        "en": "Laser Project (*.json)",
+        "fr": "Projet laser (*.json)",
+        "en": "Laser project (*.json)",
         "de": "Laserprojekt (*.json)",
         "es": "Proyecto láser (*.json)",
     },
@@ -300,8 +318,8 @@ TEXTS = {
         "es": "No se puede guardar el proyecto:\n{error}",
     },
     "project.open_title": {
-        "fr": "Ouvrir Projet Laser",
-        "en": "Open Laser Project",
+        "fr": "Ouvrir un projet laser",
+        "en": "Open a laser project",
         "de": "Laserprojekt öffnen",
         "es": "Abrir proyecto láser",
     },
@@ -356,8 +374,8 @@ TEXTS = {
               "¿Quieres recuperarlo?",
     },
     "ui.window_title": {
-        "fr": "Laser Studio Pro - Contrôleur GRBL", "en": "Laser Studio Pro - GRBL Controller",
-        "de": "Laser Studio Pro - GRBL-Steuerung", "es": "Laser Studio Pro - Controlador GRBL",
+        "fr": "Laser Studio Pro — contrôleur GRBL", "en": "Laser Studio Pro — GRBL controller",
+        "de": "Laser Studio Pro — GRBL-Steuerung", "es": "Laser Studio Pro — controlador GRBL",
     },
     "ui.quit_title": {
         "fr": "Quitter",
@@ -420,16 +438,16 @@ TEXTS = {
         "es": "Grabar una imagen vectorial",
     },
     "ui.tab_2d_preview": {
-        "fr": "Visualisation 2D G-Code",
+        "fr": "Visualisation 2D du G-Code",
         "en": "2D G-Code Preview",
         "de": "2D-G-Code-Vorschau",
         "es": "Vista previa 2D del G-Code",
     },
     "ui.source_image_box": {
-        "fr": "Image Originale (Glisse pour déplacer, molette pour zoomer)",
-        "en": "Original Image (Drag to move, mouse wheel to zoom)",
+        "fr": "Image originale (glisser pour déplacer, molette pour zoomer)",
+        "en": "Original image (drag to move, mouse wheel to zoom)",
         "de": "Originalbild (ziehen zum Bewegen, Mausrad zum Zoomen)",
-        "es": "Imagen original (arrastra para mover, rueda del ratón para ampliar)",
+        "es": "Imagen original (arrastrar para mover, rueda del ratón para ampliar)",
     },
     "ui.final_raster_box": {
         "fr": "Rendu Tramé Final (Glisse pour déplacer, molette pour zoomer)",
@@ -473,14 +491,14 @@ TEXTS = {
         "de": "🔓 Entsperren ($X)", "es": "🔓 Desbloquear ($X)",
     },
     "ui.zero_work": {
-        "fr": "Zéro Travail (G92 X0 Y0)",
-        "en": "Work Zero (G92 X0 Y0)",
+        "fr": "Zéro de travail (G92 X0 Y0)",
+        "en": "Work zero (G92 X0 Y0)",
         "de": "Arbeitsnull (G92 X0 Y0)",
         "es": "Cero de trabajo (G92 X0 Y0)",
     },
     "ui.go_zero": {
-        "fr": "Go Zéro (G0 X0 Y0)",
-        "en": "Go Zero (G0 X0 Y0)",
+        "fr": "Aller au zéro (G0 X0 Y0)",
+        "en": "Go to zero (G0 X0 Y0)",
         "de": "Zu Null (G0 X0 Y0)",
         "es": "Ir a cero (G0 X0 Y0)",
     },
@@ -550,9 +568,9 @@ TEXTS = {
         "es": "Grabado: {pct}%",
     },
     "ui.generated_console_label": {
-        "fr": "Console / G-Code Généré :",
-        "en": "Console / Generated G-Code:",
-        "de": "Konsole / Generierter G-Code:",
+        "fr": "Console / G-Code généré :",
+        "en": "Console / generated G-Code:",
+        "de": "Konsole / generierter G-Code:",
         "es": "Consola / G-Code generado:",
     },
     "ui.tab_console_gcode": {
@@ -574,8 +592,8 @@ TEXTS = {
         "es": "GENERAR MATRIZ DE PRUEBA",
     },
     "ui.test_mode": {
-        "fr": "Mode de Test:",
-        "en": "Test Mode:",
+        "fr": "Mode de test :",
+        "en": "Test mode:",
         "de": "Testmodus:",
         "es": "Modo de prueba:",
     },
@@ -638,10 +656,10 @@ TEXTS = {
         "es": "Apoyar el desarrollo ☕",
     },
     "splash.initializing": {
-        "fr": "Initialisation de Laser Studio Pro...",
-        "en": "Initializing Laser Studio Pro...",
-        "de": "Laser Studio Pro wird initialisiert...",
-        "es": "Inicializando Laser Studio Pro...",
+        "fr": "Initialisation de Laser Studio Pro…",
+        "en": "Initializing Laser Studio Pro…",
+        "de": "Laser Studio Pro wird initialisiert…",
+        "es": "Inicializando Laser Studio Pro…",
     },
     "splash.ready": {
         "fr": "Prêt !",
@@ -710,4 +728,22 @@ TEXTS = {
                      "es": "{m} min {s:02d} s"},
     "time.hours": {"fr": "{h} h {m:02d} min", "en": "{h} h {m:02d} min", "de": "{h} Std. {m:02d} min",
                    "es": "{h} h {m:02d} min"},
+    "view.move": {
+        "fr": "Déplacer",
+        "en": "Move",
+        "de": "Verschieben",
+        "es": "Mover",
+    },
+    "view.reset": {
+        "fr": "Réinitialiser la vue",
+        "en": "Reset view",
+        "de": "Ansicht zurücksetzen",
+        "es": "Restablecer la vista",
+    },
+    "png2svg.no_svg_widget": {
+        "fr": "Aperçu SVG indisponible (module PyQt6.QtSvgWidgets absent)",
+        "en": "SVG preview unavailable (PyQt6.QtSvgWidgets module missing)",
+        "de": "SVG-Vorschau nicht verfügbar (Modul PyQt6.QtSvgWidgets fehlt)",
+        "es": "Vista previa SVG no disponible (falta el módulo PyQt6.QtSvgWidgets)",
+    },
 }

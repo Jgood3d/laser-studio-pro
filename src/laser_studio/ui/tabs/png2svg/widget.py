@@ -250,7 +250,7 @@ class PngToSvgWidget(QWidget):
             self.btn_zoom_in.clicked.connect(self.svg_view.zoom_in)
             self.btn_zoom_fit.clicked.connect(self.svg_view.zoom_fit)
         else:
-            self.svg_view = QLabel("PyQt6.QtSvgWidgets introuvable")
+            self.svg_view = QLabel(tr("png2svg.no_svg_widget"))
             self.btn_zoom_out.setEnabled(False)
             self.btn_zoom_in.setEnabled(False)
             self.btn_zoom_fit.setEnabled(False)
