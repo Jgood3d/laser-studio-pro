@@ -72,7 +72,7 @@ Trois calques de base existent toujours : **Gravure**, **Découpe** et
 servent pas). Vous pouvez en ajouter d'autres, par exemple deux gravures
 plus ou moins foncées.
 
-Chaque calque a ses réglages, dans l'onglet *Calques (Layers)* :
+Chaque calque a ses réglages, dans l'onglet *Calques* :
 
 ![L'onglet Calques](images/onglet-calques.jpg)
 
@@ -122,7 +122,7 @@ ou de marquage. Voir [Comment graver ou découper avec une image
 vectorielle](graver-decouper-vectoriel.md) ; pour comprendre ce qu'est un
 dessin vectoriel, lisez la page [Images vectorielles](images-vectorielles.md).
 
-**Calques (Layers)** : la gestion des calques et des **profils
+**Calques** : la gestion des calques et des **profils
 matériaux**. Un profil matériau (bois, bambou, cuir, verre, ardoise…)
 regroupe les réglages de tous les calques pour ce support. Créez un profil
 par matière, ajustez chaque calque, puis il suffit de choisir la matière

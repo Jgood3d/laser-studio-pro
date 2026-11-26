@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from laser_studio.grbl.streaming import is_sent_line
 from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, MODE_PERF, normalize_mode
 
 # Presets matière : fond + couleur de la zone gravée.
@@ -79,6 +80,24 @@ class PreviewData:
     burn_segments: list = field(default_factory=list)            # (x1, y1, x2, y2) de chaque trait gravé
 
 
+# Dernière lecture de parse_preview_cached : (texte, couleurs, résultat). Un tuple remplacé d'un bloc, donc lisible
+# depuis l'interface pendant que le thread de génération le remplace.
+_last_parse = (None, None, None)
+
+
+def parse_preview_cached(gcode_text, layer_colors=None):
+    """parse_preview, gardé pour le dernier G-Code lu : redessiner l'aperçu (option d'affichage changée) ne relit
+    pas tout le texte, et le thread de génération le lit d'avance. Le résultat n'est pas modifié par le dessin."""
+    global _last_parse
+    colors = tuple(sorted((layer_colors or {}).items()))
+    text, cached_colors, preview = _last_parse
+    if cached_colors == colors and text == gcode_text:
+        return preview
+    preview = parse_preview(gcode_text, layer_colors)
+    _last_parse = (gcode_text, colors, preview)
+    return preview
+
+
 def parse_preview(gcode_text, layer_colors=None):
     """Lit le G-Code pour l'aperçu. `layer_colors` : couleur de chaque calque
     vectoriel, par nom. Une ligne mal formée est ignorée.
@@ -99,7 +118,7 @@ def parse_preview(gcode_text, layer_colors=None):
         if not raw_line:
             continue
         line_idx = None
-        if not line.startswith(';'):
+        if is_sent_line(raw_line):
             line_idx = stream_count
             stream_count += 1
 

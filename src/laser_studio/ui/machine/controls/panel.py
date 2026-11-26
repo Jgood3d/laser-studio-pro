@@ -101,10 +101,6 @@ class JogControlPanel(QGroupBox):
         """Position de la machine en mm ; `x` à None : inconnue (tirets)."""
         self.position_row.set_position(x, y, z)
 
-    def set_send_enabled(self, enabled):
-        """Active l'envoi du job (désactivé pendant un envoi en cours)."""
-        self.send_button.setEnabled(enabled)
-
     def set_max_speed(self, max_speed):
         """Limite le curseur de vitesse à la vitesse maximale du graveur.
 

@@ -79,6 +79,12 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Position du job réunie dans un seul cadre : l'ancrage de l'origine et le décalage (Offset X / Y) se règlent ensemble dans « Position du job sur le plateau », à droite de la Visualisation 2D, là où l'on voit le job sur le plateau ; le décalage n'est plus dans « Graver une image ». « Optimiser le chemin » quitte le cadre « Affichage » pour un cadre « Génération » : la case change l'ordre des tracés du G-Code généré, pas l'aperçu.
+
+Visualisation 2D : le plateau de la machine est dessiné en pointillés, et la vue est cadrée dessus tant qu'aucun job n'est généré (au lieu d'axes de -1 à 1). Changer une option d'affichage (inverser, négatif, matière, déplacements rapides) redessine l'aperçu environ deux fois plus vite sur un gros job, et l'aperçu d'un job généré est préparé pendant la génération.
+
+« Graver une image » sans image : une carte au centre invite à glisser-déposer un fichier ou à ouvrir une image, comme le canevas vide de l'éditeur vectoriel. La barre « Gravure : 0 % » du panneau du graveur n'apparaît plus que pendant un envoi. L'onglet « Calques (Layers) » s'appelle « Calques ».
+
 Panneau du graveur : les boutons s'activent d'après l'état du graveur. Pendant une gravure ou un homing, seuls Pause, Reprise, Reset et Arrêt d'urgence restent actifs ; en alarme, le homing, le déverrouillage et la console restent disponibles, mais plus les déplacements ni l'envoi d'un job ; déconnecté, tout est grisé. Le bouton de connexion est grisé pendant une gravure. Un raccourci qui tente quand même une action dit pourquoi elle est refusée (graveur occupé, ou en alarme).
 
 Génération du G-Code d'une image plus rapide : environ deux fois moins de temps pour une image en noir et blanc très détaillée (30 % de moins en niveaux de gris). Le G-Code produit ne change pas.
@@ -175,6 +181,8 @@ Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique 
 
 ### Corrigé
 Éditeur vectoriel : le bouton « Fond caméra » a de nouveau son icône (elle manquait dans les icônes livrées avec l'application, comme celle du menu Caméra).
+
+Visualisation 2D pendant une gravure : le tracé « déjà gravé » ne prend plus d'avance sur le laser quand le G-Code (importé ou retouché dans la console) contient des commentaires indentés ou des lignes qui ne sont pas du G-Code ; l'aperçu compte les lignes comme l'envoi au graveur.
 
 Pendant une gravure, plus rien ne peut s'intercaler dans l'envoi : « Envoyer au laser » pendant la file d'attente, « Répéter », les flèches de déplacement, la console, le cadrage, le homing ou la lecture des réglages $$ sont refusés avec le message « Graveur occupé ». Avant, une commande glissée au milieu d'un job pouvait l'arrêter net (position perdue), et un second envoi mélangeait ses lignes avec celles du premier.
 

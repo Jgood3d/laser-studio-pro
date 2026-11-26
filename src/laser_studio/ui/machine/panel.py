@@ -43,6 +43,7 @@ class MachinePanel(QWidget):
         self.jog_panel = JogControlPanel(max_speed)
         self.job_actions_panel = JobActionsPanel()
         self.progress_bar = self._progress_bar()
+        self.progress_bar.setVisible(False)          # affichée pendant un envoi seulement (JobDisplay)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)

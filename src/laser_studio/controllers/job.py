@@ -370,7 +370,8 @@ class JobController(QObject):
                     )):
                 return False
 
-        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data)
+        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data,
+                                          layer_colors=self.layers.colors_by_name())
         self.worker.finished.connect(self.generated)
         self.worker.progress.connect(self.progress)
         self.worker.error.connect(self.failed)

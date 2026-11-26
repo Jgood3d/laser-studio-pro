@@ -179,12 +179,6 @@ TEXTS = {
         "fr": "Position du job sur le plateau", "en": "Job Position on the Bed",
         "de": "Position des Jobs auf der Arbeitsfläche", "es": "Posición del trabajo en la mesa",
     },
-    "ui.job_offset_in_image_tab": {
-        "fr": "Le décalage (Offset X / Y) se règle dans l'onglet « Graver une image ».",
-        "en": "The offset (Offset X / Y) is set in the \"Engrave an Image\" tab.",
-        "de": "Der Versatz (Offset X / Y) wird im Reiter „Bild gravieren“ eingestellt.",
-        "es": "El desplazamiento (Offset X / Y) se ajusta en la pestaña «Grabar una imagen».",
-    },
     "queue.sent_log_title": {
         "fr": "G-Code envoyé", "en": "Sent G-Code", "de": "Gesendeter G-Code", "es": "G-Code enviado",
     },

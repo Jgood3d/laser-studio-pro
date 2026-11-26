@@ -17,7 +17,6 @@ from laser_studio.camera.storage import (
     CameraProfile,
     load_profile,
     save_profile,
-    list_profiles,
 )
 from laser_studio.camera.workspace_alignment import (
     WorkspaceAlignment,
@@ -107,9 +106,6 @@ class CameraController(QObject):
 
     def list_devices(self) -> List[CameraDevice]:
         return list_cameras()
-
-    def list_saved_profiles(self) -> List[CameraProfile]:
-        return list_profiles()
 
     # ------------------------------------------------------------------
     # Capture ponctuelle

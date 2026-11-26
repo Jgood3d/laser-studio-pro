@@ -225,7 +225,7 @@ TEXTS = {
         "de": "GRBL-Konfiguration", "es": "Configuración GRBL",
     },
     "tab.layers": {
-        "fr": "Calques (Layers)", "en": "Layers",
+        "fr": "Calques", "en": "Layers",
         "de": "Ebenen (Layers)", "es": "Capas (Layers)",
     },
     "project.autosave_failed": {

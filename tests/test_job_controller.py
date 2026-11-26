@@ -317,7 +317,7 @@ class WindowTests(unittest.TestCase):
     def test_generated_gcode_reaches_the_console_and_the_2d_tab(self):
         win = self.win
         win.image.processed_array = np.zeros((6, 8), np.uint8)
-        win.tab_previews.settings.set_size(8.0, 6.0)
+        win.placement.update(width_mm=8.0, height_mm=6.0)
         with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
                 mock.patch.object(QMessageBox, "warning", return_value=QMessageBox.StandardButton.Yes):
             self.assertTrue(win.job.generate())

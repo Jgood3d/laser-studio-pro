@@ -18,7 +18,6 @@ from PyQt6.QtCore import QObject
 from laser_studio.controllers.layer_memory import apply_saved_layers
 from laser_studio.controllers.materials import (DEFAULT_MATERIALS_DB, apply_material_to_layers,
                                                 capture_material_layers)
-from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT
 from laser_studio.core.preferences import machine_preferences
 
 
@@ -87,30 +86,25 @@ class WindowState(QObject):
         projet. Les calques sont rangés dans le profil de la machine active."""
         w = self.window
         prefs = machine_preferences()
-        prefs.set("machine_bed_w_mm", w.machine.bed_w)
-        prefs.set("machine_bed_h_mm", w.machine.bed_h)
-        prefs.set("machine_focal_mm", w.machine.focal)
+        for key, value in w.machine.to_preferences().items():
+            prefs.set(key, value)
         w.machines.store_memory()
         prefs.set("machine_profiles_json", w.machines.to_json())
         name = w.machines.current_name()
         if name is not None:
             prefs.set("last_machine_profile", name)
-        mode, dpi, lmm = w.resolution_box.saved_state()
+        # Mode de saisie et DPI : état de la boîte de résolution ; lignes/mm : le placement du job.
+        mode, dpi, _lmm = w.resolution_box.saved_state()
         prefs.set("lmm_mode_index", mode)
         prefs.set("lmm_dpi_value", dpi)
-        prefs.set("lmm_value", lmm)
+        prefs.set("lmm_value", w.placement.lines_mm)
 
     def load_machine_settings(self):
         """Restaure au démarrage les réglages mémorisés par
         save_machine_settings."""
         w = self.window
         prefs = machine_preferences()
-        for key, field in (("machine_bed_w_mm", "bed_w"),
-                           ("machine_bed_h_mm", "bed_h"),
-                           ("machine_focal_mm", "focal")):
-            value = prefs.get(key)
-            if value is not None:
-                w.machine.update(**{field: value})   # valeur illisible : ignorée
+        w.machine.load_preferences(prefs.get)
         # Comme à chaque validation de profil : les calques suivent la focale
         # dès le démarrage.
         w.layers_tab.link_all_to_focal()
@@ -138,7 +132,7 @@ class WindowState(QObject):
         w = self.window
         return {
             **w.machine.to_profile(),
-            **w.job_position_box.profile_values(),
+            **w.placement.to_profile(),
             **w.grbl.profile_values(),
             "materials_db": dict(w.materials.materials),
             "material": w.materials.model.current or "",
@@ -150,7 +144,7 @@ class WindowState(QObject):
         w = self.window
         with self.material_autosave_paused():
             w.machine.apply_profile(profile)
-            w.job_position_box.apply_profile_values(profile)
+            w.placement.apply_profile(profile)
             w.grbl.apply_profile(profile)
             # Matériaux propres à cette machine (repli sur la base par défaut pour un profil
             # enregistré avant cette liaison), et matériau choisi à sa dernière utilisation
@@ -200,26 +194,20 @@ class WindowState(QObject):
         machine, gravure et découpe, matériaux, calques, objets vectoriels ;
         et l'image source (PIL), encodée par le contrôleur."""
         w = self.window
-        (width, height), (offset_x, offset_y) = w.tab_previews.settings.size_mm(), w.tab_previews.settings.offset_mm()
-        # Chaque modèle donne sa partie (to_project) ; la taille, la position et la résolution vivent dans
-        # les champs de la fenêtre.
-        data = {
-            "w_mm": width,
-            "h_mm": height,
-            "origin_pos": w.job_position_box.origin(),
-            "offset_x": offset_x,
-            "offset_y": offset_y,
-            "lmm": w.resolution_box.lines_per_mm(),
-            **w.machine.to_project(),
-            **w.image_settings.to_project(),
-            **w.grbl.to_project(),
-            **w.job.to_project(),
+        # Chaque modèle donne sa partie (to_project).
+        data = {key: value for model in self._project_models() for key, value in model.to_project().items()}
+        data.update({
             "materials_db": w.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
             "layers": w.layer_manager.to_list(),
             "vector_objects": w.vector_canvas.serialize_objects(),
-        }
+        })
         return data, w.image.raw_image
+
+    def _project_models(self):
+        """Modèles enregistrés dans un projet, chacun par to_project / load_project."""
+        w = self.window
+        return (w.placement, w.machine, w.image_settings, w.grbl, w.job)
 
     def restore_project(self, data, image):
         """Réapplique un projet ouvert (voir _restore_project_state), sans recopier ses calques
@@ -236,18 +224,10 @@ class WindowState(QObject):
         # chargement d'image ultérieur le « rendrait » par-dessus.
         w.separation.forget_glass_settings()
 
-        panel = w.tab_previews.settings
-        panel.set_size(data.get("w_mm", 100.0), data.get("h_mm", 100.0))
-        w.job_position_box.set_origin(data.get("origin_pos", ORIGIN_BOTTOM_LEFT))
-        panel.set_offset(data.get("offset_x", 0.0), data.get("offset_y", 0.0))
-        w.resolution_box.set_lines_per_mm(data.get("lmm", 10.0))
-
-        # Chaque modèle relit sa partie (load_project) ; une clé absente (ancien projet) garde sa valeur
+        # Chaque modèle relit sa partie (load_project) ; une clé absente (ancien projet) prend sa valeur
         # par défaut. Les calques sont rechargés plus bas : ils font foi sur la gravure d'image.
-        w.machine.load_project(data)
-        w.image_settings.load_project(data)
-        w.grbl.load_project(data)
-        w.job.load_project(data)
+        for model in self._project_models():
+            model.load_project(data)
 
         if "materials_db" in data:
             w.materials.set_materials(data["materials_db"])

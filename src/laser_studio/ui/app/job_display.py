@@ -117,19 +117,12 @@ class JobDisplay(QObject):
         self._show_preview()
         self._log(tr("gcode.imported_from").format(path=path))
 
-    def _layer_colors(self):
-        """Couleur de chaque calque, par nom (le premier calque d'un nom donné)."""
-        colors = {}
-        for layer in self.layers.layers:
-            colors.setdefault(layer.name, layer.color)
-        return colors
-
     def plot(self, gcode_text):
         """Dessine `gcode_text` dans l'aperçu 2D (Preview2DTab.show_gcode)."""
         self.last_gcode_text = gcode_text
         matrix = self._test_matrix() or {}
         try:
-            self.preview.show_gcode(gcode_text, self._layer_colors(),
+            self.preview.show_gcode(gcode_text, self.layers.colors_by_name(),
                                     matrix_engrave=matrix.get("mode") == MATRIX_ENGRAVE)
         except Exception as e:
             # Ne jamais laisser l'aperçu 2D silencieusement vide : si le G-Code
@@ -210,10 +203,11 @@ class JobDisplay(QObject):
         panel.sent_gcode_log.append_lines([tr("queue.sent_log_direct")])
 
     def _stream_starting(self, gcode_text):
-        """Un envoi commence : barre de progression à zéro ; l'aperçu 2D doit
+        """Un envoi commence : barre de progression affichée, à zéro ; l'aperçu 2D doit
         montrer le G-Code envoyé (un job de la file n'est pas forcément celui
         affiché) et le tracé « déjà gravé » repart de zéro."""
         self.machine_panel.progress_bar.setValue(0)
+        self.machine_panel.progress_bar.setVisible(True)
         self._show_machine_panel()           # gravure lancée : le panneau du graveur se déplie
         if gcode_text != self.last_gcode_text:
             self.plot(gcode_text)
@@ -221,6 +215,7 @@ class JobDisplay(QObject):
             self.preview.reset_burn()
 
     def _stream_ended(self, clean_finish):
-        """Un envoi se termine : repère de fin dans le suivi, aperçu 2D."""
+        """Un envoi se termine : repère de fin dans le suivi, aperçu 2D ; la barre de progression disparaît."""
+        self.machine_panel.progress_bar.setVisible(False)
         self.machine_panel.sent_gcode_log.mark_end(clean_finish)
         self.preview.finish_burn(clean_finish)

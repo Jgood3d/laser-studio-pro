@@ -60,7 +60,7 @@ au laser et collées entre elles. L'onglet « Aperçu » montre le résultat fin
        - Découpe : les contours des trois pièces.
      Les textes restent modifiables dans l'éditeur vectoriel.
 
-  3. Dans l'onglet « Calques (Layers) », choisir le profil matériau de votre
+  3. Dans l'onglet « Calques », choisir le profil matériau de votre
      planche (ou régler vitesse, puissance et passes de chaque calque).
      Exemples pour du contreplaqué de 3 mm (à tester sur une chute) :
        - Gravure : 2000–3000 mm/min, 30–50 %

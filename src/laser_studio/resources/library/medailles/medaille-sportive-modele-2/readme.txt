@@ -59,7 +59,7 @@ y passer un ruban ou un cordon.
      Pour le changer, revenir à cette fiche et importer à nouveau. Le
      numéro, lui, reste un texte modifiable dans l'éditeur vectoriel.
 
-  3. Dans l'onglet « Calques (Layers) », choisir le profil matériau de votre
+  3. Dans l'onglet « Calques », choisir le profil matériau de votre
      planche (ou régler vitesse, puissance et passes de chaque calque).
      Exemples pour du contreplaqué de 3 mm (à tester sur une chute) :
        - Gravure : 2000–3000 mm/min, 30–50 %

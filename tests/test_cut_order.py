@@ -135,8 +135,8 @@ class WiringTests(unittest.TestCase):
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
         pj = project_state_source()
-        self.assertIn("**w.grbl.to_project()", pj)
-        self.assertIn("w.grbl.load_project(data)", pj)
+        self.assertIn("return (w.placement, w.machine, w.image_settings, w.grbl, w.job)", pj)
+        self.assertIn("model.load_project(data)", pj)
         from laser_studio.models.grbl import GrblConfig
         grbl = GrblConfig()
         grbl.update(safe_cut_order=False)

@@ -10,7 +10,7 @@ Dans Laser Studio Pro, deux notions travaillent ensemble :
   demande pas la même puissance dans du contreplaqué de 3 mm et dans du
   cuir.
 
-Les deux se règlent dans l'onglet **Calques (Layers)**.
+Les deux se règlent dans l'onglet **Calques**.
 
 ## Les calques
 

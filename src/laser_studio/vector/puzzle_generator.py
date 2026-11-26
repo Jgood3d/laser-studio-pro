@@ -136,20 +136,6 @@ def _close_contour(pts: List[Point]) -> List[Point]:
     return list(pts)
 
 
-def _polygon_area(pts: Sequence[Point]) -> float:
-    s = 0.0
-    n = len(pts)
-    if n < 3:
-        return 0.0
-    # ignorer le doublon de fermeture éventuel
-    m = n - 1 if abs(pts[0][0] - pts[-1][0]) < 1e-12 and abs(pts[0][1] - pts[-1][1]) < 1e-12 else n
-    for i in range(m):
-        x0, y0 = pts[i]
-        x1, y1 = pts[(i + 1) % m]
-        s += x0 * y1 - x1 * y0
-    return 0.5 * s
-
-
 def apply_kerf(result: PuzzleResult, kerf: float) -> PuzzleResult:
     """Compense la largeur du trait laser.
 

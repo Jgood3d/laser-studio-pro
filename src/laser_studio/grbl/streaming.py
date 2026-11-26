@@ -37,7 +37,13 @@ def gcode_lines(gcode_text):
     l'application (« Connecté à … », « >>> Mode laser GRBL … ») : GRBL refuserait ceux-ci (error:1)
     et l'envoi s'arrêterait, ils sont donc écartés comme les commentaires « ; »."""
     lines = (line.strip() for line in gcode_text.split('\n'))
-    return [line for line in lines if line and not line.startswith(';') and _GRBL_LINE_RE.match(line)]
+    return [line for line in lines if is_sent_line(line)]
+
+
+def is_sent_line(line):
+    """La ligne (déjà sans espaces autour) part-elle au graveur ? L'aperçu 2D numérote ses traits avec la même
+    règle, pour que le suivi de la gravure tombe sur les lignes que GRBL a acquittées."""
+    return bool(line) and not line.startswith(';') and _GRBL_LINE_RE.match(line) is not None
 
 
 def wire_bytes(line):

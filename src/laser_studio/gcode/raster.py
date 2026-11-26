@@ -10,10 +10,11 @@ from laser_studio.gcode.common import LaserMoves
 GRAYSCALE_ALGO = "Niveaux de Gris"
 
 def image_origin(params):
-    """Coin inférieur gauche de l'image à graver sur le plateau (mm), d'après `params` (JobParams). Origine « Centre » : le
-    décalage du job désigne le centre de l'image, sans marge. Sinon, décalage plus, en X seulement, la
-    distance de surbalayage quand il est actif (image_overscan_distance) : sans cette marge, le
-    surbalayage de la première colonne ferait partir la tête en X négatif dès que le décalage vaut 0.
+    """Coin inférieur gauche de l'image à graver sur le plateau (mm), d'après `params` (JobParams).
+    Origine « Centre » : le décalage du job désigne le centre de l'image, sans marge. Sinon, décalage
+    plus, en X seulement, la distance de surbalayage quand il est actif (image_overscan_distance) :
+    sans cette marge, le surbalayage de la première colonne ferait partir la tête en X négatif dès que
+    le décalage vaut 0.
     Les objets vectoriels reçoivent la même marge à leur import (vector/placement.py)."""
     if params.origin_pos == ORIGIN_CENTER:
         return params.vector_origin()
