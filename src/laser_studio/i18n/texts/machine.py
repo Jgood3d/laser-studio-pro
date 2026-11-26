@@ -335,10 +335,10 @@ TEXTS = {
         "es": "El grabador está en alarma tras la parada: su posición ya no es fiable.\n\nHaga primero un homing (recomendado) o desbloquéelo, y luego pulse de nuevo «Reanudar».",
     },
     "laser.interrupted_resume": {
-        "fr": "Le bouton « Reprendre » (⏩, panneau du graveur) relancera le travail là où il s'est arrêté, après un homing ou un déverrouillage.",
-        "en": "The \"Resume\" button (⏩, engraver panel) will restart the job where it stopped, after homing or unlocking.",
-        "de": "Die Schaltfläche „Fortsetzen“ (⏩, Gravierer-Bereich) setzt den Auftrag nach einem Homing oder Entsperren dort fort, wo er angehalten hat.",
-        "es": "El botón «Reanudar» (⏩, panel del grabador) relanzará el trabajo donde se detuvo, tras un homing o un desbloqueo.",
+        "fr": "Pour reprendre le travail là où il s'est arrêté : faites un homing ou déverrouillez le graveur, puis cliquez sur le bouton vert de reprise (F8) ou sur « Reprendre le job » dans le cadre Jobs du panneau du graveur.",
+        "en": "To resume the job where it stopped: home or unlock the engraver, then click the green resume button (F8) or \"Resume the job\" in the Jobs box of the engraver panel.",
+        "de": "Um den Auftrag dort fortzusetzen, wo er angehalten hat: Homing durchführen oder den Gravierer entsperren, dann auf die grüne Fortsetzen-Schaltfläche (F8) oder auf „Job fortsetzen“ im Bereich Jobs des Gravierer-Panels klicken.",
+        "es": "Para reanudar el trabajo donde se detuvo: haga un homing o desbloquee el grabador y pulse el botón verde de reanudar (F8) o «Reanudar el trabajo» en el recuadro Jobs del panel del grabador.",
     },
     "laser.check_title": {
         "fr": "⚠ À vérifier avant de lancer :", "en": "⚠ Check before starting:",

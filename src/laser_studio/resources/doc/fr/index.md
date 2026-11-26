@@ -161,7 +161,7 @@ GRBL* (1 ou 2 %).
 
 Le menu **Job** regroupe les raccourcis : **F5** générer, **F6** et
 **Maj+F6** cadrer, **Ctrl+Entrée** envoyer au laser, **F7** pause, **F8**
-reprise, **F9** arrêt d'urgence.
+reprise (après une pause ou un arrêt), **F9** arrêt d'urgence.
 
 Pendant une gravure, un homing ou un cadrage, un bouton rouge **Arrêt
 d'urgence** reste dans la barre d'outils, même panneau du graveur replié.
@@ -174,12 +174,12 @@ Dans les panneaux de réglages, la molette fait défiler le panneau : elle ne
 modifie un champ qu'après un clic dedans.
 
 Si un travail s'arrête avant la fin (alarme, arrêt, coupure de courant), le
-bouton **Reprendre** (⏩, panneau du graveur) le relance là où il s'était
-arrêté : la tête revient laser éteint au point exact de l'arrêt, puis
+bouton vert de reprise (**F8**) ou **Reprendre le job** (cadre Jobs du
+panneau du graveur) le relance là où il s'était arrêté : la tête revient laser éteint au point exact de l'arrêt, puis
 continue. Après une coupure de courant, ce point n'a pas pu être relu : les
 derniers traits avant l'arrêt sont alors regravés. Après une alarme (arrêt
 d'urgence compris), faites d'abord un homing ou déverrouillez le graveur
-(`$X`) : **Reprendre** vous le rappelle tant que ce n'est pas fait.
+(`$X`) : la reprise vous le rappelle tant que ce n'est pas fait.
 
 Avant l'envoi, une seule fenêtre réunit l'avertissement de sécurité, les
 points à vérifier (G-code à régénérer, lignes à risque, graveur sans homing)
