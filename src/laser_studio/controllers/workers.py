@@ -14,6 +14,7 @@ from laser_studio.core.debug_log import get_logger
 log = get_logger()
 
 from laser_studio.gcode.job import build_job_gcode
+from laser_studio.gcode.preview import parse_preview_cached
 from laser_studio.gcode.test_matrix import build_test_matrix_gcode
 from laser_studio.grbl.streaming import (
     EMPTY, ERROR, OK, STATUS, CharacterCountingStream, classify, gcode_lines,
@@ -430,11 +431,12 @@ class AdvancedGCodeWorker(QThread):
     progress = pyqtSignal(int)  # 0-100 : avancement de la génération
     error = pyqtSignal(str)     # émis si la génération échoue (au lieu de mourir silencieusement)
 
-    def __init__(self, processed_array, svg_path, params, vector_layers_data=None):
+    def __init__(self, processed_array, params, vector_layers_data=None, layer_colors=None):
         super().__init__()
         self.processed_array = processed_array
-        self.svg_path = svg_path
         self.params = params
+        # Couleurs de l'aperçu 2D : l'aperçu du job est lu ici, hors de l'interface (voir parse_preview_cached).
+        self.layer_colors = layer_colors
         # Données géométriques déjà extraites (thread-safe, pas d'objets Qt) pour
         # les calques de texte/formes créés dans l'éditeur vectoriel.
         self.vector_layers_data = vector_layers_data or {}
@@ -447,8 +449,10 @@ class AdvancedGCodeWorker(QThread):
             self.error.emit(f"{e}\n\n{traceback.format_exc()}")
 
     def _run_impl(self):
-        result = build_job_gcode(self.processed_array, self.svg_path, self.params,
-                                 self.vector_layers_data, progress=self.progress.emit)
+        result = build_job_gcode(self.processed_array, self.params, self.vector_layers_data,
+                                 progress=self.progress.emit)
+        if self.layer_colors is not None:
+            parse_preview_cached(result[0], self.layer_colors)
         self.finished.emit(*result)
 
 
@@ -460,10 +464,12 @@ class CommandThread(QThread):
         super().__init__()
         self.usb = usb_controller
         self.commands = commands if isinstance(commands, list) else [commands]
+        self.responses = []           # réponse de GRBL à chaque commande, dans l'ordre
 
     def run(self):
         for cmd in self.commands:
             res = self.usb.send_command(cmd)
+            self.responses.append(res)
             self.log_signal.emit(f"> {cmd}\n< {res}")
         self.finished_signal.emit()
 

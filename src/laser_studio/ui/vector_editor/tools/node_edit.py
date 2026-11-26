@@ -30,7 +30,7 @@ class NodeEditor:
             if len(selected) != 1:
                 return False
             item = selected[0]
-        item = canvas._ensure_svg_path_object(item)
+        item = self._as_path_item(item)
         if item is None or not isinstance(item.obj, SvgPathObject):
             return False
 
@@ -44,6 +44,18 @@ class NodeEditor:
         self.rebuild_handles()
         canvas.setCursor(Qt.CursorShape.CrossCursor)
         return True
+
+    def _as_path_item(self, item):
+        """Élément d'un tracé (SvgPathObject) pour `item` : une forme ou un texte est d'abord converti en tracé à la
+        même place, dans le document (une étape remplacée) ; None si l'objet n'a pas de tracé."""
+        obj = item.obj
+        if isinstance(obj, SvgPathObject):
+            return item
+        baked = path_ops.bake_object(obj)
+        if baked is None:
+            return None
+        self.canvas.document.replace([obj], [baked])
+        return self.canvas.item_for(baked)
 
     def exit(self):
         if self.target_item is not None:

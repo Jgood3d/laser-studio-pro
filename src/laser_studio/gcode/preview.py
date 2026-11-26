@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
+from laser_studio.grbl.streaming import is_sent_line
 from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, MODE_PERF, normalize_mode
 
 # Presets matière : fond + couleur de la zone gravée.
@@ -79,6 +80,25 @@ class PreviewData:
     burn_segments: list = field(default_factory=list)            # (x1, y1, x2, y2) de chaque trait gravé
 
 
+# Dernière lecture de parse_preview_cached : (texte, couleurs, résultat). Un tuple remplacé d'un bloc, donc lisible
+# depuis l'interface pendant que le thread de génération le remplace.
+_last_parse = (None, None, None)
+
+
+def parse_preview_cached(gcode_text, layer_colors=None):
+    """parse_preview, gardé pour le dernier G-Code lu : redessiner l'aperçu (option d'affichage changée) ne relit
+    pas tout le texte, et le thread de génération le lit d'avance. Le résultat n'est pas modifié par le dessin.
+    `layer_colors` None : couleurs indifférentes (cadrage : seuls les traits gravés comptent)."""
+    global _last_parse
+    colors = tuple(sorted((layer_colors or {}).items()))
+    text, cached_colors, preview = _last_parse
+    if (layer_colors is None or cached_colors == colors) and text == gcode_text:
+        return preview
+    preview = parse_preview(gcode_text, layer_colors)
+    _last_parse = (gcode_text, colors, preview)
+    return preview
+
+
 def parse_preview(gcode_text, layer_colors=None):
     """Lit le G-Code pour l'aperçu. `layer_colors` : couleur de chaque calque
     vectoriel, par nom. Une ligne mal formée est ignorée.
@@ -99,7 +119,7 @@ def parse_preview(gcode_text, layer_colors=None):
         if not raw_line:
             continue
         line_idx = None
-        if not line.startswith(';'):
+        if is_sent_line(raw_line):
             line_idx = stream_count
             stream_count += 1
 
@@ -301,19 +321,18 @@ def material_background_rect(raster_stroke_lists, segment_lists, margin=MATERIAL
     et tracés vectoriels) plus une marge, ou None s'il n'y a rien. La marge ne
     descend pas sous 0 : un job posé à l'origine n'a pas de matière en X ou Y
     négatif (le plateau commence là)."""
-    xs, ys = [], []
-    for strokes in raster_stroke_lists:
-        for x1, y1, x2, y2, _s in strokes:
-            xs += (x1, x2)
-            ys += (y1, y2)
-    for seg_xs, seg_ys in segment_lists:
-        xs += [v for v in seg_xs if v == v]          # NaN : séparateur de tracés
-        ys += [v for v in seg_ys if v == v]
-    if not xs or not ys:
+    strokes = [np.asarray(lst, dtype=np.float64).reshape(-1, 5) for lst in raster_stroke_lists]
+    xs = np.concatenate([a[:, [0, 2]].ravel() for a in strokes]
+                        + [np.asarray(seg_xs, dtype=np.float64) for seg_xs, _ in segment_lists] + [np.empty(0)])
+    ys = np.concatenate([a[:, [1, 3]].ravel() for a in strokes]
+                        + [np.asarray(seg_ys, dtype=np.float64) for _, seg_ys in segment_lists] + [np.empty(0)])
+    xs, ys = xs[~np.isnan(xs)], ys[~np.isnan(ys)]           # NaN : séparateur de tracés
+    if not xs.size or not ys.size:
         return None
-    x0 = min(xs) - margin if min(xs) < 0 else max(0.0, min(xs) - margin)
-    y0 = min(ys) - margin if min(ys) < 0 else max(0.0, min(ys) - margin)
-    return x0, y0, max(xs) + margin - x0, max(ys) + margin - y0
+    min_x, min_y, max_x, max_y = float(xs.min()), float(ys.min()), float(xs.max()), float(ys.max())
+    x0 = min_x - margin if min_x < 0 else max(0.0, min_x - margin)
+    y0 = min_y - margin if min_y < 0 else max(0.0, min_y - margin)
+    return x0, y0, max_x + margin - x0, max_y + margin - y0
 
 
 def raster_image(raster_strokes, material_rgb, burn_rgb, gamma=1.0, negative=False,
@@ -333,21 +352,17 @@ def raster_image(raster_strokes, material_rgb, burn_rgb, gamma=1.0, negative=Fal
     inverse zones gravées et non gravées ; `transparent_unburned` : seule la
     brûlure est peinte (la matière est dessinée dessous), son opacité suivant
     la puissance ; `flip` retourne l'image verticalement."""
-    rows = {}
-    for (x1, y1, x2, y2, s_val) in raster_strokes:
-        y_key = round((y1 + y2) / 2.0, 4)
-        rows.setdefault(y_key, []).append((min(x1, x2), max(x1, x2), s_val))
-
-    row_ys = sorted(rows.keys())
+    data = np.asarray(raster_strokes, dtype=np.float64).reshape(-1, 5)
+    # Une ligne de balayage par Y (milieu du trait, arrondi au 1/10 000 de mm).
+    row_ys, row_of = np.unique(np.round((data[:, 1] + data[:, 3]) / 2.0, 4), return_inverse=True)
     if len(row_ys) < 2:
         return None
 
-    all_x = [seg[0] for segs in rows.values() for seg in segs] + \
-            [seg[1] for segs in rows.values() for seg in segs]
-    min_x, max_x = min(all_x), max(all_x)
+    xa, xb = np.minimum(data[:, 0], data[:, 2]), np.maximum(data[:, 0], data[:, 2])
+    min_x, max_x = float(xa.min()), float(xb.max())
     bbox_w = max(max_x - min_x, 0.01)
 
-    min_y_data, max_y_data = row_ys[0], row_ys[-1]
+    min_y_data, max_y_data = float(row_ys[0]), float(row_ys[-1])
     bbox_h = max(max_y_data - min_y_data, 0.01)
 
     target_cols = 1200
@@ -357,30 +372,34 @@ def raster_image(raster_strokes, material_rgb, burn_rgb, gamma=1.0, negative=Fal
     # Densité verticale calée sur l'écart RÉEL entre deux lignes de balayage
     # consécutives, pas sur la largeur : sinon certaines lignes de l'image ne
     # reçoivent aucune ligne source (bandes horizontales).
-    row_gaps = [b - a for a, b in zip(row_ys[:-1], row_ys[1:]) if b - a > 0.001]
-    min_row_spacing = min(row_gaps) if row_gaps else bbox_h
+    row_gaps = np.diff(row_ys)
+    row_gaps = row_gaps[row_gaps > 0.001]
+    min_row_spacing = float(row_gaps.min()) if row_gaps.size else bbox_h
     px_per_mm_y_needed = 1.0 / min_row_spacing
     img_h = max(1, min(6000, int(round(bbox_h * px_per_mm_y_needed))))
     px_per_mm_y = img_h / bbox_h
 
-    s_all = [seg[2] for segs in rows.values() for seg in segs if seg[2]]
-    max_s = max(s_all) if s_all else 1.0
+    s_vals = data[:, 4]
+    s_nonzero = s_vals[s_vals != 0]
+    max_s = float(s_nonzero.max()) if s_nonzero.size else 1.0
     if max_s <= 0:
         max_s = 1.0
 
     # power[ligne, colonne] : puissance normalisée (0-1), ligne 0 = Y le plus
-    # petit. Les chevauchements gardent la puissance la plus forte.
-    power_arr = np.zeros((img_h, img_w), dtype=np.float32)
-    for y_key in row_ys:
-        row_idx = int(round((y_key - min_y_data) * px_per_mm_y))
-        row_idx = max(0, min(img_h - 1, row_idx))
-        for (xa, xb, s_val) in rows[y_key]:
-            if not s_val or s_val <= 0:
-                continue
-            power = min(max(s_val / max_s, 0.0), 1.0)
-            col_a = max(0, min(img_w - 1, int(round((xa - min_x) * px_per_mm_x))))
-            col_b = max(col_a + 1, min(img_w, int(round((xb - min_x) * px_per_mm_x)) + 1))
-            np.maximum(power_arr[row_idx, col_a:col_b], power, out=power_arr[row_idx, col_a:col_b])
+    # petit. Les chevauchements gardent la puissance la plus forte. Calcul en
+    # tableaux : chaque trait devient la suite des pixels qu'il couvre.
+    burned = s_vals > 0
+    row_idx = np.clip(np.round((row_ys - min_y_data) * px_per_mm_y).astype(np.int64), 0, img_h - 1)[row_of]
+    col_a = np.clip(np.round((xa - min_x) * px_per_mm_x).astype(np.int64), 0, img_w - 1)
+    col_b = np.maximum(col_a + 1, np.minimum(img_w, np.round((xb - min_x) * px_per_mm_x).astype(np.int64) + 1))
+    lengths = (col_b - col_a)[burned]
+    starts = (row_idx * img_w + col_a)[burned]
+    powers = np.clip(s_vals[burned] / max_s, 0.0, 1.0).astype(np.float32)
+    first = np.repeat(np.cumsum(lengths) - lengths, lengths)
+    pixels = np.repeat(starts, lengths) + (np.arange(int(lengths.sum())) - first)
+    power_arr = np.zeros(img_h * img_w, dtype=np.float32)
+    np.maximum.at(power_arr, pixels, np.repeat(powers, lengths))
+    power_arr = power_arr.reshape(img_h, img_w)
 
     if gamma != 1.0:
         power_arr = np.power(power_arr, gamma, dtype=np.float32)

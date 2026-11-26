@@ -278,7 +278,7 @@ class ImportButtonTests(unittest.TestCase):
         canvas.set_work_area(300.0, 200.0)
         dialogs = FakeDialogs()
         editor = VectorEditorController(document, canvas, layers, MachineConfig(), dialogs)
-        editor.import_file(path)
+        editor.importer.import_file(path)
         self.assertEqual([o.name for o in document.objects], ["Découpe", "Gravure", "Personnalisation"])
         self.assertTrue(canvas.item_for(document.objects[0]).inactive)            # calque caché : ignoré
         self.assertFalse(canvas.item_for(document.objects[1]).inactive)

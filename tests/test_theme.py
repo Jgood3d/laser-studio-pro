@@ -30,11 +30,13 @@ class MonochromeIconTests(unittest.TestCase):
 
     def test_only_the_new_themes_have_monochrome_icons(self):
         self.assertEqual([name for name, colors in THEMES.items() if colors.get("mono_icons")],
-                         ["new_dusk", "new_dawn"])
+                         ["new_dusk", "new_dusk_petrol", "new_dawn"])
 
     def test_new_dawn_defines_every_colour_of_new_dusk(self):
         # Même jeu de couleurs : la feuille moderne et les zones de dessin n'en manquent aucune.
-        self.assertLessEqual(set(THEMES["new_dusk"]) - {"label_key"}, set(THEMES["new_dawn"]))
+        for name in ("new_dusk_petrol", "new_dawn"):
+            self.assertLessEqual(set(THEMES["new_dusk"]) - {"label_key"}, set(THEMES[name]), name)
+        self.assertLessEqual(set(THEMES["new_dusk_petrol"]) - {"label_key"}, set(THEMES["new_dusk"]))
 
 
 

@@ -14,6 +14,7 @@ try:
     from laser_studio.models.grbl import GrblConfig
     from laser_studio.ui.machine.job_actions import JobActionsPanel
     from laser_studio.i18n import tr
+    from laser_studio.models import machine_state as ms
 except ImportError:  # PyQt6, pyserial... manquants
     JobActionsPanel = None
 
@@ -49,8 +50,8 @@ class JobActionsPanelTests(unittest.TestCase):
     def test_every_action_keeps_its_label_as_a_tooltip(self):
         panel = self.make()
         tooltips = {b.toolTip() for b in panel.findChildren(QToolButton)}
-        self.assertEqual(tooltips, {tr(k) for k in ("ui.frame", "ui.zero_work", "ui.go_zero",
-                                                    "ui.repeat_last_job", "macros.manage_tip")})
+        self.assertEqual(tooltips, {tr(k) for k in ("ui.frame", "ui.frame_contour", "ui.zero_work", "ui.go_zero",
+                                                    "ui.repeat_last_job", "ui.resume_job", "macros.manage_tip")})
         self.assertEqual(panel.findChildren(QPushButton), [])     # sans macro : boutons à icône seulement
 
     def test_macro_buttons(self):
@@ -80,16 +81,19 @@ class JobActionsPanelTests(unittest.TestCase):
         panel = self.make()
         panel.set_macros([(0, "Décaler", "", False)])
         panel.set_repeat_enabled(True)
-        panel.set_connected(False)
+        panel.set_resume_enabled(True)
+        panel.set_allowed(lambda action: ms.allowed(ms.DISCONNECTED, action))
         actions = [b for name, b in panel.buttons.items() if name != "macros"]
         self.assertFalse(any(b.isEnabled() for b in actions))
         self.assertFalse(panel.macro_buttons[0].isEnabled())
         self.assertTrue(panel.buttons["macros"].isEnabled())          # macros modifiables sans graveur
-        panel.set_connected(True)
+        panel.set_allowed(lambda action: ms.allowed(ms.READY, action))
         self.assertTrue(all(b.isEnabled() for b in actions))
         self.assertTrue(panel.macro_buttons[0].isEnabled())
         panel.set_repeat_enabled(False)
         self.assertFalse(panel.buttons["repeat"].isEnabled())
+        panel.set_resume_enabled(False)                              # plus de job arrêté à reprendre
+        self.assertFalse(panel.buttons["resume"].isEnabled())
 
 
 @unittest.skipIf(JobActionsPanel is None, "PyQt6 non importable ici")

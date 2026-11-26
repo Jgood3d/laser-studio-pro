@@ -3,40 +3,39 @@ décalage des lignes retour (phase 1 d'un job)."""
 import numpy as np
 
 from laser_studio.core.constants import ORIGIN_CENTER
-from laser_studio.gcode.common import LaserMoves, overscan_distance, power_value, scan_offset_mm
+from laser_studio.gcode.common import LaserMoves
 
 # Algorithme sans tramage : chaque pixel est gravé à une puissance
-# proportionnelle à son gris (params['algo']).
+# proportionnelle à son gris (JobParams.algo).
 GRAYSCALE_ALGO = "Niveaux de Gris"
 
 def image_origin(params):
-    """Coin inférieur gauche de l'image à graver sur le plateau (mm). Origine « Centre » : le
-    décalage du job désigne le centre de l'image, sans marge. Sinon, décalage plus, en X seulement, la
-    distance de surbalayage quand il est actif (image_overscan_distance) : sans cette marge, le
-    surbalayage de la première colonne ferait partir la tête en X négatif dès que le décalage vaut 0.
+    """Coin inférieur gauche de l'image à graver sur le plateau (mm), d'après `params` (JobParams).
+    Origine « Centre » : le décalage du job désigne le centre de l'image, sans marge. Sinon, décalage
+    plus, en X seulement, la distance de surbalayage quand il est actif (image_overscan_distance) :
+    sans cette marge, le surbalayage de la première colonne ferait partir la tête en X négatif dès que
+    le décalage vaut 0.
     Les objets vectoriels reçoivent la même marge à leur import (vector/placement.py)."""
-    if params['origin_pos'] == ORIGIN_CENTER:
-        return (params['offset_x'] - params['width_mm'] / 2.0,
-                params['offset_y'] - params['height_mm'] / 2.0)
-    return params['offset_x'] + image_overscan_distance(params), params['offset_y']
+    if params.origin_pos == ORIGIN_CENTER:
+        return params.vector_origin()
+    return params.offset_x + image_overscan_distance(params), params.offset_y
 
 
 def image_overscan_distance(params):
-    """Surbalayage (mm) de la gravure d'image : réglage global ET calque de
-    gravure (params['image_overscan'], voir layer_overscan_enabled). 0 si les
-    paramètres ne disent rien du surbalayage (taille et position seules)."""
-    if params.get('image_overscan', params.get('enable_overscan', False)):
-        return overscan_distance(params, params['width_mm'], default_dist=params.get('overscan_dist', 2.5))
+    """Surbalayage (mm) de la gravure d'image : réglage global et calque de gravure
+    (JobParams.image_overscan_enabled) ; 0 s'il est désactivé."""
+    if params.image_overscan_enabled:
+        return params.overscan_for(params.width_mm)
     return 0.0
 
 
-def raster_image_gcode(arr, params, image_cmd, progress=None):
+def raster_image_gcode(arr, params, progress=None):
     """G-Code de la gravure de l'image tramée `arr` (0 = brûlé, 255 = intact ;
-    gris en mode « Niveaux de Gris »), à la taille params['width_mm'] x
-    params['height_mm'], coin bas-gauche en image_origin(params).
+    gris en mode « Niveaux de Gris »), à la taille params.width_mm x params.height_mm (JobParams),
+    coin bas-gauche en image_origin(params).
 
-    image_cmd : "M3" ou "M4", écrit une fois au début ; ensuite, seule la puissance S de chaque
-    mouvement est pilotée (voir LaserMoves), et M5 à la fin.
+    Commande laser : params.image_cmd ("M3" ou "M4", celle du calque de gravure), écrite une fois au
+    début ; ensuite, seule la puissance S de chaque mouvement est pilotée (voir LaserMoves), et M5 à la fin.
     progress : fonction appelée avec l'avancement (0 à 70 %), facultative.
 
     Renvoie (lignes, durée en secondes, puissances % des tracés gravés)."""
@@ -44,18 +43,18 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     total_time_seconds = 0.0
     total_power_samples = []
 
-    s_max = params['s_max']
-    w_mm, h_mm = params['width_mm'], params['height_mm']
+    s_max = params.s_max
+    w_mm, h_mm = params.width_mm, params.height_mm
     image_x, image_y = image_origin(params)
 
-    speed_engrave = params['speed_engrave']
+    speed_engrave = params.speed_engrave
     moves = LaserMoves(gcode)
-    moves.laser(image_cmd)
+    moves.laser(params.image_cmd)
 
     h, w = arr.shape
     step_x, step_y = w_mm / w, h_mm / h
-    power_engrave = params['power_engrave']
-    algo = params.get('algo', '')
+    power_engrave = params.power_engrave
+    algo = params.algo
     overscan_dist = image_overscan_distance(params)
 
     # Décalage aller/retour (mm) : la mécanique et le délai d'allumage du
@@ -65,12 +64,7 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
     # droite) pour que les contours verticaux se superposent.
     # Réglage propre à la machine ; se calibre avec le motif de test
     # « aller/retour » (voir gcode.calibration.bidir_test_gcode).
-    scan_offset = scan_offset_mm(params)
-
-    def pixel_power_percent(val):
-        if algo == GRAYSCALE_ALGO:
-            return power_engrave * (255.0 - float(val)) / 255.0
-        return power_engrave if val == 0 else 0.0
+    scan_offset = params.scan_offset_mm
 
     scanned_rows = 0    # lignes réellement balayées (sens aller/retour, voir is_ltr)
     for y in range(h):
@@ -79,15 +73,16 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             # la phase la plus longue (une ligne de gcode par transition de
             # puissance, sur potentiellement des centaines de milliers de pixels).
             progress(int((y / h) * 70))
-        # Pixels à graver de la ligne (même calcul de puissance que la boucle plus bas, en
-        # une fois) : une ligne vide n'est pas parcourue, et une ligne n'est balayée (avec
-        # son surbalayage) que de son premier à son dernier pixel gravé.
+        # Puissance de chaque pixel de la ligne, en une fois (même arrondi que power_value) : une
+        # ligne vide n'est pas parcourue, et une ligne n'est balayée (avec son surbalayage) que de
+        # son premier à son dernier pixel gravé.
         row_vals = arr[y, :].astype(np.float64)
         if algo == GRAYSCALE_ALGO:
             row_pct = power_engrave * (255.0 - row_vals) / 255.0
         else:
             row_pct = np.where(row_vals == 0, power_engrave, 0.0)
-        burned = np.flatnonzero(np.rint((row_pct / 100.0) * s_max) > 0)
+        row_s = np.maximum(0, np.rint((row_pct / 100.0) * s_max)).astype(np.int64)
+        burned = np.flatnonzero(row_s > 0)
         if burned.size == 0:
             continue
         first_px, last_px = int(burned[0]), int(burned[-1])
@@ -116,16 +111,19 @@ def raster_image_gcode(arr, params, image_cmd, progress=None):
             moves.move(image_start_x, power=0, feed=speed_engrave)
             total_time_seconds += (abs(image_start_x - margin_start_x) / max(speed_engrave, 1)) * 60.0
 
-        pixels = range(first_px, last_px + 1) if is_ltr else range(last_px, first_px - 1, -1)
+        pixels = np.arange(first_px, last_px + 1) if is_ltr else np.arange(last_px, first_px - 1, -1)
+        powers = row_s[pixels]
+        # Seuls les pixels où la puissance change produisent une ligne de G-Code : la boucle ne passe que
+        # par eux (une image de 2000 px de côté se génère plusieurs fois plus vite qu'en visitant chaque pixel).
+        changes = np.flatnonzero(powers != np.concatenate(([0], powers[:-1])))
 
         cx = image_start_x
         last_p_val = 0
 
-        for x_pixel in pixels:
-            val = arr[y, x_pixel]
-
-            p_percent = pixel_power_percent(val)
-            p_val = power_value(p_percent, s_max)
+        for k in changes:
+            x_pixel = int(pixels[k])
+            p_val = int(powers[k])
+            p_percent = float(row_pct[x_pixel])
 
             if p_val != last_p_val:
                 # Frontière entre le pixel précédent et celui-ci, dans le sens du balayage : bord gauche du

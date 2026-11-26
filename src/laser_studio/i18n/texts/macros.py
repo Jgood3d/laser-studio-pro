@@ -139,12 +139,6 @@ TEXTS = {
         "de": "{name} (Kopie)",
         "es": "{name} (copia)",
     },
-    "macros.busy": {
-        "fr": "Un job est en cours d'envoi : la macro n'est pas envoyée.",
-        "en": "A job is being sent: the macro is not sent.",
-        "de": "Ein Auftrag wird gerade gesendet: das Makro wird nicht gesendet.",
-        "es": "Se está enviando un trabajo: la macro no se envía.",
-    },
     "macros.confirm": {
         "fr": "Envoyer la macro « {name} » au graveur ?\n\n{gcode}",
         "en": "Send the macro \"{name}\" to the engraver?\n\n{gcode}",

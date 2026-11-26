@@ -119,10 +119,16 @@ TEXTS = {
         "es": "Dusk (gris azulado suave)",
     },
     "theme.new_dusk": {
-        "fr": "New Dusk (bleu pétrole moderne)",
-        "en": "New Dusk (modern petrol blue)",
-        "de": "New Dusk (modernes Petrolblau)",
-        "es": "New Dusk (azul petróleo moderno)",
+        "fr": "New Dusk (gris-bleu moderne)",
+        "en": "New Dusk (modern blue-gray)",
+        "de": "New Dusk (modernes Blaugrau)",
+        "es": "New Dusk (gris azulado moderno)",
+    },
+    "theme.new_dusk_petrol": {
+        "fr": "New Dusk Blue Petrol (bleu pétrole moderne)",
+        "en": "New Dusk Blue Petrol (modern petrol blue)",
+        "de": "New Dusk Blue Petrol (modernes Petrolblau)",
+        "es": "New Dusk Blue Petrol (azul petróleo moderno)",
     },
     "theme.new_dawn": {
         "fr": "New Dawn (clair moderne)",
@@ -185,6 +191,17 @@ TEXTS = {
     },
 
     # --- Menu Aide ---
+    "menu.job": {"fr": "Job", "en": "Job", "de": "Job", "es": "Trabajo"},
+    "menu.job.generate": {"fr": "Générer le G-Code", "en": "Generate G-Code", "de": "G-Code erzeugen",
+                          "es": "Generar el G-Code"},
+    "menu.job.frame": {"fr": "Cadrer", "en": "Frame", "de": "Umriss abfahren", "es": "Encuadrar"},
+    "menu.job.frame_contour": {"fr": "Cadrer au plus près", "en": "Frame the outline",
+                               "de": "Kontur abfahren", "es": "Encuadrar el contorno"},
+    "menu.job.send": {"fr": "Envoyer au laser", "en": "Send to laser", "de": "An den Laser senden",
+                      "es": "Enviar al láser"},
+    "menu.job.pause": {"fr": "Pause", "en": "Pause", "de": "Pause", "es": "Pausa"},
+    "menu.job.resume": {"fr": "Reprise après pause", "en": "Resume after pause", "de": "Nach Pause fortsetzen",
+                        "es": "Reanudar tras la pausa"},
     "menu.help": {"fr": "Aide", "en": "Help", "de": "Hilfe", "es": "Ayuda"},
     "menu.help.version": {"fr": "Version", "en": "Version", "de": "Version", "es": "Versión"},
     "menu.help.documentation": {"fr": "Documentation", "en": "Documentation",
@@ -219,7 +236,7 @@ TEXTS = {
         "de": "GRBL-Konfiguration", "es": "Configuración GRBL",
     },
     "tab.layers": {
-        "fr": "Calques (Layers)", "en": "Layers",
+        "fr": "Calques", "en": "Layers",
         "de": "Ebenen (Layers)", "es": "Capas (Layers)",
     },
     "project.autosave_failed": {
@@ -299,6 +316,12 @@ TEXTS = {
         "en": "Project loaded successfully.",
         "de": "Projekt erfolgreich geladen.",
         "es": "Proyecto cargado correctamente.",
+    },
+    "project.image_too_large": {
+        "fr": "image du projet trop grande ({width} x {height} pixels)",
+        "en": "project image too large ({width} x {height} pixels)",
+        "de": "Bild des Projekts zu groß ({width} x {height} Pixel)",
+        "es": "imagen del proyecto demasiado grande ({width} x {height} píxeles)",
     },
     "project.load_error": {
         "fr": "Échec du chargement du projet :\n{error}",
@@ -486,10 +509,10 @@ TEXTS = {
         "es": "PARADA DE EMERGENCIA (KILL)",
     },
     "ui.frame": {
-        "fr": "Cadrage (Frame)",
-        "en": "Frame",
-        "de": "Rahmen",
-        "es": "Marco",
+        "fr": "Cadrer : rectangle autour du job, laser à 0,5 % pour voir le parcours (F6)",
+        "en": "Frame: rectangle around the job, laser at 0.5% to see the path (F6)",
+        "de": "Umriss: Rechteck um den Job, Laser auf 0,5 %, um den Weg zu sehen (F6)",
+        "es": "Encuadrar: rectángulo alrededor del trabajo, láser al 0,5 % para ver el recorrido (F6)",
     },
     "ui.send_to_laser": {
         "fr": "ENVOYER AU LASER (USB)",
@@ -500,6 +523,25 @@ TEXTS = {
     "ui.repeat_last_job": {
         "fr": "🔁 Répéter le dernier job", "en": "🔁 Repeat last job",
         "de": "🔁 Letzten Job wiederholen", "es": "🔁 Repetir el último trabajo",
+    },
+    "ui.frame_contour": {
+        "fr": "Cadrer au plus près : le tour réel de la gravure et de la découpe, laser à 0,5 % (Maj+F6)",
+        "en": "Frame the outline: the real outline of the engraving and cut, laser at 0.5% (Shift+F6)",
+        "de": "Kontur abfahren: der echte Umriss von Gravur und Schnitt, Laser auf 0,5 % (Umschalt+F6)",
+        "es": "Encuadrar el contorno: el contorno real del grabado y del corte, láser al 0,5 % (Mayús+F6)",
+    },
+    "frame.title": {"fr": "Cadrage", "en": "Framing", "de": "Umriss", "es": "Encuadre"},
+    "frame.need_gcode": {
+        "fr": "Générez d'abord le G-Code : le cadrage au plus près fait le tour de ce qui sera vraiment gravé.",
+        "en": "Generate the G-Code first: framing the outline goes round what will really be engraved.",
+        "de": "Zuerst den G-Code erzeugen: Die Kontur folgt dem, was wirklich graviert wird.",
+        "es": "Genere primero el G-Code: el encuadre del contorno recorre lo que realmente se grabará.",
+    },
+    "ui.resume_job": {
+        "fr": "⏩ Reprendre le job interrompu là où il s'est arrêté",
+        "en": "⏩ Resume the interrupted job where it stopped",
+        "de": "⏩ Unterbrochenen Job dort fortsetzen, wo er angehalten hat",
+        "es": "⏩ Reanudar el trabajo interrumpido donde se detuvo",
     },
     "ui.burn_progress": {
         "fr": "Gravure : {pct}%",

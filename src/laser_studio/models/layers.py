@@ -71,6 +71,7 @@ LAYER_FIELD_CASTS = {
     "perf_gap": float,
     "ramp": bool,
     "ramp_power": float,
+    "air": bool,
 }
 
 # Ponts de maintien d'un calque de découpe (voir vector/tabs.py) : bornes des réglages.
@@ -189,7 +190,7 @@ class LaserLayer:
                  tab_width=DEFAULT_TAB_WIDTH_MM, kerf=False, kerf_width=DEFAULT_KERF_WIDTH_MM,
                  lead=False, lead_radius=DEFAULT_LEAD_RADIUS_MM,
                  perf_dash=DEFAULT_PERF_DASH_MM, perf_gap=DEFAULT_PERF_GAP_MM,
-                 ramp=False, ramp_power=DEFAULT_RAMP_POWER_PCT):
+                 ramp=False, ramp_power=DEFAULT_RAMP_POWER_PCT, air=False):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.role = role
         self.name = name
@@ -230,6 +231,8 @@ class LaserLayer:
         # puissance de la dernière passe ; celle du calque est la première. Sans effet à une seule passe.
         self.ramp = bool(ramp)
         self.ramp_power = min(max(float(ramp_power), RAMP_POWER_MIN_PCT), RAMP_POWER_MAX_PCT)
+        # Air assist : soufflage allumé (M8) pendant ce calque, éteint (M9) après. Tous les modes.
+        self.air = bool(air)
 
     def to_dict(self):
         return dict(self.__dict__)
@@ -357,6 +360,13 @@ class LayersModel(QObject):
 
     def to_list(self):
         return [l.to_dict() for l in self.layers]
+
+    def colors_by_name(self):
+        """Couleur de chaque calque, par nom (le premier calque d'un nom donné) : couleurs de l'aperçu 2D."""
+        colors = {}
+        for layer in self.layers:
+            colors.setdefault(layer.name, layer.color)
+        return colors
 
     # -- modification ------------------------------------------------------
 

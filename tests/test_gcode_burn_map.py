@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 
 try:
     from laser_studio.controllers import workers
+    from laser_studio.gcode.params import JobParams
 except ImportError as exc:  # dépendance manquante (PyQt6, svg.path...)
     workers = None
     _IMPORT_ERROR = exc
@@ -31,24 +32,18 @@ S_MAX = 1000
 SUB = 10  # sous-pixels par pixel pour mesurer les frontières
 
 
-class _Params(dict):
-    """Paramètres du worker : toute clé non fournie vaut ''."""
-    def __missing__(self, key):
-        return ""
-
-
 def generate_gcode(arr, overscan=0.0, algo="Seuil Simple (Binaire)"):
     h, w = arr.shape
     # Décalage opposé à la marge de l'image (le surbalayage, voir gcode.raster.image_origin) : image à
     # l'origine du plateau, comme le suppose power_map.
     margin = overscan
-    params = _Params(
+    params = JobParams(
         width_mm=float(w), height_mm=float(h), origin_pos="bottom_left",
         offset_x=-margin, offset_y=0.0, power_engrave=100.0, speed_engrave=1000,
         enable_overscan=overscan > 0, overscan_mode="mm", overscan_dist=overscan,
-        laser_cmd="M4", s_max=S_MAX, algo=algo, enable_cut=False,
+        laser_cmd="M4", s_max=S_MAX, algo=algo,
     )
-    worker = workers.AdvancedGCodeWorker(arr, None, params, {})
+    worker = workers.AdvancedGCodeWorker(arr, params, {})
     out = {}
     worker.finished.connect(lambda gcode, *_: out.update(gcode=gcode))
     worker.error.connect(lambda msg: out.update(error=msg))

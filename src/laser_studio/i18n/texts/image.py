@@ -5,6 +5,13 @@ TEXTS = {
     # --- Onglet Image & Filtres ---
     "img.properties_box": {"fr": "Propriétés de l'image", "en": "Image properties", "de": "Bildeigenschaften",
                            "es": "Propiedades de la imagen"},
+    "img.empty_title": {
+        "fr": "Aucune image : glisse-dépose un fichier ici, ou", "en": "No image yet: drop a file here, or",
+        "de": "Noch kein Bild: Datei hierher ziehen, oder", "es": "Ninguna imagen: suelta un archivo aquí, o",
+    },
+    "img.empty_open": {
+        "fr": "Ouvrir une image", "en": "Open an image", "de": "Bild öffnen", "es": "Abrir una imagen",
+    },
     "img.load": {
         "fr": "Charger Image\n(ou glisser-déposer)", "en": "Load Image\n(or drag & drop)",
         "de": "Bild laden\n(oder per Drag & Drop)", "es": "Cargar imagen\n(o arrastrar y soltar)",
@@ -292,6 +299,13 @@ TEXTS = {
               "Hacer clic en una miniatura selecciona ese algoritmo.",
     },
     "preview.display_box": {"fr": "Affichage", "en": "Display", "de": "Anzeige", "es": "Visualización"},
+    "preview.simulate_tip": {
+        "fr": "Simuler : rejoue le parcours du laser dans l'ordre du G-Code, avant de lancer la gravure",
+        "en": "Simulate: replays the laser path in G-Code order, before starting the job",
+        "de": "Simulieren: spielt den Laserweg in der Reihenfolge des G-Codes ab, vor dem Start",
+        "es": "Simular: reproduce el recorrido del láser en el orden del G-Code, antes de lanzar el trabajo",
+    },
+    "preview.generation_box": {"fr": "Génération", "en": "Generation", "de": "Erzeugung", "es": "Generación"},
     "preview.material_label": {
         "fr": "Matière :",
         "en": "Material:",

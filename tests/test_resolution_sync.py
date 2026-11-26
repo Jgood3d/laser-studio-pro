@@ -147,4 +147,7 @@ class SeparationHooksStillPresentTests(unittest.TestCase):
     def test_resolution_reaches_the_separation(self):
         main = self.source("ui", "app", "main_window.py")
         self.assertIn("settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())", main)
-        self.assertIn("settings.resolution_changed.connect(self.tab_matrix.set_lines_mm)", main)
+        # Matrice de test : lignes/mm du placement du job (modèle), pas du champ.
+        self.assertIn('self.tab_matrix.set_lines_mm(changes["lines_mm"]) if "lines_mm" in changes', main)
+        self.assertIn("self.pages.test_matrix.set_lines_mm(self.placement.lines_mm)",
+                      self.source("controllers", "window.py"))

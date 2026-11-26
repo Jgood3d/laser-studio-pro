@@ -222,8 +222,9 @@ class FakeQueueTab:
 class FakeEngraver:
     """Envoi instantané : chaque job finit proprement, sauf ceux listés."""
 
-    def __init__(self, connected=True, failing=()):
-        self.calls, self.connected, self.failing = [], connected, failing
+    def __init__(self, connected=True, failing=(), busy=False):
+        self.calls, self.connected, self.failing, self.busy = [], connected, failing, busy
+        self.refused = 0
 
     def engraver(self):
         def record(name, result=None):
@@ -238,11 +239,20 @@ class FakeEngraver:
             pause_status_poll=record("pause"),
             resume_status_poll=record("resume"),
             jobs_finished=record("jobs_finished"),
+            may_send=self.may_send,
         )
+
+    def may_send(self):
+        """Comme EngraverController.allowed : refuse et le dit (ici, un appel noté)."""
+        ok = self.connected and not self.busy
+        if not ok:
+            self.refused += 1
+        return ok
 
     def start_stream(self, gcode, on_finished):
         self.calls.append(("start", gcode))
         on_finished(gcode not in self.failing)
+        return True                                   # envoi accepté (None : graveur occupé)
 
 
 @unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")
@@ -306,6 +316,14 @@ class JobQueueControllerTests(_QtTest):
             [job["gcode"] for job in restored.jobs], ["G1 X1", "G1 X2"]
         )
 
+    def test_queue_does_not_start_while_the_engraver_is_busy(self):
+        """Un job direct (ou un homing) en cours : la file ne démarre pas, sinon deux envois se mélangent."""
+        queue, tab, fake = self.make(["G1 X1"], busy=True)
+        queue.run()
+        self.assertEqual([c for c in fake.calls if c[0] == "start"], [])
+        self.assertEqual(fake.refused, 1)
+        self.assertEqual(len(queue.jobs), 1)
+
     def test_jobs_are_sent_one_after_the_other(self):
         queue, tab, fake = self.make(["G1 X1", "G1 X2"])
         queue.run()
@@ -329,7 +347,7 @@ class JobQueueControllerTests(_QtTest):
     def test_nothing_is_sent_when_disconnected(self):
         queue, _, fake = self.make(["G1 X1"], connected=False)
         queue.run()
-        self.assertEqual((fake.calls, self.messages), ([], ["warning"]))
+        self.assertEqual((fake.calls, fake.refused), ([], 1))
 
 
 @unittest.skipIf(JobQueueController is None, "PyQt6 non importable ici")
@@ -375,6 +393,16 @@ class ProjectControllerTests(_QtTest):
         self.assertEqual((image.size, image.getpixel((0, 0))), ((8, 4), 200))
         self.assertEqual(self.recent[-1], [path])  # projets récents
         self.assertEqual(self.messages, ["information"])
+
+    def test_a_giant_image_in_a_project_is_refused_before_decoding(self):
+        # Projet reçu d'un tiers : 10 000 x 9 000 pixels tiennent dans quelques Ko de PNG, mais pas en mémoire.
+        import base64
+        import io
+        from PIL import Image
+        buffer = io.BytesIO()
+        Image.new("1", (10_000, 9_000)).save(buffer, format="PNG")
+        with self.assertRaises(ValueError):
+            ProjectController.decode_image(base64.b64encode(buffer.getvalue()).decode())
 
     def test_cancelled_or_failed_save(self):
         self.assertFalse(self.save_to(""))

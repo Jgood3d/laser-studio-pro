@@ -36,7 +36,8 @@ class WindowController(QObject):
     `main_tabs` : {nom: onglet} que le menu Outils peut demander."""
 
     def __init__(self, parent=None, *, forms, dialogs, actions=None, tabs=None, machine=None, job=None,
-                 image=None, job_history=None, vector=None, pages=None, settings_pages=None, main_tabs=None):
+                 image=None, job_history=None, vector=None, pages=None, settings_pages=None, main_tabs=None,
+                 placement=None):
         super().__init__(parent)
         self.window = parent
         self.forms = forms
@@ -47,6 +48,7 @@ class WindowController(QObject):
         self.job = job
         self.image = image
         self.job_history = job_history
+        self.placement = placement
         self.vector = vector
         self.pages = SimpleNamespace(**(pages or {}))
         self._settings_pages = dict(settings_pages or {})
@@ -56,12 +58,12 @@ class WindowController(QObject):
 
     def stencil(self):
         """Contrôleur de Stencil Studio, créé à la première demande. Ses exports SVG / DXF arrivent
-        dans l'éditeur vectoriel, rangés dans les calques (VectorEditorController.import_stencil_export)."""
+        dans l'éditeur vectoriel, rangés dans les calques (VectorImporter.import_stencil_export)."""
         if self.stencil_studio is None:
             self.stencil_studio = StencilStudioController(
                 self.window, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
                 dialogs=self.dialogs, parent=self)
-            self.stencil_studio.export_ready.connect(self.vector.controller.import_stencil_export)
+            self.stencil_studio.export_ready.connect(self.vector.controller.importer.import_stencil_export)
         return self.stencil_studio
 
     def schedule_stencil_preload(self):
@@ -119,8 +121,8 @@ class WindowController(QObject):
             # L'image de la caméra (redressée sur le plateau) s'affiche sous la grille de l'éditeur vectoriel.
             canvas = self.vector.canvas
             self.camera.overlay_ready.connect(canvas.set_camera_background)
-            self.camera.overlay_cleared.connect(canvas.clear_camera_background)
-            self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
+            self.camera.overlay_cleared.connect(canvas.camera.clear)
+            self.camera.overlay_opacity_changed.connect(canvas.camera.set_opacity)
         return self.camera
 
     def show_job_history(self):
@@ -201,7 +203,7 @@ class WindowController(QObject):
         """Lignes/mm de « Graver une image » reportées dans la matrice de test
         gravure : le test est fait avec la même densité de lignes que la
         gravure réelle."""
-        self.pages.test_matrix.set_lines_mm(self.pages.resolution.lines_per_mm())
+        self.pages.test_matrix.set_lines_mm(self.placement.lines_mm)
 
     # -- onglet « Graver une image » : résolution, focale, comparaison des algorithmes
 

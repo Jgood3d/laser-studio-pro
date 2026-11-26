@@ -59,8 +59,8 @@ class SettingsAndFallbackTests(unittest.TestCase):
         self.assertEqual(MachineLimits.from_grbl_settings(None).max_rate_x, 6000.0)
 
     def test_without_limits_the_old_margin_is_kept(self):
-        self.assertAlmostEqual(job_duration("G1 X100 F600", {}, 10.0), 10.0 * TIME_MARGIN)
-        self.assertAlmostEqual(job_duration("G1 X100 F600", {"machine_limits": LIMITS.to_dict()}, 0.0), 10.0,
+        self.assertAlmostEqual(job_duration("G1 X100 F600", None, 10.0), 10.0 * TIME_MARGIN)
+        self.assertAlmostEqual(job_duration("G1 X100 F600", LIMITS.to_dict(), 0.0), 10.0,
                                delta=0.05)
 
     def test_quick_estimate_matches_the_planner_for_isolated_lines(self):

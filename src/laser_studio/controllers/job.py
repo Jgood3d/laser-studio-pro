@@ -4,24 +4,23 @@ de test et motif aller/retour.
 
 Le G-Code lui-même est calculé par le paquet gcode/ (sans Qt), dans les
 threads de controllers/workers.py. Ce contrôleur ne touche pas aux widgets : il lit
-l'état de l'interface par des fonctions qu'on lui donne, pose ses questions
-par UserDialogs et publie ses résultats par signaux, que la fenêtre affiche.
+les modèles qu'on lui donne, pose ses questions par UserDialogs et publie ses
+résultats par signaux, que la fenêtre affiche.
 
-    job = JobController(layers, grbl, machine, image_settings, UserDialogs(window),
-                        geometry=window._job_geometry, image=lambda: window.processed_array, ...)
+    job = JobController(layers, grbl, machine, image_settings, placement, document, UserDialogs(window),
+                        image=lambda: window.image)
     job.generated.connect(job_display.show_generated)
     job.generate()
 """
+import dataclasses
 import traceback
-import xml.etree.ElementTree as ET
 
 import numpy as np
 from PyQt6.QtCore import QObject, pyqtSignal
-from svg.path import parse_path
 
-from laser_studio.core.constants import ORIGIN_CENTER
 from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
+from laser_studio.gcode.params import JobParams
 from laser_studio.gcode.timing import MachineLimits, straight_lines_seconds
 from laser_studio.grbl.commands import parse_grbl_settings
 from laser_studio.gcode.test_matrix import matrix_cell_at
@@ -61,16 +60,13 @@ class JobController(QObject):
     """Préparation et génération du job.
 
     Modèles : `layers` (LayersModel), `grbl` (GrblConfig), `machine`
-    (MachineConfig), `image_settings` (ImageSettings). `dialogs` : UserDialogs.
+    (MachineConfig), `image_settings` (ImageSettings), `placement` (JobPlacement :
+    taille, position, lignes/mm, optimisation du chemin), `document`
+    (VectorDocument : objets de l'éditeur vectoriel). `dialogs` : UserDialogs.
 
-    État de l'interface, lu à chaque usage :
-    - geometry() : dict width_mm, height_mm, origin_pos, offset_x, offset_y ;
-    - image() : image tramée à graver (tableau numpy) ou None ;
-    - svg_path() : SVG de l'ancien mode découpe, ou None ;
-    - vector_objects() : objets de l'éditeur vectoriel ;
-    - optimize_path() : True pour réordonner les tracés (moins de G0) ;
-    - lines_mm() : résolution de gravure (lignes/mm) ;
-    - material_summary() : rappel de la matière, pour la confirmation.
+    `image()` rend le contrôleur de « Graver une image » (ImageController, construit
+    après ce contrôleur) : image tramée à graver (`processed_array`, ou None) et
+    rappel de la matière pour la confirmation (`material_summary()`).
 
     Signaux :
     - started() : génération lancée (le thread démarre) ;
@@ -91,26 +87,19 @@ class JobController(QObject):
     log = pyqtSignal(str)
     status = pyqtSignal(str)
 
-    def __init__(self, layers, grbl, machine, image_settings, dialogs, *, geometry, image,
-                 svg_path=lambda: None, vector_objects=lambda: [], optimize_path=lambda: True,
-                 lines_mm=lambda: 10.0, material_summary=lambda: "", parent=None):
+    def __init__(self, layers, grbl, machine, image_settings, placement, document, dialogs, *, image,
+                 parent=None):
         super().__init__(parent)
         self.layers = layers
         self.grbl = grbl
         self.machine = machine
         self.image_settings = image_settings
+        self.placement = placement
+        self.document = document
         self.dialogs = dialogs
-        self._geometry = geometry
         self._image = image
-        self._svg_path = svg_path
-        self._vector_objects = vector_objects
-        self._optimize_path = optimize_path
-        self._lines_mm = lines_mm
-        self._material_summary = material_summary
-        # Ancien mode SVG : découpe d'un SVG entier (svg_path), avec un seul
-        # réglage. Plus accessible depuis l'interface, mais encore lu dans les
-        # anciens projets et les profils matériaux (voir set_cut_settings).
-        self.cut_enabled = False
+        # Réglages de découpe de l'ancien mode SVG (supprimé) : encore lus et écrits dans les projets et les
+        # profils matériaux (sp_c / pw_c / pass_c), et par un clic sur une matrice de découpe.
         self.cut_speed = 300
         self.cut_power = 90
         self.cut_passes = 2
@@ -156,12 +145,6 @@ class JobController(QObject):
         calque de gravure, sinon celle de Configuration GRBL."""
         return layer_laser_cmd(self.layers.engrave_layer(), self.grbl.laser_cmd)
 
-    @property
-    def cut_laser_cmd(self):
-        """Commande laser de la découpe SVG autour de l'image : celle du calque de découpe (premier
-        calque en mode Découpe), sinon celle de Configuration GRBL, comme les calques vectoriels."""
-        return layer_laser_cmd(self.layers.default_svg_layer(), self.grbl.laser_cmd)
-
     def set_engrave_settings(self, speed, power):
         """Écrit la vitesse (mm/min) et la puissance (%) de la gravure d'une
         image dans le calque de gravure (ex. case de la matrice de test,
@@ -179,6 +162,19 @@ class JobController(QObject):
         self.cut_speed = _clamp(speed, CUT_SPEED_RANGE)
         self.cut_power = _clamp(power, CUT_POWER_RANGE)
         self.cut_passes = _clamp(passes, CUT_PASSES_RANGE)
+
+    def to_project(self):
+        """Réglages de gravure et de découpe au format d'un projet enregistré. La gravure d'image suit son
+        calque (enregistré avec les calques) ; ses valeurs restent écrites pour les anciennes versions."""
+        return {"speed_engrave": self.engrave_speed, "power_engrave": self.engrave_power,
+                "speed_cut": self.cut_speed, "power_cut": self.cut_power, "passes_cut": self.cut_passes}
+
+    def load_project(self, data):
+        """Réapplique les réglages d'un projet. Ancien projet sans calques : sa vitesse et sa puissance de
+        gravure d'image vont dans le calque de gravure ; avec des calques, ce sont eux qui font foi."""
+        if "layers" not in data:
+            self.set_engrave_settings(data.get("speed_engrave", 2000), data.get("power_engrave", 30))
+        self.set_cut_settings(data.get("speed_cut", 300), data.get("power_cut", 90), data.get("passes_cut", 2))
 
     def engrave_layer_label(self):
         """Nom et mode du calque de la gravure image, ex. « Gravure  [Gravure Remplie] »."""
@@ -206,7 +202,7 @@ class JobController(QObject):
         comprise (gcode.image_origin) : sert à caler le puzzle sur l'image."""
         params = self.build_params()
         x, y = image_origin(params)
-        return float(x), float(y), float(params['width_mm']), float(params['height_mm'])
+        return float(x), float(y), float(params.width_mm), float(params.height_mm)
 
     def machine_limits(self):
         """Limites de la machine pour estimer les durées (gcode.timing.MachineLimits, en dictionnaire) :
@@ -232,37 +228,27 @@ class JobController(QObject):
         }
 
     def build_params(self):
-        """Paramètres de génération du G-Code (voir gcode.job.build_job_gcode)."""
-        params = dict(self._geometry())
-        params.update({
-            'speed_engrave': self.engrave_speed,
-            'power_engrave': self.engrave_power,
-            'enable_cut': self.cut_enabled,
-            'speed_cut': self.cut_speed,
-            'power_cut': self.cut_power,
-            'passes_cut': self.cut_passes,
-            'laser_cmd': self.grbl.laser_cmd,
-            'cut_laser_cmd': self.cut_laser_cmd,
+        """Paramètres de génération du G-Code (gcode.params.JobParams, voir gcode.job.build_job_gcode)."""
+        return JobParams(
+            **self.placement.geometry(),
+            speed_engrave=self.engrave_speed,
+            power_engrave=self.engrave_power,
+            laser_cmd=self.grbl.laser_cmd,
+            s_max=self.grbl.smax,
             # Gravure d'image : commande et surbalayage de son calque de gravure.
-            'image_laser_cmd': self.image_laser_cmd,
-            'image_overscan': self.image_overscan_enabled,
-            'algo': self.image_settings.algorithm,
-            's_max': self.grbl.smax,
-            'homing': self.grbl.homing_enabled,
-            'start_gcode': self.grbl.start_gcode,
-            'end_gcode': self.grbl.end_gcode,
+            image_laser_cmd=self.image_laser_cmd,
+            image_overscan=self.image_overscan_enabled,
+            image_air=bool(getattr(self.layers.engrave_layer(), "air", False)),
+            algo=self.image_settings.algorithm,
+            homing=self.grbl.homing_enabled,
+            start_gcode=self.grbl.start_gcode,
+            end_gcode=self.grbl.end_gcode,
             # Graver avant de découper ; intérieurs avant extérieurs (voir vector/order.py).
-            'safe_cut_order': self.grbl.safe_cut_order,
+            safe_cut_order=self.grbl.safe_cut_order,
             # Durée estimée comme GRBL planifie ses déplacements (gcode.timing).
-            'machine_limits': self.machine_limits(),
-        })
-        params.update(self._overscan_values())
-        return params
-
-    def _overscan_check_distance(self, params):
-        if params['overscan_mode'] == OVERSCAN_PERCENT:
-            return params['width_mm'] * (params['overscan_pct'] / 100.0)
-        return params['overscan_dist']
+            machine_limits=self.machine_limits(),
+            **self._overscan_values(),
+        )
 
     # -- génération du job
 
@@ -278,12 +264,12 @@ class JobController(QObject):
             return False
 
     def _generate(self):
-        processed_array = self._image()
+        processed_array = self._image().processed_array
         # Image (tramage / séparation couleur) : toujours en mode gravure par
         # défaut, avant la lecture des vitesses/puissances ci-dessous.
         if processed_array is not None:
             self.check_engrave_layer()
-        geometry = self._geometry()
+        geometry = self.placement.geometry()
         job_w, job_h = geometry['width_mm'], geometry['height_mm']
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if job_w > bed_w or job_h > bed_h:
@@ -298,8 +284,6 @@ class JobController(QObject):
 
         max_speed_limit = self.machine.max_speed
         speeds_to_check = [(tr("gen.speed_row_engrave"), self.engrave_speed)]
-        if self.cut_enabled:
-            speeds_to_check.append((tr("gen.speed_row_cut_old"), self.cut_speed))
         for layer in self.layers.layers:
             if layer.enabled:
                 speeds_to_check.append((tr("gen.speed_row_layer").format(name=layer.name), layer.speed))
@@ -314,7 +298,7 @@ class JobController(QObject):
                 return False
 
         # Les objets du calque « Ignoré » ne sont ni gravés ni découpés : pas comptés.
-        objects = [o for o in self._vector_objects() if not o.is_ignored()]
+        objects = [o for o in self.document.objects if not o.is_ignored()]
         if processed_array is not None and objects:
             layer_names = sorted(set(
                 self.layers.get(o.layer_id).name for o in objects if self.layers.get(o.layer_id)
@@ -331,14 +315,14 @@ class JobController(QObject):
 
         params = self.build_params()
 
-        if params['image_overscan'] and processed_array is not None:
-            overscan_check = self._overscan_check_distance(params)
+        if params.image_overscan_enabled and processed_array is not None:
+            overscan_check = params.overscan_for(params.width_mm)
             base_x_check = image_origin(params)[0]
             if base_x_check - overscan_check < 0:
                 self.dialogs.error(
                     tr("gen.overscan_title"),
                     tr("gen.overscan_body").format(
-                        overscan=overscan_check, offset=params['offset_x'],
+                        overscan=overscan_check, offset=params.offset_x,
                         start=base_x_check - overscan_check,
                         tab_dims=tr("ui.tab_image_tracing"), tab_grbl=tr("tab.grbl_config"),
                     ),
@@ -348,12 +332,11 @@ class JobController(QObject):
         # Extraction géométrique des calques vectoriels (texte/formes) : se fait
         # ici dans le thread principal (Qt requis), le résultat est du texte/nombres
         # purs, sans risque pour le thread qui va s'en servir.
-        vector_layers_data = extract_vector_layer_data(objects, self.layers, optimize_path=self._optimize_path())
+        vector_layers_data = extract_vector_layer_data(objects, self.layers, optimize_path=self.placement.optimize_path)
 
-        if params['enable_overscan']:
-            vec_overscan_check = self._overscan_check_distance(params)
-            base_x = (params['offset_x'] - (params['width_mm'] / 2.0)
-                      if params['origin_pos'] == ORIGIN_CENTER else params['offset_x'])
+        if params.enable_overscan:
+            vec_overscan_check = params.overscan_for(params.width_mm)
+            base_x = params.vector_origin()[0]
             for data in vector_layers_data.values():
                 layer = data["layer"]
                 if layer["mode"] != MODE_FILL or not data["polygons"] or not layer_overscan_enabled(layer, True):
@@ -376,13 +359,14 @@ class JobController(QObject):
                     tr("gen.engrave_confirm_title"),
                     tr("gen.engrave_confirm_body").format(
                         layer=self.engrave_layer_label() or "—",
-                        power=params['power_engrave'], speed=params['speed_engrave'],
-                        width=params['width_mm'], height=params['height_mm'],
-                        material=self._material_summary(),
+                        power=params.power_engrave, speed=params.speed_engrave,
+                        width=params.width_mm, height=params.height_mm,
+                        material=self._image().material_summary(),
                     )):
                 return False
 
-        self.worker = AdvancedGCodeWorker(processed_array, self._svg_path(), params, vector_layers_data)
+        self.worker = AdvancedGCodeWorker(processed_array, params, vector_layers_data,
+                                          layer_colors=self.layers.colors_by_name())
         self.worker.finished.connect(self.generated)
         self.worker.progress.connect(self.progress)
         self.worker.error.connect(self.failed)
@@ -401,9 +385,9 @@ class JobController(QObject):
         total_seconds = 0.0
         details = []
 
-        processed_array = self._image()
+        processed_array = self._image().processed_array
         if processed_array is not None:
-            w_mm = self._geometry()['width_mm']
+            w_mm = self.placement.geometry()['width_mm']
             speed = self.engrave_speed
             # Surbalayage de chaque côté d'une ligne, comme à la génération :
             # désactivé, distance fixe ou pourcentage de la largeur de l'image.
@@ -427,27 +411,9 @@ class JobController(QObject):
             total_seconds += t
             details.append(tr("gcode.image_details").format(duration=estimate_duration_text(t)))
 
-        svg_path = self._svg_path()
-        if svg_path:
-            try:
-                tree = ET.parse(svg_path)
-                total_len_svg = 0.0
-                for elem in tree.iter():
-                    d = elem.attrib.get('d')
-                    if d:
-                        try:
-                            total_len_svg += parse_path(d).length(error=1e-3)
-                        except Exception:       # tracé illisible : ignoré dans l'estimation
-                            log.debug("Estimation : tracé SVG illisible ignoré", exc_info=True)
-                t = (total_len_svg / max(self.cut_speed, 1)) * 60.0 * self.cut_passes
-                total_seconds += t
-                details.append(tr("gcode.svg_details").format(duration=estimate_duration_text(t)))
-            except Exception:
-                log.warning("Estimation : découpe SVG non estimée (%s)", svg_path, exc_info=True)
-
         # Ce qui sera gravé, calque par calque : chaque objet d'un simple groupe sur son calque, rien pour un
         # objet du calque « Ignoré ».
-        parts = [part for o in self._vector_objects() for part in o.engraving_parts()]
+        parts = [part for o in self.document.objects for part in o.engraving_parts()]
         for layer in self.layers.layers:
             if not layer.enabled:
                 continue
@@ -526,7 +492,7 @@ class JobController(QObject):
             overscan = self.grbl.overscan_dist_mm if self.grbl.overscan_mode == 0 else 2.5
         else:
             overscan = 0.0
-        geometry = self._geometry()
+        geometry = self.placement.geometry()
         params = {
             'origin_pos': geometry['origin_pos'],
             'offset_x': geometry['offset_x'],
@@ -539,7 +505,7 @@ class JobController(QObject):
             'start_gcode': self.grbl.start_gcode,
             'end_gcode': self.grbl.end_gcode,
             'overscan_dist': overscan,
-            'line_pitch_mm': 1.0 / max(self._lines_mm(), 0.1),
+            'line_pitch_mm': 1.0 / max(self.placement.lines_mm, 0.1),
             'machine_limits': self.machine_limits(),
         }
         result = bidir_test_gcode(params)
@@ -556,16 +522,15 @@ class JobController(QObject):
         ligne dont les cases passent régulièrement du noir au clair, et on
         règle le curseur sur la valeur écrite à gauche. Renvoie True si la
         génération a démarré (False : grille plus grande que le plateau)."""
-        arr, w_mm, h_mm = build_gain_test_array(self._lines_mm(), mirror=self.image_settings.mirror_h)
+        arr, w_mm, h_mm = build_gain_test_array(self.placement.lines_mm, mirror=self.image_settings.mirror_h)
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
         if w_mm > bed_w or h_mm > bed_h:
             self.dialogs.warning(
                 tr("sep.gain_test_title"),
                 tr("sep.gain_test_too_big").format(w=w_mm, h=h_mm, bed_w=bed_w, bed_h=bed_h))
             return False
-        params = self.build_params()
-        params.update(width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg", enable_cut=False)
-        self.gain_test_worker = AdvancedGCodeWorker(arr, None, params, None)
+        params = dataclasses.replace(self.build_params(), width_mm=w_mm, height_mm=h_mm, algo="Floyd-Steinberg")
+        self.gain_test_worker = AdvancedGCodeWorker(arr, params, None)
         self.gain_test_worker.finished.connect(self._on_gain_test_ready)
         self.gain_test_worker.error.connect(self.failed)
         self.gain_test_worker.start()

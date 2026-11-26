@@ -1,4 +1,5 @@
-"""Panneau du bas (ui/app/bottom_panel.py) : onglets, repli et dépliage, hauteur rendue, état mémorisé."""
+"""Panneau du bas (ui/app/bottom_panel.py) : onglets, repli et dépliage, hauteur rendue ; replié à
+chaque démarrage (graveur pas encore connecté), rien de mémorisé."""
 import os
 import sys
 import unittest
@@ -32,14 +33,30 @@ class BottomPanelTests(unittest.TestCase):
         self.splitter.resize(400, 600)
         self.splitter.show()
 
-    def test_collapsed_at_first_start_and_tabs_open_their_page(self):
+    def test_collapsed_at_start_and_tabs_open_their_page(self):
         self.assertTrue(self.panel.is_collapsed())
         self.assertTrue(self.panel.stack.isHidden())
         self.assertEqual(self.stored, {})                                 # rien d'écrit au départ
         self.panel.show_page("gcode")
         self.assertFalse(self.panel.is_collapsed())
         self.assertEqual(self.panel.stack.currentIndex(), 1)
-        self.assertIs(self.stored["bottom_panel_collapsed"], False)
+        self.assertEqual(self.stored, {})                                 # au prochain démarrage : replié
+
+    def test_collapsed_before_the_window_is_shown_leaves_the_tabs_visible(self):
+        # Bug : replié à la construction, quand le séparateur n'a pas encore de taille, le panneau mettait les
+        # onglets à 0, et un QSplitter garde repliée une zone à 0 : fenêtre vide au démarrage.
+        splitter = QSplitter(Qt.Orientation.Vertical)
+        self.addCleanup(splitter.deleteLater)
+        splitter.addWidget(QLabel("onglets"))
+        panel = BottomPanel([("machine", "Graveur", QLabel("m"))], splitter)
+        splitter.addWidget(panel)
+        self.app.processEvents()                                          # repli avant l'affichage
+        splitter.resize(400, 600)
+        splitter.show()
+        self.app.processEvents()
+        self.assertTrue(panel.is_collapsed())
+        self.assertGreater(splitter.sizes()[0], 500)
+        self.assertFalse(splitter.isCollapsible(0))
 
     def test_expanding_gives_back_the_height_it_had(self):
         self.panel.set_collapsed(False)

@@ -177,7 +177,7 @@ class CanvasViewTests(unittest.TestCase):
         doc.push_snapshot()
         doc.load([])
         self.assertEqual(self.items(canvas), [])
-        canvas.undo()
+        canvas.document.undo()
         self.assertEqual(len(self.items(canvas)), 1)
 
     def test_selection_operations_go_through_the_document(self):
@@ -190,12 +190,12 @@ class CanvasViewTests(unittest.TestCase):
         from laser_studio.controllers.vector_editor import VectorEditorController
         editor = VectorEditorController(doc, canvas, LayersModel(), machine=None, dialogs=None)
         canvas.select_objects([a, b])
-        group = editor.group_selection()
+        group = editor.grouping.group_selection()
         self.assertEqual(removed, [a, b])
         self.assertEqual(doc.objects, [group])
         editor.delete_selected()
         self.assertEqual(doc.objects, [])
-        canvas.undo()
+        canvas.document.undo()
         self.assertEqual(len(doc.objects), 1)
 
 

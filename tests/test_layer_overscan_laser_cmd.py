@@ -23,6 +23,7 @@ except ImportError:
 try:
     import numpy as np
     from laser_studio.controllers.workers import AdvancedGCodeWorker
+    from laser_studio.gcode.params import JobParams
     HAS_WORKER = True
 except ImportError:
     HAS_WORKER = False
@@ -142,17 +143,17 @@ class VectorGcodeTests(unittest.TestCase):
 @unittest.skipUnless(HAS_WORKER, "worker de génération non disponible ici")
 class ImageGcodeTests(unittest.TestCase):
     PARAMS = dict(width_mm=20.0, height_mm=2.0, origin_pos="Bas-gauche", offset_x=10.0, offset_y=10.0,
-                  speed_engrave=1000, power_engrave=50.0, enable_cut=False, speed_cut=300, power_cut=90.0,
-                  passes_cut=1, laser_cmd="M4", algo="Noir et Blanc", s_max=1000, homing=False,
+                  speed_engrave=1000, power_engrave=50.0, laser_cmd="M4", algo="Noir et Blanc", s_max=1000,
+                  homing=False,
                   enable_overscan=True, overscan_mode="Distance (mm)", overscan_dist=2.0, overscan_pct=5.0,
                   start_gcode="", end_gcode="", scan_offset_mm=0.0, safe_cut_order=True)
 
     def run_worker(self, **overrides):
-        params = dict(self.PARAMS, **overrides)
+        params = JobParams(**dict(self.PARAMS, **overrides))
         array = np.full((2, 20), 255, dtype=np.uint8)
         array[:, 5:15] = 0                                   # 10 mm gravés au milieu de chaque ligne
         out = []
-        worker = AdvancedGCodeWorker(array, None, params)
+        worker = AdvancedGCodeWorker(array, params)
         worker.finished.connect(lambda gcode, *_: out.append(gcode))
         worker.error.connect(lambda message: self.fail(message))
         worker.run()

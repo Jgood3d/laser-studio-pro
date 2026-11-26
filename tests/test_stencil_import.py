@@ -103,7 +103,7 @@ class ImportTests(unittest.TestCase):
     def test_dxf_of_the_studio_is_routed_and_the_temporary_file_removed(self):
         dxf = core.dxf_string([square(0, 0)], 50.0, frame=None, layers=[("LAYER_1", [square(20, 20)])])
         path = self.export(dxf, "pochoir.dxf")
-        self.editor.import_stencil_export(path)
+        self.editor.importer.import_stencil_export(path)
         self.assertTrue(self.document.objects)
         self.assertIn("LAYER_1", [layer.name for layer in self.layers.layers])
         self.assertIn("pochoir.dxf", self.messages[-1])
@@ -113,7 +113,7 @@ class ImportTests(unittest.TestCase):
     def test_svg_of_the_studio_keeps_its_groups_and_is_routed(self):
         svg = core.svg_string([square(0, 0)], 50.0, 50.0, frame=(0, 0, 50, 50), marks=[square(20, 20, 4)])
         path = self.export(svg, "pochoir.svg")
-        self.editor.import_stencil_export(path)
+        self.editor.importer.import_stencil_export(path)
         groups = {obj.name: obj for obj in self.document.objects}
         self.assertEqual(set(groups), {"CUT", "ENGRAVE", "FRAME"})        # groupes de l'export gardés
         modes = {name: self.layers.get(group.children[0].layer_id).mode for name, group in groups.items()}
@@ -124,14 +124,14 @@ class ImportTests(unittest.TestCase):
     def test_svg_plates_get_their_own_layers(self):
         svg = core.svg_string([], 50.0, 50.0, layers=[("LAYER_1", [square(0, 0)]), ("LAYER_2", [square(20, 0)])])
         path = self.export(svg, "plaques.svg")
-        self.editor.import_stencil_export(path)
+        self.editor.importer.import_stencil_export(path)
         names = [layer.name for layer in self.layers.layers]
         self.assertIn("LAYER_1", names)
         self.assertIn("LAYER_2", names)
 
     def test_unreadable_export_falls_back_to_the_standard_import(self):
         path = self.export("pas un dxf", "casse.dxf")
-        self.editor.import_stencil_export(path)
+        self.editor.importer.import_stencil_export(path)
         self.assertEqual(self.messages[0].split(":")[0], tr("stencil.import_fallback").split(":")[0])
         self.assertEqual(self.dialogs.kinds(), ["error"])         # l'import standard explique le problème
         self.assertFalse(os.path.exists(path))

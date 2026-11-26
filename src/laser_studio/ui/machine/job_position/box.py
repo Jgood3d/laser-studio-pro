@@ -1,9 +1,10 @@
-"""Cadre « Position du job sur le plateau », dans le panneau machine."""
+"""Cadre « Position du job sur le plateau », dans l'onglet Visualisation 2D : origine du repère et décalage."""
 
-from PyQt6.QtWidgets import QComboBox, QFormLayout, QGroupBox, QLabel
+from PyQt6.QtWidgets import QComboBox, QDoubleSpinBox, QFormLayout, QGroupBox
 
 from laser_studio.core.constants import ORIGIN_BOTTOM_LEFT, ORIGIN_CENTER
-from laser_studio.i18n import TRANSLATIONS, tr
+from laser_studio.i18n import tr
+from laser_studio.ui.binding import bind
 
 # Code de chaque choix, dans l'ordre de la liste, et sa clé de traduction.
 ORIGIN_CHOICES = (
@@ -13,16 +14,11 @@ ORIGIN_CHOICES = (
 
 
 class JobPositionBox(QGroupBox):
-    """Origine du repère du job (bas-gauche ou centre).
-
-    Le décalage X / Y se règle dans l'onglet « Graver une image » : le
-    cadre le rappelle. La liste affiche des libellés traduits, mais
-    l'origine se lit et s'écrit par code (ORIGIN_BOTTOM_LEFT,
-    ORIGIN_CENTER), le même quelle que soit la langue :
+    """Origine du repère du job (bas-gauche ou centre) et décalage X / Y, réunis là où l'on voit le job sur
+    le plateau. Les champs sont liés au modèle JobPlacement, où le code les lit :
 
         box = JobPositionBox()
-        params["origin_pos"] = box.origin()
-        box.set_origin(project.get("origin_pos"))
+        box.bind_placement(placement)
     """
 
     def __init__(self, parent=None):
@@ -32,29 +28,20 @@ class JobPositionBox(QGroupBox):
         for code, key in ORIGIN_CHOICES:
             self.origin_combo.addItem(tr(key), code)
         layout.addRow(tr("dim.origin"), self.origin_combo)
-        hint = QLabel(tr("ui.job_offset_in_image_tab"))
-        hint.setWordWrap(True)
-        hint.setStyleSheet("color: #888888;")
-        layout.addRow(hint)
+        self.offset_x_spin = self._spin()
+        self.offset_y_spin = self._spin()
+        layout.addRow(tr("dim.offset_x"), self.offset_x_spin)
+        layout.addRow(tr("dim.offset_y"), self.offset_y_spin)
 
-    def origin(self):
-        """Code de l'origine choisie : ORIGIN_BOTTOM_LEFT ou ORIGIN_CENTER."""
-        return self.origin_combo.currentData()
+    @staticmethod
+    def _spin():
+        spin = QDoubleSpinBox()
+        spin.setRange(-1000.0, 1000.0)
+        return spin
 
-    def set_origin(self, value):
-        """Choisit l'origine `value` : un code, ou un libellé enregistré par
-        une version précédente (texte affiché, dans n'importe quelle langue).
-        Une valeur inconnue laisse le choix actuel."""
-        for index, (code, key) in enumerate(ORIGIN_CHOICES):
-            if value == code or value in TRANSLATIONS[key].values():
-                self.origin_combo.setCurrentIndex(index)
-                return
-
-    def profile_values(self):
-        """Origine du repère, enregistrée dans un profil machine."""
-        return {"origin": self.origin()}
-
-    def apply_profile_values(self, profile):
-        """Réapplique l'origine d'un profil, si elle est reconnue."""
-        if "origin" in profile:
-            self.set_origin(profile["origin"])
+    def bind_placement(self, placement):
+        """Lie l'origine (par code, quelle que soit la langue affichée) et le décalage à `placement`."""
+        combo = self.origin_combo
+        bind(combo, placement, "origin", to_widget=combo.findData, from_widget=combo.itemData)
+        bind(self.offset_x_spin, placement, "offset_x")
+        bind(self.offset_y_spin, placement, "offset_y")

@@ -4,6 +4,8 @@ from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPen, QPolygonF
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QPushButton, QStyle, QWidget
 
+from laser_studio.models import machine_state as ms
+
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import painted_icon, themed_icon, tool_button
 
@@ -24,66 +26,77 @@ class JobActionsPanel(QGroupBox):
     """
 
     frame_requested = pyqtSignal()
+    frame_contour_requested = pyqtSignal()
     set_work_zero_requested = pyqtSignal()
     go_to_work_zero_requested = pyqtSignal()
     repeat_job_requested = pyqtSignal()
+    resume_job_requested = pyqtSignal()
     macro_requested = pyqtSignal(int)
     manage_macros_requested = pyqtSignal()
 
     # Boutons de macros par ligne, et leur largeur maximale (px).
     MACRO_COLUMNS = 2
+    # Boutons d'action par rangée : deux rangées étroites plutôt qu'une large qui tronquerait le cadre Connexion.
+    ACTION_COLUMNS = 4
     MACRO_BUTTON_MAX_WIDTH = 140
 
     def __init__(self, parent=None):
         super().__init__(tr("ui.job_actions_box"), parent)
         self.buttons = {}
-        self._connected = True
+        self._can_send = True
         self._repeat_allowed = False
+        self._resume_allowed = False
         grid = QGridLayout(self)
         grid.setSpacing(4)
-        for col, (name, icon, key, signal) in enumerate(self._actions()):
+        for position, (name, icon, key, signal) in enumerate(self._actions()):
             button = tool_button(icon, tr(key))
             button.clicked.connect(signal)
             self.buttons[name] = button
-            grid.addWidget(button, 0, col)
+            grid.addWidget(button, position // self.ACTION_COLUMNS, position % self.ACTION_COLUMNS)
         manage = tool_button(themed_icon(self, QIcon.ThemeIcon.DocumentProperties,
                                          QStyle.StandardPixmap.SP_FileDialogDetailedView), tr("macros.manage_tip"))
         manage.clicked.connect(self.manage_macros_requested)
+        position = len(self.buttons)
         self.buttons["macros"] = manage
-        grid.addWidget(manage, 0, len(self.buttons) - 1)
+        grid.addWidget(manage, position // self.ACTION_COLUMNS, position % self.ACTION_COLUMNS)
+        rows = position // self.ACTION_COLUMNS + 1
         # Macros de l'utilisateur sous les actions, puis place libre.
         self.macro_area = QWidget()
         self._macro_grid = QGridLayout(self.macro_area)
         self._macro_grid.setContentsMargins(0, 0, 0, 0)
         self._macro_grid.setSpacing(4)
         self.macro_buttons = []
-        grid.addWidget(self.macro_area, 1, 0, 1, len(self.buttons))
-        grid.setRowStretch(2, 1)
+        grid.addWidget(self.macro_area, rows, 0, 1, self.ACTION_COLUMNS)
+        grid.setRowStretch(rows + 1, 1)
         # Rien à répéter tant qu'aucun job n'a été envoyé.
         self.set_repeat_enabled(False)
 
     # -- état reçu de la fenêtre / du contrôleur
 
-    def set_connected(self, connected):
-        """Déverrouille les actions et les boutons des macros si le graveur est connecté. Le bouton
-        « Macros… » reste toujours actif : on prépare ses macros sans graveur branché."""
-        self._connected = connected
+    def set_allowed(self, can):
+        """`can(action)` (MachineConnection.can) : cadrage et zéros (ms.JOG), macros (ms.MACRO), « Répéter »
+        (ms.SEND_JOB, une fois un job envoyé). Le bouton « Macros… » reste toujours actif : on prépare ses
+        macros sans graveur branché."""
         for name, button in self.buttons.items():
-            if name not in ("macros", "repeat"):
-                button.setEnabled(connected)
-        self.macro_area.setEnabled(connected)
+            if name not in ("macros", "repeat", "resume"):
+                button.setEnabled(can(ms.JOG))
+        self.macro_area.setEnabled(can(ms.MACRO))
+        self._can_send = can(ms.SEND_JOB)
         self._update_repeat()
 
     def set_repeat_enabled(self, enabled):
-        """Active « Répéter le dernier job » une fois un job envoyé (et le graveur connecté)."""
+        """Active « Répéter le dernier job » une fois un job envoyé (si un job peut partir)."""
         self._repeat_allowed = enabled
         self._update_repeat()
 
-    def is_connected(self):
-        return self._connected
+    def set_resume_enabled(self, enabled):
+        """Active « Reprendre » quand un job s'est arrêté avant la fin (si un job peut partir)."""
+        self._resume_allowed = enabled
+        self._update_repeat()
 
     def _update_repeat(self):
-        self.buttons["repeat"].setEnabled(self._connected and self._repeat_allowed)
+        self.buttons["repeat"].setEnabled(self._can_send and self._repeat_allowed)
+        self.buttons["resume"].setEnabled(self._can_send and self._resume_allowed)
 
     def set_macros(self, entries):
         """Boutons des macros : `entries` = (rang, nom, infobulle, allume le laser). Le rang est renvoyé par
@@ -113,6 +126,7 @@ class JobActionsPanel(QGroupBox):
         """Liste des actions : (nom, icône, clé de l'infobulle, signal)."""
         return (
             ("frame", self._frame_icon(), "ui.frame", self.frame_requested),
+            ("frame_contour", self._frame_contour_icon(), "ui.frame_contour", self.frame_contour_requested),
             (
                 "set_work_zero",
                 self._crosshair_icon(),
@@ -135,6 +149,16 @@ class JobActionsPanel(QGroupBox):
                 "ui.repeat_last_job",
                 self.repeat_job_requested,
             ),
+            (
+                "resume",
+                themed_icon(
+                    self,
+                    QIcon.ThemeIcon.MediaSeekForward,
+                    QStyle.StandardPixmap.SP_MediaSeekForward,
+                ),
+                "ui.resume_job",
+                self.resume_job_requested,
+            ),
         )
 
     # -- icônes
@@ -149,6 +173,16 @@ class JobActionsPanel(QGroupBox):
             painter.setBrush(color)
             for x, y in ((3, 3), (23, 3), (3, 23), (23, 23)):
                 painter.drawRect(x, y, 6, 6)
+
+        return painted_icon(self.palette(), draw)
+
+    def _frame_contour_icon(self):
+        """Cadrage au plus près : contour en pointillés d'une forme en L, qui suit son creux."""
+
+        def draw(painter, color):
+            painter.setPen(QPen(color, 2, Qt.PenStyle.DashLine))
+            painter.drawPolygon(QPolygonF([QPointF(x, y) for x, y in
+                                           ((5, 5), (17, 5), (17, 15), (27, 15), (27, 27), (5, 27))]))
 
         return painted_icon(self.palette(), draw)
 

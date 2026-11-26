@@ -5,13 +5,14 @@ from PyQt6.QtGui import QIcon
 from PyQt6.QtWidgets import QGridLayout, QStyle, QWidget
 
 from laser_studio.i18n import tr
+from laser_studio.models import machine_state as ms
 from laser_studio.ui.utils import themed_icon, tool_button
 
 
 class RealtimeCommands(QWidget):
     """Pause, reprise, reset et arrêt d'urgence sur une ligne, l'envoi du
-    job dessous. Chaque bouton émet son signal ; l'envoi se désactive
-    pendant un envoi en cours (set_send_enabled)."""
+    job dessous. Chaque bouton émet son signal ; set_allowed(can) les active
+    d'après l'état du graveur (models/machine_state.py)."""
 
     pause_requested = pyqtSignal()
     resume_requested = pyqtSignal()
@@ -54,12 +55,14 @@ class RealtimeCommands(QWidget):
                 self.emergency_stop_requested,
             ),
         )
+        self.realtime_buttons = []
         for col, (icon, fallback, key, color, signal) in enumerate(commands):
             button = tool_button(
                 themed_icon(self, icon, fallback), tr(key), color
             )
             button.clicked.connect(signal)
             grid.addWidget(button, 0, col)
+            self.realtime_buttons.append(button)
         # Envoi du job : ligne à part, sous les commandes temps réel.
         self.send_button = tool_button(
             themed_icon(
@@ -75,5 +78,8 @@ class RealtimeCommands(QWidget):
         # Boutons en haut, place libre en dessous.
         grid.setRowStretch(2, 1)
 
-    def set_send_enabled(self, enabled):
-        self.send_button.setEnabled(enabled)
+    def set_allowed(self, can):
+        """`can(action)` : pause, reprise, reset et arrêt d'urgence (ms.REALTIME), envoi (ms.SEND_JOB)."""
+        for button in self.realtime_buttons:
+            button.setEnabled(can(ms.REALTIME))
+        self.send_button.setEnabled(can(ms.SEND_JOB))

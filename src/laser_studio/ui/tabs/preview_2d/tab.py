@@ -2,7 +2,7 @@
 gcode/preview.py), position de la tête et traits déjà gravés pendant un job."""
 
 import pyqtgraph as pg
-from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtCore import QEvent, QPointF, QRectF, QSize, Qt, QTimer, pyqtSignal
 from PyQt6.QtGui import QAction, QColor, QPainterPath, QPolygonF
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QFormLayout, QGraphicsPathItem, QGroupBox, QHBoxLayout, QLabel, QSplitter, QToolBar,
@@ -13,7 +13,7 @@ import numpy as np
 from laser_studio.gcode.preview import (
     DEFAULT_PREVIEW_MATERIAL, KIND_LAYER, KIND_MATRIX, KIND_RASTER, KIND_SVG_CUT, PREVIEW_MATERIALS,
     PREVIEW_MATERIAL_ORDER, BurnTracker, cut_contours, is_cut_group, is_raster_group,
-    material_background_rect, parse_preview, raster_image,
+    material_background_rect, parse_preview_cached, raster_image,
 )
 from laser_studio.i18n import tr
 from laser_studio.ui.app.theme import theme_color
@@ -24,6 +24,10 @@ from laser_studio.core.preferences import app_preferences
 # Écart entre la poignée du séparateur et les cadres de la colonne de droite.
 SIDE_PANEL_LEFT_MARGIN = 6
 BURN_COLOR = "#ff1a1a"     # traits déjà gravés pendant un job
+# Simulation (bouton « Simuler ») : le parcours rejoué en SIMULATION_SECONDS, une image toutes les
+# SIMULATION_TICK_MS, quelle que soit la taille du job.
+SIMULATION_SECONDS = 15
+SIMULATION_TICK_MS = 30
 RAPID_PEN_COLOR = "#555555"
 
 
@@ -45,8 +49,9 @@ class Preview2DTab(QWidget):
         tab.plot_clicked.connect(job.apply_matrix_cell)
 
     Les cases restent lisibles directement (flip_check, negative_check,
-    hide_rapid_check, optimize_path_check). « Optimiser le chemin »
-    s'applique à la prochaine génération, pas à l'aperçu affiché.
+    hide_rapid_check, optimize_path_check). « Optimiser le chemin », dans
+    son propre cadre « Génération », est lié au modèle JobPlacement par la
+    fenêtre et s'applique à la prochaine génération, pas à l'aperçu affiché.
 
     `job_position_box` : cadre « Position du job sur le plateau »
     (JobPositionBox), construit avec l'onglet image, placé en haut de la
@@ -67,6 +72,11 @@ class Preview2DTab(QWidget):
         # Suivi de la gravure du G-Code affiché, et son tracé rouge.
         self.burn = BurnTracker()
         self.burn_overlay = None
+        # Plateau de la machine (largeur, profondeur en mm), dessiné sous le job (set_bed) ; la vue est cadrée
+        # dessus tant qu'aucun G-Code n'est affiché.
+        self._bed = None
+        self._bed_item = None
+        self._showing_gcode = False
         self.job_stats_panel = JobStatsPanel()
         self._create_options()
         self.side_panel = self._side_panel()
@@ -80,6 +90,17 @@ class Preview2DTab(QWidget):
         self.options_toolbar.setIconSize(QSize(20, 20))
         self.options_toolbar.addAction(self.zoom_in_action)
         self.options_toolbar.addAction(self.zoom_out_action)
+        # Simulation : rejoue le parcours du laser (traits gravés dans l'ordre du G-Code) avant de lancer.
+        play_icon = palette_icon("media-playback-start", self.palette())
+        self.simulate_action = QAction(play_icon, tr("preview.simulate_tip"), self)
+        self.simulate_action.setCheckable(True)
+        self.simulate_action.toggled.connect(self._simulate)
+        self.options_toolbar.addSeparator()
+        self.options_toolbar.addAction(self.simulate_action)
+        self._simulation_step = 1
+        self._simulation_timer = QTimer(self)
+        self._simulation_timer.setInterval(SIMULATION_TICK_MS)
+        self._simulation_timer.timeout.connect(self._simulation_tick)
         plot_area = QWidget()
         row = QHBoxLayout(plot_area)
         row.setContentsMargins(0, 0, 0, 0)
@@ -133,19 +154,23 @@ class Preview2DTab(QWidget):
     # -- construction
 
     def _side_panel(self):
-        """Options d'affichage, position du job sur le plateau, puis statistiques du job."""
+        """Options d'affichage, position du job sur le plateau, génération, puis statistiques du job."""
         panel = QWidget()
         panel.setProperty("role", "sidebar")              # panneau latéral (thèmes modernes)
         display = QGroupBox(tr("preview.display_box"))
         form = QFormLayout(display)
         form.addRow(self.material_label, self.material_combo)
-        for check in (self.flip_check, self.negative_check, self.hide_rapid_check, self.optimize_path_check):
+        for check in (self.flip_check, self.negative_check, self.hide_rapid_check):
             form.addRow(check)
+        # « Optimiser le chemin » change le G-Code généré, pas l'affichage : cadre à part.
+        generation = QGroupBox(tr("preview.generation_box"))
+        QFormLayout(generation).addRow(self.optimize_path_check)
         layout = QVBoxLayout(panel)
         # Marge à gauche : les cadres ne touchent pas la poignée du séparateur.
         layout.setContentsMargins(SIDE_PANEL_LEFT_MARGIN, 0, 0, 0)
         layout.addWidget(display)
         layout.addWidget(self.job_position_box)
+        layout.addWidget(generation)
         layout.addWidget(self.job_stats_panel)
         layout.addStretch()
         return panel
@@ -228,6 +253,27 @@ class Preview2DTab(QWidget):
         self.plot_widget.addItem(self.info_text_item)
         return self.plot_widget
 
+    def set_bed(self, width, height):
+        """Plateau de la machine (mm) : contour en pointillés, et vue cadrée dessus tant qu'aucun G-Code n'est
+        affiché (sinon des axes de -1 à 1 sans repère)."""
+        self._bed = (width, height)
+        self._draw_bed()
+        if not self._showing_gcode:
+            self.plot_widget.setRange(QRectF(0.0, 0.0, width, height), padding=0.05)
+
+    def _draw_bed(self):
+        """(Re)dessine le contour du plateau, sans qu'il compte dans le cadrage automatique sur le job."""
+        if self._bed_item is not None:
+            self.plot_widget.removeItem(self._bed_item)
+            self._bed_item = None
+        if self._bed is None:
+            return
+        width, height = self._bed
+        pen = pg.mkPen(color=theme_color("canvas_edge", "#555555"), width=1, style=Qt.PenStyle.DashLine)
+        self._bed_item = pg.PlotDataItem([0, width, width, 0, 0], [0, 0, height, height, 0], pen=pen)
+        self._bed_item.setZValue(-10)
+        self.plot_widget.addItem(self._bed_item, ignoreBounds=True)
+
     # -- événements
 
     def _on_clicked(self, event):
@@ -252,7 +298,9 @@ class Preview2DTab(QWidget):
     def set_head_position(self, x, y):
         """Place le point rouge de la tête (position renvoyée par GRBL, MPos
         ou WPos selon $10, sans compensation d'un décalage G92/G54 : repère
-        visuel de suivi, pas une mesure de précision)."""
+        visuel de suivi, pas une mesure de précision). Ignorée pendant une simulation, qui déplace le point."""
+        if self._simulation_timer.isActive():
+            return
         self.position_marker.setData([x], [y])
 
     def clear_head_position(self):
@@ -261,8 +309,36 @@ class Preview2DTab(QWidget):
 
     # -- suivi de la gravure en direct
 
+    def _simulate(self, running):
+        """Bouton « Simuler » : rejoue les traits gravés dans l'ordre du G-Code, en SIMULATION_SECONDS, sur
+        le tracé rouge du suivi de gravure, la tête suivant le trait en cours. Décoché : arrêt."""
+        if not running:
+            self._simulation_timer.stop()
+            return
+        count = len(self.burn.segments)
+        if self.burn_overlay is None or not count:
+            self.simulate_action.setChecked(False)
+            return
+        self.burn.reset()
+        self._simulation_step = max(1, count * SIMULATION_TICK_MS // (SIMULATION_SECONDS * 1000))
+        self._simulation_timer.start()
+
+    def _simulation_tick(self):
+        burn = self.burn
+        burn.done = min(len(burn.segments), burn.done + self._simulation_step)
+        x, y = burn.segments[burn.done - 1, 2:4]
+        self.position_marker.setData([x], [y])
+        self._draw_burn()
+        if burn.done >= len(burn.segments):
+            self.simulate_action.setChecked(False)
+
+    def stop_simulation(self):
+        """Arrête la simulation (nouveau G-Code, gravure réelle qui commence)."""
+        self.simulate_action.setChecked(False)
+
     def reset_burn(self):
         """Nouveau job sur le G-Code affiché : plus rien n'est gravé."""
+        self.stop_simulation()
         if self.burn_overlay is None:
             return
         self.burn.reset()
@@ -293,9 +369,13 @@ class Preview2DTab(QWidget):
         """Dessine le G-Code. `layer_colors` : couleur de chaque calque, par
         nom ; `matrix_engrave` : une matrice de test est en mode gravure
         (affichée en image, sinon en traits)."""
+        self.stop_simulation()
         plot = self.plot_widget
         plot.clear()
-        preview = parse_preview(gcode_text, layer_colors)
+        self._bed_item = None                          # retiré par clear() : redessiné ci-dessous
+        self._showing_gcode = True
+        self._draw_bed()
+        preview = parse_preview_cached(gcode_text, layer_colors)
         raster_keys = {g.key for g in preview.groups if is_raster_group(g, matrix_engrave)}
         raster_groups = [g for g in preview.groups if g.key in raster_keys]
 

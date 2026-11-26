@@ -129,14 +129,20 @@ class WiringTests(unittest.TestCase):
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
         self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
         self.assertIn('(self.safe_cut_order_check, "safe_cut_order")', ui_source())
-        self.assertIn("'safe_cut_order':", self.src(os.path.join("controllers", "job.py")))
-        self.assertIn("safe_cut_order=bool(params.get('safe_cut_order', True))", self.src(os.path.join("gcode", "job.py")))
+        self.assertIn("safe_cut_order=self.grbl.safe_cut_order", self.src(os.path.join("controllers", "job.py")))
+        self.assertIn("safe_cut_order=params.safe_cut_order", self.src(os.path.join("gcode", "job.py")))
         self.assertIn("safe_cut_order=False", self.src(os.path.join("gcode", "vector.py")))
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
         pj = project_state_source()
-        self.assertIn('"safe_cut_order": w.grbl.safe_cut_order', pj)
-        self.assertIn('w.grbl.update(safe_cut_order=data.get("safe_cut_order", True))', pj)
+        self.assertIn("return (w.placement, w.machine, w.image_settings, w.grbl, w.job)", pj)
+        self.assertIn("model.load_project(data)", pj)
+        from laser_studio.models.grbl import GrblConfig
+        grbl = GrblConfig()
+        grbl.update(safe_cut_order=False)
+        self.assertEqual(grbl.to_project(), {"safe_cut_order": False})
+        grbl.load_project({})                                   # ancien projet : ordre sûr
+        self.assertTrue(grbl.safe_cut_order)
 
 
 if __name__ == "__main__":

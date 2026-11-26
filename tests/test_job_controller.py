@@ -56,9 +56,9 @@ class GenerateTests(unittest.TestCase):
         self.assertTrue(started)
         self.assertEqual(events, ["started", "worker.start"])          # l'aperçu est montré avant
         self.assertEqual(dialogs.kinds(), ["confirm"])                 # rappel puissance / vitesse
-        arr, svg, params, vector_data = self.worker_class.call_args[0]
+        arr, params, vector_data = self.worker_class.call_args[0]
         self.assertIs(arr, job.holder["image"])
-        self.assertEqual((params['offset_x'], params['speed_engrave']), (5.0, job.engrave_speed))
+        self.assertEqual((params.offset_x, params.speed_engrave), (5.0, job.engrave_speed))
         self.assertTrue(all(not d["polygons"] for d in vector_data.values()))   # aucun objet vectoriel
 
     def test_cancelled_confirmation_does_not_start(self):
@@ -116,19 +116,36 @@ class ParamsTests(unittest.TestCase):
         job, _ = make_job(geometry_kw={'width_mm': 12.0})
         job.grbl.update(laser_cmd="M3", overscan_enabled=True, overscan_mode=1, overscan_pct=7.0,
                         scan_offset_mm=0.2, safe_cut_order=False)
-        job.set_cut_settings(250, 95, 3)
         p = job.build_params()
-        self.assertEqual(p['width_mm'], 12.0)
-        self.assertEqual((p['laser_cmd'], p['image_laser_cmd']), ("M3", "M3"))
-        self.assertEqual((p['overscan_mode'], p['overscan_pct'], p['scan_offset_mm']), ("Pourcentage (%)", 7.0, 0.2))
-        self.assertEqual((p['speed_cut'], p['power_cut'], p['passes_cut']), (250, 95, 3))
-        self.assertFalse(p['safe_cut_order'])
-        self.assertTrue(p['image_overscan'])
+        self.assertEqual(p.width_mm, 12.0)
+        self.assertEqual((p.laser_cmd, p.image_laser_cmd), ("M3", "M3"))
+        self.assertEqual((p.overscan_mode, p.overscan_pct, p.scan_offset_mm), ("Pourcentage (%)", 7.0, 0.2))
+        self.assertFalse(p.safe_cut_order)
+        self.assertTrue(p.image_overscan)
+
+    def test_project_part_round_trip_and_old_projects(self):
+        """Le job enregistre et relit sa partie du projet. Un ancien projet sans calques met sa gravure
+        d'image dans le calque de gravure ; des clés absentes prennent leur valeur par défaut."""
+        job, _ = make_job()
+        job.set_cut_settings(250, 95, 3)
+        data = job.to_project()
+        self.assertEqual((data["speed_cut"], data["power_cut"], data["passes_cut"]), (250, 95, 3))
+        other, _ = make_job()
+        other.load_project(dict(data, layers=[]))
+        self.assertEqual((other.cut_speed, other.cut_power, other.cut_passes), (250, 95, 3))
+        old, _ = make_job()
+        old.load_project({"speed_engrave": 1800, "power_engrave": 42})            # sans calques ni découpe
+        self.assertEqual((old.engrave_speed, old.engrave_power), (1800, 42))
+        self.assertEqual((old.cut_speed, old.cut_power, old.cut_passes), (300, 90, 2))
+        job.machine.update(bed_w=400.0, bed_h=250.0)
+        self.assertEqual(job.machine.to_project(), {"machine_bed_w_mm": 400.0, "machine_bed_h_mm": 250.0})
+        old.machine.load_project({})                                                # plateau absent : gardé
+        self.assertEqual(old.machine.bed_w, 300.0)
 
     def test_machine_limits_come_from_the_grbl_settings_then_the_machine_page(self):
         job, _ = make_job()
         job.machine.update(max_speed=4000.0, accel=800.0)
-        limits = job.build_params()['machine_limits']
+        limits = job.build_params().machine_limits
         self.assertEqual((limits['max_rate_x'], limits['accel_y']), (4000.0, 800.0))
         job.grbl.update(grbl_settings="$110=9000\n$121=300\n")                   # lu avec « Lire la config »
         limits = job.machine_limits()
@@ -193,9 +210,9 @@ class TestPatternTests(unittest.TestCase):
         worker = mock.Mock()
         with mock.patch.object(job_module, "AdvancedGCodeWorker", return_value=worker) as cls:
             self.assertTrue(job.generate_gain_test())
-        arr, svg, params, vectors = cls.call_args[0]
-        self.assertEqual((svg, vectors, params["algo"], params["enable_cut"]), (None, None, "Floyd-Steinberg", False))
-        self.assertEqual(arr.shape[1], round(params["width_mm"] * 10.0))      # 10 lignes/mm (make_job)
+        arr, params, vectors = cls.call_args[0]
+        self.assertEqual((vectors, params.algo), (None, "Floyd-Steinberg"))
+        self.assertEqual(arr.shape[1], round(params.width_mm * 10.0))      # 10 lignes/mm (make_job)
         worker.start.assert_called_once()
         got = []
         job.generated.connect(lambda *a: got.append(a))
@@ -300,7 +317,7 @@ class WindowTests(unittest.TestCase):
     def test_generated_gcode_reaches_the_console_and_the_2d_tab(self):
         win = self.win
         win.image.processed_array = np.zeros((6, 8), np.uint8)
-        win.tab_previews.settings.set_size(8.0, 6.0)
+        win.placement.update(width_mm=8.0, height_mm=6.0)
         with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
                 mock.patch.object(QMessageBox, "warning", return_value=QMessageBox.StandardButton.Yes):
             self.assertTrue(win.job.generate())

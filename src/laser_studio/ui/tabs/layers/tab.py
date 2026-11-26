@@ -42,7 +42,7 @@ class LayersTab(QWidget):
     chaque modification d'un calque :
 
         tab = LayersTab(layer_manager, ["MDF 4mm"], focal_getter=lambda: 0.1)
-        tab.layers_changed.connect(canvas.refresh_all)
+        tab.layers_changed.connect(canvas.items.refresh)
         tab.material_selected.connect(materials.apply_selected)
 
     `focal_getter` : fonction qui renvoie la taille du spot du laser, en mm.

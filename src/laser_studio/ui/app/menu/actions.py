@@ -92,6 +92,12 @@ class AppActions(QObject):
     estimate_requested = pyqtSignal()
     generate_requested = pyqtSignal()
     gcode_import_requested = pyqtSignal()
+    # Menu Job (raccourcis clavier valables dans toute la fenêtre)
+    send_job_requested = pyqtSignal()
+    frame_requested = pyqtSignal()
+    frame_contour_requested = pyqtSignal()
+    pause_requested = pyqtSignal()
+    resume_requested = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -467,6 +473,21 @@ class AppActions(QObject):
             tr("gcode.import"),
             self.gcode_import_requested,
         )
+        # Menu Job : les actions de tous les jours au clavier. Ctrl+G est pris par « Grouper » de l'éditeur
+        # vectoriel : touches de fonction, comme « lancer » dans les éditeurs de code (F5).
+        self.job_actions = []
+        for name, key, shortcut, signal in (
+            ("generate", "menu.job.generate", "F5", self.generate_requested),
+            ("frame", "menu.job.frame", "F6", self.frame_requested),
+            ("frame_contour", "menu.job.frame_contour", "Shift+F6", self.frame_contour_requested),
+            ("send", "menu.job.send", "Ctrl+Return", self.send_job_requested),
+            ("pause", "menu.job.pause", "F7", self.pause_requested),
+            ("resume", "menu.job.resume", "F8", self.resume_requested),
+        ):
+            action = self._action(QIcon(), tr(key), signal)
+            action.setShortcut(QKeySequence(shortcut))
+            action.setObjectName(f"job_{name}")
+            self.job_actions.append(action)
 
     def _emit_mirror_changed(self, _checked=False):
         self.mirror_changed.emit(

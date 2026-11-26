@@ -1,9 +1,12 @@
 """Outils de test du JobController : boîtes de dialogue simulées et contrôleur
 prêt à l'emploi, sans fenêtre."""
+from types import SimpleNamespace
+
 from laser_studio.controllers.job import JobController
 from laser_studio.models.grbl import GrblConfig
 from laser_studio.models.image_settings import ImageSettings
 from laser_studio.models.layers import LayersModel
+from laser_studio.models.job_placement import JobPlacement
 from laser_studio.models.machine import MachineConfig
 
 
@@ -83,18 +86,19 @@ def geometry(**kw):
     return g
 
 
-def make_job(image=None, objects=(), dialogs=None, geometry_kw=None, svg_path=None):
+def make_job(image=None, objects=(), dialogs=None, geometry_kw=None):
     """(JobController, FakeDialogs) avec des modèles neufs."""
     dialogs = dialogs or FakeDialogs()
     holder = {"image": image, "objects": list(objects)}
+    g = geometry(**(geometry_kw or {}))
+    placement = JobPlacement()
+    placement.update(width_mm=g["width_mm"], height_mm=g["height_mm"], origin=g["origin_pos"],
+                     offset_x=g["offset_x"], offset_y=g["offset_y"])
     job = JobController(
-        LayersModel(), GrblConfig(), MachineConfig(), ImageSettings(), dialogs,
-        geometry=lambda: geometry(**(geometry_kw or {})),
-        image=lambda: holder["image"],
-        svg_path=lambda: svg_path,
-        vector_objects=lambda: holder["objects"],
-        lines_mm=lambda: 10.0,
-        material_summary=lambda: "Matière : fond clair",
+        LayersModel(), GrblConfig(), MachineConfig(), ImageSettings(), placement,
+        SimpleNamespace(objects=holder["objects"]), dialogs,
+        image=lambda: SimpleNamespace(processed_array=holder["image"],
+                                      material_summary=lambda: "Matière : fond clair"),
     )
     job.holder = holder
     return job, dialogs

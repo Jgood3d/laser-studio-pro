@@ -15,14 +15,14 @@ class MatrixImageController:
     prépare la zone d'image gravée dans chaque case.
 
         matrix_image = MatrixImageController(
-            page, loaded_image=..., image_settings=panel.processing_settings
+            page, loaded_image=..., image_settings=settings.processing_params
         )
         page.choose_image_requested.connect(matrix_image.choose_image)
 
     `page` : la page « Matrice de test » (TestMatrixPage).
     `loaded_image()` : (image PIL, largeur en mm) de « Graver une image »,
     ou None si aucune n'est chargée. `image_settings()` : réglages du
-    tramage (voir ImageSettingsPanel.processing_settings).
+    tramage (voir ImageSettings.processing_params).
     """
 
     def __init__(self, page, loaded_image, image_settings, dialogs=None):
@@ -124,9 +124,11 @@ class MatrixImageController:
             "w_mm": w_mm,
             "h_mm": h_mm,
             "lmm": lines_mm,
+            **self._image_settings(),
+            # Ni miroir ni effet BD : la case de la matrice montre l'image elle-même.
             "mirror_h": False,
             "mirror_v": False,
-            **self._image_settings(),
+            "cartoon_r": 0,
         }
         # Négatif propre à la matrice (case dans le cadre « Test à partir
         # d'une image »), prioritaire sur celui de « Graver une image ».

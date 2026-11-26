@@ -4,6 +4,7 @@ Vérifie que le paquet n'importe pas PyQt6, que les threads de controllers/worke
 produisent exactement le G-Code des fonctions pures, et le contenu du G-Code
 (puissance S, commande laser, surbalayage, décalage retour, en-tête et fin).
 """
+import dataclasses
 import os
 import re
 import subprocess
@@ -18,7 +19,7 @@ sys.path.insert(0, SRC)
 
 from laser_studio.core.constants import ORIGIN_CENTER  # noqa: E402
 from laser_studio.gcode import (  # noqa: E402
-    GcodeResult, MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, build_job_gcode, build_test_matrix_gcode,
+    GcodeResult, JobParams, MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, build_job_gcode, build_test_matrix_gcode,
     image_origin,
 )
 from laser_studio.gcode.common import (  # noqa: E402
@@ -27,7 +28,7 @@ from laser_studio.gcode.common import (  # noqa: E402
 )
 
 MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcode.raster",
-           "laser_studio.gcode.svg_cut", "laser_studio.gcode.vector", "laser_studio.gcode.job",
+           "laser_studio.gcode.vector", "laser_studio.gcode.job", "laser_studio.gcode.params",
            "laser_studio.gcode.test_matrix", "laser_studio.gcode.calibration", "laser_studio.gcode.preview",
            "laser_studio.models.layer_modes")
 
@@ -35,8 +36,7 @@ MODULES = ("laser_studio.gcode", "laser_studio.gcode.common", "laser_studio.gcod
 def job_params(**kw):
     p = {
         'width_mm': 4.0, 'height_mm': 2.0, 'origin_pos': "bottom_left", 'offset_x': 0.0, 'offset_y': 0.0,
-        'speed_engrave': 1000, 'power_engrave': 35.0, 'enable_cut': False, 'speed_cut': 300,
-        'power_cut': 90.0, 'passes_cut': 1, 'laser_cmd': "M4", 'image_laser_cmd': "M4",
+        'speed_engrave': 1000, 'power_engrave': 35.0, 'laser_cmd': "M4", 'image_laser_cmd': "M4",
         # Dans l'application : surbalayage global ET calque de gravure (layer_overscan_enabled).
         'image_overscan': False, 'algo': "Floyd-Steinberg", 's_max': 1000, 'homing': False,
         'enable_overscan': False, 'overscan_mode': "Distance Fixe (mm)", 'overscan_dist': 2.5,
@@ -44,7 +44,7 @@ def job_params(**kw):
         'safe_cut_order': True,
     }
     p.update(kw)
-    return p
+    return JobParams(**p)
 
 
 def lines(result):
@@ -62,15 +62,13 @@ class NoQtTests(unittest.TestCase):
 
 class CommonTests(unittest.TestCase):
     def test_overscan_distance(self):
-        self.assertEqual(overscan_distance({'overscan_dist': 3.0}, 40.0), 3.0)
-        self.assertEqual(overscan_distance({}, 40.0), 2.5)
-        self.assertEqual(overscan_distance({'overscan_mode': OVERSCAN_PERCENT, 'overscan_pct': 10.0}, 40.0), 4.0)
+        self.assertEqual(overscan_distance("Distance Fixe (mm)", 5.0, 3.0, 40.0), 3.0)
+        self.assertEqual(overscan_distance(OVERSCAN_PERCENT, 10.0, 3.0, 40.0), 4.0)
 
     def test_scan_offset_reads_unusable_values_as_zero(self):
-        self.assertEqual(scan_offset_mm({'scan_offset_mm': 0.15}), 0.15)
+        self.assertEqual(scan_offset_mm(0.15), 0.15)
         for value in (None, "", "abc"):
-            self.assertEqual(scan_offset_mm({'scan_offset_mm': value}), 0.0)
-        self.assertEqual(scan_offset_mm({}), 0.0)
+            self.assertEqual(scan_offset_mm(value), 0.0)
 
     def test_durations(self):
         self.assertEqual(TIME_MARGIN, 1.15)
@@ -95,10 +93,29 @@ class CommonTests(unittest.TestCase):
         self.assertNotIn(25, values)
 
 
+class JobParamsTests(unittest.TestCase):
+    def test_an_unknown_or_removed_setting_is_refused(self):
+        """Un réglage mal écrit ou disparu (l'ancienne « découpe SVG ») était ignoré en silence dans un
+        dictionnaire ; JobParams le refuse, et ses champs ne se modifient pas par mégarde."""
+        with self.assertRaises(TypeError):
+            job_params(enable_cut=True)
+        with self.assertRaises(TypeError):
+            job_params(widht_mm=10.0)
+        with self.assertRaises(dataclasses.FrozenInstanceError):
+            job_params().width_mm = 10.0
+
+    def test_defaults_follow_the_global_settings(self):
+        p = job_params(image_laser_cmd=None, image_overscan=None, enable_overscan=True,
+                       overscan_mode=OVERSCAN_PERCENT, overscan_pct=10.0, laser_cmd="M3")
+        self.assertEqual((p.image_cmd, p.image_overscan_enabled, p.overscan_for(40.0)), ("M3", True, 4.0))
+        self.assertEqual(job_params(origin_pos=ORIGIN_CENTER, offset_x=50.0, offset_y=40.0).vector_origin(),
+                         (48.0, 39.0))
+
+
 class RasterTests(unittest.TestCase):
     def test_binary_pixels_get_the_layer_power(self):
         arr = np.array([[0, 0, 255, 255]], dtype=np.uint8)            # 2 pixels brûlés sur 4
-        result = build_job_gcode(arr, None, job_params(height_mm=1.0))
+        result = build_job_gcode(arr, job_params(height_mm=1.0))
         self.assertIsInstance(result, GcodeResult)
         self.assertIn("G1 X2 F1000 S350", lines(result))              # 35 % de S1000, jusqu'au bord du 2e pixel
         self.assertNotIn("OVERSCAN", result.gcode)
@@ -106,7 +123,7 @@ class RasterTests(unittest.TestCase):
 
     def test_grayscale_power_follows_the_gray(self):
         arr = np.array([[0, 128, 255]], dtype=np.uint8)
-        g = lines(build_job_gcode(arr, None, job_params(width_mm=3.0, height_mm=1.0, algo="Niveaux de Gris")))
+        g = lines(build_job_gcode(arr, job_params(width_mm=3.0, height_mm=1.0, algo="Niveaux de Gris")))
         powers = [int(m) for line in g for m in re.findall(r"S(\d+)", line) if line.startswith(("G1", "X"))]
         self.assertEqual(powers, [350, round(350 * 127 / 255)])       # le blanc (255) n'est pas parcouru
 
@@ -115,7 +132,7 @@ class RasterTests(unittest.TestCase):
         mouvement : M3 ou M4 une fois, M5 une fois, et aucune ligne « S » seule."""
         arr = np.zeros((3, 4), dtype=np.uint8)
         for cmd in ("M4", "M3"):
-            g = lines(build_job_gcode(arr, None, job_params(laser_cmd=cmd, image_laser_cmd=cmd)))
+            g = lines(build_job_gcode(arr, job_params(laser_cmd=cmd, image_laser_cmd=cmd)))
             self.assertEqual(sum(line.startswith(cmd) for line in g), 1, cmd)
             self.assertEqual(g.count("M5"), 1, cmd)
             self.assertFalse([line for line in g if re.fullmatch(r"S\d+", line.split(";")[0].strip())])
@@ -123,7 +140,7 @@ class RasterTests(unittest.TestCase):
     def test_overscan_and_return_offset(self):
         arr = np.zeros((2, 4), dtype=np.uint8)
         params = job_params(enable_overscan=True, image_overscan=True, scan_offset_mm=0.2)
-        g = lines(build_job_gcode(arr, None, params))
+        g = lines(build_job_gcode(arr, params))
         starts = [line for line in g if line.endswith("OVERSCAN_START")]
         x0, _ = image_origin(params)
         self.assertEqual(x0, 2.5)                                     # marge = surbalayage : départ à X0
@@ -132,7 +149,7 @@ class RasterTests(unittest.TestCase):
 
     def test_overscan_off_for_the_engrave_layer(self):
         arr = np.zeros((1, 4), dtype=np.uint8)
-        g = build_job_gcode(arr, None, job_params(enable_overscan=True, image_overscan=False)).gcode
+        g = build_job_gcode(arr, job_params(enable_overscan=True, image_overscan=False)).gcode
         self.assertNotIn("OVERSCAN", g)
 
     def test_image_origin(self):
@@ -145,18 +162,18 @@ class RasterTests(unittest.TestCase):
 
 class JobTests(unittest.TestCase):
     def test_empty_job(self):
-        result = build_job_gcode(None, None, job_params())
+        result = build_job_gcode(None, job_params())
         self.assertEqual(lines(result), ["; --- G-CODE HYBRIDE GRBL PRO ---", "M5", "G0 X0 Y0", "; FIN DU TRAVAIL"])
         self.assertEqual((result.line_count, result.avg_power, result.duration), (3, 0.0, 0.0))
 
     def test_homing_start_and_end_gcode(self):
-        g = lines(build_job_gcode(None, None, job_params(homing=True, start_gcode=" G21 ", end_gcode=" M5 ")))
+        g = lines(build_job_gcode(None, job_params(homing=True, start_gcode=" G21 ", end_gcode=" M5 ")))
         self.assertEqual(g[1:4], ["$H ; Homing initial", "; --- G-Code de Début ---", "G21"])
         self.assertEqual(g[-2:], ["; --- G-Code de Fin ---", "M5"])
 
     def test_progress_ends_at_100(self):
         seen = []
-        build_job_gcode(np.zeros((60, 4), dtype=np.uint8), None, job_params(), progress=seen.append)
+        build_job_gcode(np.zeros((60, 4), dtype=np.uint8), job_params(), progress=seen.append)
         self.assertEqual(seen[-3:], [70, 85, 100])
         self.assertEqual(seen, sorted(seen))
 
@@ -164,7 +181,7 @@ class JobTests(unittest.TestCase):
         layer = {"name": "Découpe", "mode": "cut", "speed": 250, "power": 90.0, "passes": 1}
         square = [(0, 0), (5, 0), (5, 5), (0, 5), (0, 0)]
         data = {"c": {"layer": layer, "polygons": [square], "polygon_groups": [[square]]}}
-        g = lines(build_job_gcode(None, None, job_params(offset_x=3.0, offset_y=4.0), data))
+        g = lines(build_job_gcode(None, job_params(offset_x=3.0, offset_y=4.0), data))
         self.assertIn("G0 X3 Y4", g)
         self.assertIn("G1 X8 F250 S900", g)
 
@@ -192,7 +209,7 @@ class NoBufferStopTests(unittest.TestCase):
         }
         arr = np.where(np.random.default_rng(0).random((20, 40)) < 0.5, 0, 255).astype(np.uint8)
         for cmd in ("M4", "M3"):
-            self.assert_continuous(build_job_gcode(arr, None, job_params(
+            self.assert_continuous(build_job_gcode(arr, job_params(
                 laser_cmd=cmd, image_laser_cmd=cmd, enable_overscan=True, image_overscan=True)).gcode, f"image {cmd}")
             for overscan in (0.0, 2.0):
                 self.assert_continuous("\n".join(build_vector_layers_gcode(
@@ -268,8 +285,8 @@ class WorkerWrapperTests(unittest.TestCase):
     def test_job_worker(self):
         arr = np.where(np.random.default_rng(1).random((8, 10)) > 0.5, 255, 0).astype(np.uint8)
         params = job_params(enable_overscan=True, scan_offset_mm=0.1)
-        expected = tuple(build_job_gcode(arr, None, params))
-        self.assertEqual(self.run_worker(workers.AdvancedGCodeWorker(arr, None, params)), expected)
+        expected = tuple(build_job_gcode(arr, params))
+        self.assertEqual(self.run_worker(workers.AdvancedGCodeWorker(arr, params)), expected)
 
     def test_matrix_worker(self):
         params = MatrixTests().params()

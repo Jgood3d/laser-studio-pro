@@ -96,6 +96,21 @@ class ConsoleTabTests(_TabTest):
         self.assertEqual(tab.findChildren(QPushButton), [])
         self.assertFalse(hasattr(tab, "set_stats"))
 
+    def test_a_big_gcode_fills_the_console_in_the_background(self):
+        # 500 000 lignes d'un coup figeaient l'interface près d'une seconde : paquets, lecture seule pendant ce
+        # temps, et gcode() déjà complet (envoi, export, file d'attente).
+        from laser_studio.ui.tabs.console.tab import FILL_CHUNK_LINES
+        tab = self.make(ConsoleTab)
+        text = "\n".join(f"G1 X{i} S10" for i in range(FILL_CHUNK_LINES * 2 + 5)) + "\n"
+        tab.set_gcode(text)
+        self.assertTrue(tab.is_filling() and tab.console_edit.isReadOnly())
+        self.assertEqual(tab.gcode(), text)
+        while tab.is_filling():
+            QApplication.processEvents()
+        self.assertEqual((tab.console_edit.toPlainText(), tab.console_edit.isReadOnly()), (text, False))
+        tab.set_gcode("G0 X0")                                     # petit G-Code : tout de suite, modifiable
+        self.assertEqual((tab.is_filling(), tab.gcode()), (False, "G0 X0"))
+
 
 @unittest.skipIf(ConsoleTab is None, "PyQt6 non importable ici")
 class JobStatsPanelTests(_TabTest):
@@ -106,10 +121,27 @@ class JobStatsPanelTests(_TabTest):
         self.assertIs(tab.splitter.widget(1), tab.side_panel)
         self.assertTrue(tab.splitter.widget(0).isAncestorOf(tab.plot_widget))
         layout = tab.side_panel.layout()
-        # Options d'affichage, puis position du job et statistiques.
-        display = layout.itemAt(0).widget()
-        self.assertTrue(display.isAncestorOf(tab.flip_check) and display.isAncestorOf(tab.optimize_path_check))
-        self.assertEqual([layout.itemAt(i).widget() for i in (1, 2)], [box, tab.job_stats_panel])
+        # Options d'affichage, puis position du job, génération (« Optimiser le chemin » change le G-Code, pas
+        # l'affichage) et statistiques.
+        display, generation = layout.itemAt(0).widget(), layout.itemAt(2).widget()
+        self.assertTrue(display.isAncestorOf(tab.flip_check) and not display.isAncestorOf(tab.optimize_path_check))
+        self.assertTrue(generation.isAncestorOf(tab.optimize_path_check))
+        self.assertEqual([layout.itemAt(i).widget() for i in (1, 3)], [box, tab.job_stats_panel])
+
+    def test_simulation_replays_the_burned_strokes(self):
+        tab = self.make(Preview2DTab, QGroupBox("Position"))
+        tab.show_gcode("M4 S0\nG0 X0 Y0\nG1 X10 Y0 S500 F1000\nG1 X10 Y10\nG1 X0 Y10\nM5\n")
+        tab.simulate_action.setChecked(True)
+        self.assertEqual(tab.burn.done, 0)
+        tab.set_head_position(50, 50)                               # position réelle : ignorée pendant ce temps
+        while tab.simulate_action.isChecked():
+            QApplication.processEvents()
+            tab._simulation_tick()
+        self.assertEqual(tab.burn.done, 3)                          # tout le parcours, puis arrêt tout seul
+        self.assertEqual(tab.position_marker.getData()[0][0], 0.0)  # tête au bout du dernier trait
+        tab.simulate_action.setChecked(True)
+        tab.show_gcode("G0 X1 Y1\n")                               # nouveau G-Code : simulation arrêtée
+        self.assertFalse(tab.simulate_action.isChecked())
 
     def test_side_panel_is_as_narrow_as_possible(self):
         tab = self.make(Preview2DTab, QGroupBox("Position"))

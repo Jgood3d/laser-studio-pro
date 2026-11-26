@@ -58,6 +58,22 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(self.p.burn_line_idx, [5, 9, 10, 13])
         self.assertEqual(self.p.burn_segments[0], (10.0, 10.0, 12.0, 10.0))
 
+    def test_lines_the_stream_skips_are_not_numbered(self):
+        # Commentaire indenté, texte qui n'est pas du G-Code : écartés par l'envoi (grbl.streaming.gcode_lines),
+        # donc sans numéro, sinon le tracé « déjà gravé » prendrait de l'avance sur le laser.
+        from laser_studio.grbl.streaming import gcode_lines
+        text = "G21\n  ; commentaire\nConnecté à /dev/ttyUSB0\nM4 S0\nG1 X10 Y0 S500\nG1 X10 Y10\n"
+        self.assertEqual(parse_preview(text).burn_line_idx, [2, 3])
+        self.assertEqual(gcode_lines(text)[2:], ["G1 X10 Y0 S500", "G1 X10 Y10"])
+
+    def test_cached_parse_is_reused_for_the_same_gcode_and_colours(self):
+        # Une option d'affichage changée redessine sans relire tout le G-Code (0,6 s sur 500 000 lignes).
+        from laser_studio.gcode.preview import parse_preview_cached
+        first = parse_preview_cached(JOB, {"Découpe": "#ff3b30"})
+        self.assertIs(parse_preview_cached("".join(JOB), {"Découpe": "#ff3b30"}), first)
+        self.assertIsNot(parse_preview_cached(JOB, {"Découpe": "#000000"}), first)     # couleur changée
+        self.assertIsNot(parse_preview_cached(JOB + "\nG1 X2 Y2 S10"), first)          # autre G-Code
+
     def test_malformed_lines_are_ignored(self):
         p = parse_preview("GXX\nG1 X\nG0 X5 Y5\nG1 X10 Y10 S100\n")
         self.assertEqual([g.kind for g in p.groups], [KIND_UNKNOWN])

@@ -431,6 +431,13 @@ TEXTS = {
         "de": "Laserbefehl dieser Ebene: Auto folgt der GRBL-Konfiguration; M4 passt die Leistung der tatsächlichen Geschwindigkeit an (dynamisch); M3 hält die Leistung konstant.",
         "es": "Comando láser de esta capa: Auto sigue la Configuración GRBL; M4 ajusta la potencia a la velocidad real (dinámico); M3 mantiene la potencia constante.",
     },
+    "layers.col.air": {"fr": "Air", "en": "Air", "de": "Luft", "es": "Aire"},
+    "layers.air_tip": {
+        "fr": "Air assist : le soufflage est allumé (M8) pendant ce calque, éteint (M9) après. Utile en découpe (moins de flammes, coupe plus nette) ; souvent inutile en gravure.",
+        "en": "Air assist: air is turned on (M8) during this layer, off (M9) after. Useful for cutting (fewer flames, cleaner cut); often unnecessary for engraving.",
+        "de": "Air Assist: Die Luft wird während dieser Ebene eingeschaltet (M8) und danach ausgeschaltet (M9). Nützlich beim Schneiden (weniger Flammen, sauberer Schnitt); beim Gravieren oft unnötig.",
+        "es": "Asistencia de aire: el aire se enciende (M8) durante esta capa y se apaga (M9) después. Útil para cortar (menos llamas, corte más limpio); a menudo innecesario para grabar.",
+    },
     "layers.col.ramp": {
         "fr": "Rampe (%)",
         "en": "Ramp (%)",

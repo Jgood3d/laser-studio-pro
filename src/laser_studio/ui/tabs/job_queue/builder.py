@@ -4,6 +4,7 @@ contrôleur du graveur.
     tab, job_queue = build_job_queue_tab(connection, engraver, dialogs, parent, current_gcode=..., ...)
 """
 from laser_studio.controllers.job_queue import Engraver, JobQueueController
+from laser_studio.models import machine_state as ms
 from laser_studio.ui.tabs.job_queue.tab import JobQueueTab
 
 
@@ -21,6 +22,8 @@ def build_job_queue_tab(connection, engraver, dialogs, parent, *, current_gcode,
         pause_status_poll=connection.pause_status_poll,
         resume_status_poll=connection.resume_status_poll,
         jobs_finished=engraver.notify_job_done,
+        confirm_gcode=engraver.confirm_safe_gcode,
+        may_send=lambda: engraver.allowed(ms.SEND_JOB, "queue.usb_connect"),
     )
     job_queue = JobQueueController(tab, parent, machine, current_gcode=current_gcode, log_to_console=log,
                                    sent_log=sent_log, dialogs=dialogs)

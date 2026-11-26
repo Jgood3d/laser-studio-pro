@@ -2,7 +2,6 @@
 découpe SVG autour de l'image)."""
 import os
 import sys
-import tempfile
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
@@ -14,7 +13,6 @@ try:
     from job_fakes import memory_preferences
 except ImportError:  # PyQt6 manquant (préférences)
     duration_text = None
-from laser_studio.gcode.svg_cut import svg_cut_gcode  # noqa: E402  (sans Qt)
 
 
 @unittest.skipIf(duration_text is None, "PyQt6 non importable ici")
@@ -38,25 +36,6 @@ class DurationTextTests(unittest.TestCase):
         except ImportError:
             self.skipTest("PyQt6 non importable ici")
         self.assertEqual(estimate_duration_text(192), duration_text(192))
-
-
-class SvgCutCommandTests(unittest.TestCase):
-    def setUp(self):
-        handle, self.path = tempfile.mkstemp(suffix=".svg")
-        with os.fdopen(handle, "w") as f:
-            f.write('<svg xmlns="http://www.w3.org/2000/svg"><path d="M 0 0 L 10 0 L 10 10 Z"/></svg>')
-        self.addCleanup(os.remove, self.path)
-
-    def lines(self, **params):
-        base = {"height_mm": 10.0, "s_max": 255, "speed_cut": 300, "power_cut": 10.0, "passes_cut": 1}
-        base.update(params)
-        return svg_cut_gcode(self.path, base, 0.0, 0.0)[0]
-
-    def test_follows_the_cut_layer_command_and_rounds_the_power(self):
-        for cmd, expected in (("M4", "M4"), ("M3", "M3"), (None, "M3")):   # sans réglage : M3, comme avant
-            lines = self.lines(**({"cut_laser_cmd": cmd} if cmd else {}))
-            self.assertEqual(lines[0], f"{expected} S0", cmd)
-            self.assertTrue(any(line.startswith("G1") and "S26" in line for line in lines), cmd)  # 10 % de 255
 
 
 if __name__ == "__main__":

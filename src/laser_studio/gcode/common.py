@@ -29,20 +29,19 @@ def power_value(percent, s_max):
     return max(0, int(round(float(percent) / 100.0 * float(s_max))))
 
 
-def overscan_distance(params, width_mm, default_dist=2.5):
-    """Distance de surbalayage (mm) d'après les paramètres : un pourcentage de
-    `width_mm` (largeur gravée) en mode « Pourcentage », sinon la distance
-    fixe. Ne vérifie pas si le surbalayage est activé : c'est à l'appelant."""
-    if params.get('overscan_mode') == OVERSCAN_PERCENT:
-        return width_mm * (params.get('overscan_pct', 5.0) / 100.0)
-    return params.get('overscan_dist', default_dist)
+def overscan_distance(mode, pct, dist, width_mm):
+    """Distance de surbalayage (mm) : `pct` % de `width_mm` (largeur gravée) en mode OVERSCAN_PERCENT,
+    sinon la distance fixe `dist`. Ne vérifie pas si le surbalayage est activé : c'est à l'appelant."""
+    if mode == OVERSCAN_PERCENT:
+        return width_mm * (pct / 100.0)
+    return dist
 
 
-def scan_offset_mm(params):
-    """Décalage des lignes retour (mm, voir bidir_test_gcode) ; 0 si absent ou
+def scan_offset_mm(value):
+    """Décalage des lignes retour (mm, voir bidir_test_gcode) lu dans un réglage ; 0 si absent ou
     illisible."""
     try:
-        return float(params.get('scan_offset_mm', 0.0) or 0.0)
+        return float(value or 0.0)
     except (TypeError, ValueError):
         return 0.0
 
@@ -94,6 +93,7 @@ class LaserMoves:
     def forget(self):
         """État de GRBL inconnu (lignes ajoutées sans passer par ici) : tout sera réécrit."""
         self.motion = self.feed = self.power = self.x = self.y = None
+        self._x_text = self._y_text = None    # dernier X / Y écrits, déjà mis en forme (num)
 
     def extend(self, lines):
         """Ajoute des lignes écrites ailleurs (étiquette de la matrice…), qui se terminent laser éteint."""
@@ -141,23 +141,28 @@ class LaserMoves:
         self.lines.append(" ".join(words) + (f" ; {comment}" if comment else ""))
 
     def _axes(self, x, y):
+        # Chaque coordonnée n'est mise en forme qu'une fois : c'était le plus long d'une image à graver.
         words = []
-        if x is not None and (self.x is None or num(x) != num(self.x)):
-            words.append(f"X{num(x)}")
-            self.x = x
-        if y is not None and (self.y is None or num(y) != num(self.y)):
-            words.append(f"Y{num(y)}")
-            self.y = y
+        if x is not None:
+            text = num(x)
+            if text != self._x_text:
+                words.append("X" + text)
+                self.x, self._x_text = x, text
+        if y is not None:
+            text = num(y)
+            if text != self._y_text:
+                words.append("Y" + text)
+                self.y, self._y_text = y, text
         return words
 
 
-def start_lines(params):
+def start_lines(homing, start_gcode):
     """Lignes de début de job : homing ($H) et G-Code de début, s'ils sont
     demandés."""
     lines = []
-    if params.get('homing'):
+    if homing:
         lines.append("$H ; Homing initial")
-    start = str(params.get('start_gcode', '') or '').strip()
+    start = str(start_gcode or '').strip()
     if start:
         lines.append("; --- G-Code de Début ---")
         lines.append(start)

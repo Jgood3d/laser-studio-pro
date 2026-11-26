@@ -1,5 +1,5 @@
 """Surbalayage, décalage et homing mémorisés dans le profil machine
-(GrblConfig.mechanical_values / profile_values / apply_profile)."""
+(GrblConfig.mechanical_values / to_profile / apply_profile)."""
 
 import json
 import os
@@ -76,7 +76,7 @@ class OverscanPersistenceTests(unittest.TestCase):
     def test_profile_update_captures_overscan(self):
         grbl = GrblConfig()
         grbl.update(overscan_dist_mm=3.2)
-        values = grbl.profile_values()
+        values = grbl.to_profile()
         for key, value in {"overscan_enabled": True, "overscan_mode": 0,
                            "overscan_dist_mm": 3.2, "overscan_pct": 5.0}.items():
             self.assertEqual(values[key], value, key)
@@ -84,9 +84,10 @@ class OverscanPersistenceTests(unittest.TestCase):
         with open(os.path.join(ROOT, "ui", "app", "window_state.py"), encoding="utf-8") as f:
             src = f.read()
         capture = src[src.index("def capture_machine_profile"):src.index("def apply_machine_profile")]
-        self.assertIn("**w.grbl.profile_values()", capture)  # « Mettre à jour le profil »
+        self.assertIn("model.to_profile()", capture)                        # « Mettre à jour le profil »
         apply = src[src.index("def apply_machine_profile"):src.index("def machine_memory")]
-        self.assertIn("w.grbl.apply_profile(profile)", apply)  # changement, démarrage
+        self.assertIn("model.apply_profile(profile)", apply)                # changement, démarrage
+        self.assertIn("return (w.machine, w.placement, w.grbl)", apply)     # _profile_models
 
     def test_homing_choice_survives_a_restart(self):
         """« Inclure $H » décoché (graveur sans homing) : décoché au prochain

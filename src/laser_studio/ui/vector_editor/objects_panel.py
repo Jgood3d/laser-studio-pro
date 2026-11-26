@@ -8,7 +8,7 @@ l'utilisateur agit ; le contrôleur de l'éditeur modifie le document.
 
     panel = ObjectsPanel()
     panel.selection_requested.connect(canvas.select_objects)
-    panel.move_requested.connect(editor.move_objects)
+    panel.move_requested.connect(editor.object_list.move)
     document.order_changed.connect(lambda: panel.show_objects(document.objects, layers.get))
 """
 from PyQt6.QtCore import QPointF, QRectF, QSize, Qt, pyqtSignal

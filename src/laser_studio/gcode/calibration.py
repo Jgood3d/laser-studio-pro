@@ -128,4 +128,4 @@ def bidir_test_gcode(params):
         gcode.append("M5\nG0 X0 Y0\n; FIN DU TEST")
     avg_power = power_pct if burn_len > 0 else 0.0
     text = "\n".join(gcode)
-    return text, len(text.split("\n")), avg_power, job_duration(text, params, total_time)
+    return text, len(text.split("\n")), avg_power, job_duration(text, params.get('machine_limits'), total_time)

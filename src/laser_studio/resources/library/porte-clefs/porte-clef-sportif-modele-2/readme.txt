@@ -29,7 +29,7 @@ Le motif se choisit dans cette fiche (liste « Motif ») :
        - Gravure : le cadre et le motif (gravure remplie) ;
        - Découpe : le contour du porte-clefs et le trou de l'anneau.
 
-  3. Dans l'onglet « Calques (Layers) », choisir le profil matériau de votre
+  3. Dans l'onglet « Calques », choisir le profil matériau de votre
      planche (ou régler vitesse, puissance et passes de chaque calque).
      Exemples pour du contreplaqué de 3 mm (à tester sur une chute) :
        - Gravure : 2000–3000 mm/min, 30–50 %
