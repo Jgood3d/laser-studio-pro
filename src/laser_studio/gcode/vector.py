@@ -9,11 +9,12 @@ import math
 
 from laser_studio.gcode.common import LaserMoves, power_value
 from laser_studio.models.layer_modes import (
-    MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
+    MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, MODE_PERF as PERF_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
 from laser_studio.vector.kerf import compensate_kerf
 from laser_studio.vector.lead import add_leads
 from laser_studio.vector.order import nesting_depths, order_layers_for_cutting, order_polygons_inner_first
+from laser_studio.vector.perforate import perforate
 from laser_studio.vector.tabs import cut_runs, effective_count, is_closed, perimeter
 
 # Écart (mm) sous lequel un tracé dont le dernier point n'est pas exactement le premier est tout de même
@@ -94,6 +95,30 @@ def _layer_tabs(layer):
     except (TypeError, ValueError):
         return 0, 0.0
     return (count, width) if count > 0 and width > 0 else (0, 0.0)
+
+
+def _pass_power(layer, pass_num, n_passes):
+    """Puissance (%) de la passe `pass_num` (0, 1, …) sur `n_passes` : celle du calque, ou, si la rampe est
+    activée, une montée (ou une descente) linéaire de la puissance du calque (première passe) à la puissance
+    finale `ramp_power` (dernière passe). Sans effet à une seule passe."""
+    power = float(layer["power"])
+    if n_passes < 2 or not layer.get("ramp", False):
+        return power
+    try:
+        final = float(layer.get("ramp_power") or power)
+    except (TypeError, ValueError):
+        return power
+    return power + (final - power) * pass_num / (n_passes - 1)
+
+
+def _layer_perf(layer):
+    """(trait, vide) en mm de la perforation d'un calque ; valeurs par défaut si le calque ne les a pas
+    (ancien projet, valeur inutilisable)."""
+    try:
+        dash, gap = float(layer.get("perf_dash") or 2.0), float(layer.get("perf_gap") or 1.0)
+    except (TypeError, ValueError):
+        return 2.0, 1.0
+    return (dash, gap) if dash > 0 and gap > 0 else (2.0, 1.0)
 
 
 def _layer_kerf(layer):
@@ -279,8 +304,18 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                 if n_no_room:
                     note += f" ; ATTENTION : {n_no_room} contour(s) sans arc, faute de place"
                 gcode.append(note)
+            # Perforation : le tracé est coupé par traits séparés de vides.
+            if layer["mode"] == PERF_MODE:
+                perf_dash, perf_gap = _layer_perf(layer)
+                cut_polygons, n_dashes = perforate(cut_polygons, perf_dash, perf_gap)
+                gcode.append(f"; Perforation : trait {perf_dash:g} mm, vide {perf_gap:g} mm ({n_dashes} traits)")
+            ramped = n_passes > 1 and bool(layer.get("ramp", False))
             for pass_num in range(n_passes):
-                if n_passes > 1:
+                pass_percent = _pass_power(layer, pass_num, n_passes)
+                pass_val = power_value(pass_percent, s_max)
+                if ramped:
+                    gcode.append(f"; Passe {pass_num + 1}/{n_passes} (puissance {pass_percent:.0f} %)")
+                elif n_passes > 1:
                     gcode.append(f"; Passe {pass_num + 1}/{n_passes}")
                 for poly in cut_polygons:
                     if len(poly) < 2:
@@ -298,9 +333,9 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         pts = poly
                     for (px, py) in pts[1:]:
                         nx, ny = to_gcode_xy(px, py)
-                        moves.move(nx, ny, power_val, speed)
+                        moves.move(nx, ny, pass_val, speed)
                         total_time_seconds += (math.hypot(nx - cx, ny - cy) / max(speed, 1)) * 60.0
-                        power_samples.append(layer["power"])
+                        power_samples.append(pass_percent)
                         cx, cy = nx, ny
 
     moves.off()

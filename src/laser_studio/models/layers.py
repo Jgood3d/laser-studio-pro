@@ -24,10 +24,10 @@ log = logging.getLogger(f"{LOGGER_NAME}.modeles")
 # ENGRAVE_MODE / CUT_MODE / MARK_MODE : noms historiques des codes.
 from laser_studio.models.layer_modes import (  # noqa: E402
     LAYER_LASER_CMDS, LAYER_MODE_TR_KEYS, LAYER_MODES, MODE_CUT,
-    MODE_FILL, MODE_MARK, normalize_mode,
+    MODE_FILL, MODE_MARK, MODE_PERF, normalize_mode,
 )
 
-ENGRAVE_MODE, CUT_MODE, MARK_MODE = MODE_FILL, MODE_CUT, MODE_MARK
+ENGRAVE_MODE, CUT_MODE, MARK_MODE, PERF_MODE = MODE_FILL, MODE_CUT, MODE_MARK, MODE_PERF
 
 DEFAULT_LAYER_COLORS = [
     "#ff3b30", "#34c759", "#0a84ff", "#ff9f0a",
@@ -67,6 +67,10 @@ LAYER_FIELD_CASTS = {
     "kerf_width": float,
     "lead": bool,
     "lead_radius": float,
+    "perf_dash": float,
+    "perf_gap": float,
+    "ramp": bool,
+    "ramp_power": float,
 }
 
 # Ponts de maintien d'un calque de découpe (voir vector/tabs.py) : bornes des réglages.
@@ -79,6 +83,15 @@ DEFAULT_KERF_WIDTH_MM = 0.15
 # Arcs d'entrée et de sortie d'un calque de découpe (voir vector/lead.py) : rayon, en mm.
 LEAD_RADIUS_MIN_MM, LEAD_RADIUS_MAX_MM = 0.2, 10.0
 DEFAULT_LEAD_RADIUS_MM = 1.0
+
+# Perforation (mode Perforation, voir vector/perforate.py) : longueur d'un trait et d'un vide, en mm.
+PERF_LENGTH_MIN_MM, PERF_LENGTH_MAX_MM = 0.1, 50.0
+DEFAULT_PERF_DASH_MM = 2.0
+DEFAULT_PERF_GAP_MM = 1.0
+
+# Rampe de puissance d'un calque de contour (voir gcode/vector._pass_power) : puissance finale, en %.
+RAMP_POWER_MIN_PCT, RAMP_POWER_MAX_PCT = 1.0, 100.0
+DEFAULT_RAMP_POWER_PCT = 100.0
 
 DEFAULT_TAB_COUNT = 4
 DEFAULT_TAB_WIDTH_MM = 0.5
@@ -137,6 +150,16 @@ def validated_settings(source, defaults=None):
                 if not value == value:                  # NaN
                     raise ValueError(value)
                 value = min(max(value, LEAD_RADIUS_MIN_MM), LEAD_RADIUS_MAX_MM)
+            elif key in ("perf_dash", "perf_gap"):
+                value = float(value)
+                if not value == value:                  # NaN
+                    raise ValueError(value)
+                value = min(max(value, PERF_LENGTH_MIN_MM), PERF_LENGTH_MAX_MM)
+            elif key == "ramp_power":
+                value = float(value)
+                if not value == value:                  # NaN
+                    raise ValueError(value)
+                value = min(max(value, RAMP_POWER_MIN_PCT), RAMP_POWER_MAX_PCT)
             elif key == "passes":
                 # 0 passe = aucune découpe/marquage généré. On refuse 0 et les
                 # négatifs (souvent issus d'un ancien matériau pass_c=0 ou d'un
@@ -164,7 +187,9 @@ class LaserLayer:
                  enabled=True, layer_id=None, line_interval_linked=False, role=None,
                  overscan=True, laser_cmd="", tabs=False, tab_count=DEFAULT_TAB_COUNT,
                  tab_width=DEFAULT_TAB_WIDTH_MM, kerf=False, kerf_width=DEFAULT_KERF_WIDTH_MM,
-                 lead=False, lead_radius=DEFAULT_LEAD_RADIUS_MM):
+                 lead=False, lead_radius=DEFAULT_LEAD_RADIUS_MM,
+                 perf_dash=DEFAULT_PERF_DASH_MM, perf_gap=DEFAULT_PERF_GAP_MM,
+                 ramp=False, ramp_power=DEFAULT_RAMP_POWER_PCT):
         self.id = layer_id or uuid.uuid4().hex[:8]
         self.role = role
         self.name = name
@@ -197,6 +222,14 @@ class LaserLayer:
         # du quart de cercle tangent au contour, posé sur la chute. Sans effet hors découpe.
         self.lead = bool(lead)
         self.lead_radius = min(max(float(lead_radius), LEAD_RADIUS_MIN_MM), LEAD_RADIUS_MAX_MM)
+        # Perforation (mode Perforation) : longueur d'un trait coupé et d'un vide, en mm. Sans effet
+        # dans les autres modes.
+        self.perf_dash = min(max(float(perf_dash), PERF_LENGTH_MIN_MM), PERF_LENGTH_MAX_MM)
+        self.perf_gap = min(max(float(perf_gap), PERF_LENGTH_MIN_MM), PERF_LENGTH_MAX_MM)
+        # Rampe de puissance (découpe, perforation, marquage) : `ramp` l'active, `ramp_power` (%) est la
+        # puissance de la dernière passe ; celle du calque est la première. Sans effet à une seule passe.
+        self.ramp = bool(ramp)
+        self.ramp_power = min(max(float(ramp_power), RAMP_POWER_MIN_PCT), RAMP_POWER_MAX_PCT)
 
     def to_dict(self):
         return dict(self.__dict__)

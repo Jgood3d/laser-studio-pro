@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
+from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, MODE_PERF, normalize_mode
 
 # Presets matière : fond + couleur de la zone gravée.
 # lightens=False : plus de puissance = plus sombre (bois, papier).
@@ -196,7 +196,7 @@ def is_raster_group(group, matrix_engrave):
 
     - image de l'application, calque en gravure remplie : image ;
     - matrice de test : image en mode gravure (`matrix_engrave`), sinon traits ;
-    - découpe SVG, calques en découpe ou marquage : traits ;
+    - découpe SVG, calques en découpe, marquage ou perforation : traits ;
     - G-Code importé sans repère : image s'il ressemble à un balayage."""
     if group.kind == KIND_RASTER:
         return True
@@ -204,7 +204,7 @@ def is_raster_group(group, matrix_engrave):
         return bool(matrix_engrave)
     if group.kind == KIND_SVG_CUT:
         return False
-    if group.mode in (MODE_CUT, MODE_MARK):
+    if group.mode in (MODE_CUT, MODE_MARK, MODE_PERF):
         return False
     if group.mode == MODE_FILL:
         return True

@@ -431,6 +431,36 @@ TEXTS = {
         "de": "Laserbefehl dieser Ebene: Auto folgt der GRBL-Konfiguration; M4 passt die Leistung der tatsächlichen Geschwindigkeit an (dynamisch); M3 hält die Leistung konstant.",
         "es": "Comando láser de esta capa: Auto sigue la Configuración GRBL; M4 ajusta la potencia a la velocidad real (dinámico); M3 mantiene la potencia constante.",
     },
+    "layers.col.ramp": {
+        "fr": "Rampe (%)",
+        "en": "Ramp (%)",
+        "de": "Rampe (%)",
+        "es": "Rampa (%)",
+    },
+    "layers.ramp_tip": {
+        "fr": "Rampe de puissance (découpe, perforation, marquage) : la puissance passe linéairement de celle du calque (première passe) à la puissance finale indiquée (dernière passe). Utile pour une première passe douce (carton, mousse, bois fin : moins de flammes et de carbonisation), puis la pleine puissance. Exemple : 4 passes de 40 % à 100 % donnent 40, 60, 80 et 100 %. Sans effet avec une seule passe. Décocher désactive sans perdre la valeur.",
+        "en": "Power ramp (cut, perforate, mark): power changes linearly from the layer's power (first pass) to the final power shown (last pass). Useful for a gentle first pass (cardboard, foam, thin wood: fewer flames and less charring), then full power. Example: 4 passes from 40% to 100% give 40, 60, 80 and 100%. No effect with a single pass. Unchecking disables it without losing the value.",
+        "de": "Leistungsrampe (Schnitt, Perforation, Markierung): Die Leistung ändert sich linear von der Leistung der Ebene (erster Durchgang) zur angegebenen Endleistung (letzter Durchgang). Nützlich für einen sanften ersten Durchgang (Karton, Schaumstoff, dünnes Holz: weniger Flammen und Verkohlung), dann volle Leistung. Beispiel: 4 Durchgänge von 40 % bis 100 % ergeben 40, 60, 80 und 100 %. Ohne Wirkung bei nur einem Durchgang. Abwählen deaktiviert, ohne den Wert zu verlieren.",
+        "es": "Rampa de potencia (corte, perforación, marcado): la potencia cambia linealmente de la de la capa (primera pasada) a la potencia final indicada (última pasada). Útil para una primera pasada suave (cartón, espuma, madera fina: menos llamas y carbonización), luego potencia completa. Ejemplo: 4 pasadas de 40 % a 100 % dan 40, 60, 80 y 100 %. Sin efecto con una sola pasada. Desmarcar lo desactiva sin perder el valor.",
+    },
+    "layers.mode.perforate": {
+        "fr": "Perforation",
+        "en": "Perforate",
+        "de": "Perforieren",
+        "es": "Perforación",
+    },
+    "layers.col.perforation": {
+        "fr": "Perforation (mm)",
+        "en": "Perforation (mm)",
+        "de": "Perforation (mm)",
+        "es": "Perforación (mm)",
+    },
+    "layers.perf_tip": {
+        "fr": "Perforation (mode Perforation) : le tracé est coupé par traits (premier nombre, en mm) séparés de vides (second nombre, en mm), pour plier ou déchirer, ou pour garder une pièce attachée. Le motif est ajusté à la longueur du tracé pour finir juste : un tracé fermé fait un nombre entier de périodes, un tracé ouvert commence et finit par un trait. Un tracé plus court qu'un trait est coupé en entier. Le kerf, les ponts et les arcs d'entrée et de sortie sont réservés au mode Découpe.",
+        "en": "Perforation (Perforate mode): the path is cut as dashes (first number, in mm) separated by gaps (second number, in mm), for folding or tearing, or to keep a part attached. The pattern is fitted to the path length so it ends cleanly: a closed path gets a whole number of periods, an open path starts and ends with a dash. A path shorter than one dash is cut in full. Kerf, holding tabs and lead-in/out arcs are reserved for Cut mode.",
+        "de": "Perforation (Modus Perforieren): Der Pfad wird in Strichen (erste Zahl, in mm) geschnitten, getrennt durch Lücken (zweite Zahl, in mm), zum Falten oder Abreißen oder um ein Teil befestigt zu lassen. Das Muster wird an die Pfadlänge angepasst, damit es sauber endet: Ein geschlossener Pfad erhält eine ganze Zahl von Perioden, ein offener Pfad beginnt und endet mit einem Strich. Ein Pfad, der kürzer als ein Strich ist, wird ganz geschnitten. Schnittfugenkompensation, Haltestege und Ein-/Auslaufbögen sind dem Modus Schneiden vorbehalten.",
+        "es": "Perforación (modo Perforar): el trazado se corta en trazos (primer número, en mm) separados por huecos (segundo número, en mm), para doblar o rasgar, o para mantener una pieza sujeta. El patrón se ajusta a la longitud del trazado para terminar limpio: un trazado cerrado tiene un número entero de periodos, uno abierto empieza y termina con un trazo. Un trazado más corto que un trazo se corta entero. El kerf, los puentes de sujeción y los arcos de entrada y salida están reservados al modo Corte.",
+    },
     "layers.mode.cut": {
         "fr": "Découpe",
         "en": "Cut",
