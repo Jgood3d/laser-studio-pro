@@ -91,7 +91,7 @@ class ImportObjectsTests(unittest.TestCase):
             self.editor.import_objects([obj])
             self.assertEqual(self.corner(obj), corner, mode)
             self.assertEqual(len(self.document.objects), 2)
-            self.canvas.undo()                                  # une seule étape d'annulation
+            self.canvas.document.undo()                                  # une seule étape d'annulation
             self.assertEqual([o.id for o in self.document.objects], [first.id])
         self.assertEqual(self.dialogs.kinds(), ["choose"] * 3)
 
@@ -102,7 +102,7 @@ class ImportObjectsTests(unittest.TestCase):
         self.editor.import_objects([obj])
         self.assertEqual(self.document.objects, [obj])
         self.assertEqual(self.corner(obj), (3.0, 0.0))
-        self.canvas.undo()
+        self.canvas.document.undo()
         self.assertEqual(len(self.document.objects), 1)
         self.assertIsNot(self.document.objects[0], obj)
 
@@ -117,7 +117,7 @@ class ImportObjectsTests(unittest.TestCase):
             obj = self.rect(50.0, 50.0)
             self.editor.import_objects([obj], keep_position=True)
             self.assertEqual(self.corner(obj), corner, mode)
-            self.canvas.undo()
+            self.canvas.document.undo()
 
     def test_cancel_adds_nothing(self):
         self.editor.import_objects([self.rect()])

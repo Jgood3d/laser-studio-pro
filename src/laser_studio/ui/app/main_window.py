@@ -203,7 +203,7 @@ class FullLaserStudio(QMainWindow):
             self.main_tabs_view, self,
             splitter=self.center_v_splitter, bottom_panel=self.bottom_panel,
             preview_splitter=self.tab_vector_2d.splitter,
-            vector_editor=self.tab_vector_editor, recenter_vector_editor=self.vector_canvas.request_recenter,
+            vector_editor=self.tab_vector_editor, recenter_vector_editor=self.vector_canvas.navigation.request_recenter,
             png2svg=self.tab_png2svg, parent=self,
         )
         self._build_job_display()
@@ -282,7 +282,7 @@ class FullLaserStudio(QMainWindow):
         actions.stencil_studio_requested.connect(lambda: controller.stencil().open())
         actions.main_tab_requested.connect(controller.show_main_tab)
         in_editor, generators = controller.run_in_vector_editor, self.vector_generators
-        actions.vector_import_requested.connect(lambda: in_editor(self.vector_editor.import_dialog))
+        actions.vector_import_requested.connect(lambda: in_editor(self.vector_editor.importer.open_dialog))
         actions.generator_requested.connect(lambda kind: in_editor(lambda: generators.open_generators(kind)))
         actions.camera_requested.connect(controller.open_camera_dialog)
         actions.history_requested.connect(controller.show_job_history)
@@ -548,7 +548,7 @@ class FullLaserStudio(QMainWindow):
                 self.image.load_path(file_path)
                 break
             if file_path.lower().endswith(('.svg', '.dxf')):
-                self.vector_editor.import_file(file_path)
+                self.vector_editor.importer.import_file(file_path)
                 break
 
     # -- Messages : barre d'état et journal

@@ -62,11 +62,11 @@ def add_selection_entries(menu, canvas, selected):
         menu.addAction(tr("vector.medal")).triggered.connect(canvas.medal_text_requested.emit)
 
     if n == 1:
-        menu.addAction(tr("vector.edit_nodes")).triggered.connect(lambda: canvas.enter_node_edit(selected[0]))
+        menu.addAction(tr("vector.edit_nodes")).triggered.connect(lambda: canvas.nodes.enter(selected[0]))
     if canvas.nodes.active:
         menu.addSeparator()
-        menu.addAction(tr("vector.exit_nodes")).triggered.connect(canvas.exit_node_edit)
-        menu.addAction(tr("vector.delete_node")).triggered.connect(canvas.delete_selected_node)
+        menu.addAction(tr("vector.exit_nodes")).triggered.connect(canvas.nodes.exit)
+        menu.addAction(tr("vector.delete_node")).triggered.connect(canvas.nodes.delete_selected_node)
 
     menu.addSeparator()
     menu.addAction(tr("ui.vector_rotate_90")).triggered.connect(command("rotate"))

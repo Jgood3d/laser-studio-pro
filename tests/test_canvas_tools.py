@@ -120,7 +120,7 @@ class CanvasToolsTests(unittest.TestCase):
         self.assertEqual([t.split(" mm")[0] for t in texts], ["50.00"])        # 30 × 40 → 50 mm
         self.canvas.set_draw_tool(None)
         self.assertEqual(len(self.canvas.measure.labels), 2)                   # trait + texte, gardés
-        self.canvas.clear_measure_labels()
+        self.canvas.measure.clear_labels()
         self.assertEqual(self.canvas.measure.labels, [])
 
     def test_drag_moves_the_selection_on_the_grid(self):
@@ -148,8 +148,8 @@ class CanvasToolsTests(unittest.TestCase):
                                              x_mm=100, y_mm=100))
         item = self.canvas.item_for(self.last())
         item.setSelected(True)
-        self.assertTrue(self.canvas.enter_node_edit())
-        self.assertTrue(self.canvas.node_mode)
+        self.assertTrue(self.canvas.nodes.enter())
+        self.assertTrue(self.canvas.nodes.active)
 
         def handles():
             return sorted((h for h in self.canvas.scene_obj.items() if isinstance(h, QGraphicsEllipseItem)
@@ -172,7 +172,7 @@ class CanvasToolsTests(unittest.TestCase):
         QTest.mouseRelease(self.vp, L, Qt.KeyboardModifier.NoModifier, self.at(x, y))
         self.assertEqual(len(handles()), count)                 # sommet retiré
         QTest.keyClick(self.canvas, Qt.Key.Key_Escape)
-        self.assertFalse(self.canvas.node_mode)
+        self.assertFalse(self.canvas.nodes.active)
         self.assertEqual(handles(), [])
 
 

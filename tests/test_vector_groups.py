@@ -199,11 +199,11 @@ class EditorGroupTests(unittest.TestCase):
 
     def test_group_takes_the_place_of_its_highest_object_and_ungroups_in_place(self):
         self.canvas.select_objects([self.a, self.b])
-        group = self.editor.group_selection(boolean_ops.GROUP)
+        group = self.editor.grouping.group_selection(boolean_ops.GROUP)
         self.assertEqual(self.document.objects, [group, self.c])
         self.assertLess(self.z(group), self.z(self.c))
         self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
-        released = self.editor.ungroup_selection()
+        released = self.editor.grouping.ungroup_selection()
         self.assertEqual(self.document.objects, [self.a, self.b, self.c])
         self.assertEqual(len(released), 2)
         self.document.undo()
@@ -211,43 +211,43 @@ class EditorGroupTests(unittest.TestCase):
 
     def test_combine_then_change_the_operation(self):
         self.canvas.select_objects([self.a, self.b])
-        group = self.editor.group_selection(boolean_ops.UNION)
+        group = self.editor.grouping.group_selection(boolean_ops.UNION)
         self.assertEqual(group.operation, boolean_ops.UNION)
-        self.assertIs(self.editor.group_selection(boolean_ops.DIFFERENCE), group)
+        self.assertIs(self.editor.grouping.group_selection(boolean_ops.DIFFERENCE), group)
         self.assertEqual(group.operation, boolean_ops.DIFFERENCE)
 
     def test_move_objects_and_children(self):
-        self.editor.move_objects([(None, self.a)], 1)
+        self.editor.object_list.move([(None, self.a)], 1)
         self.assertEqual(self.document.objects, [self.b, self.a, self.c])
         self.assertGreater(self.z(self.a), self.z(self.b))
-        self.assertFalse(self.editor.move_objects([(None, self.c)], 1))    # déjà tout en haut
+        self.assertFalse(self.editor.object_list.move([(None, self.c)], 1))    # déjà tout en haut
         self.canvas.select_objects([self.b, self.a])
-        group = self.editor.group_selection(boolean_ops.DIFFERENCE)
+        group = self.editor.grouping.group_selection(boolean_ops.DIFFERENCE)
         bottom = group.children[0]
-        self.editor.move_objects([(group, bottom)], 1)
+        self.editor.object_list.move([(group, bottom)], 1)
         self.assertIs(group.children[1], bottom)
 
     def test_layer_of_a_group_goes_to_all_its_objects(self):
         other = self.layers.layers[1].id
         self.canvas.select_objects([self.a, self.b])
-        group = self.editor.group_selection(boolean_ops.GROUP)
+        group = self.editor.grouping.group_selection(boolean_ops.GROUP)
         self.canvas.select_objects([group])
         self.editor.set_selected_layer(other)
         self.assertEqual({c.layer_id for c in group.children}, {other})
 
     def test_eye_and_ignore(self):
         item = self.canvas.item_for(self.a)
-        self.editor.set_object_visible(self.a, False)
+        self.editor.object_list.set_visible(self.a, False)
         self.assertTrue(item.inactive)
         self.assertTrue(item.shape().isEmpty())               # la souris le traverse
         self.assertTrue(self.a.is_hidden())
-        self.editor.set_object_visible(self.a, True)
+        self.editor.object_list.set_visible(self.a, True)
         self.assertFalse(item.inactive)
         layer = self.b.layer_id
-        self.editor.toggle_ignored(self.b)
+        self.editor.object_list.toggle_ignored(self.b)
         self.assertEqual(self.b.layer_id, IGNORED_LAYER_ID)
         self.assertTrue(self.canvas.item_for(self.b).inactive)
-        self.editor.toggle_ignored(self.b)
+        self.editor.object_list.toggle_ignored(self.b)
         self.assertEqual(self.b.layer_id, layer)
         self.document.undo()
         self.assertTrue(self.document.objects[1].is_ignored())
@@ -255,8 +255,8 @@ class EditorGroupTests(unittest.TestCase):
     def test_an_ignored_group_chosen_in_the_list_takes_a_new_layer(self):
         cut = self.layers.layer_for_role("cut").id
         self.canvas.select_objects([self.a, self.b])
-        group = self.editor.group_selection(boolean_ops.GROUP)
-        self.editor.toggle_ignored(group)
+        group = self.editor.grouping.group_selection(boolean_ops.GROUP)
+        self.editor.object_list.toggle_ignored(group)
         self.assertEqual(self.canvas.select_objects([group]), [group])          # choisi dans la liste
         self.assertEqual([i.obj for i in self.canvas.selected_items_vector()], [group])
         from laser_studio.ui.vector_editor.tab import VectorEditorTab
@@ -287,25 +287,25 @@ class EditorGroupTests(unittest.TestCase):
         self.assertTrue(align.isHidden())
 
     def test_trash(self):
-        self.editor.delete_object(None, self.c)
+        self.editor.object_list.delete(None, self.c)
         self.assertEqual(self.document.objects, [self.a, self.b])
         inner = GroupObject([square(0, 50, 10), square(20, 50, 10)])
         outer = GroupObject([inner, square(40, 50, 10)])
         self.canvas.add_object(outer)
-        self.editor.delete_object(inner, inner.children[0])
+        self.editor.object_list.delete(inner, inner.children[0])
         self.assertEqual(len(inner.children), 1)
         self.assertEqual(outer.world_path().boundingRect().left(), 20.0)       # recalculé jusqu'en haut
-        self.editor.delete_object(inner, inner.children[0])                    # groupe vidé : retiré
+        self.editor.object_list.delete(inner, inner.children[0])                    # groupe vidé : retiré
         self.assertEqual(len(outer.children), 1)
-        self.editor.delete_object(outer, outer.children[0])                    # tout s'est vidé
+        self.editor.object_list.delete(outer, outer.children[0])                    # tout s'est vidé
         self.assertEqual(self.document.objects, [self.a, self.b])
         self.document.undo()
         self.assertEqual(len(self.document.objects), 3)
 
     def test_eye_inside_a_group_hides_only_on_screen(self):
         self.canvas.select_objects([self.a, self.b])
-        group = self.editor.group_selection(boolean_ops.GROUP)
-        self.editor.set_object_visible(self.b, False)
+        group = self.editor.grouping.group_selection(boolean_ops.GROUP)
+        self.editor.object_list.set_visible(self.b, False)
         self.assertEqual(len(group.local_parts()), 1)                           # affiché sans lui
         self.assertEqual(group.display_local_path().boundingRect().width(), 20.0)
         self.assertEqual(len(group.engraving_parts()), 2)                       # toujours gravé
@@ -319,10 +319,10 @@ class EditorGroupTests(unittest.TestCase):
         outer = GroupObject([inner, square(40, 50, 10)])
         self.canvas.add_object(outer)
         deep = inner.children[1]
-        self.editor.toggle_ignored(deep)
+        self.editor.object_list.toggle_ignored(deep)
         self.assertTrue(deep.is_ignored())
         self.assertEqual(outer.world_path().boundingRect().width(), 50.0)       # recalculé jusqu'en haut
-        self.editor.move_objects([(inner, inner.children[0])], 1)
+        self.editor.object_list.move([(inner, inner.children[0])], 1)
         self.assertIs(inner.children[1].is_ignored(), False)
         panel = ObjectsPanel()
         self.addCleanup(panel.deleteLater)
@@ -332,7 +332,7 @@ class EditorGroupTests(unittest.TestCase):
         self.assertEqual(panel.selected_objects(), [outer])
 
     def test_rename(self):
-        self.editor.rename_object(self.a, " Plaque ")
+        self.editor.object_list.rename(self.a, " Plaque ")
         self.assertEqual(object_label(self.a), "Plaque")
         self.document.undo()
         self.assertNotEqual(object_label(self.document.objects[0]), "Plaque")

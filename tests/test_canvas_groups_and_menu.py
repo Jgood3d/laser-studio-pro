@@ -102,7 +102,7 @@ class ContextMenuTests(unittest.TestCase):
         next(a for a in menu.actions() if a.text() == tr("ui.vector_rotate_90")).trigger()
         self.assertEqual(asked, ["rotate"])
         self.assertEqual(item.obj.rotation_deg, 90.0)
-        self.canvas.undo()
+        self.canvas.document.undo()
         self.assertEqual(self.canvas.objects[0].rotation_deg, 0.0)
         # Après Ctrl+Z les objets sont recréés : nouveau clic droit sur la nouvelle sélection.
         restored = self.canvas.item_for(self.canvas.objects[0])

@@ -3,7 +3,7 @@ préchauffage en arrière-plan, repli dans un processus séparé ou dans le
 navigateur, thème suivi à chaud.
 
     studio = StencilStudioController(window, theme=current_colors, language="fr", dialogs=dialogs)
-    studio.export_ready.connect(vector_editor.import_stencil_export)
+    studio.export_ready.connect(vector_editor.importer.import_stencil_export)
     action.triggered.connect(studio.open)
     QTimer.singleShot(3000, studio.preload)
 

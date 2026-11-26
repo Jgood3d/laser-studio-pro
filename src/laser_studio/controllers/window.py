@@ -58,12 +58,12 @@ class WindowController(QObject):
 
     def stencil(self):
         """Contrôleur de Stencil Studio, créé à la première demande. Ses exports SVG / DXF arrivent
-        dans l'éditeur vectoriel, rangés dans les calques (VectorEditorController.import_stencil_export)."""
+        dans l'éditeur vectoriel, rangés dans les calques (VectorImporter.import_stencil_export)."""
         if self.stencil_studio is None:
             self.stencil_studio = StencilStudioController(
                 self.window, theme=lambda: page_colors(current_theme_name()), language=get_current_language(),
                 dialogs=self.dialogs, parent=self)
-            self.stencil_studio.export_ready.connect(self.vector.controller.import_stencil_export)
+            self.stencil_studio.export_ready.connect(self.vector.controller.importer.import_stencil_export)
         return self.stencil_studio
 
     def schedule_stencil_preload(self):
@@ -121,8 +121,8 @@ class WindowController(QObject):
             # L'image de la caméra (redressée sur le plateau) s'affiche sous la grille de l'éditeur vectoriel.
             canvas = self.vector.canvas
             self.camera.overlay_ready.connect(canvas.set_camera_background)
-            self.camera.overlay_cleared.connect(canvas.clear_camera_background)
-            self.camera.overlay_opacity_changed.connect(canvas.set_camera_background_opacity)
+            self.camera.overlay_cleared.connect(canvas.camera.clear)
+            self.camera.overlay_opacity_changed.connect(canvas.camera.set_opacity)
         return self.camera
 
     def show_job_history(self):

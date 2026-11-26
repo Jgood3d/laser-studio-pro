@@ -203,7 +203,7 @@ class WindowState(QObject):
             "materials_db": w.materials.materials,
             "raw_image_b64": None,  # rempli par ProjectController
             "layers": w.layer_manager.to_list(),
-            "vector_objects": w.vector_canvas.serialize_objects(),
+            "vector_objects": w.vector_document.serialize(),
         })
         return data, w.image.raw_image
 
@@ -240,6 +240,6 @@ class WindowState(QObject):
 
         if "layers" in data:
             w.layer_manager.load_list(data["layers"])
-        w.vector_canvas.load_objects(data.get("vector_objects"))
+        w.vector_document.load(data.get("vector_objects"))
 
         w.image.schedule_processing()

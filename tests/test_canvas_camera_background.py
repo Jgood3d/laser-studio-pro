@@ -48,15 +48,15 @@ class CameraBackgroundTests(unittest.TestCase):
         canvas.set_camera_background(np.zeros((60, 80), dtype=np.uint8), 400, 300)
         canvas.set_camera_background(np.zeros((60, 80, 3), dtype=np.uint8), 400, 300)
         self.assertEqual(len(self.camera_items(canvas)), 1)
-        canvas.clear_camera_background()
+        canvas.camera.clear()
         self.assertEqual(self.camera_items(canvas), [])
 
     def test_opacity_is_clamped(self):
         canvas = self.make()
         canvas.set_camera_background(np.zeros((60, 80, 3), dtype=np.uint8), 400, 300)
-        canvas.set_camera_background_opacity(0.0)
+        canvas.camera.set_opacity(0.0)
         self.assertAlmostEqual(self.camera_items(canvas)[0].opacity(), 0.05, places=3)
-        canvas.set_camera_background_opacity(3)
+        canvas.camera.set_opacity(3)
         self.assertAlmostEqual(self.camera_items(canvas)[0].opacity(), 1.0, places=3)
 
 
