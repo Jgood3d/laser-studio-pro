@@ -4,7 +4,7 @@ dialogue : la fenêtre s'abonne à ses signaux et affiche ce qu'il faut.
 
     connection = MachineConnection(parent=window)
     connection.status_updated.connect(job_display.status_updated)
-    connection.connection_changed.connect(lambda _connected: job_display.update_connection())
+    connection.state_changed.connect(lambda _state: job_display.update_machine_state())
     if connection.connect("/dev/ttyUSB0"):
         settings = connection.read_settings()      # {"$22": "1", "$32": "1", ...}
         connection.home()
@@ -12,11 +12,18 @@ dialogue : la fenêtre s'abonne à ses signaux et affiche ce qu'il faut.
 Pendant un job (start_stream), c'est le thread d'envoi qui interroge l'état
 du graveur ; le sondage périodique est alors mis en pause par l'appelant
 (pause_status_poll / resume_status_poll), comme le fait la file d'attente.
+
+État du graveur (models/machine_state.py) : `state` (prêt, alarme, homing, job…)
+et `can(action)` disent ce qu'on peut envoyer ; state_changed(état) prévient les
+boutons. L'activité en cours (commandes, homing, job) est notée au départ de son
+thread et effacée par son signal de fin, avant les fonctions de l'appelant : la
+file d'attente peut donc lancer le job suivant dès la fin du précédent.
 """
 
 from PyQt6.QtCore import QObject, pyqtSignal
 
 from laser_studio.core.debug_log import get_logger
+from laser_studio.models import machine_state as ms
 from laser_studio.grbl.commands import (  # noqa: F401
     HOME, UNLOCK, READ_SETTINGS, homing_succeeded, jog_command, parse_grbl_settings,
 )
@@ -47,7 +54,8 @@ class MachineConnection(QObject):
     - stream_progress(lignes, total), stream_lines_sent(lignes),
       stream_lines_acked(nombre) : avancement du job en cours ;
     - reconnecting() / reconnected(réussi) : coupure USB pendant un job et
-      tentative de réouverture du port (le job, lui, n'est jamais relancé).
+      tentative de réouverture du port (le job, lui, n'est jamais relancé) ;
+    - state_changed(état) : l'état du graveur a changé (voir models/machine_state.py).
     """
 
     connection_changed = pyqtSignal(bool)
@@ -59,6 +67,7 @@ class MachineConnection(QObject):
     stream_lines_acked = pyqtSignal(int)
     reconnecting = pyqtSignal()
     reconnected = pyqtSignal(bool)
+    state_changed = pyqtSignal(str)
 
     def __init__(self, usb=None, parent=None):
         super().__init__(parent)
@@ -71,8 +80,13 @@ class MachineConnection(QObject):
         self.streamer = None
         self._status_poll = None
         self._cmd_thread = None
-        self._home_thread = None
         self._reconnect_thread = None
+        self._activity = None             # ms.ACTIVITY_* en cours, ou None
+        self._reconnecting = False
+        self._state = self.state
+        # Un changement de connexion ou d'état GRBL (alarme) peut changer l'état du graveur.
+        self.connection_changed.connect(self._refresh_state)
+        self.status_updated.connect(self._refresh_state)
 
     # -- état
 
@@ -97,19 +111,29 @@ class MachineConnection(QObject):
         speed = getattr(getattr(self.usb, "ser", None), "speed", None)
         return float(speed) if isinstance(speed, (int, float)) and speed > 0 else None
 
+    @property
+    def state(self):
+        """État du graveur (ms.READY, ms.ALARM, ms.STREAMING…)."""
+        return ms.machine_state(self.is_connected(), self._activity, self.last_state, self._reconnecting)
+
+    def can(self, action):
+        """Vrai si `action` (ms.JOG, ms.SEND_JOB…) est permise dans l'état actuel."""
+        return ms.allowed(self.state, action)
+
     def is_streaming(self):
         """Vrai pendant l'envoi d'un job."""
-        try:
-            return bool(self.streamer is not None and self.streamer.isRunning())
-        except RuntimeError:          # thread Qt déjà détruit
-            return False
+        return self._activity == ms.ACTIVITY_STREAMING
 
     def is_busy(self):
-        """Vrai pendant un job ou un envoi de commandes (homing, cadrage…) : un job ne peut pas partir."""
-        return self.is_streaming() or self._commands_running()
+        """Vrai pendant un job, un homing ou un envoi de commandes : rien d'autre ne peut partir."""
+        return self._activity is not None
 
-    def _commands_running(self):
-        return self._cmd_thread is not None and self._cmd_thread.isRunning()
+    def _refresh_state(self, *_args):
+        state = self.state
+        if state != self._state:
+            log.info("Connexion : état du graveur %s -> %s", self._state, state)
+            self._state = state
+            self.state_changed.emit(state)
 
     def _forget_homing(self):
         if self.homed:
@@ -148,33 +172,37 @@ class MachineConnection(QObject):
         log.info("Connexion : réponse à $$ (%d caractères)", len(response or ""))
         return parse_grbl_settings(response)
 
-    def run_commands(self, commands):
+    def run_commands(self, commands, activity=ms.ACTIVITY_COMMANDS):
         """Envoie une commande ou une liste de commandes en arrière-plan,
         réponses dans le signal log. Faux (rien n'est envoyé) si un envoi de
         commandes ou un job est déjà en cours : une commande glissée au milieu
         d'un job fausserait le compte du tampon de GRBL, et son « ok » ou son
         « error » serait pris pour celui d'une ligne du job."""
-        if self.is_streaming() or self._commands_running():
+        if self.is_busy():
             log.warning("Connexion : commande %r refusée, graveur occupé", commands)
             return False
         self._cmd_thread = CommandThread(self.usb, commands)
         self._cmd_thread.log_signal.connect(self.log)
+        self._cmd_thread.finished_signal.connect(self._commands_finished)
+        self._activity = activity
+        self._refresh_state()
         self._cmd_thread.start()
         return True
+
+    def _commands_finished(self):
+        """Fin d'un envoi de commandes ; un homing ne compte qu'au « ok » de GRBL (alarme, refus : position
+        toujours inconnue)."""
+        if self._activity == ms.ACTIVITY_HOMING:
+            responses = getattr(self._cmd_thread, "responses", None) or [""]
+            self.homed = homing_succeeded(responses[-1])
+        self._activity = None
+        self._refresh_state()
 
     def home(self):
         """Cycle de homing ($H). La position n'est référencée qu'une fois le « ok » de GRBL reçu : un homing
         refusé, en alarme (fin de course non atteinte) ou pas envoyé (graveur occupé) la laisse inconnue."""
         self.homed = False
-        if not self.run_commands(HOME):
-            return False
-        self._home_thread = self._cmd_thread
-        self._home_thread.finished_signal.connect(self._home_finished)
-        return True
-
-    def _home_finished(self):
-        responses = getattr(self._home_thread, "responses", None) or [""]
-        self.homed = homing_succeeded(responses[-1])
+        return self.run_commands(HOME, activity=ms.ACTIVITY_HOMING)
 
     def jog(self, dx_mm, dy_mm, speed):
         """Déplacement relatif de `dx_mm`, `dy_mm`, à `speed` mm/min."""
@@ -245,11 +273,13 @@ class MachineConnection(QObject):
         messages passent par les signaux stream_*, status_updated et log.
         None (rien n'est envoyé) si un job ou des commandes sont déjà en cours : deux envois
         mélangeraient leurs lignes dans GRBL."""
-        if self.is_streaming() or self._commands_running():
+        if self.is_busy():
             log.warning("Connexion : job refusé, graveur occupé")
             return None
         self.last_sent_gcode = gcode_text
         self.streamer = GCodeStreamerThread(self.usb, gcode_text)
+        # Branché avant on_finished : quand l'appelant apprend la fin, le graveur est déjà libre.
+        self.streamer.finished_signal.connect(self._stream_finished)
         self.streamer.lines_sent.connect(self.stream_lines_sent)
         self.streamer.lines_acked.connect(self.stream_lines_acked)
         self.streamer.progress.connect(self.stream_progress)
@@ -257,8 +287,14 @@ class MachineConnection(QObject):
         self.streamer.status_updated.connect(self.status_updated)
         self.streamer.finished_signal.connect(on_finished)
         self.streamer.connection_lost.connect(self._on_stream_connection_lost)
+        self._activity = ms.ACTIVITY_STREAMING
+        self._refresh_state()
         self.streamer.start()
         return self.streamer
+
+    def _stream_finished(self, _clean_finish):
+        self._activity = None
+        self._refresh_state()
 
     def check_position_after_stream(self):
         """Après un job arrêté sur erreur GRBL : si le reset a eu lieu
@@ -276,6 +312,8 @@ class MachineConnection(QObject):
         port = self.port
         if not port:
             return
+        self._reconnecting = True
+        self._refresh_state()
         self.reconnecting.emit()
         self._reconnect_thread = ReconnectThread(
             self.usb, port, getattr(self.usb, "last_baudrate", 115200))
@@ -283,6 +321,7 @@ class MachineConnection(QObject):
         self._reconnect_thread.start()
 
     def _on_reconnect_result(self, success):
+        self._reconnecting = False
         if success:
             self.homed = False
             self.start_status_poll()

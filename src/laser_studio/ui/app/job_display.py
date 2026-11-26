@@ -151,7 +151,8 @@ class JobDisplay(QObject):
         self.connection = connection
         panel = self.machine_panel
         c = connection
-        c.connection_changed.connect(lambda _connected: self.update_connection())
+        c.connection_changed.connect(lambda _connected: self.update_machine_state())
+        c.state_changed.connect(lambda _state: self.update_machine_state())
         c.status_updated.connect(self.status_updated)
         c.log.connect(self._log)
         c.position_lost.connect(lambda: self._log(tr("laser.position_lost_log")))
@@ -165,19 +166,18 @@ class JobDisplay(QObject):
         e.ports_changed.connect(panel.connection_panel.set_ports)
         e.disconnected.connect(lambda: self.show_machine_state(None, None, None, None))
         e.direct_job_started.connect(self._direct_job_started)
-        e.direct_job_finished.connect(lambda: panel.jog_panel.set_send_enabled(True))
         e.stream_starting.connect(self._stream_starting)
         e.stream_ended.connect(self._stream_ended)
         e.gcode_restored.connect(self.console.set_gcode)
         e.job_done.connect(beep_job_done)
-        self.update_connection()
+        self.update_machine_state()
 
-    def update_connection(self):
-        """Bouton de connexion, pilotage, actions de job et console directe
-        verrouillés tant que le graveur n'est pas connecté (MachinePanel.set_connected).
-        La position du job reste modifiable : elle sert aussi à générer le
-        G-Code hors connexion."""
-        self.machine_panel.set_connected(self.connection.is_connected())
+    def update_machine_state(self):
+        """Bouton de connexion, pilotage, actions de job, macros et console directe actifs d'après l'état
+        du graveur (MachinePanel.set_machine_state, table de models/machine_state.py) : tout grisé
+        déconnecté, seules les commandes temps réel pendant un job ou un homing. La position du job reste
+        modifiable : elle sert aussi à générer le G-Code hors connexion."""
+        self.machine_panel.set_machine_state(self.connection.is_connected(), self.connection.can)
 
     def status_updated(self, state, x, y, z):
         """État et position du graveur (sondage hors job, thread d'envoi
@@ -202,10 +202,9 @@ class JobDisplay(QObject):
             self.preview.clear_head_position()
 
     def _direct_job_started(self):
-        """« Envoyer au laser » : bouton d'envoi grisé pendant le job, « Répéter »
-        disponible, suivi du G-Code envoyé remis à zéro."""
+        """« Envoyer au laser » : « Répéter » disponible (une fois le job fini, voir update_machine_state),
+        suivi du G-Code envoyé remis à zéro."""
         panel = self.machine_panel
-        panel.jog_panel.set_send_enabled(False)
         panel.job_actions_panel.set_repeat_enabled(True)
         panel.sent_gcode_log.clear_lines()
         panel.sent_gcode_log.append_lines([tr("queue.sent_log_direct")])

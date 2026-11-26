@@ -69,6 +69,8 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Panneau du graveur : les boutons s'activent d'après l'état du graveur. Pendant une gravure ou un homing, seuls Pause, Reprise, Reset et Arrêt d'urgence restent actifs ; en alarme, le homing, le déverrouillage et la console restent disponibles, mais plus les déplacements ni l'envoi d'un job ; déconnecté, tout est grisé. Le bouton de connexion est grisé pendant une gravure. Un raccourci qui tente quand même une action dit pourquoi elle est refusée (graveur occupé, ou en alarme).
+
 Génération du G-Code d'une image plus rapide : environ deux fois moins de temps pour une image en noir et blanc très détaillée (30 % de moins en niveaux de gris). Le G-Code produit ne change pas.
 
 L'ancienne « découpe SVG » autour de l'image, qui n'était plus proposée mais revenait avec un ancien projet qui l'avait cochée, est supprimée : elle traçait au laser un trait entre deux contours d'un même chemin (un « O », une forme avec un trou). Les calques de découpe font ce travail.

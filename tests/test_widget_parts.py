@@ -86,8 +86,9 @@ class WidgetPartsTests(unittest.TestCase):
         for button in commands.findChildren(QToolButton):
             button.click()
         self.assertEqual(received, [[()]] * 5)
-        commands.set_send_enabled(False)
+        commands.set_allowed(lambda action: action == "realtime")           # pendant un job
         self.assertFalse(commands.send_button.isEnabled())
+        self.assertTrue(all(b.isEnabled() for b in commands.realtime_buttons))
 
     def test_machine_params_profile_round_trip(self):
         """Profil machine : porté par le modèle MachineConfig, auquel la page est liée."""

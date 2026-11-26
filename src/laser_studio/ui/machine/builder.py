@@ -12,8 +12,8 @@ from laser_studio.ui.machine.panel import MachinePanel
 def build_machine_panel(engraver, connection, max_speed, *, max_speed_changed, help_parent):
     """Les sous-panneaux émettent les demandes de l'utilisateur, transmises à `engraver`
     (EngraverController). `max_speed` borne le curseur de vitesse du pilotage, puis suit
-    `max_speed_changed` (Paramètres du graveur). Commandes verrouillées tant que `connection`
-    n'est pas connectée (puis JobDisplay.update_connection)."""
+    `max_speed_changed` (Paramètres du graveur). Boutons actifs d'après l'état de `connection`
+    (MachineConnection.can, puis JobDisplay.update_machine_state)."""
     panel = MachinePanel(QStandardItemModel(help_parent), max_speed)
     ports = panel.connection_panel
     ports.refresh_requested.connect(engraver.refresh_ports)
@@ -35,6 +35,6 @@ def build_machine_panel(engraver, connection, max_speed, *, max_speed_changed, h
     job_actions.set_work_zero_requested.connect(engraver.set_work_zero)
     job_actions.go_to_work_zero_requested.connect(engraver.go_to_work_zero)
     job_actions.repeat_job_requested.connect(engraver.repeat_last_job)
-    # Commandes verrouillées tant que non connecté (puis JobDisplay.update_connection)
-    panel.set_connected(connection.is_connected())
+    # Boutons actifs d'après l'état du graveur (puis JobDisplay.update_machine_state)
+    panel.set_machine_state(connection.is_connected(), connection.can)
     return panel

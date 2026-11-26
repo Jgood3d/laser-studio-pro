@@ -41,8 +41,8 @@ class Engraver:
     resume_status_poll: Callable[[], None]
     # Plus aucun job en cours (notification, état des boutons...).
     jobs_finished: Callable[[], None]
-    # Job ou commandes déjà en cours sur le graveur : la file ne démarre pas.
-    is_busy: Callable[[], bool] = lambda: False
+    # Un job peut-il partir (connecté, ni job, ni homing, ni alarme) ? Sinon, le dit à l'utilisateur.
+    may_send: Callable[[], bool] = lambda: True
 
 
 class JobQueueController:
@@ -198,13 +198,8 @@ class JobQueueController:
             log.warning("File : vide, abandon")
             self._dialogs.warning(tr("queue.empty_title"), tr("queue.status_empty"))
             return
-        if not engraver.is_connected():
-            log.warning("File : graveur non connecté, abandon")
-            self._dialogs.warning(tr("queue.usb_error"), tr("queue.usb_connect"))
-            return
-        if engraver.is_busy():
-            log.warning("File : graveur occupé, abandon")
-            self._dialogs.warning(tr("laser.busy_title"), tr("laser.busy"))
+        if not engraver.may_send():
+            log.warning("File : envoi impossible dans l'état du graveur (%s), abandon", engraver.last_state())
             return
         if not engraver.confirm_homed():
             log.info("File : annulée à l'avertissement « pas de homing »")

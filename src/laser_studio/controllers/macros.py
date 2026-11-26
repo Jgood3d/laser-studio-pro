@@ -1,16 +1,17 @@
 """Macros de l'utilisateur : les envoyer au graveur et les modifier.
 
-    macros = MacroController(model, engraver, connection, dialogs, profile_name=machines.current_name,
+    macros = MacroController(model, engraver, dialogs, profile_name=machines.current_name,
                              edit=lambda macros, profiles, read, write: MacroEditorDialog(...).run())
     panel.macro_requested.connect(macros.run)
 
-Une macro part par EngraverController.send_direct (comme le zéro ou le retour au zéro) : graveur connecté,
-jamais pendant l'envoi d'un job. Une macro qui allume le laser est toujours confirmée (Non par défaut) ; les
+Une macro part par EngraverController.send_direct (comme le zéro ou le retour au zéro), seulement si l'état
+du graveur le permet (models/machine_state.py : prêt, ni job, ni homing, ni alarme). Une macro qui allume le laser est toujours confirmée (Non par défaut) ; les
 autres seulement si la case « Confirmer » est cochée.
 """
 from laser_studio.grbl.macros import MacroError, dump_macros, load_macros
 from laser_studio.i18n import tr
 from laser_studio.i18n.errors import generator_error_text
+from laser_studio.models import machine_state as ms
 
 
 def macro_error_text(error):
@@ -19,15 +20,13 @@ def macro_error_text(error):
 
 
 class MacroController:
-    """`model` : MacrosModel ; `engraver` : EngraverController ; `connection` : MachineConnection (job en
-    cours ?) ; `dialogs` : UserDialogs. `profile_name()` : profil machine affiché ; `profiles()` : noms des
+    """`model` : MacrosModel ; `engraver` : EngraverController ; `dialogs` : UserDialogs. `profile_name()` : profil machine affiché ; `profiles()` : noms des
     profils (filtre des macros). L'éditeur est la page « Macros » de la fenêtre Paramètres : il est rempli par
     editor_args() et sa liste validée passe par save()."""
 
-    def __init__(self, model, engraver, connection, dialogs, *, profile_name=lambda: None, profiles=lambda: []):
+    def __init__(self, model, engraver, dialogs, *, profile_name=lambda: None, profiles=lambda: []):
         self.model = model
         self.engraver = engraver
-        self.connection = connection
         self.dialogs = dialogs
         self._profile_name = profile_name
         self._profiles = profiles
@@ -41,10 +40,7 @@ class MacroController:
         if not 0 <= index < len(self.model.macros):
             return False
         macro = self.model.macros[index]
-        if self.connection.is_streaming():
-            self.dialogs.warning(tr("macros.title"), tr("macros.busy"))
-            return False
-        if not self.engraver.require_connection("laser.connect_via_usb"):
+        if not self.engraver.allowed(ms.MACRO, "laser.connect_via_usb"):
             return False
         gcode = "\n".join(macro.gcode)
         if macro.fires_laser:

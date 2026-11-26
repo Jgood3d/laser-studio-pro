@@ -240,7 +240,7 @@ class FullLaserStudio(QMainWindow):
         self.job.generated.connect(self.job_history_recorder.remember_estimate)
         # Macros de l'utilisateur : boutons du panneau des actions de job, filtrés par profil machine.
         # « Gérer les macros » : la page « Macros » de la fenêtre Paramètres.
-        self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver, self.connection,
+        self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver,
                                    self.machines, self.dialogs, parent=self,
                                    manage=lambda: self.window_controller.show_settings_window("macros"))
         # Actions qui touchent plusieurs parties de la fenêtre (thème, langue, réglages, caméra, matrice,

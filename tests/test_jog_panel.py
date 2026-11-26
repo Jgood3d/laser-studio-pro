@@ -21,6 +21,7 @@ try:
     from laser_studio.ui.app.job_display import JobDisplay
     from laser_studio.core.constants import JOG_DEFAULT_SPEED, JOG_SPEED_MIN, JOG_STEPS_MM
     from laser_studio.i18n import tr
+    from laser_studio.models import machine_state as ms
 except ImportError:  # PyQt6, pyserial... manquants
     JogControlPanel = None
 
@@ -112,20 +113,20 @@ class JogControlPanelTests(unittest.TestCase):
             self.assertIn(tr(key), tooltips, key)
         self.assertEqual(panel.findChildren(QPushButton), [])     # boutons à icône seulement
 
-    def test_send_button_can_be_disabled_during_a_job(self):
+    def test_buttons_follow_the_machine_state(self):
+        """Pendant un job : seules pause, reprise, reset et arrêt d'urgence restent actifs ; en alarme : le
+        homing aussi ; prêt : tout ; déconnecté : rien. Les curseurs restent réglables."""
         panel = self.make()
-        button = self.button(panel, tr("ui.send_to_laser"))
-        panel.set_send_enabled(False)
-        self.assertFalse(button.isEnabled())
-        panel.set_send_enabled(True)
-        self.assertTrue(button.isEnabled())
-
-    def test_set_connected_locks_the_panel(self):
-        panel = self.make()
-        panel.set_connected(False)
-        self.assertFalse(panel.isEnabled())
-        panel.set_connected(True)
-        self.assertTrue(panel.isEnabled())
+        send = self.button(panel, tr("ui.send_to_laser"))
+        pause = self.button(panel, tr("ui.pause"))
+        for state, jog, home, realtime, can_send in ((ms.STREAMING, False, False, True, False),
+                                                     (ms.ALARM, False, True, True, False),
+                                                     (ms.READY, True, True, True, True),
+                                                     (ms.DISCONNECTED, False, False, False, False)):
+            panel.set_allowed(lambda action, s=state: ms.allowed(s, action))
+            self.assertEqual((all(b.isEnabled() for b in panel.jog_buttons), panel.home_button.isEnabled(),
+                              pause.isEnabled(), send.isEnabled()), (jog, home, realtime, can_send), state)
+            self.assertTrue(panel.speed_slider.isEnabled())
 
     def test_speed_never_exceeds_the_machine_max_speed(self):
         panel = self.make(max_speed=6000)
@@ -143,13 +144,10 @@ class JogControlPanelTests(unittest.TestCase):
 
 class _Box:
     def __init__(self):
-        self.enabled = None
+        self.connected = self.can = None
 
-    def setEnabled(self, value):
-        self.enabled = value
-
-    def set_connected(self, value):
-        self.enabled = value
+    def set_machine_state(self, connected, can):
+        self.connected, self.can = connected, can
 
 
 @unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")
@@ -162,23 +160,25 @@ class CommandsLockTests(unittest.TestCase):
     def make(self, connected):
         display = JobDisplay(None, None, None, _Box(), None, None, layers=None, test_matrix=lambda: None,
                              show_preview=lambda: None, log=lambda _text: None, show_machine_panel=lambda: None)
-        display.connection = mock.Mock(is_connected=lambda: connected)
+        display.connection = mock.Mock(is_connected=lambda: connected, can=lambda action: connected)
         return display
 
-    def test_commands_follow_the_connection(self):
+    def test_commands_follow_the_machine_state(self):
         for connected in (False, True):
             display = self.make(connected)
-            display.update_connection()
-            self.assertEqual(display.machine_panel.enabled, connected)
+            display.update_machine_state()
+            self.assertEqual(display.machine_panel.connected, connected)
+            self.assertEqual(display.machine_panel.can(ms.JOG), connected)
 
     def test_machine_panel_locks_commands_but_not_the_state(self):
         app = QApplication.instance() or QApplication([])  # noqa: F841
         panel = MachinePanel(QStandardItemModel(), 6000)
         self.addCleanup(panel.deleteLater)
         for connected in (False, True):
-            panel.set_connected(connected)
+            state = ms.READY if connected else ms.DISCONNECTED
+            panel.set_machine_state(connected, lambda action, s=state: ms.allowed(s, action))
             connection = panel.connection_panel
-            self.assertEqual((panel.jog_panel.isEnabled(), panel.job_actions_panel.is_connected(),
+            self.assertEqual((panel.jog_panel.home_button.isEnabled(), panel.job_actions_panel.buttons["frame"].isEnabled(),
                               connection.console.isEnabled()), (connected, connected, connected))
             self.assertTrue(panel.job_actions_panel.buttons["macros"].isEnabled())
             self.assertEqual(connection.connect_button.text(),
@@ -232,8 +232,8 @@ class CommandsLockTests(unittest.TestCase):
                                         "addWidget(self.jog_panel", "addWidget(self.job_actions_panel")]
         self.assertNotIn("dro_panel", src)
         self.assertEqual(order, sorted(order))
-        self.assertRegex(src, r"# Commandes verrouillées tant que non connecté.*\s+"
-                              r"panel\.set_connected\(connection\.is_connected\(\)\)")
+        self.assertRegex(src, r"# Boutons actifs d'après l'état du graveur.*\s+"
+                              r"panel\.set_machine_state\(connection\.is_connected\(\), connection\.can\)")
 
 
 @unittest.skipIf(JogControlPanel is None, "PyQt6 non importable ici")

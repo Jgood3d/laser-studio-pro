@@ -5,6 +5,7 @@ from PyQt6.QtGui import QFont, QFontMetrics
 from PyQt6.QtWidgets import QHBoxLayout, QProgressBar, QVBoxLayout, QWidget
 
 from laser_studio.i18n import tr
+from laser_studio.models import machine_state as ms
 from laser_studio.ui.machine.connection import ConnectionPanel
 from laser_studio.ui.machine.controls import JogControlPanel
 from laser_studio.ui.machine.job_actions import JobActionsPanel
@@ -27,7 +28,7 @@ class MachinePanel(QWidget):
         panel.connection_panel.connect_requested.connect(engraver.toggle_connection)
         panel.connection_panel.unlock_requested.connect(engraver.unlock)
         panel.jog_panel.jog_requested.connect(engraver.jog)
-        panel.set_connected(False)
+        panel.set_machine_state(False, connection.can)
         panel.set_status("Idle", 12.5, 30.0, 0.0)
         panel.sent_gcode_log.append_lines(["G21"])
 
@@ -52,18 +53,16 @@ class MachinePanel(QWidget):
 
     # -- état reçu de la fenêtre / du contrôleur
 
-    def set_connected(self, connected):
-        """Verrouille les commandes tant que le graveur n'est pas connecté.
-
-        Le bouton de connexion affiche l'état, la console directe suit la
-        connexion ; le suivi du G-Code envoyé reste lisible.
+    def set_machine_state(self, connected, can):
+        """Boutons actifs d'après l'état du graveur : `can(action)` (MachineConnection.can, table de
+        models/machine_state.py). Le bouton de connexion affiche « Connecter » ou « Déconnecter » selon
+        `connected` ; le suivi du G-Code envoyé reste lisible.
         """
-        for panel in (
-            self.connection_panel,
-            self.jog_panel,
-            self.job_actions_panel,
-        ):
-            panel.set_connected(connected)
+        self.connection_panel.set_connected(connected)
+        self.connection_panel.connect_button.setEnabled(can(ms.CONNECT) or can(ms.DISCONNECT))
+        self.connection_panel.console.set_connected(can(ms.CONSOLE))
+        self.jog_panel.set_allowed(can)
+        self.job_actions_panel.set_allowed(can)
 
     def set_status(self, state, x=0.0, y=0.0, z=0.0):
         """État GRBL (cadre Connexion) et position en mm (sous le pilotage).

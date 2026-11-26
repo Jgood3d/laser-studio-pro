@@ -4,6 +4,8 @@ from PyQt6.QtCore import QPointF, Qt, pyqtSignal
 from PyQt6.QtGui import QIcon, QPen, QPolygonF
 from PyQt6.QtWidgets import QGridLayout, QGroupBox, QPushButton, QStyle, QWidget
 
+from laser_studio.models import machine_state as ms
+
 from laser_studio.i18n import tr
 from laser_studio.ui.utils import painted_icon, themed_icon, tool_button
 
@@ -37,7 +39,7 @@ class JobActionsPanel(QGroupBox):
     def __init__(self, parent=None):
         super().__init__(tr("ui.job_actions_box"), parent)
         self.buttons = {}
-        self._connected = True
+        self._can_send = True
         self._repeat_allowed = False
         grid = QGridLayout(self)
         grid.setSpacing(4)
@@ -64,26 +66,24 @@ class JobActionsPanel(QGroupBox):
 
     # -- état reçu de la fenêtre / du contrôleur
 
-    def set_connected(self, connected):
-        """Déverrouille les actions et les boutons des macros si le graveur est connecté. Le bouton
-        « Macros… » reste toujours actif : on prépare ses macros sans graveur branché."""
-        self._connected = connected
+    def set_allowed(self, can):
+        """`can(action)` (MachineConnection.can) : cadrage et zéros (ms.JOG), macros (ms.MACRO), « Répéter »
+        (ms.SEND_JOB, une fois un job envoyé). Le bouton « Macros… » reste toujours actif : on prépare ses
+        macros sans graveur branché."""
         for name, button in self.buttons.items():
             if name not in ("macros", "repeat"):
-                button.setEnabled(connected)
-        self.macro_area.setEnabled(connected)
+                button.setEnabled(can(ms.JOG))
+        self.macro_area.setEnabled(can(ms.MACRO))
+        self._can_send = can(ms.SEND_JOB)
         self._update_repeat()
 
     def set_repeat_enabled(self, enabled):
-        """Active « Répéter le dernier job » une fois un job envoyé (et le graveur connecté)."""
+        """Active « Répéter le dernier job » une fois un job envoyé (si un job peut partir)."""
         self._repeat_allowed = enabled
         self._update_repeat()
 
-    def is_connected(self):
-        return self._connected
-
     def _update_repeat(self):
-        self.buttons["repeat"].setEnabled(self._connected and self._repeat_allowed)
+        self.buttons["repeat"].setEnabled(self._can_send and self._repeat_allowed)
 
     def set_macros(self, entries):
         """Boutons des macros : `entries` = (rang, nom, infobulle, allume le laser). Le rang est renvoyé par

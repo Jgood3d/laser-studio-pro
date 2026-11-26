@@ -53,6 +53,9 @@ class _USB:
     def __init__(self, response):
         self.response = response
 
+    def is_connected(self):
+        return True
+
     def send_command(self, cmd):
         return self.response
 

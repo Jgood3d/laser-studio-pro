@@ -366,6 +366,18 @@ TEXTS = {
         "de": "Ein Auftrag oder Befehl wird gerade gesendet. Warte das Ende ab (oder stoppe ihn), bevor du etwas anderes sendest.",
         "es": "Se está enviando un trabajo o un comando. Espera a que termine (o deténlo) antes de enviar otra cosa.",
     },
+    "laser.alarm_title": {
+        "fr": "Graveur en alarme",
+        "en": "Engraver in alarm",
+        "de": "Graviergerät im Alarm",
+        "es": "Grabador en alarma",
+    },
+    "laser.alarm_blocked": {
+        "fr": "Le graveur est en alarme (fin de course, reset pendant un mouvement…). Déverrouille-le ou fais un homing avant de le déplacer ou d'envoyer un job.",
+        "en": "The engraver is in alarm (limit switch, reset while moving…). Unlock it or home it before moving it or sending a job.",
+        "de": "Das Graviergerät ist im Alarm (Endschalter, Reset während einer Bewegung…). Entsperre es oder führe eine Referenzfahrt aus, bevor du es bewegst oder einen Auftrag sendest.",
+        "es": "El grabador está en alarma (final de carrera, reinicio en movimiento…). Desbloquéalo o haz un homing antes de moverlo o de enviar un trabajo.",
+    },
     "laser.connect_first": {
         "fr": "Connecte d'abord le laser.",
         "en": "Connect the laser first.",
@@ -710,12 +722,6 @@ TEXTS = {
         "en": "Job Queue",
         "de": "Auftragswarteschlange",
         "es": "Cola de trabajos",
-    },
-    "queue.usb_error": {
-        "fr": "Erreur USB",
-        "en": "USB Error",
-        "de": "USB-Fehler",
-        "es": "Error USB",
     },
     "queue.usb_connect": {
         "fr": "Connecte le laser en USB.",

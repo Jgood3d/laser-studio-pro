@@ -19,6 +19,7 @@ from laser_studio.core.constants import (
     JOG_STEPS_MM,
 )
 from laser_studio.i18n import tr
+from laser_studio.models import machine_state as ms
 from laser_studio.ui.machine.controls.realtime_commands import RealtimeCommands
 from laser_studio.ui.machine.status import AxisPositionRow
 from laser_studio.ui.utils import painted_icon, themed_icon, tool_button
@@ -48,8 +49,9 @@ class JogControlPanel(QGroupBox):
         panel.jog_requested.connect(engraver.jog)
         panel.home_requested.connect(engraver.home)
 
-    Il reçoit l'état de la machine par set_connected(), set_max_speed() et
-    set_position() (X, Y, Z affichés sous les commandes).
+    Il reçoit l'état de la machine par set_allowed() (boutons actifs d'après
+    models/machine_state.py), set_max_speed() et set_position() (X, Y, Z
+    affichés sous les commandes).
     """
 
     # Déplacement relatif demandé : dx et dy en mm, vitesse en mm/min.
@@ -87,9 +89,13 @@ class JogControlPanel(QGroupBox):
 
     # -- état reçu de la fenêtre / du contrôleur
 
-    def set_connected(self, connected):
-        """Déverrouille les commandes si le graveur est connecté."""
-        self.setEnabled(connected)
+    def set_allowed(self, can):
+        """`can(action)` (MachineConnection.can) : flèches (ms.JOG), homing (ms.HOME), commandes temps réel
+        et envoi. Les curseurs de pas et de vitesse restent réglables."""
+        for button in self.jog_buttons:
+            button.setEnabled(can(ms.JOG))
+        self.home_button.setEnabled(can(ms.HOME))
+        self.realtime_commands.set_allowed(can)
 
     def set_position(self, x, y=0.0, z=0.0):
         """Position de la machine en mm ; `x` à None : inconnue (tirets)."""
@@ -123,6 +129,7 @@ class JogControlPanel(QGroupBox):
         """Croix des 8 flèches, avec le homing au centre."""
         grid = QGridLayout()
         grid.setSpacing(4)
+        self.jog_buttons = []
         for row, col, dx, dy, angle in ARROWS:
             button = tool_button(
                 self._arrow_icon(angle), self._axes_text(dx, dy)
@@ -131,6 +138,7 @@ class JogControlPanel(QGroupBox):
                 lambda _checked=False, x=dx, y=dy: self._request_jog(x, y)
             )
             grid.addWidget(button, row, col)
+            self.jog_buttons.append(button)
         home = tool_button(
             themed_icon(
                 self,
@@ -141,6 +149,7 @@ class JogControlPanel(QGroupBox):
         )
         home.clicked.connect(self.home_requested)
         grid.addWidget(home, 1, 1)
+        self.home_button = home
         return grid
 
     def _realtime_commands(self):
