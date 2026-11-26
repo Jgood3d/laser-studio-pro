@@ -9,10 +9,12 @@ import math
 
 from laser_studio.gcode.common import LaserMoves, power_value
 from laser_studio.models.layer_modes import (
-    MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, layer_laser_cmd, layer_overscan_enabled,
+    MODE_CUT as CUT_MODE, MODE_FILL as ENGRAVE_MODE, MODE_PERF as PERF_MODE, layer_laser_cmd, layer_overscan_enabled,
 )
 from laser_studio.vector.kerf import compensate_kerf
+from laser_studio.vector.lead import add_leads
 from laser_studio.vector.order import nesting_depths, order_layers_for_cutting, order_polygons_inner_first
+from laser_studio.vector.perforate import perforate
 from laser_studio.vector.tabs import cut_runs, effective_count, is_closed, perimeter
 
 # Écart (mm) sous lequel un tracé dont le dernier point n'est pas exactement le premier est tout de même
@@ -95,6 +97,30 @@ def _layer_tabs(layer):
     return (count, width) if count > 0 and width > 0 else (0, 0.0)
 
 
+def _pass_power(layer, pass_num, n_passes):
+    """Puissance (%) de la passe `pass_num` (0, 1, …) sur `n_passes` : celle du calque, ou, si la rampe est
+    activée, une montée (ou une descente) linéaire de la puissance du calque (première passe) à la puissance
+    finale `ramp_power` (dernière passe). Sans effet à une seule passe."""
+    power = float(layer["power"])
+    if n_passes < 2 or not layer.get("ramp", False):
+        return power
+    try:
+        final = float(layer.get("ramp_power") or power)
+    except (TypeError, ValueError):
+        return power
+    return power + (final - power) * pass_num / (n_passes - 1)
+
+
+def _layer_perf(layer):
+    """(trait, vide) en mm de la perforation d'un calque ; valeurs par défaut si le calque ne les a pas
+    (ancien projet, valeur inutilisable)."""
+    try:
+        dash, gap = float(layer.get("perf_dash") or 2.0), float(layer.get("perf_gap") or 1.0)
+    except (TypeError, ValueError):
+        return 2.0, 1.0
+    return (dash, gap) if dash > 0 and gap > 0 else (2.0, 1.0)
+
+
 def _layer_kerf(layer):
     """Largeur de la saignée (mm) à compenser pour ce calque ; 0.0 si la compensation est désactivée
     (case décochée, ancien projet, valeur inutilisable)."""
@@ -106,8 +132,20 @@ def _layer_kerf(layer):
         return 0.0
 
 
+def _layer_lead(layer):
+    """Rayon (mm) des arcs d'entrée et de sortie de ce calque ; 0.0 s'ils sont désactivés (case décochée,
+    ancien projet, valeur inutilisable)."""
+    if not layer.get("lead", False):
+        return 0.0
+    try:
+        return max(0.0, float(layer.get("lead_radius") or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _tabbed_polygons(polygons, count, width):
-    """Tracés de découpe avec leurs ponts de maintien : (nouvelle liste de tracés, nombre de ponts posés).
+    """Tracés de découpe avec leurs ponts de maintien : (nouvelle liste de tracés, nombre de ponts posés,
+    liste parallèle : True pour un tronçon issu d'un contour à ponts).
 
     Seuls les contours extérieurs fermés reçoivent des ponts : les trous (contour contenu dans un nombre
     impair d'autres contours) tombent avec leur chute, et un pont n'y retiendrait que la chute. Un contour
@@ -115,16 +153,19 @@ def _tabbed_polygons(polygons, count, width):
     couper d'un même contour restent côte à côte, dans l'ordre d'origine des tracés : l'ordre de découpe
     (intérieur avant extérieur, plus proche voisin) n'est pas modifié."""
     depths = nesting_depths(polygons)
-    result, placed = [], 0
+    result, placed, is_run = [], 0, []
     for poly, depth in zip(polygons, depths):
         if depth % 2 == 0 and is_closed(poly):
             n = effective_count(perimeter(poly), count, width)
             if n:
-                result.extend(cut_runs(poly, count, width))
+                runs = cut_runs(poly, count, width)
+                result.extend(runs)
+                is_run.extend([True] * len(runs))
                 placed += n
                 continue
         result.append(poly)
-    return result, placed
+        is_run.append(False)
+    return result, placed, is_run
 
 
 def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
@@ -247,14 +288,34 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
             n_passes = max(1, int(layer.get("passes") or 1))
             # Ponts de maintien (calque de découpe seulement) : voir _tabbed_polygons.
             tab_count, tab_width = _layer_tabs(layer)
+            is_tab_run = [False] * len(polygons)
             if layer["mode"] == CUT_MODE and tab_count > 0:
-                cut_polygons, n_tabs = _tabbed_polygons(polygons, tab_count, tab_width)
+                cut_polygons, n_tabs, is_tab_run = _tabbed_polygons(polygons, tab_count, tab_width)
                 if n_tabs:
                     gcode.append(f"; Ponts de maintien : {n_tabs} (largeur {tab_width:g} mm)")
             else:
                 cut_polygons = polygons
+            # Arcs d'entrée et de sortie (calque de découpe seulement) : sur les contours fermés qui n'ont
+            # pas de ponts (un tronçon de pont démarre sur le pont même, la marque n'y gêne pas).
+            lead_radius = _layer_lead(layer) if layer["mode"] == CUT_MODE else 0.0
+            if lead_radius > 0:
+                cut_polygons, n_led, n_no_room = add_leads(cut_polygons, polygons, lead_radius, is_tab_run)
+                note = f"; Arcs d'entrée/sortie : rayon {lead_radius:g} mm ({n_led} contours)"
+                if n_no_room:
+                    note += f" ; ATTENTION : {n_no_room} contour(s) sans arc, faute de place"
+                gcode.append(note)
+            # Perforation : le tracé est coupé par traits séparés de vides.
+            if layer["mode"] == PERF_MODE:
+                perf_dash, perf_gap = _layer_perf(layer)
+                cut_polygons, n_dashes = perforate(cut_polygons, perf_dash, perf_gap)
+                gcode.append(f"; Perforation : trait {perf_dash:g} mm, vide {perf_gap:g} mm ({n_dashes} traits)")
+            ramped = n_passes > 1 and bool(layer.get("ramp", False))
             for pass_num in range(n_passes):
-                if n_passes > 1:
+                pass_percent = _pass_power(layer, pass_num, n_passes)
+                pass_val = power_value(pass_percent, s_max)
+                if ramped:
+                    gcode.append(f"; Passe {pass_num + 1}/{n_passes} (puissance {pass_percent:.0f} %)")
+                elif n_passes > 1:
                     gcode.append(f"; Passe {pass_num + 1}/{n_passes}")
                 for poly in cut_polygons:
                     if len(poly) < 2:
@@ -272,9 +333,9 @@ def build_vector_layers_gcode(layers_data, base_offset_x, base_offset_y, h_mm,
                         pts = poly
                     for (px, py) in pts[1:]:
                         nx, ny = to_gcode_xy(px, py)
-                        moves.move(nx, ny, power_val, speed)
+                        moves.move(nx, ny, pass_val, speed)
                         total_time_seconds += (math.hypot(nx - cx, ny - cy) / max(speed, 1)) * 60.0
-                        power_samples.append(layer["power"])
+                        power_samples.append(pass_percent)
                         cx, cy = nx, ny
 
     moves.off()

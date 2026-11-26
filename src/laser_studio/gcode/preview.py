@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, normalize_mode
+from laser_studio.models.layer_modes import MODE_CUT, MODE_FILL, MODE_MARK, MODE_PERF, normalize_mode
 
 # Presets matière : fond + couleur de la zone gravée.
 # lightens=False : plus de puissance = plus sombre (bois, papier).
@@ -196,7 +196,7 @@ def is_raster_group(group, matrix_engrave):
 
     - image de l'application, calque en gravure remplie : image ;
     - matrice de test : image en mode gravure (`matrix_engrave`), sinon traits ;
-    - découpe SVG, calques en découpe ou marquage : traits ;
+    - découpe SVG, calques en découpe, marquage ou perforation : traits ;
     - G-Code importé sans repère : image s'il ressemble à un balayage."""
     if group.kind == KIND_RASTER:
         return True
@@ -204,7 +204,7 @@ def is_raster_group(group, matrix_engrave):
         return bool(matrix_engrave)
     if group.kind == KIND_SVG_CUT:
         return False
-    if group.mode in (MODE_CUT, MODE_MARK):
+    if group.mode in (MODE_CUT, MODE_MARK, MODE_PERF):
         return False
     if group.mode == MODE_FILL:
         return True
@@ -256,6 +256,19 @@ def cut_contours(segment_lists):
 
     def is_closed(chain, tolerance=0.05):
         return _gap(chain[0], chain[-1]) < tolerance
+
+    def without_leads(chain):
+        """Un contour muni d'arcs d'entrée et de sortie repasse deux fois par son point de départ (à la fin
+        de l'arc d'entrée, puis au début de l'arc de sortie) : le contour fermé est ce qui les sépare."""
+        seen = {}
+        for index, (x, y) in enumerate(chain):
+            key = (round(x, 2), round(y, 2))
+            if key in seen and index - seen[key] >= 3:
+                return chain[seen[key]:index + 1]
+            seen.setdefault(key, index)
+        return chain
+
+    contours = [chain if is_closed(chain) else without_leads(chain) for chain in contours]
 
     # Rejoint les tronçons qu'un pont sépare : [contour, nombre de tronçons, départ de chaque tronçon].
     # Un tronçon qui repart d'un départ déjà vu est la passe suivante du même contour : il en commence un

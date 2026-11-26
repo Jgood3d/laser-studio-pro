@@ -17,15 +17,17 @@ G-Code rechargé).
 MODE_FILL = "engrave_fill"     # gravure remplie (balayage)
 MODE_CUT = "cut"               # découpe (contour, passes)
 MODE_MARK = "mark"             # marquage (contour)
+MODE_PERF = "perforate"        # perforation (contour en pointillé : traits séparés de vides)
 
-LAYER_MODES = (MODE_FILL, MODE_CUT, MODE_MARK)
+LAYER_MODES = (MODE_FILL, MODE_CUT, MODE_MARK, MODE_PERF)
 # Modes qui ne tracent que le contour : le pas de remplissage n'y sert pas.
-CONTOUR_MODES = (MODE_CUT, MODE_MARK)
+CONTOUR_MODES = (MODE_CUT, MODE_MARK, MODE_PERF)
 
 LAYER_MODE_TR_KEYS = {
     MODE_CUT: "layers.mode.cut",
     MODE_FILL: "layers.mode.fill",
     MODE_MARK: "layers.mode.mark",
+    MODE_PERF: "layers.mode.perforate",
 }
 
 # Anciens libellés enregistrés -> code.
