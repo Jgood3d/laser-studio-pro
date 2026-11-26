@@ -20,6 +20,7 @@ from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.controllers.project import ProjectController
 from laser_studio.core.debug_log import get_logger
 from laser_studio.i18n import tr
+from laser_studio.gcode.rotary import RotaryConfig, surface_y
 from laser_studio.models.grbl import GrblConfig
 from laser_studio.models.image_settings import ImageSettings, ImageSettingsHistory
 from laser_studio.models.job_placement import JobPlacement
@@ -342,6 +343,7 @@ class FullLaserStudio(QMainWindow):
             log=self.log_message,
             show_machine_panel=lambda: self.bottom_panel.show_page("machine"),
             duration_factor=lambda: duration_factor(self.job_history.entries(), self.machines.current_name()),
+            surface_y=lambda y: surface_y(y, RotaryConfig.from_settings(self.grbl)),
             parent=self,
         )
         display = self.job_display
