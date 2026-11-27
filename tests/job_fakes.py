@@ -18,6 +18,9 @@ class FakeDialogs:
     def __init__(self, answer=True, path="", text=None):
         self.answer, self.path, self.text = answer, path, text
         self.calls = []
+        # Compte à rebours avant la gravure : durées demandées, à part de `calls` (qui garde les questions) ;
+        # countdown_answer à False : l'utilisateur l'annule.
+        self.countdowns, self.countdown_answer = [], True
 
     def _record(self, kind, title, text):
         self.calls.append((kind, title, text))
@@ -27,6 +30,10 @@ class FakeDialogs:
 
     def notify(self, text):
         self._record("notify", None, text)
+
+    def countdown(self, seconds):
+        self.countdowns.append(seconds)
+        return self.countdown_answer
 
     def warning(self, title, text):
         self._record("warning", title, text)

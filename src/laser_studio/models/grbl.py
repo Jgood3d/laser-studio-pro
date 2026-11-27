@@ -24,6 +24,7 @@ class GrblConfig(SettingsModel):
       overscan_dist_mm, overscan_pct : surbalayage ;
     - scan_offset_mm : décalage des lignes retour ;
     - safe_cut_order : découpe des formes intérieures d'abord ;
+    - countdown_s : compte à rebours avant la gravure, en secondes (0 : aucun), pour mettre ses lunettes ;
     - rotary_enabled, rotary_axis, rotary_drive, rotary_object_mm, rotary_roller_mm, rotary_mm_per_turn :
       axe rotatif (voir gcode/rotary.py) ; `rotary_enabled` n'est PAS enregistré dans les profils : il
       reste décoché à chaque démarrage, pour ne jamais lancer un job à plat avec le rotatif par erreur ;
@@ -45,6 +46,8 @@ class GrblConfig(SettingsModel):
         # diodes ne s'allument qu'à partir de 1 ou 2 % ; 0 : cadrage laser éteint.
         "frame_power_pct": (float, 0.5),
         "safe_cut_order": (bool, True),
+        # Secondes de compte à rebours avant la gravure (le temps de mettre ses lunettes) ; 0 : aucun.
+        "countdown_s": (int, 5),
         "start_gcode": (str, DEFAULT_START_GCODE),
         "end_gcode": (str, DEFAULT_END_GCODE),
         "grbl_settings": (str, ""),
@@ -68,7 +71,7 @@ class GrblConfig(SettingsModel):
     # du surbalayage est enregistré par son code (0 = distance fixe,
     # 1 = pourcentage).
     MECHANICAL_FIELDS = ("homing_enabled", "scan_offset_mm", "overscan_enabled",
-                         "overscan_mode", "overscan_dist_mm", "overscan_pct", "frame_power_pct",
+                         "overscan_mode", "overscan_dist_mm", "overscan_pct", "frame_power_pct", "countdown_s",
                          "rotary_axis", "rotary_drive", "rotary_object_mm", "rotary_roller_mm",
                          "rotary_mm_per_turn")
     # Enregistrés quand le profil est mis à jour (« Mettre à jour »).

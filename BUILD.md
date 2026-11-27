@@ -73,8 +73,8 @@ Release).
    l'équipe (SignPath l'exige) ;
 2. publier une première version **non signée** (tag `v3.0.0`, release
    publiée) : SignPath ne signe que ce qui est déjà publié sous cette forme ;
-3. faire un lien vers `CODE_SIGNING.md` depuis le `README.md` (page
-   d'accueil du projet) ;
+3. le `README.md` (page d'accueil du projet) renvoie déjà vers
+   `CODE_SIGNING.md`, dans « Pour les développeurs » ;
 4. candidater sur [signpath.org/apply](https://signpath.org/apply) ; la
    réponse prend de quelques jours à quelques semaines, sans recours en cas
    de refus ;

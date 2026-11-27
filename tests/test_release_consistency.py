@@ -1,5 +1,5 @@
-"""Cohérence de la version : application, journal des modifications, README, notes de version, fiche
-AppStream (packaging/linux/*.metainfo.xml) et spec RPM (packaging/fedora/)."""
+"""Cohérence de la version : application, journal des modifications, README (et sa version anglaise), notes de
+version, fiche AppStream (packaging/linux/*.metainfo.xml) et spec RPM (packaging/fedora/)."""
 import glob
 import os
 import re
@@ -56,11 +56,14 @@ class ReleaseConsistencyTests(unittest.TestCase):
         if os.path.exists(os.path.join(REPO, name)):
             self.assertTrue(read(name).startswith(f"## [{self.app_version()}]"))
 
-    def test_new_modules_are_documented_in_the_readme(self):
-        readme = read("README.md")
+    def test_new_modules_are_documented_in_the_project_structure(self):
+        structure = read("CONTRIBUTING.md")          # « Structure du projet », sortie du README
         for module in ("vector/dxf.py", "vector/box_generator.py", "vector/importers.py", "settings_window.py"):
             if os.path.exists(os.path.join(ROOT, module)):
-                self.assertIn(f"`{module}`", readme, f"{module} absent de la structure du README")
+                self.assertIn(f"`{module}`", structure, f"{module} absent de la structure du projet (CONTRIBUTING.md)")
+
+    def test_english_readme_announces_the_current_version(self):
+        self.assertIn(f"## What's new in version {self.app_version()}", read("README-EN.md"))
 
 
 if __name__ == "__main__":
