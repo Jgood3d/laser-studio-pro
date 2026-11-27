@@ -4,6 +4,9 @@ import os
 import sys
 import unittest
 
+import numpy as np
+from scipy import ndimage
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(REPO, "src"))
 from laser_studio.vector import ornament_generator as og  # noqa: E402
@@ -424,44 +427,43 @@ class MotifLayoutTests(unittest.TestCase):
 
 
 def _grid_components(inside, bounds, res, min_cells=5):
-    """Nombre de morceaux de matière d'une fonction `inside(x, y)` sur une grille (sans Qt) : les miettes de moins de
-    `min_cells` cases (pointes très fines) sont ignorées."""
+    """Nombre de morceaux de matière d'une fonction `inside(xs, ys)` (tableaux numpy de points) sur une grille
+    (sans Qt) : les miettes de moins de `min_cells` cases (pointes très fines) sont ignorées. Voisinage par les
+    côtés (haut, bas, gauche, droite), comme un parcours case par case."""
     x0, y0, x1, y1 = bounds
     nx, ny = int((x1 - x0) / res) + 1, int((y1 - y0) / res) + 1
-    grid = [[inside(x0 + i * res, y0 + j * res) for j in range(ny)] for i in range(nx)]
-    seen = [[False] * ny for _ in range(nx)]
-    pieces = 0
-    for i in range(nx):
-        for j in range(ny):
-            if grid[i][j] and not seen[i][j]:
-                stack, cells = [(i, j)], 0
-                seen[i][j] = True
-                while stack:
-                    a, b = stack.pop()
-                    cells += 1
-                    for da, db in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                        c, d = a + da, b + db
-                        if 0 <= c < nx and 0 <= d < ny and grid[c][d] and not seen[c][d]:
-                            seen[c][d] = True
-                            stack.append((c, d))
-                if cells >= min_cells:
-                    pieces += 1
-    return pieces
+    xs, ys = np.meshgrid(x0 + np.arange(nx) * res, y0 + np.arange(ny) * res, indexing="ij")
+    labels, count = ndimage.label(inside(xs, ys))
+    sizes = np.bincount(labels.ravel())[1:]
+    return int(np.count_nonzero(sizes >= min_cells))
+
+
+def _in_polygons(xs, ys, polys):
+    """om.point_in_polygon pour des tableaux de points d'un coup (même lancer de rayon), réuni sur `polys`."""
+    found = np.zeros(xs.shape, dtype=bool)
+    for poly in polys:
+        pts = np.asarray(poly, dtype=float)
+        inside = np.zeros(xs.shape, dtype=bool)
+        for (a0, b0), (a1, b1) in zip(pts, np.roll(pts, -1, axis=0)):
+            with np.errstate(divide="ignore", invalid="ignore"):
+                inside ^= ((b0 > ys) != (b1 > ys)) & (xs < (a1 - a0) * (ys - b0) / (b1 - b0) + a0)
+        found |= inside
+    return found
+
+
+def _shape_material(shape):
+    """MotifShape.contains, pour des tableaux de points : formes tardives, ou pleines moins découpes."""
+    return lambda xs, ys: _in_polygons(xs, ys, shape.late) | (
+        _in_polygons(xs, ys, shape.solids) & ~_in_polygons(xs, ys, shape.cuts))
 
 
 def _ball_material(geo):
     """La matière réellement découpée (sans prénom) : anneau + accroche, plus motifs et tiges dans le disque."""
-    def poly_in(x, y, polys):
-        return any(om.point_in_polygon(x, y, p) for p in polys)
-
-    def inside(x, y):
-        if poly_in(x, y, geo.holes):
-            return False
-        if poly_in(x, y, geo.outer) and not poly_in(x, y, geo.voids):
-            return True
-        if math.hypot(x, y) > geo.radius:
-            return False
-        return poly_in(x, y, geo.late) or (poly_in(x, y, geo.solids) and not poly_in(x, y, geo.cuts))
+    def inside(xs, ys):
+        ring = _in_polygons(xs, ys, geo.outer) & ~_in_polygons(xs, ys, geo.voids)
+        disc = np.hypot(xs, ys) <= geo.radius
+        motifs = _in_polygons(xs, ys, geo.late) | (_in_polygons(xs, ys, geo.solids) & ~_in_polygons(xs, ys, geo.cuts))
+        return ~_in_polygons(xs, ys, geo.holes) & (ring | (disc & motifs))
     return inside
 
 
@@ -477,7 +479,7 @@ class ContactTests(unittest.TestCase):
                     shape = build(h, style)
                     bounds = (min(p[0] for p in shape._points()) - 1, shape.ymin - 1,
                               max(p[0] for p in shape._points()) + 1, shape.ymax + 1)
-                    self.assertEqual(_grid_components(shape.contains, bounds, 0.2), 1, (name, style, h))
+                    self.assertEqual(_grid_components(_shape_material(shape), bounds, 0.2), 1, (name, style, h))
 
     def test_bell_knob_overlaps_the_dome(self):
         bell = om.bell_shape(18.0)
