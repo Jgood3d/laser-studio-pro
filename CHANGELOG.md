@@ -6,7 +6,12 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
 ## [Non publié]
 
+### Ajouté
+Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
+
 ### Modifié
+Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
+
 Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel affichent leur raccourci dans l'infobulle (Supprimer (Suppr), Dupliquer (Ctrl+D)…), d'après la même table que le clavier, et les boutons du panneau du graveur aussi : Pause (F7), Arrêt d'urgence (F9), Envoyer au laser (Ctrl+Entrée). Leurs infobulles ne sont plus en majuscules.
 
 État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.

@@ -9,6 +9,12 @@ terminée.
 Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 **Aide › Documentation**.
 
+Au premier démarrage, la fenêtre **Premiers pas** propose quatre étapes :
+choisir votre machine dans le catalogue, vous connecter, faire un homing et
+essayer un cadrage. Chaque étape se coche quand elle est faite. Elle revient
+tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par
+**Aide › Premiers pas**.
+
 ## ⚠ Avertissement de sécurité
 
 > **Un graveur laser est une machine dangereuse qui ne doit jamais
@@ -175,6 +181,9 @@ vous le rappelle avant de partir avec l'ancien G-code.
 
 Dans les panneaux de réglages, la molette fait défiler le panneau : elle ne
 modifie un champ qu'après un clic dedans.
+
+Au clavier, **Tab** passe d'un champ ou d'un bouton au suivant : celui qui a
+le focus est entouré (ou souligné pour un onglet), et **Espace** l'active.
 
 Si un travail s'arrête avant la fin (alarme, arrêt, coupure de courant), le
 bouton vert de reprise (**F8**) ou **Reprendre le job** (cadre Jobs du

@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from PyQt6.QtCore import QEvent, QPoint, QPointF, Qt
+    from PyQt6.QtCore import QPoint, QPointF, Qt
     from PyQt6.QtGui import QWheelEvent
     from PyQt6.QtWidgets import QApplication, QDoubleSpinBox, QScrollArea, QVBoxLayout, QWidget
     from job_fakes import FakeDialogs, make_job

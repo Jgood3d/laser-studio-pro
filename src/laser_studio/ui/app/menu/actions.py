@@ -78,6 +78,7 @@ class AppActions(QObject):
     bottom_panel_toggled = pyqtSignal(bool)  # True : panneau du bas déplié (Ctrl+J)
     # Aide
     documentation_requested = pyqtSignal()
+    first_steps_requested = pyqtSignal()
     about_requested = pyqtSignal()
     support_requested = pyqtSignal()
     coffee_requested = pyqtSignal()
@@ -364,6 +365,8 @@ class AppActions(QObject):
             self.documentation_requested,
         )
         self.documentation.setShortcut(QKeySequence.StandardKey.HelpContents)
+        # Premiers pas : machine, connexion, homing, cadrage (controllers/first_steps.py).
+        self.first_steps = self._action(QIcon(), tr("menu.help.first_steps"), self.first_steps_requested)
         self.about = self._action(
             standard_icon(
                 QIcon.ThemeIcon.HelpAbout,
