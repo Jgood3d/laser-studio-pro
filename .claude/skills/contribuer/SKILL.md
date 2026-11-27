@@ -90,6 +90,19 @@ En pratique :
 - Tout texte affiché passe par `tr("clé")`, avec la clé dans les quatre langues
   de `src/laser_studio/i18n/texts/` (fr, en, de, es), dans le module de la zone
   concernée (vector, box, machine, image…).
+- Un seul style de libellé, dans les quatre langues :
+  - majuscule au premier mot seulement (« Temps estimé », pas « Temps Estimé ») ;
+    les noms propres gardent la leur (G-Code, GRBL, Laser Studio Pro) ;
+  - l'unité entre parenthèses avant les deux-points : « Largeur (mm) : » ;
+  - en français, une espace avant « : », « ; », « ? » et « ! », des guillemets
+    « », et « … » en un seul caractère ; pas d'espace avant les deux-points en
+    anglais, en allemand ni en espagnol ;
+  - pas de mot anglais dans un texte français quand le mot français existe
+    (« Décalage X », pas « Offset X ») ;
+  - réutiliser un libellé qui existe déjà (`git grep '"fr": "Largeur :"'`)
+    plutôt que d'en créer un presque pareil ;
+  - ne pas changer un libellé marqué comme relu dans les anciens projets
+    (commentaire au-dessus de la clé) : c'est une valeur enregistrée.
 - Avant d'ajouter une méthode, cherche si elle existe déjà ailleurs
   (`git grep "def nom_de_la_methode"`) : pas de doublon entre l'ancien et le
   nouveau code.

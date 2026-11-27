@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(REPO, "src"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtWidgets import QApplication, QToolButton
     from laser_studio.controllers.vector_editor import VectorEditorController
     from laser_studio.models.layers import LayersModel
     from laser_studio.models.machine import MachineConfig
@@ -185,7 +185,7 @@ class EditorTests(unittest.TestCase):
                     '<path d="M 5 5 L 55 5 L 55 35 Z"/></svg>')
         self.editor.importer.import_file(path)
         self.assertEqual(len(self.document.objects), 1)
-        self.assertEqual((shown, self.dialogs.kinds()), ([True], ["info"]))
+        self.assertEqual((shown, self.dialogs.kinds()), ([True], ["notify"]))
         self.document.undo()
         self.assertEqual(self.document.objects, [])
 
@@ -340,9 +340,24 @@ class TabCommandsTests(unittest.TestCase):
         self.tab.command.connect(got.append)
         self.tab.top_buttons["import"].click()
         next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_generators")).trigger()
-        next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_nesting")).trigger()
+        self.tab.edit_actions["nesting"].trigger()                      # dans le menu « Disposer »
         next(a for a in self.tab.edit_toolbar.actions() if a.text() == tr("ui.vector_rotate_90")).trigger()
         self.assertEqual(got, ["import", "generators", "nesting", "rotate"])
+
+    def test_rare_tools_are_grouped_in_named_menus(self):
+        # Barre d'édition : 12 boutons au lieu de 19 ; les outils plus rares sont dans « Disposer » et
+        # « Tracés et textes », chacun avec son nom écrit dans le menu.
+        bar = self.tab.edit_toolbar
+        buttons = [a for a in bar.actions() if not a.isSeparator()]
+        self.assertEqual(len(buttons), 12)
+        arrange, paths = self.tab.group_actions["arrange"], self.tab.group_actions["paths"]
+        self.assertIn(arrange, buttons)
+        self.assertEqual([a.text() for a in arrange.menu().actions()],
+                         [self.tab.edit_actions[n].text() for n in ("serial", "nesting", "jig")])
+        self.assertEqual(len(paths.menu().actions()), 4)
+        self.assertFalse(any(a.text().startswith("🧩") for a in arrange.menu().actions()))   # pas d'emoji
+        self.assertEqual(bar.widgetForAction(arrange).popupMode(), QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.assertEqual(arrange.toolTip(), tr("vector.group_arrange_tip"))
 
     def test_draw_tool_goes_through_the_controller(self):
         self.tab.draw_tool_requested.connect(self.editor.choose_draw_tool)

@@ -5,9 +5,13 @@ nudge_requested).
     command = key_command(event)            # "copy", "delete"… ou None
     zoom_direction(event)                   # +1, -1 ou 0
     arrow_nudge(event)                      # (dx, dy, maj, alt) ou None
+    command_shortcut("group")               # « Ctrl+G »
+    with_shortcut("Grouper", "group")       # « Grouper (Ctrl+G) » : infobulle du bouton
 """
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence
+
+from laser_studio.i18n import tr
 
 # Raccourcis standard de la plateforme (Ctrl+Z, Ctrl+Y ou Ctrl+Maj+Z…) et leur commande.
 STANDARD_COMMANDS = (
@@ -37,6 +41,28 @@ def key_command(event):
     if _control(event) and event.key() in CONTROL_COMMANDS:
         return CONTROL_COMMANDS[event.key()]
     return PLAIN_COMMANDS.get(event.key())
+
+
+def command_shortcut(command):
+    """Raccourci de la commande `command` tel que l'affiche la plateforme (« Ctrl+G », « Suppr »…), ou "" :
+    l'infobulle du bouton le montre, d'après la même table que le clavier."""
+    sequences = [QKeySequence(standard) for standard, name in STANDARD_COMMANDS if name == command]
+    sequences += [QKeySequence(Qt.KeyboardModifier.ControlModifier.value | key.value)
+                  for key, name in CONTROL_COMMANDS.items() if name == command]
+    if command in PLAIN_COMMANDS.values():
+        return tr("keys.delete")                                  # Qt écrirait « Del » dans toutes les langues
+    sequences += {"zoom_in": [QKeySequence(QKeySequence.StandardKey.ZoomIn)],
+                  "zoom_out": [QKeySequence(QKeySequence.StandardKey.ZoomOut)]}.get(command, [])
+    return sequences[0].toString(QKeySequence.SequenceFormat.NativeText) if sequences else ""
+
+
+def with_shortcut(tooltip, command):
+    """Infobulle `tooltip` suivie du raccourci de `command` entre parenthèses, s'il en a un et qu'elle ne le
+    donne pas déjà."""
+    shortcut = command_shortcut(command) if command else ""
+    if shortcut and f"({shortcut})" not in tooltip:
+        return f"{tooltip} ({shortcut})"
+    return tooltip
 
 
 def zoom_direction(event):

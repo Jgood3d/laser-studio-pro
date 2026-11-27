@@ -137,6 +137,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/…/builder.py` — un builder par partie de l’interface (onglets, éditeur vectoriel, panneau machine, pages de réglages) : crée la vue et sa logique et les relie, avec ses dépendances en paramètres
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Job — raccourcis F5 à F8 —, Outils, Aide ; « Paramètres… » et l’historique sont dans Fichier), `AppToolBar`
+- `controllers/first_steps.py` — Premiers pas au premier démarrage (`FirstStepsController` : catalogue, connexion, homing, cadrage), fenêtre dans `ui/dialogs/first_steps/`
 - `controllers/window.py` — contrôleur de la fenêtre (`WindowController`), qui fait ouvrir ses fenêtres par `ui/app/window_forms.py` (`WindowForms`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
 - `ui/app/window_state.py` — ce que la fenêtre enregistre et restaure (`WindowState`) : réglages machine, champs d’un profil machine, état d’un projet, recopie automatique des calques dans le matériau choisi
 - `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, croix des onglets ouverts par le menu Outils (`set_closable`), plein écran, séparateurs mémorisés
@@ -158,8 +159,8 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/machine/job_position/` — cadre « Position du job » `JobPositionBox` (origine du repère et décalage X / Y, liés au modèle `JobPlacement` par `bind_placement`), à droite de l’aperçu 2D
 - `ui/machine/sent_gcode/` — suivi du G-Code envoyé `SentGcodeLog` (file et envoi direct), à gauche du panneau machine
 - `ui/tabs/png2svg/` — onglet « Vectorisation d’image » `Png2SvgTab` : widget de conversion PNG/JPEG → SVG `PngToSvgWidget` (utilise le module `converter`) et son aperçu `ZoomableSvgView` (émet `send_to_vector_requested`, `image_changed`)
-- `ui/tabs/separation/` — onglet « Séparation Couleur / Verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…), affiche ce que lui envoie `SeparationController` (`controllers/separation.py` : image source, tonalité envoyée à « Graver une image », calque couleur, aperçus, export, réglages du verre) ; réglages dans `models/separation.py` (`SeparationSettings`)
-- `ui/tabs/preview_2d/` — onglet « Visualisation 2D G-Code » `Preview2DTab` : graphique de l’aperçu du G-Code (modèle `gcode/preview.py`), point de position de la tête, traits déjà gravés en rouge pendant un job, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite une colonne étroite : `JobPositionBox`, puis `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
+- `ui/tabs/separation/` — onglet « Séparation couleur / verre » `SeparationTab` : plaque, recadrage, calques noir et couleur, simulation, aperçus, glisser-déposer (émet `tone_changed`, `preview_changed`, `image_dropped`…), affiche ce que lui envoie `SeparationController` (`controllers/separation.py` : image source, tonalité envoyée à « Graver une image », calque couleur, aperçus, export, réglages du verre) ; réglages dans `models/separation.py` (`SeparationSettings`)
+- `ui/tabs/preview_2d/` — onglet « Visualisation 2D du G-Code » `Preview2DTab` : graphique de l’aperçu du G-Code (modèle `gcode/preview.py`), point de position de la tête, traits déjà gravés en rouge pendant un job, options d’affichage (émet `plot_clicked` en mm, `display_options_changed`), et à droite une colonne étroite : `JobPositionBox`, puis `JobStatsPanel` : lignes, puissance moyenne et temps estimé du job (`set_stats`)
 - `ui/tabs/console/` — onglet « Console / G-Code » `ConsoleTab` du panneau du bas : console du G-Code généré ou importé (les messages vont dans la barre d’état)
 - `ui/app/bottom_panel.py` — `BottomPanel` : panneau du bas façon VS Code (onglets Graveur, Console G-Code, File d’attente), replié ou déplié (Ctrl+J, clic sur la pastille du graveur), déplié tout seul pendant une gravure ou en alarme ; état mémorisé
 - `ui/tabs/job_queue/` — onglet « File d’attente » `JobQueueTab` (onglet du panneau du bas, ouvert aussi par le bouton de la barre d’outils) : jobs à enchaîner (émet `run_requested`, `reordered`…) ; le G-Code envoyé est suivi dans le panneau machine (`SentGcodeLog`)
@@ -203,7 +204,7 @@ Nommage : un signal de demande `x_requested` appelle la fonction `x()` (`save_pr
 | `ImageSettingsPanel` — réglages de « Graver une image » (`ImageTab` émet `load_requested`) | `processing_changed`, `material_changed("dark" / "light")`, `size_changed(axe, mm)`, `resolution_mode_changed(int)`, `lines_per_mm_changed(float)`, `dpi_changed(float)`, `configure_focal_requested`, `save_as_focal_requested`, `undo_requested`, `redo_requested` | champs `width_spin`, `height_spin`, `brightness_slider`, `algorithm_combo`, `lines_per_mm_spin`, `resolution_stack`… |
 | `Png2SvgTab` — Vectorisation d’image | `send_to_vector_requested(svg)`, `image_changed` | `converter` (widget de conversion : `image_path`, `rotate_image()`, `clear_image()`) |
 | `LayersTab` — Calques | `layers_changed` | `refresh()`, `refresh_focal_quality()`, `link_all_to_focal()` |
-| `Preview2DTab` — Visualisation 2D G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)` | `plot_widget` (la génération y dessine), `set_bed(largeur, profondeur)` (plateau), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
+| `Preview2DTab` — Visualisation 2D du G-Code | `display_options_changed`, `plot_clicked(x_mm, y_mm)` | `plot_widget` (la génération y dessine), `set_bed(largeur, profondeur)` (plateau), `position_marker`, cases `flip_check`, `negative_check`, `hide_rapid_check`, `optimize_path_check` |
 | `ConsoleTab` — Console / G-Code | (aucun) | `console_edit` |
 | `JobQueueTab` — File d’attente | `add_current_requested`, `remove_selected_requested`, `clear_requested`, `run_requested`, `reordered` | `add_job()`, `set_jobs()`, `job_names()`, `set_status()`, `set_run_enabled()` |
 
@@ -257,6 +258,18 @@ Interface en anglais et en allemand :
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
+## Nouveautés de la version 3.0.0
+
+Une nouvelle version majeure : presque tout a changé.
+
+- **Refonte de l'interface** : onglets et panneau du bas inspirés de VS Code, éditeur vectoriel épuré, menu Job avec raccourcis clavier, une seule fenêtre de confirmation avant de graver.
+- **Refonte du style** : nouveau thème « New Dusk », libellés harmonisés dans les quatre langues.
+- **Refonte du code** : modèle MVC (modèle / vue / contrôleur), code métier séparé du code graphique, plus de 1 500 tests.
+- **Nouveaux générateurs et outils** : porte-clés, boule de Noël, boîte, puzzle, bibliothèque de modèles, macros, historique des gravures, alignement par caméra, axe rotatif (gobelets, bouteilles, stylos).
+- **Gravure plus sûre** : arrêt d'urgence toujours visible, cadrage au plus près, reprise d'un travail interrompu.
+
+Le détail est dans le [CHANGELOG](CHANGELOG.md).
+
 ## Nouveautés de la version 2.5.0
 
 - **Stencil Studio** : un nouvel espace de travail pour créer et optimiser des pochoirs et des designs vectoriels ou matriciels, accessible par un bouton de la barre de menus :
@@ -286,9 +299,9 @@ Précédemment, dans la version 2.3.0 :
 
 Précédemment, dans la version 2.2.0 :
 
-- **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser Couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
+- **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser les couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
 - **Réglages des calques mémorisés par machine** : vitesse, puissance, passes… retrouvés à la réouverture, propres à chaque profil machine.
-- **Séparation Couleur / Verre** : calque noir, calque couleur, simulation et PDF d’impression à l’échelle 1:1.
+- **Séparation couleur / verre** : calque noir, calque couleur, simulation et PDF d’impression à l’échelle 1:1.
 - **Correction importante de la gravure d’image** : le G-Code appliquait la puissance au mauvais segment ; régénérez les G-Codes d’image créés avec une version antérieure.
 - **Reset / arrêt d’urgence** : le statut « référencé » est retiré si la machine n’était pas à l’arrêt, un nouveau homing est demandé.
 - **Sauvegardes atomiques** (autosave, file d’attente, projet) : plus de fichier tronqué en cas de plantage.
@@ -394,9 +407,9 @@ Images produites par `tools/screenshots.py` (avec une image d’exemple chargée
 
 ![Vectorisation d'image](docs/screenshots/02-onglet-vectorisation-d-image.png)
 
-**Séparation Couleur / Verre :**
+**Séparation couleur / verre :**
 
-![Séparation Couleur / Verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
+![Séparation couleur / verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
 
 **Graver une image vectorielle :**
 
@@ -406,9 +419,9 @@ Images produites par `tools/screenshots.py` (avec une image d’exemple chargée
 
 ![Calques (Layers)](docs/screenshots/05-onglet-calques-layers.png)
 
-**Visualisation 2D G-Code :**
+**Visualisation 2D du G-Code :**
 
-![Visualisation 2D G-Code](docs/screenshots/06-onglet-visualisation-2d-g-code.png)
+![Visualisation 2D du G-Code](docs/screenshots/06-onglet-visualisation-2d-g-code.png)
 
 **Console / G-Code :**
 

@@ -41,7 +41,7 @@ class StatusMessagesTests(unittest.TestCase):
         bar = self.win.statusBar()
         self.assertIn(tr("status.disconnected"), bar.machine_label.text())     # au démarrage : pas de graveur
         self.win.job_display.show_machine_state("Run", 12.5, 30.0, 0.0)
-        self.assertIn("Run  ·  X 12.50  Y 30.00", bar.machine_label.text())
+        self.assertIn(tr("grbl_state.Run") + "  ·  X 12.50  Y 30.00", bar.machine_label.text())   # « En marche »
         self.assertIn("#3498db", bar.machine_label.text())                     # couleur de l'état, comme le panneau
         self.win.job_display.show_machine_state(None, None, None, None)
         self.assertIn(tr("status.disconnected"), bar.machine_label.text())

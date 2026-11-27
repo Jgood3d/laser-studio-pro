@@ -78,6 +78,7 @@ def main():
     # C'est l'étape la plus longue du démarrage, pendant laquelle le splash
     # est ainsi déjà affiché.
     from laser_studio.ui.app.main_window import FullLaserStudio
+    from laser_studio.ui.dialogs.first_steps import open_first_steps
 
     # 2. Charger la fenêtre principale avec gestion des erreurs
     try:
@@ -98,6 +99,8 @@ def main():
         # et le splash d'être affiché pendant ce temps.
         def show_main_window():
             window.showMaximized()
+            if window.first_steps.should_show_at_launch():
+                open_first_steps(window, window.first_steps)
             splash.finish(window)
 
         remaining_ms = round(SPLASH_SCREEN_DURATION * 1000) - startup_timer.elapsed()

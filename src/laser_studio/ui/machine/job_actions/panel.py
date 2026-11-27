@@ -46,6 +46,7 @@ class JobActionsPanel(QGroupBox):
         self._can_send = True
         self._repeat_allowed = False
         self._resume_allowed = False
+        self._can_resume = True
         grid = QGridLayout(self)
         grid.setSpacing(4)
         for position, (name, icon, key, signal) in enumerate(self._actions()):
@@ -82,6 +83,9 @@ class JobActionsPanel(QGroupBox):
                 button.setEnabled(can(ms.JOG))
         self.macro_area.setEnabled(can(ms.MACRO))
         self._can_send = can(ms.SEND_JOB)
+        # « Reprendre » reste cliquable en alarme (cas normal après un arrêt d'urgence) : le clic explique qu'il faut
+        # d'abord un homing ou un déverrouillage, au lieu d'un bouton grisé sans raison visible.
+        self._can_resume = self._can_send or can(ms.UNLOCK)
         self._update_repeat()
 
     def set_repeat_enabled(self, enabled):
@@ -96,7 +100,7 @@ class JobActionsPanel(QGroupBox):
 
     def _update_repeat(self):
         self.buttons["repeat"].setEnabled(self._can_send and self._repeat_allowed)
-        self.buttons["resume"].setEnabled(self._can_send and self._resume_allowed)
+        self.buttons["resume"].setEnabled(self._can_resume and self._resume_allowed)
 
     def set_macros(self, entries):
         """Boutons des macros : `entries` = (rang, nom, infobulle, allume le laser). Le rang est renvoyé par

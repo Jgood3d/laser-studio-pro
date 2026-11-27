@@ -126,6 +126,16 @@ class ShortcutsTests(unittest.TestCase):
         self.assertEqual(shortcuts.arrow_nudge(self.key(Qt.Key.Key_Up, shift)), (0, 1, True, False))
         self.assertIsNone(shortcuts.arrow_nudge(self.key(Qt.Key.Key_A)))
 
+    def test_buttons_show_their_shortcut(self):
+        # Le raccourci est affiché dans l'infobulle du bouton, d'après la même table que le clavier.
+        from laser_studio.i18n import tr
+        self.assertEqual(shortcuts.command_shortcut("group"), "Ctrl+G")
+        self.assertEqual(shortcuts.command_shortcut("delete"), tr("keys.delete"))      # « Suppr », pas « Del »
+        self.assertEqual(shortcuts.with_shortcut("Supprimer", "delete"), f"Supprimer ({tr('keys.delete')})")
+        self.assertEqual(shortcuts.with_shortcut("Annuler (Ctrl+Z)", "undo"), "Annuler (Ctrl+Z)")   # pas deux fois
+        self.assertEqual(shortcuts.with_shortcut("Pivoter", "rotate"), "Pivoter")                  # sans raccourci
+        self.assertEqual(shortcuts.with_shortcut("Fond caméra", None), "Fond caméra")
+
 
 @unittest.skipIf(DocumentItems is None, "PyQt6 non importable ici")
 class CanvasTests(unittest.TestCase):

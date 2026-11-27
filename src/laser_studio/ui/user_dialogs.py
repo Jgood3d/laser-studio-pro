@@ -8,6 +8,7 @@ mêmes méthodes et qui répond à la place de l'utilisateur.
     dialogs = UserDialogs(window)
     if dialogs.confirm(tr("gen.confirm_title"), texte):
         ...
+    dialogs.notify(tr("project.save_success"))     # réussite : barre d'état, sans fenêtre à fermer
 """
 from PyQt6.QtWidgets import (QDialog, QDialogButtonBox, QFileDialog, QInputDialog, QLabel, QMessageBox,
                              QPushButton, QVBoxLayout)
@@ -27,6 +28,17 @@ class UserDialogs:
 
     def info(self, title, text):
         QMessageBox.information(self.parent, title, text)
+
+    def notify(self, text):
+        """Une réussite (projet enregistré, import, export…) : message dans la barre d'état de la fenêtre, le
+        texte complet en infobulle, sans fenêtre à fermer. Sans barre d'état (fenêtre à part), une boîte."""
+        window = self.parent.window() if self.parent is not None else None
+        status_bar = getattr(window, "statusBar", None)
+        bar = status_bar() if callable(status_bar) else None
+        if bar is not None and hasattr(bar, "show_log"):
+            bar.show_log(text)
+        else:
+            QMessageBox.information(self.parent, "", text)
 
     def warning(self, title, text):
         QMessageBox.warning(self.parent, title, text)

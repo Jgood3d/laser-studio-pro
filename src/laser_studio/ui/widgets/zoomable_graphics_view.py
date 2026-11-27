@@ -3,6 +3,7 @@ from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, 
 from PyQt6.QtCore import Qt, QEvent, QRectF
 from PyQt6.QtGui import QPainter, QPixmap, QWheelEvent, QAction
 
+from laser_studio.i18n import tr
 from laser_studio.ui.app.theme import theme_color
 
 
@@ -61,7 +62,7 @@ class ZoomableGraphicsView(QGraphicsView):
         """Affiche le menu contextuel au clic droit avec l'option Déplacer."""
         menu = QMenu(self)
         
-        move_action = QAction("Déplacer", self)
+        move_action = QAction(tr("view.move"), self)
         move_action.setCheckable(True)
         move_action.setChecked(self._is_move_mode)
         move_action.triggered.connect(self.toggle_move_mode)
@@ -69,7 +70,7 @@ class ZoomableGraphicsView(QGraphicsView):
         
         menu.addSeparator()
         
-        reset_action = QAction("Réinitialiser la vue", self)
+        reset_action = QAction(tr("view.reset"), self)
         reset_action.triggered.connect(lambda: self.fitInView(self.pixmap_item, Qt.AspectRatioMode.KeepAspectRatio))
         menu.addAction(reset_action)
 

@@ -20,7 +20,7 @@ règle le canevas directement. Le panneau des propriétés
 from PyQt6.QtCore import QSize, Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (QCheckBox, QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout,
-                             QLabel, QSplitter, QStyle, QToolBar, QVBoxLayout,
+                             QLabel, QMenu, QSplitter, QStyle, QToolBar, QToolButton, QVBoxLayout,
                              QWidget)
 
 from laser_studio.i18n import tr
@@ -28,6 +28,7 @@ from laser_studio.ui.utils import import_button, palette_icon
 from laser_studio.ui.vector_editor.empty_hint import EmptyCanvasHint
 from laser_studio.ui.vector_editor.objects_panel import ObjectsPanel
 from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets
+from laser_studio.ui.vector_editor.shortcuts import with_shortcut
 from laser_studio.ui.widgets import FloatingToolBar
 
 # Largeur de la colonne de droite (barre d'édition, liste des objets et propriétés), en px.
@@ -60,6 +61,12 @@ EDIT_ACTIONS = (
     ("zoom_in", "ui.vector_zoom_in", "zoom-in"),
     ("zoom_out", "ui.vector_zoom_out", "zoom-out"),
 )
+# Outils plus rares de la barre d'édition, rangés dans un bouton à menu nommé (la barre passe de 19 à 12 icônes) :
+# groupe -> (clé du libellé, icône, commandes). Le bouton prend la place du premier outil du groupe.
+EDIT_GROUPS = {
+    "arrange": ("vector.group_arrange", "view-grid", ("serial", "nesting", "jig")),
+    "paths": ("vector.group_paths", "format-node-curve", ("explode", "nodes", "text_follow", "medal")),
+}
 # Barre de gauche : ajouter un objet, puis la bibliothèque de modèles.
 CREATE_ACTIONS = (
     ("text", "ui.vector_add_text", "insert-text"),
@@ -90,6 +97,24 @@ ALIGN_ACTIONS = (
 # Toutes les commandes émises par l'onglet.
 COMMANDS = ("import", "box", "puzzle", "ornament", "keychain") + tuple(
     entry[0] for entry in EDIT_ACTIONS + CREATE_ACTIONS + ALIGN_ACTIONS if entry) + ("library",)
+
+
+def _grouped(entries, actions, make_menu):
+    """Actions de la barre d'édition, celles d'un groupe (EDIT_GROUPS) remplacées par le bouton à menu du groupe,
+    à la place de son premier outil ; make_menu(groupe) crée l'action du bouton. None = séparateur."""
+    group_of = {name: group for group, (_key, _icon, names) in EDIT_GROUPS.items() for name in names}
+    result, menus = [], {}
+    for entry, action in zip(entries, actions):
+        group = group_of.get(entry[0]) if entry else None
+        if group is None:
+            result.append(action)
+            continue
+        if group not in menus:
+            menus[group] = make_menu(group)
+            result.append(menus[group])
+        action.setText(action.toolTip())                # dans un menu, le libellé sans pictogramme
+        menus[group].menu().addAction(action)
+    return result
 
 
 def _toolbar(actions):
@@ -163,11 +188,19 @@ class VectorEditorTab(QWidget):
         """Action des barres d'outils : `text`, infobulle `tooltip`, icône Breeze dans la couleur du thème ;
         émet command(`command`) si elle est donnée."""
         action = QAction(text, self)
-        action.setToolTip(tooltip)
+        action.setToolTip(with_shortcut(tooltip, command))           # le raccourci là où on le cherche
         if icon_name:
             action.setIcon(palette_icon(icon_name, self.palette()))
         if command is not None:
             action.triggered.connect(lambda _checked=False, name=command: self.command.emit(name))
+        return action
+
+    def _group_action(self, group):
+        """Bouton à menu d'un groupe d'outils (EDIT_GROUPS) : icône, libellé en infobulle, menu titré."""
+        key, icon, _names = EDIT_GROUPS[group]
+        action = self._action(tr(key), tr(f"{key}_tip"), icon_name=icon)
+        action.setMenu(QMenu(tr(key), self))
+        self.group_actions[group] = action
         return action
 
     @staticmethod
@@ -206,8 +239,9 @@ class VectorEditorTab(QWidget):
     def _toolbars(self):
         # Édition de la sélection : barre d'icônes, le libellé en infobulle.
         edit_actions = self._actions(EDIT_ACTIONS, lambda name, key, icon: self._action(
-            tr(key), tr(key).lstrip("↻↶↷ "), name, icon))
+            tr(key), tr(key).lstrip("↻↶↷🧩 "), name, icon))
         edit_actions[0].setToolTip(tr("ui.vector_generators_tip"))
+        self.edit_actions = {entry[0]: action for entry, action in zip(EDIT_ACTIONS, edit_actions) if entry}
         # Créer et dessiner : texte et forme ajoutent un objet, la bibliothèque aussi ; les outils de la souris
         # sont cochables, un seul à la fois (show_draw_tool).
         create_actions = [self._action(tr(key), tr(key).lstrip("+ "), name, icon) for name, key, icon in CREATE_ACTIONS]
@@ -238,9 +272,12 @@ class VectorEditorTab(QWidget):
         align_actions = self._actions(ALIGN_ACTIONS, lambda name, key: self._action(
             tr(key).split(" ", 1)[0], tr(f"{key}_tip"), name))
         # Édition : colonne d'icônes contre la liste des objets ; ce qui ne tient pas passe dans le menu ».
-        self.edit_toolbar = _toolbar(edit_actions)
+        self.group_actions = {}
+        self.edit_toolbar = _toolbar(_grouped(EDIT_ACTIONS, edit_actions, self._group_action))
         self.edit_toolbar.setOrientation(Qt.Orientation.Vertical)
         self.edit_toolbar.setIconSize(QSize(20, 20))
+        for group in self.group_actions.values():          # un clic ouvre le menu (pas d'action par défaut)
+            self.edit_toolbar.widgetForAction(group).setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self.align_toolbar = _toolbar(align_actions)
         self.align_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         # Pictogrammes plus grands que le texte courant, pour rester lisibles.

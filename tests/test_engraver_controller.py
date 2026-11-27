@@ -115,10 +115,15 @@ class SendJobTests(unittest.TestCase):
             self.assertEqual(dialogs.kinds(), kinds, kw)
             connection.start_stream.assert_not_called()
 
-    def test_without_homing_both_questions_are_asked(self):
+    def test_without_homing_a_single_window_lists_it(self):
+        # Une seule fenêtre : la sécurité, puis « À vérifier » avec ce qui pose problème (ici, pas de homing).
         engraver, connection, dialogs, _ = make_engraver(homed=False)
         self.assertTrue(engraver.send_job())
-        self.assertEqual([c[1] for c in dialogs.calls], [tr("laser.no_homing_title"), tr("laser.confirm_title")])
+        self.assertEqual([c[1] for c in dialogs.calls], [tr("laser.confirm_title")])
+        self.assertIn(tr("laser.check_not_homed"), dialogs.calls[0][2])
+        engraver, connection, dialogs, _ = make_engraver()                  # rien à signaler : pas de liste
+        engraver.send_job()
+        self.assertNotIn(tr("laser.check_title"), dialogs.calls[0][2])
 
     def test_end_of_a_direct_job(self):
         engraver, connection, dialogs, events = make_engraver()
@@ -143,8 +148,8 @@ class SendJobTests(unittest.TestCase):
         self.assertIn("G1 X5 S1500", dialogs.calls[0][2])
         connection.start_stream.assert_not_called()
         engraver, connection, dialogs, events = make_engraver(gcode=risky)
-        self.assertTrue(engraver.send_job())                       # confirmé, puis lancement confirmé
-        self.assertEqual(dialogs.kinds(), ["confirm_default_no", "confirm_default_no"])
+        self.assertTrue(engraver.send_job())                       # une seule fenêtre, lignes listées dedans
+        self.assertEqual(dialogs.kinds(), ["confirm_default_no"])
 
     def test_risky_lines_ignore_comments_and_harmless_dollar_commands(self):
         from laser_studio.grbl.commands import risky_lines
@@ -183,6 +188,35 @@ class SendJobTests(unittest.TestCase):
         self.assertTrue(engraver.resume_job())
         sent = connection.start_stream.call_args_list[-1][0][0].split("\n")
         self.assertEqual(sent[3:6], ["G0 X27.400 Y0.000", "G1 F1000", "G1 X28 Y0 S100 F1000"])
+
+    def test_resume_in_alarm_explains_what_to_do_first(self):
+        # Après un arrêt d'urgence, GRBL est en alarme : la reprise ne part pas, elle explique (homing ou $X).
+        job = "".join(f"G1 X{i} S100\n" for i in range(40))
+        engraver, connection, dialogs, _events = make_engraver(gcode=job, state=ms.ALARM)
+        engraver.start_stream(job, lambda clean: None)
+        engraver._lines_acked(30)
+        engraver.end_stream(False)
+        self.assertFalse(engraver.resume_job())
+        self.assertEqual(dialogs.kinds(), ["warning"])
+        connection.start_stream.assert_called_once()                # seulement l'envoi d'origine
+        self.assertIsNotNone(engraver.resume_point)                 # le point de reprise est gardé
+
+    def test_green_resume_button_resumes_the_interrupted_job(self):
+        # Le cas vécu : après l'arrêt d'urgence et le déverrouillage, on clique sur le bouton vert « Reprise »
+        # (F8) ; ~ n'y ferait rien, c'est le job interrompu qui repart. Pendant un envoi, il reste la reprise ~.
+        job = "".join(f"G1 X{i} S100\n" for i in range(40))
+        engraver, connection, dialogs, _events = make_engraver(gcode=job)
+        connection.is_streaming.return_value = False
+        engraver.start_stream(job, lambda clean: None)
+        engraver._lines_acked(30)
+        engraver.end_stream(False)
+        engraver.resume()
+        connection.resume.assert_not_called()
+        self.assertEqual(connection.start_stream.call_count, 2)       # le job repris
+        self.assertEqual(dialogs.kinds(), ["confirm_default_no"])
+        connection.is_streaming.return_value = True                  # en pause pendant l'envoi repris
+        engraver.resume()
+        connection.resume.assert_called_once()
 
     def test_pause_and_resume_keys_do_nothing_when_disconnected(self):
         engraver, connection, dialogs, events = make_engraver(connected=False)
@@ -458,16 +492,88 @@ class SimulatedWindowTests(unittest.TestCase):
             self.assertTrue(win.connection.is_connected())
             self.assertTrue(panel.jog_panel.isEnabled())                    # commandes déverrouillées
             win.tab_console_gcode.set_gcode("G21\nG90\nM4 S0\nG1 X5 Y5 F3000 S100\nG0 X0 Y0\nM5\n")
+            stop = win.main_toolbar.stop_button_action
+            self.assertFalse(stop.isVisible())
+            self.assertTrue(win.app_actions.emergency_stop.isEnabled())     # F9 : graveur connecté
             panel.jog_panel.send_job_requested.emit()
             self.assertFalse(panel.jog_panel.send_button.isEnabled())       # pendant le job
+            self.assertTrue(stop.isVisible())                               # arrêt d'urgence dans la barre
             self.assertTrue(self.wait(lambda: info.called), "le job ne s'est pas terminé")
         self.assertTrue(panel.jog_panel.send_button.isEnabled())
+        self.assertFalse(stop.isVisible())
         self.assertEqual(panel.progress_bar.value(), 100)
         sent = panel.sent_gcode_log.text_edit.toPlainText()
         self.assertIn("G1 X5 Y5 F3000 S100", sent)
         self.assertEqual(win.tab_vector_2d.burn.done, len(win.tab_vector_2d.burn.segments))   # tout est rouge
         panel.connection_panel.connect_requested.emit()                   # déconnexion
         self.assertFalse(win.connection.is_connected())
+
+    def test_first_steps_with_the_simulated_engraver(self):
+        # Aide › Premiers pas : catalogue, connexion, homing et cadrage, chaque étape cochée quand elle est faite.
+        from PyQt6.QtWidgets import QMessageBox
+        from laser_studio.ui.dialogs.first_steps import FirstStepsDialog
+        from laser_studio.ui.dialogs.machine_catalog import MachineCatalogDialog
+        win = self.win
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
+                mock.patch.object(QMessageBox, "warning"), mock.patch.object(QMessageBox, "information"):
+            win.app_actions.first_steps.trigger()
+            dialog = win.findChild(FirstStepsDialog)
+            self.addCleanup(dialog.close)
+            dialog.buttons["machine"].click()
+            (catalog,) = [w for w in QApplication.topLevelWidgets()
+                          if isinstance(w, MachineCatalogDialog) and w.isVisible()]   # le catalogue s'ouvre
+            catalog.close()
+            dialog.buttons["connect"].click()
+            self.assertTrue(self.wait(lambda: win.connection.is_connected()))
+            dialog.buttons["connect"].click()                               # déjà connecté : ne déconnecte pas
+            self.assertTrue(win.connection.is_connected())
+            dialog.buttons["home"].click()
+            self.assertTrue(self.wait(lambda: win.first_steps.done()["home"]))
+            self.assertTrue(self.wait(lambda: win.connection.state == ms.READY))
+            dialog.buttons["frame"].click()
+            self.assertEqual(win.first_steps.done(), dict.fromkeys(win.first_steps.done(), True))
+            self.assertEqual(dialog.states["home"].text(), tr("first_steps.done"))
+            self.wait(lambda: win.connection.state == ms.READY)
+        win.engraver.toggle_connection()                                    # déconnexion
+
+    def test_resume_after_an_emergency_stop(self):
+        # Le cas vécu : arrêt d'urgence en pleine gravure, alarme, déverrouillage, puis « Reprendre ».
+        from PyQt6.QtWidgets import QMessageBox
+        win, panel = self.win, self.win.machine_panel
+        resume = panel.job_actions_panel.buttons["resume"]
+        yes = QMessageBox.StandardButton.Yes
+        with mock.patch.object(QMessageBox, "question", return_value=yes), \
+                mock.patch.object(QMessageBox, "warning", return_value=yes) as warning, \
+                mock.patch.object(QMessageBox, "information"):
+            panel.connection_panel.refresh_requested.emit()
+            panel.connection_panel.connect_requested.emit()
+            job = "G21\nG90\nM4 S0\n" + "".join(f"G1 X{i % 50} Y{i // 50} F3000 S300\n" for i in range(400)) + "M5\n"
+            win.tab_console_gcode.set_gcode(job)
+            panel.jog_panel.send_job_requested.emit()
+            self.assertTrue(self.wait(lambda: win.engraver._acked > 40))
+            win.app_actions.emergency_stop.trigger()                       # F9
+            self.assertTrue(self.wait(lambda: win.connection.state == ms.ALARM))
+            self.assertTrue(self.wait(lambda: resume.isEnabled()))          # cliquable en alarme : il explique
+            warning.reset_mock()
+            resume.click()
+            self.assertIn("homing", warning.call_args[0][2])
+            self.assertFalse(win.connection.is_streaming())
+            win.engraver.unlock()
+            self.assertTrue(self.wait(lambda: win.connection.state == ms.READY and resume.isEnabled()))
+            burn = win.tab_vector_2d.burn
+            burned = burn.done
+            panel.jog_panel.resume_requested.emit()                          # bouton vert « Reprise » (F8)
+            self.assertTrue(self.wait(lambda: win.connection.is_streaming()), "la reprise n'est pas partie")
+            first_lines = win.connection.last_sent_gcode.split("\n")[:4]
+            self.assertEqual(first_lines[:3], ["G21", "M5", "G90"])
+            self.assertTrue(first_lines[3].startswith("G0 X"))                # retour, laser éteint, au point d'arrêt
+            # L'aperçu garde le job entier et le tracé déjà gravé, qui continue d'avancer (pas le reste seul).
+            self.assertEqual(win.job_display.last_gcode_text, job)
+            self.assertGreaterEqual(burn.done, burned)
+            self.assertTrue(self.wait(lambda: burn.done > burned))
+            win.engraver.emergency_stop()
+            self.wait(lambda: not win.connection.is_streaming())
+        panel.connection_panel.connect_requested.emit()
         self.assertEqual(len(win.tab_vector_2d.position_marker.getData()[0]), 0)   # plus de position
 
 

@@ -43,10 +43,12 @@ class ProjectRoundTripTests(unittest.TestCase):
         win.layer_manager.layers[0].speed = 500
         win.layers_tab.refresh()
         with mock.patch.object(QMessageBox, "critical") as critical, \
-                mock.patch.object(QMessageBox, "information") as information:
+                mock.patch.object(QMessageBox, "information") as information, \
+                mock.patch.object(win.statusBar(), "show_log") as show_log:
             win.project.open_path(path)
         critical.assert_not_called()                  # ex. AttributeError sur un widget renommé
-        information.assert_called_once()
+        information.assert_not_called()               # succès annoncé dans la barre d'état, sans fenêtre
+        show_log.assert_called_once()
         self.assertEqual(win.layer_manager.layers[3].name, "Calque du projet")
         self.assertEqual(win.layer_manager.layers[0].speed, 1234)
 

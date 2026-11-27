@@ -1,16 +1,19 @@
 """Barre d'état de la fenêtre principale : messages, progression, durée estimée et état du graveur."""
 
-from PyQt6.QtCore import QEvent, QTimer, pyqtSignal
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import QLabel, QProgressBar, QSizePolicy, QStatusBar
 
 from laser_studio.core.constants import STATUS_BAR_MESSAGE_DURATION
 from laser_studio.i18n import tr
-from laser_studio.ui.machine.status.state import STATE_COLORS, UNKNOWN_STATE_COLOR
+from laser_studio.ui.machine.status.state import STATE_COLORS, UNKNOWN_STATE_COLOR, state_text
 from laser_studio.ui.widgets import AutoHideLabel
 
 # Repères en tête des anciens messages de console : inutiles dans la barre d'état.
 CONSOLE_MARKERS = (">>>", "!!!", ";")
 
+
+# Repère orange devant « G-Code à régénérer » (balisage seulement, le texte est traduit).
+STALE_MARK = '<span style="color:#e6a700">⚠</span>&nbsp;'
 
 def status_text(text):
     """Message sur une ligne pour la barre d'état : repères de console
@@ -47,6 +50,8 @@ class StatusBar(QStatusBar):
 
     # Clic sur la pastille du graveur : la fenêtre ouvre l'onglet « Graveur » du panneau du bas.
     machine_clicked = pyqtSignal()
+    # Clic sur « G-Code à régénérer » : la fenêtre relance la génération.
+    regenerate_clicked = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -59,6 +64,13 @@ class StatusBar(QStatusBar):
         self.duration_label = QLabel()
         self.duration_label.setVisible(False)
         self.addPermanentWidget(self.duration_label)
+        self.stale_label = QLabel()
+        self.stale_label.setText(STALE_MARK + tr("status.gcode_stale"))
+        self.stale_label.setToolTip(tr("status.gcode_stale_tip"))
+        self.stale_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.stale_label.installEventFilter(self)
+        self.stale_label.setVisible(False)
+        self.addPermanentWidget(self.stale_label)
         self.machine_label = QLabel()
         self.machine_label.setToolTip(tr("status.machine_tip"))
         self.machine_label.installEventFilter(self)
@@ -111,18 +123,22 @@ class StatusBar(QStatusBar):
         self.duration_label.setText(text or "")
         self.duration_label.setVisible(bool(text))
 
+    def set_gcode_stale(self, stale):
+        """« G-Code à régénérer » : le G-Code affiché ne correspond plus aux réglages (JobController)."""
+        self.stale_label.setVisible(bool(stale))
+
     def set_machine(self, state, x=None, y=None):
         """Pastille de l'état GRBL (couleurs du panneau machine) et position de la tête ; `state` None :
         graveur déconnecté."""
         color = STATE_COLORS.get(state, UNKNOWN_STATE_COLOR)
-        text = tr("status.disconnected") if state is None else state
+        text = tr("status.disconnected") if state is None else state_text(state)
         if state is not None and x is not None and y is not None:
             text += f"  ·  X {x:.2f}  Y {y:.2f}"
         self.machine_label.setText(f'<span style="color:{color}">●</span>&nbsp;{text}')
 
     def eventFilter(self, watched, event):
-        if watched is self.machine_label and event.type() == QEvent.Type.MouseButtonRelease:
-            self.machine_clicked.emit()
+        if event.type() == QEvent.Type.MouseButtonRelease and watched in (self.machine_label, self.stale_label):
+            (self.machine_clicked if watched is self.machine_label else self.regenerate_clicked).emit()
             return True
         return super().eventFilter(watched, event)
 

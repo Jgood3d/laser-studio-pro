@@ -9,16 +9,18 @@ ImageToolbarActions (actions de la barre d'outils sur l'image).
 """
 from types import SimpleNamespace
 
-from PyQt6.QtWidgets import (QHBoxLayout, QMainWindow, QMessageBox, QScrollArea, QSplitter, QTabWidget,
+from PyQt6.QtWidgets import (QApplication, QHBoxLayout, QMainWindow, QMessageBox, QScrollArea, QSplitter, QTabWidget,
                              QVBoxLayout, QWidget)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 from laser_studio.controllers.engraver import EngraverController
+from laser_studio.controllers.first_steps import FirstStepsController
 from laser_studio.controllers.job import JobController
 from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.controllers.project import ProjectController
 from laser_studio.core.debug_log import get_logger
+from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import tr
 from laser_studio.gcode.rotary import RotaryConfig, surface_y
 from laser_studio.models.grbl import GrblConfig
@@ -55,7 +57,9 @@ from laser_studio.ui.tabs.layers.builder import build_layers_tab
 from laser_studio.ui.tabs.png2svg.builder import build_png2svg_tab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation.builder import build_separation_tab
+from laser_studio.ui.dialogs.first_steps import open_first_steps
 from laser_studio.ui.user_dialogs import UserDialogs
+from laser_studio.ui.wheel_guard import install_wheel_guard
 from laser_studio.ui.vector_editor.builder import build_vector_editor
 from laser_studio.ui.widgets import FloatingToolBar
 
@@ -69,6 +73,8 @@ class FullLaserStudio(QMainWindow):
         self.resize(1600, 980)
         
         self.setAcceptDrops(True)
+        # La molette ne change pas une valeur au passage de la souris (ui/wheel_guard.py).
+        install_wheel_guard(QApplication.instance())
         # État qui s'enregistre et se restaure : réglages machine, profils, projet, matériau choisi.
         self.state = WindowState(self)
 
@@ -115,6 +121,7 @@ class FullLaserStudio(QMainWindow):
             job_geometry=lambda: self.job.build_params(),
             set_homing_available=lambda available, tip: set_homing_available(
                 (self.tab_grbl_config.homing_check, self.tab_matrix.homing_check), available, tip),
+            gcode_stale=self.job.is_stale,
             parent=self,
         )
 
@@ -300,6 +307,13 @@ class FullLaserStudio(QMainWindow):
         self.tab_vector_editor.vectorize_requested.connect(lambda: self.tabs.show(self.tab_png2svg))
         # Aide
         actions.documentation_requested.connect(controller.show_documentation)
+        self.first_steps = FirstStepsController(self.connection, {
+            "machine": self.tab_machine_params.catalog_requested.emit,
+            "connect": lambda: (self.bottom_panel.show_page("machine"), self.engraver.ensure_connected()),
+            "home": self.engraver.home,
+            "frame": self.engraver.frame,
+        }, ui_preferences(), parent=self)
+        actions.first_steps_requested.connect(lambda: open_first_steps(self, self.first_steps))
         actions.about_requested.connect(controller.forms.about)
         actions.support_requested.connect(controller.forms.support)
         actions.coffee_requested.connect(controller.forms.coffee)
@@ -318,6 +332,11 @@ class FullLaserStudio(QMainWindow):
         actions.frame_contour_requested.connect(lambda: self.engraver.frame(contour=True))
         actions.pause_requested.connect(self.engraver.pause)
         actions.resume_requested.connect(self.engraver.resume)
+        actions.emergency_stop_requested.connect(self.engraver.emergency_stop)
+        # G-Code à régénérer : mention cliquable dans la barre d'état ; une nouvelle image tramée compte aussi.
+        self.job.gcode_stale_changed.connect(self.statusBar().set_gcode_stale)
+        self.statusBar().regenerate_clicked.connect(self.job.generate)
+        self.image.processed.connect(self.job.mark_stale)
         actions.gcode_import_requested.connect(self.job.import_gcode)
 
     def _build_app_menus(self):

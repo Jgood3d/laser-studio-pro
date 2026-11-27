@@ -13,7 +13,7 @@ TEXTS = {
         "fr": "Ouvrir une image", "en": "Open an image", "de": "Bild öffnen", "es": "Abrir una imagen",
     },
     "img.load": {
-        "fr": "Charger Image\n(ou glisser-déposer)", "en": "Load Image\n(or drag & drop)",
+        "fr": "Charger une image\n(ou glisser-déposer)", "en": "Load an image\n(or drag and drop)",
         "de": "Bild laden\n(oder per Drag & Drop)", "es": "Cargar imagen\n(o arrastrar y soltar)",
     },
     "img.delete": {
@@ -37,8 +37,8 @@ TEXTS = {
         "de": "Vertikal spiegeln", "es": "Espejo vertical",
     },
     "img.invert": {
-        "fr": "Inverser Couleurs (Négatif)", "en": "Invert Colors (Negative)",
-        "de": "Farben invertieren (Negativ)", "es": "Invertir colores (Negativo)",
+        "fr": "Inverser les couleurs (négatif)", "en": "Invert colors (negative)",
+        "de": "Farben invertieren (Negativ)", "es": "Invertir colores (negativo)",
     },
     "img.material_bg": {
         "fr": "Matière :", "en": "Material:",
@@ -199,7 +199,7 @@ TEXTS = {
         "es": "Imagen reducida para caber en la zona de trabajo: {w:.1f} x {h:.1f} mm (tamaño original: {ow:.0f} x {oh:.0f} mm, {dpi:.0f} DPI).",
     },
     "img.reset": {
-        "fr": "Réinitialiser Réglages Image", "en": "Reset Image Settings",
+        "fr": "Réinitialiser les réglages de l'image", "en": "Reset image settings",
         "de": "Bildeinstellungen zurücksetzen", "es": "Restablecer ajustes de imagen",
     },
     "ui.img_undo": {
@@ -210,10 +210,10 @@ TEXTS = {
         "fr": "Refaire un réglage image (Ctrl+Y)", "en": "Redo Image Setting (Ctrl+Y)",
         "de": "Bildeinstellung wiederholen (Strg+Y)", "es": "Rehacer ajuste de imagen (Ctrl+Y)",
     },
-    "img.brightness": {"fr": "Luminosité:", "en": "Brightness:", "de": "Helligkeit:", "es": "Brillo:"},
-    "img.contrast": {"fr": "Contraste:", "en": "Contrast:", "de": "Kontrast:", "es": "Contraste:"},
-    "img.gamma": {"fr": "Gamma:", "en": "Gamma:", "de": "Gamma:", "es": "Gamma:"},
-    "img.algorithm": {"fr": "Algorithme:", "en": "Algorithm:", "de": "Algorithmus:", "es": "Algoritmo:"},
+    "img.brightness": {"fr": "Luminosité :", "en": "Brightness:", "de": "Helligkeit:", "es": "Brillo:"},
+    "img.contrast": {"fr": "Contraste :", "en": "Contrast:", "de": "Kontrast:", "es": "Contraste:"},
+    "img.gamma": {"fr": "Gamma :", "en": "Gamma:", "de": "Gamma:", "es": "Gamma:"},
+    "img.algorithm": {"fr": "Algorithme :", "en": "Algorithm:", "de": "Algorithmus:", "es": "Algoritmo:"},
     "img.resolution": {"fr": "Résolution :", "en": "Resolution:", "de": "Auflösung:", "es": "Resolución:"},
     "img.mode_lmm": {
         "fr": "Lignes / mm", "en": "Lines / mm", "de": "Linien / mm", "es": "Líneas / mm",
@@ -506,8 +506,8 @@ TEXTS = {
         "de": "Als SVG exportieren…", "es": "Exportar como SVG…",
     },
     "png2svg.send_to_vector": {
-        "fr": "Envoyer vers l'Éditeur Vectoriel", "en": "Send to Vector Editor",
-        "de": "An Vektor-Editor senden", "es": "Enviar al Editor Vectorial",
+        "fr": "Envoyer vers l'éditeur vectoriel", "en": "Send to vector editor",
+        "de": "An den Vektoreditor senden", "es": "Enviar al editor vectorial",
     },
     "png2svg.settings": {
         "fr": "Réglages", "en": "Settings", "de": "Einstellungen", "es": "Ajustes",
@@ -625,8 +625,8 @@ TEXTS = {
         "fr": "Ajuster", "en": "Fit", "de": "Einpassen", "es": "Ajustar",
     },
     "png2svg.fullscreen_title": {
-        "fr": "Vectorisation d'image — Plein écran", "en": "Image Vectorization — Full Screen",
-        "de": "Bildvektorisierung — Vollbild", "es": "Vectorización de imagen — Pantalla completa",
+        "fr": "Vectorisation d'image — plein écran", "en": "Image vectorization — full screen",
+        "de": "Bildvektorisierung — Vollbild", "es": "Vectorización de imagen — pantalla completa",
     },
     "png2svg.close_fullscreen": {
         "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
@@ -636,33 +636,33 @@ TEXTS = {
     },
 # --- Séparation Couleur ---
     "sep.tab_title": {
-        "fr": "Séparation Couleur / Verre", "en": "Color / Glass Separation",
+        "fr": "Séparation couleur / verre", "en": "Color / glass separation",
         "de": "Farbtrennung / Glas", "es": "Separación de color / vidrio",
     },
     "sep.plate_title": {
         "fr": "Plaque de verre", "en": "Glass plate",
         "de": "Glasplatte", "es": "Placa de vidrio",
     },
-    "sep.width": {"fr": "Largeur (mm):", "en": "Width (mm):", "de": "Breite (mm):", "es": "Ancho (mm):"},
-    "sep.height": {"fr": "Hauteur (mm):", "en": "Height (mm):", "de": "Höhe (mm):", "es": "Alto (mm):"},
-    "sep.print_dpi": {"fr": "DPI Impression:", "en": "Print DPI:", "de": "Druck-DPI:", "es": "DPI de impresión:"},
-    "sep.framing": {"fr": "Cadrage:", "en": "Framing:", "de": "Ausschnitt:", "es": "Encuadre:"},
+    "sep.width": {"fr": "Largeur (mm) :", "en": "Width (mm):", "de": "Breite (mm):", "es": "Ancho (mm):"},
+    "sep.height": {"fr": "Hauteur (mm) :", "en": "Height (mm):", "de": "Höhe (mm):", "es": "Alto (mm):"},
+    "sep.print_dpi": {"fr": "Résolution d'impression (DPI) :", "en": "Print DPI:", "de": "Druck-DPI:", "es": "DPI de impresión:"},
+    "sep.framing": {"fr": "Cadrage :", "en": "Framing:", "de": "Ausschnitt:", "es": "Encuadre:"},
     "sep.crop_fit": {"fr": "Recadrer", "en": "Crop to fit", "de": "Zuschneiden", "es": "Recortar"},
     "sep.stretch": {"fr": "Étirer", "en": "Stretch", "de": "Strecken", "es": "Estirar"},
     "sep.black_layer_title": {
-        "fr": "Calque Noir (gravure)", "en": "Black Layer (engraving)",
+        "fr": "Calque noir (gravure)", "en": "Black layer (engraving)",
         "de": "Schwarze Ebene (Gravur)", "es": "Capa negra (grabado)",
     },
     "sep.color_layer_title": {
-        "fr": "Calque Couleur (impression)", "en": "Color Layer (print)",
+        "fr": "Calque couleur (impression)", "en": "Color layer (print)",
         "de": "Farbebene (Druck)", "es": "Capa de color (impresión)",
     },
-    "sep.support_medium": {"fr": "Support:", "en": "Medium:", "de": "Medium:", "es": "Soporte:"},
+    "sep.support_medium": {"fr": "Support :", "en": "Medium:", "de": "Medium:", "es": "Soporte:"},
     "sep.transparent_film": {"fr": "Film transparent", "en": "Transparent film", "de": "Klarsichtfolie", "es": "Película transparente"},
     "sep.tracing_paper": {"fr": "Papier calque", "en": "Tracing paper", "de": "Transparentpapier", "es": "Papel vegetal"},
     "sep.custom": {"fr": "Personnalisé", "en": "Custom", "de": "Benutzerdefiniert", "es": "Personalizado"},
-    "sep.saturation": {"fr": "Saturation:", "en": "Saturation:", "de": "Sättigung:", "es": "Saturación:"},
-    "sep.lightness": {"fr": "Clarté du calque:", "en": "Layer lightness:", "de": "Ebenenhelligkeit:", "es": "Claridad de la capa:"},
+    "sep.saturation": {"fr": "Saturation :", "en": "Saturation:", "de": "Sättigung:", "es": "Saturación:"},
+    "sep.lightness": {"fr": "Clarté du calque :", "en": "Layer lightness:", "de": "Ebenenhelligkeit:", "es": "Claridad de la capa:"},
     "sep.mirror_print": {
         "fr": "Miroir horizontal (impression)", "en": "Horizontal mirror (print)",
         "de": "Horizontal spiegeln (Druck)", "es": "Espejo horizontal (impresión)",
@@ -671,12 +671,12 @@ TEXTS = {
         "fr": "Simulation rétro-éclairage", "en": "Backlight simulation",
         "de": "Hintergrundbeleuchtung simulieren", "es": "Simulación de retroiluminación",
     },
-    "sep.light_diffusion": {"fr": "Diffusion lumière (mm):", "en": "Light diffusion (mm):", "de": "Lichtstreuung (mm):", "es": "Difusión de luz (mm):"},
-    "sep.backlight_intensity": {"fr": "Intensité rétro-éclairage:", "en": "Backlight intensity:", "de": "Hintergrundintensität:", "es": "Intensidad de retroiluminación:"},
+    "sep.light_diffusion": {"fr": "Diffusion de la lumière (mm) :", "en": "Light diffusion (mm):", "de": "Lichtstreuung (mm):", "es": "Difusión de luz (mm):"},
+    "sep.backlight_intensity": {"fr": "Intensité du rétroéclairage :", "en": "Backlight intensity:", "de": "Hintergrundintensität:", "es": "Intensidad de retroiluminación:"},
     "sep.export_btn": {"fr": "Exporter la séparation…", "en": "Export separation…", "de": "Trennung exportieren…", "es": "Exportar separación…"},
     "sep.tab_original": {"fr": "Original", "en": "Original", "de": "Original", "es": "Original"},
-    "sep.tab_engraving": {"fr": "Fichier Gravure", "en": "Engraving File", "de": "Gravurdatei", "es": "Archivo de grabado"},
-    "sep.tab_print": {"fr": "Fichier Impression", "en": "Print File", "de": "Druckdatei", "es": "Archivo de impresión"},
+    "sep.tab_engraving": {"fr": "Fichier de gravure", "en": "Engraving file", "de": "Gravurdatei", "es": "Archivo de grabado"},
+    "sep.tab_print": {"fr": "Fichier d'impression", "en": "Print file", "de": "Druckdatei", "es": "Archivo de impresión"},
     "sep.tab_simulation": {"fr": "Simulation", "en": "Simulation", "de": "Simulation", "es": "Simulación"},
     "sep.no_image_loaded": {"fr": "Ouvre d'abord une image.", "en": "Open an image first.", "de": "Öffne zuerst ein Bild.", "es": "Abre primero una imagen."},
     "sep.export_folder": {"fr": "Dossier d'exportation", "en": "Export Folder", "de": "Exportordner", "es": "Carpeta de exportación"},
@@ -719,7 +719,7 @@ TEXTS = {
         "es": "Resolución de grabado: {dpi} DPI (ajustada en la pestaña «Grabar una imagen»)",
     },
     "sep.gain": {
-        "fr": "Gain de point (%):", "en": "Dot gain (%):",
+        "fr": "Engraissement du point (%) :", "en": "Dot gain (%):",
         "de": "Punktzuwachs (%):", "es": "Ganancia de punto (%):",
     },
     "sep.gain_tip": {
@@ -772,15 +772,15 @@ TEXTS = {
         "es": "Activo cuando no se mantienen las proporciones y el encuadre está en recortar. El marco rojo de la pestaña Original muestra la zona grabada.",
     },
     "sep.crop_zoom": {
-        "fr": "Zoom du recadrage:", "en": "Crop zoom:",
+        "fr": "Zoom du recadrage :", "en": "Crop zoom:",
         "de": "Zoom des Ausschnitts:", "es": "Zoom del recorte:",
     },
     "sep.crop_x": {
-        "fr": "Position horizontale:", "en": "Horizontal position:",
+        "fr": "Position horizontale :", "en": "Horizontal position:",
         "de": "Horizontale Position:", "es": "Posición horizontal:",
     },
     "sep.crop_y": {
-        "fr": "Position verticale:", "en": "Vertical position:",
+        "fr": "Position verticale :", "en": "Vertical position:",
         "de": "Vertikale Position:", "es": "Posición vertical:",
     },
     "sep.crop_reset": {

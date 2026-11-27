@@ -84,7 +84,7 @@ porte-clés par prénom.
 
 ### Imbrication automatique
 
-Le bouton **Imbrication auto** (barre d'édition, à droite du canevas de l'éditeur vectoriel) place les pièces au plus serré sur la
+**Imbrication auto** (menu **Disposer** de la barre d'édition, à droite du canevas de l'éditeur vectoriel) place les pièces au plus serré sur la
 plaque, pour économiser la matière. Il tient compte de la forme réelle des
 pièces : une petite pièce peut se loger dans le creux d'une grande. Réglez
 la taille de la feuille, l'écart entre les pièces et les rotations
@@ -117,9 +117,9 @@ Dans l'onglet *Graver une image*, ce bouton affiche une vignette de votre
 image pour chaque algorithme de tramage, avec vos réglages actuels. Cliquez
 sur la vignette qui vous plaît pour choisir cet algorithme.
 
-### Séparation Couleur / Verre
+### Séparation couleur / verre
 
-L'onglet **Séparation Couleur / Verre** prépare une image en couleur sur
+L'onglet **Séparation couleur / verre** prépare une image en couleur sur
 verre : la partie sombre est gravée sur le verre, la couleur est imprimée
 sur un film transparent collé au dos. Une simulation montre le rendu
 rétro-éclairé, et une grille de test aide à régler le gain de point.
@@ -128,7 +128,7 @@ rétro-éclairé, et une grille de test aide à régler le gain de point.
 
 ### Matrice de test
 
-**Outils › Matrice de Test** grave une grille de cases, chacune avec une
+**Outils › Matrice de test** grave une grille de cases, chacune avec une
 puissance et une vitesse différentes. Sur une chute de votre matériau,
 elle montre d'un coup d'œil le bon réglage, que vous reportez ensuite dans
 votre profil matériau. Le test peut aussi se faire à partir d'une image.

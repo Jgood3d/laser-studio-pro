@@ -33,7 +33,10 @@ class MachineStatusTests(unittest.TestCase):
     def test_state_is_coloured(self):
         view = self.make(MachineStateView)
         view.set_state("Idle")
-        self.assertEqual(view.state_label.text(), tr("ui.dro_state").format(value="Idle"))
+        self.assertEqual(view.state_label.text(), tr("ui.dro_state").format(value=tr("grbl_state.Idle")))  # « Prêt »
+        view.set_state("Tool")                          # état inconnu : son nom GRBL
+        self.assertEqual(view.state_label.text(), tr("ui.dro_state").format(value="Tool"))
+        view.set_state("Idle")
         self.assertIn("#2ecc71", view.state_label.styleSheet())
         view.set_state(None)
         self.assertIn("#cccccc", view.state_label.styleSheet())   # plus la couleur d'avant

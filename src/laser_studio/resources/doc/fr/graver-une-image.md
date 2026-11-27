@@ -13,7 +13,7 @@ l'onglet *Graver une image vectorielle* (voir
 
 ## En bref
 
-1. Cliquez sur **Charger Image** (le bouton vert en haut de l'onglet), ou
+1. Cliquez sur **Charger une image** (le bouton vert en haut de l'onglet), ou
    glissez-déposez le fichier dans l'onglet (PNG, JPEG ou BMP). Les
    **propriétés de l'image** s'affichent alors à droite, comme celles d'un
    objet dans l'éditeur vectoriel.
@@ -23,7 +23,7 @@ l'onglet *Graver une image vectorielle* (voir
 4. Ajustez **luminosité, contraste, gamma et netteté** en regardant
    l'aperçu.
 5. Choisissez l'**algorithme de tramage**.
-6. **Générez le G-code** et vérifiez-le dans *Visualisation 2D G-Code*.
+6. **Générez le G-code** et vérifiez-le dans *Visualisation 2D du G-Code*.
 
 ## Taille et position
 
@@ -32,8 +32,8 @@ l'onglet *Graver une image vectorielle* (voir
 | Largeur, Hauteur  | Taille de la gravure, en mm |
 | Conserver le ratio | Modifier la largeur ajuste la hauteur, pour ne pas déformer l'image |
 
-La **position du job sur le plateau** (ancrage de l'origine, Offset X et
-Offset Y) se règle dans l'onglet *Visualisation 2D G-Code*, là où l'on voit
+La **position du job sur le plateau** (ancrage de l'origine, décalage X et
+décalage Y) se règle dans l'onglet *Visualisation 2D du G-Code*, là où l'on voit
 le job sur le plateau dessiné en pointillés. La case **Optimiser le chemin**
 est à côté, dans le cadre **Génération** : elle change l'ordre des tracés du
 G-Code généré, pas l'affichage.
@@ -90,7 +90,7 @@ vous voyez l'effet de vos réglages avant le tramage. C'est un aperçu, la
 gravure n'en dépend pas, et le tramage n'y est pas montré. La case **Inverser
 l'aperçu**, à côté, affiche l'originale en négatif (par exemple pour la comparer
 au rendu) ; elle se combine avec la précédente, sans effet sur la gravure ni sur
-« Inverser Couleurs ».
+« Inverser les couleurs ».
 
 Dans la barre en haut de l'aperçu, comme dans les autres vues, annuler /
 refaire puis les loupes sont toujours au bout, à droite.
@@ -149,5 +149,5 @@ Un indicateur dit si l'écart entre les lignes convient : *trop fin*
 à une diode laser.
 
 > **Astuce** : avant une gravure importante, faites un essai sur une chute
-> de la même matière avec **Outils › Matrice de Test**, qui peut graver
+> de la même matière avec **Outils › Matrice de test**, qui peut graver
 > une zone de votre image avec plusieurs puissances et vitesses.

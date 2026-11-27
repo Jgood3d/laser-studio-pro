@@ -7,6 +7,24 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
+
+### Modifié
+Barre d'édition de l'éditeur vectoriel allégée : 12 boutons au lieu de 19. Les outils plus rares sont rangés dans deux boutons à menu nommés, où chacun apparaît avec son nom écrit : **Disposer** (dupliquer en série, imbrication auto, gabarit de placement) et **Tracés et textes** (exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille).
+
+Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
+
+Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel affichent leur raccourci dans l'infobulle (Supprimer (Suppr), Dupliquer (Ctrl+D)…), d'après la même table que le clavier, et les boutons du panneau du graveur aussi : Pause (F7), Arrêt d'urgence (F9), Envoyer au laser (Ctrl+Entrée). Leurs infobulles ne sont plus en majuscules.
+
+État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.
+
+## [3.0.0] — 2026-11-26
+
+### Ajouté
+Arrêt d'urgence toujours accessible : pendant une gravure, un homing ou un cadrage, un gros bouton rouge « Arrêt d'urgence » s'affiche dans la barre d'outils, même panneau du graveur replié ; la touche F9 (menu Job) fait de même. Le laser s'éteint et le travail est abandonné.
+
+G-Code à régénérer : quand un réglage change après la génération (calque, taille, position, image, objet du dessin, configuration GRBL), la barre d'état affiche « ⚠ G-Code à régénérer » (un clic régénère), et l'envoi au laser ou l'ajout à la file demande confirmation avant de partir avec l'ancien G-Code. Un G-Code importé n'est pas concerné.
+
 Cadrage visible et au plus près : la tête fait le tour du travail laser allumé à 0,5 % du S-Max (assez pour voir le point sans marquer ; réglable par machine dans Configuration GRBL, « Puissance du cadrage », pour une diode qui ne s'allume qu'à 1 ou 2 %), d'après le G-Code qui sera gravé (image et calques vectoriels). Deux modes : le rectangle qui contient tout le travail (X max, Y max, retour à X0 puis Y0 ; F6), et le tour au plus près de chaque pièce, creux compris (forme en L, étoile), à 1 mm près (nouveau bouton, Maj+F6). Sans G-Code, le rectangle reprend le cadre de l'image.
 
 Reprendre un travail interrompu : après une alarme, un arrêt ou une coupure, le bouton « Reprendre » (⏩, panneau du graveur) relance le travail là où il s'est arrêté. La tête revient laser éteint au point exact où elle s'est arrêtée (position relue au graveur une fois arrêté, avant tout homing), avec la puissance, la vitesse et le mode du G-Code à ce point : seul le reste du trait en cours est gravé, sans décalage ni double passage. Si la position n'a pas pu être lue (coupure de courant), la reprise repart des derniers traits que le graveur avait en mémoire, regravés plutôt que laissés en trou.
@@ -93,6 +111,14 @@ Générateur de boîte :
 - Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
 
 ### Modifié
+Une seule fenêtre avant de graver : l'avertissement de sécurité, les points à vérifier (G-Code à régénérer, lignes à risque, graveur sans homing) et la question « Lancer la gravure ? » arrivent ensemble, au lieu de plusieurs fenêtres à la suite. Même chose pour « Reprendre ».
+
+Les réussites ne bloquent plus l'écran : projet enregistré ou ouvert, G-Code exporté, SVG ou DXF importé, vectorisation exportée, générateur terminé, matériaux exportés ou importés, configuration GRBL envoyée s'affichent dans la barre d'état, sans fenêtre à fermer. Les erreurs et la fin d'une gravure gardent leur fenêtre.
+
+Libellés harmonisés en français, anglais, allemand et espagnol : majuscule au premier mot seulement (« Temps estimé »), espace avant les deux-points en français (« Largeur (mm) : »), plus de mots anglais dans l'interface française (« Décalage X » au lieu de « Offset X », « Valeur S maximale » au lieu de « S-Max Value »). La fenêtre du générateur de puzzle, le menu de l'aperçu d'image et la commande laser de la matrice de test sont maintenant traduits.
+
+La molette ne change plus une valeur par accident : sur un champ numérique, une liste ou un curseur qu'on n'a pas cliqué, elle fait défiler le panneau au lieu de modifier la puissance ou la vitesse au passage de la souris. Après un clic dans le champ, la molette le règle comme avant.
+
 Visualisation 2D environ cinq fois plus rapide à dessiner sur une grosse image (1,2 s -> 0,23 s pour 500 000 lignes), image identique. La console se remplit d'un gros G-Code en tâche de fond, sans figer l'interface (lecture seule le temps du remplissage). Le panneau du bas démarre toujours replié : au lancement, le graveur n'est pas encore connecté.
 
 Position du job réunie dans un seul cadre : l'ancrage de l'origine et le décalage (Offset X / Y) se règlent ensemble dans « Position du job sur le plateau », à droite de la Visualisation 2D, là où l'on voit le job sur le plateau ; le décalage n'est plus dans « Graver une image ». « Optimiser le chemin » quitte le cadre « Affichage » pour un cadre « Génération » : la case change l'ordre des tracés du G-Code généré, pas l'aperçu.
@@ -196,6 +222,8 @@ Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel)
 Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
 
 ### Corrigé
+« Reprendre » après un arrêt d'urgence : le bouton restait grisé sans explication, car le graveur passe en alarme. Il reste cliquable et explique qu'il faut d'abord faire un homing ou déverrouiller ($X) ; ensuite, la reprise repart au point exact de l'arrêt. Le bouton vert de reprise (F8), qu'on cherche naturellement après un arrêt, relance aussi le travail interrompu (il n'envoyait que la reprise après pause, sans effet). La fenêtre « Job interrompu » l'indique, sans l'icône ⏩ que sa police n'affichait pas. À la reprise, la Visualisation 2D garde le job entier et le tracé rouge déjà gravé, qui continue d'avancer (elle n'affichait plus que le reste du job, mal rendu).
+
 Éditeur vectoriel : changer la taille du plateau (autre profil machine, Paramètres du graveur) laissait les objets dessinés au mauvais endroit, décalés en hauteur, jusqu'au prochain redessin ; ils restent maintenant à leur place sur le plateau.
 
 Sécurité : un G-Code (fichier d'un autre logiciel, console retouchée) qui modifierait la configuration du graveur ($130=…, $RST=*, $N0=…) ou demanderait une puissance au-delà du S-Max n'est envoyé ou ajouté à la file qu'après confirmation, lignes en cause affichées. Un projet dont l'image dépasse 89 millions de pixels est refusé avant d'être décodé, au lieu de saturer la mémoire. F7 et F8 (pause, reprise) sont sans effet graveur déconnecté.

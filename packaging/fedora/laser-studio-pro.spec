@@ -18,7 +18,7 @@
 %endif
 
 Name:           laser-studio-pro
-Version:        2.5.0
+Version:        3.0.0
 Release:        1%{?snapinfo}%{?dist}
 Summary:        Prepare and engrave images and drawings on GRBL lasers
 
@@ -124,5 +124,8 @@ export QTWEBENGINE_CHROMIUM_FLAGS="--no-sandbox"
 
 
 %changelog
+* Thu Nov 26 2026 Antoine Le Morvan <antoine@le-morvan.com> - 3.0.0-1
+- Version 3.0.0
+
 * Sun Nov 22 2026 Antoine Le Morvan <antoine@le-morvan.com> - 2.5.0-1
 - Initial package
