@@ -3,6 +3,8 @@
 
     python tools/screenshots.py               # sur l'écran (rendu exact)
     python tools/screenshots.py --offscreen   # sans écran (CI, SSH...)
+    python tools/screenshots.py --theme new_dawn   # autre thème (défaut : dusk, celui du README)
+    python tools/screenshots.py --language en      # interface en anglais (fr, en, de, es)
 
 Lance la vraie fenêtre (1600 x 980), charge des images d'exemple de docs/
 (gravure, vectorisation, séparation), génère le G-Code, puis enregistre
@@ -32,8 +34,9 @@ OUTPUT = os.path.join(REPO, "docs", "screenshots")
 SAMPLE_IMAGE = os.path.join(REPO, "docs", "gravure-test-original.jpg")
 SEPARATION_IMAGE = os.path.join(REPO, "docs", "result-color-layer.jpg")
 WINDOW_SIZE = (1600, 980)
-# Pages du menu Paramètres (clés de WindowController.show_settings_window).
-SETTINGS_PAGES = ("machine_params", "grbl", "test_matrix")
+# Pages du menu Paramètres (clés de WindowController.show_settings_window) ; les quatre premières sont les
+# catégories de la fenêtre « Paramètres », la matrice de test a sa propre fenêtre.
+SETTINGS_PAGES = ("machine_params", "grbl", "macros", "appearance", "test_matrix")
 
 
 def slug(text):
@@ -50,6 +53,12 @@ def parse_args():
     )
     parser.add_argument(
         "--output", default=OUTPUT, help="dossier (défaut : %(default)s)"
+    )
+    parser.add_argument(
+        "--theme", default="dusk", help="thème des captures (défaut : %(default)s)"
+    )
+    parser.add_argument(
+        "--language", default="fr", help="langue de l'interface (défaut : %(default)s)"
     )
     return parser.parse_args()
 
@@ -72,9 +81,12 @@ def main():
 
     app = QApplication([])
     from laser_studio.core.paths import find_resource
+    from laser_studio.core.preferences import ui_preferences
     from laser_studio.ui.app.theme import apply_saved_theme, install_breeze_icon_theme
 
     install_breeze_icon_theme()
+    ui_preferences().set("app_theme", args.theme)     # configuration temporaire : thème et langue de la capture
+    ui_preferences().set("language", args.language)
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
     from laser_studio.ui.app import main_window
@@ -104,17 +116,21 @@ def main():
 
     pump(0.5)
     print("Préparation : image d'exemple, G-Code, vectorisation, séparation")
-    window.image.load_path(SAMPLE_IMAGE)
-    pump(1.5)
-    window.job.generate()
-    end = time.time() + 120
-    while window.job_display.last_gcode_text is None and time.time() < end:
-        pump(0.2)
-    pump(1.0)
-    window.tab_png2svg.converter._load_image_path(SAMPLE_IMAGE)
-    pump(1.5)
+    # Séparation d'abord : elle envoie sa tonalité à « Graver une image », que l'image d'exemple remplace ensuite.
     window.separation.load_path(SEPARATION_IMAGE)
     pump(1.5)
+    window.image.load_path(SAMPLE_IMAGE)
+    pump(1.5)
+    window.tab_png2svg.converter._load_image_path(SAMPLE_IMAGE)
+    pump(1.5)
+    # G-Code en dernier : généré avant, il serait signalé « à régénérer » dès que l'image change.
+    generated = []
+    window.job.generated.connect(lambda *_result: generated.append(True))
+    window.job.generate()
+    end = time.time() + 120
+    while not generated and time.time() < end:          # la génération tourne dans un thread
+        pump(0.2)
+    pump(1.0)
 
     print("Onglets")
     tabs = window.main_tabs_view
@@ -126,16 +142,20 @@ def main():
         shot(window, name)
 
     print("Pages de réglages")
+    from laser_studio.controllers.window import SETTINGS_CATEGORIES
+    from laser_studio.i18n import tr
+    controller = window.window_controller
     for number, kind in enumerate(SETTINGS_PAGES, start=10):
-        window.window_controller.show_settings_window(kind)
-        settings = window.window_controller.forms._settings_windows[kind]
-        shot(settings, f"{number}-page-{slug(settings.windowTitle())}")
+        controller.show_settings_window(kind)
+        settings = controller.forms._settings_windows["settings" if kind in SETTINGS_CATEGORIES else kind]
+        shot(settings, f"{number}-page-{slug(tr(controller._settings_pages[kind][1]))}")
         settings.close()
 
     print("Boîtes de dialogue")
     from laser_studio.ui.about import AboutDialog
     from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
     from laser_studio.ui.dialogs.box_generator import BoxGeneratorDialog
+    from laser_studio.ui.dialogs.first_steps import FirstStepsDialog
     from laser_studio.ui.dialogs.nesting import NestingDialog
     from laser_studio.ui.support import SupportDialog
 
@@ -146,6 +166,7 @@ def main():
         BuyMeACoffeeDialog(window),
         BoxGeneratorDialog(window, window.layer_manager.layers, *bed, None),
         NestingDialog(window, *bed, 0, 0),
+        FirstStepsDialog(True, window),
     )
     for number, dialog in enumerate(dialogs, start=20):
         dialog.show()

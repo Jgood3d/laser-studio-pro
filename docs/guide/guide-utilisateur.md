@@ -265,7 +265,11 @@ Le bouton **Simuler** (▶, à droite de l'aperçu) rejoue le parcours du laser 
 
 ![Avant chaque gravure, une seule fenêtre de confirmation](images/12-confirmation-avant-gravure.png)
 
-5. **Restez à côté** pendant toute la gravure. Le tracé rouge, dans la Visualisation 2D, montre ce qui est déjà gravé.
+5. Un **compte à rebours** de 5 secondes, avec un bip doux à chaque seconde, vous laisse le temps de mettre vos lunettes. **Annuler** (ou Échap) arrête tout.
+
+![Le compte à rebours : le temps de mettre ses lunettes de protection](images/12b-compte-a-rebours.png)
+
+6. **Restez à côté** pendant toute la gravure. Le tracé rouge, dans la Visualisation 2D, montre ce qui est déjà gravé.
 
 Une fois la gravure finie, attendez quelques secondes que la fumée retombe avant d'ouvrir le capot ; nettoyez la surface avec un chiffon légèrement humide pour enlever la suie.
 
@@ -313,7 +317,7 @@ Appuyez sur **F5**, puis ouvrez **Visualisation 2D du G-Code**. Vérifiez la pos
 ### Étape 6 — Graver puis découper
 
 1. Posez la plaque, faites la **mise au point**, **cadrez** avec **Maj+F6** : la tête fait le tour exact de la médaille.
-2. Lunettes, aspiration, **Ctrl+Entrée**, lisez la fenêtre de sécurité, confirmez.
+2. Lunettes, aspiration, **Ctrl+Entrée**, lisez la fenêtre de sécurité, confirmez : le compte à rebours de 5 secondes démarre.
 3. Le laser grave d'abord le décor, puis découpe le trou du ruban et enfin le contour : la pièce ne se détache qu'à la toute fin, sans bouger pendant la gravure.
 
 ![Gravure en cours : le tracé rouge avance, l'arrêt d'urgence est dans la barre d'outils](images/13-gravure-en-cours.png)

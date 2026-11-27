@@ -59,7 +59,9 @@ def main():
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
     from laser_studio.grbl.simulator import SIMULATED_PORT
+    from laser_studio.i18n import tr
     from laser_studio.ui.app import main_window
+    from laser_studio.ui.dialogs.countdown import CountdownDialog
     from laser_studio.ui.dialogs.first_steps import FirstStepsDialog
     from laser_studio.ui.dialogs.generators import GeneratorsDialog
     from laser_studio.ui.dialogs.library.dialog import LibraryItemDialog
@@ -186,6 +188,16 @@ def main():
         return True
 
     scenarios[GeneratorsDialog] = library_scenario
+
+    def countdown_scenario(dialog):
+        """Compte à rebours avant la gravure : capturé à mi-chemin (sans attendre la fin), puis validé."""
+        dialog._timer.stop()
+        dialog.ring.set_remaining(3.4)
+        dialog.detail.setText(tr("countdown.detail").format(seconds=4))
+        shot(dialog, "12b-compte-a-rebours")
+        return True
+
+    scenarios[CountdownDialog] = countdown_scenario
     window.tabs.show(window.tab_vector_editor)
     window.vector_generators.open_generators("library")
     pump(1.0)

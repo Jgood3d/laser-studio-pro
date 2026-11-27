@@ -40,6 +40,14 @@ class UserDialogs:
         else:
             QMessageBox.information(self.parent, "", text)
 
+    def countdown(self, seconds):
+        """Compte à rebours avant la gravure (ui/dialogs/countdown) : True à la fin, False si annulé. Rien à
+        attendre si `seconds` vaut 0."""
+        if seconds <= 0:
+            return True
+        from laser_studio.ui.dialogs.countdown import CountdownDialog   # chargé au premier compte à rebours
+        return CountdownDialog(seconds, self.parent).exec() == QDialog.DialogCode.Accepted
+
     def warning(self, title, text):
         QMessageBox.warning(self.parent, title, text)
 
