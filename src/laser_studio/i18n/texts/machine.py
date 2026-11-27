@@ -1899,4 +1899,10 @@ TEXTS = {
     "grbl_state.Door": {"fr": "Porte ouverte", "en": "Door open", "de": "Tür offen", "es": "Puerta abierta"},
     "grbl_state.Check": {"fr": "Mode test", "en": "Check mode", "de": "Prüfmodus", "es": "Modo prueba"},
     "grbl_state.Sleep": {"fr": "Veille", "en": "Sleep", "de": "Ruhezustand", "es": "Reposo"},
+    "laser.homing_skipped_log": {
+        "fr": ">>> Homing non supporté par ce graveur : le $H du G-Code n'est pas envoyé.",
+        "en": ">>> Homing not supported by this engraver: the $H in the G-Code is not sent.",
+        "de": ">>> Referenzfahrt von diesem Gravierer nicht unterstützt: Das $H im G-Code wird nicht gesendet.",
+        "es": ">>> Homing no compatible con este grabador: el $H del G-Code no se envía.",
+    },
 }

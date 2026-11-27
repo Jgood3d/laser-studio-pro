@@ -64,6 +64,11 @@ class CommandsTests(unittest.TestCase):
         self.assertEqual(commands.homing_support({"$32": "1"}), (False, "unsupported"))
         self.assertIsNone(commands.homing_support({"$22": "abc"}))
 
+    def test_homing_line_replaced_for_an_engraver_without_homing(self):
+        text, replaced = commands.without_homing("G21\n$H\nG1 X1\n $h \nM5")
+        self.assertEqual((text, replaced), ("G21\nG4 P0\nG1 X1\nG4 P0\nM5", 2))   # même nombre de lignes
+        self.assertEqual(commands.without_homing("G21\n$HX\n"), ("G21\n$HX\n", 0))
+
 
 def make_engraver(connected=True, homed=True, dialogs=None, gcode="G0 X1\n", state=None, **kw):
     connection = mock.Mock()
@@ -441,6 +446,34 @@ class SimulatedEngraverTests(unittest.TestCase):
             self.assertTrue(self.wait(lambda: ended), "le job ne s'est pas terminé")
             self.assertEqual(ended, [True])
             self.assertEqual(dialogs.kinds()[-1], "info")         # « Gravure terminée »
+        finally:
+            connection.shutdown()
+
+    def test_job_with_homing_runs_on_an_engraver_without_homing(self):
+        # Le cas vécu : G-Code généré avant la connexion avec « $H » (case cochée par défaut), graveur sans
+        # homing ($22=0) : GRBL refusait le $H (error:5) et le job s'arrêtait dès le début.
+        from laser_studio.controllers.machine_connection import MachineConnection
+        connection = MachineConnection()
+        dialogs = FakeDialogs()
+        ports, logs = [], []
+        engraver = EngraverController(connection, GrblConfig(), dialogs,
+                                      selected_port=lambda: ports[0][ports[1]] if ports else "",
+                                      current_gcode=lambda: "G21\nG90\n$H\nM4 S0\nG1 X5 Y5 F3000 S100\nM5\n",
+                                      set_homing_available=lambda available, tip: False)
+        engraver.ports_changed.connect(lambda labels, index: ports.extend([labels, index]))
+        engraver.log.connect(logs.append)
+        try:
+            engraver.refresh_ports()
+            engraver.toggle_connection()
+            engraver.send_console_command("$22=0")                   # machine sans homing
+            self.assertTrue(self.wait(lambda: not connection.is_busy()))
+            engraver.check_grbl_settings()                            # comme à la connexion
+            ended = []
+            engraver.stream_ended.connect(ended.append)
+            self.assertTrue(engraver.send_job())
+            self.assertTrue(self.wait(lambda: ended), "le job ne s'est pas terminé")
+            self.assertEqual(ended, [True])                           # jusqu'au bout, sans error:5
+            self.assertIn(tr("laser.homing_skipped_log"), logs)
         finally:
             connection.shutdown()
 
