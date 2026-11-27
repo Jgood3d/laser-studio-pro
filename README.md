@@ -137,6 +137,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/…/builder.py` — un builder par partie de l’interface (onglets, éditeur vectoriel, panneau machine, pages de réglages) : crée la vue et sa logique et les relie, avec ses dépendances en paramètres
 - `ui/statusbar/` — barre d’état (`StatusBar` : messages d’information, progression de la génération)
 - `ui/app/menu/` — menu et barre d’outils : `AppActions` (toutes les actions et leurs signaux), `AppMenuBar` et un fichier par menu (Fichier, Job — raccourcis F5 à F8 —, Outils, Aide ; « Paramètres… » et l’historique sont dans Fichier), `AppToolBar`
+- `controllers/first_steps.py` — Premiers pas au premier démarrage (`FirstStepsController` : catalogue, connexion, homing, cadrage), fenêtre dans `ui/dialogs/first_steps/`
 - `controllers/window.py` — contrôleur de la fenêtre (`WindowController`), qui fait ouvrir ses fenêtres par `ui/app/window_forms.py` (`WindowForms`) : abonnement aux signaux du menu et de la barre d’outils, thème, langue, aide, caméra, fenêtres de réglages, résolution et focale, Stencil Studio
 - `ui/app/window_state.py` — ce que la fenêtre enregistre et restaure (`WindowState`) : réglages machine, champs d’un profil machine, état d’un projet, recopie automatique des calques dans le matériau choisi
 - `ui/app/tabs.py` — onglets du centre (`MainTabs`) : affichage, croix des onglets ouverts par le menu Outils (`set_closable`), plein écran, séparateurs mémorisés

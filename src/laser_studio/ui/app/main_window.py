@@ -15,10 +15,12 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent
 
 from laser_studio.controllers.engraver import EngraverController
+from laser_studio.controllers.first_steps import FirstStepsController
 from laser_studio.controllers.job import JobController
 from laser_studio.controllers.machine_connection import MachineConnection
 from laser_studio.controllers.project import ProjectController
 from laser_studio.core.debug_log import get_logger
+from laser_studio.core.preferences import ui_preferences
 from laser_studio.i18n import tr
 from laser_studio.gcode.rotary import RotaryConfig, surface_y
 from laser_studio.models.grbl import GrblConfig
@@ -55,6 +57,7 @@ from laser_studio.ui.tabs.layers.builder import build_layers_tab
 from laser_studio.ui.tabs.png2svg.builder import build_png2svg_tab
 from laser_studio.ui.tabs.preview_2d import Preview2DTab
 from laser_studio.ui.tabs.separation.builder import build_separation_tab
+from laser_studio.ui.dialogs.first_steps import open_first_steps
 from laser_studio.ui.user_dialogs import UserDialogs
 from laser_studio.ui.wheel_guard import install_wheel_guard
 from laser_studio.ui.vector_editor.builder import build_vector_editor
@@ -304,6 +307,13 @@ class FullLaserStudio(QMainWindow):
         self.tab_vector_editor.vectorize_requested.connect(lambda: self.tabs.show(self.tab_png2svg))
         # Aide
         actions.documentation_requested.connect(controller.show_documentation)
+        self.first_steps = FirstStepsController(self.connection, {
+            "machine": self.tab_machine_params.catalog_requested.emit,
+            "connect": lambda: (self.bottom_panel.show_page("machine"), self.engraver.ensure_connected()),
+            "home": self.engraver.home,
+            "frame": self.engraver.frame,
+        }, ui_preferences(), parent=self)
+        actions.first_steps_requested.connect(lambda: open_first_steps(self, self.first_steps))
         actions.about_requested.connect(controller.forms.about)
         actions.support_requested.connect(controller.forms.support)
         actions.coffee_requested.connect(controller.forms.coffee)

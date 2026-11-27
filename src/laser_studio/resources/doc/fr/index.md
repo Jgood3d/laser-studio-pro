@@ -9,6 +9,12 @@ terminée.
 Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 **Aide › Documentation**.
 
+Au premier démarrage, la fenêtre **Premiers pas** propose quatre étapes :
+choisir votre machine dans le catalogue, vous connecter, faire un homing et
+essayer un cadrage. Chaque étape se coche quand elle est faite. Elle revient
+tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par
+**Aide › Premiers pas**.
+
 ## ⚠ Avertissement de sécurité
 
 > **Un graveur laser est une machine dangereuse qui ne doit jamais

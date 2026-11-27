@@ -140,6 +140,14 @@ class EngraverController(QObject):
         labels += port_labels(serial.tools.list_ports.comports())
         self.ports_changed.emit(labels, preferred_index(labels, wanted))
 
+    def ensure_connected(self):
+        """Connecte au port choisi (liste des ports relue d'abord) ; sans effet si déjà connecté, au contraire
+        de toggle_connection (Premiers pas)."""
+        if self.connection.is_connected():
+            return
+        self.refresh_ports()
+        self.toggle_connection()
+
     def toggle_connection(self):
         """Connecte au port choisi, ou déconnecte."""
         if self.connection.is_connected():

@@ -6,6 +6,12 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
 ## [Non publié]
 
+### Ajouté
+Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
+
+### Modifié
+Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
+
 ## [3.0.0] — 2026-11-26
 
 ### Ajouté
@@ -104,8 +110,6 @@ Une seule fenêtre avant de graver : l'avertissement de sécurité, les points �
 Les réussites ne bloquent plus l'écran : projet enregistré ou ouvert, G-Code exporté, SVG ou DXF importé, vectorisation exportée, générateur terminé, matériaux exportés ou importés, configuration GRBL envoyée s'affichent dans la barre d'état, sans fenêtre à fermer. Les erreurs et la fin d'une gravure gardent leur fenêtre.
 
 Libellés harmonisés en français, anglais, allemand et espagnol : majuscule au premier mot seulement (« Temps estimé »), espace avant les deux-points en français (« Largeur (mm) : »), plus de mots anglais dans l'interface française (« Décalage X » au lieu de « Offset X », « Valeur S maximale » au lieu de « S-Max Value »). La fenêtre du générateur de puzzle, le menu de l'aperçu d'image et la commande laser de la matrice de test sont maintenant traduits.
-
-Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
 
 La molette ne change plus une valeur par accident : sur un champ numérique, une liste ou un curseur qu'on n'a pas cliqué, elle fait défiler le panneau au lieu de modifier la puissance ou la vitesse au passage de la souris. Après un clic dans le champ, la molette le règle comme avant.
 

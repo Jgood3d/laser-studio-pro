@@ -13,6 +13,7 @@ class HelpMenu(QMenu):
         self.addAction(actions.version)
         self.addSeparator()
         self.addAction(actions.documentation)
+        self.addAction(actions.first_steps)
         self.addAction(actions.about)
         self.addAction(actions.support)
         self.addAction(actions.coffee)

@@ -508,6 +508,34 @@ class SimulatedWindowTests(unittest.TestCase):
         panel.connection_panel.connect_requested.emit()                   # déconnexion
         self.assertFalse(win.connection.is_connected())
 
+    def test_first_steps_with_the_simulated_engraver(self):
+        # Aide › Premiers pas : catalogue, connexion, homing et cadrage, chaque étape cochée quand elle est faite.
+        from PyQt6.QtWidgets import QMessageBox
+        from laser_studio.ui.dialogs.first_steps import FirstStepsDialog
+        from laser_studio.ui.dialogs.machine_catalog import MachineCatalogDialog
+        win = self.win
+        with mock.patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes), \
+                mock.patch.object(QMessageBox, "warning"), mock.patch.object(QMessageBox, "information"):
+            win.app_actions.first_steps.trigger()
+            dialog = win.findChild(FirstStepsDialog)
+            self.addCleanup(dialog.close)
+            dialog.buttons["machine"].click()
+            (catalog,) = [w for w in QApplication.topLevelWidgets()
+                          if isinstance(w, MachineCatalogDialog) and w.isVisible()]   # le catalogue s'ouvre
+            catalog.close()
+            dialog.buttons["connect"].click()
+            self.assertTrue(self.wait(lambda: win.connection.is_connected()))
+            dialog.buttons["connect"].click()                               # déjà connecté : ne déconnecte pas
+            self.assertTrue(win.connection.is_connected())
+            dialog.buttons["home"].click()
+            self.assertTrue(self.wait(lambda: win.first_steps.done()["home"]))
+            self.assertTrue(self.wait(lambda: win.connection.state == ms.READY))
+            dialog.buttons["frame"].click()
+            self.assertEqual(win.first_steps.done(), dict.fromkeys(win.first_steps.done(), True))
+            self.assertEqual(dialog.states["home"].text(), tr("first_steps.done"))
+            self.wait(lambda: win.connection.state == ms.READY)
+        win.engraver.toggle_connection()                                    # déconnexion
+
     def test_resume_after_an_emergency_stop(self):
         # Le cas vécu : arrêt d'urgence en pleine gravure, alarme, déverrouillage, puis « Reprendre ».
         from PyQt6.QtWidgets import QMessageBox
