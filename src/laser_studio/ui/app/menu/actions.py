@@ -81,6 +81,7 @@ class AppActions(QObject):
     first_steps_requested = pyqtSignal()
     about_requested = pyqtSignal()
     support_requested = pyqtSignal()
+    community_requested = pyqtSignal()
     coffee_requested = pyqtSignal()
     # Image
     image_undo_requested = pyqtSignal()
@@ -381,6 +382,8 @@ class AppActions(QObject):
             tr("menu.help.support"),
             self.support_requested,
         )
+        # Communauté WhatsApp : QR code et lien (ui/community).
+        self.community = self._action(QIcon(), tr("menu.help.community"), self.community_requested)
         # Buy me a coffee : même logo que le bouton de soutien.
         coffee_path = find_resource("buy_me_a_coffee.png")
         self.coffee = self._action(

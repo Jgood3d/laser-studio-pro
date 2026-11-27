@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(ROOT))
 from laser_studio.core import paths  # noqa: E402
 
 IMAGES = ("buy_me_a_coffee.png", "laser_studio_pro_banner.png",
-          "laser_studio_pro_512.png", "laser_studio_pro.ico")
+          "laser_studio_pro_512.png", "laser_studio_pro.ico", "whatsapp_community_qr.png")
 
 
 class ResourcesTests(unittest.TestCase):

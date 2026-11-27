@@ -9,6 +9,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ### Ajouté
 Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
 
+Communauté WhatsApp : Aide › Rejoindre la communauté WhatsApp affiche un QR code à scanner avec le téléphone, et en dessous le lien à cliquer pour rejoindre la communauté depuis l'ordinateur.
+
 ### Modifié
 Barre d'édition de l'éditeur vectoriel allégée : 12 boutons au lieu de 19. Les outils plus rares sont rangés dans deux boutons à menu nommés, où chacun apparaît avec son nom écrit : **Disposer** (dupliquer en série, imbrication auto, gabarit de placement) et **Tracés et textes** (exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille).
 

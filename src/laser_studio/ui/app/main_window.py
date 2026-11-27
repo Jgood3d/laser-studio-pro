@@ -316,6 +316,7 @@ class FullLaserStudio(QMainWindow):
         actions.first_steps_requested.connect(lambda: open_first_steps(self, self.first_steps))
         actions.about_requested.connect(controller.forms.about)
         actions.support_requested.connect(controller.forms.support)
+        actions.community_requested.connect(controller.forms.community)
         actions.coffee_requested.connect(controller.forms.coffee)
         # Image
         actions.image_undo_requested.connect(self.image_history.undo)
