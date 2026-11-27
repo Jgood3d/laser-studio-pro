@@ -5,6 +5,8 @@ from laser_studio.models.settings import SettingsModel
 
 LASER_COMMANDS = ("M4", "M3")          # dans l'ordre de la liste de la page
 OVERSCAN_FIXED, OVERSCAN_PERCENT = 0, 1
+ROTARY_AXES = ("Y", "A")               # axe du rotatif : Y (à la place de Y) ou A (axe dédié, en degrés)
+ROTARY_DRIVES = ("chuck", "roller")    # mandrin ou rouleaux
 
 DEFAULT_START_GCODE = "G21 ; Unités mm\nG90 ; Absolu"
 DEFAULT_END_GCODE = "M5 ; Extinction Laser\nG0 X0 Y0 ; Retour origine"
@@ -22,6 +24,9 @@ class GrblConfig(SettingsModel):
       overscan_dist_mm, overscan_pct : surbalayage ;
     - scan_offset_mm : décalage des lignes retour ;
     - safe_cut_order : découpe des formes intérieures d'abord ;
+    - rotary_enabled, rotary_axis, rotary_drive, rotary_object_mm, rotary_roller_mm, rotary_mm_per_turn :
+      axe rotatif (voir gcode/rotary.py) ; `rotary_enabled` n'est PAS enregistré dans les profils : il
+      reste décoché à chaque démarrage, pour ne jamais lancer un job à plat avec le rotatif par erreur ;
     - start_gcode, end_gcode : G-Code ajouté au début et à la fin du job ;
     - grbl_settings : texte des réglages GRBL complets ($$).
     """
@@ -43,11 +48,19 @@ class GrblConfig(SettingsModel):
         "start_gcode": (str, DEFAULT_START_GCODE),
         "end_gcode": (str, DEFAULT_END_GCODE),
         "grbl_settings": (str, ""),
+        "rotary_enabled": (bool, False),
+        "rotary_axis": (str, "Y"),
+        "rotary_drive": (str, "chuck"),
+        "rotary_object_mm": (float, 60.0),
+        "rotary_roller_mm": (float, 20.0),
+        "rotary_mm_per_turn": (float, 360.0),
     }
     TYPED_FIELDS = ("start_gcode", "end_gcode", "grbl_settings")
     CHOICES = {
         "laser_cmd": LASER_COMMANDS,
         "overscan_mode": (OVERSCAN_FIXED, OVERSCAN_PERCENT),
+        "rotary_axis": ROTARY_AXES,
+        "rotary_drive": ROTARY_DRIVES,
     }
 
     # Réglages propres à la mécanique de la machine, mémorisés EN CONTINU
@@ -55,7 +68,9 @@ class GrblConfig(SettingsModel):
     # du surbalayage est enregistré par son code (0 = distance fixe,
     # 1 = pourcentage).
     MECHANICAL_FIELDS = ("homing_enabled", "scan_offset_mm", "overscan_enabled",
-                         "overscan_mode", "overscan_dist_mm", "overscan_pct", "frame_power_pct")
+                         "overscan_mode", "overscan_dist_mm", "overscan_pct", "frame_power_pct",
+                         "rotary_axis", "rotary_drive", "rotary_object_mm", "rotary_roller_mm",
+                         "rotary_mm_per_turn")
     # Enregistrés quand le profil est mis à jour (« Mettre à jour »).
     PROFILE_FIELDS = ("start_gcode", "end_gcode", "grbl_settings") + MECHANICAL_FIELDS
 

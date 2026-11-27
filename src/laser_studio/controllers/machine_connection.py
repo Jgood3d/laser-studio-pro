@@ -267,8 +267,10 @@ class MachineConnection(QObject):
 
     # -- envoi d'un job
 
-    def start_stream(self, gcode_text, on_finished):
-        """Lance l'envoi de `gcode_text` (GCodeStreamerThread).
+    def start_stream(self, gcode_text, on_finished, stream_text=None):
+        """Lance l'envoi de `gcode_text` (GCodeStreamerThread) ; `stream_text` : ce qui part vraiment vers la
+        machine si ce n'est pas `gcode_text` (axe rotatif : G-Code converti ; `last_sent_gcode` garde le
+        G-Code à plat, pour « Répéter »).
         `on_finished(fin_propre)` est appelée à la fin. Avancement, état et
         messages passent par les signaux stream_*, status_updated et log.
         None (rien n'est envoyé) si un job ou des commandes sont déjà en cours : deux envois
@@ -277,7 +279,7 @@ class MachineConnection(QObject):
             log.warning("Connexion : job refusé, graveur occupé")
             return None
         self.last_sent_gcode = gcode_text
-        self.streamer = GCodeStreamerThread(self.usb, gcode_text)
+        self.streamer = GCodeStreamerThread(self.usb, gcode_text if stream_text is None else stream_text)
         # Branché avant on_finished : quand l'appelant apprend la fin, le graveur est déjà libre.
         self.streamer.finished_signal.connect(self._stream_finished)
         self.streamer.lines_sent.connect(self.stream_lines_sent)

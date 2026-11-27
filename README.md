@@ -264,7 +264,7 @@ Une nouvelle version majeure : presque tout a changé.
 - **Refonte de l'interface** : onglets et panneau du bas inspirés de VS Code, éditeur vectoriel épuré, menu Job avec raccourcis clavier, une seule fenêtre de confirmation avant de graver.
 - **Refonte du style** : nouveau thème « New Dusk », libellés harmonisés dans les quatre langues.
 - **Refonte du code** : modèle MVC (modèle / vue / contrôleur), code métier séparé du code graphique, plus de 1 500 tests.
-- **Nouveaux générateurs et outils** : porte-clés, boule de Noël, boîte, puzzle, bibliothèque de modèles, macros, historique des gravures, alignement par caméra.
+- **Nouveaux générateurs et outils** : porte-clés, boule de Noël, boîte, puzzle, bibliothèque de modèles, macros, historique des gravures, alignement par caméra, axe rotatif (gobelets, bouteilles, stylos).
 - **Gravure plus sûre** : arrêt d'urgence toujours visible, cadrage au plus près, reprise d'un travail interrompu.
 
 Le détail est dans le [CHANGELOG](CHANGELOG.md).

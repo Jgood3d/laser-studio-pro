@@ -19,6 +19,7 @@ from laser_studio.core.debug_log import get_logger, log_gcode_summary
 from laser_studio.gcode import framing
 from laser_studio.gcode.preview import parse_preview_cached
 from laser_studio.gcode.raster import image_origin
+from laser_studio.gcode.rotary import RotaryConfig, RotaryError, machine_gcode, machine_lines, surface_y
 from laser_studio.grbl import commands
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, preferred_index, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
@@ -284,7 +285,8 @@ class EngraverController(QObject):
                 extent = (x, y, x + geometry.width_mm, y + geometry.height_mm)
             paths = [framing.box_path(extent)]
         power = self.grbl.smax * self.grbl.frame_power_pct / 100.0
-        self.connection.run_commands(commands.frame_commands(paths, power))
+        frame = commands.frame_commands(paths, power)
+        self.connection.run_commands(machine_lines(frame, self._rotary_config()))
 
     def unlock(self):
         """Envoie $X (déverrouillage GRBL) suite à une alarme (ex : fin de
@@ -365,6 +367,40 @@ class EngraverController(QObject):
             return True
         return self.dialogs.confirm_default_no(tr("laser.no_homing_title"), tr("laser.no_homing_body"))
 
+    def _rotary_config(self):
+        """Axe rotatif d'après la configuration GRBL (gcode/rotary.py)."""
+        return RotaryConfig.from_settings(self.grbl)
+
+    def _surface_head(self, x, y):
+        """Position de la tête rapportée par la machine -> position sur la surface du G-Code à plat, que la
+        reprise d'un job (resume_gcode) compare aux traits. Axe rotatif sur Y : Y est reconverti. Axe dédié
+        (A) : GRBL ne rapporte pas A dans Y, la position en Y est inconnue (None : la reprise repart alors
+        quelques lignes avant l'arrêt, sans chercher le point exact)."""
+        config = self._rotary_config()
+        if not config.active:
+            return (x, y)
+        return (x, surface_y(y, config)) if config.axis == "Y" else None
+
+    def _rotary_error(self, error):
+        self.dialogs.error(tr("rotary.error_title"), tr("rotary.error_body").format(reason=error))
+
+    def _check_rotary(self, gcode_text):
+        """Avec l'axe rotatif, le G-Code doit pouvoir être converti (pas d'arc ni de pouces) : sinon
+        l'envoi est refusé avant toute confirmation. Renvoie True si l'envoi peut continuer."""
+        try:
+            machine_gcode(gcode_text, self._rotary_config())
+        except RotaryError as error:
+            self._rotary_error(error)
+            return False
+        return True
+
+    def _rotary_confirmation(self):
+        """Rappel ajouté à la confirmation de lancement quand l'axe rotatif est actif."""
+        config = self._rotary_config()
+        if not config.active:
+            return ""
+        return "\n\n" + tr("laser.confirm_rotary").format(axis=config.axis, diameter=config.object_mm)
+
     def send_job(self, gcode_text=None):
         """« Envoyer au laser » : le G-Code affiché (ou `gcode_text`), après UNE fenêtre de confirmation qui
         rappelle la sécurité et liste ce qui pose problème (G-Code périmé ou à risque, pas de homing) : une suite
@@ -377,10 +413,13 @@ class EngraverController(QObject):
         if not gcode_text.strip():
             self.dialogs.warning(tr("laser.no_port_title"), tr("laser.no_gcode"))
             return False
+        if not self._check_rotary(gcode_text):
+            return False
         if not self.allowed(ms.SEND_JOB, "laser.connect_via_usb"):     # aussi : job, homing en cours
             return False
-        if not self.dialogs.confirm_default_no(tr("laser.confirm_title"),
-                                               launch_confirmation_text(self.launch_warnings(gcode_text))):
+        if not self.dialogs.confirm_default_no(
+                tr("laser.confirm_title"),
+                launch_confirmation_text(self.launch_warnings(gcode_text)) + self._rotary_confirmation()):
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
@@ -405,8 +444,9 @@ class EngraverController(QObject):
         if not self.allowed(ms.SEND_JOB, "laser.connect_via_usb"):
             return False
         question = tr("laser.resume_body").format(line=line, total=total)
-        if not self.dialogs.confirm_default_no(tr("laser.resume_title"),
-                                               launch_confirmation_text(self.launch_warnings(), question)):
+        if not self.dialogs.confirm_default_no(
+                tr("laser.resume_title"),
+                launch_confirmation_text(self.launch_warnings(), question) + self._rotary_confirmation()):
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
@@ -424,12 +464,12 @@ class EngraverController(QObject):
         machine arrêtée (exacte) devient celle de la reprise, puis ne bouge plus (un homing ensuite ne compte
         pas)."""
         if self._streaming is not None:
-            self._head = (x, y)
+            self._head = self._surface_head(x, y)
         elif self._await_stop_position and state != "Run":
             self._await_stop_position = False
             if self.resume_point is not None:
                 gcode_text, acked, _head = self.resume_point
-                self.resume_point = (gcode_text, acked, (x, y))
+                self.resume_point = (gcode_text, acked, self._surface_head(x, y))
 
     def _set_resume_point(self, point):
         self.resume_point = point
@@ -451,7 +491,14 @@ class EngraverController(QObject):
         self._await_stop_position = False
         self._set_resume_point(None)
         self.stream_starting.emit(gcode_text)
-        return self.connection.start_stream(gcode_text, on_finished)
+        # Aperçu, suivi et « Répéter » gardent le G-Code à plat ; seule la machine reçoit le G-Code converti.
+        try:
+            machine_text = machine_gcode(gcode_text, self._rotary_config(), header=False)
+        except RotaryError as error:
+            self._rotary_error(error)
+            on_finished(False)
+            return None
+        return self.connection.start_stream(gcode_text, on_finished, stream_text=machine_text)
 
     def end_stream(self, clean_finish):
         """Fin d'un envoi (direct ou job de la file) : suivi, contrôle de la

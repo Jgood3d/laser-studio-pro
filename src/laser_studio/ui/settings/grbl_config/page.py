@@ -14,7 +14,7 @@ from PyQt6.QtWidgets import (
 )
 
 from laser_studio.i18n import tr
-from laser_studio.models.grbl import LASER_COMMANDS
+from laser_studio.models.grbl import LASER_COMMANDS, ROTARY_AXES, ROTARY_DRIVES
 from laser_studio.ui.binding import bind
 from laser_studio.ui.settings.grbl_config.settings_box import GrblSettingsBox
 
@@ -37,7 +37,8 @@ class GrblConfigPage(QWidget):
     homing_check, overscan_check, safe_cut_order_check,
     overscan_mode_combo, overscan_dist_spin, overscan_pct_spin,
     scan_offset_spin, start_gcode_edit, end_gcode_edit,
-    grbl_settings_edit). La page affiche elle-même la valeur du
+    grbl_settings_edit, rotary_check, rotary_axis_combo, rotary_drive_combo, rotary_object_spin,
+    rotary_roller_spin, rotary_turn_spin). La page affiche elle-même la valeur du
     surbalayage qui correspond au mode choisi (distance ou pourcentage).
     """
 
@@ -57,6 +58,7 @@ class GrblConfigPage(QWidget):
         super().__init__(parent)
         layout = QFormLayout(self)
         self._build_fields()
+        self._build_rotary_fields()
         layout.addRow(tr("ui.gcode_laser_cmd"), self.laser_cmd_combo)
         layout.addRow(tr("ui.gcode_smax"), self.smax_spin)
         layout.addRow(tr("ui.frame_power_label"), self._frame_power_spin())
@@ -67,6 +69,12 @@ class GrblConfigPage(QWidget):
         layout.addRow(tr("ui.overscan_value_label"), self._overscan_stack)
         layout.addRow(tr("ui.scan_offset_label"), self._scan_offset_spin())
         layout.addRow("", self._bidir_test_button())
+        layout.addRow("", self.rotary_check)
+        layout.addRow(tr("ui.rotary_axis_label"), self.rotary_axis_combo)
+        layout.addRow(tr("ui.rotary_drive_label"), self.rotary_drive_combo)
+        layout.addRow(tr("ui.rotary_object_label"), self.rotary_object_spin)
+        layout.addRow(tr("ui.rotary_roller_label"), self.rotary_roller_spin)
+        layout.addRow(tr("ui.rotary_turn_label"), self.rotary_turn_spin)
         layout.addRow(tr("ui.gcode_start"), self.start_gcode_edit)
         layout.addRow(tr("ui.gcode_end"), self.end_gcode_edit)
         layout.addRow(self._grbl_settings_box())
@@ -108,6 +116,43 @@ class GrblConfigPage(QWidget):
         self.end_gcode_edit = self._gcode_edit(
             "M5 ; Extinction Laser\nG0 X0 Y0 ; Retour origine"
         )
+
+    def _build_rotary_fields(self):
+        """Axe rotatif (gcode/rotary.py) : activation, axe, entraînement et dimensions."""
+        self.rotary_check = QCheckBox(tr("ui.rotary_enabled"))
+        self.rotary_check.setToolTip(tr("ui.rotary_tip"))
+        self.rotary_axis_combo = QComboBox()
+        self.rotary_axis_combo.addItems([tr("ui.rotary_axis_y"), tr("ui.rotary_axis_a")])
+        self.rotary_drive_combo = QComboBox()
+        self.rotary_drive_combo.addItems([tr("ui.rotary_drive_chuck"), tr("ui.rotary_drive_roller")])
+        self.rotary_object_spin = self._rotary_spin(1.0, 2000.0, 60.0, 1)
+        self.rotary_roller_spin = self._rotary_spin(1.0, 500.0, 20.0, 1)
+        self.rotary_turn_spin = self._rotary_spin(1.0, 100000.0, 360.0, 2)
+        self.rotary_turn_spin.setToolTip(tr("ui.rotary_turn_tip"))
+        self.rotary_check.toggled.connect(self._update_rotary_fields)
+        self.rotary_axis_combo.currentIndexChanged.connect(self._update_rotary_fields)
+        self.rotary_drive_combo.currentIndexChanged.connect(self._update_rotary_fields)
+        self._update_rotary_fields()
+
+    @staticmethod
+    def _rotary_spin(minimum, maximum, value, decimals):
+        """Dimension de l'axe rotatif, en mm."""
+        spin = QDoubleSpinBox()
+        spin.setRange(minimum, maximum)
+        spin.setDecimals(decimals)
+        spin.setValue(value)
+        spin.setSuffix(" mm")
+        return spin
+
+    def _update_rotary_fields(self, *_args):
+        """Les réglages du rotatif ne servent que s'il est activé ; le diamètre des rouleaux seulement
+        avec des rouleaux, la course par tour seulement sur l'axe Y (un axe A est en degrés)."""
+        on = self.rotary_check.isChecked()
+        self.rotary_axis_combo.setEnabled(on)
+        self.rotary_drive_combo.setEnabled(on)
+        self.rotary_object_spin.setEnabled(on)
+        self.rotary_roller_spin.setEnabled(on and self.rotary_drive_combo.currentIndex() == 1)
+        self.rotary_turn_spin.setEnabled(on and self.rotary_axis_combo.currentIndex() == 0)
 
     @staticmethod
     def _overscan_spin(value, suffix):
@@ -201,3 +246,12 @@ class GrblConfigPage(QWidget):
                               (self.end_gcode_edit, "end_gcode"),
                               (self.grbl_settings_edit, "grbl_settings")):
             bind(widget, grbl, field)
+        bind(self.rotary_axis_combo, grbl, "rotary_axis",
+             to_widget=ROTARY_AXES.index, from_widget=lambda i: ROTARY_AXES[max(i, 0)])
+        bind(self.rotary_drive_combo, grbl, "rotary_drive",
+             to_widget=ROTARY_DRIVES.index, from_widget=lambda i: ROTARY_DRIVES[max(i, 0)])
+        for widget, field in ((self.rotary_check, "rotary_enabled"), (self.rotary_object_spin, "rotary_object_mm"),
+                              (self.rotary_roller_spin, "rotary_roller_mm"),
+                              (self.rotary_turn_spin, "rotary_mm_per_turn")):
+            bind(widget, grbl, field)
+        self._update_rotary_fields()

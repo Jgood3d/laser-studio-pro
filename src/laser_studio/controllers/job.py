@@ -21,6 +21,7 @@ from PyQt6.QtCore import QObject, pyqtSignal
 from laser_studio.gcode import MATRIX_CUT, MATRIX_ENGRAVE, bidir_test_gcode, image_origin
 from laser_studio.gcode.common import OVERSCAN_FIXED, OVERSCAN_PERCENT
 from laser_studio.gcode.params import JobParams
+from laser_studio.gcode.rotary import RotaryConfig, RotaryError, machine_gcode
 from laser_studio.gcode.timing import MachineLimits, straight_lines_seconds
 from laser_studio.grbl.commands import parse_grbl_settings
 from laser_studio.gcode.test_matrix import matrix_cell_at
@@ -307,7 +308,14 @@ class JobController(QObject):
         geometry = self.placement.geometry()
         job_w, job_h = geometry['width_mm'], geometry['height_mm']
         bed_w, bed_h = self.machine.bed_w, self.machine.bed_h
-        if job_w > bed_w or job_h > bed_h:
+        rotary = RotaryConfig.from_settings(self.grbl)
+        if rotary.active:
+            # Axe rotatif : Y fait le tour de l'objet, la course de la machine n'est pas la limite.
+            if job_w > bed_w or job_h > rotary.circumference_mm:
+                self.dialogs.warning(tr("rotary.too_tall_title"), tr("rotary.too_tall_body").format(
+                    job_w=job_w, job_h=job_h, bed_w=bed_w, circumference=rotary.circumference_mm))
+                return False
+        elif job_w > bed_w or job_h > bed_h:
             self.dialogs.warning(
                 tr("gen.too_big_title"),
                 tr("gen.too_big_body").format(
@@ -484,6 +492,12 @@ class JobController(QObject):
         été enregistré."""
         if not gcode_text.strip():
             self.dialogs.warning(tr("gcode.empty_title"), tr("gcode.empty_export"))
+            return ""
+        # Axe rotatif : le fichier enregistré est celui de la machine (Y converti).
+        try:
+            gcode_text = machine_gcode(gcode_text, RotaryConfig.from_settings(self.grbl))
+        except RotaryError as error:
+            self.dialogs.error(tr("rotary.error_title"), tr("rotary.error_body").format(reason=error))
             return ""
         path = self.dialogs.save_file(
             tr("gcode.export_title").format(extension=extension),
