@@ -138,7 +138,8 @@ Dans le même commit que le code, selon ce qui change :
 | Changement | Fichier |
 |---|---|
 | Nouveauté ou correction visible par l'utilisateur | `CHANGELOG.md`, section `[Non publié]` (Ajouté / Modifié / Corrigé) |
-| Nouveau fichier, fichier déplacé ou rôle changé | `ARCHITECTURE.md` (arborescence et tableau des rôles) et la liste « Structure du projet » de `README.md` |
+| Nouveau fichier, fichier déplacé ou rôle changé | `ARCHITECTURE.md` (arborescence et tableau des rôles) et la liste « Structure du projet » de `CONTRIBUTING.md` |
+| Changement du `README.md` (présentation, installation, captures) | la même chose dans `README-EN.md`, en anglais |
 | Nouvelle fonction ou fonction modifiée dans l'interface | aide intégrée `src/laser_studio/resources/doc/fr/*.md` (F1 dans l'application ; voir le `README.md` de ce dossier) |
 | Nouveau texte d'interface | clés dans `i18n/texts/<zone>.py`, dans les quatre langues |
 | Signaux de l'interface modifiés | `python tools/signal_map.py` régénère la carte des signaux |

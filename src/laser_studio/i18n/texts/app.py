@@ -450,10 +450,10 @@ TEXTS = {
         "es": "Imagen original (arrastrar para mover, rueda del ratón para ampliar)",
     },
     "ui.final_raster_box": {
-        "fr": "Rendu Tramé Final (Glisse pour déplacer, molette pour zoomer)",
-        "en": "Final Rasterized Output (Drag to move, mouse wheel to zoom)",
+        "fr": "Rendu tramé final (glisser pour déplacer, molette pour zoomer)",
+        "en": "Final rasterized output (drag to move, mouse wheel to zoom)",
         "de": "Finales gerastertes Ergebnis (ziehen zum Bewegen, Mausrad zum Zoomen)",
-        "es": "Salida raster final (arrastra para mover, rueda del ratón para ampliar)",
+        "es": "Salida rasterizada final (arrastrar para mover, rueda del ratón para ampliar)",
     },
     "ui.selection_props_box": {
         "fr": "Propriétés de l'objet sélectionné",
