@@ -578,7 +578,7 @@ Menu Outils → Caméra (CameraDialog)
 | **ui/dialogs/puzzle/** | `PuzzleGeneratorDialog` (aperçu live, réglages forme, calque de découpe) |
 | **vector/importers.puzzle_to_objects** | `outline` + `edges` → 2 `SvgPathObject` (contour fermé ; arêtes internes regroupées en un objet) |
 | **GeneratorsController.open_puzzle_generator** | Fenêtre des générateurs ouverte sur le puzzle (`open_generators`), puis `_make_puzzle` : placement sur canevas |
-| **ui/vector_editor/tab.py** (`EDIT_ACTIONS`) | Icône « Générateurs » de la barre d'édition (fenêtre unique des générateurs) |
+| **ui/vector_editor/tab.py** (`EDIT_ACTIONS`) | Icône « Générateurs » de la barre d'édition (fenêtre unique des générateurs) ; `EDIT_GROUPS` range les outils plus rares dans les boutons à menu « Disposer » et « Tracés et textes » (`_grouped`) |
 | **i18n/texts/** | Clés `menu.tools.puzzle`, `ui.vector_puzzle_*`, `puzzle.*`, `puzzle.err.*` |
 
 Flux :

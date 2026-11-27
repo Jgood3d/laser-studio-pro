@@ -171,8 +171,10 @@ Dégrouper).
 - **Annuler** (Ctrl+Z) et **Refaire** (Ctrl+Y).
 - **Zoom avant** (Ctrl++) et **Zoom arrière** (Ctrl+-) : les loupes au bout
   de la barre d'édition, ou la molette de la souris.
-- Clic droit › **Éditer les nœuds** pour déplacer les points d'un tracé,
-  ou **Exploser en segments** pour le découper en morceaux.
+- **Éditer les nœuds** pour déplacer les points d'un tracé, ou **Exploser
+  en segments** pour le découper en morceaux : clic droit, ou le menu
+  **Tracés et textes** de la barre d'édition (avec le texte sur un tracé et
+  le texte de médaille).
 
 **Organiser**
 
@@ -181,8 +183,9 @@ Dégrouper).
   gauche, au centre, en haut…, ou les répartir à intervalles égaux (trois
   objets au moins).
 - **Accroche à la grille** pour placer les objets au millimètre.
-- **Imbrication auto**, **Dupliquer en série**, **Gabarit de placement**
-  et **Texte le long d'un objet** : voir [Les outils](outils.md).
+- **Dupliquer en série**, **Imbrication auto** et **Gabarit de placement** :
+  le menu **Disposer** de la barre d'édition. Ces outils et le **texte le
+  long d'un objet** sont décrits dans [Les outils](outils.md).
 - **Plein écran** pour travailler plus confortablement.
 
 ## L'ordre de découpe

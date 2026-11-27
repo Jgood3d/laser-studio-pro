@@ -1329,4 +1329,28 @@ TEXTS = {
         "es": "Quitar el objeto del grupo y eliminarlo (Ctrl+Z para deshacer)",
     },
     "keys.delete": {"fr": "Suppr", "en": "Del", "de": "Entf", "es": "Supr"},
+    "vector.group_arrange": {
+        "fr": "Disposer",
+        "en": "Arrange",
+        "de": "Anordnen",
+        "es": "Disponer",
+    },
+    "vector.group_arrange_tip": {
+        "fr": "Disposer : dupliquer en série, imbrication auto, gabarit de placement",
+        "en": "Arrange: duplicate in series, auto nesting, placement jig",
+        "de": "Anordnen: in Serie duplizieren, automatisches Verschachteln, Platzierungsschablone",
+        "es": "Disponer: duplicar en serie, anidado automático, plantilla de colocación",
+    },
+    "vector.group_paths": {
+        "fr": "Tracés et textes",
+        "en": "Paths and text",
+        "de": "Pfade und Text",
+        "es": "Trazados y textos",
+    },
+    "vector.group_paths_tip": {
+        "fr": "Tracés et textes : exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille",
+        "en": "Paths and text: explode into segments, edit nodes, text on a path, medal text",
+        "de": "Pfade und Text: in Segmente zerlegen, Knoten bearbeiten, Text auf Pfad, Medaillentext",
+        "es": "Trazados y textos: descomponer en segmentos, editar nodos, texto sobre trazado, texto de medalla",
+    },
 }
