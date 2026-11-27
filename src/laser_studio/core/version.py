@@ -1,7 +1,7 @@
 """Numéro de version de l'application : source unique, lue aussi par le
 build macOS et le test de cohérence du README."""
 
-APP_VERSION = "2.5.0"
+APP_VERSION = "3.0.0"
 
 # Identifiant de l'application (format « domaine inversé ») : nom du fichier
 # .desktop et de l'icône sous Linux (packaging/linux/), et identifiant de la

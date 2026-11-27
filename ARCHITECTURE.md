@@ -2,7 +2,7 @@
 
 > Document mis à jour pour faciliter la prise en main et la modification du projet.  
 > Branche de référence : **Dev** — dépôt : https://github.com/Jgood3d/laser-studio-pro  
-> Version applicative : **2.5.0** (voir `core/version.py`)
+> Version applicative : **3.0.0** (voir `core/version.py`)
 
 Ce fichier regroupe :
 0. Le glossaire : chaque objet du code, en une phrase

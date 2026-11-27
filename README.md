@@ -257,6 +257,18 @@ Interface en anglais et en allemand :
 
 <img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
 
+## Nouveautés de la version 3.0.0
+
+Une nouvelle version majeure : presque tout a changé.
+
+- **Refonte de l'interface** : onglets et panneau du bas inspirés de VS Code, éditeur vectoriel épuré, menu Job avec raccourcis clavier, une seule fenêtre de confirmation avant de graver.
+- **Refonte du style** : nouveau thème « New Dusk », libellés harmonisés dans les quatre langues.
+- **Refonte du code** : modèle MVC (modèle / vue / contrôleur), code métier séparé du code graphique, plus de 1 500 tests.
+- **Nouveaux générateurs et outils** : porte-clés, boule de Noël, boîte, puzzle, bibliothèque de modèles, macros, historique des gravures, alignement par caméra, axe rotatif (gobelets, bouteilles, stylos).
+- **Gravure plus sûre** : arrêt d'urgence toujours visible, cadrage au plus près, reprise d'un travail interrompu.
+
+Le détail est dans le [CHANGELOG](CHANGELOG.md).
+
 ## Nouveautés de la version 2.5.0
 
 - **Stencil Studio** : un nouvel espace de travail pour créer et optimiser des pochoirs et des designs vectoriels ou matriciels, accessible par un bouton de la barre de menus :
