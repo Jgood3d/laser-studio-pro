@@ -144,7 +144,8 @@ image devient un dessin vectoriel), *Séparation couleur / verre* et
 **Graveur** (connexion, déplacements de la tête, lancement et suivi du
 travail), **Console G-Code** et **File d'attente**. Replié, il ne montre
 que ses onglets ; un clic sur l'un d'eux, **Ctrl+J** ou
-un clic sur la pastille du graveur, en bas à droite, le déplie. Il démarre
+un clic sur la pastille du graveur, en bas à droite (son état y est écrit :
+« Prêt », « En marche », « Alarme »…), le déplie. Il démarre
 replié, et se déplie tout seul quand une gravure démarre et en cas d'alarme.
 
 ## Le G-code
@@ -164,6 +165,8 @@ tout le travail (**F6**), ou le tour au plus près de ce qui sera gravé ou
 découpé, creux compris (**Maj+F6**, après avoir généré le G-code). Si le point
 ne s'allume pas, augmentez la **Puissance du cadrage** dans *Configuration
 GRBL* (1 ou 2 %).
+
+Survolez un bouton : son infobulle donne aussi son raccourci clavier.
 
 Le menu **Job** regroupe les raccourcis : **F5** générer, **F6** et
 **Maj+F6** cadrer, **Ctrl+Entrée** envoyer au laser, **F7** pause, **F8**

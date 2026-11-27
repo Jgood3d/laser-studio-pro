@@ -1041,10 +1041,10 @@ TEXTS = {
         "es": "Comandos y movimientos manuales",
     },
     "ui.homing_cmd": {
-        "fr": "HOMING ($H)",
-        "en": "HOMING ($H)",
-        "de": "HOMING ($H)",
-        "es": "HOMING ($H)",
+        "fr": "Homing ($H)",
+        "en": "Homing ($H)",
+        "de": "Referenzfahrt ($H)",
+        "es": "Homing ($H)",
     },
     "ui.manual_grbl_placeholder": {
         "fr": "Tape une commande GRBL ($$, $I, $H, $X, G0 X10 Y10)... (↑/↓ pour l'historique)",
@@ -1889,4 +1889,14 @@ TEXTS = {
         "de": "CSV-Datei (*.csv)",
         "es": "Archivo CSV (*.csv)",
     },
+    # États GRBL affichés (pastille de la barre d'état, panneau du graveur) ; le nom GRBL reste la clé.
+    "grbl_state.Idle": {"fr": "Prêt", "en": "Idle", "de": "Bereit", "es": "Listo"},
+    "grbl_state.Run": {"fr": "En marche", "en": "Running", "de": "Läuft", "es": "En marcha"},
+    "grbl_state.Hold": {"fr": "En pause", "en": "Paused", "de": "Pausiert", "es": "En pausa"},
+    "grbl_state.Alarm": {"fr": "Alarme", "en": "Alarm", "de": "Alarm", "es": "Alarma"},
+    "grbl_state.Home": {"fr": "Homing", "en": "Homing", "de": "Referenzfahrt", "es": "Homing"},
+    "grbl_state.Jog": {"fr": "Déplacement", "en": "Jogging", "de": "Verfahren", "es": "Desplazamiento"},
+    "grbl_state.Door": {"fr": "Porte ouverte", "en": "Door open", "de": "Tür offen", "es": "Puerta abierta"},
+    "grbl_state.Check": {"fr": "Mode test", "en": "Check mode", "de": "Prüfmodus", "es": "Modo prueba"},
+    "grbl_state.Sleep": {"fr": "Veille", "en": "Sleep", "de": "Ruhezustand", "es": "Reposo"},
 }

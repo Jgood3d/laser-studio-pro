@@ -1328,4 +1328,5 @@ TEXTS = {
         "de": "Objekt aus der Gruppe entfernen und löschen (Strg+Z zum Rückgängigmachen)",
         "es": "Quitar el objeto del grupo y eliminarlo (Ctrl+Z para deshacer)",
     },
+    "keys.delete": {"fr": "Suppr", "en": "Del", "de": "Entf", "es": "Supr"},
 }

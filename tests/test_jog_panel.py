@@ -192,7 +192,7 @@ class CommandsLockTests(unittest.TestCase):
         self.addCleanup(panel.deleteLater)
         panel.set_status("Idle", 1.0, 2.0, 3.0)
         self.assertEqual(panel.connection_panel.state_view.state_label.text(),
-                         tr("ui.dro_state").format(value="Idle"))
+                         tr("ui.dro_state").format(value=tr("grbl_state.Idle")))
         self.assertEqual(panel.jog_panel.position_row.y_label.text(), tr("ui.dro_y").format(value="2.000"))
         panel.set_status(None)                           # déconnecté : plus de position connue
         self.assertEqual(panel.jog_panel.position_row.x_label.text(), tr("ui.dro_x").format(value="—"))

@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import QLabel, QProgressBar, QSizePolicy, QStatusBar
 
 from laser_studio.core.constants import STATUS_BAR_MESSAGE_DURATION
 from laser_studio.i18n import tr
-from laser_studio.ui.machine.status.state import STATE_COLORS, UNKNOWN_STATE_COLOR
+from laser_studio.ui.machine.status.state import STATE_COLORS, UNKNOWN_STATE_COLOR, state_text
 from laser_studio.ui.widgets import AutoHideLabel
 
 # Repères en tête des anciens messages de console : inutiles dans la barre d'état.
@@ -131,7 +131,7 @@ class StatusBar(QStatusBar):
         """Pastille de l'état GRBL (couleurs du panneau machine) et position de la tête ; `state` None :
         graveur déconnecté."""
         color = STATE_COLORS.get(state, UNKNOWN_STATE_COLOR)
-        text = tr("status.disconnected") if state is None else state
+        text = tr("status.disconnected") if state is None else state_text(state)
         if state is not None and x is not None and y is not None:
             text += f"  ·  X {x:.2f}  Y {y:.2f}"
         self.machine_label.setText(f'<span style="color:{color}">●</span>&nbsp;{text}')

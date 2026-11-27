@@ -18,6 +18,13 @@ UNKNOWN_STATE_COLOR = "#cccccc"
 NO_VALUE = "—"
 
 
+def state_text(state):
+    """État GRBL dans la langue de l'interface (« Idle » -> « Prêt ») ; un état inconnu garde son nom GRBL."""
+    key = f"grbl_state.{state}"
+    text = tr(key)
+    return state if text == key else text
+
+
 class MachineStateView(QWidget):
     """Libellé de l'état GRBL (« État : Idle »), coloré selon l'état.
 
@@ -45,7 +52,7 @@ class MachineStateView(QWidget):
     def set_state(self, state):
         """Affiche l'état GRBL ; None (graveur déconnecté) : un tiret gris."""
         self.state_label.setText(
-            tr("ui.dro_state").format(value=NO_VALUE if state is None else state)
+            tr("ui.dro_state").format(value=NO_VALUE if state is None else state_text(state))
         )
         color = STATE_COLORS.get(state, UNKNOWN_STATE_COLOR)
         self.state_label.setStyleSheet(f"color: {color}; font-weight: bold;")
