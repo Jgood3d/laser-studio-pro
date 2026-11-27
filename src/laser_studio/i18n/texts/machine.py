@@ -30,9 +30,9 @@ TEXTS = {
               "crea una nueva a partir de las dimensiones actuales de abajo.",
     },
     "mach.bed_box": {
-        "fr": "Dimensions du Graveur (Zone de Travail Physique)",
-        "en": "Engraver Dimensions (Physical Work Area)",
-        "de": "Abmessungen des Gravierers (Physischer Arbeitsbereich)",
+        "fr": "Dimensions du graveur (zone de travail physique)",
+        "en": "Engraver dimensions (physical work area)",
+        "de": "Abmessungen des Gravierers (physischer Arbeitsbereich)",
         "es": "Dimensiones del grabador (Área de trabajo física)",
     },
     "mach.bed_w": {
