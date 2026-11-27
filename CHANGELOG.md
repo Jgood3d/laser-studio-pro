@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Compte à rebours avant la gravure : après la confirmation, une fenêtre laisse 5 secondes pour mettre ses lunettes de protection, avec un anneau qui se vide, un bip doux à chaque seconde et un accord au départ du laser. Annuler (ou Échap) arrête tout. La durée se règle par machine dans Configuration GRBL (0 pour le désactiver). Aussi avant la reprise d'un travail et le lancement de la file d'attente.
+
 Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
 
 ### Modifié

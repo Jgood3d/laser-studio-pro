@@ -62,6 +62,7 @@ class GrblConfigPage(QWidget):
         layout.addRow(tr("ui.gcode_laser_cmd"), self.laser_cmd_combo)
         layout.addRow(tr("ui.gcode_smax"), self.smax_spin)
         layout.addRow(tr("ui.frame_power_label"), self._frame_power_spin())
+        layout.addRow(tr("ui.countdown_label"), self._countdown_spin())
         layout.addRow("", self.homing_check)
         layout.addRow("", self.overscan_check)
         layout.addRow("", self._safe_cut_order_check())
@@ -190,6 +191,15 @@ class GrblConfigPage(QWidget):
         self.frame_power_spin.setToolTip(tr("ui.frame_power_tip"))
         return self.frame_power_spin
 
+    def _countdown_spin(self):
+        """Compte à rebours avant la gravure (secondes, 0 : aucun), propre à la machine : une machine fermée,
+        avec capot filtrant, peut s'en passer."""
+        self.countdown_spin = QSpinBox()
+        self.countdown_spin.setRange(0, 15)
+        self.countdown_spin.setSuffix(" s")
+        self.countdown_spin.setToolTip(tr("ui.countdown_tip"))
+        return self.countdown_spin
+
     def _scan_offset_spin(self):
         """Décalage aller/retour : compense le jeu mécanique et le délai
         d'allumage du laser entre les lignes gravées dans un sens et dans
@@ -242,6 +252,7 @@ class GrblConfigPage(QWidget):
                               (self.overscan_pct_spin, "overscan_pct"),
                               (self.scan_offset_spin, "scan_offset_mm"),
                               (self.frame_power_spin, "frame_power_pct"),
+                              (self.countdown_spin, "countdown_s"),
                               (self.start_gcode_edit, "start_gcode"),
                               (self.end_gcode_edit, "end_gcode"),
                               (self.grbl_settings_edit, "grbl_settings")):
