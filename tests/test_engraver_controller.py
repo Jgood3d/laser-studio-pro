@@ -97,6 +97,18 @@ class SendJobTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
+    def test_countdown_before_the_laser_starts(self):
+        # Après la confirmation, le compte à rebours (lunettes de protection) ; annulé : rien ne part.
+        engraver, connection, dialogs, events = make_engraver()
+        engraver.grbl.update(countdown_s=7)
+        dialogs.countdown_answer = False
+        self.assertFalse(engraver.send_job())
+        self.assertEqual(dialogs.countdowns, [7])
+        connection.start_stream.assert_not_called()
+        dialogs.countdown_answer = True
+        self.assertTrue(engraver.send_job())
+        connection.start_stream.assert_called_once()
+
     def test_job_starts_after_the_launch_confirmation(self):
         engraver, connection, dialogs, events = make_engraver()
         self.assertTrue(engraver.send_job())
@@ -495,6 +507,7 @@ class SimulatedWindowTests(unittest.TestCase):
         from job_fakes import start_memory_preferences
         start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
         cls.win = main_window.FullLaserStudio()
+        cls.win.grbl.update(countdown_s=0)      # pas de compte à rebours (ni de bips) pendant les tests
 
     @classmethod
     def tearDownClass(cls):
