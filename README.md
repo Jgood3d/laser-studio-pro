@@ -196,6 +196,7 @@ Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail et les versions précédente
 - [CONTRIBUTING.md](CONTRIBUTING.md) : structure du projet, compilation, tests, simulation d’un graveur et journal de débogage ;
 - [ARCHITECTURE.md](ARCHITECTURE.md) : rôle de chaque dossier et de chaque fichier, glossaire des objets du code ;
 - [BUILD.md](BUILD.md) : compilation pour Windows, Linux et macOS ;
+- [CODE_SIGNING.md](CODE_SIGNING.md) : politique de signature du binaire Windows (*code signing policy*) ;
 - [CHANGELOG.md](CHANGELOG.md) : historique détaillé des versions.
 
 ## Remerciements

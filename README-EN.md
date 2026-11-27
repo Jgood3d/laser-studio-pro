@@ -154,6 +154,7 @@ The details are in the [CHANGELOG](CHANGELOG.md) (in French).
 - [CONTRIBUTING.md](CONTRIBUTING.md): project structure, building, tests, simulated engraver and debug log;
 - [ARCHITECTURE.md](ARCHITECTURE.md): role of each folder and file, glossary of the code objects;
 - [BUILD.md](BUILD.md): building for Windows, Linux and macOS;
+- [CODE_SIGNING.md](CODE_SIGNING.md): code signing policy for the Windows binary;
 - [CHANGELOG.md](CHANGELOG.md): detailed version history.
 
 These documents are written in French.
