@@ -28,6 +28,7 @@ from laser_studio.ui.utils import import_button, palette_icon
 from laser_studio.ui.vector_editor.empty_hint import EmptyCanvasHint
 from laser_studio.ui.vector_editor.objects_panel import ObjectsPanel
 from laser_studio.ui.vector_editor.properties_panel import PropertiesWidgets
+from laser_studio.ui.vector_editor.shortcuts import with_shortcut
 from laser_studio.ui.widgets import FloatingToolBar
 
 # Largeur de la colonne de droite (barre d'édition, liste des objets et propriétés), en px.
@@ -163,7 +164,7 @@ class VectorEditorTab(QWidget):
         """Action des barres d'outils : `text`, infobulle `tooltip`, icône Breeze dans la couleur du thème ;
         émet command(`command`) si elle est donnée."""
         action = QAction(text, self)
-        action.setToolTip(tooltip)
+        action.setToolTip(with_shortcut(tooltip, command))           # le raccourci là où on le cherche
         if icon_name:
             action.setIcon(palette_icon(icon_name, self.palette()))
         if command is not None:

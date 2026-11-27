@@ -6,6 +6,11 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
 ## [Non publié]
 
+### Modifié
+Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel affichent leur raccourci dans l'infobulle (Supprimer (Suppr), Dupliquer (Ctrl+D)…), d'après la même table que le clavier, et les boutons du panneau du graveur aussi : Pause (F7), Arrêt d'urgence (F9), Envoyer au laser (Ctrl+Entrée). Leurs infobulles ne sont plus en majuscules.
+
+État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.
+
 ## [3.0.0] — 2026-11-26
 
 ### Ajouté
