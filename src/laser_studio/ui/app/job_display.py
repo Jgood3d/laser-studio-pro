@@ -59,7 +59,7 @@ class JobDisplay(QObject):
 
     def __init__(self, status_bar, console, preview, machine_panel, actions, dialogs, *,
                  layers, test_matrix, show_preview, log, show_machine_panel, duration_factor=lambda: None,
-                 parent=None):
+                 surface_y=None, parent=None):
         super().__init__(parent)
         self.status_bar = status_bar
         self.console = console
@@ -71,6 +71,8 @@ class JobDisplay(QObject):
         self._test_matrix = test_matrix
         self._show_preview = show_preview
         self._log = log
+        # Position Y de la tête (rapportée par la machine) -> Y sur la surface : axe rotatif.
+        self._surface_y = surface_y or (lambda y: y)
         self._show_machine_panel = show_machine_panel
         # (facteur, nombre de gravures) qui recale l'estimation sur les durées réelles, ou None (job_history).
         self._duration_factor = duration_factor
@@ -195,9 +197,10 @@ class JobDisplay(QObject):
         pendant un job) : affichage, position de la tête sur l'aperçu 2D,
         traits déjà gravés en rouge pendant un job."""
         self.show_machine_state(state, x, y, z)
-        self.preview.set_head_position(x, y)
+        surface_y = self._surface_y(y)
+        self.preview.set_head_position(x, surface_y)
         if self.connection.is_streaming():
-            self.preview.update_burn(x, y)
+            self.preview.update_burn(x, surface_y)
 
     def show_machine_state(self, state, x, y, z):
         """État (cadre Connexion) et position (sous le pilotage) dans le

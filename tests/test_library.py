@@ -407,7 +407,7 @@ class SvgImportTests(unittest.TestCase):
         from PyQt6.QtGui import QFont, QFontInfo
         from laser_studio.ui.fonts import SCRIPT_FONT, load_bundled_fonts
         load_bundled_fonts()
-        self.assertEqual(QFontInfo(QFont(SCRIPT_FONT)).family(), SCRIPT_FONT)
+        self.assertEqual(QFontInfo(QFont(SCRIPT_FONT)).family().split(" [")[0], SCRIPT_FONT)   # « [fabricant] » si en double
         (field,) = find_texts(ORNAMENT)
         self.assertEqual((field.key, field.text, field.family), ("Prénom", "Prénom", SCRIPT_FONT))
         for name in ("Prénom", "Léa", "Joséphine"):
