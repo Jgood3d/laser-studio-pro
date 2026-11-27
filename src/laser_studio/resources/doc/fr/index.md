@@ -15,6 +15,10 @@ essayer un cadrage. Chaque étape se coche quand elle est faite. Elle revient
 tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par
 **Aide › Premiers pas**.
 
+Pour poser une question ou partager vos gravures, **Aide › Rejoindre la
+communauté WhatsApp** affiche un QR code à scanner avec votre téléphone, et
+le lien à cliquer depuis l'ordinateur.
+
 ## ⚠ Avertissement de sécurité
 
 > **Un graveur laser est une machine dangereuse qui ne doit jamais

@@ -1,4 +1,4 @@
-"""Fenêtres ouvertes par le contrôleur de la fenêtre (controllers/window.py) : à propos, support, café,
+"""Fenêtres ouvertes par le contrôleur de la fenêtre (controllers/window.py) : à propos, support, communauté, café,
 aide, historique des gravures, caméra, fenêtres de réglages, comparaison des tramages ; et ce qui touche
 Qt directement (thème de l'application, curseur d'attente). Le contrôleur décide quoi ouvrir, cet objet
 construit les fenêtres.
@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QApplication
 from laser_studio.ui.about import AboutDialog
 from laser_studio.ui.app.theme import apply_app_theme
 from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeDialog
+from laser_studio.ui.community import CommunityDialog
 from laser_studio.ui.help import HelpDialog
 from laser_studio.ui.settings.categories import SettingsCategories
 from laser_studio.ui.settings.window import SettingsWindow
@@ -36,6 +37,9 @@ class WindowForms:
 
     def support(self):
         SupportDialog(self.parent).exec()
+
+    def community(self):
+        CommunityDialog(self.parent).exec()
 
     def coffee(self):
         BuyMeACoffeeDialog(self.parent).exec()

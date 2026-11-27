@@ -60,6 +60,7 @@ On lance l’application avec `python main.py` depuis le dépôt, ou `python -m 
 - `ui/app/image_actions.py` — « Pivoter », « Supprimer » et miroirs de la barre d’outils, sur l’image de l’onglet affiché (`ImageToolbarActions`)
 - `ui/about/` — boîte « À propos » (`AboutDialog`, `AboutBannerPixmap`, `AboutLabel`)
 - `ui/support/` — boîte « Support » (`SupportDialog`, `SupportLabel`)
+- `ui/community/` — boîte « Rejoindre la communauté WhatsApp » (`CommunityDialog`) : QR code et lien
 - `ui/buy_me_a_coffee/` — boîte « Buy me a coffee » (`BuyMeACoffeeDialog`, `BuyMeACoffeeLabel`) et bouton ko-fi de la barre d’outils (`BuyMeACoffeeButton`)
 - `ui/machine/` — `MachinePanel`, panneau machine sous les onglets : assemble le G-Code envoyé, la connexion, le pilotage et les actions de job, puis la barre de progression ; `set_status(état, x, y, z)` répartit l’état (cadre Connexion) et la position (sous le pilotage)
 - `ui/machine/connection/` — panneau « Connexion » `ConnectionPanel` : port (modèle partagé avec la page des matériaux), actualisation, connexion, état GRBL et console directe (émet `refresh_requested`, `connect_requested`, `unlock_requested`, `command_submitted`)
