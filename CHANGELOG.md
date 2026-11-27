@@ -18,6 +18,9 @@ Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel
 
 État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.
 
+### Corrigé
+Graveur sans homing : un G-Code généré avant la connexion gardait le « $H » du début (« Inclure $H » est coché par défaut), que GRBL refusait (error:5) : le travail s'arrêtait juste après le premier déplacement. Quand le graveur n'a pas de homing ($22 à 0 ou absent), le $H n'est plus envoyé, et la console l'indique ; le G-Code affiché ne change pas.
+
 ## [3.0.0] — 2026-11-26
 
 ### Ajouté
