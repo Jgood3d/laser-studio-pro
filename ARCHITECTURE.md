@@ -267,7 +267,7 @@ laser-studio-pro/
 ├── BUILD.md
 ├── MACOS_AUDIT.md / RELEASE_NOTES_2.x.0.md
 ├── claude.md / gemini.md             # consignes pour les assistants de code
-└── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
+└── ARCHITECTURE.md / CHANGELOG.md / README.md / CODE_SIGNING.md (politique de signature Windows) / LICENSE
 ```
 
 ---

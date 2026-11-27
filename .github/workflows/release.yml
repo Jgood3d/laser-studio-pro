@@ -141,6 +141,17 @@ jobs:
         shell: cmd
         run: packaging\windows\build.bat --ci
 
+      # Nom du produit et version dans les propriétés de l'exe (LaserStudioPro.spec, windows_version_info) :
+      # la signature du code (SignPath) demande les mêmes à chaque compilation.
+      - name: Vérifier le nom et la version de l'exe
+        shell: pwsh
+        run: |
+          $info = (Get-Item dist\LaserStudioPro\LaserStudioPro.exe).VersionInfo
+          $info | Format-List ProductName, ProductVersion, FileVersion, OriginalFilename
+          $app = $env:VERSION -replace '-dev$', ''
+          if ($info.ProductName -ne "Laser Studio Pro") { throw "ProductName absent ou faux : '$($info.ProductName)'" }
+          if ($info.ProductVersion -ne $app) { throw "ProductVersion '$($info.ProductVersion)' au lieu de '$app'" }
+
       - name: Installer Inno Setup
         run: choco install innosetup -y --no-progress
 

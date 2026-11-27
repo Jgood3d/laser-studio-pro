@@ -57,6 +57,34 @@ Pour sortir la version X.Y.Z :
 4. attendre la fin du workflow Release, relire le brouillon dans
    *Releases*, puis cliquer sur **Publish release**.
 
+### Signature du binaire Windows (SignPath)
+
+Sans signature, Windows SmartScreen avertit à l'installation et au premier
+lancement. La [SignPath Foundation](https://signpath.org/) signe
+gratuitement les projets libres. La politique de signature du projet est
+dans [`CODE_SIGNING.md`](CODE_SIGNING.md) ; l'exe porte déjà le nom de
+produit « Laser Studio Pro » et la version (`windows_version_info` dans
+`packaging/pyinstaller/LaserStudioPro.spec`, vérifiés par le workflow
+Release).
+
+Étapes, dans l'ordre :
+
+1. activer l'authentification à deux facteurs sur les comptes GitHub de
+   l'équipe (SignPath l'exige) ;
+2. publier une première version **non signée** (tag `v3.0.0`, release
+   publiée) : SignPath ne signe que ce qui est déjà publié sous cette forme ;
+3. faire un lien vers `CODE_SIGNING.md` depuis le `README.md` (page
+   d'accueil du projet) ;
+4. candidater sur [signpath.org/apply](https://signpath.org/apply) ; la
+   réponse prend de quelques jours à quelques semaines, sans recours en cas
+   de refus ;
+5. une fois accepté : relier le dépôt dans SignPath, ajouter le secret
+   `SIGNPATH_API_TOKEN` au dépôt, et une étape de signature
+   (`signpath/github-action-submit-signing-request`) dans le job Windows de
+   `release.yml`, avant la création de l'installeur puis sur l'installeur ;
+6. à chaque version, un approbateur valide la demande de signature dans
+   SignPath.
+
 L'AppImage est compilée sur Ubuntu 22.04 : elle tourne sur les
 distributions dont la glibc est au moins 2.35 (Ubuntu 22.04+, Debian 12,
 Fedora 36+). L'utilisateur doit être dans le groupe `dialout` pour accéder
