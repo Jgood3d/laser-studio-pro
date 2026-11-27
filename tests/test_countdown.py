@@ -41,6 +41,25 @@ class SoundsTests(unittest.TestCase):
         self.assertEqual(popen.call_args[0][0][-1], sounds.sound_file(sounds.GO))
 
 
+class FastClock:
+    """Horloge du compte à rebours accélérée 20 fois : les tests ne restent pas plantés des secondes entières."""
+
+    def __init__(self):
+        import time
+        self._now, self._start = time.monotonic, 0.0
+
+    def start(self):
+        self._start = self._now()
+
+    def elapsed(self):
+        return int((self._now() - self._start) * 20000)
+
+
+def fast(dialog):
+    dialog._clock = FastClock()
+    return dialog
+
+
 @unittest.skipIf(CountdownDialog is None, "PyQt6 non importable ici")
 class CountdownDialogTests(unittest.TestCase):
     @classmethod
@@ -49,21 +68,21 @@ class CountdownDialogTests(unittest.TestCase):
 
     def test_ticks_every_second_then_starts(self):
         played = []
-        dialog = CountdownDialog(2, play=lambda name: played.append(name) or True)
+        dialog = fast(CountdownDialog(2, play=lambda name: played.append(name) or True))
         self.addCleanup(dialog.deleteLater)
         self.assertEqual(dialog.exec(), QDialog.DialogCode.Accepted)
         self.assertEqual(played, [sounds.TICK, sounds.TICK, sounds.GO])
 
     def test_cancel_stops_everything(self):
         played = []
-        dialog = CountdownDialog(5, play=lambda name: played.append(name) or True)
+        dialog = fast(CountdownDialog(5, play=lambda name: played.append(name) or True))
         self.addCleanup(dialog.deleteLater)
-        QTimer.singleShot(300, dialog.reject)                            # Annuler (ou Échap)
+        QTimer.singleShot(5, dialog.reject)                              # Annuler (ou Échap), tout de suite
         self.assertEqual(dialog.exec(), QDialog.DialogCode.Rejected)
         self.assertEqual(played, [sounds.TICK])                          # pas de son de départ
 
     def test_system_beep_without_audio_player(self):
-        dialog = CountdownDialog(1, play=lambda name: False)
+        dialog = fast(CountdownDialog(1, play=lambda name: False))
         self.addCleanup(dialog.deleteLater)
         with mock.patch.object(QApplication, "beep") as beep:
             dialog.exec()

@@ -10,6 +10,8 @@ import os
 import sys
 import unittest
 
+import numpy as np
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from laser_studio.vector import box_generator as bg  # noqa: E402
@@ -78,6 +80,20 @@ def _inside(poly, x, y):
     return c
 
 
+def _inside_many(poly, xs, ys):
+    """_inside pour des tableaux de points d'un coup (numpy), même règle du lancer de rayon : le découpage des
+    plaques de charnière en cellules de 0,1 mm appelait _inside plus d'un million de fois par boîte."""
+    pts = np.asarray(poly, dtype=float)
+    x0, y0 = np.roll(pts[:, 0], 1), np.roll(pts[:, 1], 1)
+    x1, y1 = pts[:, 0], pts[:, 1]
+    inside = np.zeros(xs.shape, dtype=bool)
+    for a0, b0, a1, b1 in zip(x0, y0, x1, y1):
+        crosses = (b0 > ys) != (b1 > ys)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            inside ^= crosses & (xs < (a1 - a0) * (ys - b0) / (b1 - b0) + a0)
+    return inside
+
+
 def _cells(panel):
     """Rectangles (u0, v0, u1, v1) qui recouvrent la matière du panneau (contour moins trous)."""
     loops = [panel.cut] + list(panel.holes)
@@ -95,19 +111,24 @@ def _cells(panel):
 def _fine_cells(panel, step=0.1):
     """Petites cellules carrées (u0, v0, u1, v1) pour un panneau à contour courbe (plaque de charnière)."""
     us, vs = [q[0] for q in panel.cut], [q[1] for q in panel.cut]
-    cells = []
-    u = min(us)
+    # Mêmes abscisses et ordonnées qu'une boucle « u += step » (les arrondis de l'addition compris).
+    grid_u, u = [], min(us)
     while u < max(us):
-        v = min(vs)
-        while v < max(vs):
-            corners = ((u, v), (u + step, v), (u, v + step), (u + step, v + step), (u + step / 2.0, v + step / 2.0))
-            # Cellule « intérieure » : jamais de débordement du contour, donc pas de faux chevauchement quand
-            # deux pièces se touchent exactement (le test est un peu plus indulgent, d'au plus un pas).
-            if all(_inside(panel.cut, a, b) and not any(_inside(h, a, b) for h in panel.holes) for a, b in corners):
-                cells.append((u, v, u + step, v + step))
-            v += step
+        grid_u.append(u)
         u += step
-    return cells
+    grid_v, v = [], min(vs)
+    while v < max(vs):
+        grid_v.append(v)
+        v += step
+    u, v = (a.ravel() for a in np.meshgrid(np.array(grid_u), np.array(grid_v), indexing="ij"))
+    # Cellule « intérieure » : ses quatre coins et son centre dans la matière, jamais de débordement du contour,
+    # donc pas de faux chevauchement quand deux pièces se touchent exactement (au plus un pas d'indulgence).
+    keep = np.ones(u.shape, dtype=bool)
+    for a, b in ((u, v), (u + step, v), (u, v + step), (u + step, v + step), (u + step / 2.0, v + step / 2.0)):
+        keep &= _inside_many(panel.cut, a, b)
+        for hole in panel.holes:
+            keep &= ~_inside_many(hole, a, b)
+    return [(cu, cv, cu + step, cv + step) for cu, cv in zip(u[keep].tolist(), v[keep].tolist())]
 
 
 def _clip(cell, v_min, v_max):
