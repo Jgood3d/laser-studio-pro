@@ -26,7 +26,7 @@ THEMES = {
         "button_hover": "#3a3a3a",
         "border": "#555555",
         "text": "#dcdcdc",
-        "muted": "#888888",
+        "muted": "#969696",
         "accent": "#2b5c8f",
         "accent_hover": "#4a8ad4",
         "on_accent": "#ffffff",
@@ -79,7 +79,7 @@ THEMES = {
         "button_hover": "#4a5266",
         "border": "#4f5666",
         "text": "#d8dee9",
-        "muted": "#9aa3b5",
+        "muted": "#9ea7b8",
         "accent": "#88c0d0",
         "accent_hover": "#8fbcbb",
         "on_accent": "#2b303b",
@@ -109,7 +109,7 @@ THEMES = {
         "button_hover": "#434c5e",
         "border": "#4c566a",
         "text": "#d8dee9",
-        "muted": "#9aa3b5",
+        "muted": "#9ea7b8",
         "accent": "#88c0d0",
         "accent_hover": "#9fcfdc",
         "on_accent": "#2b303b",
@@ -150,7 +150,7 @@ THEMES = {
         "button_hover": "#0f4c5c",
         "border": "#0e4b5b",
         "text": "#cdd8da",
-        "muted": "#7e9ca2",
+        "muted": "#90aaaf",
         "accent": "#047aa6",
         "accent_hover": "#1b93c0",
         "on_accent": "#ffffff",
@@ -489,6 +489,21 @@ def _chevron(direction, color):
                      f'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="8" viewBox="0 0 10 8">'
                      f'<polyline points="{points}" fill="none" stroke="{color}" stroke-width="1.6" '
                      f'stroke-linecap="round" stroke-linejoin="round"/></svg>')
+
+
+def contrast_ratio(color_a, color_b):
+    """Rapport de contraste WCAG entre deux couleurs « #rrggbb » (1 à 21 ; 4,5 pour un texte, 3 pour un contour)."""
+    def luminance(hex_color):
+        channels = (int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))
+        r, g, b = (ch / 12.92 if ch <= 0.03928 else ((ch + 0.055) / 1.055) ** 2.4 for ch in channels)
+        return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    high, low = sorted((luminance(color_a), luminance(color_b)), reverse=True)
+    return (high + 0.05) / (low + 0.05)
+
+
+def focus_color(c):
+    """Couleur du contour de focus : l'accent clair s'il se voit sur le fond (contraste 3), sinon le texte."""
+    return c["accent_hover"] if contrast_ratio(c["accent_hover"], c["window"]) >= 3 else c["text"]
 
 
 def _build_stylesheet(c: dict) -> str:
@@ -835,6 +850,18 @@ def _build_stylesheet(c: dict) -> str:
         color: {c["text"]};
         padding: 4px;
     }}
+    /* Navigation au clavier : le widget qui a le focus reste visible dans tous les thèmes (contour de
+       contraste suffisant, voir focus_color), y compris les onglets, cases, boutons radio et curseurs. */
+    QCheckBox, QRadioButton, QSlider {{
+        border: 1px solid transparent;
+        border-radius: 4px;
+    }}
+    QPushButton:focus, QToolButton:focus, QCheckBox:focus, QRadioButton:focus, QSlider:focus {{
+        border: 1px solid {focus_color(c)};
+    }}
+    QTabBar::tab:focus {{
+        text-decoration: underline;
+    }}
 """
 
 
@@ -910,9 +937,6 @@ def _modern_stylesheet(c: dict) -> str:
     }}
     QTabBar::tab:hover:!selected {{
         color: {c["text"]};
-    }}
-    QTabBar:focus {{
-        outline: none;
     }}
     QTabBar::scroller {{
         width: 0px;
@@ -1040,7 +1064,7 @@ def _modern_stylesheet(c: dict) -> str:
         color: {c["on_accent"]};
     }}
     QPushButton:focus {{
-        border: 1px solid {c["accent_hover"]};
+        border: 1px solid {focus_color(c)};
     }}
     QPushButton:disabled {{
         background-color: {c["alt"]};
