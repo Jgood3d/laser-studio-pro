@@ -84,7 +84,7 @@ porte-clés par prénom.
 
 ### Imbrication automatique
 
-Le bouton **Imbrication auto** (barre d'édition, à droite du canevas de l'éditeur vectoriel) place les pièces au plus serré sur la
+**Imbrication auto** (menu **Disposer** de la barre d'édition, à droite du canevas de l'éditeur vectoriel) place les pièces au plus serré sur la
 plaque, pour économiser la matière. Il tient compte de la forme réelle des
 pièces : une petite pièce peut se loger dans le creux d'une grande. Réglez
 la taille de la feuille, l'écart entre les pièces et les rotations
