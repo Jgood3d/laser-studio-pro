@@ -55,8 +55,7 @@ class VectorImporter:
             return
         if not editor.import_objects(objects):
             return
-        editor.dialogs.info(tr("vector.svg_success_title"),
-                            tr("vector.svg_tree_success").format(**svg_tree_counts(objects, layers)))
+        editor.dialogs.notify(tr("vector.svg_tree_success").format(**svg_tree_counts(objects, layers)))
 
     def import_stencil_export(self, path):
         """Fichier SVG ou DXF exporté par Stencil Studio : objets rangés dans les calques de LSP d'après leur
@@ -120,4 +119,4 @@ class VectorImporter:
             count=len(objects), layer=default_layer.name, unit=dxf_import.units_label(drawing))
         if skipped:
             message += "\n\n" + tr("vector.dxf_skipped").format(skipped=skipped)
-        dialogs.info(tr("vector.dxf_title"), message)
+        dialogs.notify(message)

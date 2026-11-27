@@ -683,6 +683,17 @@ def _build_stylesheet(c: dict) -> str:
     QPushButton[role="primary"]:hover {{
         background-color: {c.get("primary_hover", c["accent_hover"])};
     }}
+    /* Arrêt d'urgence (barre d'outils) : rouge dans tous les thèmes, reconnaissable d'un coup d'œil. */
+    QPushButton[role="danger"] {{
+        background-color: #d32f2f;
+        border: 1px solid #b71c1c;
+        color: #ffffff;
+        font-weight: bold;
+        padding: 4px 14px;
+    }}
+    QPushButton[role="danger"]:hover {{
+        background-color: #b71c1c;
+    }}
     QCheckBox, QRadioButton {{
         color: {c["text"]};
         background-color: transparent;

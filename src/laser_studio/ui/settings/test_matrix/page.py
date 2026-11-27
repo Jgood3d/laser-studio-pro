@@ -146,9 +146,7 @@ class TestMatrixPage(QWidget):
         self.lines_mm_spin.setEnabled(False)
         self.lines_mm_spin.setToolTip(tr("ui.mat_lmm_auto_tooltip"))
         self.laser_cmd_combo = QComboBox()
-        self.laser_cmd_combo.addItems(
-            ["M4 (Dynamic Power)", "M3 (Constant Power)"]
-        )
+        self.laser_cmd_combo.addItems([tr("layers.laser_m4"), tr("layers.laser_m3")])   # le texte commence par M4 / M3
         self.homing_check = QCheckBox(tr("ui.mat_homing"))
         self.homing_check.setChecked(False)
 

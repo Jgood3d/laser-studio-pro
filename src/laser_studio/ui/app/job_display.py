@@ -15,6 +15,11 @@ from PyQt6.QtWidgets import QApplication
 from laser_studio.gcode import MATRIX_ENGRAVE
 from laser_studio.i18n import tr
 from laser_studio.i18n.durations import duration_text
+from laser_studio.models import machine_state as ms
+
+
+# États où le graveur bouge ou travaille : l'arrêt d'urgence s'affiche dans la barre d'outils.
+RUNNING_STATES = (ms.STREAMING, ms.HOMING, ms.COMMANDS)
 
 
 def set_homing_available(checkboxes, available, tip):
@@ -75,6 +80,8 @@ class JobDisplay(QObject):
         self.connection = None
         # G-Code dessiné dans l'aperçu 2D (généré, importé ou envoyé).
         self.last_gcode_text = None
+        self._resume = None              # (job entier, décalage des lignes) d'une reprise qui démarre
+        self._acked_offset = 0           # lignes envoyées -> lignes du G-Code affiché (reprise)
 
     # -- génération du G-Code (JobController)
 
@@ -162,13 +169,14 @@ class JobDisplay(QObject):
         c.stream_progress.connect(
             lambda current, total: panel.progress_bar.setValue(int((current / total) * 100) if total else 0))
         c.stream_lines_sent.connect(panel.sent_gcode_log.append_lines)
-        c.stream_lines_acked.connect(lambda acked: self.preview.set_lines_acked(acked))
+        c.stream_lines_acked.connect(lambda acked: self.preview.set_lines_acked(acked + self._acked_offset))
         c.reconnecting.connect(lambda: self._log(tr("laser.reconnecting")))
         e = engraver
         e.log.connect(self._log)
         e.ports_changed.connect(panel.connection_panel.set_ports)
         e.disconnected.connect(lambda: self.show_machine_state(None, None, None, None))
         e.direct_job_started.connect(self._direct_job_started)
+        e.resume_starting.connect(lambda gcode_text, offset: setattr(self, "_resume", (gcode_text, offset)))
         e.stream_starting.connect(self._stream_starting)
         e.stream_ended.connect(self._stream_ended)
         e.gcode_restored.connect(self.console.set_gcode)
@@ -180,7 +188,9 @@ class JobDisplay(QObject):
         du graveur (MachinePanel.set_machine_state, table de models/machine_state.py) : tout grisé
         déconnecté, seules les commandes temps réel pendant un job ou un homing. La position du job reste
         modifiable : elle sert aussi à générer le G-Code hors connexion."""
-        self.machine_panel.set_machine_state(self.connection.is_connected(), self.connection.can)
+        connection = self.connection
+        self.machine_panel.set_machine_state(connection.is_connected(), connection.can)
+        self.actions.set_machine_state(connection.can(ms.REALTIME), connection.state in RUNNING_STATES)
 
     def status_updated(self, state, x, y, z):
         """État et position du graveur (sondage hors job, thread d'envoi
@@ -220,6 +230,15 @@ class JobDisplay(QObject):
         self.machine_panel.progress_bar.setValue(0)
         self.machine_panel.progress_bar.setVisible(True)
         self._show_machine_panel()           # gravure lancée : le panneau du graveur se déplie
+        resume, self._resume = self._resume, None
+        if resume is not None:
+            # Reprise : l'aperçu garde le job entier (le reste seul s'affichait mal) et le tracé déjà gravé.
+            whole, self._acked_offset = resume
+            self.preview.stop_simulation()
+            if whole != self.last_gcode_text:
+                self.plot(whole)
+            return
+        self._acked_offset = 0
         if gcode_text != self.last_gcode_text:
             self.plot(gcode_text)
         else:

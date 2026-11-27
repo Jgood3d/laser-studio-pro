@@ -57,8 +57,7 @@ class Png2SvgController:
             self._dialogs.info(tr("vector.svg_empty_title"), tr("vector.svg_empty"))
             return
         self._add_to_vector_editor(objects)
-        self._dialogs.info(tr("vector.svg_success_title"),
-                           tr("vector.svg_success").format(count=len(objects), layer=layer.name))
+        self._dialogs.notify(tr("vector.svg_success").format(count=len(objects), layer=layer.name))
 
     def export_svg(self, svg_text):
         """Enregistre le SVG dans le fichier choisi par l'utilisateur. Renvoie le chemin, ou None."""
@@ -72,7 +71,7 @@ class Png2SvgController:
         except OSError as error:
             self._dialogs.error(tr("png2svg.export_svg"), str(error))
             return None
-        self._dialogs.info(tr("png2svg.export_svg"), tr("png2svg.export_success"))
+        self._dialogs.notify(tr("png2svg.export_success"))
         return path
 
     def _svg_objects(self, svg_text, layer_id):

@@ -21,7 +21,7 @@ Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 >   votre laser, et faites-les porter aux personnes présentes.
 > - Aérez ou aspirez les fumées. Ne gravez jamais de PVC ni de vinyle :
 >   ils dégagent des gaz toxiques et corrosifs.
-> - Vérifiez le tracé dans l'onglet *Visualisation 2D G-Code* avant de
+> - Vérifiez le tracé dans l'onglet *Visualisation 2D du G-Code* avant de
 >   lancer un travail.
 >
 > L'utilisateur reste seul responsable des fichiers envoyés à sa machine.
@@ -39,7 +39,7 @@ Cette aide s'ouvre à tout moment avec la touche **F1** ou par le menu
 
 1. **Ouvrez une image** dans l'onglet *Graver une image*.
 2. **Réglez** la taille, le contraste et le mode de tramage.
-3. **Générez le G-code**, puis vérifiez-le dans l'onglet *Visualisation 2D
+3. **Générez le G-code**, puis vérifiez-le dans l'onglet *Visualisation 2D du
    G-Code*.
 4. **Connectez le graveur** et lancez le travail.
 
@@ -131,8 +131,8 @@ pour les partager. Voir [Comprendre les calques et les
 matériaux](calques-et-materiaux.md).
 
 D'autres onglets complètent ces trois-là : *Vectorisation d'image* (une
-image devient un dessin vectoriel), *Séparation Couleur / Verre* et
-*Visualisation 2D G-Code*.
+image devient un dessin vectoriel), *Séparation couleur / verre* et
+*Visualisation 2D du G-Code*.
 
 **Le panneau du bas**, comme celui de VS Code, reste sous les onglets :
 **Graveur** (connexion, déplacements de la tête, lancement et suivi du
@@ -146,7 +146,7 @@ replié, et se déplie tout seul quand une gravure démarre et en cas d'alarme.
 Une fois tout réglé, il reste à **générer le G-code** : Laser Studio Pro
 transforme l'image et les éléments vectoriels en commandes GRBL, la langue
 que comprend votre graveur laser (déplacements, vitesse, puissance). Avant
-de lancer le travail, vérifiez le tracé dans l'onglet *Visualisation 2D
+de lancer le travail, vérifiez le tracé dans l'onglet *Visualisation 2D du
 G-Code* : vous y voyez le chemin du laser et la durée estimée.
 
 Le bouton **Simuler** (▶, à droite de l'aperçu) rejoue le parcours du laser
@@ -161,14 +161,30 @@ GRBL* (1 ou 2 %).
 
 Le menu **Job** regroupe les raccourcis : **F5** générer, **F6** et
 **Maj+F6** cadrer, **Ctrl+Entrée** envoyer au laser, **F7** pause, **F8**
-reprise.
+reprise (après une pause ou un arrêt), **F9** arrêt d'urgence.
+
+Pendant une gravure, un homing ou un cadrage, un bouton rouge **Arrêt
+d'urgence** reste dans la barre d'outils, même panneau du graveur replié.
+
+Si vous changez un réglage après avoir généré le G-code, la barre d'état
+affiche **⚠ G-Code à régénérer** (cliquez dessus pour régénérer), et l'envoi
+vous le rappelle avant de partir avec l'ancien G-code.
+
+Dans les panneaux de réglages, la molette fait défiler le panneau : elle ne
+modifie un champ qu'après un clic dedans.
 
 Si un travail s'arrête avant la fin (alarme, arrêt, coupure de courant), le
-bouton **Reprendre** (⏩, panneau du graveur) le relance là où il s'était
-arrêté : la tête revient laser éteint au point exact de l'arrêt, puis
+bouton vert de reprise (**F8**) ou **Reprendre le job** (cadre Jobs du
+panneau du graveur) le relance là où il s'était arrêté : la tête revient laser éteint au point exact de l'arrêt, puis
 continue. Après une coupure de courant, ce point n'a pas pu être relu : les
-derniers traits avant l'arrêt sont alors regravés. Faites d'abord un homing
-après une alarme ou une coupure.
+derniers traits avant l'arrêt sont alors regravés. Après une alarme (arrêt
+d'urgence compris), faites d'abord un homing ou déverrouillez le graveur
+(`$X`) : la reprise vous le rappelle tant que ce n'est pas fait.
+
+Avant l'envoi, une seule fenêtre réunit l'avertissement de sécurité, les
+points à vérifier (G-code à régénérer, lignes à risque, graveur sans homing)
+et la question. Les réussites (projet enregistré, G-code exporté, fichier
+importé…) s'affichent simplement dans la barre d'état.
 
 Un G-code venu d'un autre logiciel qui modifierait la configuration du
 graveur (`$130=…`, `$RST=*`) ou dépasserait la puissance maximale n'est

@@ -202,21 +202,21 @@ class PuzzleGeneratorDialog(QDialog):
         root = QHBoxLayout(self)
         left = QVBoxLayout()
 
-        info = QLabel("Configuration du puzzle ajustée à l'image active :")
+        info = QLabel(tr("puzzle.fitted_info"))
         info.setWordWrap(True)
         info.setStyleSheet("font-weight: bold; color: #27ae60;")
         left.addWidget(info)
 
         form = QFormLayout()
         self.combo_style = QComboBox()
-        self.combo_style.addItem("Jigsaw Classique (tenons / mortaises)", "Classique")
-        self.combo_style.addItem("Grille Ondulée (vagues)", "Organique")
+        self.combo_style.addItem(tr("puzzle.style_classic"), "Classique")
+        self.combo_style.addItem(tr("puzzle.style_wavy"), "Organique")
         if "style" in saved:
             idx = self.combo_style.findData(saved["style"])
             if idx >= 0:
                 self.combo_style.setCurrentIndex(idx)
         self.combo_style.currentIndexChanged.connect(self._on_style_changed)
-        form.addRow("Style de découpe :", self.combo_style)
+        form.addRow(tr("puzzle.style"), self.combo_style)
 
         self.combo_layer = QComboBox()
         default_index = 0
@@ -226,30 +226,30 @@ class PuzzleGeneratorDialog(QDialog):
                 default_index = idx
         if self.combo_layer.count() > 0:
             self.combo_layer.setCurrentIndex(default_index)
-        form.addRow("Calque de découpe :", self.combo_layer)
+        form.addRow(tr("box.cut_layer"), self.combo_layer)
 
         # Dimensions : spinbox standards (flèches OK ici, champ principal)
         self.spin_w = QDoubleSpinBox(); self.spin_w.setRange(1, 3000); self.spin_w.setDecimals(2)
         self.spin_w.setValue(self.def_w); self.spin_w.setSuffix(" mm")
         self.spin_h = QDoubleSpinBox(); self.spin_h.setRange(1, 3000); self.spin_h.setDecimals(2)
         self.spin_h.setValue(self.def_h); self.spin_h.setSuffix(" mm")
-        form.addRow("Largeur :", self.spin_w)
-        form.addRow("Hauteur :", self.spin_h)
+        form.addRow(tr("vector.dlg.width"), self.spin_w)
+        form.addRow(tr("vector.dlg.height"), self.spin_h)
 
         self.spin_cols = QSpinBox(); self.spin_cols.setRange(2, 50); self.spin_cols.setValue(saved.get("cols", 5))
         self.spin_rows = QSpinBox(); self.spin_rows.setRange(2, 50); self.spin_rows.setValue(saved.get("rows", 4))
-        form.addRow("Pièces en largeur :", self.spin_cols)
-        form.addRow("Pièces en hauteur :", self.spin_rows)
+        form.addRow(tr("puzzle.cols"), self.spin_cols)
+        form.addRow(tr("puzzle.rows"), self.spin_rows)
 
         self.spin_x = QDoubleSpinBox(); self.spin_x.setRange(0, 3000); self.spin_x.setDecimals(2)
         self.spin_x.setValue(self.def_x); self.spin_x.setSuffix(" mm")
         self.spin_y = QDoubleSpinBox(); self.spin_y.setRange(0, 3000); self.spin_y.setDecimals(2)
         self.spin_y.setValue(self.def_y); self.spin_y.setSuffix(" mm")
-        form.addRow("Position X :", self.spin_x)
-        form.addRow("Position Y :", self.spin_y)
+        form.addRow(tr("puzzle.pos_x"), self.spin_x)
+        form.addRow(tr("puzzle.pos_y"), self.spin_y)
         left.addLayout(form)
 
-        self.grp_shape = QGroupBox("Forme du tenon (Classique)")
+        self.grp_shape = QGroupBox(tr("puzzle.tab_group"))
         shape_lay = QVBoxLayout(self.grp_shape)
 
         def pm(label, lo, hi, key, default, step=0.01):
@@ -258,11 +258,11 @@ class PuzzleGeneratorDialog(QDialog):
             shape_lay.addWidget(w)
             return w
 
-        self.row_depth = pm("Profondeur", 0.14, 0.30, "tab_depth", 0.22)
-        self.row_span = pm("Largeur zone", 0.22, 0.46, "tab_span", 0.34)
-        self.row_neck = pm("Largeur du col", 0.32, 0.60, "neck_width", 0.45)
-        self.row_pos = pm("Position aléatoire", 0.00, 1.00, "pos_random", 0.60, 0.05)
-        self.row_jitter = pm("Variation taille", 0.00, 0.30, "jitter", 0.10)
+        self.row_depth = pm(tr("puzzle.tab_depth"), 0.14, 0.30, "tab_depth", 0.22)
+        self.row_span = pm(tr("puzzle.tab_span"), 0.22, 0.46, "tab_span", 0.34)
+        self.row_neck = pm(tr("puzzle.tab_neck"), 0.32, 0.60, "neck_width", 0.45)
+        self.row_pos = pm(tr("puzzle.tab_random"), 0.00, 1.00, "pos_random", 0.60, 0.05)
+        self.row_jitter = pm(tr("puzzle.tab_jitter"), 0.00, 0.30, "jitter", 0.10)
         left.addWidget(self.grp_shape)
 
         buttons = QDialogButtonBox(
@@ -273,13 +273,10 @@ class PuzzleGeneratorDialog(QDialog):
         left.addWidget(buttons)
 
         right = QVBoxLayout()
-        right.addWidget(QLabel("Aperçu :"))
+        right.addWidget(QLabel(tr("puzzle.preview")))
         self.preview = TabShapePreview()
         right.addWidget(self.preview, 1)
-        hint = QLabel(
-            "Forme du tenon : réglage avec − et +.\n"
-            "Col étroit + tête ronde = puzzle classique."
-        )
+        hint = QLabel(tr("puzzle.tab_hint"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #8b93a7; font-size: 12px;")
         right.addWidget(hint)

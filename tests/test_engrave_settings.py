@@ -54,7 +54,7 @@ class EngraveSettingsTests(unittest.TestCase):
         job.layers.update(fill.id, speed=1500, power=100)
         self.assertEqual(job.layers.engrave_layer(), fill)
         self.assertEqual((job.engrave_speed, job.engrave_power), (1500, 100))
-        self.assertEqual(job.engrave_layer_label(), f"{fill.name}  [Gravure Remplie]")
+        self.assertEqual(job.engrave_layer_label(), f"{fill.name}  [Gravure remplie]")
 
     def test_layer_change_is_seen_without_any_copy(self):
         """Le cas du bug : le calque est modifié (saisie, matériau, profil),

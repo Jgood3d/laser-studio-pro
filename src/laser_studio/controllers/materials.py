@@ -331,8 +331,7 @@ class MaterialsController:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 json.dump(self.materials, f, indent=2, ensure_ascii=False)
-            self._dialogs.info(tr("material.export_success_title"),
-                               tr("material.export_success_body").format(count=len(self.materials), path=path))
+            self._dialogs.notify(tr("material.export_success_body").format(count=len(self.materials), path=path))
         except Exception as e:
             self._dialogs.error(tr("laser.error"), tr("material.error_export").format(error=e))
 
@@ -354,7 +353,6 @@ class MaterialsController:
                 else:
                     added += 1
                 self.model.store(name, material)
-            self._dialogs.info(tr("material.import_success_title"),
-                               tr("material.import_success_body").format(added=added, updated=updated))
+            self._dialogs.notify(tr("material.import_success_body").format(added=added, updated=updated))
         except Exception as e:
             self._dialogs.error(tr("laser.error"), tr("material.error_import").format(error=e))

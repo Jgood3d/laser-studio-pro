@@ -97,7 +97,7 @@ class ProjectController:
             atomic_write_json(path, self.data(), indent=4)
             self._add_to_recent_projects(path)
             self.discard_autosave()
-            self._dialogs.info(tr("project.save_success_title"), tr("project.save_success"))
+            self._dialogs.notify(tr("project.save_success"))
             return True
         except Exception as e:
             self._dialogs.error(tr("laser.error"), tr("project.save_error").format(error=e))
@@ -119,7 +119,7 @@ class ProjectController:
             image = self.decode_image(encoded) if encoded else None
             self._restore(data, image)
             self._add_to_recent_projects(path)
-            self._dialogs.info(tr("project.load_success_title"), tr("project.load_success"))
+            self._dialogs.notify(tr("project.load_success"))
         except Exception as e:
             self._dialogs.error(tr("laser.error"), tr("project.load_error").format(error=e))
             return False

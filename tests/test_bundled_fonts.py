@@ -46,7 +46,8 @@ class BundledFontsTests(unittest.TestCase):
             self.assertIn(family, self.bundled)
         font = QFont(family)
         font.setBold(bold)
-        self.assertEqual(QFontInfo(font).family(), family)
+        # Police à la fois embarquée et installée (paquet Fedora) : Qt ajoute le fabricant, « Rubik [UKWN] ».
+        self.assertEqual(QFontInfo(font).family().split(" [")[0], family)
 
     def test_script_font_is_available_everywhere(self):
         """Dancing Script (boule de Noël prénom)."""

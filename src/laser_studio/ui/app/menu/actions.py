@@ -98,6 +98,9 @@ class AppActions(QObject):
     frame_contour_requested = pyqtSignal()
     pause_requested = pyqtSignal()
     resume_requested = pyqtSignal()
+    emergency_stop_requested = pyqtSignal()
+    # Gravure, homing ou commandes en cours : le bouton d'arrêt d'urgence de la barre d'outils s'affiche.
+    machine_running_changed = pyqtSignal(bool)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -110,6 +113,12 @@ class AppActions(QObject):
         self._create_gcode_actions()
 
     # -- état reçu de la fenêtre / du contrôleur
+
+    def set_machine_state(self, can_realtime, running):
+        """Arrêt d'urgence : actif si le graveur peut recevoir une commande temps réel (`can_realtime`) ;
+        `running` (gravure, homing ou commandes en cours) affiche le bouton de la barre d'outils."""
+        self.emergency_stop.setEnabled(can_realtime)
+        self.machine_running_changed.emit(running)
 
     def set_gcode_export_enabled(self, enabled):
         """Enregistrement du G-Code : actif une fois le G-Code généré."""
@@ -488,6 +497,12 @@ class AppActions(QObject):
             action.setShortcut(QKeySequence(shortcut))
             action.setObjectName(f"job_{name}")
             self.job_actions.append(action)
+        # Arrêt d'urgence : F9 à côté de pause et reprise. Pas Échap, qui annule les outils et les fenêtres et
+        # qu'un raccourci de la fenêtre leur volerait.
+        self.emergency_stop = self._action(QIcon(), tr("menu.job.emergency_stop"), self.emergency_stop_requested)
+        self.emergency_stop.setShortcut(QKeySequence("F9"))
+        self.emergency_stop.setObjectName("job_emergency_stop")
+        self.emergency_stop.setEnabled(False)
 
     def _emit_mirror_changed(self, _checked=False):
         self.mirror_changed.emit(

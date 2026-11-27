@@ -23,7 +23,7 @@ from laser_studio.gcode.rotary import RotaryConfig, RotaryError, machine_gcode, 
 from laser_studio.grbl import commands
 from laser_studio.grbl.ports import load_last_port, port_labels, port_of, preferred_index, save_last_port
 from laser_studio.grbl.simulator import SIMULATED_PORT, simulation_enabled
-from laser_studio.grbl.streaming import resume_gcode
+from laser_studio.grbl.streaming import gcode_lines, resume_gcode
 from laser_studio.i18n import tr
 from laser_studio.models import machine_state as ms
 
@@ -32,16 +32,15 @@ log = get_logger()
 GRBL_SETTINGS_FILE_FILTER = "Texte (*.txt);;Tous (*.*)"
 
 
-def launch_confirmation_text():
-    """Texte de « Confirmer le lancement » : l'avertissement de sécurité du
-    démarrage (mêmes traductions), puis la liste des vérifications et la
-    question."""
-    return "\n".join((
-        tr("startup.safety.body"),
-        tr("startup.safety.detail"),
-        "",
-        tr("laser.confirm_body"),
-    ))
+def launch_confirmation_text(warnings=(), question=None):
+    """Texte de la seule fenêtre avant un envoi : l'avertissement de sécurité du démarrage (mêmes traductions),
+    puis, s'il y en a, les points à vérifier (`warnings`, un par ligne : G-Code périmé, pas de homing, lignes à
+    risque), puis la liste des vérifications et la question (`question`, sinon celle du lancement)."""
+    parts = [tr("startup.safety.body"), tr("startup.safety.detail"), ""]
+    if warnings:
+        parts += [tr("laser.check_title")] + [f"• {warning}" for warning in warnings] + [""]
+    parts.append(question or tr("laser.confirm_body"))
+    return "\n".join(parts)
 
 
 class EngraverController(QObject):
@@ -71,7 +70,10 @@ class EngraverController(QObject):
     - gcode_restored(gcode) : « Répéter le dernier job » remet le G-Code
       envoyé dans la console ;
     - job_done() : fin d'un job ou de la file (signal sonore) ;
-    - resume_available(bool) : un job s'est arrêté avant la fin et peut être repris (resume_job).
+    - resume_available(bool) : un job s'est arrêté avant la fin et peut être repris (resume_job) ;
+    - resume_starting(gcode, décalage) : juste avant le stream_starting d'une reprise : `gcode` est le job
+      entier, et la ligne envoyée n de la reprise est sa ligne n + décalage (l'aperçu 2D garde le job entier
+      et continue le tracé déjà gravé).
     """
 
     ports_changed = pyqtSignal(list, int)
@@ -84,9 +86,11 @@ class EngraverController(QObject):
     gcode_restored = pyqtSignal(str)
     job_done = pyqtSignal()
     resume_available = pyqtSignal(bool)
+    resume_starting = pyqtSignal(str, int)
 
     def __init__(self, connection, grbl, dialogs, *, selected_port=lambda: "", current_gcode=lambda: "",
-                 job_geometry=None, set_homing_available=lambda available, tip: False, parent=None):
+                 job_geometry=None, set_homing_available=lambda available, tip: False,
+                 gcode_stale=lambda gcode_text: False, parent=None):
         super().__init__(parent)
         self.connection = connection
         self.grbl = grbl
@@ -95,6 +99,8 @@ class EngraverController(QObject):
         self._current_gcode = current_gcode
         self._job_geometry = job_geometry
         self._set_homing_available = set_homing_available
+        # G-Code généré avant un changement de réglage ? (JobController.is_stale)
+        self._gcode_stale = gcode_stale
         connection.reconnected.connect(self._on_reconnect_result)
         # Envoi en cours (G-Code, lignes acquittées, dernière position de la tête) et job arrêté avant la fin,
         # à reprendre (resume_job) : (G-Code, lignes acquittées, position de la tête à l'arrêt ou None).
@@ -299,7 +305,12 @@ class EngraverController(QObject):
         self.log.emit(tr("laser.pause_log"))
 
     def resume(self):
-        """Reprise après une pause (bouton, F8) ; sans effet si le graveur ne peut pas la recevoir."""
+        """Reprise (bouton vert, F8) : après une pause pendant un envoi, la reprise temps réel (~) ; sans envoi en
+        cours et avec un job interrompu, la reprise de ce job (resume_job) : c'est ce bouton qu'on cherche après
+        un arrêt d'urgence, et ~ n'y ferait rien. Sans effet si le graveur ne peut pas la recevoir."""
+        if self.resume_point is not None and not self.connection.is_streaming():
+            self.resume_job()
+            return
         if not self.connection.can(ms.REALTIME):
             return
         self.connection.resume()
@@ -310,21 +321,42 @@ class EngraverController(QObject):
         self.connection.soft_reset()
 
     def emergency_stop(self):
+        """Arrêt d'urgence (bouton du panneau, de la barre d'outils, F9) : reset immédiat du graveur ; sans effet
+        s'il ne peut pas le recevoir (déconnecté)."""
+        if not self.connection.can(ms.REALTIME):
+            return
         self.log.emit(tr("laser.kill_log"))
         self.connection.soft_reset()
 
     # -- envoi d'un job
 
     def confirm_safe_gcode(self, gcode_text):
-        """Un G-Code qui réécrit la configuration de GRBL ($130=…, $RST=*) ou dépasse le S-Max (fichier d'un
-        autre outil, console retouchée) n'est envoyé qu'après confirmation, lignes en cause listées. True pour
-        continuer."""
+        """Avant un envoi ou un ajout à la file : un G-Code généré avant un changement de réglage (calque, taille,
+        image…) ou qui réécrit la configuration de GRBL ($130=…, $RST=*) ou dépasse le S-Max n'est envoyé qu'après
+        confirmation. True pour continuer."""
+        if self._gcode_stale(gcode_text) and not self.dialogs.confirm_default_no(
+                tr("laser.stale_gcode_title"), tr("laser.stale_gcode_body")):
+            return False
         lines = commands.risky_lines(gcode_text, self.grbl.smax)
         if not lines:
             return True
         return self.dialogs.confirm_default_no(
             tr("laser.risky_gcode_title"),
             tr("laser.risky_gcode_body").format(smax=self.grbl.smax, lines="\n".join(lines)))
+
+    def launch_warnings(self, gcode_text=None):
+        """Points à vérifier avant d'envoyer `gcode_text` (None : reprise, G-Code déjà vérifié) : G-Code périmé,
+        lignes qui réécrivent la configuration ou dépassent le S-Max, pas de homing depuis la connexion."""
+        warnings = []
+        if gcode_text is not None:
+            if self._gcode_stale(gcode_text):
+                warnings.append(tr("laser.check_stale"))
+            lines = commands.risky_lines(gcode_text, self.grbl.smax)
+            if lines:
+                warnings.append(tr("laser.check_risky").format(smax=self.grbl.smax, lines="\n    ".join(lines)))
+        if not self.connection.homed:
+            warnings.append(tr("laser.check_not_homed"))
+        return warnings
 
     def confirm_homed(self):
         """Avertit avant de lancer un job si aucun homing n'a été fait
@@ -370,9 +402,9 @@ class EngraverController(QObject):
         return "\n\n" + tr("laser.confirm_rotary").format(axis=config.axis, diameter=config.object_mm)
 
     def send_job(self, gcode_text=None):
-        """« Envoyer au laser » : le G-Code affiché (ou `gcode_text`), après
-        les vérifications (G-Code, connexion, homing) et la confirmation de
-        lancement. Renvoie True si l'envoi a démarré."""
+        """« Envoyer au laser » : le G-Code affiché (ou `gcode_text`), après UNE fenêtre de confirmation qui
+        rappelle la sécurité et liste ce qui pose problème (G-Code périmé ou à risque, pas de homing) : une suite
+        de questions finissait par être validée sans être lue. Renvoie True si l'envoi a démarré."""
         if gcode_text is None:
             gcode_text = self._current_gcode()
         log.info("Envoi : clic sur « Envoyer au laser » (port ouvert=%s, homing fait=%s, état %s)",
@@ -385,12 +417,9 @@ class EngraverController(QObject):
             return False
         if not self.allowed(ms.SEND_JOB, "laser.connect_via_usb"):     # aussi : job, homing en cours
             return False
-        if not self.confirm_safe_gcode(gcode_text):
-            return False
-        if not self.confirm_homed():
-            return False
-        if not self.dialogs.confirm_default_no(tr("laser.confirm_title"),
-                                                launch_confirmation_text() + self._rotary_confirmation()):
+        if not self.dialogs.confirm_default_no(
+                tr("laser.confirm_title"),
+                launch_confirmation_text(self.launch_warnings(gcode_text)) + self._rotary_confirmation()):
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
@@ -408,15 +437,22 @@ class EngraverController(QObject):
             self._set_resume_point(None)
             return False
         text, line, total = resume
+        if self.connection.state == ms.ALARM:
+            # Après un arrêt d'urgence, GRBL est en alarme : il faut d'abord retrouver une position sûre.
+            self.dialogs.warning(tr("laser.resume_title"), tr("laser.resume_alarm"))
+            return False
         if not self.allowed(ms.SEND_JOB, "laser.connect_via_usb"):
             return False
-        if not self.confirm_homed():
-            return False
-        if not self.dialogs.confirm_default_no(tr("laser.resume_title"),
-                                               tr("laser.resume_body").format(line=line, total=total)):
+        question = tr("laser.resume_body").format(line=line, total=total)
+        if not self.dialogs.confirm_default_no(
+                tr("laser.resume_title"),
+                launch_confirmation_text(self.launch_warnings(), question) + self._rotary_confirmation()):
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
+        start = line - 1                                       # 1re ligne du job reprise (lignes envoyées)
+        prologue = len(gcode_lines(text)) - (total - start)    # retour au point d'arrêt, état du G-Code
+        self.resume_starting.emit(gcode_text, start - prologue)
         self.start_stream(text, self._on_direct_job_finished)
         return True
 
@@ -487,7 +523,10 @@ class EngraverController(QObject):
         if clean_finish:
             self.dialogs.info(tr("laser.finished_title"), tr("laser.finished"))
         else:
-            self.dialogs.warning(tr("laser.interrupted_title"), tr("laser.interrupted"))
+            text = tr("laser.interrupted")
+            if self.resume_point is not None:
+                text += "\n\n" + tr("laser.interrupted_resume")
+            self.dialogs.warning(tr("laser.interrupted_title"), text)
 
     # -- configuration GRBL ($$)
 
@@ -536,7 +575,7 @@ class EngraverController(QObject):
                                  tr("ui.grbl_send_partial").format(count=len(lines) - len(errors), total=len(lines)))
         else:
             self.log.emit(tr("ui.grbl_send_success").format(count=len(lines)))
-            self.dialogs.info(tr("ui.grbl_settings_box"), tr("ui.grbl_send_all_success").format(count=len(lines)))
+            self.dialogs.notify(tr("ui.grbl_send_all_success").format(count=len(lines)))
 
     def export_settings(self):
         """Enregistre la configuration GRBL affichée dans un fichier texte."""

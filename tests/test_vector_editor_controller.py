@@ -185,7 +185,7 @@ class EditorTests(unittest.TestCase):
                     '<path d="M 5 5 L 55 5 L 55 35 Z"/></svg>')
         self.editor.importer.import_file(path)
         self.assertEqual(len(self.document.objects), 1)
-        self.assertEqual((shown, self.dialogs.kinds()), ([True], ["info"]))
+        self.assertEqual((shown, self.dialogs.kinds()), ([True], ["notify"]))
         self.document.undo()
         self.assertEqual(self.document.objects, [])
 

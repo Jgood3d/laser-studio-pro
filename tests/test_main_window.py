@@ -273,6 +273,15 @@ class MainWindowTests(unittest.TestCase):
         self.assertIn("preview_2d_side_sizes", self.stores[preferences.UI_CONFIG].values)
         self.assertEqual(self.stores[preferences.MACHINE_CONFIG].values["machine_bed_w_mm"], w.machine.bed_w)
 
+    def test_stale_gcode_notice_in_the_status_bar(self):
+        w = self.win
+        label = w.statusBar().stale_label
+        self.assertFalse(label.isVisibleTo(w))
+        w.job.gcode_stale_changed.emit(True)                         # un réglage a changé après la génération
+        self.assertTrue(label.isVisibleTo(w))
+        w.job.gcode_stale_changed.emit(False)
+        self.assertFalse(label.isVisibleTo(w))
+
     def test_job_menu_shortcuts(self):
         # Ctrl+G reste à « Grouper » de l'éditeur vectoriel : touches de fonction pour le job.
         w = self.win

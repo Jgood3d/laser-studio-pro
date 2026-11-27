@@ -158,7 +158,7 @@ class CommandsLockTests(unittest.TestCase):
         cls.app = QApplication.instance() or QApplication([])
 
     def make(self, connected):
-        display = JobDisplay(None, None, None, _Box(), None, None, layers=None, test_matrix=lambda: None,
+        display = JobDisplay(None, None, None, _Box(), mock.Mock(), None, layers=None, test_matrix=lambda: None,
                              show_preview=lambda: None, log=lambda _text: None, show_machine_panel=lambda: None)
         display.connection = mock.Mock(is_connected=lambda: connected, can=lambda action: connected)
         return display

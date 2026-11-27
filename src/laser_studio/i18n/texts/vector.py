@@ -359,31 +359,31 @@ TEXTS = {
         "es": "Mantener la proporción",
     },
     "dim.width": {
-        "fr": "Largeur (mm):",
+        "fr": "Largeur (mm) :",
         "en": "Width (mm):",
         "de": "Breite (mm):",
         "es": "Ancho (mm):",
     },
     "dim.height": {
-        "fr": "Hauteur (mm):",
+        "fr": "Hauteur (mm) :",
         "en": "Height (mm):",
         "de": "Höhe (mm):",
         "es": "Alto (mm):",
     },
     "dim.origin": {
-        "fr": "Ancrage Origine:",
-        "en": "Origin Anchor:",
-        "de": "Ursprungsanker:",
-        "es": "Anclaje del origen:",
+        "fr": "Point d'ancrage :",
+        "en": "Anchor point:",
+        "de": "Ankerpunkt:",
+        "es": "Punto de anclaje:",
     },
     "dim.offset_x": {
-        "fr": "Offset X (mm):",
+        "fr": "Décalage X (mm) :",
         "en": "X Offset (mm):",
         "de": "X-Versatz (mm):",
         "es": "Desplazamiento X (mm):",
     },
     "dim.offset_y": {
-        "fr": "Offset Y (mm):",
+        "fr": "Décalage Y (mm) :",
         "en": "Y Offset (mm):",
         "de": "Y-Versatz (mm):",
         "es": "Desplazamiento Y (mm):",
@@ -420,10 +420,10 @@ TEXTS = {
         "es": "Propiedades del elemento SVG (capa, tamaño)",
     },
     "vector.fullscreen_title": {
-        "fr": "Graver une image vectorielle — Plein écran",
-        "en": "Engrave a Vector Image — Full Screen",
+        "fr": "Graver une image vectorielle — plein écran",
+        "en": "Engrave a vector image — full screen",
         "de": "Vektorbild gravieren — Vollbild",
-        "es": "Grabar una imagen vectorial — Pantalla completa",
+        "es": "Grabar una imagen vectorial — pantalla completa",
     },
     "vector.close_fullscreen": {
         "fr": "✕ Fermer le plein écran (retour à la fenêtre normale)",
@@ -768,8 +768,8 @@ TEXTS = {
         "es": "📥 Importar SVG / DXF (multicapa)",
     },
     "ui.vector_edit_selection": {
-        "fr": "Modifier Sélection",
-        "en": "Edit Selection",
+        "fr": "Modifier la sélection",
+        "en": "Edit selection",
         "de": "Auswahl bearbeiten",
         "es": "Editar selección",
     },
@@ -870,10 +870,10 @@ TEXTS = {
         "es": "Alejar (Ctrl+-)",
     },
     "ui.vector_align_box": {
-        "fr": "Alignement / Distribution",
-        "en": "Alignment / Distribution",
+        "fr": "Alignement / distribution",
+        "en": "Alignment / distribution",
         "de": "Ausrichtung / Verteilung",
-        "es": "Alineación / Distribución",
+        "es": "Alineación / distribución",
     },
     # Infobulles de la barre d'alignement (boutons à pictogramme seul).
     "ui.vector_align_left_tip": {

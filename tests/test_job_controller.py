@@ -96,7 +96,7 @@ class GenerateTests(unittest.TestCase):
     def test_worker_signals_are_relayed(self):
         job, _ = make_job()
         job.generate()
-        self.worker.finished.connect.assert_called_once_with(job.generated)
+        self.worker.finished.connect.assert_any_call(job.generated)      # puis le suivi du G-Code périmé
         self.worker.progress.connect.assert_called_once_with(job.progress)
         self.worker.error.connect.assert_called_once_with(job.failed)
 
@@ -161,7 +161,7 @@ class FileTests(unittest.TestCase):
             self.assertEqual(path, os.path.join(tmp, "job.nc"))
             with open(path, encoding="utf-8") as f:
                 self.assertEqual(f.read(), "G0 X0\n")
-            self.assertEqual(dialogs.kinds(), ["save_file", "info"])
+            self.assertEqual(dialogs.kinds(), ["save_file", "notify"])
 
     def test_export_of_an_empty_gcode_is_refused(self):
         job, dialogs = make_job()
