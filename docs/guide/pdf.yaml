@@ -1,0 +1,14 @@
+# Réglages pandoc du guide en PDF. Depuis ce dossier (docs/guide/) :
+#     pandoc -d pdf.yaml
+# Il faut pandoc 3 et typst. Les liens du sommaire suivent la convention de GitHub (gfm_auto_identifiers),
+# pour fonctionner à la fois sur GitHub et dans le PDF.
+from: markdown+gfm_auto_identifiers
+input-files:
+  - guide-utilisateur.md
+output-file: guide-utilisateur.pdf
+pdf-engine: typst
+# Racine du dépôt : la bannière vient des ressources du logiciel (src/laser_studio/resources/).
+pdf-engine-opts:
+  - --root=../..
+include-in-header:
+  - pied-de-page.typ

@@ -142,7 +142,7 @@ laser-studio-pro/
 ├── requirements_principal.txt        # versions exactes figées pour les builds
 ├── .copr/Makefile                    # paquet source (SRPM) construit par Copr depuis le commit courant, voir packaging/fedora/
 ├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage et .deb, Windows, macOS, release en brouillon), macos-build.yml
-├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
+├── docs/                             # page de présentation (index.html), guide de démarrage (guide/ : guide-utilisateur.md, images/, pdf.yaml et pied-de-page.typ pour le PDF), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
 │   ├── fedora/                       # laser-studio-pro.spec (paquet RPM, Copr), README.md
@@ -263,6 +263,7 @@ laser-studio-pro/
 │   ├── project_files.py              # liste des fichiers Python de l'application (src/laser_studio)
 │   ├── signal_map.py                 # carte des signaux → docs/architecture/signaux.svg / .png
 │   ├── screenshots.py                # captures de l'interface → docs/screenshots/
+│   ├── guide_screenshots.py          # captures du guide de démarrage (parcours réel, graveur simulé) → docs/guide/images/
 │   └── menu_tools_puzzle.md          # mémo : brancher un outil dans le menu Outils
 ├── BUILD.md
 ├── MACOS_AUDIT.md / RELEASE_NOTES_2.x.0.md

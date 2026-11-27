@@ -50,3 +50,6 @@ build/
 
 # Métadonnées laissées par pip install -e / pip wheel
 *.egg-info/
+
+# Guide de démarrage compilé (pandoc -d pdf.yaml dans docs/guide/)
+docs/guide/*.pdf

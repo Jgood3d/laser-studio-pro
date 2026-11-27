@@ -7,6 +7,8 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Guide de démarrage pour les débutants (docs/guide/guide-utilisateur.md, à compiler en PDF) : sécurité, premier réglage du graveur, calques et matériaux, matrice de test, puis des exemples pas à pas avec captures d'écran (graver une photo, une médaille de la bibliothèque jusqu'à la gravure, un porte-clés), et le dépannage.
+
 Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
 
 ### Modifié
