@@ -45,6 +45,8 @@ class Engraver:
     may_send: Callable[[], bool] = lambda: True
     # G-Code qui réécrit la configuration de GRBL ou dépasse le S-Max : confirmé ? (voir confirm_safe_gcode)
     confirm_gcode: Callable[[str], bool] = lambda _gcode: True
+    # Compte à rebours avant le premier job (lunettes de protection) ; False si annulé.
+    countdown: Callable[[], bool] = lambda: True
 
 
 class JobQueueController:
@@ -211,6 +213,9 @@ class JobQueueController:
         if not self._dialogs.confirm_default_no(tr("queue.confirm_title"),
                                                 tr("queue.confirm_body").format(count=len(self.jobs))):
             log.info("File : annulée à la confirmation")
+            return
+        if not engraver.countdown():
+            log.info("File : annulée pendant le compte à rebours")
             return
         log.info(
             "File : démarrage, dernier état GRBL connu %s",

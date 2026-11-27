@@ -30,9 +30,9 @@ TEXTS = {
               "crea una nueva a partir de las dimensiones actuales de abajo.",
     },
     "mach.bed_box": {
-        "fr": "Dimensions du Graveur (Zone de Travail Physique)",
-        "en": "Engraver Dimensions (Physical Work Area)",
-        "de": "Abmessungen des Gravierers (Physischer Arbeitsbereich)",
+        "fr": "Dimensions du graveur (zone de travail physique)",
+        "en": "Engraver dimensions (physical work area)",
+        "de": "Abmessungen des Gravierers (physischer Arbeitsbereich)",
         "es": "Dimensiones del grabador (Área de trabajo física)",
     },
     "mach.bed_w": {
@@ -1904,5 +1904,41 @@ TEXTS = {
         "en": ">>> Homing not supported by this engraver: the $H in the G-Code is not sent.",
         "de": ">>> Referenzfahrt von diesem Gravierer nicht unterstützt: Das $H im G-Code wird nicht gesendet.",
         "es": ">>> Homing no compatible con este grabador: el $H del G-Code no se envía.",
+    },
+    "countdown.title": {
+        "fr": "Avant la gravure",
+        "en": "Before engraving",
+        "de": "Vor dem Gravieren",
+        "es": "Antes del grabado",
+    },
+    "countdown.glasses": {
+        "fr": "Mettez vos lunettes de protection",
+        "en": "Put on your safety glasses",
+        "de": "Setzen Sie Ihre Schutzbrille auf",
+        "es": "Póngase las gafas de protección",
+    },
+    "countdown.detail": {
+        "fr": "La gravure démarre dans {seconds} s",
+        "en": "Engraving starts in {seconds} s",
+        "de": "Die Gravur beginnt in {seconds} s",
+        "es": "El grabado empieza en {seconds} s",
+    },
+    "countdown.cancel": {
+        "fr": "Annuler (Échap)",
+        "en": "Cancel (Esc)",
+        "de": "Abbrechen (Esc)",
+        "es": "Cancelar (Esc)",
+    },
+    "ui.countdown_label": {
+        "fr": "Compte à rebours avant la gravure :",
+        "en": "Countdown before engraving:",
+        "de": "Countdown vor dem Gravieren:",
+        "es": "Cuenta atrás antes del grabado:",
+    },
+    "ui.countdown_tip": {
+        "fr": "Secondes de compte à rebours, avec un bip doux, entre la confirmation et le départ du laser : le temps de mettre ses lunettes de protection. 0 : aucun compte à rebours.",
+        "en": "Seconds of countdown, with a soft beep, between the confirmation and the laser start: time to put on safety glasses. 0: no countdown.",
+        "de": "Sekunden Countdown mit sanftem Ton zwischen der Bestätigung und dem Laserstart: Zeit, die Schutzbrille aufzusetzen. 0: kein Countdown.",
+        "es": "Segundos de cuenta atrás, con un pitido suave, entre la confirmación y el arranque del láser: tiempo para ponerse las gafas. 0: sin cuenta atrás.",
     },
 }

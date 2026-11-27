@@ -142,7 +142,7 @@ laser-studio-pro/
 ├── requirements_principal.txt        # versions exactes figées pour les builds
 ├── .copr/Makefile                    # paquet source (SRPM) construit par Copr depuis le commit courant, voir packaging/fedora/
 ├── .github/workflows/                # tests.yml (unittest hors écran ; job checks : ruff + check_ui_attributes), release.yml (tag vX.Y.Z → Linux AppImage et .deb, Windows, macOS, release en brouillon), macos-build.yml
-├── docs/                             # page de présentation (index.html), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
+├── docs/                             # page de présentation (index.html), guide de démarrage (guide/ : guide-utilisateur.md, images/, pdf.yaml et pied-de-page.typ pour le PDF), captures (screenshots/, shot-*.png, result-*.jpg, gravure-test-*.jpg), bannière, architecture/ (signaux.svg / .png)
 ├── packaging/                        # compilation
 │   ├── windows/                      # build.bat, setup.iss (Inno Setup)
 │   ├── fedora/                       # laser-studio-pro.spec (paquet RPM, Copr), README.md
@@ -263,11 +263,12 @@ laser-studio-pro/
 │   ├── project_files.py              # liste des fichiers Python de l'application (src/laser_studio)
 │   ├── signal_map.py                 # carte des signaux → docs/architecture/signaux.svg / .png
 │   ├── screenshots.py                # captures de l'interface → docs/screenshots/
+│   ├── guide_screenshots.py          # captures du guide de démarrage (parcours réel, graveur simulé) → docs/guide/images/
 │   └── menu_tools_puzzle.md          # mémo : brancher un outil dans le menu Outils
 ├── BUILD.md
 ├── MACOS_AUDIT.md / RELEASE_NOTES_2.x.0.md
 ├── claude.md / gemini.md             # consignes pour les assistants de code
-└── ARCHITECTURE.md / CHANGELOG.md / README.md / LICENSE
+└── ARCHITECTURE.md / CHANGELOG.md / README.md (README-EN.md en anglais) / CONTRIBUTING.md (structure du projet, compilation, tests) / LICENSE
 ```
 
 ---
@@ -298,6 +299,7 @@ laser-studio-pro/
 | **models/change_log.py** | Journal des changements des modèles : une ligne par changement, sauf pour les textes saisis au clavier (G-Code de début et de fin, `$$`, nom d'un calque), écrits une seule fois à la fin de la saisie | `models/` |
 | **models/materials.py** | `MaterialsModel` : les matériaux (nom -> réglages des calques) et le matériau choisi ; `store()` n'émet que si quelque chose change. Le matériau choisi suit chaque changement de calque (plus de bouton « Enregistrer »), sauf pendant le chargement d'un profil machine, d'un projet ou d'un matériau (`main_window._material_autosave_paused`) | `controllers/materials` (liste déroulante tenue à jour par ses signaux) |
 | **ui/binding.py** | `bind(champ, modèle, réglage)` : lie un champ (spinbox, case, liste, texte) à un réglage d'un modèle, dans les deux sens, sans boucle | Pages Paramètres du graveur et Configuration GRBL |
+| **core/sounds.py** · **ui/dialogs/countdown/** | Compte à rebours avant la gravure : `CountdownDialog` (anneau `CountdownRing`, un « tic » par seconde, accord au départ, Annuler), ouvert par `UserDialogs.countdown(secondes)` depuis `EngraverController.countdown` (envoi, reprise, file d'attente) avec `GrblConfig.countdown_s` (0 : aucun). Sons fabriqués par `core/sounds.py` (`chime` : WAV de carillon) et joués par le système (`play` : winsound, pw-play / paplay / aplay, afplay ; False sinon, bip système) | `controllers/engraver`, `controllers/job_queue`, `ui/user_dialogs` |
 | **core/debug_log.py** | Logging debug / résumés G-Code | `controllers/engraver`, `controllers/job_queue`, `grbl`, `controllers/workers`, `models/` |
 | **models/layers.py** | `LayersModel` (`QObject`) : la liste des calques (`LaserLayer`), seule source de leurs réglages. Toute modification passe par `update()`, `add_layer()`, `remove_layer()`, `move_layer()` ou `load_list()`, qui émettent `layer_changed`, `layer_added`, `layer_removed`, `layers_reordered` ou `layers_reset`, puis `changed`, et écrivent l'ancienne et la nouvelle valeur dans le journal de débogage (`laser_studio.gravure.modeles`). `engrave_layer()` : calque de la gravure des images (celui choisi dans l'onglet image, `select_engrave_layer()` → signal `engrave_layer_selected`, sinon le premier calque de gravure), dont la vitesse et la puissance sont lues à chaque usage (`engrave_speed` / `engrave_power`). Chaque calque a aussi `overscan` (surbalayage, vrai par défaut) et `laser_cmd` (`""` = commande de Configuration GRBL, `M4` dynamique ou `M3` constante, voir `LAYER_LASER_CMDS`) ; `layer_overscan_enabled()` et `layer_laser_cmd()` donnent la valeur effective d'un calque (objet ou `to_dict`) en la combinant avec le réglage global, qui reste maître pour le surbalayage (mode et distance). Chaque calque de découpe a aussi `tabs` (ponts de maintien activés, faux par défaut), `tab_count` (ponts par contour extérieur fermé, 4 par défaut, au plus `TAB_COUNT_MAX`) et `tab_width` (largeur d'un pont en mm, entre `TAB_WIDTH_MIN_MM` et `TAB_WIDTH_MAX_MM`), puis `kerf` (compensation du kerf activée, faux par défaut) et `kerf_width` (saignée en mm, 0,15 par défaut, entre `KERF_WIDTH_MIN_MM` et `KERF_WIDTH_MAX_MM`), puis `lead` (arcs d'entrée et de sortie activés, faux par défaut) et `lead_radius` (rayon en mm, 1,0 par défaut, entre `LEAD_RADIUS_MIN_MM` et `LEAD_RADIUS_MAX_MM`), puis `perf_dash` / `perf_gap` (perforation) et `ramp` (rampe de puissance activée, faux par défaut) / `ramp_power` (puissance de la dernière passe en %, 100 par défaut, entre `RAMP_POWER_MIN_PCT` et `RAMP_POWER_MAX_PCT`), validés par `validated_settings` et mémorisés par profil machine (`layer_memory`). Un ancien projet sans ces champs garde les valeurs par défaut (aucune de ces options) | `main_window`, `LayerManagerWidget`, `controllers/materials`, `controllers/layer_memory`, génération |
 | **ui/app/qt_messages.py** | Filtre warnings Qt (Wayland…) | `main.py` |
