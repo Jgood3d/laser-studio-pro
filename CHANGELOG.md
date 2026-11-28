@@ -15,6 +15,8 @@ Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour g
 
 Communauté WhatsApp : Aide › Rejoindre la communauté WhatsApp affiche un QR code à scanner avec le téléphone, et en dessous le lien à cliquer pour rejoindre la communauté depuis l'ordinateur.
 
+Aperçu 2D : deux nouvelles matières dans la liste « Matière » : « Carrelage blanc peint en noir » (le laser enlève la peinture et laisse voir l'émail blanc) et « Carrelage blanc + blanc de titane » (trait sombre sur fond blanc). Traduites en français, anglais, allemand et espagnol.
+
 ### Modifié
 Exécutable Windows : ses propriétés (onglet Détails) donnent le nom « Laser Studio Pro » et la version, première étape pour signer le binaire et ne plus avoir l'avertissement de Windows SmartScreen (voir CODE_SIGNING.md).
 
@@ -28,6 +30,8 @@ Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel
 
 ### Corrigé
 Graveur sans homing : un G-Code généré avant la connexion gardait le « $H » du début (« Inclure $H » est coché par défaut), que GRBL refusait (error:5) : le travail s'arrêtait juste après le premier déplacement. Quand le graveur n'a pas de homing ($22 à 0 ou absent), le $H n'est plus envoyé, et la console l'indique ; le G-Code affiché ne change pas.
+
+Aperçu 2D : un G-Code importé sans repère de calque (par exemple celui de LaserGRBL) qui ressemble à un balayage s'affichait toujours en vert, quelle que soit la matière choisie. Il prend maintenant la couleur de brûlure de la matière, comme une gravure d'image, et le carré de la légende suit.
 
 ## [3.0.0] — 2026-11-26
 

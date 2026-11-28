@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
 import numpy as np
 
 from laser_studio.gcode.preview import (
-    DEFAULT_PREVIEW_MATERIAL, KIND_LAYER, KIND_MATRIX, KIND_RASTER, KIND_SVG_CUT, PREVIEW_MATERIALS,
+    DEFAULT_PREVIEW_MATERIAL, KIND_LAYER, KIND_MATRIX, KIND_RASTER, KIND_SVG_CUT, KIND_UNKNOWN, PREVIEW_MATERIALS,
     PREVIEW_MATERIAL_ORDER, BurnTracker, cut_contours, is_cut_group, is_raster_group,
     material_background_rect, parse_preview_cached, raster_image,
 )
@@ -461,7 +461,7 @@ class Preview2DTab(QWidget):
             label = self._group_label(group)
             n_segs = len(group.xs) // 3
             if group.key in raster_keys:
-                swatch = (raster_swatch if group.kind in (KIND_RASTER, KIND_MATRIX)
+                swatch = (raster_swatch if group.kind in (KIND_RASTER, KIND_MATRIX, KIND_UNKNOWN)
                           else f'<span style="color:{group.color}">■</span>')
                 rows += f'<div>{swatch} {tr("gen.legend_layer_raster_note").format(label=label, n=n_segs)}</div>'
             else:
@@ -506,8 +506,9 @@ class Preview2DTab(QWidget):
         """Image reconstituée de la gravure d'un groupe, sous les tracés."""
         try:
             preset = self.material_preset()
-            # Image et matrice de test : jamais teintées ; un calque : teinté de sa couleur.
-            if group.kind in (KIND_RASTER, KIND_MATRIX):
+            # Image, matrice de test et G-Code importé sans repère : couleur de brûlure de la
+            # matière ; un calque : teinté de sa couleur.
+            if group.kind in (KIND_RASTER, KIND_MATRIX, KIND_UNKNOWN):
                 burn_rgb = preset["burn_rgb"]
             else:
                 burn_rgb = pg.mkColor(group.color).getRgb()[:3]
