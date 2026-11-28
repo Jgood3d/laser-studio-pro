@@ -73,10 +73,15 @@ class AppMenusTests(unittest.TestCase):
         self.assertEqual(toggled, [(True,)])
 
     def test_fullscreen_sits_just_before_kofi(self):
+        # Barre personnalisable (#190) : fullscreen est dans DEFAULT_ACTIONS, puis
+        # les widgets fixes (Générer, arrêt d'urgence, spacer) et enfin ko-fi.
         from laser_studio.ui.buy_me_a_coffee import BuyMeACoffeeButton
         entries = self.toolbar.actions()
-        index = entries.index(self.actions.fullscreen)
-        self.assertIsInstance(self.toolbar.widgetForAction(entries[index + 1]), BuyMeACoffeeButton)
+        self.assertIn(self.actions.fullscreen, entries)
+        index_fs = entries.index(self.actions.fullscreen)
+        last = self.toolbar.widgetForAction(entries[-1])
+        self.assertIsInstance(last, BuyMeACoffeeButton)
+        self.assertLess(index_fs, len(entries) - 1)
         self.assertEqual(self.actions.fullscreen.shortcut().toString(), "F11")
         received = self.record(self.actions.fullscreen_requested)
         self.actions.fullscreen.trigger()
@@ -138,11 +143,18 @@ class AppMenusTests(unittest.TestCase):
         self.assertIn(self.actions.history, self.menu_bar.file_menu.actions())
 
     def test_toolbar_reuses_the_menu_actions(self):
-        # Mêmes QAction que le menu : icône, libellé, raccourci et état identiques.
+        # Mêmes QAction que le menu pour les boutons présents par défaut (#190).
+        # Caméra et outils vectoriels sont au catalogue, pas dans DEFAULT_ACTIONS.
         a = self.actions
         in_toolbar = set(self.toolbar.actions())
-        for action in (a.quit, a.save_project, a.open_project, a.machine_params_window, *a.tool_actions):
+        default_on_bar = (
+            a.quit, a.save_project, a.open_project, a.machine_params_window,
+            a.test_matrix_window, a.stencil_studio, a.separation_tab, a.png2svg_tab,
+            a.estimate, a.job_queue, a.fullscreen,
+        )
+        for action in default_on_bar:
             self.assertIn(action, in_toolbar, action.text())
+        self.assertNotIn(a.camera, in_toolbar)
         # Barre allégée : les outils de l'éditeur vectoriel restent dans le menu et dans l'éditeur.
         self.assertFalse(set(a.vector_tool_actions) & in_toolbar)
         tools = self.menu_bar.tools_menu.actions()

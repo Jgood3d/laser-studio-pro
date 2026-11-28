@@ -32,3 +32,12 @@ Vérification
   PYTHONPATH=src python -m unittest tests.test_power_inhibit -v
 
 Dans l'app : Fichier › Paramètres… › Alimentation (entrée dans la liste de gauche).
+
+Correctif tests barre d'outils (CI, hors #185)
+---------------------------------------------
+  tests/test_settings_windows.py
+  Aligné sur la barre personnalisable (#190) :
+  - fullscreen n'est plus forcément le voisin immédiat de ko-fi
+  - Caméra n'est pas dans DEFAULT_ACTIONS
+
+  cp -a issue-185-prevent-sleep/tests/test_settings_windows.py tests/
