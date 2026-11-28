@@ -237,6 +237,8 @@ TEXTS = {
                        "es": "Documentación no encontrada (falta la carpeta resources/doc/)."},
     "menu.help.about": {"fr": "À propos", "en": "About", "de": "Über", "es": "Acerca de"},
     "menu.help.support": {"fr": "Support", "en": "Support", "de": "Support", "es": "Soporte"},
+    "menu.help.community": {"fr": "Rejoindre la communauté WhatsApp", "en": "Join the WhatsApp community",
+                            "de": "Der WhatsApp-Community beitreten", "es": "Unirse a la comunidad de WhatsApp"},
     "menu.help.coffee": {"fr": "Buy me a coffee", "en": "Buy me a coffee",
                           "de": "Buy me a coffee", "es": "Buy me a coffee"},
 
@@ -395,6 +397,30 @@ TEXTS = {
         "de": "Über Laser Studio Pro",
         "es": "Acerca de Laser Studio Pro",
     },
+    "ui.community_title": {
+        "fr": "Communauté WhatsApp",
+        "en": "WhatsApp community",
+        "de": "WhatsApp-Community",
+        "es": "Comunidad de WhatsApp",
+    },
+    "ui.community_scan": {
+        "fr": "Scannez ce QR code avec votre téléphone pour rejoindre la communauté Laser Studio Pro :",
+        "en": "Scan this QR code with your phone to join the Laser Studio Pro community:",
+        "de": "Scannen Sie diesen QR-Code mit Ihrem Handy, um der Laser Studio Pro-Community beizutreten:",
+        "es": "Escanee este código QR con su teléfono para unirse a la comunidad de Laser Studio Pro:",
+    },
+    "ui.community_link": {
+        "fr": "Ou cliquez sur ce lien :<br><a href=\"{url}\">{url}</a>",
+        "en": "Or click this link:<br><a href=\"{url}\">{url}</a>",
+        "de": "Oder klicken Sie auf diesen Link:<br><a href=\"{url}\">{url}</a>",
+        "es": "O haga clic en este enlace:<br><a href=\"{url}\">{url}</a>",
+    },
+    "ui.community_qr_name": {
+        "fr": "QR code de la communauté WhatsApp",
+        "en": "WhatsApp community QR code",
+        "de": "QR-Code der WhatsApp-Community",
+        "es": "Código QR de la comunidad de WhatsApp",
+    },
     "ui.support_title": {
         "fr": "Support",
         "en": "Support",
@@ -450,10 +476,10 @@ TEXTS = {
         "es": "Imagen original (arrastrar para mover, rueda del ratón para ampliar)",
     },
     "ui.final_raster_box": {
-        "fr": "Rendu Tramé Final (Glisse pour déplacer, molette pour zoomer)",
-        "en": "Final Rasterized Output (Drag to move, mouse wheel to zoom)",
+        "fr": "Rendu tramé final (glisser pour déplacer, molette pour zoomer)",
+        "en": "Final rasterized output (drag to move, mouse wheel to zoom)",
         "de": "Finales gerastertes Ergebnis (ziehen zum Bewegen, Mausrad zum Zoomen)",
-        "es": "Salida raster final (arrastra para mover, rueda del ratón para ampliar)",
+        "es": "Salida rasterizada final (arrastrar para mover, rueda del ratón para ampliar)",
     },
     "ui.selection_props_box": {
         "fr": "Propriétés de l'objet sélectionné",

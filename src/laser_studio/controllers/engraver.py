@@ -99,6 +99,7 @@ class EngraverController(QObject):
         self._current_gcode = current_gcode
         self._job_geometry = job_geometry
         self._set_homing_available = set_homing_available
+        self._homing_supported = None        # d'après $22 à la connexion ; None : pas encore lu
         # G-Code généré avant un changement de réglage ? (JobController.is_stale)
         self._gcode_stale = gcode_stale
         connection.reconnected.connect(self._on_reconnect_result)
@@ -152,6 +153,7 @@ class EngraverController(QObject):
         """Connecte au port choisi, ou déconnecte."""
         if self.connection.is_connected():
             self.connection.disconnect()
+            self._homing_supported = None
             self.log.emit(tr("laser.disconnected"))
             self.disconnected.emit()
             return
@@ -221,6 +223,7 @@ class EngraverController(QObject):
         if support is None:
             return
         available, reason = support
+        self._homing_supported = available
         tip = ""
         if not available:
             tip = tr("ui.homing_unavailable_tip" if reason == "disabled" else "ui.homing_unsupported_tip")
@@ -366,6 +369,11 @@ class EngraverController(QObject):
             warnings.append(tr("laser.check_not_homed"))
         return warnings
 
+    def countdown(self):
+        """Compte à rebours avant le départ du laser (GrblConfig.countdown_s secondes, bip doux à chaque
+        seconde) : le temps de mettre ses lunettes. False si l'utilisateur l'annule."""
+        return self.dialogs.countdown(self.grbl.countdown_s)
+
     def confirm_homed(self):
         """Avertit avant de lancer un job si aucun homing n'a été fait
         depuis la connexion — une position non référencée peut décaler
@@ -429,6 +437,8 @@ class EngraverController(QObject):
                 tr("laser.confirm_title"),
                 launch_confirmation_text(self.launch_warnings(gcode_text)) + self._rotary_confirmation()):
             return False
+        if not self.countdown():
+            return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
         self.start_stream(gcode_text, self._on_direct_job_finished)
@@ -455,6 +465,8 @@ class EngraverController(QObject):
         if not self.dialogs.confirm_default_no(
                 tr("laser.resume_title"),
                 launch_confirmation_text(self.launch_warnings(), question) + self._rotary_confirmation()):
+            return False
+        if not self.countdown():
             return False
         self.direct_job_started.emit()
         self.connection.pause_status_poll()
@@ -506,6 +518,11 @@ class EngraverController(QObject):
             self._rotary_error(error)
             on_finished(False)
             return None
+        if self._homing_supported is False:
+            # G-Code généré avant la connexion (« Inclure $H » coché par défaut) : GRBL refuserait le $H.
+            machine_text, replaced = commands.without_homing(machine_text)
+            if replaced:
+                self.log.emit(tr("laser.homing_skipped_log"))
         return self.connection.start_stream(gcode_text, on_finished, stream_text=machine_text)
 
     def end_stream(self, clean_finish):

@@ -7,9 +7,17 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Guide de démarrage pour les débutants (docs/guide/guide-utilisateur.md, à compiler en PDF) : sécurité, premier réglage du graveur, calques et matériaux, matrice de test, puis des exemples pas à pas avec captures d'écran (graver une photo, une médaille de la bibliothèque jusqu'à la gravure, un porte-clés), et le dépannage.
+
+Compte à rebours avant la gravure : après la confirmation, une fenêtre laisse 5 secondes pour mettre ses lunettes de protection, avec un anneau qui se vide, un bip doux à chaque seconde et un accord au départ du laser. Annuler (ou Échap) arrête tout. La durée se règle par machine dans Configuration GRBL (0 pour le désactiver). Aussi avant la reprise d'un travail et le lancement de la file d'attente.
+
 Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
 
+Communauté WhatsApp : Aide › Rejoindre la communauté WhatsApp affiche un QR code à scanner avec le téléphone, et en dessous le lien à cliquer pour rejoindre la communauté depuis l'ordinateur.
+
 ### Modifié
+Exécutable Windows : ses propriétés (onglet Détails) donnent le nom « Laser Studio Pro » et la version, première étape pour signer le binaire et ne plus avoir l'avertissement de Windows SmartScreen (voir CODE_SIGNING.md).
+
 Barre d'édition de l'éditeur vectoriel allégée : 12 boutons au lieu de 19. Les outils plus rares sont rangés dans deux boutons à menu nommés, où chacun apparaît avec son nom écrit : **Disposer** (dupliquer en série, imbrication auto, gabarit de placement) et **Tracés et textes** (exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille).
 
 Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
@@ -17,6 +25,9 @@ Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou
 Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel affichent leur raccourci dans l'infobulle (Supprimer (Suppr), Dupliquer (Ctrl+D)…), d'après la même table que le clavier, et les boutons du panneau du graveur aussi : Pause (F7), Arrêt d'urgence (F9), Envoyer au laser (Ctrl+Entrée). Leurs infobulles ne sont plus en majuscules.
 
 État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.
+
+### Corrigé
+Graveur sans homing : un G-Code généré avant la connexion gardait le « $H » du début (« Inclure $H » est coché par défaut), que GRBL refusait (error:5) : le travail s'arrêtait juste après le premier déplacement. Quand le graveur n'a pas de homing ($22 à 0 ou absent), le $H n'est plus envoyé, et la console l'indique ; le G-Code affiché ne change pas.
 
 ## [3.0.0] — 2026-11-26
 

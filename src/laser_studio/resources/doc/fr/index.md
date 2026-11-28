@@ -15,6 +15,10 @@ essayer un cadrage. Chaque étape se coche quand elle est faite. Elle revient
 tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par
 **Aide › Premiers pas**.
 
+Pour poser une question ou partager vos gravures, **Aide › Rejoindre la
+communauté WhatsApp** affiche un QR code à scanner avec votre téléphone, et
+le lien à cliquer depuis l'ordinateur.
+
 ## ⚠ Avertissement de sécurité
 
 > **Un graveur laser est une machine dangereuse qui ne doit jamais
@@ -171,6 +175,11 @@ Survolez un bouton : son infobulle donne aussi son raccourci clavier.
 Le menu **Job** regroupe les raccourcis : **F5** générer, **F6** et
 **Maj+F6** cadrer, **Ctrl+Entrée** envoyer au laser, **F7** pause, **F8**
 reprise (après une pause ou un arrêt), **F9** arrêt d'urgence.
+
+Après la confirmation, un **compte à rebours** de 5 secondes laisse le temps
+de mettre vos lunettes de protection, avec un bip doux à chaque seconde :
+**Annuler** (ou Échap) arrête tout. Sa durée se règle dans *Configuration
+GRBL* (0 pour le désactiver, sur une machine fermée par exemple).
 
 Pendant une gravure, un homing ou un cadrage, un bouton rouge **Arrêt
 d'urgence** reste dans la barre d'outils, même panneau du graveur replié.

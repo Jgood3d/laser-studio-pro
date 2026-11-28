@@ -116,6 +116,19 @@ def response_setting_lines(response):
     return [line.strip() for line in (response or "").splitlines() if line.strip().startswith("$")]
 
 
+def without_homing(gcode_text):
+    """G-Code pour un graveur sans homing : chaque ligne « $H » devient « G4 P0 » (pause nulle, acceptée par
+    GRBL), que GRBL aurait refusée (error:5) en arrêtant le job. Le nombre de lignes ne change pas : suivi de
+    la gravure et reprise restent alignés sur le G-Code affiché. Renvoie (texte, nombre de lignes remplacées)."""
+    lines = gcode_text.split("\n")
+    replaced = 0
+    for index, line in enumerate(lines):
+        if line.strip().upper() == HOME:
+            lines[index] = "G4 P0"
+            replaced += 1
+    return "\n".join(lines), replaced
+
+
 def homing_support(grbl_settings):
     """Homing d'après les réglages lus ($22) :
     - None : valeur illisible, rien ne change ;

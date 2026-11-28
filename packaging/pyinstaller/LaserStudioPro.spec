@@ -27,6 +27,34 @@ ONEFILE = os.environ.get("LSP_ONEFILE") == "1"
 NAME = "LaserStudioPro"
 ICON = os.path.join(REPO_ROOT, "src", "laser_studio", "resources", "laser_studio_pro.ico")
 
+
+def windows_version_info():
+    """Nom du produit et version dans les propriétés de l'exe Windows (onglet Détails), d'après APP_VERSION :
+    la signature du code (SignPath) demande le même nom et la même version à chaque compilation. None hors
+    Windows."""
+    if sys.platform != "win32":
+        return None
+    import re
+    from PyInstaller.utils.win32.versioninfo import (FixedFileInfo, StringFileInfo, StringStruct, StringTable,
+                                                     VarFileInfo, VarStruct, VSVersionInfo)
+    with open(os.path.join(REPO_ROOT, "src", "laser_studio", "core", "version.py"), encoding="utf-8") as f:
+        version = re.search(r'^APP_VERSION = "([\d.]+)"', f.read(), re.M).group(1)
+    numbers = tuple(int(n) for n in (version.split(".") + ["0"] * 4)[:4])
+    strings = [StringStruct("CompanyName", "Laser Studio Pro"),
+               StringStruct("FileDescription", "Laser Studio Pro"),
+               StringStruct("ProductName", "Laser Studio Pro"),
+               StringStruct("ProductVersion", version),
+               StringStruct("FileVersion", version),
+               StringStruct("InternalName", NAME),
+               StringStruct("OriginalFilename", NAME + ".exe"),
+               StringStruct("LegalCopyright", "GPL-3.0-or-later")]
+    return VSVersionInfo(ffi=FixedFileInfo(filevers=numbers, prodvers=numbers),
+                         kids=[StringFileInfo([StringTable("040C04B0", strings)]),
+                               VarFileInfo([VarStruct("Translation", [0x040C, 1200])])])
+
+
+VERSION_INFO = windows_version_info()
+
 # Images, logo, icônes Breeze : tout src/laser_studio/resources/ (cherché par
 # find_resource). Stencil Studio : le dossier est copié en données
 # (ui/studio.html, locales, resources/ : police et modèle d'IA) ET ses modules sont déclarés en
@@ -86,6 +114,7 @@ if ONEFILE:
         upx=False,
         console=False,
         icon=ICON,
+        version=VERSION_INFO,
     )
 else:
     exe = EXE(
@@ -99,6 +128,7 @@ else:
         upx=False,
         console=False,
         icon=ICON,
+        version=VERSION_INFO,
     )
     coll = COLLECT(
         exe,
