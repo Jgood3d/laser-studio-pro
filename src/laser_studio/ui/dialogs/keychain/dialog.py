@@ -3,7 +3,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox,
-    QFormLayout, QHBoxLayout, QLabel, QPlainTextEdit, QVBoxLayout, QWidget,
+    QFormLayout, QHBoxLayout, QLabel, QPlainTextEdit, QTabWidget, QVBoxLayout, QWidget,
 )
 
 from laser_studio.i18n import tr
@@ -11,7 +11,9 @@ from laser_studio.i18n.errors import generator_error_text
 from laser_studio.models.layer_modes import MODE_CUT
 from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import keychain_generator as kg
+from laser_studio.vector import plate_3d
 from laser_studio.ui.app.theme import theme_color
+from laser_studio.ui.widgets.plate_3d_view import Plate3DPanel
 
 
 class KeychainPreview(QWidget):
@@ -52,6 +54,7 @@ class KeychainPreview(QWidget):
                 return qp
 
             two = getattr(self.result, "two_layers", False)
+            glue = getattr(self.result, "glue_letters", False)
 
             # --- Pièce GAUCHE (fond) ---
             if self.result.base_contours:
@@ -83,12 +86,19 @@ class KeychainPreview(QWidget):
                     p.setPen(QPen(QColor("#3dba5c"), 1.0))
                     p.drawPath(letters_qp)
             else:
-                # Mode classique : texte gravé
+                # Classique : texte gravé. Lettres à coller : le même texte gravé = repère de placement
                 if self.result.text_contours:
                     text_qp = to_qpath(self.result.text_contours)
                     p.setBrush(QColor(77, 166, 255, 160))
                     p.setPen(QPen(QColor("#4da6ff"), 1.0))
                     p.drawPath(text_qp)
+                # --- Pièce DROITE : les lettres seules, découpées, à coller sur la gravure ---
+                glue_letters = getattr(self.result, "top_text_contours", None) or []
+                if glue and glue_letters:
+                    letters_qp = to_qpath(glue_letters)
+                    p.setBrush(QColor(120, 220, 140, 180))
+                    p.setPen(QPen(QColor("#3dba5c"), 1.0))
+                    p.drawPath(letters_qp)
 
             # Dimensions totales affichées en bas
             p.setPen(QColor("#a0a8b8"))
@@ -151,10 +161,19 @@ class KeychainGeneratorDialog(QDialog):
         self.chk_bridge.setChecked(saved.get("bridge_isolated", True))
         form.addRow("", self.chk_bridge)
 
-        self.chk_two_layers = QCheckBox(tr("keychain.two_layers"))
-        self.chk_two_layers.setChecked(saved.get("two_layers", False))
-        self.chk_two_layers.setToolTip(tr("keychain.two_layers_tip"))
-        form.addRow("", self.chk_two_layers)
+        # Trois façons de faire la pièce : gravée, 2 couches (dessus évidé), ou lettres découpées à coller
+        self.combo_mode = QComboBox()
+        self.combo_mode.addItem(tr("keychain.mode_classic"), "classic")
+        self.combo_mode.addItem(tr("keychain.two_layers"), "two_layers")
+        self.combo_mode.addItem(tr("keychain.mode_glue"), "glue")
+        # Libellés longs : la liste ne doit pas imposer sa largeur à la colonne de gauche
+        self.combo_mode.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_mode.setMinimumContentsLength(16)
+        saved_mode = "glue" if saved.get("glue_letters") else "two_layers" if saved.get("two_layers") else "classic"
+        self.combo_mode.setCurrentIndex(max(0, self.combo_mode.findData(saved_mode)))
+        self.combo_mode.setToolTip("\n\n".join((
+            tr("keychain.mode_classic_tip"), tr("keychain.two_layers_tip"), tr("keychain.mode_glue_tip"))))
+        form.addRow(tr("keychain.mode"), self.combo_mode)
 
         self.combo_ring = QComboBox()
         for key in kg.RING_POSITIONS:
@@ -202,9 +221,18 @@ class KeychainGeneratorDialog(QDialog):
         left.addWidget(self.buttons)
 
         right = QVBoxLayout()
-        right.addWidget(QLabel(tr("keychain.preview")))
+        # Deux vues de la même pièce : le plan (ce que le laser suit) et la plaque en 3D, dans la matière choisie.
         self.preview = KeychainPreview()
-        right.addWidget(self.preview, 1)
+        page_flat = QWidget()
+        lay_flat = QVBoxLayout(page_flat)
+        lay_flat.setContentsMargins(0, 0, 0, 0)
+        lay_flat.addWidget(QLabel(tr("keychain.preview")))
+        lay_flat.addWidget(self.preview, 1)
+        self.panel_3d = Plate3DPanel(saved)
+        self.tabs_preview = QTabWidget()
+        self.tabs_preview.addTab(page_flat, tr("box.tab_plan"))
+        self.tabs_preview.addTab(self.panel_3d, tr("box.tab_3d"))
+        right.addWidget(self.tabs_preview, 1)
         hint = QLabel(tr("keychain.hint"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #8b93a7; font-size: 12px;")
@@ -217,6 +245,11 @@ class KeychainGeneratorDialog(QDialog):
         self._timer.setSingleShot(True)
         self._timer.setInterval(180)
         self._timer.timeout.connect(self._update_preview)
+        # La pièce 3D se construit seulement quand son onglet est ouvert : le plan, lui, suit chaque frappe.
+        self._source_3d = ("message", "")
+        self._dirty_3d = True
+        self.tabs_preview.currentChanged.connect(self._show_3d_if_needed)
+        self.panel_3d.thickness_changed.connect(self._rebuild_3d)
 
         for widget, signal in (
             (self.edit_text, "textChanged"),
@@ -227,7 +260,7 @@ class KeychainGeneratorDialog(QDialog):
             (self.spin_spacing, "valueChanged"),
             (self.spin_margin, "valueChanged"),
             (self.chk_bridge, "toggled"),
-            (self.chk_two_layers, "toggled"),
+            (self.combo_mode, "currentIndexChanged"),
             (self.combo_ring, "currentIndexChanged"),
             (self.spin_ring_d, "valueChanged"),
             (self.spin_hole_d, "valueChanged"),
@@ -279,7 +312,8 @@ class KeychainGeneratorDialog(QDialog):
             ring_hole_d=self.spin_hole_d.value(),
             ring_overlap_mm=self.spin_overlap.value(),
             bridge_isolated=self.chk_bridge.isChecked(),
-            two_layers=self.chk_two_layers.isChecked(),
+            two_layers=self.combo_mode.currentData() == "two_layers",
+            glue_letters=self.combo_mode.currentData() == "glue",
         )
 
     def settings(self) -> dict:
@@ -299,6 +333,8 @@ class KeychainGeneratorDialog(QDialog):
             "ring_overlap_mm": p.ring_overlap_mm,
             "bridge_isolated": p.bridge_isolated,
             "two_layers": p.two_layers,
+            "glue_letters": p.glue_letters,
+            **self.panel_3d.settings(),
         }
 
     def _update_preview(self):
@@ -314,6 +350,7 @@ class KeychainGeneratorDialog(QDialog):
         if len(names) > 1:
             msg = tr("keychain.batch_preview").format(n=len(names))
             self.preview.set_result(None, msg)
+            self._set_source_3d(("batch", names[0]))
             ok.setEnabled(True)
             return
 
@@ -322,11 +359,46 @@ class KeychainGeneratorDialog(QDialog):
             res = kg.build_keychain(self.params(), family, bold, italic)
         except kg.KeychainError as e:
             self.preview.set_result(None, error_text(e))
+            self._set_source_3d(("message", error_text(e)))
             ok.setEnabled(False)
             return
 
         self.preview.set_result(res)
+        self._set_source_3d(("result", res))
         ok.setEnabled(True)
+
+    # -- aperçu 3D ------------------------------------------------------------------------------------------
+    def _set_source_3d(self, source):
+        """Ce que la vue 3D montrera : ("result", KeychainResult), ("batch", premier prénom) ou ("message", texte)."""
+        self._source_3d = source
+        self._dirty_3d = True
+        self._show_3d_if_needed()
+
+    def _show_3d_if_needed(self, *_args):
+        if self._dirty_3d and self.tabs_preview.currentWidget() is self.panel_3d:
+            self._rebuild_3d()
+
+    def _rebuild_3d(self):
+        """Construit la plaque 3D de la source courante (appelé onglet 3D ouvert, ou épaisseur changée)."""
+        self._dirty_3d = False
+        kind, value = self._source_3d
+        note = ""
+        if kind == "batch":
+            # Lot : le plan n'est pas calculé (trop lent), mais un seul prénom l'est vite : le premier.
+            params = self.params()
+            params.text = value
+            try:
+                family, bold, italic = self.font_options()
+                value = kg.build_keychain(params, family, bold, italic)
+            except kg.KeychainError as e:
+                self.panel_3d.set_message(error_text(e))
+                return
+            note = tr("plate3d.batch_first").format(name=params.text)
+            kind = "result"
+        if kind == "result" and value.base_contours:
+            self.panel_3d.set_faces(plate_3d.keychain_faces(value, self.panel_3d.thickness()), note)
+        else:
+            self.panel_3d.set_message(value if kind == "message" and value else tr("plate3d.empty"))
 
 
 def error_text(error: kg.KeychainError) -> str:

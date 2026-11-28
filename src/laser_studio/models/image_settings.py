@@ -27,6 +27,7 @@ PROJECT_KEYS = {
     "cartoon_black": "cartoon_k",
     "invert": "invert",
     "material_bg": "material_bg",
+    "material": "material",
     "mirror_h": "mirror_h",
     "mirror_v": "mirror_v",
     "algorithm": "algo",
@@ -45,6 +46,10 @@ class ImageSettings(SettingsModel):
     - invert : négatif ; material_bg : "dark" (fond noir) ou "light" (fond
       clair) ; choisir une matière coche ou décoche le négatif (voir
       choose_material), qui reste modifiable à part ;
+    - material : matière choisie dans la liste — clé d'une matière fournie ou « user:<nom> »
+      (models/image_materials.py), "" tant qu'aucune n'est choisie ; elle ne fait que s'afficher, les
+      réglages qu'elle a posés restent modifiables à part. Un changement de fond venu d'ailleurs (Séparation)
+      la remet à "" ;
     - mirror_h, mirror_v : miroirs ;
     - algorithm : nom de l'algorithme de tramage (liste de l'onglet) ;
     - as_is : image déjà tramée (Image-R…), gravée telle quelle : tons, netteté et tramage sont ignorés.
@@ -60,6 +65,7 @@ class ImageSettings(SettingsModel):
         "cartoon_black": (int, 20),
         "invert": (bool, False),
         "material_bg": (str, "light"),
+        "material": (str, ""),
         "mirror_h": (bool, False),
         "mirror_v": (bool, False),
         "algorithm": (str, DEFAULT_ALGORITHM),
@@ -67,11 +73,41 @@ class ImageSettings(SettingsModel):
     }
     CHOICES = {"material_bg": ("dark", "light")}
 
-    def choose_material(self, material_bg):
-        """Matière choisie par l'utilisateur : fond noir -> négatif activé
-        (le laser éclaircit ce qu'il brûle), fond clair -> négatif
-        désactivé. Le miroir n'est pas touché."""
-        return self.update(material_bg=material_bg, invert=(material_bg == "dark"))
+    # Réglages posés par une matière (models/image_materials.PRESET_FIELDS) ; le miroir n'en fait pas partie.
+    MATERIAL_FIELDS = ("material_bg", "invert", "brightness", "contrast", "gamma", "sharpness", "algorithm")
+
+    def update(self, **fields):
+        """Comme SettingsModel.update ; un nouveau fond posé seul (Séparation, ancien code) efface la matière
+        affichée, sinon la liste montrerait une matière qui n'est plus la bonne. « dark » / « light » (anciennes
+        entrées de la liste, retirées) ne sont plus des matières : ils valent « aucune »."""
+        if fields.get("material") in ("dark", "light"):
+            fields["material"] = ""
+        if "material_bg" in fields and "material" not in fields:
+            bg = fields["material_bg"]
+            if bg in self.CHOICES["material_bg"] and bg != self._values["material_bg"] and self._values["material"]:
+                fields["material"] = ""
+        return super().update(**fields)
+
+    def choose_material(self, material, preset=None):
+        """Matière choisie par l'utilisateur dans la liste.
+
+        Avec `preset` (réglages d'une matière fournie ou de l'utilisateur) : fond, négatif, luminosité,
+        contraste, gamma, netteté et algorithme, en un seul changement (une seule étape d'annulation). Le
+        miroir n'est pas touché. Sans `preset` : « dark » / « light » règlent seulement le fond et le négatif
+        (fond noir -> négatif activé, le laser éclaircit ce qu'il brûle ; fond clair -> désactivé), sans
+        matière affichée ; une clé inconnue (matière de l'utilisateur disparue) ne change rien d'autre."""
+        if not preset:
+            if material in self.CHOICES["material_bg"]:
+                return self.update(material="", material_bg=material, invert=(material == "dark"))
+            return self.update(material=material)
+        fields = {name: preset[name] for name in self.MATERIAL_FIELDS if name in preset}
+        if "material_bg" in fields and "invert" not in fields:
+            fields["invert"] = fields["material_bg"] == "dark"
+        return self.update(material=material, **fields)
+
+    def material_preset(self):
+        """Réglages actuels au format d'une matière, pour les enregistrer comme matière de l'utilisateur."""
+        return {name: self._values[name] for name in self.MATERIAL_FIELDS}
 
     def reset(self, keep_algorithm=True):
         """Réglages par défaut (bouton « Réinitialiser ») ; l'algorithme est
@@ -85,7 +121,7 @@ class ImageSettings(SettingsModel):
         """Réglages au format des paramètres de ImageProcessingWorker
         (bright, contrast, gamma, sharp, cartoon_r, cartoon_k, invert, mirror_h, mirror_v, algo)."""
         return {key: self._values[name] for name, key in PROJECT_KEYS.items()
-                if name != "material_bg"}
+                if name not in ("material_bg", "material")}
 
     def to_project(self):
         """Réglages au format d'un projet enregistré."""

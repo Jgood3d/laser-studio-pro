@@ -290,6 +290,14 @@ class Preview2DTab(QWidget):
         key = self.material_combo.currentData() or DEFAULT_PREVIEW_MATERIAL
         return PREVIEW_MATERIALS.get(key) or PREVIEW_MATERIALS[DEFAULT_PREVIEW_MATERIAL]
 
+    def select_material(self, key):
+        """Affiche le preset matière `key` (celui d'une matière choisie dans « Graver une image » : même
+        clé). Sans effet si l'aperçu n'a pas ce preset (matière de l'utilisateur, fond noir générique) ou
+        s'il est déjà affiché ; sinon le choix est mémorisé et l'aperçu redessiné, comme un choix à la main."""
+        index = self.material_combo.findData(key)
+        if index >= 0 and index != self.material_combo.currentIndex():
+            self.material_combo.setCurrentIndex(index)
+
     def _negative(self):
         return self.negative_check.isChecked()
 

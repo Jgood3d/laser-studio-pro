@@ -30,9 +30,19 @@ PREVIEW_MATERIALS = {
     "tile_black_paint": {"material_rgb": (22, 22, 24), "burn_rgb": (238, 238, 232), "lightens": True},
     # Carrelage blanc + blanc de titane : le laser noircit le pigment (TiO2 réduit), trait sombre sur fond blanc.
     "tile_titanium_white": {"material_rgb": (240, 240, 237), "burn_rgb": (45, 45, 50), "lightens": False},
+    # Les autres matières de « Graver une image » (même clé que dans models/image_materials.BUILTIN) :
+    # choisir l'une d'elles là-bas affiche le même fond ici (Preview2DTab.select_material).
+    "leather": {"material_rgb": (150, 98, 60), "burn_rgb": (45, 28, 18), "lightens": False},
+    "cork": {"material_rgb": (200, 160, 112), "burn_rgb": (80, 55, 35), "lightens": False},
+    "aluminium_anodized": {"material_rgb": (32, 32, 37), "burn_rgb": (205, 207, 212), "lightens": True},
+    "stainless": {"material_rgb": (188, 190, 195), "burn_rgb": (30, 30, 33), "lightens": False},
+    "acrylic_clear": {"material_rgb": (46, 52, 60), "burn_rgb": (235, 240, 246), "lightens": True},
+    "glass": {"material_rgb": (40, 48, 52), "burn_rgb": (225, 235, 238), "lightens": True},
+    "glass_painted_black": {"material_rgb": (18, 18, 20), "burn_rgb": (212, 226, 232), "lightens": True},
 }
 PREVIEW_MATERIAL_ORDER = (
     "light", "wood", "bamboo", "slate", "acrylic_black", "tile_black_paint", "tile_titanium_white",
+    "leather", "cork", "aluminium_anodized", "stainless", "acrylic_clear", "glass", "glass_painted_black",
 )
 DEFAULT_PREVIEW_MATERIAL = "light"
 

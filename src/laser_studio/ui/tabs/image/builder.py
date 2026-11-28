@@ -4,6 +4,8 @@
                                  configure_focal=..., compare=..., status=...)
 """
 from laser_studio.controllers.image import ImageController
+from laser_studio.i18n import tr
+from laser_studio.models.image_materials import ImageMaterials
 from laser_studio.ui.binding import bind
 from laser_studio.ui.tabs.image.cartoon_dialog import CartoonFilterDialog
 from laser_studio.ui.tabs.image.crop_dialog import CropDialog
@@ -13,12 +15,13 @@ from laser_studio.ui.tabs.image.tab import ImageTab
 
 
 def build_image_tab(image_settings, image_history, placement, machine, layers, dialogs, image_actions, *,
-                    configure_focal, compare, status, parent=None):
+                    configure_focal, compare, status, materials=None, parent=None):
     """Champs liés à `image_settings` (annuler / refaire : `image_history`), taille et résolution liées à
     `placement` (JobPlacement) ; taille réduite au plateau
     de `machine` ; liste « Calque de gravure » d'après `layers` ; actions de la barre d'outils
     inscrites dans `image_actions`. Rappels : `configure_focal()` (bouton de la focale), `compare()` (comparaison des algorithmes),
-    `status(texte, infobulle)`. Renvoie (ImageTab, ImageController)."""
+    `status(texte, infobulle)`, `materials` (ImageMaterials : matières fournies et celles de l'utilisateur, son
+    fichier par défaut). Renvoie (ImageTab, ImageController)."""
     tab = ImageTab()
     settings = tab.settings
     settings.bind_settings(image_settings)
@@ -42,9 +45,49 @@ def build_image_tab(image_settings, image_history, placement, machine, layers, d
     )
     tab.load_requested.connect(image.open_image)
     settings.processing_changed.connect(image.schedule_processing)
-    # Matière choisie par l'utilisateur (pas par programme) : coche ou décoche le négatif.
-    settings.material_combo.activated.connect(
-        lambda _index: image_settings.choose_material(settings.material_combo.material()))
+    # Matière choisie par l'utilisateur (pas par programme) : pose ses réglages de correction de l'image
+    # (fond, négatif, tons, netteté, algorithme).
+    library = materials if materials is not None else ImageMaterials()
+    settings.set_user_materials(library.user_names())
+
+    def choose_material(_index):
+        key = settings.material_combo.material()
+        image_settings.choose_material(key, library.get(key))
+
+    def save_material():
+        """« + » : les réglages actuels deviennent une matière de l'utilisateur (une matière fournie n'est
+        jamais modifiée : le même nom crée une matière à soi)."""
+        title = tr("img.mat_save_title")
+        name = dialogs.ask_text(title, tr("img.mat_save_label"), library.user_name(image_settings.material))
+        name = (name or "").strip()
+        if not name:
+            return
+        if name in library.user_names() and not dialogs.confirm(title, tr("img.mat_replace_confirm").format(name=name)):
+            return
+        key = library.save_user(name, image_settings.material_preset())
+        if key is None:
+            dialogs.warning(title, tr("img.mat_save_failed"))
+            return
+        settings.set_user_materials(library.user_names())
+        image_settings.update(material=key)
+
+    def delete_material():
+        """« − » : supprime la matière de l'utilisateur affichée ; les réglages actuels restent tels quels."""
+        key = image_settings.material
+        if not library.is_user(key):
+            return
+        title = tr("img.mat_delete_tip")
+        if not dialogs.confirm_yes_no(title, tr("img.mat_delete_confirm").format(name=library.user_name(key))):
+            return
+        if not library.delete_user(key):
+            dialogs.warning(title, tr("img.mat_save_failed"))
+            return
+        settings.set_user_materials(library.user_names())
+        image_settings.update(material="")
+
+    settings.material_combo.activated.connect(choose_material)
+    settings.material_save_requested.connect(save_material)
+    settings.material_delete_requested.connect(delete_material)
     # Calque de gravure choisi : sa vitesse et sa puissance deviennent celles de la gravure.
     settings.engrave_layer_changed.connect(layers.select_engrave_layer)
     settings.size_changed.connect(image.dimension_changed)

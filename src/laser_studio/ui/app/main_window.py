@@ -513,6 +513,10 @@ class FullLaserStudio(QMainWindow):
         self.machine.changed.connect(lambda changes: self.tab_vector_2d.set_bed(self.machine.bed_w, self.machine.bed_h)
                                      if {"bed_w", "bed_h"} & set(changes) else None)
         self.tab_vector_2d.plot_clicked.connect(self.job.apply_matrix_cell)
+        # Matière choisie dans « Graver une image » (par l'utilisateur) : même matière dans l'aperçu 2D, quand
+        # il la connaît (matières fournies et « Fond clair » ; pas « Fond noir » ni les matières de l'utilisateur).
+        material_combo = self.tab_previews.settings.material_combo
+        material_combo.activated.connect(lambda _index: self.tab_vector_2d.select_material(material_combo.material()))
         self.tab_vector_2d.log.connect(self.log_message)
         tabs.addTab(self.tab_vector_2d, tr("ui.tab_2d_preview"))
 

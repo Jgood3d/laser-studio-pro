@@ -302,6 +302,10 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
       - GAUCHE (fond) : base découpe + contour prénom en gravure (guide)
       - DROITE (dessus) : base découpe + lettres solides en découpe
 
+    Mode lettres à coller (deux pièces côte à côte par prénom) :
+      - GAUCHE : base découpe + prénom gravé (remplissage) : le repère de placement
+      - DROITE : les lettres seules, en découpe, à coller sur la gravure
+
     En mode lot (plusieurs prénoms), chaque prénom est traité comme une pièce
     indépendante pour que l'imbrication automatique les regroupe correctement.
     """
@@ -351,6 +355,11 @@ def keychain_to_objects(result, cut_layer_id, engrave_layer_id, offset_x_mm=10.0
             if res.text_contours:
                 _add_merged(res.text_contours, True, "keychain:text", engrave_layer_id, ox, oy)
             _add_base(res.base_contours, "keychain", ox, oy)
+            if getattr(res, "glue_letters", False):
+                _add_merged(
+                    getattr(res, "top_text_contours", None) or [],
+                    True, "keychain:letters", cut_layer_id, ox, oy
+                )
 
     pieces = getattr(result, "pieces", None) or []
     if pieces:
