@@ -166,6 +166,9 @@ class KeychainGeneratorDialog(QDialog):
         self.combo_mode.addItem(tr("keychain.mode_classic"), "classic")
         self.combo_mode.addItem(tr("keychain.two_layers"), "two_layers")
         self.combo_mode.addItem(tr("keychain.mode_glue"), "glue")
+        # Libellés longs : la liste ne doit pas imposer sa largeur à la colonne de gauche
+        self.combo_mode.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
+        self.combo_mode.setMinimumContentsLength(16)
         saved_mode = "glue" if saved.get("glue_letters") else "two_layers" if saved.get("two_layers") else "classic"
         self.combo_mode.setCurrentIndex(max(0, self.combo_mode.findData(saved_mode)))
         self.combo_mode.setToolTip("\n\n".join((
