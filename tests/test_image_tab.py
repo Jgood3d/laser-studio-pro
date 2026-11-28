@@ -84,11 +84,11 @@ class ImageSettingsPanelTests(_QtTest):
         resolution = record(panel.resolution_changed)
         panel.width_spin.setValue(80.0)
         panel.height_spin.setValue(40.0)
-        panel.material_combo.setCurrentIndex(0)
+        panel.material_combo.setCurrentIndex(panel.material_combo.findData("slate"))
         panel.lines_per_mm_spin.setValue(12.0)
         panel.dpi_spin.setValue(300.0)                       # 300 DPI = 11,81 lignes/mm
         self.assertEqual(size, [("w", 80.0), ("h", 40.0)])
-        self.assertEqual(material, [("dark",)])
+        self.assertEqual(material, [("slate",)])
         self.assertEqual(resolution, [(12.0,), (11.81,)])
 
     def test_resolution_starts_on_the_laser_focal(self):
@@ -230,10 +230,24 @@ class ImagePanelPartsTests(_QtTest):
 
     def test_material_combo_emits_the_material(self):
         combo = self.make(MaterialComboBox)
-        self.assertEqual(combo.material(), "light")
+        self.assertEqual((combo.material(), combo.currentIndex()), ("", -1))     # rien choisi : texte d'invite
+        self.assertEqual(combo.placeholderText(), tr("img.material_placeholder"))
         received = record(combo.material_changed)
-        combo.setCurrentIndex(0)
-        self.assertEqual((received, combo.material()), ([("dark",)], "dark"))
+        combo.setCurrentIndex(combo.findData("slate"))
+        self.assertEqual((received, combo.material()), ([("slate",)], "slate"))
+
+    def test_material_combo_lists_builtin_and_user_materials(self):
+        combo = self.make(MaterialComboBox)
+        combo.set_materials(["Mon bois"])
+        keys = [combo.itemData(i) for i in range(combo.count())]
+        self.assertNotIn("dark", keys)                # plus d'entrées « Fond noir » / « Fond clair »
+        self.assertNotIn("light", keys)
+        self.assertIn("slate", keys)
+        self.assertEqual(keys[-1], "user:Mon bois")
+        combo.setCurrentIndex(combo.findData("user:Mon bois"))
+        self.assertEqual(combo.material(), "user:Mon bois")
+        combo.set_materials([])                       # matière supprimée : le texte d'invite revient
+        self.assertEqual((combo.material(), combo.currentIndex()), ("", -1))
 
     def test_resolution_box_signals_and_pages(self):
         box = self.make(ResolutionBox)

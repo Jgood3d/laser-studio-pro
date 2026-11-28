@@ -53,7 +53,7 @@ class FakeDialogs:
         self._record("confirm_yes_no", title, text)
         return self.answer
 
-    def ask_text(self, title, label):
+    def ask_text(self, title, label, text=""):
         self._record("ask_text", title, label)
         return self.text
 

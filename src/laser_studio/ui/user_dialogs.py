@@ -86,10 +86,10 @@ class UserDialogs:
         """Dossier choisi, ou "" si annulé."""
         return QFileDialog.getExistingDirectory(self.parent, title)
 
-    def ask_text(self, title, label):
-        """Texte saisi (non nettoyé), ou None si annulé."""
-        text, ok = QInputDialog.getText(self.parent, title, label)
-        return text if ok else None
+    def ask_text(self, title, label, text=""):
+        """Texte saisi (non nettoyé), ou None si annulé ; `text` : texte proposé au départ."""
+        answer, ok = QInputDialog.getText(self.parent, title, label, text=text)
+        return answer if ok else None
 
     def ask_number(self, title, label, value, minimum, maximum, decimals=1):
         """Nombre saisi (entre `minimum` et `maximum`), ou None si annulé."""

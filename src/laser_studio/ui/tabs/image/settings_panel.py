@@ -7,11 +7,14 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
+    QHBoxLayout,
+    QToolButton,
     QWidget,
 )
 
 from laser_studio.i18n import tr
 from laser_studio.image.dithering import ALGORITHMS
+from laser_studio.models.image_materials import USER_PREFIX
 from laser_studio.ui.binding import bind
 from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
 from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
@@ -43,8 +46,11 @@ class ImageSettingsPanel(QWidget):
     # Un réglage du tramage a changé (luminosité, contraste, gamma,
     # netteté, négatif, algorithme, lignes/mm) : l'image est à retraiter.
     processing_changed = pyqtSignal()
-    # Matière choisie : "dark" (fond noir) ou "light" (fond clair).
+    # Matière choisie : sa clé ("dark", "light", une matière fournie ou "user:<nom>").
     material_changed = pyqtSignal(str)
+    # Boutons « + » (enregistrer les réglages comme matière) et « − » (supprimer la matière de l'utilisateur).
+    material_save_requested = pyqtSignal()
+    material_delete_requested = pyqtSignal()
     # Calque de gravure choisi par l'utilisateur : son identifiant (jamais émis quand la fenêtre
     # remplit la liste, voir EngraveLayerComboBox).
     engrave_layer_changed = pyqtSignal(str)
@@ -99,13 +105,20 @@ class ImageSettingsPanel(QWidget):
                                  if "cartoon_radius" in changes else None)
         self.show_filter(settings.cartoon_radius > 0)
         combo = self.material_combo
-        bind(combo, settings, "material_bg",
-             to_widget=lambda key: combo.findData(key),
-             from_widget=lambda index: combo.itemData(index) or "light")
+        bind(combo, settings, "material",
+             to_widget=self._material_index,
+             from_widget=lambda index: combo.itemData(index) or "")
+        # « − » : seulement pour une matière de l'utilisateur (les matières fournies ne se suppriment pas).
+        settings.changed.connect(lambda changes: self._refresh_material_buttons()
+                                 if "material" in changes else None)
+        self._refresh_material_buttons()
         algo = self.algorithm_combo
         bind(algo, settings, "algorithm",
              to_widget=lambda name: algo.findText(name),
              from_widget=lambda index: algo.itemText(index))
+
+    def _refresh_material_buttons(self):
+        self.material_delete_button.setEnabled(str(self.model.material).startswith(USER_PREFIX))
 
     def _build_size_fields(self):
         self.width_spin = self._spin(0.1, 2000.0, 100.0)
@@ -164,7 +177,37 @@ class ImageSettingsPanel(QWidget):
     def _material_combo(self):
         self.material_combo = MaterialComboBox()
         self.material_combo.material_changed.connect(self.material_changed)
-        return self.material_combo
+        self.material_save_button = QToolButton()
+        self.material_save_button.setText("+")
+        self.material_save_button.setToolTip(tr("img.mat_save_tip"))
+        self.material_save_button.clicked.connect(self.material_save_requested)
+        self.material_delete_button = QToolButton()
+        self.material_delete_button.setText("\u2212")
+        self.material_delete_button.setToolTip(tr("img.mat_delete_tip"))
+        self.material_delete_button.setEnabled(False)       # seulement pour une matière de l'utilisateur
+        self.material_delete_button.clicked.connect(self.material_delete_requested)
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.material_combo, 1)
+        layout.addWidget(self.material_save_button)
+        layout.addWidget(self.material_delete_button)
+        return row
+
+    def set_user_materials(self, names):
+        """Matières de l'utilisateur affichées après les matières fournies ; la matière du modèle reste
+        affichée (le texte d'invite si elle n'existe plus)."""
+        combo = self.material_combo
+        combo.set_materials(names)
+        model = getattr(self, "model", None)
+        if model is not None:
+            blocked = combo.blockSignals(True)
+            combo.setCurrentIndex(self._material_index(model.material))
+            combo.blockSignals(blocked)
+
+    def _material_index(self, key):
+        """Index de la matière `key` dans la liste, -1 (texte d'invite) si aucune ou si elle n'existe plus."""
+        return self.material_combo.findData(key)
 
     def _engrave_layer_combo(self):
         self.engrave_layer_combo = EngraveLayerComboBox()
