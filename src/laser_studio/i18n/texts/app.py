@@ -118,11 +118,11 @@ TEXTS = {
         "de": "Hell",
         "es": "Claro",
     },
-    "theme.jarvis": {
-        "fr": "Jarvis (HUD cyan)",
-        "en": "Jarvis (cyan HUD)",
-        "de": "Jarvis (Cyan-HUD)",
-        "es": "Jarvis (HUD cian)",
+    "theme.cortex": {
+        "fr": "Cortex (HUD cyan)",
+        "en": "Cortex (cyan HUD)",
+        "de": "Cortex (Cyan-HUD)",
+        "es": "Cortex (HUD cian)",
     },
 
 

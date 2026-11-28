@@ -18,7 +18,7 @@ except ImportError:          # PyQt6 absent
 @unittest.skipIf(THEMES is None, "PyQt6 non importable ici")
 class ThemeChoiceTests(unittest.TestCase):
     def test_four_themes_dark_by_default(self):
-        self.assertEqual([code for code, _key in available_themes()], ["new_dusk", "new_dusk_petrol", "new_dawn", "jarvis"])
+        self.assertEqual([code for code, _key in available_themes()], ["new_dusk", "new_dusk_petrol", "new_dawn", "cortex"])
         self.assertEqual(DEFAULT_THEME, "new_dusk")
         self.assertEqual(TRANSLATIONS["theme.new_dusk"]["fr"], "Sombre")
         self.assertEqual(TRANSLATIONS["theme.new_dawn"]["fr"], "Clair")
@@ -30,7 +30,8 @@ class ThemeChoiceTests(unittest.TestCase):
             self.assertEqual(normalize_theme_name(old), "new_dusk", old)
         for old in ("light", "Clair"):
             self.assertEqual(normalize_theme_name(old), "new_dawn", old)
-        self.assertEqual(normalize_theme_name("jarvis"), "jarvis")
+        self.assertEqual(normalize_theme_name("jarvis"), "cortex")          # ancien nom de Cortex
+        self.assertEqual(normalize_theme_name("cortex"), "cortex")
 
 
 @unittest.skipIf(THEMES is None, "PyQt6 non importable ici")

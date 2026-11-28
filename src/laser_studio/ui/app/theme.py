@@ -1,5 +1,5 @@
 """Thèmes de Laser Studio Pro (palette + feuille de style) : Sombre (par défaut), Sombre bleu pétrole, Clair et
-Jarvis. Les codes internes (new_dusk, new_dusk_petrol, new_dawn, jarvis) restent ceux enregistrés dans les
+Cortex. Les codes internes (new_dusk, new_dusk_petrol, new_dawn, cortex) restent ceux enregistrés dans les
 préférences ; les anciens thèmes retirés sont ramenés au plus proche par normalize_theme_name."""
 import re
 import shutil
@@ -142,9 +142,9 @@ THEMES = {
         "canvas_label": "#666666",
         "canvas_selection": "#1a1a1a",   # contour de sélection (blanc, invisible sur fond clair)
     },
-    # Jarvis — HUD sombre, cyan froid type interface d'assistance
-    "jarvis": {
-        "label_key": "theme.jarvis",
+    # Cortex (ex-Jarvis) — HUD sombre, cyan froid type interface d'assistance
+    "cortex": {
+        "label_key": "theme.cortex",
         "window": "#0a1218",
         "base": "#060d12",
         "alt": "#12202a",
@@ -1032,7 +1032,7 @@ def normalize_theme_name(theme_name) -> str:
         "sombre": "new_dusk", "new-dusk": "new_dusk", "new dusk": "new_dusk",
         "sombre bleu pétrole": "new_dusk_petrol", "new dusk blue petrol": "new_dusk_petrol",
         "clair": "new_dawn", "new-dawn": "new_dawn", "new dawn": "new_dawn",
-        "hud": "jarvis", "ironman": "jarvis",
+        "hud": "cortex", "jarvis": "cortex", "ironman": "cortex",       # « jarvis » : ancien nom de Cortex
         # Thèmes retirés : le plus proche.
         "light": "new_dawn",
         "dark": "new_dusk", "dusk": "new_dusk", "warm": "new_dusk", "warm dim": "new_dusk", "warm_dim": "new_dusk",
@@ -1076,14 +1076,14 @@ def apply_app_theme(app: QApplication, theme_name: str):
         style += _modern_stylesheet(colors)
     app.setStyleSheet(style)
     _apply_font(app, colors.get("modern"))
-    # Icônes : pack Jarvis (cyan) uniquement pour ce thème ; sinon Breeze.
+    # Icônes : pack Cortex (cyan) uniquement pour ce thème ; sinon Breeze.
     apply_icon_theme_for_ui(name)
     return name
 
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("new_dusk", "new_dusk_petrol", "new_dawn", "jarvis")
+    order = ("new_dusk", "new_dusk_petrol", "new_dawn", "cortex")
     return [(code, THEMES[code]["label_key"]) for code in order]
 
 
@@ -1106,7 +1106,7 @@ def apply_saved_theme(app: QApplication):
 def _ensure_icon_search_path():
     """Ajoute resources/icons aux chemins de thèmes d'icônes Qt (une seule fois)."""
     for base in map(Path, resource_candidates("icons")):
-        if (base / "breeze" / "index.theme").is_file() or (base / "jarvis" / "index.theme").is_file():
+        if (base / "breeze" / "index.theme").is_file() or (base / "cortex" / "index.theme").is_file():
             paths = [str(base)] + [p for p in QIcon.themeSearchPaths() if p != str(base)]
             QIcon.setThemeSearchPaths(paths)
             return True
@@ -1116,10 +1116,10 @@ def _ensure_icon_search_path():
 def apply_icon_theme_for_ui(theme_name: str) -> bool:
     """Choisit le pack d'icônes selon le thème UI.
 
-    - jarvis → pack « jarvis » (icônes cyan HUD), s'il est présent ;
+    - cortex → pack « cortex » (icônes cyan HUD), s'il est présent ;
     - sinon → « breeze » (pack par défaut).
 
-    Ne force rien si un vrai thème desktop (hors hicolor/breeze/jarvis) est
+    Ne force rien si un vrai thème desktop (hors hicolor/breeze/cortex) est
     déjà actif : on laisse le choix de l'utilisateur Linux.
     """
     name = normalize_theme_name(theme_name)
@@ -1131,11 +1131,11 @@ def apply_icon_theme_for_ui(theme_name: str) -> bool:
             QIcon.setThemeSearchPaths([root] + [p for p in QIcon.themeSearchPaths() if p != root])
             QIcon.setThemeName(mono_name)
             return True
-    wanted = "jarvis" if name == "jarvis" else "breeze"
+    wanted = "cortex" if name == "cortex" else "breeze"
     current = QIcon.themeName() or ""
     # Thème système utilisateur : ne pas l'écraser, sauf pour basculer
-    # entre nos packs embarqués breeze ↔ jarvis.
-    if current and current not in ("", "hicolor", "breeze", "jarvis") and not current.startswith("mono-"):
+    # entre nos packs embarqués breeze ↔ cortex.
+    if current and current not in ("", "hicolor", "breeze", "cortex", "jarvis") and not current.startswith("mono-"):
         return False
     if not _ensure_icon_search_path():
         return False
@@ -1143,8 +1143,8 @@ def apply_icon_theme_for_ui(theme_name: str) -> bool:
         if (base / wanted / "index.theme").is_file():
             QIcon.setThemeName(wanted)
             return True
-    # Repli : Breeze si jarvis absent
-    if wanted == "jarvis":
+    # Repli : Breeze si cortex absent
+    if wanted == "cortex":
         for base in map(Path, resource_candidates("icons")):
             if (base / "breeze" / "index.theme").is_file():
                 QIcon.setThemeName("breeze")
@@ -1153,11 +1153,11 @@ def apply_icon_theme_for_ui(theme_name: str) -> bool:
 
 
 def install_breeze_icon_theme():
-    """Active le thème d'icônes embarqué au démarrage (Breeze, ou Jarvis si
-    le thème UI enregistré est jarvis).
+    """Active le thème d'icônes embarqué au démarrage (Breeze, ou Cortex si
+    le thème UI enregistré est cortex).
 
     Sous Linux, si un thème système est déjà configuré, on ne l'écrase pas.
-    Le pack vit dans resources/icons/<breeze|jarvis>/, cherché comme les
+    Le pack vit dans resources/icons/<breeze|cortex>/, cherché comme les
     images de l'application (voir core.paths.resource_candidates).
     """
     return apply_icon_theme_for_ui(current_theme_name())
