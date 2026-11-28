@@ -74,7 +74,7 @@ class _MacInhibitor:
             self._proc.terminate()
             try:
                 self._proc.wait(timeout=2)
-            except Exception:
+            except Exception:  # timeout ou processus déjà mort : forcer kill
                 self._proc.kill()
 
 
@@ -133,7 +133,7 @@ class _LinuxDBusInhibitor:
             reply = iface.call("Inhibit", "Laser Studio Pro", reason)
             if reply.type() == QDBusMessage.MessageType.ReplyMessage and reply.arguments():
                 return int(reply.arguments()[0])
-        except Exception:
+        except Exception:  # ScreenSaver absent ou D-Bus en échec : pas d'inhibition écran
             return None
         return None
 
@@ -156,7 +156,7 @@ class _LinuxDBusInhibitor:
                 )
                 if iface.isValid():
                     iface.call("UnInhibit", self._screensaver_cookie)
-            except Exception:
+            except Exception:  # UnInhibit best-effort : le descripteur sleep est déjà fermé
                 pass
             self._screensaver_cookie = None
 
@@ -188,18 +188,18 @@ class _LinuxSystemdInhibitor:
             self._proc.terminate()
             try:
                 self._proc.wait(timeout=2)
-            except Exception:
+            except Exception:  # timeout ou processus déjà mort : forcer kill
                 self._proc.kill()
 
 
 def _linux_inhibit(reason: str, keep_display: bool) -> SleepInhibitor:
     try:
         return _LinuxDBusInhibitor(reason, keep_display)
-    except Exception:
+    except Exception:  # D-Bus / logind indisponible : essayer systemd-inhibit
         pass
     try:
         return _LinuxSystemdInhibitor(reason, keep_display)
-    except Exception:
+    except Exception:  # systemd-inhibit absent ou échec : pas de blocage
         pass
     return NullInhibitor()
 
@@ -218,7 +218,7 @@ def inhibit_sleep(reason: str = "Gravure en cours", keep_display: bool = False) 
             return _MacInhibitor(keep_display)
         if platform.startswith("linux"):
             return _linux_inhibit(reason, keep_display)
-    except Exception:
+    except Exception:  # API système indisponible : la gravure continue sans blocage
         pass
     return NullInhibitor()
 

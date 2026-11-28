@@ -550,7 +550,8 @@ class FullLaserStudio(QMainWindow):
                 event.ignore()
                 return
             self._flush_background_writes()
-            self.power_inhibit.shutdown()
+            if getattr(self, "power_inhibit", None) is not None:
+                self.power_inhibit.shutdown()
             self.connection.shutdown()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
@@ -558,7 +559,8 @@ class FullLaserStudio(QMainWindow):
             # doit pas être proposée en récupération au prochain démarrage.
             self.project.discard_autosave()
             self._flush_background_writes()
-            self.power_inhibit.shutdown()
+            if getattr(self, "power_inhibit", None) is not None:
+                self.power_inhibit.shutdown()
             self.connection.shutdown()
             event.accept()
         else:
