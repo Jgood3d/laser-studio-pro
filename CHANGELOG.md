@@ -7,6 +7,10 @@ versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 ## [Non publié]
 
 ### Ajouté
+Empêcher la mise en veille pendant une gravure (issue #185) : page **Alimentation** dans Paramètres (à côté de Langue et thème) — pendant une gravure (défaut), tant que le graveur est connecté, ou jamais. Case optionnelle pour garder aussi l'écran allumé. Windows (`SetThreadExecutionState`), macOS (`caffeinate`), Linux (logind / systemd-inhibit). Le blocage est toujours levé à la fin du job, à la déconnexion, à la fermeture de l'application, et automatiquement si le processus est tué.
+
+Barre d'outils personnalisable (issue #190) : page « Barre d'outils » dans Paramètres pour ajouter, retirer et réordonner les boutons (y compris les générateurs : porte-clés, boîte, puzzle…), séparateurs, recherche et rétablissement par défaut. Clic droit sur la barre › Personnaliser…, clic droit sur un bouton › Retirer. Le bouton Générer le G-Code, l'arrêt d'urgence et le bouton de soutien restent toujours présents. Configuration mémorisée dans les préférences.
+
 Guide de démarrage pour les débutants (docs/guide/guide-utilisateur.md, à compiler en PDF) : sécurité, premier réglage du graveur, calques et matériaux, matrice de test, puis des exemples pas à pas avec captures d'écran (graver une photo, une médaille de la bibliothèque jusqu'à la gravure, un porte-clés), et le dépannage.
 
 Compte à rebours avant la gravure : après la confirmation, une fenêtre laisse 5 secondes pour mettre ses lunettes de protection, avec un anneau qui se vide, un bip doux à chaque seconde et un accord au départ du laser. Annuler (ou Échap) arrête tout. La durée se règle par machine dans Configuration GRBL (0 pour le désactiver). Aussi avant la reprise d'un travail et le lancement de la file d'attente.
