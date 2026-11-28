@@ -4,7 +4,7 @@
 
     prefs = ui_preferences()
     prefs.get_bool("show_job_queue", True)
-    prefs.set("app_theme", "dark")          # écrit tout de suite (Windows compris)
+    prefs.set("app_theme", "new_dusk")      # écrit tout de suite (Windows compris)
 
 Trois fichiers de réglages : `ui_preferences()` (UIConfig : interface, thème,
 langue, onglets, projets récents…), `machine_preferences()` (MachineConfig :

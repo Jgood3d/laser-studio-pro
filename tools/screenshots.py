@@ -3,7 +3,7 @@
 
     python tools/screenshots.py               # sur l'écran (rendu exact)
     python tools/screenshots.py --offscreen   # sans écran (CI, SSH...)
-    python tools/screenshots.py --theme new_dawn   # autre thème (défaut : dusk, celui du README)
+    python tools/screenshots.py --theme new_dawn   # autre thème (défaut : new_dusk, « Sombre »)
     python tools/screenshots.py --language en      # interface en anglais (fr, en, de, es)
 
 Lance la vraie fenêtre (1600 x 980), charge des images d'exemple de docs/
@@ -55,7 +55,7 @@ def parse_args():
         "--output", default=OUTPUT, help="dossier (défaut : %(default)s)"
     )
     parser.add_argument(
-        "--theme", default="dusk", help="thème des captures (défaut : %(default)s)"
+        "--theme", default="new_dusk", help="thème des captures (défaut : %(default)s)"
     )
     parser.add_argument(
         "--language", default="fr", help="langue de l'interface (défaut : %(default)s)"

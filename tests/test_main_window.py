@@ -250,9 +250,9 @@ class MainWindowTests(unittest.TestCase):
 
     def test_theme_language_and_help(self):
         w = self.win
-        w.app_actions.theme_selected.emit("light")
-        self.assertEqual(self.stores[preferences.UI_CONFIG].values["app_theme"], "light")
-        w.app_actions.theme_selected.emit("dark")
+        w.app_actions.theme_selected.emit("new_dawn")
+        self.assertEqual(self.stores[preferences.UI_CONFIG].values["app_theme"], "new_dawn")
+        w.app_actions.theme_selected.emit("new_dusk")
         with mock.patch.object(QMessageBox, "information") as info:
             w.app_actions.language_selected.emit("en")
         self.assertEqual(info.call_count, 1)                            # appliquée au prochain démarrage

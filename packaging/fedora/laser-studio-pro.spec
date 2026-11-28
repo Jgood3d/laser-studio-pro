@@ -22,7 +22,7 @@ Version:        3.0.0
 Release:        1%{?snapinfo}%{?dist}
 Summary:        Prepare and engrave images and drawings on GRBL lasers
 
-# Code : GPL-3.0-or-later. Icônes Breeze et Jarvis (resources/icons/) : LGPL-3.0-or-later.
+# Code : GPL-3.0-or-later. Icônes Breeze et Cortex (recoloration de Breeze, resources/icons/) : LGPL-3.0-or-later.
 # Polices embarquées (OFL-1.1) : retirées, remplacées par celles du système (voir %%prep).
 License:        GPL-3.0-or-later AND LGPL-3.0-or-later
 URL:            %{forgeurl}

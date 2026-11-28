@@ -1,4 +1,5 @@
-"""Thèmes (ui/app/theme.py) : icônes d'une seule couleur de New Dusk."""
+"""Thèmes (ui/app/theme.py) : les quatre thèmes gardés, anciens noms ramenés au plus proche, icônes d'une seule
+couleur des thèmes modernes."""
 import os
 import re
 import sys
@@ -7,9 +8,30 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 try:
-    from laser_studio.ui.app.theme import THEMES, has_mono_drawing, monochrome_svg
+    from laser_studio.i18n import TRANSLATIONS
+    from laser_studio.ui.app.theme import (DEFAULT_THEME, THEMES, available_themes, has_mono_drawing, monochrome_svg,
+                                           normalize_theme_name)
 except ImportError:          # PyQt6 absent
     THEMES = None
+
+
+@unittest.skipIf(THEMES is None, "PyQt6 non importable ici")
+class ThemeChoiceTests(unittest.TestCase):
+    def test_four_themes_dark_by_default(self):
+        self.assertEqual([code for code, _key in available_themes()], ["new_dusk", "new_dusk_petrol", "new_dawn", "cortex"])
+        self.assertEqual(DEFAULT_THEME, "new_dusk")
+        self.assertEqual(TRANSLATIONS["theme.new_dusk"]["fr"], "Sombre")
+        self.assertEqual(TRANSLATIONS["theme.new_dawn"]["fr"], "Clair")
+        self.assertEqual((normalize_theme_name(None), normalize_theme_name("inconnu")), ("new_dusk", "new_dusk"))
+
+    def test_removed_themes_fall_back_to_the_closest(self):
+        # Un thème retiré, encore enregistré dans les préférences, donne le plus proche au lancement.
+        for old in ("dark", "dusk", "warm", "neon", "retro80", "Sombre"):
+            self.assertEqual(normalize_theme_name(old), "new_dusk", old)
+        for old in ("light", "Clair"):
+            self.assertEqual(normalize_theme_name(old), "new_dawn", old)
+        self.assertEqual(normalize_theme_name("jarvis"), "cortex")          # ancien nom de Cortex
+        self.assertEqual(normalize_theme_name("cortex"), "cortex")
 
 
 @unittest.skipIf(THEMES is None, "PyQt6 non importable ici")

@@ -1,6 +1,6 @@
 [Icon Theme]
-Name=Jarvis
-Comment=Jarvis HUD cyan icons for Laser Studio Pro (derived from Breeze subset)
+Name=Cortex
+Comment=Cortex HUD cyan icons for Laser Studio Pro (derived from Breeze subset)
 Inherits=hicolor
 Directories=16x16/actions,22x22/actions,22x22/devices,22x22/apps,22x22/categories,22x22/preferences
 

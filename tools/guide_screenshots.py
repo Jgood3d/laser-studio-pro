@@ -5,7 +5,7 @@
     python tools/guide_screenshots.py --offscreen   # sans écran
 
 Comme tools/screenshots.py : vraie fenêtre, configuration temporaire (réglages de l'utilisateur intacts), thème
-Dusk. En plus, le parcours des exemples du guide est rejoué : catalogue des machines, connexion au graveur
+Sombre. En plus, le parcours des exemples du guide est rejoué : catalogue des machines, connexion au graveur
 SIMULÉ (jamais à une vraie machine, même branchée), homing, médaille de la bibliothèque jusqu'à la gravure,
 photo, porte-clés. Les fenêtres qui attendent une réponse (bibliothèque, fiche du modèle, confirmation) sont
 capturées puis validées automatiquement. Ne pas toucher aux fenêtres pendant la capture.
@@ -55,7 +55,7 @@ def main():
     from laser_studio.ui.app.theme import apply_saved_theme, install_breeze_icon_theme
 
     install_breeze_icon_theme()
-    ui_preferences().set("app_theme", "dusk")
+    ui_preferences().set("app_theme", "new_dusk")
     apply_saved_theme(app)
     app.setWindowIcon(QIcon(find_resource("laser_studio_pro_512.png")))
     from laser_studio.grbl.simulator import SIMULATED_PORT

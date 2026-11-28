@@ -194,7 +194,7 @@ class AppMenusTests(unittest.TestCase):
                 (a.test_matrix_window, a.settings_window_requested, ("test_matrix",)),
                 (a.separation_tab, a.main_tab_requested, ("tab_separation",)),
                 (a.language_actions["en"], a.language_selected, ("en",)),
-                (a.theme_actions["light"], a.theme_selected, ("light",)),
+                (a.theme_actions["new_dawn"], a.theme_selected, ("new_dawn",)),
                 (a.image_rotate_right, a.image_rotate_requested, (True,)),
                 (a.vector_import, a.vector_import_requested, ()),
                 (a.generator_actions["ornament"], a.generator_requested, ("ornament",))):

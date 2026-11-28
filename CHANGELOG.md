@@ -18,6 +18,8 @@ Communauté WhatsApp : Aide › Rejoindre la communauté WhatsApp affiche un QR 
 Aperçu 2D : deux nouvelles matières dans la liste « Matière » : « Carrelage blanc peint en noir » (le laser enlève la peinture et laisse voir l'émail blanc) et « Carrelage blanc + blanc de titane » (trait sombre sur fond blanc). Traduites en français, anglais, allemand et espagnol.
 
 ### Modifié
+Thèmes réduits à quatre, mieux finis : **Sombre** (l'ancien New Dusk, thème par défaut), **Sombre bleu pétrole** (ancien New Dusk Blue Petrol), **Clair** (ancien New Dawn) et **Cortex** (l'ancien Jarvis, renommé : un nom libre d'utilisation). Les thèmes Sombre (classique), Clair (classique), Dusk, Warm dim, Neon laser et Rétro 80 sont retirés : si l'un d'eux était choisi, l'application ouvre le plus proche (Sombre, ou Clair pour l'ancien thème clair).
+
 Exécutable Windows : ses propriétés (onglet Détails) donnent le nom « Laser Studio Pro » et la version, première étape pour signer le binaire et ne plus avoir l'avertissement de Windows SmartScreen (voir CODE_SIGNING.md).
 
 Barre d'édition de l'éditeur vectoriel allégée : 12 boutons au lieu de 19. Les outils plus rares sont rangés dans deux boutons à menu nommés, où chacun apparaît avec son nom écrit : **Disposer** (dupliquer en série, imbrication auto, gabarit de placement) et **Tracés et textes** (exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille).

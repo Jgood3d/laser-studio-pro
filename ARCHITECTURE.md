@@ -92,8 +92,8 @@ main.py
   ├─► install_qt_message_filters / setup_debug_logging
   ├─► QApplication
   ├─► StartupSplash                 # affiché le plus tôt possible
-  ├─► install_breeze_icon_theme()   # pack d'icônes embarqué : breeze, ou jarvis si ce thème est choisi
-  ├─► apply_saved_theme()           # ui/app/theme.py : 7 thèmes, relu dans QSettings("app_theme")
+  ├─► install_breeze_icon_theme()   # pack d'icônes embarqué : breeze, ou cortex si ce thème est choisi
+  ├─► apply_saved_theme()           # ui/app/theme.py : 4 thèmes, relu dans QSettings("app_theme")
   ├─► StartupSafetyPolicy           # controllers/startup_safety.py : avertissement laser
   │     └─ confirm_startup_safety() # ui/dialogs/startup_safety/ ; « Annuler » quitte avant la fenêtre
   ├─► open_first_steps()            # ui/dialogs/first_steps/ : Premiers pas, tant que la case reste cochée
@@ -190,7 +190,7 @@ laser-studio-pro/
 │   │   │   ├── machines/             # catalogue des machines : un YAML par marque (README.md : format, sources)
 │   │   │   └── icons/                # thèmes d’icônes FreeDesktop embarqués
 │   │   │       ├── breeze/           # pack par défaut (LGPL-3) : 16x16, 22x22, 32x32
-│   │   │       └── jarvis/           # pack cyan « HUD », activé avec le thème jarvis
+│   │   │       └── cortex/           # pack cyan « HUD », activé avec le thème cortex
 │   │   └── ui/                       # interface PyQt6
 │   │       ├── binding.py            # liaison champ ↔ modèle
 │   │       ├── utils.py              # icônes dessinées, images haute résolution
@@ -206,7 +206,7 @@ laser-studio-pro/
 │   │       │   ├── job_display.py    # JobDisplay : résultats du job, état du graveur
 │   │       │   ├── image_actions.py  # ImageToolbarActions : pivoter / supprimer / miroirs de l'onglet affiché
 │   │       │   ├── qt_messages.py    # filtre des avertissements Qt
-│   │       │   └── theme.py          # 7 thèmes UI ; packs d'icônes Breeze et Jarvis
+│   │       │   └── theme.py          # 4 thèmes UI (Sombre, Sombre bleu pétrole, Clair, Cortex) ; packs d'icônes Breeze et Cortex
 │   │       ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, FloatingToolBar, FullscreenWindow, SliderWithButtons, StartHint
 │   │       ├── machine/              # panneau machine (panel.py : MachinePanel)
 │   │       │   ├── connection/       # ConnectionPanel (port, connecter, état GRBL, console directe) ; help_dialog : aide « Port introuvable ? »
@@ -279,8 +279,8 @@ laser-studio-pro/
 
 | Fichier | Rôle | Liens principaux |
 |---------|------|------------------|
-| **main.py** (racine) / **src/laser_studio/main.py** | La racine ajoute `src/` au chemin et appelle `laser_studio.main.main()`. Celui-ci lance l’app (ou Stencil Studio si `--stencil-studio`), puis : splash, icônes Breeze / Jarvis, thème enregistré, icône fenêtre, avertissement de sécurité, fenêtre principale. | → `ui/app/theme`, `controllers/startup_safety`, `ui/app/main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
-| **ui/app/theme.py** | Définition des 7 thèmes **dark / light / dusk / warm / neon / retro80 / jarvis** (palette Qt + stylesheet généré). `apply_app_theme()`, `apply_saved_theme()` (relit et normalise `QSettings("app_theme")`), `normalize_theme_name()` (alias FR/EN), `available_themes()`, `apply_icon_theme_for_ui()` (pack Jarvis pour le thème jarvis, sinon Breeze ; un thème système n'est pas écrasé), `install_breeze_icon_theme()`. Accessibilité : `contrast_ratio()` (rapport WCAG) et `focus_color()` (contour du widget qui a le focus clavier, visible dans tous les thèmes), vérifiés par `tests/test_accessibility.py`. | `main.py`, `controllers/window.change_theme`, `stencil_studio/studio_dialog` |
+| **main.py** (racine) / **src/laser_studio/main.py** | La racine ajoute `src/` au chemin et appelle `laser_studio.main.main()`. Celui-ci lance l’app (ou Stencil Studio si `--stencil-studio`), puis : splash, icônes Breeze / Cortex, thème enregistré, icône fenêtre, avertissement de sécurité, fenêtre principale. | → `ui/app/theme`, `controllers/startup_safety`, `ui/app/main_window.FullLaserStudio`, `core`, `ui.splashscreen` |
+| **ui/app/theme.py** | Définition des 4 thèmes **new_dusk** (« Sombre », par défaut, `DEFAULT_THEME`) / **new_dusk_petrol** (« Sombre bleu pétrole ») / **new_dawn** (« Clair ») / **cortex** (ex-Jarvis) (palette Qt + stylesheet généré) ; les thèmes retirés (dark, light, dusk, warm, neon, retro80) sont ramenés au plus proche par `normalize_theme_name`. `apply_app_theme()`, `apply_saved_theme()` (relit et normalise `QSettings("app_theme")`), `normalize_theme_name()` (alias FR/EN), `available_themes()`, `apply_icon_theme_for_ui()` (pack Cortex pour le thème cortex, sinon Breeze ; un thème système n'est pas écrasé), `install_breeze_icon_theme()`. Accessibilité : `contrast_ratio()` (rapport WCAG) et `focus_color()` (contour du widget qui a le focus clavier, visible dans tous les thèmes), vérifiés par `tests/test_accessibility.py`. | `main.py`, `controllers/window.change_theme`, `stencil_studio/studio_dialog` |
 | **controllers/first_steps.py** · **ui/dialogs/first_steps/** | Premiers pas : `FirstStepsController` (étapes `STEPS` : catalogue des machines, connexion par `EngraverController.ensure_connected`, homing, cadrage ; `done()` d'après l'état du graveur ; `should_show_at_launch()`, préférence `first_steps/show_at_launch`) et sa fenêtre `FirstStepsDialog` (`open_first_steps(parent, steps)`, non modale, une seule à la fois). Ouverte par `main.py` au démarrage et par Aide › Premiers pas | `main.py`, `ui/app/main_window` |
 | **controllers/startup_safety.py** | `StartupSafetyPolicy` : quand afficher l'avertissement laser du démarrage. Case « Ne plus afficher » : l'avertissement ne revient qu'en rappel tous les `REMINDER_EVERY` démarrages ; la variable d'environnement `NOWARNING` le désactive (tests). Prend tout objet de type `QSettings` | `main.py`, `ui/dialogs/startup_safety` |
 | **grbl/ports.py** | Ports série proposés (`port_labels`, `is_usable`, `is_usb`, `port_of`) : masque les ports virtuels `/dev/ttyS*` sans matériel (description « n/a ») ; mémorise le dernier port (`load_last_port` / `save_last_port`). Sans Qt | `controllers/engraver`, `ui/machine/connection` |
@@ -434,9 +434,9 @@ laser-studio-pro/
 
 | Élément | Rôle |
 |---------|------|
-| **ui/app/theme.py** | 7 thèmes : `dark`, `light`, `dusk` (gris-bleu), `warm` (gris chaud ambré), `neon`, `retro80` (synthwave), `jarvis` (HUD cyan) |
+| **ui/app/theme.py** | 4 thèmes : `new_dusk` (Sombre, par défaut), `new_dusk_petrol` (Sombre bleu pétrole), `new_dawn` (Clair), `cortex` (HUD cyan, ex-Jarvis) |
 | Menu **Paramètres → Thème** | `available_themes()` + `change_theme()` ; persistance `QSettings("app_theme")` |
-| **resources/icons/breeze/**, **jarvis/** | Packs embarqués (LGPL-3). `install_breeze_icon_theme()` active Breeze, ou Jarvis si le thème enregistré est jarvis ; `apply_icon_theme_for_ui()` bascule entre les deux au changement de thème. Un thème système déjà actif n'est pas écrasé. Cherchés comme les images (`resource_candidates`) |
+| **resources/icons/breeze/**, **cortex/** | Packs embarqués (LGPL-3). `install_breeze_icon_theme()` active Breeze, ou Cortex si le thème enregistré est cortex ; `apply_icon_theme_for_ui()` bascule entre les deux au changement de thème. Un thème système déjà actif n'est pas écrasé. Cherchés comme les images (`resource_candidates`) |
 | **packaging/ / BUILD.md** | `packaging/pyinstaller/LaserStudioPro.spec` embarque `src/laser_studio/resources/` (images et packs d'icônes) et Stencil Studio ; `bundle_filter.py` retire les fichiers Qt inutiles |
 
 ### 3.5 Stencil Studio
@@ -509,7 +509,7 @@ Import SVG/DXF  ──(groupé)──► 1 SvgPathObject
 ```
 Menu Thème → change_theme(name)
     ├─ QSettings app_theme
-    ├─ apply_app_theme(app, name)     # palette + stylesheet + pack d'icônes (breeze / jarvis)
+    ├─ apply_app_theme(app, name)     # palette + stylesheet + pack d'icônes (breeze / cortex)
     └─ si Stencil Studio ouvert → StencilStudioController.set_theme(page_colors(name))
 ```
 
@@ -550,12 +550,12 @@ Menu Outils → Caméra (CameraDialog)
 
 | Domaine | Ajout |
 |---------|--------|
-| Thèmes | `dark`, `light`, `dusk`, `warm`, puis **`neon`**, **`retro80`**, **`jarvis`** (`ui/app/theme.py`) |
-| Icônes | Packs **Breeze** et **Jarvis** embarqués (`resources/icons/`) |
+| Thèmes | **`new_dusk`** (Sombre, par défaut), **`new_dusk_petrol`**, **`new_dawn`** (Clair), **`cortex`** (ex-Jarvis) (`ui/app/theme.py`) ; six anciens thèmes retirés |
+| Icônes | Packs **Breeze** et **Cortex** embarqués (`resources/icons/`) |
 | Import | Plus de dégroupage automatique SVG/DXF |
 | Dessin | Outils souris ligne / rectangle / ellipse |
 | Édition | **Exploser en segments** + **mode nœuds** |
-| Stencil Studio | Thème lié à LSP (7 thèmes, sync à chaud), autotest `selftest.py` ; modèle / vue / contrôleur (`models/`, `controllers/`, `ui/`), plus aucun import de LSP, routage des exports dans `controllers/stencil_import.py` |
+| Stencil Studio | Thème lié à LSP (couleurs de page_colors, sync à chaud), autotest `selftest.py` ; modèle / vue / contrôleur (`models/`, `controllers/`, `ui/`), plus aucun import de LSP, routage des exports dans `controllers/stencil_import.py` |
 | UI claire | Stylesheet dédié (boutons ±, spinbox, etc.) |
 | Sécurité | Avertissement laser au démarrage (`controllers/startup_safety`, `ui/dialogs/startup_safety`), rappel périodique, `NOWARNING` pour les tests |
 | Machine | `grbl/ports.py` : ports virtuels masqués, dernier port mémorisé ; aide « Port introuvable ? ». Pilotage du graveur dans `EngraverController`, commandes dans `grbl/commands.py` ; `LaserControlMixin` supprimé |
@@ -563,7 +563,7 @@ Menu Outils → Caméra (CameraDialog)
 | Générateurs | Porte-clés prénom (`keychain_generator`), motifs de boules de Noël (`ornament_motifs`) |
 | Interface | `FloatingToolBar` sur les aperçus |
 | Texte | Texte sur un cercle (médailles, tampons), voir `vector/text_on_arc.py` ; texte le long de n'importe quel objet, voir `vector/text_on_path.py` |
-| Dessin | Boutons séparés cercle / ellipse, tracés d'un seul geste ; le rectangle garde ses 3 points ; icônes `draw-circle` et `text-follow-path` (Breeze et Jarvis) |
+| Dessin | Boutons séparés cercle / ellipse, tracés d'un seul geste ; le rectangle garde ses 3 points ; icônes `draw-circle` et `text-follow-path` (Breeze et Cortex) |
 | Image | `ImageProcessingMixin` supprimé : tramage sans Qt dans `image/dithering` (résultat identique, vérifié sur 144 traitements et 60 vignettes), image et traitement dans `ImageController`, résolution dans `ResolutionBox`, affichage dans `ImageTab` |
 | Fenêtre | `WindowControllerMixin` supprimé, plus aucun mixin : `WindowController` (menus, réglages), `WindowState` (réglages machine, profils, projet), `MainTabs` (onglets, plein écran, panneau du bas), `JobDisplay` (résultats du job, état du graveur), `ImageToolbarActions` (barre d'outils de l'image) |
 | Séparation | `SeparationMixin` supprimé : actions (ouverture, rotation, aperçus, export) dans `SeparationController`, affichage dans `SeparationTab`, test du gain de point dans `JobController` |
