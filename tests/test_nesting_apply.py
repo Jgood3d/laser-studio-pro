@@ -1,5 +1,6 @@
 """Imbrication dans l'éditeur : groupes rigides (trous qui suivent leur pièce), rotation, fenêtre de réglage.
 Les objets et le canevas Qt sont remplacés par de petites classes factices."""
+import importlib
 import math
 import os
 import sys
@@ -7,15 +8,18 @@ import unittest
 from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(HERE)
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import ui_source  # noqa: E402
 sys.path.insert(0, HERE)
 
-import nesting as ng
-import vector_order as vo
+from laser_studio.vector import nesting as ng
+from laser_studio.vector import order as vo
 
 try:
-    import nesting_apply as na
+    from laser_studio.vector import nesting_apply as na
 except ImportError:
     na = None
 
@@ -48,17 +52,6 @@ class FakeObj:
 
     def world_path(self):
         return FakePath(self.world_polygons())
-
-
-class FakeCanvas:
-    def __init__(self):
-        self.calls = []
-
-    def set_object_position(self, obj, x, y, rotation_deg=None):
-        self.calls.append((obj, x, y, rotation_deg))
-        obj.x_mm, obj.y_mm = x, y
-        if rotation_deg is not None:
-            obj.rotation_deg = rotation_deg
 
 
 def rect(w, h):
@@ -113,7 +106,7 @@ class RigidGroupTests(unittest.TestCase):
         pieces, members = na.build_pieces(objs)
         result = ng.nest(pieces, 220, 160, spacing=3, margin=2, angles=ng.ANGLE_SETS["quarters"])
         self.assertEqual(result.unplaced, [])
-        self.assertEqual(len(na.apply_result(FakeCanvas(), members, result)), len(objs))
+        self.assertEqual(len(na.apply_result(members, result)), len(objs))
         outlines = {}
         for pl in result.placements:
             for obj in members[pl.index]:
@@ -135,16 +128,15 @@ class RigidGroupTests(unittest.TestCase):
         pieces, members = na.build_pieces([obj])
         result = ng.nest(pieces, 40, 80, spacing=1, angles=ng.ANGLE_SETS["quarters"])    # ne tient qu'à 120° ou 300°
         self.assertEqual(result.unplaced, [])
-        canvas = FakeCanvas()
-        na.apply_result(canvas, members, result)
-        (_, _, _, rot), = canvas.calls
+        na.apply_result(members, result)
+        rot = obj.rotation_deg
         self.assertIn(result.placements[0].angle, (90.0, 270.0))          # relatif : 30 + 90 = 120
         self.assertIn(rot, (120.0, 300.0))
 
     def test_unplaced_groups_do_not_move(self):
         big, small = FakeObj([rect(500, 500)], 7, 8), FakeObj([rect(10, 10)], 600, 600)
         pieces, members = na.build_pieces([big, small])
-        moved = na.apply_result(FakeCanvas(), members, ng.nest(pieces, 100, 100))
+        moved = na.apply_result(members, ng.nest(pieces, 100, 100))
         self.assertEqual(moved, [small])
         self.assertEqual((big.x_mm, big.y_mm), (7, 8))
 
@@ -154,9 +146,11 @@ from test_box_dialog_smoke import fake_widgets_module  # noqa: E402
 
 def load_dialog():
     with mock.patch.dict(sys.modules, {"PyQt6.QtWidgets": fake_widgets_module()}):
-        sys.modules.pop("nesting_dialog", None)
-        module = __import__("nesting_dialog")
-    sys.modules.pop("nesting_dialog", None)
+        # patch.dict remet sys.modules en l'état à la sortie : le module
+        # « factice » (et son paquet) ne reste pas en cache.
+        for name in ("laser_studio.ui.dialogs.nesting", "laser_studio.ui.dialogs.nesting.dialog"):
+            sys.modules.pop(name, None)
+        module = importlib.import_module("laser_studio.ui.dialogs.nesting.dialog")
     return module
 
 
@@ -166,7 +160,7 @@ except ImportError:
     nd = None
 
 
-@unittest.skipIf(nd is None, "nesting_dialog non importable ici")
+@unittest.skipIf(nd is None, "ui.dialogs.nesting non importable ici")
 class DialogTests(unittest.TestCase):
     def test_defaults_scope_and_round_trip(self):
         d = nd.NestingDialog(None, 400.0, 300.0, 3, 10)
@@ -194,14 +188,14 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_button_method_undo_and_active_layers(self):
-        ui = self.src("ui_setup_mixin.py")
-        self.assertIn("btn_nesting.clicked.connect(self.open_nesting)", ui)
-        self.assertIn("toolbar_vector.addWidget(btn_nesting)", ui)
-        src = self.src("vector_editing_mixin.py")
-        body = src[src.index("def open_nesting"):src.index("def open_box_generator")]
-        self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(canvas, members, result)"))
+        ui = ui_source()
+        self.assertIn('("nesting", "ui.vector_nesting", "object-group")', ui)
+        self.assertIn('"nesting": self.open_nesting', self.src(os.path.join("controllers", "layout.py")))
+        src = self.src(os.path.join("controllers", "layout.py"))
+        body = src[src.index("def open_nesting"):src.index("def open_serial_duplicate")]
+        self.assertLess(body.index("canvas.push_undo_snapshot()"), body.index("apply_result(members, result)"))
         self.assertIn("layer.enabled", body)
-        self.assertIn("QApplication.restoreOverrideCursor()", body)
+        self.assertIn("with self._busy():", body)              # curseur d'attente pendant le calcul
 
 
 if __name__ == "__main__":

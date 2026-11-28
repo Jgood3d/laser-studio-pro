@@ -1,0 +1,264 @@
+"""Onglet « Graver une image » (ImageTab, ImageSettingsPanel) et cadre
+« Position du job » (JobPositionBox) : signaux et état."""
+
+import os
+import sys
+import unittest
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+
+try:
+    from PyQt6.QtGui import QShortcut
+    from PyQt6.QtWidgets import QAbstractButton, QApplication, QLabel, QPushButton
+    from laser_studio.i18n import tr
+    from laser_studio.ui.machine.job_position import JobPositionBox
+    from laser_studio.ui.tabs.image import ImageSettingsPanel, ImageTab
+    from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
+    from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
+    from laser_studio.ui.widgets import SliderWithButtons
+except ImportError:  # PyQt6 manquant
+    ImageTab = None
+
+
+def i18n_keys():
+    from laser_studio.i18n import TRANSLATIONS
+    return TRANSLATIONS
+
+
+def record(signal):
+    received = []
+    signal.connect(lambda *args: received.append(args))
+    return received
+
+
+class _QtTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self, cls):
+        widget = cls()
+        self.addCleanup(widget.deleteLater)
+        return widget
+
+    def bound_tab(self):
+        """Onglet dont les réglages sont liés à un modèle ImageSettings, comme dans la fenêtre."""
+        from laser_studio.models.image_settings import ImageSettings
+        tab = self.make(ImageTab)
+        tab.settings.bind_settings(ImageSettings(tab))
+        return tab
+
+
+@unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
+class ImageSettingsPanelTests(_QtTest):
+    def button(self, panel, key):
+        return next(
+            b for b in panel.findChildren(QAbstractButton) if b.text() == tr(key)
+        )
+
+    def test_processing_settings_ask_for_a_new_rendering(self):
+        panel = self.make(ImageSettingsPanel)
+        received = record(panel.processing_changed)
+        for slider in (
+            panel.brightness_slider,
+            panel.contrast_slider,
+            panel.gamma_slider,
+            panel.sharpness_slider,
+        ):
+            slider.setValue(slider.value() + 10)
+        panel.invert_check.toggle()
+        panel.algorithm_combo.setCurrentIndex(3)
+        self.assertEqual(len(received), 6)
+        # La résolution a son propre signal (ImageController la suit aussi).
+        resolution = record(panel.resolution_changed)
+        panel.lines_per_mm_spin.setValue(12.0)
+        self.assertEqual((len(received), resolution), (6, [(12.0,)]))
+
+    def test_business_values(self):
+        panel = self.make(ImageSettingsPanel)
+        size, material = record(panel.size_changed), record(
+            panel.material_changed
+        )
+        resolution = record(panel.resolution_changed)
+        panel.width_spin.setValue(80.0)
+        panel.height_spin.setValue(40.0)
+        panel.material_combo.setCurrentIndex(panel.material_combo.findData("slate"))
+        panel.lines_per_mm_spin.setValue(12.0)
+        panel.dpi_spin.setValue(300.0)                       # 300 DPI = 11,81 lignes/mm
+        self.assertEqual(size, [("w", 80.0), ("h", 40.0)])
+        self.assertEqual(material, [("slate",)])
+        self.assertEqual(resolution, [(12.0,), (11.81,)])
+
+    def test_resolution_starts_on_the_laser_focal(self):
+        panel = self.make(ImageSettingsPanel)
+        self.assertEqual(panel.resolution_mode_combo.currentIndex(), 2)
+        self.assertEqual(panel.resolution_stack.currentIndex(), 2)
+        received = record(panel.resolution_changed)
+        panel.resolution_mode_combo.setCurrentIndex(1)       # DPI : 254 DPI affichés = 10 lignes/mm
+        self.assertEqual(panel.resolution_stack.currentIndex(), 1)
+        self.assertEqual(received, [(10.0,)])
+
+    def test_buttons_and_shortcuts_emit_their_signal(self):
+        panel = self.make(ImageSettingsPanel)
+        for key, signal in (
+            ("img.configure_focal", panel.configure_focal_requested),
+        ):
+            received = record(signal)
+            self.button(panel, key).click()
+            self.assertEqual(received, [()], key)
+        # Plus de bouton « Enregistrer comme focale machine ».
+        self.assertFalse(hasattr(panel, "save_as_focal_requested"))
+        self.assertNotIn("img.save_as_focal", i18n_keys())
+        undo, redo = record(panel.undo_requested), record(panel.redo_requested)
+        for shortcut in panel.findChildren(QShortcut):
+            shortcut.activated.emit()
+        self.assertEqual((undo, redo), ([()], [()]))
+
+
+@unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
+class ImageTabTests(_QtTest):
+    def test_original_image_is_hidden_until_asked(self):
+        tab = self.make(ImageTab)
+        tab.show()
+        self.assertFalse(tab.source_view.isVisible())
+        self.assertTrue(tab.dither_view.isVisible())
+        tab.show_original_action.setChecked(True)
+        self.assertTrue(tab.source_view.isVisible())
+
+    def test_as_is_greys_out_the_settings_it_ignores(self):
+        panel = self.make(ImageSettingsPanel)
+        self.assertFalse(panel.as_is_check.isChecked())
+        self.assertTrue(panel.brightness_slider.isEnabled())
+        panel.as_is_check.setChecked(True)
+        for widget in (panel.brightness_slider, panel.contrast_slider, panel.gamma_slider, panel.sharpness_slider,
+                       panel.algorithm_combo, panel.filter_combo):
+            self.assertFalse(widget.isEnabled())
+        self.assertTrue(panel.as_is_check.isChecked())
+        panel.as_is_check.setChecked(False)
+        self.assertTrue(panel.algorithm_combo.isEnabled())
+
+    def test_original_can_preview_the_tone_settings(self):
+        from PIL import Image
+        tab = self.bound_tab()
+        image = Image.new("L", (40, 20), 100)
+        tab.show_source(image)
+
+        def shown():
+            qimg = tab.source_view.pixmap_item.pixmap().toImage()
+            return qimg.pixelColor(2, 2).red()
+
+        self.assertFalse(tab.preview_tones_check.isChecked())             # décochée par défaut
+        self.assertEqual(shown(), 100)
+        tab.preview_tones_check.setChecked(True)
+        tab.settings.brightness_slider.setValue(60)
+        tab._show_source_image()                                          # sans attendre le délai de 80 ms
+        self.assertGreater(shown(), 100)                                  # luminosité appliquée à l'originale
+        self.assertEqual(tab.source_view.pixmap_item.scale(), 1.0)
+        tab.preview_tones_check.setChecked(False)
+        self.assertEqual(shown(), 100)                                    # retour à l'originale
+
+    def test_original_preview_can_be_inverted(self):
+        from PIL import Image
+        tab = self.bound_tab()
+        tab.show_source(Image.new("L", (40, 20), 100))
+
+        def shown():
+            return tab.source_view.pixmap_item.pixmap().toImage().pixelColor(2, 2).red()
+
+        self.assertFalse(tab.preview_invert_check.isChecked())            # décochée par défaut
+        self.assertEqual(shown(), 100)
+        tab.preview_invert_check.setChecked(True)
+        self.assertEqual(shown(), 155)                                    # négatif de 100
+        self.assertEqual(tab.source_view.pixmap_item.scale(), 1.0)
+        tab.preview_tones_check.setChecked(True)                          # les deux cases se combinent
+        tab.settings.brightness_slider.setValue(60)
+        tab._show_source_image()
+        self.assertLess(shown(), 155)                                     # plus clair avant inversion = plus sombre
+        tab.preview_invert_check.setChecked(False)
+        tab.preview_tones_check.setChecked(False)
+        self.assertEqual(shown(), 100)
+
+    def test_toolbar_requests(self):
+        from PyQt6.QtGui import QAction
+        tab = self.make(ImageTab)
+        compare = record(tab.compare_requested)
+        toolbar_actions = [a for a in tab.findChildren(QAction) if a.text() == tr("img.compare_algos")]
+        toolbar_actions[0].trigger()
+        self.assertEqual(compare, [()])
+        # Barre flottante à gauche des aperçus : comparer, puis « Afficher l'originale » (cochable).
+        self.assertEqual(tab.view_toolbar.actions(), [tab.compare_action, tab.show_original_action])
+        self.assertTrue(tab.show_original_action.isCheckable())
+        # Plein écran : celui de la barre d'outils principale, plus de bouton dans l'onglet.
+        self.assertFalse(hasattr(tab, "fullscreen_requested"))
+
+    def test_settings_width_follows_longer_texts(self):
+        tab = self.make(ImageTab)
+        before = tab._settings_scroll.width()
+        tab.settings.focal_info_label.setText("x" * 120)
+        tab.fit_settings_width()
+        self.assertGreater(tab._settings_scroll.width(), before)
+
+
+@unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
+class JobPositionBoxTests(_QtTest):
+    def test_origin_choices(self):
+        box = self.make(JobPositionBox)
+        self.assertEqual(box.title(), tr("ui.job_position_box"))
+        self.assertEqual(
+            [box.origin_combo.itemText(i) for i in range(2)],
+            [tr("ui.origin_bottom_left"), tr("ui.origin_center")],
+        )
+
+
+@unittest.skipIf(ImageTab is None, "PyQt6 non importable ici")
+class ImagePanelPartsTests(_QtTest):
+    def test_slider_buttons_move_by_their_step_and_show_the_value(self):
+        row = SliderWithButtons(
+            0, 300, 100, step=10, formatter=lambda v: f"{v / 100:.2f}"
+        )
+        self.addCleanup(row.deleteLater)
+        received = record(row.value_changed)
+        minus, plus = row.findChildren(QPushButton)
+        plus.click()
+        minus.click()
+        minus.click()
+        self.assertEqual(received, [(110,), (100,), (90,)])
+        labels = [l.text() for l in row.findChildren(QLabel)]
+        self.assertIn("0.90", labels)
+
+    def test_material_combo_emits_the_material(self):
+        combo = self.make(MaterialComboBox)
+        self.assertEqual((combo.material(), combo.currentIndex()), ("", -1))     # rien choisi : texte d'invite
+        self.assertEqual(combo.placeholderText(), tr("img.material_placeholder"))
+        received = record(combo.material_changed)
+        combo.setCurrentIndex(combo.findData("slate"))
+        self.assertEqual((received, combo.material()), ([("slate",)], "slate"))
+
+    def test_material_combo_lists_builtin_and_user_materials(self):
+        combo = self.make(MaterialComboBox)
+        combo.set_materials(["Mon bois"])
+        keys = [combo.itemData(i) for i in range(combo.count())]
+        self.assertNotIn("dark", keys)                # plus d'entrées « Fond noir » / « Fond clair »
+        self.assertNotIn("light", keys)
+        self.assertIn("slate", keys)
+        self.assertEqual(keys[-1], "user:Mon bois")
+        combo.setCurrentIndex(combo.findData("user:Mon bois"))
+        self.assertEqual(combo.material(), "user:Mon bois")
+        combo.set_materials([])                       # matière supprimée : le texte d'invite revient
+        self.assertEqual((combo.material(), combo.currentIndex()), ("", -1))
+
+    def test_resolution_box_signals_and_pages(self):
+        box = self.make(ResolutionBox)
+        self.assertEqual(box.stack.currentIndex(), 2)  # focale au départ
+        received = record(box.resolution_changed)
+        box.mode_combo.setCurrentIndex(1)
+        box.dpi_spin.setValue(300.0)
+        self.assertEqual(box.stack.currentIndex(), 1)
+        self.assertEqual(received, [(10.0,), (11.81,)])
+        self.assertFalse(box.quality_label.isVisibleTo(box))  # vide : masqué
+
+
+if __name__ == "__main__":
+    unittest.main()

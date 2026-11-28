@@ -1,0 +1,15 @@
+{
+  "title": {
+    "fr": "Boule de Noël - prénom",
+    "en": "Christmas ornament - name",
+    "de": "Weihnachtskugel - Vorname",
+    "es": "Bola de Navidad - nombre"
+  },
+  "description": {
+    "fr": "Boule de Noël ajourée (flocon), avec une attache pour la suspendre, et un prénom gravé sur le bandeau central, à saisir avant l'import.",
+    "en": "Openwork Christmas ornament (snowflake) with a hanging loop, and a name engraved on the central band, to type before import.",
+    "de": "Durchbrochene Weihnachtskugel (Schneeflocke) mit Aufhängeöse und einem auf das Mittelband gravierten Vornamen, vor dem Import einzugeben.",
+    "es": "Bola de Navidad calada (copo de nieve) con una anilla para colgarla, y un nombre grabado en la banda central, a escribir antes de importar."
+  },
+  "tags": ["noël", "christmas", "boule", "ornament", "sapin", "prénom", "flocon", "cadeau"]
+}

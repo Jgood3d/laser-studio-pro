@@ -1,0 +1,25 @@
+[Desktop Entry]
+Type=Application
+Name=Laser Studio Pro
+GenericName=Laser Engraving Software
+GenericName[fr]=Logiciel de gravure laser
+GenericName[de]=Lasergravur-Software
+GenericName[es]=Programa de grabado láser
+Comment=Prepare images and drawings, and drive GRBL laser engravers and cutters
+Comment[fr]=Préparer images et dessins, et piloter les graveurs et découpeuses laser GRBL
+Comment[de]=Bilder und Zeichnungen vorbereiten und GRBL-Lasergravierer und -schneider steuern
+Comment[es]=Preparar imágenes y dibujos, y controlar grabadoras y cortadoras láser GRBL
+Keywords=laser;engraving;cutting;GRBL;CNC;G-code;SVG;DXF;stencil;
+Keywords[fr]=laser;gravure;découpe;GRBL;CNC;G-code;SVG;DXF;pochoir;
+Keywords[de]=Laser;Gravur;Schneiden;GRBL;CNC;G-Code;SVG;DXF;Schablone;
+Keywords[es]=láser;grabado;corte;GRBL;CNC;G-code;SVG;DXF;plantilla;
+Exec=laser-studio-pro
+Icon=io.github.jgood3d.LaserStudioPro
+Terminal=false
+StartupNotify=true
+Categories=Graphics;Engineering;
+Actions=stencil-studio;
+
+[Desktop Action stencil-studio]
+Name=Stencil Studio
+Exec=laser-studio-pro --stencil-studio

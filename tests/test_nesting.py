@@ -6,10 +6,11 @@ import random
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-import nesting as ng
-import vector_order as vo
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+from laser_studio.vector import nesting as ng
+from laser_studio.vector import order as vo
 
 
 def rect(w, h, x=0.0, y=0.0):
@@ -145,7 +146,6 @@ class ShapeAwareTests(unittest.TestCase):
         plate, hole, other = rect(40, 40), circle(8, cx=20, cy=20), rect(30, 30, 100, 0)
         self.assertEqual(ng.group_by_containment([[plate], [hole], [other]]), [[0, 1], [2]])
         outer, hole2 = rect(100, 100), rect(20, 20, 10, 10)
-        shapes = [[outer, hole2], [rect(5, 5, 15, 15)], [[(60, 60), (80, 70)]], [rect(30, 30, 200, 0)]]
         groups = ng.group_by_containment([[outer, hole2], [rect(5, 5, 15, 15)], [[(60, 60), (80, 70)]][0:1] and [[(60, 60), (80, 70)]], [rect(30, 30, 200, 0)]])
         self.assertIn([0, 2], groups)       # le trait gravé suit la plaque
         self.assertIn([1], groups)          # l'îlot dans le trou est une pièce à part

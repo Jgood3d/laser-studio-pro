@@ -1,0 +1,36 @@
+{
+  "title": {
+    "fr": "Porte-clef sportif - modèle 2",
+    "en": "Sports keychain - model 2",
+    "de": "Sport-Schlüsselanhänger - Modell 2",
+    "es": "Llavero deportivo - modelo 2"
+  },
+  "author": "Pictogrammes : OpenMoji (HfG Schwäbisch Gmünd)",
+  "license": {
+    "fr": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/) : utilisation et modification libres, y compris commerciales, en citant les auteurs et en partageant à l'identique.",
+    "en": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): free use and modification, including commercial, with attribution and share-alike.",
+    "de": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): freie Nutzung und Änderung, auch kommerziell, mit Namensnennung und Weitergabe unter gleichen Bedingungen.",
+    "es": "CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/): uso y modificación libres, incluso comerciales, citando a los autores y compartiendo igual."
+  },
+  "description": {
+    "fr": "Le porte-clefs du modèle 1 avec des pictogrammes OpenMoji : natation, dribble, handball, water-polo, escrime, haltérophilie, football.",
+    "en": "The model 1 keychain with OpenMoji pictograms: swimming, dribbling, handball, water polo, fencing, weightlifting, football.",
+    "de": "Der Schlüsselanhänger von Modell 1 mit OpenMoji-Piktogrammen: Schwimmen, Dribbeln, Handball, Wasserball, Fechten, Gewichtheben, Fußball.",
+    "es": "El llavero del modelo 1 con pictogramas OpenMoji: natación, regate, balonmano, waterpolo, esgrima, halterofilia, fútbol."
+  },
+  "tags": [
+    "porte-clef",
+    "porte-clefs",
+    "keychain",
+    "sport",
+    "natation",
+    "basket",
+    "handball",
+    "water-polo",
+    "escrime",
+    "haltérophilie",
+    "football",
+    "openmoji",
+    "club"
+  ]
+}

@@ -9,12 +9,93 @@ modules manquants ou de conflits de bibliothèques (DLL).
 > Windows ne fonctionne que sur Windows. Il faut lancer la compilation
 > **sur chaque OS cible** (ou dans une VM / conteneur de cet OS).
 
+Les scripts de compilation sont rangés dans `packaging/`, un dossier par
+système :
+
+| Système | Script | Résultat |
+|---|---|---|
+| Windows | `packaging\windows\build.bat`, puis `packaging\windows\setup.iss` (Inno Setup) pour l'installateur | `dist\LaserStudioPro\` |
+| Linux | `packaging/linux/build-linux.sh` (`--onedir` pour un dossier), puis `packaging/linux/build-appimage.sh` pour l'AppImage | `dist/LaserStudioPro`, `dist/LaserStudioPro-VERSION-x86_64.AppImage` |
+| Windows et Linux | `packaging/pyinstaller/LaserStudioPro.spec` (réglages communs, utilisés par les deux scripts) | |
+| macOS | `packaging/macos/build_macos.sh` (voir `packaging/macos/README.md`) | `dist/LaserStudioPro.app` |
+
+Ils se lancent depuis n'importe quel dossier et travaillent à la racine du
+dépôt. Windows et Linux partagent les mêmes réglages de compilation,
+dans `packaging/pyinstaller/LaserStudioPro.spec` : fichiers embarqués
+(`src/laser_studio/resources/`, Stencil Studio), modules déclarés, et filtre
+des fichiers inutiles (`packaging/pyinstaller/bundle_filter.py`, utilisé
+aussi par le `.spec` macOS). Voir [Taille de l'exécutable](#taille-de-lexécutable).
+
+---
+
+## Publier une version (GitHub Actions)
+
+Les binaires des versions sont compilés par GitHub, pas à la main :
+
+- `.github/workflows/tests.yml` : tests sur chaque MR et chaque push vers
+  `Dev` et `main` ;
+- `.github/workflows/release.yml` : sur un tag `vX.Y.Z`, tests, puis
+  compilation Linux (AppImage), Windows (installeur Inno Setup) et macOS
+  (`.dmg` arm64 et x86_64), et **release en brouillon** avec ces fichiers.
+  Lancé à la main (onglet Actions), il compile sans publier : les fichiers
+  sont dans les artefacts du run ;
+- `.github/workflows/macos-build.yml` : compilation macOS de contrôle sur
+  les MR vers `main`.
+
+Pour sortir la version X.Y.Z :
+
+1. fusionner `Dev` dans `main` ;
+2. sur `main`, mettre la version partout (les tests vérifient qu'elles
+   concordent) : `APP_VERSION` dans `src/laser_studio/core/version.py`,
+   section `## [X.Y.Z] — date` en tête de `CHANGELOG.md`,
+   `## Nouveautés de la version X.Y.Z` dans `README.md`,
+   `RELEASE_NOTES_X.Y.Z.md` (texte de la release), et une ligne
+   `<release version="X.Y.Z" date="…">` en tête de `<releases>` dans
+   `packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml` ;
+3. poser et pousser le tag : `git tag -a vX.Y.Z -m "Version X.Y.Z"` puis
+   `git push origin vX.Y.Z` (le tag doit être égal à `APP_VERSION`) ;
+4. attendre la fin du workflow Release, relire le brouillon dans
+   *Releases*, puis cliquer sur **Publish release**.
+
+### Signature du binaire Windows (SignPath)
+
+Sans signature, Windows SmartScreen avertit à l'installation et au premier
+lancement. La [SignPath Foundation](https://signpath.org/) signe
+gratuitement les projets libres. La politique de signature du projet est
+dans [`CODE_SIGNING.md`](CODE_SIGNING.md) ; l'exe porte déjà le nom de
+produit « Laser Studio Pro » et la version (`windows_version_info` dans
+`packaging/pyinstaller/LaserStudioPro.spec`, vérifiés par le workflow
+Release).
+
+Étapes, dans l'ordre :
+
+1. activer l'authentification à deux facteurs sur les comptes GitHub de
+   l'équipe (SignPath l'exige) ;
+2. publier une première version **non signée** (tag `v3.0.0`, release
+   publiée) : SignPath ne signe que ce qui est déjà publié sous cette forme ;
+3. le `README.md` (page d'accueil du projet) renvoie déjà vers
+   `CODE_SIGNING.md`, dans « Pour les développeurs » ;
+4. candidater sur [signpath.org/apply](https://signpath.org/apply) ; la
+   réponse prend de quelques jours à quelques semaines, sans recours en cas
+   de refus ;
+5. une fois accepté : relier le dépôt dans SignPath, ajouter le secret
+   `SIGNPATH_API_TOKEN` au dépôt, et une étape de signature
+   (`signpath/github-action-submit-signing-request`) dans le job Windows de
+   `release.yml`, avant la création de l'installeur puis sur l'installeur ;
+6. à chaque version, un approbateur valide la demande de signature dans
+   SignPath.
+
+L'AppImage est compilée sur Ubuntu 22.04 : elle tourne sur les
+distributions dont la glibc est au moins 2.35 (Ubuntu 22.04+, Debian 12,
+Fedora 36+). L'utilisateur doit être dans le groupe `dialout` pour accéder
+au port série.
+
 ---
 
 ## Windows
 
 ### 1. Installer Python
-Télécharger Python 3.11 ou 3.12 depuis [python.org](https://www.python.org/downloads/)
+Télécharger Python 3.12 (ou plus récent, jusqu'à 3.14) depuis [python.org](https://www.python.org/downloads/)
 et cocher **"Add Python to PATH"** pendant l'installation.
 
 ### 2. Créer un environnement virtuel (recommandé)
@@ -27,7 +108,7 @@ venv\Scripts\activate
 ## Windows
 
 ### 1. Installer Python
-Télécharger Python 3.11 ou 3.12 depuis [python.org](https://www.python.org/downloads/)
+Télécharger Python 3.12 (ou plus récent, jusqu'à 3.14) depuis [python.org](https://www.python.org/downloads/)
 et cocher "Add Python to PATH" pendant l'installation.
 
 ### 2. Créer un environnement virtuel (recommandé)
@@ -43,28 +124,23 @@ pip install pyinstaller
 ```
 
 ### 4. Compiler
-Depuis le dossier du projet (tous les fichiers `.py` du découpage doivent
-être présents), avec les fichiers `laser_studio_pro.ico`,
-`laser_studio_pro_banner.png` et `laser_studio_pro_512.png` :
+Le plus simple : `packaging\windows\build.bat` (Stencil Studio compris).
+À la main, depuis la racine du projet :
 ```powershell
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." main.py
-Avec Stencil Studio :
-
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png;." --add-data "laser_studio_pro_512.png;." --add-data "buy_me_a_coffee.png;." --add-data "stencil_studio;stencil_studio" main.py
-
+pyinstaller --noconfirm packaging\pyinstaller\LaserStudioPro.spec
 ```
-Sous Windows, `--add-data` sépare source et destination par `;`. Le code
-(`app_utils.find_resource`) cherche ces images à la fois à côté de l'exécutable
-et dans le bundle PyInstaller, donc `--add-data` suffit — pas besoin de copier
-les images manuellement dans `dist\` après coup.
+Le code (`core.paths.find_resource`) cherche les images dans `resources/` à
+côté de l'exécutable, puis dans le bundle PyInstaller, où le `.spec` les a
+embarquées : pas besoin de les copier dans `dist\` après coup.
 
-> Si tu n'as pas certains fichiers (ex. `laser_studio_pro_512.png`), retire
-> simplement le `--add-data` correspondant : le code passe automatiquement au
-> suivant dans sa liste de repli (`.ico` → `_256.png` → `_512.png`) et
-> n'affiche une image manquante que si aucune n'est trouvée du tout.
+> Une image absente de `resources/` n'empêche pas la compilation : pour
+> l'icône, le code passe au suivant dans sa liste de repli (`.ico` →
+> `_256.png` → `_512.png`) et n'affiche une image manquante que si aucune
+> n'est trouvée du tout.
 
 ### 5. Résultat
-L'exécutable `LaserStudioPro.exe` se trouve dans le dossier `dist\`.
+Le dossier `dist\LaserStudioPro\`, avec `LaserStudioPro.exe` (base de
+l'installeur Inno Setup).
 
 ---
 
@@ -94,20 +170,76 @@ pip install pyinstaller
 ```
 
 ### 4. Compiler
+Le plus simple : `packaging/linux/build-linux.sh` (Stencil Studio compris ;
+`--onedir` pour un dossier). À la main, depuis la racine du projet :
 ```bash
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." main.py
-
-Avec Stencil studio
-
-pyinstaller --onefile --windowed --name LaserStudioPro --icon=laser_studio_pro.ico --add-data "laser_studio_pro_banner.png:." --add-data "laser_studio_pro_512.png:." --add-data "buy_me_a_coffee.png:." --add-data "stencil_studio:stencil_studio" --collect-submodules serial --hidden-import=serial main.py
+pyinstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec               # dossier
+LSP_ONEFILE=1 pyinstaller --noconfirm packaging/pyinstaller/LaserStudioPro.spec # exécutable unique
 ```
-Sous Linux, `--add-data` sépare source et destination par `:` (au lieu de `;`).
-Comme sous Windows, `app_utils.find_resource` retrouve ces images aussi bien
-embarquées via `--add-data` que placées à côté de l'exécutable.
 
 ### 5. Résultat
 L'exécutable se trouve dans le dossier `dist/` sous le nom `LaserStudioPro`
 (à rendre exécutable si besoin : `chmod +x dist/LaserStudioPro`).
+
+### 6. AppImage (recommandé pour distribuer)
+```bash
+packaging/linux/build-linux.sh --onedir
+packaging/linux/build-appimage.sh            # version : APP_VERSION
+```
+Résultat : `dist/LaserStudioPro-VERSION-x86_64.AppImage`, un seul fichier,
+qui démarre sans décompression dans `/tmp`. Le script télécharge
+`appimagetool` dans `build/` (ou utilise celui indiqué par la variable
+`APPIMAGETOOL`).
+
+L'entrée de menu vient de `packaging/linux/io.github.jgood3d.LaserStudioPro.desktop`,
+commune aux paquets Linux : son nom suit l'identifiant `APP_ID` de
+`src/laser_studio/core/version.py`, et le script remplace seulement la
+commande (`Exec`) par l'exécutable `LaserStudioPro`. La fiche AppStream
+`packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml` (description,
+captures de `docs/`, versions) est copiée dans `usr/share/metainfo/`.
+Après une modification de l'un ou de l'autre :
+```bash
+desktop-file-validate packaging/linux/io.github.jgood3d.LaserStudioPro.desktop
+appstreamcli validate --no-net packaging/linux/io.github.jgood3d.LaserStudioPro.metainfo.xml
+```
+
+### 7. Paquet RPM (Fedora, Copr)
+Le spec `packaging/fedora/laser-studio-pro.spec` installe l'application avec
+les bibliothèques de Fedora (pas de PyInstaller). Construction, vérification
+et publication sur Copr : `packaging/fedora/README.md`.
+
+---
+
+## Taille de l'exécutable
+
+Mesures du 2026-11-15, compilation Linux en dossier : **1 065 Mo → 894 Mo**
+décompressés (environ 464 → 395 Mo compressés). Notre code et nos images
+pèsent moins de 10 Mo : tout le reste vient des bibliothèques.
+
+Ce qui est retiré :
+
+- **les fichiers inutilisés** (`bundle_filter.py`) : les modules Qt QML
+  (Quick 3D, styles QML, multimédia, synthèse vocale… ; l'application
+  n'utilise que des widgets), le dossier `qml/`, les outils de développement
+  de Chromium, et les traductions de Qt et de QtWebEngine autres que
+  français, anglais, allemand et espagnol ;
+- **`opencv-python-headless`** au lieu d'`opencv-python` : le même OpenCV,
+  sans ses fenêtres (`cv2.imshow`…), que le code n'utilise pas. Il évite
+  d'embarquer une deuxième copie de Qt (Qt5) avec OpenCV.
+
+Ce qui reste, et pourquoi :
+
+- **numba** (llvmlite, ~170 Mo décompressés) : sans lui, le tramage d'une
+  image de 100 × 100 mm passe de 5–8 ms à 0,5–1,1 s, et de 12–20 ms à
+  1–2,4 s pour 150 × 150 mm. Il se recalcule à chaque réglage de l'onglet
+  « Graver une image » : on le garde ;
+- **QtWebEngine** (~200 Mo décompressés), un navigateur Chromium complet,
+  qui ne sert qu'à l'interface HTML de Stencil Studio ;
+- **OpenCV**, scipy, numpy, scikit-image, et Qt lui-même.
+
+**À éviter : UPX**, souvent proposé pour compresser les exécutables : il
+casse régulièrement les bibliothèques Qt et déclenche de fausses alertes
+d'antivirus.
 
 ---
 
@@ -117,19 +249,14 @@ L'exécutable se trouve dans le dossier `dist/` sous le nom `LaserStudioPro`
   de la compilation précédente pour être sûr que PyInstaller reparte propre :
   ```powershell
   rmdir /s /q build dist
-  del LaserStudioPro.spec
   ```
-  (sous Linux : `rm -rf build dist LaserStudioPro.spec`)
-- Le fichier `--onefile` génère un exécutable unique mais plus lent à
-  démarrer (extraction dans un dossier temporaire à chaque lancement).
-  Retirer cette option pour obtenir un dossier avec l'exécutable et ses
-  dépendances à côté (démarrage plus rapide, mais moins pratique à distribuer).
-- Un fichier `LaserStudioPro.spec` est généré à la première compilation :
-  le conserver et relancer `pyinstaller LaserStudioPro.spec` (au lieu de la
-  commande complète) accélère les recompilations suivantes.
+  (sous Linux : `rm -rf build dist` ; les scripts le font eux-mêmes)
+- L'exécutable unique (`LSP_ONEFILE=1`) est plus lent à démarrer : il se
+  décompresse dans un dossier temporaire à chaque lancement. Le dossier
+  (par défaut) démarre bien plus vite.
 - Si `numba` (optionnel) échoue à l'installation ou pendant la compilation,
-  le retirer de `requirements-*.txt` : l'application fonctionne sans, avec un
-  tramage d'image simplement plus lent.
+  le retirer de `requirements-*.txt` : l'application fonctionne sans, mais le
+  tramage devient environ cent fois plus lent (voir ci-dessous).
 - **Bannière/icône introuvable dans la boîte "À propos"** : vérifier que
   `--add-data` a bien été utilisé à la compilation (voir ci-dessus), *ou* que
   le fichier image est copié directement dans le dossier `dist/` à côté de

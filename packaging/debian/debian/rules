@@ -1,0 +1,29 @@
+#!/usr/bin/make -f
+# Paquet Debian de Laser Studio Pro : bibliothèques Python de Debian, pas de PyInstaller.
+# Construit par packaging/debian/build-deb.sh (voir packaging/debian/README.md).
+
+export PYBUILD_NAME = laser-studio-pro
+export PYBUILD_SYSTEM = pyproject
+APP_ID = io.github.jgood3d.LaserStudioPro
+PKG = debian/laser-studio-pro
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+# Les tests demandent un affichage et toutes les dépendances : lancés à part sur le paquet installé
+# (build-deb.sh --test). Ici, on vérifie seulement que tout le code se compile.
+override_dh_auto_test:
+	python3 -m compileall -q src
+
+override_dh_auto_install:
+	dh_auto_install
+	install -Dpm 0644 packaging/linux/$(APP_ID).desktop $(PKG)/usr/share/applications/$(APP_ID).desktop
+	install -Dpm 0644 src/laser_studio/resources/laser_studio_pro_512.png \
+		$(PKG)/usr/share/icons/hicolor/512x512/apps/$(APP_ID).png
+	install -Dpm 0644 packaging/linux/$(APP_ID).metainfo.xml $(PKG)/usr/share/metainfo/$(APP_ID).metainfo.xml
+	desktop-file-validate $(PKG)/usr/share/applications/$(APP_ID).desktop
+	appstreamcli validate --no-net --explain $(PKG)/usr/share/metainfo/$(APP_ID).metainfo.xml || true
+
+# Pas de dépendances PyPI dans Depends : elles sont écrites à la main dans debian/control (noms Debian).
+override_dh_python3:
+	dh_python3 --no-guessing-deps

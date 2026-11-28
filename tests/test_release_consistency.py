@@ -1,21 +1,22 @@
-"""Cohérence de la version : application, journal des modifications, README et notes de version."""
+"""Cohérence de la version : application, journal des modifications, README (et sa version anglaise), notes de
+version, fiche AppStream (packaging/linux/*.metainfo.xml) et spec RPM (packaging/fedora/)."""
 import glob
 import os
 import re
-import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
 
 
 def read(name):
-    with open(os.path.join(ROOT, name), encoding="utf-8") as f:
+    with open(os.path.join(REPO, name), encoding="utf-8") as f:
         return f.read().replace("\r\n", "\n")
 
 
 class ReleaseConsistencyTests(unittest.TestCase):
     def app_version(self):
-        return re.search(r'^APP_VERSION = "([\d.]+)"', read("app_utils.py"), re.M).group(1)
+        return re.search(r'^APP_VERSION = "([\d.]+)"', read("src/laser_studio/core/version.py"), re.M).group(1)
 
     def changelog_versions(self):
         return re.findall(r"^## \[v?([\d.]+)\] — (\d{4}-\d{2}-\d{2})", read("CHANGELOG.md"), re.M)
@@ -32,19 +33,37 @@ class ReleaseConsistencyTests(unittest.TestCase):
             self.assertGreater(as_tuple(v1), as_tuple(v2), f"{v1} doit être plus récente que {v2}")
             self.assertGreaterEqual(d1, d2, f"la date de {v1} ({d1}) précède celle de {v2} ({d2})")
 
+    def test_appstream_first_release_matches_app_version_and_changelog_date(self):
+        metainfo = glob.glob(os.path.join(REPO, "packaging", "linux", "*.metainfo.xml"))
+        self.assertEqual(len(metainfo), 1)
+        releases = re.findall(r'<release version="([\d.]+)" date="(\d{4}-\d{2}-\d{2})"',
+                              read(os.path.relpath(metainfo[0], REPO)))
+        self.assertTrue(releases)
+        self.assertEqual(releases[0][0], self.app_version(),
+                         "la 1re <release> de la fiche AppStream doit être la version de l'application")
+        self.assertIn(releases[0], self.changelog_versions(), "date différente de celle du CHANGELOG")
+
+    def test_rpm_spec_version_matches_app_version(self):
+        spec = read("packaging/fedora/laser-studio-pro.spec")
+        self.assertEqual(re.search(r"^Version:\s*(\S+)", spec, re.M).group(1), self.app_version(),
+                         "Version: du spec RPM (packaging/fedora/) doit être la version de l'application")
+
     def test_readme_announces_the_current_version(self):
         self.assertIn(f"## Nouveautés de la version {self.app_version()}", read("README.md"))
 
     def test_release_notes_file_matches_the_version_if_present(self):
         name = f"RELEASE_NOTES_{self.app_version()}.md"          # les notes des versions précédentes sont ignorées
-        if os.path.exists(os.path.join(ROOT, name)):
+        if os.path.exists(os.path.join(REPO, name)):
             self.assertTrue(read(name).startswith(f"## [{self.app_version()}]"))
 
-    def test_new_modules_are_documented_in_the_readme(self):
-        readme = read("README.md")
-        for module in ("dxf_import.py", "box_generator.py", "vector_import.py", "box_dialog.py", "settings_window.py"):
+    def test_new_modules_are_documented_in_the_project_structure(self):
+        structure = read("CONTRIBUTING.md")          # « Structure du projet », sortie du README
+        for module in ("vector/dxf.py", "vector/box_generator.py", "vector/importers.py", "settings_window.py"):
             if os.path.exists(os.path.join(ROOT, module)):
-                self.assertIn(f"`{module}`", readme, f"{module} absent de la structure du README")
+                self.assertIn(f"`{module}`", structure, f"{module} absent de la structure du projet (CONTRIBUTING.md)")
+
+    def test_english_readme_announces_the_current_version(self):
+        self.assertIn(f"## What's new in version {self.app_version()}", read("README-EN.md"))
 
 
 if __name__ == "__main__":

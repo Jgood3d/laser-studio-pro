@@ -4,6 +4,310 @@ Toutes les modifications notables du projet sont documentées ici.
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/) —
 versionnage sémantique (`MAJEUR.MINEUR.CORRECTIF`).
 
+## [Non publié]
+
+### Ajouté
+Porte-clés : troisième mode **Lettres à coller**, dans le nouveau menu « Mode » (qui remplace la case « 2 couches ») à côté de « Classique » et « 2 couches ». Il génère deux pièces côte à côte : la plaque avec le prénom **gravé** (le repère pour placer les lettres) et, à droite, les **lettres seules, découpées**, à coller sur la gravure. L'aperçu 3D montre les lettres posées sur la plaque. Le choix du mode est mémorisé. Le mode « 2 couches » est renommé « fond + dessus évidé » pour le distinguer. Traduit en français, anglais, allemand et espagnol.
+
+Aperçu 3D des porte-clés et des boules de Noël, comme pour les boîtes : un onglet « 3D » à côté du plan, avec le choix de la matière (contreplaqué, bouleau, chêne, noyer, MDF, acrylique noir ou transparent) et l'épaisseur de la plaque. Le prénom gravé apparaît dans la couleur du bois brûlé (clair sur l'acrylique noir) ; le porte-clés à 2 couches montre le fond plein sous la plaque du dessus, dont le prénom est découpé de part en part. Glisser pour tourner, molette pour zoomer, double-clic pour revenir à la vue de départ, export en PNG. La matière et l'épaisseur sont mémorisées avec les autres réglages. Traduit en français, anglais, allemand et espagnol.
+
+Empêcher la mise en veille pendant une gravure (issue #185) : page **Alimentation** dans Paramètres (à côté de Langue et thème) — pendant une gravure (défaut), tant que le graveur est connecté, ou jamais. Case optionnelle pour garder aussi l'écran allumé. Windows (`SetThreadExecutionState`), macOS (`caffeinate`), Linux (logind / systemd-inhibit). Le blocage est toujours levé à la fin du job, à la déconnexion, à la fermeture de l'application, et automatiquement si le processus est tué.
+
+Barre d'outils personnalisable (issue #190) : page « Barre d'outils » dans Paramètres pour ajouter, retirer et réordonner les boutons (y compris les générateurs : porte-clés, boîte, puzzle…), séparateurs, recherche et rétablissement par défaut. Clic droit sur la barre › Personnaliser…, clic droit sur un bouton › Retirer. Le bouton Générer le G-Code, l'arrêt d'urgence et le bouton de soutien restent toujours présents. Configuration mémorisée dans les préférences.
+
+Guide de démarrage pour les débutants (docs/guide/guide-utilisateur.md, à compiler en PDF) : sécurité, premier réglage du graveur, calques et matériaux, matrice de test, puis des exemples pas à pas avec captures d'écran (graver une photo, une médaille de la bibliothèque jusqu'à la gravure, un porte-clés), et le dépannage.
+
+Compte à rebours avant la gravure : après la confirmation, une fenêtre laisse 5 secondes pour mettre ses lunettes de protection, avec un anneau qui se vide, un bip doux à chaque seconde et un accord au départ du laser. Annuler (ou Échap) arrête tout. La durée se règle par machine dans Configuration GRBL (0 pour le désactiver). Aussi avant la reprise d'un travail et le lancement de la file d'attente.
+
+Premiers pas : au premier démarrage, une fenêtre propose quatre étapes pour graver au bon endroit dès le premier travail : choisir sa machine dans le catalogue, se connecter, faire un homing, essayer un cadrage. Chaque étape a son bouton et se coche quand le graveur l'a faite. La fenêtre revient à chaque démarrage tant que « Afficher au démarrage » reste coché, et s'ouvre aussi par Aide › Premiers pas.
+
+Communauté WhatsApp : Aide › Rejoindre la communauté WhatsApp affiche un QR code à scanner avec le téléphone, et en dessous le lien à cliquer pour rejoindre la communauté depuis l'ordinateur.
+
+Aperçu 2D : deux nouvelles matières dans la liste « Matière » : « Carrelage blanc peint en noir » (le laser enlève la peinture et laisse voir l'émail blanc) et « Carrelage blanc + blanc de titane » (trait sombre sur fond blanc). Traduites en français, anglais, allemand et espagnol.
+
+Graver une image : la liste « Matière » propose douze matières avec des préréglages de correction de l'image (fond, négatif, luminosité, contraste, gamma, netteté, algorithme de tramage) : bois clair, cuir, liège, ardoise, aluminium anodisé, inox (avec produit de marquage), acrylique transparent et noir, verre, verre peint noir, carrelage blanc peint en noir et carrelage blanc + blanc de titane. La puissance et la vitesse n'en font pas partie (elles restent dans le calque). Le bouton « + » enregistre les réglages actuels comme matière à soi, le bouton « − » supprime une matière de l'utilisateur ; les matières fournies ne sont jamais modifiées (le même nom crée une matière à soi). Les matières de l'utilisateur sont dans le fichier image_materials.json du dossier de données ; les projets mémorisent la matière choisie. Choisir une matière affiche aussi la même matière dans l'aperçu 2D (sept matières y sont ajoutées : cuir, liège, aluminium anodisé, inox, acrylique transparent, verre, verre peint noir) ; les matières de l'utilisateur laissent l'aperçu tel quel. Les entrées « Fond noir » et « Fond clair » disparaissent de la liste : chaque matière règle le fond, et « Inverser les couleurs » reste modifiable à la main ; tant qu'aucune matière n'est choisie, la liste affiche « Choisir une matière… » (les anciens projets s'ouvrent comme avant).
+
+### Modifié
+Thèmes réduits à quatre, mieux finis : **Sombre** (l'ancien New Dusk, thème par défaut), **Sombre bleu pétrole** (ancien New Dusk Blue Petrol), **Clair** (ancien New Dawn) et **Cortex** (l'ancien Jarvis, renommé : un nom libre d'utilisation). Les thèmes Sombre (classique), Clair (classique), Dusk, Warm dim, Neon laser et Rétro 80 sont retirés : si l'un d'eux était choisi, l'application ouvre le plus proche (Sombre, ou Clair pour l'ancien thème clair).
+
+Exécutable Windows : ses propriétés (onglet Détails) donnent le nom « Laser Studio Pro » et la version, première étape pour signer le binaire et ne plus avoir l'avertissement de Windows SmartScreen (voir CODE_SIGNING.md).
+
+Barre d'édition de l'éditeur vectoriel allégée : 12 boutons au lieu de 19. Les outils plus rares sont rangés dans deux boutons à menu nommés, où chacun apparaît avec son nom écrit : **Disposer** (dupliquer en série, imbrication auto, gabarit de placement) et **Tracés et textes** (exploser en segments, éditer les nœuds, texte sur un tracé, texte de médaille).
+
+Navigation au clavier visible : le bouton, l'onglet, la case, le bouton radio ou le curseur qui a le focus (touche Tab) est entouré ou souligné dans tous les thèmes ; le cadre de focus avait disparu avec le style moderne. Le texte secondaire (titres des cadres, onglets inactifs, barre d'état) est un peu plus clair dans les thèmes Sombre, Dusk, New Dusk et New Dusk Blue Petrol pour atteindre le contraste recommandé (WCAG AA).
+
+Raccourcis visibles là où on les cherche : les boutons de l'éditeur vectoriel affichent leur raccourci dans l'infobulle (Supprimer (Suppr), Dupliquer (Ctrl+D)…), d'après la même table que le clavier, et les boutons du panneau du graveur aussi : Pause (F7), Arrêt d'urgence (F9), Envoyer au laser (Ctrl+Entrée). Leurs infobulles ne sont plus en majuscules.
+
+État du graveur dans votre langue : la pastille de la barre d'état et le panneau du graveur affichent « Prêt », « En marche », « En pause », « Alarme »… au lieu des mots GRBL en anglais (« Idle », « Run », « Hold », « Alarm »), avec les mêmes couleurs.
+
+### Corrigé
+Graveur sans homing : un G-Code généré avant la connexion gardait le « $H » du début (« Inclure $H » est coché par défaut), que GRBL refusait (error:5) : le travail s'arrêtait juste après le premier déplacement. Quand le graveur n'a pas de homing ($22 à 0 ou absent), le $H n'est plus envoyé, et la console l'indique ; le G-Code affiché ne change pas.
+
+Aperçu 2D : un G-Code importé sans repère de calque (par exemple celui de LaserGRBL) qui ressemble à un balayage s'affichait toujours en vert, quelle que soit la matière choisie. Il prend maintenant la couleur de brûlure de la matière, comme une gravure d'image, et le carré de la légende suit.
+
+## [3.0.0] — 2026-11-26
+
+### Ajouté
+Arrêt d'urgence toujours accessible : pendant une gravure, un homing ou un cadrage, un gros bouton rouge « Arrêt d'urgence » s'affiche dans la barre d'outils, même panneau du graveur replié ; la touche F9 (menu Job) fait de même. Le laser s'éteint et le travail est abandonné.
+
+G-Code à régénérer : quand un réglage change après la génération (calque, taille, position, image, objet du dessin, configuration GRBL), la barre d'état affiche « ⚠ G-Code à régénérer » (un clic régénère), et l'envoi au laser ou l'ajout à la file demande confirmation avant de partir avec l'ancien G-Code. Un G-Code importé n'est pas concerné.
+
+Cadrage visible et au plus près : la tête fait le tour du travail laser allumé à 0,5 % du S-Max (assez pour voir le point sans marquer ; réglable par machine dans Configuration GRBL, « Puissance du cadrage », pour une diode qui ne s'allume qu'à 1 ou 2 %), d'après le G-Code qui sera gravé (image et calques vectoriels). Deux modes : le rectangle qui contient tout le travail (X max, Y max, retour à X0 puis Y0 ; F6), et le tour au plus près de chaque pièce, creux compris (forme en L, étoile), à 1 mm près (nouveau bouton, Maj+F6). Sans G-Code, le rectangle reprend le cadre de l'image.
+
+Reprendre un travail interrompu : après une alarme, un arrêt ou une coupure, le bouton « Reprendre » (⏩, panneau du graveur) relance le travail là où il s'est arrêté. La tête revient laser éteint au point exact où elle s'est arrêtée (position relue au graveur une fois arrêté, avant tout homing), avec la puissance, la vitesse et le mode du G-Code à ce point : seul le reste du trait en cours est gravé, sans décalage ni double passage. Si la position n'a pas pu être lue (coupure de courant), la reprise repart des derniers traits que le graveur avait en mémoire, regravés plutôt que laissés en trou.
+
+Air assist par calque : une colonne « Air » dans le tableau des calques allume le soufflage (M8) pendant le calque et l'éteint (M9) ensuite, pour la gravure d'image comme pour les calques vectoriels. Décochée par défaut ; enregistrée avec le projet et le profil machine.
+
+Simulation dans la Visualisation 2D : le bouton « Simuler » (▶) rejoue le parcours du laser en une quinzaine de secondes, dans l'ordre du G-Code.
+
+Menu Job et raccourcis clavier : F5 générer, F6 cadrer, Maj+F6 cadrer au plus près, Ctrl+Entrée envoyer au laser, F7 pause, F8 reprise.
+
+Durée estimée recalée sur les gravures réelles : après trois gravures terminées sur la même machine, l'estimation est corrigée d'après l'écart entre durées estimées et réelles de l'historique (« recalé sur N gravures »).
+
+Axe rotatif (objet cylindrique : gobelet, bouteille, stylo…) : un groupe « Axe rotatif » dans Configuration GRBL (case, axe Y ou A, mandrin ou rouleaux, diamètre de l'objet, diamètre des rouleaux, course de Y pour un tour). Le motif reste dessiné à plat ; à l'envoi, à l'enregistrement du G-Code et au cadrage, les déplacements en Y deviennent ceux du rotatif. Rotatif branché sur Y : Y est multiplié par `course par tour / (π × diamètre)`. Axe dédié A : le mot Y devient un mot A en degrés. La vitesse est corrigée à chaque déplacement pour que la surface avance à la vitesse demandée. L'aperçu, les contrôles et la durée estimée restent à plat ; la position de la tête (axe Y) est reconvertie sur l'aperçu. Un motif plus haut que le tour de l'objet est refusé. La confirmation de lancement rappelle que l'axe rotatif est actif, et la case est décochée à chaque démarrage. Les arcs G2/G3 et les pouces ne sont pas pris en charge (envoi refusé). La reprise d'un travail interrompu reconvertit la position de la tête (axe Y) ; sur un axe A, elle repart quelques lignes avant l'arrêt. Réglages de l'axe, de l'entraînement et des dimensions enregistrés dans le profil machine.
+
+Rampe de puissance par passe : une colonne « Rampe (%) » dans le tableau des calques (case à cocher et puissance de la dernière passe, 100 % par défaut), active pour les calques de découpe, de perforation et de marquage. La puissance passe linéairement de celle du calque (première passe) à la puissance finale : 4 passes de 40 % à 100 % donnent 40, 60, 80 et 100 %. Utile pour une première passe douce (carton, mousse, bois fin : moins de flammes et de carbonisation) puis la pleine puissance. Le commentaire de chaque passe du G-Code indique sa puissance. Sans effet avec une seule passe. Case décochée par défaut : un ancien projet ne change pas. Réglages enregistrés avec le projet, le matériau et le profil machine.
+
+Mode de calque « Perforation » (découpe en pointillé) : un nouveau mode dans la liste des modes, et une colonne « Perforation (mm) » (longueur d'un trait | longueur d'un vide, 2,0 et 1,0 mm par défaut) active pour ce mode. Le laser coupe le tracé par traits séparés de vides : ligne de pliage, ligne à déchirer, pièce gardée attachée. Le motif est ajusté à la longueur du tracé pour finir juste : un tracé fermé fait un nombre entier de périodes, un tracé ouvert (ligne de pliage) commence et finit par un trait ; un tracé plus court qu'un trait est coupé en entier. Les passes s'appliquent. Le kerf, les ponts de maintien et les arcs d'entrée et de sortie restent propres au mode Découpe. Un projet enregistré avec ce mode n'est pas relu par une version antérieure (le mode y est inconnu). Réglages enregistrés avec le projet, le matériau et le profil machine.
+
+Entrée et sortie en arc à la découpe : une colonne « Arc (mm) » dans le tableau des calques (case à cocher et rayon, 1,0 mm par défaut), active pour les calques de découpe. Le laser s'allume sur la chute, à côté du contour, le rejoint par un quart de cercle tangent et repart de la même façon à la fin : la marque du perçage et du démarrage tombe dans la chute et non sur le bord de la pièce. La chute est à l'extérieur d'une pièce et à l'intérieur d'un trou. Un arc n'est posé que s'il a la place : sinon le rayon est réduit, le contour est repris du milieu de son plus long côté (coin de trou), puis coupé sans arc et signalé dans le G-Code. Sans effet sur les tracés ouverts ni sur les contours à ponts de maintien. Case décochée par défaut : un ancien projet ne change pas. Réglages enregistrés avec le projet, le matériau et le profil machine. L'aperçu 2D ignore les arcs pour dessiner la matière.
+
+Compensation du kerf à la découpe : une colonne « Kerf (mm) » dans le tableau des calques (case à cocher et largeur de la saignée, 0,15 mm par défaut), active pour les calques de découpe. Les contours extérieurs sont décalés vers l'extérieur et les trous vers l'intérieur de la moitié du kerf, pour que les pièces et les trous gardent les cotes du dessin ; fonctionne pour tout objet (SVG importé, dessin, texte), pas seulement la boîte et le puzzle. Les tracés ouverts ne changent pas. Un contour plus fin que le décalage (petit trou) est coupé tel quel et signalé dans le G-Code. Case décochée par défaut : un ancien projet ne change pas. Réglages enregistrés avec le projet, le matériau et le profil machine.
+
+Ponts de maintien à la découpe : une colonne « Ponts » (case à cocher et nombre par contour, 4 par défaut) et une colonne « Larg. pont (mm) » dans le tableau des calques, actives pour les calques de découpe. Décocher la case désactive les ponts sans perdre le nombre ni la largeur. Le laser laisse non coupés des tronçons répartis à égale distance sur chaque contour extérieur fermé, et la pièce reste attachée à la plaque jusqu'à la fin du job. Pas de pont sur les trous ni sur les tracés ouverts ; un contour trop petit en reçoit moins, ou aucun. Case décochée par défaut : un ancien projet ne change pas. Réglages enregistrés avec le projet, le matériau et le profil machine. L'aperçu 2D garde la matière dessinée à l'intérieur d'un contour à ponts (sauf avec un seul pont).
+
+Barre d'état : à droite, une pastille colorée donne l'état du graveur (comme le panneau machine) avec la position X / Y de la tête, ou « Graveur déconnecté » ; la durée estimée du dernier G-Code généré y reste affichée.
+
+Thème « New Dusk » (Fichier › Paramètres… › Langue et thème) : les couleurs gris-bleu doux de Dusk, modernisées : interface à plat, onglets soulignés par l'accent, coins arrondis, barres de défilement fines, icônes d'une seule couleur et police Inter (ou celle de l'interface du système). Le canevas de l'éditeur vectoriel, l'aperçu de l'image et la visualisation 2D prennent ses couleurs. « New Dusk Blue Petrol » garde les mêmes améliorations sur un bleu pétrole inspiré du Solarized Dark de VS Code. Sa version claire, « New Dawn », reprend les gris doux du thème Clair plutôt qu'un blanc pur, plus reposant pour les yeux, avec les mêmes icônes d'une seule couleur. Les icônes suivent maintenant un changement de thème sans redémarrer.
+
+Import SVG : le dessin arrive tel que votre logiciel de dessin le montre. Les calques et groupes du fichier deviennent des groupes de la liste des objets, avec leur nom ; chaque objet va sur un calque d'après sa couleur (noir : gravure, rouge : découpe, vert : marquage, avec une tolérance sur la teinte) ; un objet blanc arrive sur le calque « Ignoré » (pour évider une forme, on fait une Différence) ; les textes restent modifiables ; ce qui est caché dans le fichier arrive sur le calque « Ignoré », d'où la tête laser de la liste des objets le fait réapparaître. Lecture conforme à la spécification SVG : styles en cascade (feuille `<style>` comprise) et héritage, visibilité, opacité, règle de remplissage, `<use>`, `<symbol>`, `<switch>`, `<svg>` imbriqué, toutes les couleurs CSS, détourages (`clipPath`) et masques (`mask`), traits en pointillés (`stroke-dasharray`, découpés en tirets), longueurs avec unité ou en pourcentage dans les attributs (`10mm`, `50%`, `2em`), propriété CSS `transform` avec `transform-origin`. Les fichiers d'Inkscape antérieurs à 0.92 (90 px par pouce) et d'Adobe Illustrator (72 px par pouce) gardent leur taille réelle.
+
+Liste des objets de l'éditeur vectoriel : un œil devant chaque objet, groupes compris, le masque sur le canevas (il reste gravé), et une tête laser en deuxième colonne le met sur le calque « Ignoré » : plus affiché, ni gravé ni découpé. L'objet retient son calque ; un nouveau clic le lui rend, avec ses réglages. Sur un groupe, chaque objet retrouve son propre calque. Un objet masqué ou ignoré se choisit dans la liste (contour gris en pointillés) pour lui donner un autre calque. Une poubelle au bout de chaque ligne supprime l'objet, ou le retire de son groupe. Clic droit sur plusieurs objets sélectionnés dans la liste : Groupe, Union, Différence, Intersection, Exclusion, Dégrouper.
+
+Éditeur vectoriel : liste des objets à droite du canevas, à la manière de Blender. Elle montre les objets du dessus de la pile vers le dessous, avec leur calque ; un clic sélectionne l'objet (plusieurs avec Maj ou Ctrl), un double-clic le renomme. Ses propriétés (position, rotation, calque, taille) s'affichent juste en dessous, plutôt qu'en bas de la page. Boutons pour monter ou descendre un objet, grouper et dégrouper.
+
+Éditeur vectoriel : les groupes gardent leurs objets entiers. Un objet groupé garde son calque et son remplissage, et un texte redevient un texte modifiable une fois dégroupé (avant, grouper fusionnait tout en un seul tracé sur un seul calque).
+
+Éditeur vectoriel : opérations booléennes **Union**, **Différence**, **Intersection** et **Exclusion** (bouton « Combiner » de la liste des objets, ou clic droit › Combiner). Le groupe ne grave plus qu'une surface, sur le calque de l'objet du dessous : une différence évide l'objet du dessous de la forme de ceux du dessus. L'ordre des objets dans le groupe se change avec Monter et Descendre.
+
+Paramètres du graveur : bouton « Depuis le catalogue… », qui crée le profil d'un graveur GRBL du commerce (Elegoo Phecda, Ortur Laser Master 3, Sculpfun S9 et S30 Pro Max, Creality Falcon, Longer Ray5, xTool D1 Pro, Atomstack A5 Pro). Surface de travail, taille du point et vitesse maximale publiées par le constructeur, avec les liens vers ses documents ; une valeur qu'il ne publie pas n'est pas inventée. Rien n'est envoyé au graveur. On peut ajouter ses propres modèles dans le dossier `machines/` des données (format : `resources/machines/README.md`).
+
+Historique des gravures (**Outils › Historique des gravures…**) : chaque job envoyé au graveur, direct ou depuis la file d'attente, y est noté à sa fin, avec la date, l'issue (terminée, arrêtée, erreur GRBL), la durée réelle et la durée estimée avec leur écart, la distance gravée, le nombre de lignes et la machine. Export CSV pour un tableur. Gardé sur l'ordinateur, dans `historique-gravures.jsonl`.
+
+Graver une image : bouton « Recadrer » dans la barre flottante des aperçus. On trace le cadre à garder sur l'image entière (déplacer, redimensionner par les coins et les bords, proportions gardées au choix, « Toute l'image » pour revenir en arrière) ; la taille gravée suit le cadre, à la même échelle.
+
+Debian et Ubuntu : paquet `.deb` (Debian 13 et plus récentes, Ubuntu 25.04 et plus récentes), avec les bibliothèques Python du système : `sudo apt install ./laser-studio-pro_<version>_all.deb`. Joint à chaque release ; construit par `packaging/debian/build-deb.sh`.
+
+Graver une image et Visualisation 2D G-Code : loupes « Zoom avant » et « Zoom arrière » dans la barre flottante (aussi Ctrl++ et Ctrl+-), zoom centré sur la vue. Dans « Graver une image », l'originale et le rendu tramé zooment ensemble.
+
+Graver une image : liste « Appliquer un filtre » avec un effet bande dessinée, à la manière du filtre « Bande dessinée » de GIMP, qui noircit le bord des traits avant le tramage. Choisir « Effet BD » ouvre une fenêtre avec le rayon du masque (en mm sur la pièce) et le pourcentage de noir : l'aperçu suit les curseurs en direct, « Annuler » remet l'image d'avant. Enregistré dans le projet.
+
+Graver une image : le bouton « Charger Image » est plus grand, avec une image au-dessus du texte, pour être trouvé du premier coup.
+
+Macros : vos propres boutons de commandes G-code, sous les actions de job (décaler la tête, origine machine, pointeur…). **Outils › Macros…** ou le bouton à droite des actions de job ouvre l'éditeur : nom, infobulle, confirmation, profils machine où la macro apparaît, G-code. Une macro part seulement graveur connecté et jamais pendant un job ; si elle allume le laser, elle est marquée d'un ⚠ et toujours confirmée (Non par défaut). Enregistrées dans `macros.yaml`, exportables et importables (nouvelle dépendance : PyYAML).
+
+Caméra, alignement sur le plateau :
+- 4 AprilTags de 40 mm aux coins du plateau par défaut (au lieu de 9 de 20 mm), à 20 mm du bord ; l'orientation d'un tag collé n'a plus d'importance. L'homographie utilise les 4 coins de chaque tag.
+- Détection renforcée (affinage des coins, contraste renforcé, image agrandie ×2 si des tags manquent) ; les tags gravés sur une matière sombre peinte (en négatif) sont reconnus.
+- L'assistant fait 2 à 3 captures et fusionne les tags vus : le portique peut en cacher une partie, il suffit de le déplacer entre deux captures. Il affiche la taille d'une case en pixels (6 px ou plus recommandé) et propose le choix de la résolution de la caméra (la correction de distorsion suit la résolution).
+- Gabarit des tags imprimés : un cadre de 40×40 mm (taille du tag) marqué au laser à la position de chaque tag, avec son numéro ; le carré à découper de la feuille imprimée a la même taille. Un alignement incohérent (tag trop grand ou trop petit une fois ramené en mm, erreur supérieure à 5 mm) est refusé.
+- Éditeur vectoriel : interrupteur « Fond caméra » et bouton « Actualiser l'image caméra » dans la barre de gauche, sans passer par la fenêtre Caméra.
+
+Éditeur vectoriel : loupes « Zoom avant » et « Zoom arrière » dans la barre d'édition, aussi par Ctrl++ et Ctrl+- (zoom centré sur le milieu de la vue).
+
+Linux : entrée de menu traduite (français, anglais, allemand, espagnol), avec un raccourci vers Stencil Studio (clic droit sur l'icône). Sous Wayland, la fenêtre est rattachée à cette entrée : le dock affiche l'icône de Laser Studio Pro. Fiche AppStream (description, captures d'écran, versions) pour GNOME Logiciels, Discover et les autres logithèques.
+
+Fedora : paquet RPM dans le dépôt Copr `alemorvan/laser-studio-pro` (Fedora 43, 44 et 45, x86_64 et aarch64) : `sudo dnf copr enable alemorvan/laser-studio-pro` puis `sudo dnf install laser-studio-pro`.
+
+Éditeur vectoriel : bouton « Tout supprimer » dans la barre d'édition (après confirmation, annulable par Ctrl+Z).
+
+Bibliothèque de modèles (Outils → Bibliothèque…, icône « Bibliothèque » de la barre de gauche de l'éditeur vectoriel) :
+- Modèles prêts à graver ou découper, rangés par catégorie, avec recherche et taille des aperçus réglable (colonnes adaptées à la largeur de la fenêtre).
+- Aperçus calculés à partir du SVG, tels que la pièce sortira de la machine (matière, trous, gravure) ; dans la fiche, ils suivent les options et les textes saisis.
+- Fiche de chaque modèle : aperçu, fichier SVG et photo éventuelle en grand (zoom à la molette), taille, auteur, licence, notice, choix des variantes (ex. niveau du brevet) et textes à modifier avant l'import (contenu, police et taille ; ex. nom de la régate).
+- Import dans l'éditeur vectoriel : découpe, gravure et marquage chacun sur son calque, textes modifiables ; le blanc n'est pas gravé (creusé dans la gravure).
+- Convention des modèles (`resources/library/README.md`) : calques `Cut` (rouge), `Engrave` (noir) et `Mark` (bleu, facultatif) ; options en sous-calques d'un groupe, un seul visible, le nom du sous-calque étant celui de l'option.
+- Premiers modèles : totems sportifs modèle 1 (pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0), titre et sous-titre à saisir, médailles sportives modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0) — hexagonales ou rondes, 1, 2, 3 ou étoile, nom de la compétition — boule de Noël avec prénom, et porte-clefs sportifs modèle 1 (aviron, basket-ball ou pictogrammes Material Symbols) et modèle 2 (pictogrammes OpenMoji, CC BY-SA 4.0).
+- Import : dans `Engrave`, les traits sont gravés avec leur épaisseur (pictogrammes dessinés au trait).
+- Polices embarquées (`resources/fonts/`, chargées au démarrage) : Dancing Script (police manuscrite) et Rubik (titres des médailles et des totems), sous licence OFL, disponibles sur tous les systèmes pour les textes des modèles.
+
+Générateur de boîte :
+- Aperçu en direct dans la fenêtre : les panneaux tels qu'ils seront découpés, avec les fentes de cloison et la position du décor, mis à jour à chaque réglage.
+- Types de couvercle : à doigts (comme avant), posé avec rebord intérieur, coulissant (rainure dans les parois gauche et droite, façade abaissée), ou aucun (boîte ouverte).
+- Cloisons : nombre réglable dans la largeur (X) et la profondeur (Y), compartiments égaux, languettes dans des fentes des parois et du fond, emboîtement à mi-hauteur quand elles se croisent.
+- Jeu d'ajustement pour les assemblages libres (couvercle, rainure, cloisons), séparé du kerf.
+
+### Modifié
+Une seule fenêtre avant de graver : l'avertissement de sécurité, les points à vérifier (G-Code à régénérer, lignes à risque, graveur sans homing) et la question « Lancer la gravure ? » arrivent ensemble, au lieu de plusieurs fenêtres à la suite. Même chose pour « Reprendre ».
+
+Les réussites ne bloquent plus l'écran : projet enregistré ou ouvert, G-Code exporté, SVG ou DXF importé, vectorisation exportée, générateur terminé, matériaux exportés ou importés, configuration GRBL envoyée s'affichent dans la barre d'état, sans fenêtre à fermer. Les erreurs et la fin d'une gravure gardent leur fenêtre.
+
+Libellés harmonisés en français, anglais, allemand et espagnol : majuscule au premier mot seulement (« Temps estimé »), espace avant les deux-points en français (« Largeur (mm) : »), plus de mots anglais dans l'interface française (« Décalage X » au lieu de « Offset X », « Valeur S maximale » au lieu de « S-Max Value »). La fenêtre du générateur de puzzle, le menu de l'aperçu d'image et la commande laser de la matrice de test sont maintenant traduits.
+
+La molette ne change plus une valeur par accident : sur un champ numérique, une liste ou un curseur qu'on n'a pas cliqué, elle fait défiler le panneau au lieu de modifier la puissance ou la vitesse au passage de la souris. Après un clic dans le champ, la molette le règle comme avant.
+
+Visualisation 2D environ cinq fois plus rapide à dessiner sur une grosse image (1,2 s -> 0,23 s pour 500 000 lignes), image identique. La console se remplit d'un gros G-Code en tâche de fond, sans figer l'interface (lecture seule le temps du remplissage). Le panneau du bas démarre toujours replié : au lancement, le graveur n'est pas encore connecté.
+
+Position du job réunie dans un seul cadre : l'ancrage de l'origine et le décalage (Offset X / Y) se règlent ensemble dans « Position du job sur le plateau », à droite de la Visualisation 2D, là où l'on voit le job sur le plateau ; le décalage n'est plus dans « Graver une image ». « Optimiser le chemin » quitte le cadre « Affichage » pour un cadre « Génération » : la case change l'ordre des tracés du G-Code généré, pas l'aperçu.
+
+Visualisation 2D : le plateau de la machine est dessiné en pointillés, et la vue est cadrée dessus tant qu'aucun job n'est généré (au lieu d'axes de -1 à 1). Changer une option d'affichage (inverser, négatif, matière, déplacements rapides) redessine l'aperçu environ deux fois plus vite sur un gros job, et l'aperçu d'un job généré est préparé pendant la génération.
+
+« Graver une image » sans image : une carte au centre invite à glisser-déposer un fichier ou à ouvrir une image, comme le canevas vide de l'éditeur vectoriel. La barre « Gravure : 0 % » du panneau du graveur n'apparaît plus que pendant un envoi. L'onglet « Calques (Layers) » s'appelle « Calques ».
+
+Panneau du graveur : les boutons s'activent d'après l'état du graveur. Pendant une gravure ou un homing, seuls Pause, Reprise, Reset et Arrêt d'urgence restent actifs ; en alarme, le homing, le déverrouillage et la console restent disponibles, mais plus les déplacements ni l'envoi d'un job ; déconnecté, tout est grisé. Le bouton de connexion est grisé pendant une gravure. Un raccourci qui tente quand même une action dit pourquoi elle est refusée (graveur occupé, ou en alarme).
+
+Génération du G-Code d'une image plus rapide : environ deux fois moins de temps pour une image en noir et blanc très détaillée (30 % de moins en niveaux de gris). Le G-Code produit ne change pas.
+
+L'ancienne « découpe SVG » autour de l'image, qui n'était plus proposée mais revenait avec un ancien projet qui l'avait cochée, est supprimée : elle traçait au laser un trait entre deux contours d'un même chemin (un « O », une forme avec un trou). Les calques de découpe font ce travail.
+
+Barre d'outils du haut allégée : les outils de l'éditeur vectoriel (bibliothèque, import, générateurs) restent dans l'éditeur et le menu Outils. « Visualisation 2D G-Code » suit la disposition des autres onglets : ses options d'affichage (matière, miroir, négatif, déplacements rapides, optimisation du chemin) passent dans un cadre « Affichage » de la colonne de droite, les loupes dans une barre verticale ; dans « Calques », la barre des actions devient verticale, à droite du tableau. Les aperçus des générateurs, le recadrage de l'image et le bouton de sortie du plein écran prennent les couleurs du thème.
+
+Éditeur vectoriel : un bouton « Vectoriser une image » à côté d'« Importer SVG / DXF » ouvre l'onglet Vectorisation. Après un import, la vue se cadre sur le dessin importé sans trop zoomer sur un petit dessin ; dans « Graver une image », chaque nouvelle image remplit l'aperçu (rendu tramé comme originale), qui suit la taille de la fenêtre tant qu'on ne zoome pas soi-même.
+
+Onglets à la manière de VS Code (thème New Dusk) : bande d'onglets, séparateurs fins, onglet actif de la couleur de la zone de travail, plus de petites flèches de défilement. « Séparation Couleur / Verre » et « Vectorisation d'image » ont une croix pour se refermer (le menu Outils les rouvre). Les panneaux latéraux (propriétés, listes de catégories) prennent la couleur de la barre latérale de VS Code. L'onglet Graveur du panneau du bas est plus compact (le bouton de connexion rejoint la ligne du port, boutons de déplacement un peu plus petits).
+
+Panneau du bas, comme celui de VS Code : ses onglets Graveur (connexion, déplacements, lancement et suivi), Console G-Code et File d'attente restent sous les onglets de travail, sur tous les onglets. Replié, il ne montre que ses onglets ; il se déplie d'un clic sur l'un d'eux, avec **Ctrl+J**, par un clic sur la pastille du graveur de la barre d'état, et tout seul quand une gravure démarre ou qu'une alarme survient. La console G-Code et la file d'attente quittent les onglets principaux.
+
+Éditeur vectoriel épuré : une seule barre flottante sur le canevas (la sélection en tête, puis créer et dessiner). La barre d'édition (avec l'imbrication automatique) passe à droite du canevas, contre la liste des objets ; l'alignement apparaît sous les propriétés dès que deux objets sont sélectionnés. Un canevas vide propose de gros boutons : importer un fichier, dessiner une forme, ouvrir la bibliothèque, vectoriser une image, et un par générateur (boîte, puzzle, boule de Noël, porte-clés).
+
+Générateurs : la bibliothèque, la boîte, le puzzle, la boule de Noël et le porte-clés partagent une fenêtre, avec leur liste à gauche, les réglages au milieu et l'aperçu à droite. Le menu Outils l'ouvre sur le générateur choisi, l'icône « Générateurs » de la barre d'édition sur le dernier utilisé, Outils › Bibliothèque… et le bouton « Bibliothèque » de l'éditeur sur la bibliothèque. Le menu Affichage disparaît (Ctrl+J reste). Un seul couple de boutons « Importer » / « Annuler » sert aux quatre générateurs.
+
+Thème New Dusk : les cases à cocher deviennent des interrupteurs.
+
+Paramètres : une seule fenêtre pour tous les réglages, avec la liste des catégories à gauche (Paramètres du graveur, Configuration GRBL, Macros, Langue et thème). L'éditeur des macros y devient la page « Macros » (le bouton des actions de job l'ouvre) ; l'historique des gravures passe dans le menu Fichier. Elle s'ouvre par **Fichier › Paramètres…**, juste au-dessus de « Quitter » : le menu Paramètres disparaît.
+
+Onglet « Graver une image » disposé comme l'éditeur vectoriel : le gros bouton vert « Charger Image » en haut (identique à « Importer SVG / DXF », qui annonce lui aussi le glisser-déposer), la barre d'outils verticale à droite de l'aperçu, et les propriétés de l'image à droite, affichées une fois l'image chargée.
+
+Thème New Dusk : icônes d'une seule couleur, comme dans VS Code (les icônes à plusieurs teintes sont redessinées au trait).
+
+Bibliothèque de modèles : les modèles sont importés comme avec le bouton « Importer » (calque d'après la couleur, groupes et textes gardés). Le blanc ne creuse plus la gravure : les pictogrammes en réserve des médailles, totems et porte-clés sont devenus de vraies Différences, et le texte « Compétition de XXXX » des médailles est un masque du bandeau, toujours remplaçable dans la fiche. Les options non choisies n'arrivent plus dans l'éditeur. Le marquage d'un modèle se dessine en vert.
+
+Éditeur vectoriel : « Pivoter 90° » de la barre d'édition fait tourner tous les objets sélectionnés (avant : seulement le premier), comme le clic droit. « Texte le long d'un objet » du clic droit ouvre ensuite les réglages du texte, comme le bouton.
+
+Import SVG : les arcs des tracés sont convertis en courbes exactes ; dans un fichier à petite unité (viewBox de 0 à 1), un cercle devenait un polygone grossier.
+
+Import SVG : le cadrage du `viewBox` respecte `preserveAspectRatio` (centré sans déformation par défaut, comme les navigateurs) ; un document aux proportions différentes de son `viewBox` était étiré.
+
+Opérations booléennes des groupes (union, différence…) : les courbes sont calculées au centième de millimètre (un cercle de 5 mm s'écartait de 0,1 mm).
+
+Éditeur vectoriel : changer le calque d'un groupe le change pour tous les objets du groupe.
+
+Barres d'outils flottantes : partout les mêmes icônes que dans l'éditeur vectoriel (annuler, refaire, pivoter, miroirs, supprimer…), et annuler / refaire puis les loupes toujours au bout, à droite.
+
+Graver une image : « Algorithme de tramage » et « Afficher l'originale » passent dans une barre flottante à gauche de l'aperçu ; le bandeau au-dessus des aperçus disparaît, l'image gagne en hauteur.
+
+Graveur simulé (`LASER_STUDIO_SIMULATION`) : dans l'historique des gravures, la durée réelle est multipliée par le facteur de vitesse de la simulation, pour être comparable à la durée estimée ; la gravure est marquée « simulation ×N ».
+
+Durée estimée des gravures : calculée comme GRBL planifie ses déplacements, au lieu de « distance ÷ vitesse + 15 % ». Elle compte les déplacements rapides G0, l'accélération de chaque déplacement, le ralentissement dans les virages et aux demi-tours, et la limite du tampon de GRBL sur les images très fines. Elle utilise les réglages lus avec « Lire la config » ($110/$111, $120/$121, $11), sinon la vitesse maximale et l'accélération de « Paramètres du graveur ». L'estimation rapide (« Estimer ») compte aussi l'accélération à chaque ligne de l'image.
+
+Marge de l'image et des dessins importés : au lieu de 10 mm fixes en X et en Y, la distance de surbalayage, en X seulement, quand il est activé (aucune marge sinon). Avec un décalage du job à 0, l'image démarre donc au bord gauche du plateau, surbalayage compris. Dans la Visualisation 2D, le fond de la matière ne déborde plus sous l'origine.
+
+Éditeur vectoriel : quand il contient déjà des objets, un import (fichier SVG / DXF, bibliothèque, générateurs de boîte, de puzzle, de boule de Noël et de porte-clés, vectorisation, Stencil Studio) demande quoi faire du nouveau dessin : l'ajouter sans toucher aux objets, supprimer les objets présents, l'ajouter à leur droite ou au-dessus. Le puzzle garde sa position calée sur l'image, sauf à droite ou au-dessus. Ctrl+Z annule le tout d'un coup.
+
+Stencil Studio : quand la détection du sujet par IA manque, le message propose la commande `dnf install` sous Fedora (Python du système), `pip install` ailleurs.
+
+La case « Avec couvercle » devient une liste « Couvercle ». Les anciens réglages mémorisés restent lus.
+
+Profils matériaux : plus de bouton « Enregistrer ». Le matériau choisi reprend aussitôt chaque modification d'un calque.
+
+Modes des calques : enregistrés sous un code indépendant de la langue (`engrave_fill`, `cut`, `mark`) dans les projets, les profils machine et les commentaires du G-Code, au lieu du libellé français. Les anciens projets, profils et G-Code sont relus et convertis. Un projet enregistré avec cette version n'est plus lu correctement par une version antérieure (les modes y reviennent à « Découpe »).
+
+Génération du G-Code : sortie des threads (`workers.py`) et de `vector_layers.py` dans un paquet `gcode/` sans Qt, testé seul. Le G-Code produit est identique, vérifié au caractère près sur 35 jobs (images binaires et en niveaux de gris, M3 / M4, surbalayage, décalage retour, découpe SVG, calques vectoriels, matrices de test, motif aller/retour).
+
+Préparation du job (paramètres, contrôles avant génération, lancement, estimation, export et import du G-Code, matrice de test, motif aller/retour) : sortie de la fenêtre dans un contrôleur `JobController`, testé sans fenêtre. Les boîtes de dialogue passent par `UserDialogs`. Comportement inchangé.
+
+Aperçu 2D : lecture du G-Code, choix image ou traits, fond de matière, image reconstituée et suivi de la gravure en direct dans un modèle sans Qt (`gcode/preview.py`), dessin dans l'onglet Visualisation 2D. La fenêtre perd le mixin `GcodeGenerationMixin`. Dessin identique, vérifié élément par élément sur 47 aperçus.
+
+Graveur : connexion, pilotage, envoi des jobs et configuration GRBL sortis de la fenêtre dans un contrôleur `EngraverController` ; commandes GRBL rassemblées dans `grbl/commands.py` (sans Qt). La fenêtre perd le mixin `LaserControlMixin`. Comportement inchangé ; parcours complet testé avec le graveur simulé.
+
+Contrôleurs (projet, matériaux, profils machine, file d'attente, matrice à partir d'une image, vectorisation, bibliothèque, caméra) : leurs boîtes de dialogue passent par `UserDialogs`, transmis par la fenêtre, au lieu d'ouvrir `QMessageBox` / `QFileDialog` / `QInputDialog` eux-mêmes. Mêmes questions, mêmes boutons ; les contrôleurs se testent sans fenêtre.
+
+Éditeur vectoriel : `vector_layers.py` (4 300 lignes) découpé en modules, sans changer le code : objets du dessin (`models/vector_objects.py`), canevas et boîtes de saisie (`ui/vector_editor/`), tableau des calques (`ui/tabs/layers/layer_table.py`), import SVG classique (`vector/svg_extract.py`), conversion pour le G-Code (`vector/layer_data.py`). `vector_layers.py` réexporte tous les noms pour le code existant.
+
+Éditeur vectoriel : la liste des objets, l'historique d'annulation et le presse-papiers sortent du canevas dans un modèle `VectorDocument` (`models/vector_document.py`), testable sans canevas ; grouper, dégrouper, exploser et convertir en tracé dans `vector/path_ops.py`. Le canevas devient une vue du document. Comportement inchangé.
+
+Éditeur vectoriel : `vector_editing_mixin.py` remplacé par un contrôleur `VectorEditorController` (`controllers/vector_editor.py`) : import SVG / DXF, insertion et modification, alignement, imbrication, série, gabarit et générateurs agissent sur le document, avec des boîtes de dialogue simulables dans les tests. Panneau des propriétés dans `ui/vector_editor/properties_panel.py`, calculs d'alignement, de répartition et d'ancrage dans `vector/arrange.py`. Comportement inchangé, vérifié pas à pas sur 33 actions de l'éditeur.
+
+Séparation couleur / verre : `separation_mixin.py` supprimé. L'ouverture, la rotation et le retrait de l'image, le rafraîchissement des aperçus et l'export passent dans `SeparationController`, avec des boîtes de dialogue simulables dans les tests ; l'onglet `SeparationTab` affiche lui-même aperçus, nom du fichier et résolution ; le test du gain de point rejoint `JobController`, à côté du motif aller/retour. Comportement inchangé, vérifié dans la fenêtre (chargement, aperçus, rotation, test du gain, export, suppression).
+
+Graver une image : `image_processing_mixin.py` supprimé, la fenêtre n'hérite plus que de `WindowControllerMixin`. Le traitement et le tramage sortent de `workers.py` dans `image/dithering.py`, sans Qt (pixels identiques, vérifiés sur 144 traitements et 60 vignettes de comparaison) ; la grille du test du gain de point dans `image/gain_test.py`. Chargement, rotation, retrait, proportions, traitement dans un thread et comparaison des algorithmes passent dans un contrôleur `ImageController` ; la résolution (lignes/mm, DPI, focale) est tenue à jour par le cadre `ResolutionBox` lui-même, qui prend la focale transmise par les Paramètres Machine au lieu de la relire dans le modèle. Comportement inchangé, vérifié dans la fenêtre.
+
+Fenêtre principale : `WindowControllerMixin` remplacé par des objets, la fenêtre n'hérite plus d'aucun mixin. Les onglets (affichage, onglets facultatifs du menu Affichage, plein écran, panneau du bas, séparateurs) passent dans `MainTabs` (`ui/app/tabs.py`), l'affichage des résultats du job et de l'état du graveur dans `JobDisplay` (`ui/app/job_display.py`), « Pivoter », « Supprimer » et les miroirs de la barre d'outils dans `ImageToolbarActions` (`ui/app/image_actions.py`) ; `WindowController` garde les menus, le thème, la langue, l'aide, la caméra, les fenêtres de réglages, la résolution et les outils de dessin. Ce qui s'enregistre et se restaure (réglages machine au démarrage et à la fermeture, champs d'un profil machine, état d'un projet, recopie des calques dans le matériau choisi) passe dans `WindowState` (`ui/app/window_state.py`). Les menus sont abonnés une fois toute la fenêtre construite. Comportement inchangé, vérifié dans la fenêtre (onglets, plein écran, panneau du bas, génération, barre d'outils de l'image, outils de dessin, réglages, focale, thème).
+
+Stencil Studio : découpé comme Laser Studio en modèles (`models/` : photo et repères, réglages enregistrés), contrôleurs (`controllers/` : API de calcul, fenêtre dans Laser Studio) et interface (`ui/` : page web, fenêtre Qt, fenêtre séparée, couleurs) ; le serveur local est dans `server.py`, la police et le modèle de détourage dans `resources/`. Les réponses de l'API sont identiques (vérifié sur 38 requêtes). Le Studio n'importe plus rien de Laser Studio : il reçoit ses couleurs, sa langue et ses messages, et annonce ses exports. Seul, il se lance par `python -m stencil_studio`. Le rangement de ses exports dans les calques passe dans `controllers/stencil_import.py` côté Laser Studio, par le modèle des calques. Copies inutiles des traductions supprimées.
+
+Fenêtre principale : déplacée dans `ui/app/main_window.py` et réduite à l'assemblage (1 077 → 466 lignes). Chaque partie de l'interface a son builder (`ui/…/builder.py`) qui crée la vue et sa logique et les relie, sans connaître la fenêtre. L'onglet de l'éditeur vectoriel devient une vue à part (`ui/vector_editor/tab.py`, `VectorEditorTab`), ses actions et le choix de l'outil de dessin passent par `VectorEditorController`. Les alias historiques des champs (`spin_w`, `chk_homing`, `txt_console`…) sont supprimés : on lit la page ou le modèle (`size_mm()`, `bind_settings()`, `ConsoleTab.gcode()`…). La zone de travail de l'éditeur suit directement le modèle de la machine. Comportement inchangé, vérifié dans la fenêtre.
+
+Préférences : toutes les lectures et écritures des réglages mémorisés (thème, langue, onglets, séparateurs, projets récents, dernier port, profils machine, caméra…) passent par `core/preferences.py`, qui convertit les valeurs relues et écrit tout de suite. Les tests utilisent des préférences en mémoire au lieu de simuler QSettings. `grbl/` n'importe plus Qt, et un test vérifie qu'aucun dossier de calcul n'importe QtWidgets.
+
+Tests : la vraie fenêtre est vérifiée hors écran par `tests/test_main_window.py` (onglets et plein écran, panneau du bas, outils de dessin, barre d'outils de l'image, génération et affichage du G-Code, résolution et focale, thème et langue, fermeture, projet, export de Stencil Studio), avec des préférences en mémoire.
+
+Fondations : `vector_layers.py` (réexportations de l'ancien éditeur vectoriel) supprimé, chacun importe depuis le vrai module ; l'ancien nom `LayerManager` disparaît au profit de `LayersModel`. `workers.py` devient `controllers/workers.py`, sans ses réexportations. `WindowController` ne va plus chercher d'attributs de la fenêtre par leur nom : pages de réglages et onglets du menu Outils lui sont inscrits, la résolution est branchée sur la matrice de test et la Séparation à leur création.
+
+Éditeur vectoriel : le canevas (`canvas.py`, 2 430 → 1 000 lignes) confie ses outils de la souris à des objets à part (`ui/vector_editor/tools/` : accroche, dessin, mesure, nœuds, déplacement, poignée du texte sur contour), qui gardent chacun leur état ; le menu du clic droit, le texte sur contour et les opérations sur une sélection groupée ont aussi leurs fichiers. Comportement inchangé, vérifié pas à pas sur 51 interactions souris et clavier et 30 opérations du document ; nouveaux tests avec de vrais événements souris et clavier.
+
+Robustesse : les erreurs qui disparaissaient sans trace (sauvegarde automatique du projet et de la file d'attente, lecture de `$$`, clic sur la matrice de test, objets illisibles à l'annulation ou au collage, élément SVG illisible à l'import, aperçu de la bibliothèque…) sont écrites dans le journal de débogage ; les autres silences sont expliqués, et un test empêche les nouveaux `except Exception` muets. Les tests qui construisent la fenêtre n'écrivent plus dans les réglages de l'utilisateur.
+
+### Corrigé
+« Reprendre » après un arrêt d'urgence : le bouton restait grisé sans explication, car le graveur passe en alarme. Il reste cliquable et explique qu'il faut d'abord faire un homing ou déverrouiller ($X) ; ensuite, la reprise repart au point exact de l'arrêt. Le bouton vert de reprise (F8), qu'on cherche naturellement après un arrêt, relance aussi le travail interrompu (il n'envoyait que la reprise après pause, sans effet). La fenêtre « Job interrompu » l'indique, sans l'icône ⏩ que sa police n'affichait pas. À la reprise, la Visualisation 2D garde le job entier et le tracé rouge déjà gravé, qui continue d'avancer (elle n'affichait plus que le reste du job, mal rendu).
+
+Éditeur vectoriel : changer la taille du plateau (autre profil machine, Paramètres du graveur) laissait les objets dessinés au mauvais endroit, décalés en hauteur, jusqu'au prochain redessin ; ils restent maintenant à leur place sur le plateau.
+
+Sécurité : un G-Code (fichier d'un autre logiciel, console retouchée) qui modifierait la configuration du graveur ($130=…, $RST=*, $N0=…) ou demanderait une puissance au-delà du S-Max n'est envoyé ou ajouté à la file qu'après confirmation, lignes en cause affichées. Un projet dont l'image dépasse 89 millions de pixels est refusé avant d'être décodé, au lieu de saturer la mémoire. F7 et F8 (pause, reprise) sont sans effet graveur déconnecté.
+
+Éditeur vectoriel : le bouton « Fond caméra » a de nouveau son icône (elle manquait dans les icônes livrées avec l'application, comme celle du menu Caméra).
+
+Visualisation 2D pendant une gravure : le tracé « déjà gravé » ne prend plus d'avance sur le laser quand le G-Code (importé ou retouché dans la console) contient des commentaires indentés ou des lignes qui ne sont pas du G-Code ; l'aperçu compte les lignes comme l'envoi au graveur.
+
+Pendant une gravure, plus rien ne peut s'intercaler dans l'envoi : « Envoyer au laser » pendant la file d'attente, « Répéter », les flèches de déplacement, la console, le cadrage, le homing ou la lecture des réglages $$ sont refusés avec le message « Graveur occupé ». Avant, une commande glissée au milieu d'un job pouvait l'arrêter net (position perdue), et un second envoi mélangeait ses lignes avec celles du premier.
+
+Le homing n'est compté comme fait qu'une fois réussi : s'il finit en alarme (fin de course non atteinte), s'il est refusé ou s'il n'a pas pu partir, l'avertissement « machine non référencée » réapparaît avant la gravure.
+
+Éditeur vectoriel : la liste « Calque » des propriétés n'est plus coupée ; le bouton « Connecter GRBL » non plus.
+
+Thème New Dusk : le texte de la barre d'avancement de la gravure (« Gravure : 42 % ») n'est plus rogné.
+
+Thèmes : les flèches des champs numériques s'affichaient en petits carrés ; ce sont maintenant des chevrons à la couleur du thème. Les boutons « Générer le G-code » et « Importer SVG / DXF » prennent les couleurs du thème (le second n'est plus vert).
+
+Gravure saccadée : la tête ne s'arrête plus à chaque allumage du laser. Le G-Code envoyait la puissance sur des lignes à part (« M4 S500 », « S0 », « M5 » autour de chaque segment ou de chaque contour), et GRBL vide son tampon de mouvements à chaque ligne de ce genre : la tête marquait un temps d'arrêt à chaque allumage et à chaque extinction, et la gravure durait bien plus que la durée estimée (calques vectoriels, découpe, matrice de test, image en M3). La puissance voyage maintenant sur chaque mouvement, la commande laser n'est envoyée qu'une fois et M5 à la fin. Le G-Code est aussi plus compact (mots inchangés non répétés, nombres sans zéros inutiles, espaces et commentaires non envoyés) : deux à trois fois moins d'octets sur la liaison série, qui n'est plus en retard sur la gravure dans les zones denses d'une image. Ce qui est gravé ne change pas.
+
+Configuration GRBL : seuls les réglages numériques ($110=6000…) sont importés et envoyés à la carte, sans leur commentaire. Un fichier de réglages ne peut plus effacer la configuration ($RST=*), ajouter une ligne exécutée au démarrage de la carte ($N0=…, qui pouvait allumer le laser), déplacer la tête ($J=…) ni la mettre en veille.
+
+Stencil Studio : son serveur local n'accepte plus que sa propre page (nom d'hôte et jeton vérifiés). Un site web ouvert dans un navigateur pendant que Laser Studio Pro tourne pouvait effacer les préréglages du Studio ou lire l'image chargée.
+
+Récupération après plantage : si la sauvegarde automatique ne peut pas être ouverte, elle est gardée pour un nouvel essai (elle était supprimée).
+
+Générateur de boîte : un décor SVG est lu comme par « Importer » (transformations des groupes, cadrage du `viewBox`, unités ; éléments cachés et contenu de `<defs>` écartés). Un SVG d'Inkscape dont les calques sont décalés arrivait en morceaux mal placés.
+
+Préréglages du générateur de boîte : enregistrés sans risque de perte (un disque plein ou un arrêt en cours d'écriture laisse l'ancien fichier intact).
+
+Stencil Studio : le modèle de détourage téléchargé est vérifié (empreinte SHA-256) ; un fichier corrompu n'est plus gardé en cache, ce qui bloquait la détection du sujet pour de bon.
+
+Durées estimées : une seule présentation partout (« 46 s », « 3 min 12 s », « 2 h 05 min », unités traduites), avec des heures au-delà d'une heure. La matrice de test et le motif aller/retour ajoutent maintenant la même marge de 15 % (accélérations) que les jobs ; l'estimation rapide (« Estimer ») reste sans marge (#119).
+
+Puissance des matrices de test et de la découpe SVG autour de l'image : arrondie au plus proche, comme partout ailleurs. Avec S-Max = 255, une case à 10 % grave en S26, comme un calque réglé à 10 % (elle gravait en S25). La découpe SVG autour de l'image suit la commande laser (M3 / M4) du calque de découpe, sinon celle de la Configuration GRBL, comme les calques vectoriels : elle envoyait toujours M3 (#118).
+
+Macros : le bouton « Macros… » du panneau des actions de job reste actif graveur déconnecté (on prépare ses macros sans graveur branché) ; dans l'éditeur, les boutons de la liste sont en colonne et leurs libellés lisibles en entier.
+
+Envoi d'un job : une réponse « ERROR: » (renvoyée par certains clones de GRBL) arrivant pendant l'attente des derniers « ok » arrête maintenant la machine, comme pendant le reste de l'envoi ; elle était ignorée.
+
+Titre de la fenêtre principale traduit (il restait en anglais quelle que soit la langue).
+
+Stencil Studio : l'autotest (`selftest.py`) échouait. Ses tests de séparation par couleur dataient d'avant le passage automatique aux tons pour les photos ombrées et d'avant la règle « le nombre de plaques demandé est toujours respecté » avec la pipette ; ils utilisent maintenant une image en aplats, comparent les couleurs avec une tolérance, et vérifient aussi ces deux règles. Il est lancé par la suite de tests (`tests/test_stencil_selftest.py`).
+
+Stencil Studio : les calques créés pour un pochoir multicouche (`LAYER_n`) n'apparaissaient pas tout de suite dans l'onglet Calques et n'étaient pas mémorisés dans le profil de la machine : ils passent maintenant par le modèle des calques. Le message « Chargement de Stencil Studio… » suit la langue de l'application (il restait en français). La fenêtre séparée (repli quand le moteur web ne peut pas être chargé) affiche bien la page.
+
+Caméra : le fond de l'éditeur vectoriel est de nouveau redressé sur tout le plateau (l'image apparaissait minuscule et déplacée : la projection `warp_to_bed` utilisait la matrice dans le mauvais sens).
+
+Stencil Studio : quand l'import d'un fichier exporté vers Laser Studio échouait (aucun calque, fichier illisible…), l'import standard prévu en secours plantait lui aussi, et le fichier n'arrivait jamais dans l'éditeur vectoriel. Il passe maintenant par l'import de l'éditeur vectoriel, qui explique le problème.
+
+Gravure remplie des calques vectoriels avec surbalayage : entre deux lettres proches (ou deux objets séparés de moins de deux fois le surbalayage), la tête dépassait la lettre puis revenait en arrière pour reprendre son élan avant la suivante. La ligne est maintenant gravée d'une traite, laser éteint entre les lettres, avec le surbalayage aux deux bouts seulement (comme la gravure d'image). Les zones gravées sont inchangées.
+La gravure d'une image utilisait parfois une ancienne puissance (30 %) au lieu de celle du calque de gravure, après un changement de profil machine.
+
+Installation et compilation :
+- numpy 2 (au lieu de numpy 1.26) : l'application s'installe avec Python 3.10 à 3.14, donc avec le Python fourni par les distributions récentes (Debian 13, Fedora 41+, Ubuntu 25.04+), sans installer Python 3.12 à côté.
+- OpenCV sans interface graphique (`opencv-python-headless`) et fichiers Qt inutilisés retirés de l'exécutable : environ 170 Mo de moins une fois installé.
+
 ## [2.5.0] — 2026-11-01
 
 ### Ajouté

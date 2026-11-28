@@ -1,13 +1,13 @@
 """Aucun widget ni méthode privée ne doit être utilisé sans être construit quelque part
 (typiquement : un mixin mis à jour avec un ui_setup_mixin.py resté à l'ancienne version)."""
 import os
-import shutil
 import sys
 import tempfile
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, os.path.join(ROOT, "tools"))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.join(REPO, "tools"))
 import check_ui_attributes as chk
 
 

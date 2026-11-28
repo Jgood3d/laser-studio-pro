@@ -1,0 +1,39 @@
+"""Onglet « Vectorisation d'image » (PNG / JPEG -> SVG)."""
+
+from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtWidgets import QVBoxLayout, QWidget
+
+from laser_studio.ui.tabs.png2svg.widget import PngToSvgWidget
+
+
+class Png2SvgTab(QWidget):
+    """Barre d'outils (plein écran) au-dessus du widget de conversion.
+
+    Le widget de conversion (`converter`) convertit l'image en mémoire ;
+    l'onglet relaie ses demandes :
+
+        tab = Png2SvgTab()
+        tab.send_to_vector_requested.connect(png2svg.send_to_vector_editor)
+        tab.export_requested.connect(png2svg.export_svg)
+        tab.image_changed.connect(image_actions.update_state)
+    """
+
+    # Texte du SVG généré, à ajouter à l'éditeur vectoriel.
+    send_to_vector_requested = pyqtSignal(str)
+    # Texte du SVG généré, à enregistrer dans un fichier.
+    export_requested = pyqtSignal(str)
+    # Une image a été chargée ou retirée.
+    image_changed = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+
+        self.converter = PngToSvgWidget()
+        self.converter.sendToVectorEditor.connect(
+            self.send_to_vector_requested
+        )
+        self.converter.imageChanged.connect(self.image_changed)
+        self.converter.exportRequested.connect(self.export_requested)
+        layout.addWidget(self.converter)

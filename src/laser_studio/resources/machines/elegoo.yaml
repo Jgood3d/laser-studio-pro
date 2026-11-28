@@ -1,0 +1,22 @@
+brand: Elegoo
+machines:
+  - model: Phecda 10W
+    work_area_mm: [400, 400]
+    spot_mm: [0.06, 0.06]
+    max_speed_mm_min: {x: 25000, y: 18000}
+    laser: {power_w: 10, wavelength_nm: 455}
+    sources:
+      - https://download.elegoo.com/07%20Laser%20Engraver%20&%20Cutter/01%20PHECDA/2.%20User's%20Guide/1.User%20Manual/PHECDA%20Laser%20Engraver%20User%20Manual-20231020.pdf
+      - https://www.elegoo.com/en-gb/blogs/3d-printer-user-guide/elegoo-phecda-frequently-asked-questions
+      - https://wiki.elegoo.com/phecda/phecda-engraving-with-lasergrbl-software
+    checked: 2026-11-24
+    notes: Le manuel donne 0,06 × 0,06 mm pour un modèle et 0,07 × 0,13 mm pour l'autre ; les revendeurs attribuent 0,06 mm au 10 W.
+  - model: Phecda 20W
+    work_area_mm: [400, 400]
+    spot_mm: [0.07, 0.13]
+    max_speed_mm_min: {x: 25000, y: 18000}
+    laser: {power_w: 20, wavelength_nm: 455}
+    sources:
+      - https://download.elegoo.com/07%20Laser%20Engraver%20&%20Cutter/01%20PHECDA/2.%20User's%20Guide/1.User%20Manual/PHECDA%20Laser%20Engraver%20User%20Manual-20231020.pdf
+      - https://www.elegoo.com/en-gb/blogs/3d-printer-user-guide/elegoo-phecda-frequently-asked-questions
+    checked: 2026-11-24

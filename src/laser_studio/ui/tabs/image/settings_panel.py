@@ -1,0 +1,258 @@
+"""Réglages de l'onglet « Graver une image » (propriétés de l'image, à droite)."""
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDoubleSpinBox,
+    QFormLayout,
+    QHBoxLayout,
+    QToolButton,
+    QWidget,
+)
+
+from laser_studio.i18n import tr
+from laser_studio.image.dithering import ALGORITHMS
+from laser_studio.models.image_materials import USER_PREFIX
+from laser_studio.ui.binding import bind
+from laser_studio.ui.tabs.image.engrave_layer_combo import EngraveLayerComboBox
+from laser_studio.ui.tabs.image.material_combo import MaterialComboBox
+from laser_studio.ui.tabs.image.resolution_box import ResolutionBox
+from laser_studio.ui.widgets import SliderWithButtons
+
+# Filtres de la liste « Appliquer un filtre ».
+FILTER_NONE = ""
+FILTER_CARTOON = "cartoon"
+
+
+class ImageSettingsPanel(QWidget):
+    """Taille et décalage de l'image, réglages photo, matière, tramage et
+    résolution.
+
+    Il ne traite pas l'image : ses champs émettent des signaux, auxquels
+    ImageController s'abonne, et les réglages du tramage sont liés au modèle
+    ImageSettings (bind_settings) :
+
+        panel = ImageSettingsPanel()
+        panel.bind_settings(image_settings)
+        panel.size_changed.connect(image.dimension_changed)
+
+    Les champs restent lisibles directement (width_spin, brightness_slider,
+    algorithm_combo, lines_per_mm_spin...). Ctrl+Z / Ctrl+Y, dans le
+    panneau, émettent undo_requested / redo_requested.
+    """
+
+    # Un réglage du tramage a changé (luminosité, contraste, gamma,
+    # netteté, négatif, algorithme, lignes/mm) : l'image est à retraiter.
+    processing_changed = pyqtSignal()
+    # Matière choisie : sa clé ("dark", "light", une matière fournie ou "user:<nom>").
+    material_changed = pyqtSignal(str)
+    # Boutons « + » (enregistrer les réglages comme matière) et « − » (supprimer la matière de l'utilisateur).
+    material_save_requested = pyqtSignal()
+    material_delete_requested = pyqtSignal()
+    # Calque de gravure choisi par l'utilisateur : son identifiant (jamais émis quand la fenêtre
+    # remplit la liste, voir EngraveLayerComboBox).
+    engrave_layer_changed = pyqtSignal(str)
+    # Taille de l'image modifiée : axe ("w" ou "h") et valeur en mm.
+    size_changed = pyqtSignal(str, float)
+    # Résolution réellement utilisée, en lignes/mm (voir ResolutionBox).
+    resolution_changed = pyqtSignal(float)
+    configure_focal_requested = pyqtSignal()
+    # Filtre choisi dans la liste « Appliquer un filtre » par l'utilisateur : FILTER_NONE ou FILTER_CARTOON.
+    filter_requested = pyqtSignal(str)
+    undo_requested = pyqtSignal()
+    redo_requested = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QFormLayout(self)
+        self._build_size_fields()
+        layout.addRow(tr("dim.width"), self.width_spin)
+        layout.addRow(tr("dim.height"), self.height_spin)
+        layout.addRow(self.keep_ratio_check)  # toute la largeur du panneau
+        self._build_photo_fields()
+        layout.addRow(tr("img.brightness"), self._brightness_row)
+        layout.addRow(tr("img.contrast"), self._contrast_row)
+        layout.addRow(tr("img.gamma"), self._gamma_row)
+        layout.addRow(tr("img.sharpness"), self._sharpness_row)
+        layout.addRow(tr("img.filter"), self._filter_combo())
+        layout.addRow(tr("img.material_bg"), self._material_combo())
+        layout.addRow("", self.invert_check)
+        layout.addRow(tr("img.algorithm"), self._algorithm_combo())
+        layout.addRow(self.as_is_check)  # toute la largeur du panneau
+        layout.addRow(tr("img.resolution"), self._resolution_box())
+        layout.addRow(tr("img.engrave_layer"), self._engrave_layer_combo())
+        self._shortcut(QKeySequence.StandardKey.Undo, self.undo_requested)
+        self._shortcut(QKeySequence.StandardKey.Redo, self.redo_requested)
+
+    def bind_settings(self, settings):
+        """Lie les champs du tramage (curseurs, négatif, matière, algorithme)
+        au modèle `settings` (ImageSettings). Les miroirs, dans la barre
+        d'outils de la fenêtre, sont liés par elle."""
+        self.model = settings
+        for widget, field in (
+            (self.brightness_slider, "brightness"),
+            (self.contrast_slider, "contrast"),
+            (self.gamma_slider, "gamma"),
+            (self.sharpness_slider, "sharpness"),
+            (self.invert_check, "invert"),
+            (self.as_is_check, "as_is"),
+        ):
+            bind(widget, settings, field)
+        # Liste des filtres : affiche « Effet BD » tant que l'effet est actif (projet ouvert, annuler…).
+        settings.changed.connect(lambda changes: self.show_filter(settings.cartoon_radius > 0)
+                                 if "cartoon_radius" in changes else None)
+        self.show_filter(settings.cartoon_radius > 0)
+        combo = self.material_combo
+        bind(combo, settings, "material",
+             to_widget=self._material_index,
+             from_widget=lambda index: combo.itemData(index) or "")
+        # « − » : seulement pour une matière de l'utilisateur (les matières fournies ne se suppriment pas).
+        settings.changed.connect(lambda changes: self._refresh_material_buttons()
+                                 if "material" in changes else None)
+        self._refresh_material_buttons()
+        algo = self.algorithm_combo
+        bind(algo, settings, "algorithm",
+             to_widget=lambda name: algo.findText(name),
+             from_widget=lambda index: algo.itemText(index))
+
+    def _refresh_material_buttons(self):
+        self.material_delete_button.setEnabled(str(self.model.material).startswith(USER_PREFIX))
+
+    def _build_size_fields(self):
+        self.width_spin = self._spin(0.1, 2000.0, 100.0)
+        self.width_spin.valueChanged.connect(
+            lambda v: self.size_changed.emit("w", v)
+        )
+        self.height_spin = self._spin(0.1, 2000.0, 100.0)
+        self.height_spin.valueChanged.connect(
+            lambda v: self.size_changed.emit("h", v)
+        )
+        self.keep_ratio_check = QCheckBox(tr("dim.keep_ratio"))
+        self.keep_ratio_check.setChecked(True)
+
+    def _build_photo_fields(self):
+        self._brightness_row = self._slider_row(-100, 100, 0)
+        self._contrast_row = self._slider_row(-100, 100, 0)
+        self._gamma_row = self._slider_row(
+            10, 300, 100, step=10, formatter=lambda v: f"{v / 100.0:.2f}"
+        )
+        self._sharpness_row = self._slider_row(0, 100, 0)
+        self.brightness_slider = self._brightness_row.slider
+        self.contrast_slider = self._contrast_row.slider
+        self.gamma_slider = self._gamma_row.slider
+        self.sharpness_slider = self._sharpness_row.slider
+        self.sharpness_slider.setToolTip(tr("img.sharpness_tip"))
+        self.invert_check = QCheckBox(tr("img.invert"))
+        self.invert_check.stateChanged.connect(self.processing_changed)
+        # Image déjà tramée : gravée telle quelle (les réglages de tons et le tramage sont alors grisés).
+        self.as_is_check = QCheckBox(tr("img.as_is"))
+        self.as_is_check.setToolTip(tr("img.as_is_tip"))
+        self.as_is_check.stateChanged.connect(self.processing_changed)
+        self.as_is_check.toggled.connect(self._as_is_toggled)
+
+    def _as_is_toggled(self, checked):
+        """Réglages sans effet sur une image gravée telle quelle : grisés."""
+        for row in (self._brightness_row, self._contrast_row, self._gamma_row, self._sharpness_row):
+            row.setEnabled(not checked)
+        self.filter_combo.setEnabled(not checked)
+        self.algorithm_combo.setEnabled(not checked)
+
+    def _filter_combo(self):
+        self.filter_combo = QComboBox()
+        self.filter_combo.addItem(tr("img.filter_none"), FILTER_NONE)
+        self.filter_combo.addItem(tr("img.filter_cartoon"), FILTER_CARTOON)
+        self.filter_combo.setToolTip(tr("img.filter_tip"))
+        # activated : choix de l'utilisateur, même s'il reprend le filtre déjà actif (pour le régler).
+        self.filter_combo.activated.connect(lambda index: self.filter_requested.emit(self.filter_combo.itemData(index)))
+        return self.filter_combo
+
+    def show_filter(self, cartoon_active):
+        """Filtre affiché dans la liste, sans émettre de demande."""
+        blocked = self.filter_combo.blockSignals(True)
+        self.filter_combo.setCurrentIndex(self.filter_combo.findData(FILTER_CARTOON if cartoon_active else FILTER_NONE))
+        self.filter_combo.blockSignals(blocked)
+
+    def _material_combo(self):
+        self.material_combo = MaterialComboBox()
+        self.material_combo.material_changed.connect(self.material_changed)
+        self.material_save_button = QToolButton()
+        self.material_save_button.setText("+")
+        self.material_save_button.setToolTip(tr("img.mat_save_tip"))
+        self.material_save_button.clicked.connect(self.material_save_requested)
+        self.material_delete_button = QToolButton()
+        self.material_delete_button.setText("\u2212")
+        self.material_delete_button.setToolTip(tr("img.mat_delete_tip"))
+        self.material_delete_button.setEnabled(False)       # seulement pour une matière de l'utilisateur
+        self.material_delete_button.clicked.connect(self.material_delete_requested)
+        row = QWidget()
+        layout = QHBoxLayout(row)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.material_combo, 1)
+        layout.addWidget(self.material_save_button)
+        layout.addWidget(self.material_delete_button)
+        return row
+
+    def set_user_materials(self, names):
+        """Matières de l'utilisateur affichées après les matières fournies ; la matière du modèle reste
+        affichée (le texte d'invite si elle n'existe plus)."""
+        combo = self.material_combo
+        combo.set_materials(names)
+        model = getattr(self, "model", None)
+        if model is not None:
+            blocked = combo.blockSignals(True)
+            combo.setCurrentIndex(self._material_index(model.material))
+            combo.blockSignals(blocked)
+
+    def _material_index(self, key):
+        """Index de la matière `key` dans la liste, -1 (texte d'invite) si aucune ou si elle n'existe plus."""
+        return self.material_combo.findData(key)
+
+    def _engrave_layer_combo(self):
+        self.engrave_layer_combo = EngraveLayerComboBox()
+        self.engrave_layer_combo.layer_selected.connect(self.engrave_layer_changed)
+        return self.engrave_layer_combo
+
+    def _algorithm_combo(self):
+        self.algorithm_combo = QComboBox()
+        self.algorithm_combo.addItems(ALGORITHMS)
+        self.algorithm_combo.currentIndexChanged.connect(
+            self.processing_changed
+        )
+        return self.algorithm_combo
+
+    def _resolution_box(self):
+        """Résolution : ses signaux sont relayés par le panneau, et ses
+        champs gardent leur nom ici (lines_per_mm_spin, dpi_spin...)."""
+        box = ResolutionBox()
+        box.resolution_changed.connect(self.resolution_changed)
+        box.configure_focal_requested.connect(self.configure_focal_requested)
+        self.resolution_box = box
+        self.lines_per_mm_spin = box.lines_per_mm_spin
+        self.resolution_mode_combo = box.mode_combo
+        self.dpi_spin = box.dpi_spin
+        self.focal_info_label = box.focal_info_label
+        self.resolution_stack = box.stack
+        self.resolution_quality_label = box.quality_label
+        return box
+
+    @staticmethod
+    def _spin(minimum, maximum, value):
+        spin = QDoubleSpinBox()
+        spin.setRange(minimum, maximum)
+        spin.setValue(value)
+        return spin
+
+    def _slider_row(self, minimum, maximum, value, **options):
+        """Curseur du tramage : tout changement est à retraiter."""
+        row = SliderWithButtons(minimum, maximum, value, **options)
+        row.value_changed.connect(self.processing_changed)
+        return row
+
+    def _shortcut(self, key, signal):
+        """Raccourci actif quand le panneau ou l'un de ses champs a le
+        focus."""
+        shortcut = QShortcut(key, self)
+        shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        shortcut.activated.connect(signal)

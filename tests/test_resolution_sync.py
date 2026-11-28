@@ -1,143 +1,153 @@
-"""La résolution de gravure affichée dans l'onglet Séparation doit toujours
-correspondre à celle d'Image & Filtres (DPI, lignes/mm ou focale)."""
+"""La résolution de gravure (lignes/mm, DPI ou focale) reste cohérente entre les
+champs de « Graver une image » (ResolutionBox), et l'onglet Séparation affiche
+toujours la même."""
 import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(REPO, "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from image_processing_mixin import ImageProcessingMixin
-    from separation_mixin import SeparationMixin
+    from PyQt6.QtWidgets import QApplication
+    from laser_studio.controllers.separation import SeparationController
+    from laser_studio.models.image_settings import ImageSettings
+    from laser_studio.models.separation import SeparationSettings
+    from laser_studio.ui.tabs.image.resolution_box import (
+        RESOLUTION_DPI, RESOLUTION_FOCAL, RESOLUTION_LMM, ResolutionBox,
+    )
+    from job_fakes import FakeDialogs
 except ImportError:
-    ImageProcessingMixin = None
+    ResolutionBox = None
 
 
-class Spin:
-    def __init__(self, value=0.0, lo=1.0, hi=50.0):
-        self._v, self._lo, self._hi = value, lo, hi
-        self.blocked = False
-        self.signal_count = 0
-
-    def value(self):
-        return self._v
-
-    def minimum(self):
-        return self._lo
-
-    def maximum(self):
-        return self._hi
-
-    def blockSignals(self, flag):
-        self.blocked = flag
-
-    def setValue(self, v):
-        self._v = float(v)
-        if not self.blocked:
-            self.signal_count += 1
+def record(signal):
+    received = []
+    signal.connect(lambda *args: received.append(args))
+    return received
 
 
-class Label:
-    def __init__(self):
-        self.text = ""
+@unittest.skipIf(ResolutionBox is None, "PyQt6 non importable ici")
+class ResolutionBoxTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
 
-    def setText(self, t):
-        self.text = t
+    def make(self, focal=0.13, mode=RESOLUTION_LMM):
+        box = ResolutionBox()
+        self.addCleanup(box.deleteLater)
+        box.set_focal(focal)
+        box.mode_combo.blockSignals(True)
+        box.mode_combo.setCurrentIndex(mode)
+        box.mode_combo.blockSignals(False)
+        self.lmm_signals = record(box.lines_per_mm_spin.valueChanged)
+        self.changes = record(box.resolution_changed)
+        return box
 
+    def test_dpi_mode_sets_the_lines_per_mm_silently(self):
+        box = self.make(mode=RESOLUTION_DPI)
+        box.dpi_spin.setValue(195)
+        self.assertAlmostEqual(box.lines_per_mm(), 195 / 25.4, places=2)
+        self.assertEqual(self.lmm_signals, [])                 # champ lignes/mm modifié sans signal…
+        self.assertEqual(len(self.changes), 1)                 # … mais la résolution est annoncée
 
-class Stack:
-    def setCurrentIndex(self, i):
-        self.index = i
+    def test_focal_mode_follows_the_spot(self):
+        box = self.make()
+        box.apply_focal()
+        self.assertAlmostEqual(box.lines_per_mm(), 1 / 0.13, places=2)
+        self.assertEqual(int(box.dpi_spin.value()), round(1 / 0.13 * 25.4))   # 195 DPI pour 0,13 mm
+        self.assertIn("0.13", box.focal_info_label.text())
+        self.assertEqual(self.changes, [(box.lines_per_mm(),)])
 
-
-@unittest.skipIf(ImageProcessingMixin is None, "mixins non importables ici")
-class ResolutionSyncTests(unittest.TestCase):
-    def make(self, with_separation=True, image_loaded=False):
-        class Fake(ImageProcessingMixin, SeparationMixin if with_separation else object):
-            def update_image_processing(self, *a):
-                pass
-
-            def _sep_schedule_push(self):
-                self.pushes += 1
-
-        f = Fake.__new__(Fake)
-        f.pushes = 0
-        f.spin_lmm = Spin(10.0)                    # valeur par défaut, comme au démarrage
-        f.spin_dpi = Spin(254.0, 10.0, 2000.0)
-        f.spin_machine_focal = Spin(0.13, 0.01, 1.0)
-        f.stack_lmm_input = Stack()
-        f.lbl_focal_info = Label()
-        if with_separation:
-            f.sep_lbl_dpi = Label()
-            f.sep_src = object() if image_loaded else None
-            f._sep_update_dpi_label()              # libellé construit au démarrage : 254 DPI
-        return f
-
-    @staticmethod
-    def shown_dpi(f):
-        return int(f.sep_lbl_dpi.text.split(":")[1].split("DPI")[0])
-
-    def test_label_starts_at_the_default(self):
-        self.assertEqual(self.shown_dpi(self.make()), 254)
-
-    def test_dpi_mode_updates_the_separation_label_even_with_signals_blocked(self):
-        f = self.make()
-        f.on_dpi_value_changed(195)
-        self.assertTrue(f.spin_lmm.blocked is False)          # le champ lignes/mm a bien été modifié silencieusement
-        self.assertEqual(f.spin_lmm.signal_count, 0)          # ... sans aucun signal
-        self.assertEqual(self.shown_dpi(f), 195)
-
-    def test_focal_mode_updates_the_label(self):
-        f = self.make()
-        f._apply_focal_to_lmm()
-        self.assertAlmostEqual(f.spin_lmm.value(), 1 / 0.13, places=6)
-        self.assertEqual(self.shown_dpi(f), round(1 / 0.13 * 25.4))      # 195 DPI pour une focale de 0,13 mm
-        self.assertEqual(self.shown_dpi(f), int(f.spin_dpi.value()))     # même chiffre que le champ DPI d'Image & Filtres
-
-    def test_lines_per_mm_mode_updates_the_label(self):
-        f = self.make()
-        f.spin_lmm.setValue(7.68)
-        f._sync_dpi_and_quality_from_lmm(7.68)
-        self.assertEqual(self.shown_dpi(f), round(7.68 * 25.4))
+    def test_lines_per_mm_mode_updates_the_dpi(self):
+        box = self.make()
+        box.lines_per_mm_spin.setValue(7.68)
+        self.assertEqual(int(box.dpi_spin.value()), round(7.68 * 25.4))
+        self.assertEqual(self.changes, [(7.68,)])
 
     def test_startup_restoration_path(self):
-        """Au démarrage, la résolution est restaurée (signaux bloqués) puis on_lmm_mode_changed est appelée."""
-        for mode, prepare in ((0, lambda f: f.spin_lmm.setValue(7.68)),
-                              (1, lambda f: f.spin_dpi.setValue(195.0)),
-                              (2, lambda f: None)):
-            f = self.make()
-            prepare(f)
-            f.on_lmm_mode_changed(mode)
-            self.assertEqual(self.shown_dpi(f), round(f.spin_lmm.value() * 25.4), f"mode {mode}")
-            self.assertEqual(self.shown_dpi(f), int(f.spin_dpi.value()), f"mode {mode}")
+        """Au démarrage, la résolution est restaurée (signaux bloqués) puis refresh() recalcule tout."""
+        for mode, prepare in ((RESOLUTION_LMM, lambda b: b.lines_per_mm_spin.setValue(7.68)),
+                              (RESOLUTION_DPI, lambda b: b.dpi_spin.setValue(195.0)),
+                              (RESOLUTION_FOCAL, lambda b: None)):
+            box = self.make(mode=mode)
+            for spin in (box.lines_per_mm_spin, box.dpi_spin):
+                spin.blockSignals(True)
+            prepare(box)
+            for spin in (box.lines_per_mm_spin, box.dpi_spin):
+                spin.blockSignals(False)
+            box.refresh()
+            self.assertEqual(box.stack.currentIndex(), mode)
+            self.assertEqual(int(box.dpi_spin.value()), round(box.lines_per_mm() * 25.4), f"mode {mode}")
+            self.assertEqual(self.changes[-1], (box.lines_per_mm(),), f"mode {mode}")
+
+    def test_too_fine_lines_are_reported(self):
+        box = self.make(focal=0.2)
+        box.lines_per_mm_spin.setValue(20.0)                   # 0,05 mm entre les lignes pour un spot de 0,2 mm
+        self.assertNotEqual(box.quality_label.text(), "")
+        box.lines_per_mm_spin.setValue(3.0)                    # écart confortable : rien à signaler
+        self.assertEqual(box.quality_label.text(), "")
+
+    def test_without_focal_nothing_is_reported(self):
+        box = self.make(focal=None)
+        box.lines_per_mm_spin.setValue(40.0)
+        self.assertEqual(box.quality_label.text(), "")
+        box.apply_focal()                                      # focale inconnue : 0,1 mm
+        self.assertAlmostEqual(box.lines_per_mm(), 10.0)
+
+
+@unittest.skipIf(ResolutionBox is None, "PyQt6 non importable ici")
+class SeparationFollowsTheResolutionTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+
+    def make(self, image_loaded):
+        self.lmm = 10.0
+        c = SeparationController(SeparationSettings(), ImageSettings(), frame_args=lambda: (0, 1.0, 0.5, 0.5),
+                                 engrave_lmm=lambda: self.lmm, dialogs=FakeDialogs())
+        c.source = object() if image_loaded else None
+        self.pushes = 0
+        # Tonalité renvoyée : compte les démarrages du minuteur d'envoi.
+        c._push_timer = type("T", (), {"start": lambda _t: setattr(self, "pushes", self.pushes + 1),
+                                       "stop": lambda _t: None})()
+        self.dpi = record(c.engrave_dpi_changed)
+        return c
+
+    def test_label_follows_the_engraving_resolution(self):
+        c = self.make(image_loaded=False)
+        self.lmm = 195 / 25.4
+        c.resolution_changed()
+        self.assertEqual(self.dpi, [(195,)])
 
     def test_tone_is_resent_only_when_a_separation_image_is_loaded(self):
-        f = self.make(image_loaded=False)
-        f.on_dpi_value_changed(300)
-        self.assertEqual(f.pushes, 0)
-        g = self.make(image_loaded=True)
-        g.on_dpi_value_changed(300)
-        self.assertEqual(g.pushes, 1)
-
-    def test_without_separation_tab_nothing_breaks(self):
-        f = self.make(with_separation=False)
-        f.on_dpi_value_changed(195)
-        f._apply_focal_to_lmm()
-        f.on_lmm_mode_changed(0)
+        self.make(image_loaded=False).resolution_changed()
+        self.assertEqual(self.pushes, 0)
+        self.make(image_loaded=True).resolution_changed()
+        self.assertEqual(self.pushes, 1)
 
 
-@unittest.skipIf(ImageProcessingMixin is None, "mixins non importables ici")
 class SeparationHooksStillPresentTests(unittest.TestCase):
-    """Garde-fou : les deux liaisons Image & Filtres <-> Séparation ne doivent pas disparaître
-    quand image_processing_mixin.py est remplacé par une autre version."""
+    """Garde-fou : les liaisons « Graver une image » <-> Séparation ne doivent pas disparaître
+    quand ui/app/main_window.py ou window_controller.py est remplacé par une autre version."""
 
-    def source(self):
-        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "image_processing_mixin.py")
-        with open(path, encoding="utf-8") as f:
+    def source(self, *parts):
+        with open(os.path.join(REPO, "src", "laser_studio", *parts), encoding="utf-8") as f:
             return f.read()
 
     def test_load_image_releases_the_separation_settings(self):
-        self.assertIn("self.separation_release_image_settings()", self.source())
+        self.assertIn("image.loading_file.connect(separation.release_glass_settings)",
+                      self.source("ui", "tabs", "separation", "builder.py"))
 
     def test_reset_forgets_the_separation_state(self):
-        self.assertIn("self._sep_glass_settings_active = False", self.source())
+        self.assertIn("image.resetting.connect(separation.forget_glass_settings)",
+                      self.source("ui", "tabs", "separation", "builder.py"))
+
+    def test_resolution_reaches_the_separation(self):
+        main = self.source("ui", "app", "main_window.py")
+        self.assertIn("settings.resolution_changed.connect(lambda _lmm: self.separation.resolution_changed())", main)
+        # Matrice de test : lignes/mm du placement du job (modèle), pas du champ.
+        self.assertIn('self.tab_matrix.set_lines_mm(changes["lines_mm"]) if "lines_mm" in changes', main)
+        self.assertIn("self.pages.test_matrix.set_lines_mm(self.placement.lines_mm)",
+                      self.source("controllers", "window.py"))

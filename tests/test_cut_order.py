@@ -5,15 +5,20 @@ import re
 import sys
 import unittest
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
-import vector_order as vo
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import project_state_source, ui_source  # noqa: E402
+from laser_studio.vector import order as vo
 
 try:
-    from vector_layers import build_vector_layers_gcode
+    from laser_studio.gcode.vector import build_vector_layers_gcode
     HAS_BUILD = callable(build_vector_layers_gcode) and not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gcode_reader import burn_paths, head_moves  # noqa: E402
 
 
 def rect(x0, y0, x1, y1, closed=True):
@@ -74,7 +79,7 @@ class OrderTests(unittest.TestCase):
 
     def test_layers_engraving_first_then_cutting_keeping_relative_order(self):
         mk = lambda name, mode: (name, {"layer": {"mode": mode}, "polygons": []})
-        items = [mk("cut1", "Découpe"), mk("fill", "Gravure Remplie"), mk("cut2", "Découpe"), mk("mark", "Marquage (Contour)")]
+        items = [mk("cut1", "cut"), mk("fill", "engrave_fill"), mk("cut2", "cut"), mk("mark", "mark")]
         self.assertEqual([i[0] for i in vo.order_layers_for_cutting(items)], ["fill", "mark", "cut1", "cut2"])
         self.assertEqual(vo.order_layers_for_cutting([]), [])
 
@@ -88,34 +93,30 @@ class GcodeOrderTests(unittest.TestCase):
         return build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000, safe_cut_order=safe)[0]
 
     def cut_starts(self, gcode):
-        starts, take = [], False
-        for line in gcode:
-            if line.startswith("; --- CALQUE"):
-                take = "[Découpe]" in line
-            if take and line.startswith("G0 X"):
-                starts.append(line)
-        return starts
+        """Départs (G0) des contours des calques de découpe."""
+        text = "\n".join(gcode)
+        cut = "\n".join(part for part in text.split("; --- CALQUE") if "[cut]" in part.split("\n", 1)[0])
+        return [(x, y) for g, x, y in head_moves(cut) if g == 0]
 
     def test_holes_are_cut_before_the_outline_in_the_gcode(self):
-        layers = {"L": {"layer": self.layer("Découpe", "Découpe"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10)]}}
+        layers = {"L": {"layer": self.layer("Découpe", "cut"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10)]}}
         off, on = self.cut_starts(self.build(layers, False)), self.cut_starts(self.build(layers, True))
         self.assertEqual(len(off), 2)
         self.assertEqual(on, [off[1], off[0]])
 
     def test_engraving_runs_before_cutting_even_if_listed_after(self):
-        layers = {"C": {"layer": self.layer("Contour", "Découpe"), "polygons": [rect(0, 0, 50, 50)]},
-                  "G": {"layer": self.layer("Détails", "Marquage (Contour)"), "polygons": [rect(10, 10, 20, 20)]}}
+        layers = {"C": {"layer": self.layer("Contour", "cut"), "polygons": [rect(0, 0, 50, 50)]},
+                  "G": {"layer": self.layer("Détails", "mark"), "polygons": [rect(10, 10, 20, 20)]}}
         names = lambda g: [re.search(r"'([^']+)'", l).group(1) for l in g if l.startswith("; --- CALQUE")]
         self.assertEqual(names(self.build(layers, False)), ["Contour", "Détails"])
         self.assertEqual(names(self.build(layers, True)), ["Détails", "Contour"])
 
     def test_disabled_option_keeps_the_historic_gcode_and_all_geometry(self):
-        layers = {"L": {"layer": self.layer("Découpe", "Découpe"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10), rect(200, 0, 260, 60), rect(210, 10, 250, 50)]}}
+        layers = {"L": {"layer": self.layer("Découpe", "cut"), "polygons": [rect(0, 0, 100, 100), circle(50, 50, 10), rect(200, 0, 260, 60), rect(210, 10, 250, 50)]}}
         old = build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000)
         off, on = self.build(layers, False), self.build(layers, True)
         self.assertEqual(old[0], off)
-        on = [l for l in on if not l.startswith("; Ordre de découpe")]
-        self.assertEqual(sorted(off), sorted(on))
+        self.assertEqual(sorted(map(tuple, burn_paths(off))), sorted(map(tuple, burn_paths(on))))   # mêmes tracés
         self.assertIn("; Ordre de découpe : intérieur avant extérieur", self.build(layers, True))
         self.assertNotIn("; Ordre de découpe : intérieur avant extérieur", off)
 
@@ -126,15 +127,22 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_option_is_passed_from_ui_to_worker_to_generator(self):
-        self.assertIn("self.chk_safe_cut_order = QCheckBox", self.src("ui_setup_mixin.py"))
-        self.assertIn("'safe_cut_order':", self.src("gcode_generation_mixin.py"))
-        self.assertIn("safe_cut_order=bool(self.params.get('safe_cut_order', True))", self.src("workers.py"))
-        self.assertIn("safe_cut_order=False", self.src("vector_layers.py"))
+        self.assertIn("self.safe_cut_order_check = QCheckBox", ui_source())
+        self.assertIn('(self.safe_cut_order_check, "safe_cut_order")', ui_source())
+        self.assertIn("safe_cut_order=self.grbl.safe_cut_order", self.src(os.path.join("controllers", "job.py")))
+        self.assertIn("safe_cut_order=params.safe_cut_order", self.src(os.path.join("gcode", "job.py")))
+        self.assertIn("safe_cut_order=False", self.src(os.path.join("gcode", "vector.py")))
 
     def test_project_saves_and_restores_it_with_a_default_of_true(self):
-        pj = self.src("project_io_mixin.py")
-        self.assertIn('"safe_cut_order": self.chk_safe_cut_order.isChecked()', pj)
-        self.assertIn('self.chk_safe_cut_order.setChecked(proj_data.get("safe_cut_order", True))', pj)
+        pj = project_state_source()
+        self.assertIn("return (w.placement, w.machine, w.image_settings, w.grbl, w.job)", pj)
+        self.assertIn("model.load_project(data)", pj)
+        from laser_studio.models.grbl import GrblConfig
+        grbl = GrblConfig()
+        grbl.update(safe_cut_order=False)
+        self.assertEqual(grbl.to_project(), {"safe_cut_order": False})
+        grbl.load_project({})                                   # ancien projet : ordre sûr
+        self.assertTrue(grbl.safe_cut_order)
 
 
 if __name__ == "__main__":

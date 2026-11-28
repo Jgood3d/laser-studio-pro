@@ -1,0 +1,50 @@
+"""Point rouge de position de la tête sur l'aperçu 2D G-Code (Preview2DTab.position_marker)."""
+import os
+import sys
+import unittest
+from unittest import mock
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from PyQt6.QtWidgets import QApplication
+    from laser_studio.ui.app import main_window
+except ImportError:  # PyQt6, pyqtgraph... manquants
+    main_window = None
+
+
+@unittest.skipIf(main_window is None, "main_window non importable ici")
+class PositionMarkerTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = QApplication.instance() or QApplication([])
+        # Préchauffage de Stencil Studio (QTimer 3 s) : QtWebEngine plante hors écran.
+        mock.patch("stencil_studio.controllers.studio.StencilStudioController.preload").start()
+        from job_fakes import start_memory_preferences
+        start_memory_preferences(cls)           # rien d'écrit dans les réglages de l'utilisateur
+        cls.win = main_window.FullLaserStudio()
+
+    def marker(self):
+        return self.win.tab_vector_2d.position_marker
+
+    def marker_shown(self):
+        return self.marker() in self.win.tab_vector_2d.plot_widget.getPlotItem().items
+
+    def test_marker_survives_a_new_preview(self):
+        self.win.job_display.plot("G21\nG90\nG0 X0 Y0\nG1 X50 Y20 F1000 S500\nM5\n")
+        self.assertTrue(self.marker_shown())
+        self.win.job_display.status_updated("Run", 12.5, 7.0, 0.0)          # rapport d'état GRBL pendant le job
+        xs, ys = self.marker().getData()
+        self.assertEqual((list(xs), list(ys)), ([12.5], [7.0]))
+        self.win.job_display.plot("G21\nG1 X5 Y5 F1000 S100\n")    # nouvel aperçu : toujours là
+        self.assertTrue(self.marker_shown())
+
+    def test_disconnect_hides_the_marker(self):
+        self.win.job_display.status_updated("Idle", 3.0, 4.0, 0.0)
+        self.win.job_display.show_machine_state(None, None, None, None)
+        self.assertEqual(len(self.marker().getData()[0]), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

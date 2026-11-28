@@ -2,31 +2,80 @@
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/jb3dlaser)
 
-Laser Studio Pro est un logiciel de pilotage GRBL pour graveur et découpeuse laser, avec :
-- gravure d’images (tramage, niveaux de gris, résolution liée à la taille du spot),
+*[English version](README-EN.md)*
+
+## Présentation
+
+Laser Studio Pro est un logiciel de pilotage de GRBL pour graveur et découpeuse laser, avec les fonctionnalités suivantes :
+
+- gravure d’images,
+- découpe, marquage et gravure vectorielle : import SVG, DXF ou vectorisation d'images
 - sélecteur de matière (fond noir / fond clair) pour graver en négatif ou en positif,
-- séparation couleur / verre (calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage, PDF à l’échelle 1:1),
-- découpe/gravure vectorielle, import SVG et DXF, conversion PNG/JPEG → SVG,
-- générateur de boîte à encoches (dimensions X/Y/Z, décor texte ou SVG),
-- gestion de calques, avec leurs réglages mémorisés par machine,
-- calibrage guidé : matrice de test, décalage aller/retour et gain de point pour le verre,
+- calibrage guidé : matrice de test, décalage aller/retour
 - génération et aperçu 2D du G-Code, file d’attente de jobs,
 - profils machine (dimensions, focale, réglages GRBL, matériaux),
 - export/import de projets, sauvegarde automatique,
+- et de nombreux outils qui font de LaserStudio un vrai studio de création :
+  - générateur de boîte à encoches, de portes clefs, de boules de noël
+  - galerie d'exemples à importer,
+  - séparation couleur / verre (calque noir à graver, calque couleur à imprimer, simulation du rétro-éclairage),
 - support multilingue (Français, English, Deutsch, Español).
+
+La gravure s'appuie sur la notion de calques, avec réglages mémorisés par machine et par calques, permettant de paramétrer finement les options et le nombre de passes de gravure ou de découpe. Vous pouvez, par exemple, paramétrer un calque de découpe normal et un calque de découpe renforcé (puissance du graveur supérieure et nombre de passes augmentées)
 
 L’historique détaillé des versions est dans [`CHANGELOG.md`](CHANGELOG.md).
 
+## Pourquoi Laser Studio Pro est-il gratuit, et le restera-t-il ?
+
+Laser Studio Pro a été développé par des passionnés de gravure laser pour des passionnés de gravure laser, et parce que le logiciel de référence, LaserGRBL, n’évolue plus depuis début 2025.
+
+Ses développeurs ont choisi la licence libre [GNU GPL version 3](https://www.gnu.org/licenses/gpl-3.0.html) (voir [Licence](#licence)) pour que ce logiciel reste libre et open source. Chacun est libre de l’utiliser, sans payer, pour tous ses projets, de copier son code, de le modifier, de l’améliorer et d’en faire profiter la communauté. La GPL garantit aussi qu’il le restera : toute version modifiée et redistribuée doit être publiée sous la même licence, avec son code source.
+
+## Licence
+
+Laser Studio Pro est un logiciel libre : il peut être redistribué et modifié selon les termes de la [GNU General Public License](https://www.gnu.org/licenses/gpl-3.0.html) publiée par la Free Software Foundation, version 3 de la licence ou (au choix) toute version ultérieure (GPL-3.0-or-later).
+
+Il est distribué dans l’espoir d’être utile, mais SANS AUCUNE GARANTIE, sans même la garantie implicite de QUALITÉ MARCHANDE ou d’ADÉQUATION À UN USAGE PARTICULIER. Le texte complet de la licence se trouve dans le fichier [`LICENSE`](LICENSE).
+
 ## Installation
 
-Python 3.11 ou 3.12 est requis (voir [Python 3.12](#python-312) si votre distribution fournit une version plus récente). Installez les dépendances selon votre système :
+### Windows
+
+Télécharger le paquet fourni sur la page des [releases](https://github.com/Jgood3d/laser-studio-pro/releases) et lancer l'exécutable d'installation.
+
+Attention : la sécurité windows risque de bloquer l'installation ou le lancement du logiciel tant que l'installateur n'est pas signé.
+
+### Fedora (Copr)
+
+Sous Fedora 43, 44 et 45 (x86_64 et aarch64), Laser Studio Pro s’installe depuis le dépôt [Copr](https://copr.fedorainfracloud.org/coprs/alemorvan/laser-studio-pro/), avec les bibliothèques de Fedora :
+
+```bash
+sudo dnf copr enable alemorvan/laser-studio-pro
+sudo dnf install laser-studio-pro
+```
+
+L’application apparaît dans le menu des applications (Stencil Studio par un clic droit sur son icône) et se lance aussi avec `laser-studio-pro`. Les mises à jour arrivent avec celles du système. La détection du sujet par IA de Stencil Studio est facultative : `sudo dnf install --setopt=install_weak_deps=False python3-onnxruntime`. L’accès au port série demande d’appartenir au groupe `dialout` (voir plus bas).
+
+### Debian et Ubuntu (.deb)
+
+Sous Debian 13 (trixie) ou Ubuntu 25.04 et plus récentes, téléchargez `laser-studio-pro_<version>_all.deb` sur la page des [releases](https://github.com/Jgood3d/laser-studio-pro/releases), puis :
+
+```bash
+sudo apt install ./laser-studio-pro_<version>_all.deb
+```
+
+Le paquet utilise les bibliothèques Python du système (PyQt6, OpenCV, NumPy…) et installe l’entrée de menu. Ubuntu 24.04, trop ancienne pour PyQt6 6.7, utilise l’AppImage. Construction et choix du paquet : `packaging/debian/README.md`.
+
+### Avec pip (Windows, Linux, macOS)
+
+Python 3.10 à 3.14 convient : le Python fourni par la distribution suffit (Ubuntu 22.04 et suivantes, Debian 12 et 13, Fedora récentes). Installez les dépendances selon votre système :
 
 ```bash
 pip install -r requirements-windows.txt    # Windows
 pip install -r requirements-linux.txt      # Linux
 ```
 
-`numba` est optionnel : il accélère le tramage, l’application fonctionne sans.
+`numba` est optionnel : il accélère le tramage, l’application fonctionne sans (mais le tramage est environ cent fois plus lent).
 Sous Linux, l’utilisateur doit appartenir au groupe `dialout` pour accéder au port série. Ajoutez-le au groupe :
 
 ```bash
@@ -35,67 +84,23 @@ sudo usermod -aG dialout $USER
 
 Fermez puis rouvrez la session pour que l’appartenance au groupe soit prise en compte (vérifiez ensuite avec `groups`).
 
-### Python 3.12
-
-Les dépendances imposent `numpy<2.0.0` (compatibilité PyInstaller, pyqtgraph et numba). Or numpy 1.26, dernière version de cette branche, ne fonctionne pas au-delà de Python 3.12 : avec Python 3.13 ou 3.14, l’installation de numpy échoue. Les distributions récentes (Fedora 41+, Debian 13, Ubuntu 25.04+) fournissent par défaut une version trop récente ; installez donc Python 3.12 à côté de celle du système, sans la remplacer.
-
-Vérifiez d’abord la version disponible :
-
-```bash
-python3 --version
-python3.12 --version
-```
-
-**Fedora** — Python 3.12 est disponible dans les dépôts officiels :
-
-```bash
-sudo dnf install python3.12
-```
-
-**Ubuntu** — Ubuntu 24.04 fournit Python 3.12 par défaut, il suffit d’ajouter le module `venv` :
-
-```bash
-sudo apt install python3.12 python3.12-venv
-```
-
-Sur les autres versions LTS (22.04 par exemple), passez par le PPA deadsnakes :
-
-```bash
-sudo add-apt-repository ppa:deadsnakes/ppa
-sudo apt update
-sudo apt install python3.12 python3.12-venv
-```
-
-**Debian** — aucune version de Debian ne fournit Python 3.12 dans ses dépôts (3.11 pour Debian 12, 3.13 pour Debian 13). Sous Debian 12, Python 3.11 convient :
-
-```bash
-sudo apt install python3 python3-venv
-```
-
-Sous Debian 13 (ou sur toute distribution sans paquet Python 3.12), utilisez [uv](https://docs.astral.sh/uv/), qui télécharge un Python 3.12 autonome dans le dossier de l’utilisateur :
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv python install 3.12
-```
-
 ### Installation dans un environnement virtuel (recommandé)
 
-Un environnement virtuel isole les dépendances du projet de celles du système. Depuis le dossier du projet, créez-le avec Python 3.12, activez-le puis installez les dépendances :
+Un environnement virtuel isole les dépendances du projet de celles du système. Depuis le dossier du projet, créez-le, activez-le puis installez les dépendances :
 
 ```bash
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-linux.txt
 ```
 
-Sous Debian 12, remplacez `python3.12` par `python3` (Python 3.11). Avec uv, créez l’environnement par `uv venv --python 3.12 --seed .venv` (`--seed` y installe `pip`), puis activez-le et installez les dépendances de la même façon.
+Sous Debian et Ubuntu, le module `venv` est un paquet à part : `sudo apt install python3-venv`.
 
-> **Note** : créez l’environnement avec `python3.12` et non `python3`. Un environnement créé avec la version du système (3.13 ou 3.14) ne pourra pas installer numpy, et un environnement mélangeant deux versions provoque l’erreur `ModuleNotFoundError: No module named 'PyQt6'` alors que PyQt6 est installé. En cas de doute, supprimez `.venv` et recréez-le.
+> **Note** : les dépendances (numpy 2) acceptent Python 3.10 à 3.14 ; pip choisit lui-même la version de numpy adaptée au Python installé. Un environnement mélangeant deux versions de Python provoque l’erreur `ModuleNotFoundError: No module named 'PyQt6'` alors que PyQt6 est installé : en cas de doute, supprimez `.venv` et recréez-le.
 
 L’environnement doit être activé (`source .venv/bin/activate`) dans chaque nouveau terminal avant de lancer l’application. Pour en sortir, utilisez `deactivate`.
 
-## Lancer l’application
+## Lancer l’application (dev/pip)
 
 Lancez `main.py` depuis le dossier du projet.
 
@@ -104,75 +109,60 @@ source .venv/bin/activate
 python main.py
 ```
 
-## Structure du projet
+Au démarrage, un avertissement de sécurité demande une confirmation. Sa case « Ne plus afficher à chaque démarrage » le limite à un rappel tous les 30 démarrages. Pour les tests et le développement, la variable d’environnement `NOWARNING` le désactive complètement :
 
-### Point d’entrée
-- `main.py` — lance l’application
-- `app_utils.py` — version de l’application, chemins de ressources, écriture atomique des fichiers de données
-
-### Composants autonomes
-- `graphics_view.py` — `ZoomableGraphicsView`
-- `vector_font.py` — `VectorFont`
-- `vector_layers.py` — calques et objets vectoriels, canevas de l’éditeur
-- `usb_controller.py` — `LaserUSBController`
-- `workers.py` — threads et fonctions de traitement image / G-Code
-- `widgets_extra.py` — petits widgets réutilisables (historique de commandes, libellé à masquage automatique)
-- `separation_engine.py` — calculs de séparation couleur / verre (sans Qt)
-- `image_filters.py` — filtres d’image purs (netteté)
-- `vector_order.py` — ordre de découpe sûr (gravure avant découpe, intérieur avant extérieur)
-- `nesting.py` — imbrication automatique des pièces sur une feuille (sans Qt)
-- `image_size.py` — taille d’origine d’une image d’après sa résolution (sans Qt)
-- `vector_nudge.py` — pas de déplacement aux flèches du clavier (sans Qt)
-- `dxf_import.py` — lecteur DXF texte (sans Qt, sans dépendance)
-- `box_generator.py` — calcul des panneaux d’une boîte à encoches (sans Qt)
-- `vector_import.py` — passerelle vers les objets de l’éditeur vectoriel (DXF, boîte, décor)
-- `png2svg_widget.py` — widget de conversion PNG/JPEG → SVG (utilise le module `converter`)
-- `i18n.py` — système de traduction multilingue
-
-### Fenêtre principale découpée en mixins
-- `main_window.py` — assemblage de la fenêtre principale
-- `ui_setup_mixin.py` — interface utilisateur, menus, onglets, dialogues
-- `machine_profiles_mixin.py` — profils machine / matériaux / réglages de calques par machine
-- `image_processing_mixin.py` — chargement et traitement d’image, matière
-- `vector_editing_mixin.py` — éditeur vectoriel et SVG
-- `gcode_generation_mixin.py` — génération, aperçu et export G-Code
-- `laser_control_mixin.py` — USB / GRBL / commandes temps réel
-- `project_io_mixin.py` — sauvegarde et ouverture de projet, sauvegarde automatique
-- `job_queue_mixin.py` — file d’attente de jobs
-- `png2svg_mixin.py` — onglet PNG/JPEG → SVG
-- `separation_mixin.py` — onglet Séparation Couleur / Verre
-- `box_dialog.py` — fenêtre du générateur de boîte
-- `nesting_apply.py`, `nesting_dialog.py` — imbrication dans l’éditeur vectoriel (passerelle et fenêtre de réglage)
-- `settings_window.py` — fenêtres « Paramètres du graveur », « Matériaux et connexion au graveur » et « Configuration GRBL » ouvertes depuis le menu Paramètres
-
-### Qualité
-- `tests/` — tests automatiques (G-Code, fin de job, calibrage, séparation couleur/verre, sauvegardes, reset/référencement, calques par machine, traductions)
-- `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
-- `tools/check_ui_attributes.py` — détecte les widgets utilisés mais jamais construits (fichier resté à l’ancienne version)
+```bash
+NOWARNING=1 python main.py
+```
 
 ## Captures d’écran
 
-<img width="1907" height="1005" alt="Tramage" src="https://github.com/user-attachments/assets/42ae3b7c-7740-4c4c-a704-d3b78d4d36ab" />
+Graver une image (tramage, réglages photo, matière) :
 
-<img width="1919" height="1035" alt="Apercu tramages" src="https://github.com/user-attachments/assets/320160f2-a7c1-47b1-9626-cc1c96f9ae1d" />
+![Graver une image](docs/screenshots/01-onglet-graver-une-image.png)
 
-<img width="2000" height="1562" alt="gravure-test-4" src="https://github.com/user-attachments/assets/077c3e41-736d-414b-bb28-54e01048cbe3" />
+Éditeur vectoriel : dessiner, importer un SVG ou un DXF, ou partir d’un générateur :
 
-Conversion PNG → SVG :
+![Graver une image vectorielle](docs/screenshots/04-onglet-graver-une-image-vectorielle.png)
 
-<img width="1511" height="641" alt="Test svg" src="https://github.com/user-attachments/assets/0a68799f-e198-4044-b051-a263d4755464" />
+Séparation couleur / verre (calque noir à graver, calque couleur à imprimer, simulation) :
 
-Déplacement d’un SVG sur le plan de travail :
+![Séparation couleur / verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
 
-<img width="340" height="357" alt="Déplacement" src="https://github.com/user-attachments/assets/01d1e7df-ed98-4724-8aee-4857904e19cc" />
+Visualisation 2D du G-Code, avec la position du job sur le plateau et ses statistiques :
 
-Interface en anglais et en allemand :
+![Visualisation 2D du G-Code](docs/screenshots/06-onglet-visualisation-2d-du-g-code.png)
 
-<img width="1918" height="1010" alt="English" src="https://github.com/user-attachments/assets/eaa4c939-b36d-4588-8538-12aa54dc01ea" />
+Interface en anglais et en allemand (aussi en espagnol) :
 
-<img width="1910" height="1008" alt="Allemand" src="https://github.com/user-attachments/assets/20f4c90a-8f35-44aa-b372-c88be354859c" />
+![Interface en anglais](docs/screenshots/en/01-engrave-an-image.png)
 
-## Nouveautés de la version 2.4.0
+![Interface en allemand](docs/screenshots/31-interface-en-allemand.png)
+
+Toutes les captures, onglet par onglet, sont à la fin de ce document ([Captures de chaque onglet et page](#captures-de-chaque-onglet-et-page)).
+
+## Nouveautés de la version 3.0.0
+
+Une nouvelle version majeure : presque tout a changé.
+
+- **Refonte de l'interface** : onglets et panneau du bas inspirés de VS Code, éditeur vectoriel épuré, menu Job avec raccourcis clavier, une seule fenêtre de confirmation avant de graver.
+- **Refonte du style** : nouveau thème « New Dusk », libellés harmonisés dans les quatre langues.
+- **Refonte du code** : modèle MVC (modèle / vue / contrôleur), code métier séparé du code graphique, plus de 1 500 tests.
+- **Nouveaux générateurs et outils** : porte-clés, boule de Noël, boîte, puzzle, bibliothèque de modèles, macros, historique des gravures, alignement par caméra, axe rotatif (gobelets, bouteilles, stylos).
+- **Gravure plus sûre** : arrêt d'urgence toujours visible, cadrage au plus près, reprise d'un travail interrompu.
+
+Le détail est dans le [CHANGELOG](CHANGELOG.md).
+
+## Nouveautés de la version 2.5.0
+
+- **Stencil Studio** : un nouvel espace de travail pour créer et optimiser des pochoirs et des designs vectoriels ou matriciels, accessible par un bouton de la barre de menus :
+  - **trame par point et par ligne** : les images deviennent des motifs de points ou de lignes prêts à graver ;
+  - **effet Low Poly** : les images deviennent des compositions de polygones ;
+  - **générateur de boîte avec éclairage** : boîtier sur mesure avec logements pour les LED et l'alimentation, assemblé par encoches ;
+  - export direct vers Laser Studio Pro.
+- **Barre de menus réorganisée** pour accéder rapidement aux différents studios et aux réglages.
+
+Précédemment, dans la version 2.4.0 :
 
 - **Imbrication automatique** : range les pièces sur une feuille pour gaspiller le moins de matière possible (rotations, écart, marge, emboîtement dans les creux ; les trous et détails suivent leur pièce).
 - **Ordre de découpe sûr** : graver avant de découper, et couper l’intérieur avant l’extérieur, pour qu’une pièce ne bouge pas avant que ses détails soient faits.
@@ -192,49 +182,89 @@ Précédemment, dans la version 2.3.0 :
 
 Précédemment, dans la version 2.2.0 :
 
-- **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser Couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
+- **Sélecteur « Matière »** (Image / Filtres) : fond noir ou fond clair, qui coche ou décoche « Inverser les couleurs » ; la matière est rappelée dans l’alerte avant gravure et enregistrée dans le projet.
 - **Réglages des calques mémorisés par machine** : vitesse, puissance, passes… retrouvés à la réouverture, propres à chaque profil machine.
-- **Séparation Couleur / Verre** : calque noir, calque couleur, simulation et PDF d’impression à l’échelle 1:1.
+- **Séparation couleur / verre** : calque noir, calque couleur, simulation et PDF d’impression à l’échelle 1:1.
 - **Correction importante de la gravure d’image** : le G-Code appliquait la puissance au mauvais segment ; régénérez les G-Codes d’image créés avec une version antérieure.
 - **Reset / arrêt d’urgence** : le statut « référencé » est retiré si la machine n’était pas à l’arrêt, un nouveau homing est demandé.
 - **Sauvegardes atomiques** (autosave, file d’attente, projet) : plus de fichier tronqué en cas de plantage.
 
 Voir [`CHANGELOG.md`](CHANGELOG.md) pour le détail et les versions précédentes.
 
-## Compilation (PyInstaller)
+## Pour les développeurs
 
-Les ressources suivantes sont cherchées à côté de l’exécutable puis dans le bundle PyInstaller : `laser_studio_pro.ico` (ou `laser_studio_pro_256.png` / `laser_studio_pro_512.png`), `laser_studio_pro_banner.png` et `buy_me_a_coffee.png`. Pour les embarquer, ajoutez `--add-data "fichier;."` (Windows) ou `--add-data "fichier:."` (Linux) à la commande PyInstaller. Supprimez `build/`, `dist/` et `LaserStudioPro.spec` avant de recompiler pour que les nouvelles ressources soient prises en compte.
-
-## Développement / validation
-
-Vérifier la syntaxe Python :
-
-```bash
-py -m py_compile i18n.py ui_setup_mixin.py main_window.py
-```
-
-Lancer les tests automatiques (bibliothèque standard uniquement, aucune dépendance supplémentaire) :
-
-```bash
-python -m unittest discover tests -v
-```
-
-Vérifier qu’aucun widget n’est utilisé sans être construit (utile après avoir remplacé plusieurs fichiers) :
-
-```bash
-python tools/check_ui_attributes.py
-```
-
-Contrôler les traductions (rapport détaillé) :
-
-```bash
-python tools/check_translations.py
-```
+- [CONTRIBUTING.md](CONTRIBUTING.md) : structure du projet, compilation, tests, simulation d’un graveur et journal de débogage ;
+- [ARCHITECTURE.md](ARCHITECTURE.md) : rôle de chaque dossier et de chaque fichier, glossaire des objets du code ;
+- [BUILD.md](BUILD.md) : compilation pour Windows, Linux et macOS ;
+- [CODE_SIGNING.md](CODE_SIGNING.md) : politique de signature du binaire Windows (*code signing policy*) ;
+- [CHANGELOG.md](CHANGELOG.md) : historique détaillé des versions.
 
 ## Remerciements
 
 Merci à toutes les personnes qui contribuent au projet, testent les fonctionnalités et signalent les bugs.
 
-## Licence
+## Captures de chaque onglet et page
 
-Voir le fichier `LICENSE` associé au dépôt si présent.
+Images produites par `tools/screenshots.py` (thème Sombre, avec une image d’exemple chargée et son G-Code généré).
+
+### Onglets
+
+**Graver une image :**
+
+![Graver une image](docs/screenshots/01-onglet-graver-une-image.png)
+
+**Vectorisation d’image :**
+
+![Vectorisation d'image](docs/screenshots/02-onglet-vectorisation-d-image.png)
+
+**Séparation couleur / verre :**
+
+![Séparation couleur / verre](docs/screenshots/03-onglet-separation-couleur-verre.png)
+
+**Graver une image vectorielle :**
+
+![Graver une image vectorielle](docs/screenshots/04-onglet-graver-une-image-vectorielle.png)
+
+**Calques :**
+
+![Calques](docs/screenshots/05-onglet-calques.png)
+
+**Visualisation 2D du G-Code :**
+
+![Visualisation 2D du G-Code](docs/screenshots/06-onglet-visualisation-2d-du-g-code.png)
+
+### Fenêtre Paramètres (Fichier › Paramètres…)
+
+**Paramètres du graveur :**
+
+![Paramètres du graveur](docs/screenshots/10-page-parametres-du-graveur.png)
+
+**Configuration GRBL :**
+
+![Configuration GRBL](docs/screenshots/11-page-configuration-grbl.png)
+
+**Macros :**
+
+![Macros](docs/screenshots/12-page-macros.png)
+
+**Langue et thème :**
+
+![Langue et thème](docs/screenshots/13-page-langue-et-theme.png)
+
+**Matrice de test (Outils) :**
+
+![Matrice de test](docs/screenshots/14-page-matrice-de-test.png)
+
+### Fenêtres
+
+**Premiers pas (au premier démarrage, et Aide › Premiers pas) :**
+
+![Premiers pas](docs/screenshots/25-boite-premiers-pas.png)
+
+**Générateur de boîte à encoches :**
+
+![Générateur de boîte à encoches](docs/screenshots/23-boite-generateur-de-boite-a-encoches.png)
+
+**Imbrication automatique :**
+
+![Imbrication automatique](docs/screenshots/24-boite-imbrication-automatique.png)

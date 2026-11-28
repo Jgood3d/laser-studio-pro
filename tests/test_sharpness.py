@@ -6,13 +6,16 @@ import unittest
 import numpy as np
 from PIL import Image
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ui_source import project_state_source, ui_source  # noqa: E402
 
-import image_filters as imf
+from laser_studio.image import filters as imf
 
 try:
-    import workers
+    from laser_studio.controllers import workers
 except ImportError:
     workers = None
 
@@ -62,7 +65,7 @@ class SharpenFilterTests(unittest.TestCase):
         self.assertEqual(imf.sharpen_radius(100), 4.0)
 
 
-@unittest.skipIf(workers is None, "workers.py non importable ici")
+@unittest.skipIf(workers is None, "controllers/workers.py non importable ici")
 class WorkerPipelineTests(unittest.TestCase):
     def params(self, **kw):
         p = dict(w_mm=20.0, h_mm=20.0, lmm=3.2, mirror_h=False, mirror_v=False, bright=0, contrast=0,
@@ -111,21 +114,36 @@ class IntegrationSourceTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_slider_is_created_and_shown_after_gamma(self):
-        ui = self.src("ui_setup_mixin.py")
-        self.assertIn("self.slider_sharp = QSlider", ui)
-        self.assertLess(ui.index('layout_img.addRow(tr("img.gamma")'), ui.index('layout_img.addRow(tr("img.sharpness")'))
+        ui = ui_source()
+        self.assertIn("self.sharpness_slider = self._sharpness_row.slider", ui)
+        self.assertLess(ui.index('layout.addRow(tr("img.gamma")'), ui.index('layout.addRow(tr("img.sharpness")'))
 
     def test_reset_undo_params_and_comparison_use_it(self):
-        ip = self.src("image_processing_mixin.py")
-        for needle in ("self.slider_sharp.setValue(0)", '"sharp": self.slider_sharp.value()',
-                       "(self.slider_sharp, \"sharp\")", "'sharp': self.slider_sharp.value()",
-                       "sharpen_image(Image.fromarray"):
-            self.assertIn(needle, ip)
+        """Le curseur est lié au modèle ImageSettings (sharpness), qui sert à la
+        réinitialisation, à l'annulation, au traitement et à la comparaison."""
+        sources = {"ui/tabs/image/settings_panel.py": '(self.sharpness_slider, "sharpness")',
+                   "controllers/image.py": "**self.image_settings.processing_params()"}
+        for name, needle in sources.items():
+            self.assertIn(needle, self.src(name), name)
+        self.assertIn("s.sharpness", self.src("controllers/image.py"))              # comparaison
+        self.assertIn("sharpen_image(Image.fromarray", self.src("image/dithering.py"))
+        from laser_studio.models.image_settings import ImageSettings
+        settings = ImageSettings()
+        settings.update(sharpness=40)
+        self.assertEqual(settings.processing_params()["sharp"], 40)
+        settings.reset()
+        self.assertEqual(settings.sharpness, 0)
 
     def test_project_saves_and_restores_it_with_a_default(self):
-        pj = self.src("project_io_mixin.py")
-        self.assertIn('"sharp": self.slider_sharp.value()', pj)
-        self.assertIn('self.slider_sharp.setValue(proj_data.get("sharp", 0))', pj)
+        pj = project_state_source()
+        self.assertIn("return (w.placement, w.machine, w.image_settings, w.grbl, w.job)", pj)
+        self.assertIn("model.load_project(data)", pj)
+        from laser_studio.models.image_settings import ImageSettings
+        settings = ImageSettings()
+        settings.update(sharpness=25)
+        self.assertEqual(settings.to_project()["sharp"], 25)
+        settings.load_project({})                     # ancien projet sans netteté
+        self.assertEqual(settings.sharpness, 0)
 
 
 if __name__ == "__main__":

@@ -5,18 +5,19 @@ import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-sys.path.insert(0, ROOT)
+REPO = os.path.dirname(HERE)
+ROOT = os.path.join(REPO, "src", "laser_studio")
+sys.path.insert(0, os.path.dirname(ROOT))
 sys.path.insert(0, HERE)
 
 try:
-    from vector_layers import build_vector_layers_gcode, _scanline_fill_union
+    from laser_studio.gcode.vector import build_vector_layers_gcode, _scanline_fill_union
     HAS_BUILD = callable(build_vector_layers_gcode) and callable(_scanline_fill_union) and \
         not str(type(build_vector_layers_gcode)).endswith("MagicMock'>")
 except ImportError:
     HAS_BUILD = False
 
-from test_calibration_patterns import burn_segments
+from gcode_reader import burn_segments, head_moves
 
 
 def rect(x0, y0, x1, y1):
@@ -25,7 +26,7 @@ def rect(x0, y0, x1, y1):
 
 def fill_layer(groups, interval=0.5, power=80.0):
     polys = [p for g in groups for p in g]
-    layer = {"name": "Remplissage", "mode": "Gravure Remplie", "power": power, "speed": 1000, "passes": 1,
+    layer = {"name": "Remplissage", "mode": "engrave_fill", "power": power, "speed": 1000, "passes": 1,
              "line_interval": interval}
     return {"L": {"layer": layer, "polygons": polys, "polygon_groups": groups}}
 
@@ -57,7 +58,6 @@ class UnionTests(unittest.TestCase):
         for y, segs in rows.items():
             xs = sorted(segs)
             self.assertEqual((xs[0][0], xs[-1][1]), (0.0, 30.0), y)
-            covered = 0.0
             last = 0.0
             for a, b in xs:
                 self.assertLessEqual(a, last + 1e-6, f"trou non gravé à y={y} entre {last} et {a}")
@@ -124,9 +124,58 @@ class ScanOffsetTests(unittest.TestCase):
     def test_offset_with_overscan_moves_the_whole_return_pass(self):
         layers = fill_layer([[rect(10, 0, 30, 10)]], interval=1.0)
         gcode = build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000, overscan_dist=2.0, scan_offset=0.5)[0]
-        starts = [l for l in gcode if l.startswith("G0 X")]
-        self.assertIn("G0 X32.500 Y1.000", starts)       # retour : départ 30 + 2 de surbalayage, décalé de 0,5
-        self.assertIn("G0 X8.000 Y0.000", starts)        # aller : 10 - 2, inchangé
+        starts = [(x, y) for g, x, y in head_moves(gcode) if g == 0]
+        self.assertIn((32.5, 1.0), starts)               # retour : départ 30 + 2 de surbalayage, décalé de 0,5
+        self.assertIn((8.0, 0.0), starts)                # aller : 10 - 2, inchangé
+
+
+def head_moves_by_row(gcode):
+    """{y arrondi: [x successifs de la tête]} (G0 et G1), pour vérifier le sens de déplacement."""
+    rows = {}
+    for _g, x, y in head_moves(gcode):
+        rows.setdefault(round(y, 3), []).append(x)
+    return rows
+
+
+def travels(gcode):
+    """Nombre de déplacements rapides (G0)."""
+    return sum(1 for g, _x, _y in head_moves(gcode) if g == 0)
+
+
+@unittest.skipUnless(HAS_BUILD, "build_vector_layers_gcode non disponible ici")
+class OverscanBetweenObjectsTests(unittest.TestCase):
+    """Surbalayage d'une ligne qui traverse plusieurs objets (les lettres d'un texte) : avant, chaque
+    segment avait le sien, et entre deux lettres proches la tête dépassait puis revenait en arrière."""
+
+    def gcode(self, layers, **kw):
+        return build_vector_layers_gcode(layers, 0.0, 0.0, 400.0, "M4", 1000, **kw)[0]
+
+    def test_close_letters_are_engraved_in_one_pass_without_going_back(self):
+        layers = fill_layer([[rect(0, 0, 10, 10)], [rect(13, 0, 20, 10)]], interval=1.0)   # écart 3 < 2 × 2,5
+        gcode = self.gcode(layers, overscan_dist=2.5)
+        for y, xs in head_moves_by_row(gcode).items():
+            steps = [b - a for a, b in zip(xs, xs[1:]) if abs(b - a) > 1e-9]
+            self.assertTrue(all(d > 0 for d in steps) or all(d < 0 for d in steps), (y, xs))
+            self.assertEqual((min(xs), max(xs)), (-2.5, 22.5), y)       # surbalayage aux deux bouts seulement
+        self.assertEqual(travels(gcode), 10)                            # un départ par ligne (10 lignes)
+
+    def test_engraved_segments_are_unchanged(self):
+        layers = fill_layer([[rect(0, 0, 10, 10)], [rect(13, 0, 20, 10)]], interval=1.0)
+        self.assertEqual(burned(layers, overscan_dist=2.5), burned(layers))
+        self.assertEqual(burned(layers, overscan_dist=2.5, scan_offset=0.3), burned(layers, scan_offset=0.3))
+
+    def test_far_objects_keep_their_own_overscan_and_jump_forward(self):
+        layers = fill_layer([[rect(0, 0, 10, 10)], [rect(50, 0, 60, 10)]], interval=1.0)   # écart 40 > 5
+        gcode = self.gcode(layers, overscan_dist=2.5)
+        self.assertEqual(travels(gcode), 20)                            # deux départs par ligne
+        for y, xs in head_moves_by_row(gcode).items():
+            steps = [b - a for a, b in zip(xs, xs[1:]) if abs(b - a) > 1e-9]
+            self.assertTrue(all(d > 0 for d in steps) or all(d < 0 for d in steps), (y, xs))
+
+    def test_without_overscan_nothing_changes(self):
+        layers = fill_layer([[rect(0, 0, 10, 10)], [rect(13, 0, 20, 10)]], interval=1.0)
+        gcode = self.gcode(layers)
+        self.assertEqual(travels(gcode), 20)                            # un G0 par segment, comme avant
 
 
 class WiringTests(unittest.TestCase):
@@ -135,9 +184,9 @@ class WiringTests(unittest.TestCase):
             return f.read().replace("\r\n", "\n")
 
     def test_groups_and_offset_are_wired_end_to_end(self):
-        self.assertIn('"polygon_groups": []', self.src("vector_layers.py"))
-        self.assertIn("_scanline_fill_union(groups, y)", self.src("vector_layers.py"))
-        self.assertIn("scan_offset=float(self.params.get('scan_offset_mm', 0.0) or 0.0)", self.src("workers.py"))
+        self.assertIn('"polygon_groups": []', self.src(os.path.join("vector", "layer_data.py")))
+        self.assertIn("_scanline_fill_union(groups, y)", self.src(os.path.join("gcode", "vector.py")))
+        self.assertIn("scan_offset=params.scan_offset_mm", self.src(os.path.join("gcode", "job.py")))
 
 
 if __name__ == "__main__":

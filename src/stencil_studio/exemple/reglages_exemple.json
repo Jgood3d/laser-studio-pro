@@ -1,0 +1,36 @@
+{
+  "format": "laser-stencil-studio",
+  "S": {
+    "shape": "circle",
+    "aspect": "1",
+    "zoom": 0.49,
+    "size_mm": 100,
+    "ring_mm": 4,
+    "isolate": true,
+    "margin": 0.03,
+    "brush": 30,
+    "mode": "local",
+    "auto_threshold": true,
+    "threshold": 128,
+    "bias": 0,
+    "blur": 1.5,
+    "contrast": true,
+    "invert": false,
+    "local_contrast": 10,
+    "local_size": 0.125,
+    "dark_offset": 90,
+    "min_feature_mm": 0.8,
+    "min_island_mm2": 10,
+    "bridge_mm": 1.5,
+    "max_bridge_mm": 8,
+    "smooth": 2,
+    "simplify": 0.8,
+    "exportRes": "1200"
+  },
+  "F": {
+    "cx": 0.4315068493150685,
+    "cy": 0.4486301369863014,
+    "w": 0.48675225595997157
+  },
+  "lang": "fr"
+}

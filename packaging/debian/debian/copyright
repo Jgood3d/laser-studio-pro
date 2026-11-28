@@ -1,0 +1,24 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: laser-studio-pro
+Source: https://github.com/Jgood3d/laser-studio-pro
+
+Files: *
+Copyright: Laser Studio Pro contributors
+License: GPL-3.0-or-later
+
+Files: src/laser_studio/resources/icons/*
+Copyright: KDE Breeze icons authors (cortex/ : recoloration de Breeze)
+License: LGPL-3.0-or-later
+
+Files: src/laser_studio/resources/fonts/* src/stencil_studio/resources/fonts/*
+Copyright: Rubik, Dancing Script and DejaVu font authors
+License: OFL-1.1
+
+License: GPL-3.0-or-later
+ On Debian systems, the full text is in /usr/share/common-licenses/GPL-3.
+
+License: LGPL-3.0-or-later
+ On Debian systems, the full text is in /usr/share/common-licenses/LGPL-3.
+
+License: OFL-1.1
+ SIL Open Font License 1.1, see the OFL-*.txt files next to the fonts.
