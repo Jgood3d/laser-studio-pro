@@ -100,59 +100,23 @@ TEXTS = {
         "de": "Oberflächenthema",
         "es": "Tema de la interfaz",
     },
-    "theme.dark": {
+    "theme.new_dusk": {
         "fr": "Sombre",
         "en": "Dark",
         "de": "Dunkel",
         "es": "Oscuro",
     },
-    "theme.light": {
+    "theme.new_dusk_petrol": {
+        "fr": "Sombre bleu pétrole",
+        "en": "Dark petrol blue",
+        "de": "Dunkel Petrolblau",
+        "es": "Oscuro azul petróleo",
+    },
+    "theme.new_dawn": {
         "fr": "Clair",
         "en": "Light",
         "de": "Hell",
         "es": "Claro",
-    },
-    "theme.dusk": {
-        "fr": "Dusk (gris-bleu doux)",
-        "en": "Dusk (soft blue-gray)",
-        "de": "Dusk (weiches Blaugrau)",
-        "es": "Dusk (gris azulado suave)",
-    },
-    "theme.new_dusk": {
-        "fr": "New Dusk (gris-bleu moderne)",
-        "en": "New Dusk (modern blue-gray)",
-        "de": "New Dusk (modernes Blaugrau)",
-        "es": "New Dusk (gris azulado moderno)",
-    },
-    "theme.new_dusk_petrol": {
-        "fr": "New Dusk Blue Petrol (bleu pétrole moderne)",
-        "en": "New Dusk Blue Petrol (modern petrol blue)",
-        "de": "New Dusk Blue Petrol (modernes Petrolblau)",
-        "es": "New Dusk Blue Petrol (azul petróleo moderno)",
-    },
-    "theme.new_dawn": {
-        "fr": "New Dawn (clair moderne)",
-        "en": "New Dawn (modern light)",
-        "de": "New Dawn (modern hell)",
-        "es": "New Dawn (claro moderno)",
-    },
-    "theme.warm": {
-        "fr": "Warm dim (gris chaud)",
-        "en": "Warm dim (warm gray)",
-        "de": "Warm dim (warmes Grau)",
-        "es": "Warm dim (gris cálido)",
-    },
-    "theme.neon": {
-        "fr": "Neon laser",
-        "en": "Neon laser",
-        "de": "Neon-Laser",
-        "es": "Neón láser",
-    },
-    "theme.retro80": {
-        "fr": "Rétro 80 (synthwave)",
-        "en": "Retro 80s (synthwave)",
-        "de": "Retro 80er (Synthwave)",
-        "es": "Retro 80 (synthwave)",
     },
     "theme.jarvis": {
         "fr": "Jarvis (HUD cyan)",

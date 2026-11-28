@@ -1,5 +1,6 @@
-"""Thèmes de Laser Studio Pro (palette + feuille de style) : clair, sombre, Dusk, New Dusk, New Dusk Blue Petrol,
-New Dawn, Warm dim, Neon, Retro 80, Jarvis."""
+"""Thèmes de Laser Studio Pro (palette + feuille de style) : Sombre (par défaut), Sombre bleu pétrole, Clair et
+Jarvis. Les codes internes (new_dusk, new_dusk_petrol, new_dawn, jarvis) restent ceux enregistrés dans les
+préférences ; les anciens thèmes retirés sont ramenés au plus proche par normalize_theme_name."""
 import re
 import shutil
 import tempfile
@@ -16,87 +17,10 @@ from laser_studio.core.preferences import ui_preferences
 # Définition des thèmes
 # ---------------------------------------------------------------------------
 
+DEFAULT_THEME = "new_dusk"
+
 THEMES = {
-    "dark": {
-        "label_key": "theme.dark",
-        "window": "#1e1e1e",
-        "base": "#121212",
-        "alt": "#2d2d2d",
-        "button": "#2d2d2d",
-        "button_hover": "#3a3a3a",
-        "border": "#555555",
-        "text": "#dcdcdc",
-        "muted": "#969696",
-        "accent": "#2b5c8f",
-        "accent_hover": "#4a8ad4",
-        "on_accent": "#ffffff",
-        "tooltip_bg": "#2d2d2d",
-        "tooltip_fg": "#dcdcdc",
-        "link": "#5aa9ff",
-        "group_bg": "#2a2a2a",
-        "input_bg": "#121212",
-        "toolbar_bg": "#252525",
-        "tab_bg": "#2a2a2a",
-        "tab_selected": "#1e1e1e",
-        "menu_bg": "#2a2a2a",
-        "menu_sel": "#2b5c8f",
-        "scroll": "#3a3a3a",
-        "disabled": "#777777",
-    },
-    "light": {
-        "label_key": "theme.light",
-        "window": "#f3f3f3",
-        "base": "#ffffff",
-        "alt": "#f5f5f5",
-        "button": "#ffffff",
-        "button_hover": "#e5f1fb",
-        "border": "#adadad",
-        "text": "#1a1a1a",
-        "muted": "#666666",
-        "accent": "#0078d4",
-        "accent_hover": "#4aa3e8",
-        "on_accent": "#ffffff",
-        "tooltip_bg": "#ffffff",
-        "tooltip_fg": "#1a1a1a",
-        "link": "#0066cc",
-        "group_bg": "#ffffff",
-        "input_bg": "#ffffff",
-        "toolbar_bg": "#f9f9f9",
-        "tab_bg": "#ebebeb",
-        "tab_selected": "#ffffff",
-        "menu_bg": "#ffffff",
-        "menu_sel": "#e5f1fb",
-        "scroll": "#c0c0c0",
-        "disabled": "#a0a0a0",
-    },
-    # Gris-bleu doux (type Nord) — confortable pour de longues sessions
-    "dusk": {
-        "label_key": "theme.dusk",
-        "window": "#2b303b",
-        "base": "#232831",
-        "alt": "#353b4a",
-        "button": "#3d4455",
-        "button_hover": "#4a5266",
-        "border": "#4f5666",
-        "text": "#d8dee9",
-        "muted": "#9ea7b8",
-        "accent": "#88c0d0",
-        "accent_hover": "#8fbcbb",
-        "on_accent": "#2b303b",
-        "tooltip_bg": "#353b4a",
-        "tooltip_fg": "#d8dee9",
-        "link": "#88c0d0",
-        "group_bg": "#353b4a",
-        "input_bg": "#232831",
-        "toolbar_bg": "#2f3542",
-        "tab_bg": "#353b4a",
-        "tab_selected": "#2b303b",
-        "menu_bg": "#353b4a",
-        "menu_sel": "#434c5e",
-        "scroll": "#4f5666",
-        "disabled": "#6a7385",
-    },
-    # New Dusk : Dusk modernisé, sur les couleurs gris-bleu doux de Dusk (type Nord). Style « modern » : à plat,
+    # Sombre (ex-New Dusk, thème par défaut) : gris-bleu doux (type Nord). Style « modern » : à plat,
     # coins arrondis, onglets soulignés, barres de défilement fines, icônes d'une couleur (voir _modern_stylesheet).
     "new_dusk": {
         "label_key": "theme.new_dusk",
@@ -217,87 +141,6 @@ THEMES = {
         "canvas_edge": "#8a8a8a",
         "canvas_label": "#666666",
         "canvas_selection": "#1a1a1a",   # contour de sélection (blanc, invisible sur fond clair)
-    },
-    # Gris chaud ambré — ambiance atelier / bois
-    "warm": {
-        "label_key": "theme.warm",
-        "window": "#2c2825",
-        "base": "#241f1c",
-        "alt": "#3a3530",
-        "button": "#403a34",
-        "button_hover": "#4e463f",
-        "border": "#5a524a",
-        "text": "#e8e0d5",
-        "muted": "#a89c8e",
-        "accent": "#d4a574",
-        "accent_hover": "#e0b88a",
-        "on_accent": "#2c2825",
-        "tooltip_bg": "#3a3530",
-        "tooltip_fg": "#e8e0d5",
-        "link": "#d4a574",
-        "group_bg": "#3a3530",
-        "input_bg": "#241f1c",
-        "toolbar_bg": "#322d29",
-        "tab_bg": "#3a3530",
-        "tab_selected": "#2c2825",
-        "menu_bg": "#3a3530",
-        "menu_sel": "#4a433c",
-        "scroll": "#5a524a",
-        "disabled": "#7a6e62",
-    },
-    # Neon laser — fun, cyber, accents cyan + magenta
-    "neon": {
-        "label_key": "theme.neon",
-        "window": "#0d0b14",
-        "base": "#120f1c",
-        "alt": "#1a1628",
-        "button": "#1f1a30",
-        "button_hover": "#2a2340",
-        "border": "#3d3560",
-        "text": "#e8e6f2",
-        "muted": "#9b93b8",
-        "accent": "#00e5c3",
-        "accent_hover": "#5dffe0",
-        "on_accent": "#0d0b14",
-        "tooltip_bg": "#1a1628",
-        "tooltip_fg": "#e8e6f2",
-        "link": "#ff4ecd",
-        "group_bg": "#1a1628",
-        "input_bg": "#120f1c",
-        "toolbar_bg": "#14101f",
-        "tab_bg": "#1a1628",
-        "tab_selected": "#0d0b14",
-        "menu_bg": "#1a1628",
-        "menu_sel": "#2a2340",
-        "scroll": "#3d3560",
-        "disabled": "#6a6288",
-    },
-    # Rétro années 80 — synthwave / vaporwave
-    "retro80": {
-        "label_key": "theme.retro80",
-        "window": "#1a0a2e",
-        "base": "#12061f",
-        "alt": "#2a1450",
-        "button": "#2d1b4e",
-        "button_hover": "#3d2868",
-        "border": "#7b2cbf",
-        "text": "#f0e6ff",
-        "muted": "#b8a0d0",
-        "accent": "#ff2a6d",
-        "accent_hover": "#ff6b9d",
-        "on_accent": "#1a0a2e",
-        "tooltip_bg": "#2a1450",
-        "tooltip_fg": "#f0e6ff",
-        "link": "#05d9e8",
-        "group_bg": "#2a1450",
-        "input_bg": "#12061f",
-        "toolbar_bg": "#1f0f38",
-        "tab_bg": "#2a1450",
-        "tab_selected": "#1a0a2e",
-        "menu_bg": "#2a1450",
-        "menu_sel": "#3d2868",
-        "scroll": "#7b2cbf",
-        "disabled": "#6a5080",
     },
     # Jarvis — HUD sombre, cyan froid type interface d'assistance
     "jarvis": {
@@ -1179,43 +1022,25 @@ def _modern_stylesheet(c: dict) -> str:
 def normalize_theme_name(theme_name) -> str:
     """Normalise la valeur lue dans QSettings / le menu vers un code THEMES.
 
-    Sous Windows, QSettings peut renvoyer des types ou libellés inattendus ;
-    on accepte aussi les alias FR/EN.
+    Sous Windows, QSettings peut renvoyer des types ou libellés inattendus ; on accepte aussi les alias FR/EN.
+    Les thèmes retirés (dark, light, dusk, warm, neon, retro80) donnent le plus proche : Sombre ou Clair.
     """
     if theme_name is None:
-        return "dark"
+        return DEFAULT_THEME
     name = str(theme_name).strip().lower()
     aliases = {
-        "sombre": "dark",
-        "dark": "dark",
-        "clair": "light",
-        "light": "light",
-        "dusk": "dusk",
-        "new_dusk": "new_dusk",
-        "new-dusk": "new_dusk",
-        "new dusk": "new_dusk",
-        "new_dusk_petrol": "new_dusk_petrol",
-        "new dusk blue petrol": "new_dusk_petrol",
-        "new_dawn": "new_dawn",
-        "new-dawn": "new_dawn",
-        "new dawn": "new_dawn",
-        "warm": "warm",
-        "warm dim": "warm",
-        "warm_dim": "warm",
-        "neon": "neon",
-        "laser": "neon",
-        "retro80": "retro80",
-        "retro": "retro80",
-        "synthwave": "retro80",
-        "80s": "retro80",
-        "jarvis": "jarvis",
-        "hud": "jarvis",
-        "ironman": "jarvis",
+        "sombre": "new_dusk", "new-dusk": "new_dusk", "new dusk": "new_dusk",
+        "sombre bleu pétrole": "new_dusk_petrol", "new dusk blue petrol": "new_dusk_petrol",
+        "clair": "new_dawn", "new-dawn": "new_dawn", "new dawn": "new_dawn",
+        "hud": "jarvis", "ironman": "jarvis",
+        # Thèmes retirés : le plus proche.
+        "light": "new_dawn",
+        "dark": "new_dusk", "dusk": "new_dusk", "warm": "new_dusk", "warm dim": "new_dusk", "warm_dim": "new_dusk",
+        "neon": "new_dusk", "laser": "new_dusk", "retro80": "new_dusk", "retro": "new_dusk",
+        "synthwave": "new_dusk", "80s": "new_dusk",
     }
     name = aliases.get(name, name)
-    if name not in THEMES:
-        return "dark"
-    return name
+    return name if name in THEMES else DEFAULT_THEME
 
 
 # Police des thèmes modernes : la première installée (Inter est sous Linux le plus souvent, Segoe UI sous Windows).
@@ -1258,17 +1083,17 @@ def apply_app_theme(app: QApplication, theme_name: str):
 
 def available_themes():
     """Liste ordonnée (code, clé i18n) des thèmes proposés dans le menu."""
-    order = ("dark", "light", "dusk", "new_dusk", "new_dusk_petrol", "new_dawn", "warm", "neon", "retro80", "jarvis")
+    order = ("new_dusk", "new_dusk_petrol", "new_dawn", "jarvis")
     return [(code, THEMES[code]["label_key"]) for code in order]
 
 
 def current_theme_name():
     """Code du thème choisi (réglage app_theme), normalisé."""
-    return normalize_theme_name(ui_preferences().get("app_theme", "dark"))
+    return normalize_theme_name(ui_preferences().get("app_theme", DEFAULT_THEME))
 
 
 def apply_saved_theme(app: QApplication):
-    """Applique le thème enregistré dans les préférences (« dark » par défaut).
+    """Applique le thème enregistré dans les préférences (Sombre, « new_dusk », par défaut).
 
     La valeur est normalisée puis réécrite proprement, pour remplacer les
     anciens libellés ou les types inattendus renvoyés sous Windows.
