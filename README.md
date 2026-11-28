@@ -205,7 +205,7 @@ Merci à toutes les personnes qui contribuent au projet, testent les fonctionnal
 
 ## Captures de chaque onglet et page
 
-Images produites par `tools/screenshots.py` (thème Dusk, avec une image d’exemple chargée et son G-Code généré).
+Images produites par `tools/screenshots.py` (thème Sombre, avec une image d’exemple chargée et son G-Code généré).
 
 ### Onglets
 

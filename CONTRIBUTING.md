@@ -150,7 +150,7 @@ Le menu et la barre d’outils de la fenêtre passent par `AppActions` (`ui/app/
 - `tools/check_translations.py` — rapport sur les traductions (clés inutilisées, textes en dur, registre tu/vous)
 - `tools/check_ui_attributes.py` — détecte les widgets utilisés mais jamais construits (fichier resté à l’ancienne version)
 - `tools/signal_map.py` — carte des signaux (qui émet quoi, qui branche, quelle fonction s’exécute), dans `docs/architecture/signaux.svg` et `.png`
-- `tools/screenshots.py` — captures d’écran de tous les onglets, pages de réglages et boîtes de dialogue, dans `docs/screenshots/` (thème Dusk par défaut, `--theme` et `--language` pour un autre thème ou une autre langue)
+- `tools/screenshots.py` — captures d’écran de tous les onglets, pages de réglages et boîtes de dialogue, dans `docs/screenshots/` (thème Sombre par défaut, `--theme` et `--language` pour un autre thème ou une autre langue)
 
 ## Compilation (PyInstaller)
 
