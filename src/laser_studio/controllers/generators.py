@@ -275,5 +275,10 @@ class GeneratorsController:
         )
         if not objects or not self.editor.import_objects(objects):
             return
-        done_key = "keychain.done_two_layers" if getattr(result, "two_layers", False) else "keychain.done"
+        if getattr(result, "glue_letters", False):
+            done_key = "keychain.done_glue"
+        elif getattr(result, "two_layers", False):
+            done_key = "keychain.done_two_layers"
+        else:
+            done_key = "keychain.done"
         self.dialogs.notify(tr(done_key).format(w=result.width, h=result.height))

@@ -9,8 +9,10 @@ Produit des ensembles de polygones fermés :
   - text_contours : tracé vectoriel du/des texte(s)
       * mode classique → calque Gravure (remplissage)
       * mode 2 couches → lettres solides de la pièce de droite (calque Découpe)
+      * mode lettres à coller → calque Gravure (remplissage) : repère de placement des lettres
   - outline_contours : contours des lettres (mode 2 couches, guide de collage en Gravure)
-  - top_base_contours / top_text_contours : pièce de droite en mode 2 couches
+  - top_base_contours / top_text_contours : pièce de droite en mode 2 couches ; en mode lettres à coller,
+    `top_text_contours` seul : les lettres découpées à part, à droite de la plaque (`top_base_contours` vide)
 """
 from __future__ import annotations
 
@@ -50,6 +52,7 @@ class KeychainParams:
         ring_overlap_mm: float = 2.0,
         bridge_isolated: bool = True,
         two_layers: bool = False,
+        glue_letters: bool = False,
     ):
         self.text = text or ""
         self.text_height_mm = float(text_height_mm)
@@ -60,7 +63,9 @@ class KeychainParams:
         self.ring_hole_d = float(ring_hole_d)
         self.ring_overlap_mm = float(ring_overlap_mm)
         self.bridge_isolated = bool(bridge_isolated)
-        self.two_layers = bool(two_layers)
+        # Lettres à coller : plaque gravée du prénom + lettres découpées à part. Exclusif avec « 2 couches »
+        self.glue_letters = bool(glue_letters)
+        self.two_layers = bool(two_layers) and not self.glue_letters
 
 
 class KeychainResult:
@@ -75,6 +80,7 @@ class KeychainResult:
         top_base_contours: Optional[List[Polygon]] = None,
         top_text_contours: Optional[List[Polygon]] = None,
         pieces: Optional[List["KeychainResult"]] = None,
+        glue_letters: bool = False,
     ):
         self.base_contours = base_contours
         self.text_contours = text_contours
@@ -82,7 +88,8 @@ class KeychainResult:
         self.width = width
         self.height = height
         self.two_layers = bool(two_layers)
-        # Pièce de droite (couche dessus) — uniquement en mode 2 couches
+        self.glue_letters = bool(glue_letters)
+        # Pièce de droite (couche dessus) — mode 2 couches ; lettres à coller : `top_text_contours` seul
         self.top_base_contours = top_base_contours or []
         self.top_text_contours = top_text_contours or []
         # Lot : une entrée par prénom (chacune est un KeychainResult "simple")
@@ -297,6 +304,12 @@ def _build_keychain_core(
         top_text_contours = _offset_polys(text_contours, offset_x)
         total_width = final_rect.width() * 2 + gap
         total_height = final_rect.height()
+    elif params.glue_letters:
+        # Gauche : la plaque, prénom gravé (placement). Droite : les lettres seules, découpées, à coller dessus.
+        gap = 5.0
+        top_text_contours = _offset_polys(text_contours, final_rect.width() + gap)
+        total_width = final_rect.width() * 2 + gap
+        total_height = final_rect.height()
     else:
         total_width = final_rect.width()
         total_height = final_rect.height()
@@ -310,6 +323,7 @@ def _build_keychain_core(
         two_layers=params.two_layers,
         top_base_contours=top_base_contours,
         top_text_contours=top_text_contours,
+        glue_letters=params.glue_letters,
     )
 
 
@@ -340,6 +354,7 @@ def build_keychain(
             ring_overlap_mm=params.ring_overlap_mm,
             bridge_isolated=params.bridge_isolated,
             two_layers=params.two_layers,
+            glue_letters=params.glue_letters,
         )
         return _build_keychain_core(single, family, bold, italic)
 
@@ -357,6 +372,7 @@ def build_keychain(
             ring_overlap_mm=params.ring_overlap_mm,
             bridge_isolated=params.bridge_isolated,
             two_layers=params.two_layers,
+            glue_letters=params.glue_letters,
         )
         results.append(_build_keychain_core(single, family, bold, italic))
 
@@ -411,6 +427,7 @@ def build_keychain(
             two_layers=res.two_layers,
             top_base_contours=_offset_polys(res.top_base_contours, ox, oy),
             top_text_contours=_offset_polys(res.top_text_contours, ox, oy),
+            glue_letters=res.glue_letters,
         ))
 
     total_w = x_offsets[-1] + col_widths[min(cols, n) - 1] if n else 0.0
@@ -426,4 +443,5 @@ def build_keychain(
         top_base_contours=all_top_base,
         top_text_contours=all_top_text,
         pieces=placed_pieces,
+        glue_letters=params.glue_letters,
     )

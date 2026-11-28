@@ -88,7 +88,8 @@ class UserDialogs:
 
     def ask_text(self, title, label, text=""):
         """Texte saisi (non nettoyé), ou None si annulé ; `text` : texte proposé au départ."""
-        answer, ok = QInputDialog.getText(self.parent, title, label, text=text)
+        args = (self.parent, title, label)
+        answer, ok = QInputDialog.getText(*args, text=text) if text else QInputDialog.getText(*args)
         return answer if ok else None
 
     def ask_number(self, title, label, value, minimum, maximum, decimals=1):

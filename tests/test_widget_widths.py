@@ -58,9 +58,13 @@ class WidgetWidthTests(unittest.TestCase):
                 problems.append(f"{name}: {combo} ({key}, {longest} caractères)")
         self.assertEqual(problems, [], "Liste déroulante à texte long sans politique de taille :\n" + "\n".join(problems))
 
-    def test_the_material_selector_is_covered(self):
-        names = {(f, c) for f, c, _, _ in long_combos()}
-        self.assertIn((os.path.join("ui", "tabs", "image", "material_combo.py"), "self"), names)
+    def test_the_material_selector_is_guarded_whatever_its_labels(self):
+        """Les libellés fournis sont courts, mais le nom d'une matière de l'utilisateur est libre (donc
+        possiblement long) : la liste garde sa politique de taille sans dépendre de libellés traduits longs."""
+        with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:
+            combo = f.read()
+        self.assertRegex(combo, r"self\.setSizeAdjustPolicy\(")
+        self.assertRegex(combo, r"self\.setMinimumContentsLength\(")
 
     def test_material_selector_uses_a_short_minimum_width(self):
         with open(os.path.join(ROOT, "ui", "tabs", "image", "material_combo.py"), encoding="utf-8") as f:

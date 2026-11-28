@@ -4,7 +4,7 @@ from PyQt6.QtGui import QColor, QFont, QIcon, QPainter, QPainterPath, QPen, QPix
 from PyQt6.QtWidgets import (
     QApplication, QCheckBox, QComboBox, QDialog, QDialogButtonBox, QDoubleSpinBox, QFontComboBox, QFormLayout,
     QFrame, QHBoxLayout, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QPushButton, QScrollArea, QSpinBox,
-    QVBoxLayout, QWidget,
+    QTabWidget, QVBoxLayout, QWidget,
 )
 
 from laser_studio.i18n import tr
@@ -13,9 +13,11 @@ from laser_studio.models.layers import ENGRAVE_MODE, layer_label
 from laser_studio.vector import ornament_generator as og
 from laser_studio.vector import ornament_presets
 from laser_studio.vector import ornament_batch
+from laser_studio.vector import plate_3d
 from laser_studio.vector.ornament_batch import parse_names
 from laser_studio.vector.ornament_region import build_ornament_parts
 from laser_studio.ui.app.theme import theme_color
+from laser_studio.ui.widgets.plate_3d_view import Plate3DPanel
 
 # Couleurs de l'aperçu : la découpe en rouge (comme le laser la suit), la gravure en bleu.
 CUT_COLOR = QColor("#ff4b4b")
@@ -339,9 +341,18 @@ class OrnamentGeneratorDialog(QDialog):
         left_column.addWidget(self.buttons)
 
         right = QVBoxLayout()
-        right.addWidget(QLabel(tr("ornament.preview")))
+        # Deux vues de la même boule : le plan (ce que le laser suit) et la plaque en 3D, dans la matière choisie.
         self.preview = OrnamentPreview()
-        right.addWidget(self.preview, 1)
+        page_flat = QWidget()
+        lay_flat = QVBoxLayout(page_flat)
+        lay_flat.setContentsMargins(0, 0, 0, 0)
+        lay_flat.addWidget(QLabel(tr("ornament.preview")))
+        lay_flat.addWidget(self.preview, 1)
+        self.panel_3d = Plate3DPanel(saved)
+        self.tabs_preview = QTabWidget()
+        self.tabs_preview.addTab(page_flat, tr("box.tab_plan"))
+        self.tabs_preview.addTab(self.panel_3d, tr("box.tab_3d"))
+        right.addWidget(self.tabs_preview, 1)
         hint = QLabel(tr("ornament.hint"))
         hint.setWordWrap(True)
         hint.setStyleSheet("color: #8b93a7; font-size: 12px;")
@@ -355,6 +366,11 @@ class OrnamentGeneratorDialog(QDialog):
         self._timer.setSingleShot(True)
         self._timer.setInterval(150)
         self._timer.timeout.connect(self._update_preview)
+        # La boule 3D se construit seulement quand son onglet est ouvert : le plan, lui, suit chaque modification.
+        self._source_3d = ("message", "")
+        self._dirty_3d = True
+        self.tabs_preview.currentChanged.connect(self._show_3d_if_needed)
+        self.panel_3d.thickness_changed.connect(self._rebuild_3d)
         for widget, signal in (
             (self.edit_name, "textChanged"), (self.combo_font, "currentFontChanged"),
             (self.chk_bold, "toggled"), (self.chk_italic, "toggled"), (self.spin_d, "valueChanged"),
@@ -503,6 +519,7 @@ class OrnamentGeneratorDialog(QDialog):
             "name_size": p.name_size, "support": p.support, "motif_drop": p.motif_drop, "stem_width": p.stem_width,
             "name_mode": p.name_mode, "band_height": p.band_height, "band_frame": p.band_frame,
             "crown": p.crown, "fill": p.fill, "fill_zone": p.fill_zone, "fill_pitch": p.fill_pitch,
+            **self.panel_3d.settings(),
         }
 
     def _update_preview(self):
@@ -532,10 +549,12 @@ class OrnamentGeneratorDialog(QDialog):
             geometry, contours = parts.geometry, parts.cut
         except og.OrnamentError as e:
             self.preview.set_contours([], error_text(e))
+            self._set_source_3d(("message", error_text(e)))
             self.lbl_warning.clear()
             ok.setEnabled(False)
             return
         self.preview.set_contours(contours, name=parts.name, frame=parts.frame)
+        self._set_source_3d(("parts", parts))
         warning = tr("ornament.warn.floating") if geometry.floating_name else ""
         if len(self.names()) > 1:
             batch = tr("ornament.batch_preview").format(n=len(self.names()), name=self.names()[0])
@@ -552,6 +571,28 @@ class OrnamentGeneratorDialog(QDialog):
             warning = (warning + "\n" + batch) if warning else batch
         self.lbl_warning.setText(warning)
         ok.setEnabled(bool(contours))
+
+    # -- aperçu 3D ------------------------------------------------------------------------------------------
+    def _set_source_3d(self, source):
+        """Ce que la vue 3D montrera : ("parts", OrnamentParts) ou ("message", texte)."""
+        self._source_3d = source
+        self._dirty_3d = True
+        self._show_3d_if_needed()
+
+    def _show_3d_if_needed(self, *_args):
+        if self._dirty_3d and self.tabs_preview.currentWidget() is self.panel_3d:
+            self._rebuild_3d()
+
+    def _rebuild_3d(self):
+        """Construit la plaque 3D de la source courante (appelé onglet 3D ouvert, ou épaisseur changée)."""
+        self._dirty_3d = False
+        kind, value = self._source_3d
+        if kind == "parts" and value.cut:
+            names = self.names()
+            note = tr("plate3d.batch_first").format(name=names[0]) if len(names) > 1 else ""
+            self.panel_3d.set_faces(plate_3d.ornament_faces(value, self.panel_3d.thickness()), note)
+        else:
+            self.panel_3d.set_message(value if kind == "message" and value else tr("plate3d.empty"))
 
 
 def error_text(error):

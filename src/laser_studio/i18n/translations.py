@@ -1,7 +1,7 @@
 """Textes de l'interface, dans chaque langue (dictionnaire TRANSLATIONS).
 
 Les textes sont rangés par zone dans i18n/texts/ (un dictionnaire TEXTS par
-module : app, vector, box, ornament, generators, camera, image, machine,
+module : app, vector, box, ornament, plate3d, generators, camera, image, machine,
 macros, materials). Pour ajouter un texte : une clé dans le module de sa zone, et sa
 traduction dans chaque langue de SUPPORTED_LANGUAGES (le français au minimum).
 Une clé définie dans deux modules arrête le chargement (ImportError).
@@ -20,12 +20,13 @@ from laser_studio.i18n.texts import machine
 from laser_studio.i18n.texts import macros
 from laser_studio.i18n.texts import materials
 from laser_studio.i18n.texts import ornament
+from laser_studio.i18n.texts import plate3d
 from laser_studio.i18n.texts import vector
 
 SUPPORTED_LANGUAGES = {"fr": "Français", "en": "English", "de": "Deutsch", "es": "Español"}
 DEFAULT_LANGUAGE = "fr"
 
-TEXT_MODULES = (app, box, camera, generators, image, machine, macros, materials, ornament, vector)
+TEXT_MODULES = (app, box, camera, generators, image, machine, macros, materials, ornament, plate3d, vector)
 
 
 def _merge(modules):

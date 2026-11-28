@@ -178,6 +178,7 @@ laser-studio-pro/
 │   │   │   ├── group_transform.py                     # sélection comme un groupe : encombrement, échelle, quart de tour, calque
 │   │   │   ├── placement.py                           # placement d'un dessin importé : marge de surbalayage, ajouter / remplacer / à droite / au-dessus
 │   │   │   ├── box_generator.py / box_3d.py / box_presets.py
+│   │   │   ├── plate_3d.py           # aperçu 3D des pièces plates (porte-clés, boules), sans Qt
 │   │   │   ├── puzzle_generator.py
 │   │   │   ├── ornament_generator.py / ornament_motifs.py / ornament_region.py
 │   │   │   ├── keychain_generator.py
@@ -207,7 +208,7 @@ laser-studio-pro/
 │   │       │   ├── image_actions.py  # ImageToolbarActions : pivoter / supprimer / miroirs de l'onglet affiché
 │   │       │   ├── qt_messages.py    # filtre des avertissements Qt
 │   │       │   └── theme.py          # 4 thèmes UI (Sombre, Sombre bleu pétrole, Clair, Cortex) ; packs d'icônes Breeze et Cortex
-│   │       ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, FloatingToolBar, FullscreenWindow, SliderWithButtons, StartHint
+│   │       ├── widgets/              # ZoomableGraphicsView, HistoryLineEdit, AutoHideLabel, FloatingToolBar, FullscreenWindow, SliderWithButtons, StartHint, Plate3DView / Plate3DPanel (aperçu 3D porte-clés et boules)
 │   │       ├── machine/              # panneau machine (panel.py : MachinePanel)
 │   │       │   ├── connection/       # ConnectionPanel (port, connecter, état GRBL, console directe) ; help_dialog : aide « Port introuvable ? »
 │   │       │   ├── status/           # MachineStateView (état GRBL), AxisPositionRow (X / Y / Z)
@@ -610,7 +611,7 @@ Principes : mêmes conventions que la boîte (mm, Y vers le haut, calque de déc
 | **vector/ornament_generator.py** | Géométrie pure, sans Qt : disque, anneau d'accroche (anneau ou bouchon), flocons (3 styles, un seul contour simple chacun), suspentes, guirlande, motifs droits, barre de soutien, échelle et position du prénom, réglage `motif_drop` (écart du motif à l'anneau, avec une tige qui garde le contact) (`OrnamentGeometry`, `OrnamentError`) |
 | **vector/ornament_motifs.py** | Motifs, géométrie pure : étoiles, sapins, Père Noël, bonhomme de neige, cadeau, lune, houx, bougie, cloche, boule… (`MotifShape` : `solids` soudés, `cuts` découpés, `late` ajoutés après les découpes) |
 | **vector/ornament_region.py** | Soudure avec les opérations booléennes de `QPainterPath` : texte (`QFont` → contour), union des formes, soustraction du vide intérieur et du trou, rognage au disque. Renvoie les contours à découper, le premier est l'extérieur |
-| **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification) |
+| **ui/dialogs/ornament/** | `OrnamentGeneratorDialog` : prénom, police, accroche, motif, disposition, aperçu des contours réellement découpés (recalculé 150 ms après la dernière modification). Onglets « Plan » / « 3D » : la plaque en 3D (`Plate3DPanel`, § 8.3), construite seulement quand l'onglet 3D est ouvert ; matière et épaisseur mémorisées dans les réglages (`material`, `thickness_mm`) |
 | **vector/importers.ornament_to_objects** | Contours → 2 `SvgPathObject` : l'extérieur, et un objet qui regroupe tous les contours intérieurs |
 | **GeneratorsController.open_ornament_generator** | Fenêtre des générateurs ouverte sur la boule (`open_generators`), puis `_make_ornament` : placement sur le canevas |
 | **i18n/texts/** | Clés `menu.tools.ornament`, `ui.vector_ornament_generator*`, `ornament.*`, `ornament.err.*` |
@@ -634,10 +635,23 @@ Fichier : **src/laser_studio/controllers/stencil_import.py** (`route_objects`, `
 
 | Fichier | Rôle |
 |---------|------|
-| **vector/keychain_generator.py** | Géométrie pure, sans Qt (`build_keychain`, `KeychainParams`, `KeychainResult`, `KeychainError`) : prénom, base dilatée soudée à l'anneau. Deux ensembles de polygones fermés : `base_contours` (base + trou d'anneau → calque Découpe) et `text_contours` (texte centré sur la base → calque Gravure). Repère LSP (mm, Y vers le haut, coin bas-gauche en (0, 0)) |
-| **ui/dialogs/keychain/** | `KeychainGeneratorDialog` + `KeychainPreview` : aperçu en direct découpe + gravure ; `error_text()` |
-| **vector/importers.keychain_to_objects** | Contours → objets sur le calque de découpe et celui de gravure |
+| **vector/keychain_generator.py** | Géométrie pure, sans Qt (`build_keychain`, `KeychainParams`, `KeychainResult`, `KeychainError`) : prénom, base dilatée soudée à l'anneau. Deux ensembles de polygones fermés : `base_contours` (base + trou d'anneau → calque Découpe) et `text_contours` (texte centré sur la base → calque Gravure). Repère LSP (mm, Y vers le haut, coin bas-gauche en (0, 0)). **Trois modes**, exclusifs (`KeychainParams.two_layers` / `glue_letters`, menu « Mode » du dialogue) : classique (prénom gravé) ; 2 couches (à droite, `top_base_contours` + `top_text_contours` : la plaque dont le prénom est découpé) ; **lettres à coller** (`glue_letters` : la plaque avec le prénom gravé comme repère de placement, et à droite `top_text_contours`, les lettres seules découpées, décalées de la largeur + 5 mm ; `top_base_contours` vide) |
+| **ui/dialogs/keychain/** | `KeychainGeneratorDialog` + `KeychainPreview` : aperçu en direct découpe + gravure ; `error_text()`. Onglets « Plan » / « 3D » (`Plate3DPanel`, § 8.3) ; en lot, la vue 3D montre le premier prénom ; matière et épaisseur mémorisées dans les réglages (`material`, `thickness_mm`) |
+| **vector/importers.keychain_to_objects** | Contours → objets sur le calque de découpe et celui de gravure ; en mode lettres à coller : la plaque (`keychain:plate`) et les lettres (`keychain:letters`) en Découpe, le prénom (`keychain:text`) en Gravure |
 | **GeneratorsController.open_keychain_generator** | Fenêtre des générateurs ouverte sur le porte-clés (réglages mémorisés dans `keychain_settings`), puis `_make_keychain` : placement sur le canevas ; lancé par le menu Outils (`keychain_generator_requested`) ou l'icône « Générateurs » de l'éditeur |
+
+## 8.3 Aperçu 3D des pièces plates (porte-clés, boules de Noël)
+
+Même principe que l'aperçu 3D de la boîte (rendu QPainter sans OpenGL, glisser = tourner, molette = zoom, double-clic = vue de départ, choix de la matière, export PNG), pour des pièces découpées dans une plaque.
+
+| Fichier | Rôle |
+|---------|------|
+| **vector/plate_3d.py** | Sans Qt. `regions_of` allège les contours (Ramer-Douglas-Peucker, 0,03 mm) puis les imbrique (`nest_contours` : profondeur paire = matière, impaire = trou, comme le remplissage pair-impair du laser, donc l'intérieur d'un « o » découpé redevient de la matière). `extrude` fait les faces (`PlateFace` = `box_3d.Face` + `tier` + `kind`) ; `engraving` pose la gravure en surcouche sur le dessus ; `keychain_faces` (classique : plaque + prénom gravé ; 2 couches : fond plein + plaque du dessus dont le prénom est découpé de part en part, empilés ; lettres à coller : plaque + lettres pleines posées dessus, la gravure de placement étant cachée dessous) et `ornament_faces` (plaque + prénom et filet gravés) ; `visible_faces` donne l'ordre de dessin ; `grain_lines` le veinage ; `ENGRAVE_COLORS` la couleur de la gravure par matière |
+| **ui/widgets/plate_3d_view.py** | `Plate3DView` (le rendu, matières de `box_3d.MATERIALS`) et `Plate3DPanel` (vue + liste de matières + épaisseur + export PNG ; signal `thickness_changed`, `settings()` → `material`, `thickness_mm`) |
+| **i18n/texts/plate3d.py** | Clés `plate3d.*` ; la matière, l'export et l'aide souris réutilisent les clés `box.*` |
+| Tests | `tests/test_plate_3d.py` (volume exact par le théorème de la divergence, trous et îles, ordre de dessin, matières) ; `tests/test_keychain_modes.py` (les trois modes du générateur et de l'import, avec Qt) |
+
+Ordre de dessin : l'algorithme du peintre pur (tri des faces par profondeur) mélange une plaque basse et large : un dessus recouvre à tort les lettres collées dessus, ou à l'inverse les parois d'un trou passent devant. `visible_faces` dessine donc couche par couche (la plus basse d'abord, vue de dessus ; l'inverse vue de dessous), dans une couche les parois de l'arrière vers l'avant, puis le dessus, et la gravure en dernier. L'épaisseur (3 mm par défaut) ne sert qu'à l'aperçu : elle ne change ni les contours ni le G-Code.
 
 ## 9. Commandes utiles
 
