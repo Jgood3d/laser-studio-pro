@@ -26,8 +26,14 @@ PREVIEW_MATERIALS = {
     "bamboo": {"material_rgb": (210, 180, 130), "burn_rgb": (70, 45, 25), "lightens": False},
     "slate": {"material_rgb": (40, 40, 45), "burn_rgb": (230, 220, 200), "lightens": True},
     "acrylic_black": {"material_rgb": (25, 25, 28), "burn_rgb": (245, 245, 245), "lightens": True},
+    # Carrelage blanc peint en noir : le laser enlève la peinture et laisse voir l'émail blanc.
+    "tile_black_paint": {"material_rgb": (22, 22, 24), "burn_rgb": (238, 238, 232), "lightens": True},
+    # Carrelage blanc + blanc de titane : le laser noircit le pigment (TiO2 réduit), trait sombre sur fond blanc.
+    "tile_titanium_white": {"material_rgb": (240, 240, 237), "burn_rgb": (45, 45, 50), "lightens": False},
 }
-PREVIEW_MATERIAL_ORDER = ("light", "wood", "bamboo", "slate", "acrylic_black")
+PREVIEW_MATERIAL_ORDER = (
+    "light", "wood", "bamboo", "slate", "acrylic_black", "tile_black_paint", "tile_titanium_white",
+)
 DEFAULT_PREVIEW_MATERIAL = "light"
 
 # Nature d'un groupe de traits gravés, d'après les commentaires du G-Code généré.

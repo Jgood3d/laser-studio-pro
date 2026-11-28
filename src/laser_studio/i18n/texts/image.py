@@ -348,6 +348,18 @@ TEXTS = {
         "de": "Schwarzes Acryl",
         "es": "Acrílico negro",
     },
+    "preview.material.tile_black_paint": {
+        "fr": "Carrelage blanc peint en noir",
+        "en": "White tile painted black",
+        "de": "Weiße Fliese, schwarz lackiert",
+        "es": "Azulejo blanco pintado de negro",
+    },
+    "preview.material.tile_titanium_white": {
+        "fr": "Carrelage blanc + blanc de titane",
+        "en": "White tile + titanium white",
+        "de": "Weiße Fliese + Titanweiß",
+        "es": "Azulejo blanco + blanco de titanio",
+    },
     "preview.flip": {
         "fr": "Inverser l'aperçu", "en": "Flip Preview",
         "de": "Vorschau spiegeln", "es": "Invertir vista previa",
