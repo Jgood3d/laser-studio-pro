@@ -45,6 +45,8 @@ from laser_studio.models.job_history import JobHistory
 from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.dialogs.macros import MacroEditorDialog
 from laser_studio.ui.settings.appearance import AppearancePage
+from laser_studio.ui.settings.power_page import PowerPage
+from laser_studio.controllers.power_inhibit import PowerInhibitController
 from laser_studio.ui.settings.toolbar_page import ToolbarPage
 from laser_studio.ui.settings.macros_page import MacrosPage
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
@@ -250,6 +252,9 @@ class FullLaserStudio(QMainWindow):
         self.macros = build_macros(self.machine_panel.job_actions_panel, self.engraver,
                                    self.machines, self.dialogs, parent=self,
                                    manage=lambda: self.window_controller.show_settings_window("macros"))
+        # Empêcher la mise en veille pendant une gravure (ou tant que connecté), selon les préférences.
+        self.power_inhibit = PowerInhibitController(
+            self.engraver, self.connection, log=self.log_message, parent=self)
         # Actions qui touchent plusieurs parties de la fenêtre (thème, langue, réglages, caméra, matrice,
         # Stencil Studio) : créé une fois toutes ces parties construites, il les reçoit explicitement.
         self.window_controller = WindowController(
@@ -264,6 +269,7 @@ class FullLaserStudio(QMainWindow):
                             "grbl": (self.tab_grbl_config, "tab.grbl_config"),
                             "appearance": (AppearancePage(self.app_actions.language_actions,
                                                           self.app_actions.theme_actions), "settings.appearance"),
+                            "power": (PowerPage(self.power_inhibit), "settings.power"),
                             "toolbar": (ToolbarPage(self.app_actions,
                                                     on_apply=self.main_toolbar.rebuild),
                                         "settings.toolbar"),
@@ -544,6 +550,7 @@ class FullLaserStudio(QMainWindow):
                 event.ignore()
                 return
             self._flush_background_writes()
+            self.power_inhibit.shutdown()
             self.connection.shutdown()
             event.accept()
         elif reply == QMessageBox.StandardButton.No:
@@ -551,6 +558,7 @@ class FullLaserStudio(QMainWindow):
             # doit pas être proposée en récupération au prochain démarrage.
             self.project.discard_autosave()
             self._flush_background_writes()
+            self.power_inhibit.shutdown()
             self.connection.shutdown()
             event.accept()
         else:

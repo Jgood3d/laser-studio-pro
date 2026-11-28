@@ -24,7 +24,7 @@ from stencil_studio.controllers.studio import StencilStudioController
 # Délai (ms) avant de préchauffer Stencil Studio, une fois la fenêtre affichée.
 STENCIL_PRELOAD_DELAY_MS = 3000
 # Pages réunies dans la fenêtre « Paramètres » (liste des catégories à gauche), dans cet ordre.
-SETTINGS_CATEGORIES = ("machine_params", "grbl", "macros", "appearance", "toolbar")
+SETTINGS_CATEGORIES = ("machine_params", "grbl", "macros", "appearance", "power", "toolbar")
 
 
 class WindowController(QObject):
