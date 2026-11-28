@@ -45,6 +45,7 @@ from laser_studio.models.job_history import JobHistory
 from laser_studio.ui.machine.job_position import JobPositionBox
 from laser_studio.ui.dialogs.macros import MacroEditorDialog
 from laser_studio.ui.settings.appearance import AppearancePage
+from laser_studio.ui.settings.toolbar_page import ToolbarPage
 from laser_studio.ui.settings.macros_page import MacrosPage
 from laser_studio.ui.settings.grbl_config.builder import build_grbl_config_page
 from laser_studio.ui.settings.machine_params.builder import build_machine_params_page
@@ -263,6 +264,9 @@ class FullLaserStudio(QMainWindow):
                             "grbl": (self.tab_grbl_config, "tab.grbl_config"),
                             "appearance": (AppearancePage(self.app_actions.language_actions,
                                                           self.app_actions.theme_actions), "settings.appearance"),
+                            "toolbar": (ToolbarPage(self.app_actions,
+                                                    on_apply=self.main_toolbar.rebuild),
+                                        "settings.toolbar"),
                             "macros": (MacrosPage(lambda: MacroEditorDialog(*self.macros.editor_args()),
                                                   self.macros.save), "macros.title"),
                             "test_matrix": (self.tab_matrix, "tab.test_matrix")},
@@ -285,6 +289,9 @@ class FullLaserStudio(QMainWindow):
         actions.quit_requested.connect(self.close)
         # Paramètres et outils
         actions.settings_window_requested.connect(controller.show_settings_window)
+        self.main_toolbar.customize_requested.connect(
+            lambda: controller.show_settings_window("toolbar")
+        )
         actions.language_selected.connect(controller.select_language)
         actions.theme_selected.connect(controller.change_theme)
         actions.stencil_studio_requested.connect(lambda: controller.stencil().open())

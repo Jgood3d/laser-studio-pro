@@ -22,6 +22,7 @@ TEXTS = {
     },
 
     # --- Menu Affichage ---
+    "menu.view": {"fr": "Affichage", "en": "View", "de": "Ansicht", "es": "Vista"},
     "menu.view.bottom_panel": {"fr": "Panneau du bas", "en": "Bottom panel", "de": "Unteres Feld",
                                "es": "Panel inferior"},
     "menu.view.job_queue": {
@@ -127,6 +128,74 @@ TEXTS = {
 
 
     "toolbar.main": {"fr": "Barre d'outils", "en": "Toolbar", "de": "Werkzeugleiste", "es": "Barra de herramientas"},
+    "toolbar.customize": {
+        "fr": "Personnaliser la barre d'outils…",
+        "en": "Customize toolbar…",
+        "de": "Werkzeugleiste anpassen…",
+        "es": "Personalizar la barra de herramientas…",
+    },
+    "toolbar.remove_action": {
+        "fr": "Retirer de la barre d'outils",
+        "en": "Remove from toolbar",
+        "de": "Aus der Werkzeugleiste entfernen",
+        "es": "Quitar de la barra de herramientas",
+    },
+    "toolbar.available": {
+        "fr": "Commandes disponibles",
+        "en": "Available commands",
+        "de": "Verfügbare Befehle",
+        "es": "Comandos disponibles",
+    },
+    "toolbar.current": {
+        "fr": "Barre d'outils",
+        "en": "Toolbar",
+        "de": "Werkzeugleiste",
+        "es": "Barra de herramientas",
+    },
+    "toolbar.search": {
+        "fr": "Rechercher une commande…",
+        "en": "Search commands…",
+        "de": "Befehl suchen…",
+        "es": "Buscar comandos…",
+    },
+    "toolbar.add": {"fr": "Ajouter →", "en": "Add →", "de": "Hinzufügen →", "es": "Añadir →"},
+    "toolbar.remove": {"fr": "← Retirer", "en": "← Remove", "de": "← Entfernen", "es": "← Quitar"},
+    "toolbar.move_up": {"fr": "Monter", "en": "Move up", "de": "Nach oben", "es": "Subir"},
+    "toolbar.move_down": {"fr": "Descendre", "en": "Move down", "de": "Nach unten", "es": "Bajar"},
+    "toolbar.add_separator": {
+        "fr": "Ajouter un séparateur",
+        "en": "Add separator",
+        "de": "Trennlinie hinzufügen",
+        "es": "Añadir separador",
+    },
+    "toolbar.reset": {
+        "fr": "Rétablir par défaut",
+        "en": "Reset to default",
+        "de": "Standard wiederherstellen",
+        "es": "Restablecer predeterminado",
+    },
+    "toolbar.separator": {
+        "fr": "Séparateur",
+        "en": "Separator",
+        "de": "Trennlinie",
+        "es": "Separador",
+    },
+    "toolbar.hint": {
+        "fr": "Glisser-déposer ou utiliser les boutons. Le bouton « Générer le G-Code », "
+              "l'arrêt d'urgence et le bouton de soutien restent toujours présents.",
+        "en": "Drag and drop or use the buttons. The “Generate G-Code” button, "
+              "the emergency stop and the support button always stay on the toolbar.",
+        "de": "Per Drag & Drop oder mit den Schaltflächen. Die Schaltflächen „G-Code erzeugen“, "
+              "Not-Halt und Unterstützung bleiben immer sichtbar.",
+        "es": "Arrastra o usa los botones. El botón «Generar G-Code», "
+              "la parada de emergencia y el botón de apoyo permanecen siempre.",
+    },
+    "settings.toolbar": {
+        "fr": "Barre d'outils",
+        "en": "Toolbar",
+        "de": "Werkzeugleiste",
+        "es": "Barra de herramientas",
+    },
 
     # --- Menu Langue ---
     "settings.appearance": {"fr": "Langue et thème", "en": "Language and theme", "de": "Sprache und Design",
